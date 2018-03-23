@@ -38,17 +38,17 @@ vector that represents the node coordinates.
 
 **Important fields are**
 `X`   : A vector of coordinates
-`tag` : A string tag
+`tag` : An int or string tag
 `dofs`: An array of `Dof` objects
 """
 mutable struct Node
     X       ::Array{Float64,1}
-    tag     ::AbstractString
+    tag     ::TagType
     id      ::Int
     dofs    ::Array{Dof,1}
     dofdict ::Dict{Symbol,Dof}
  
-    function Node(X::Array{Float64,1}; tag::String="", id::Int=-1)
+    function Node(X::Array{Float64,1}; tag::TagType=0, id::Int=-1)
         this = new(X, tag, id)
         this.dofs = []
         this.dofdict = Dict()

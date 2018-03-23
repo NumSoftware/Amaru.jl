@@ -39,6 +39,18 @@ function elem_stiffness(elem::Mechanical)
 end
 
 """
+`elem_mass(elem)`
+
+Returns the mass matrix for `elem`.
+This function must be defined by each concrete type.
+"""
+function elem_mass(elem::Mechanical)
+   ndofs = length(elem.nodes)*elem.ndim
+   M = zeros(ndofs, ndofs)
+   return M  
+end
+
+"""
 `elem_update!(elem, U, F)`
 
 Updates the state of an element given the current global vectors for essential and

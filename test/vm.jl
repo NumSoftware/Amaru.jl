@@ -6,9 +6,10 @@ bls = [
        Block3D( [0 0 0; 1 1 0.5], nx=2, ny=2, nz=2),
       ]
 msh= Mesh(bls, verbose=true)
+iptag!(msh.cells[end], "ip")
 
 # fem domain
-mat = MaterialBind(:all, VonMises(E=2.0e8, nu=0.28, σy=5.0e5), iptag="ip" )
+mat = MaterialBind(:all, VonMises(E=2.0e8, nu=0.28, σy=5.0e5) )
 
 mon = Logger(:ip, "ip")
 
@@ -22,12 +23,12 @@ bcs = [
 ]
 
 dom = Domain(msh, mat, mon)
-@test solve!(dom, bcs, autoinc=true, nincs=40, tol=1e-2)
+@test solve!(dom, bcs, auto_inc=true, nincs=40, tol=1e-2)
 
 # boundary conditions
 #top    = BC(:node, :(z==0.5) , uz=+0.008)
 #bcs[2] = top
-#@test solve!(dom, bcs, autoinc=true, nincs=10, tol=1e-2)
+#@test solve!(dom, bcs, auto_inc=true, nincs=10, tol=1e-2)
 
 
 tab = mon.table

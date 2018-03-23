@@ -9,19 +9,20 @@ mutable struct Logger<:AbstractLogger
     filename :: String
     table    :: DTable
 
-    function Logger(applyto::Symbol, target::Union{Int, Array{Int,1}, Expr, String}, filename="")
+    function Logger(applyto::Symbol, target::Union{Expr, TagType}, filename="")
         @assert(applyto in (:node, :ip, :faces, :edges) )
         this = new()
         this.applyto  = applyto
         this.table    = DTable()
+        #this.objects  = []
         this.filename = filename
 
         ty = typeof(target)
         if ty==Expr
             this.expr = target
-        elseif ty==Int || ty==Array{Int,1}
-            this.expr = :(id in $target)
-        elseif ty==String
+        #elseif ty==Int || ty==Array{Int,1}
+            #this.expr = :(id in $target)
+        elseif ty<:Int || ty<:String
             this.expr = :(isequal(tag, $target))
         end
         return this
@@ -36,11 +37,12 @@ mutable struct GroupLogger<:AbstractLogger
     by       :: Function # used for sorting
     book     :: DBook
 
-    function GroupLogger(applyto::Symbol, target::Union{Int, Array{Int,1}, Expr, String}, filename=""; by::Function=identity)
+    function GroupLogger(applyto::Symbol, target::Union{Expr, TagType}, filename=""; by::Function=identity)
         @assert(applyto in (:nodes, :ips, :node, :ip) )
         this = new()
         this.applyto  = applyto
         this.book     = DBook()
+        #this.objects  = []
         this.filename = filename
         this.by       = by
 

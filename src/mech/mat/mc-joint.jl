@@ -24,14 +24,14 @@ mutable struct MCJointIpState<:IpState
 end
 
 mutable struct MCJoint<:Material
-    E  ::Float64  # Young's modulus
-    ν  ::Float64  # Poisson ratio
+    E  ::Float64  # Young's modulus from bulk material
+    ν  ::Float64  # Poisson ratio from bulk material
     σmax0::Float64  # tensile strength
     μ  ::Float64  # friction angle
-    α  ::Float64  # elastic scale factor
+    α  ::Float64  # elastic displacement scale factor
     wc ::Float64  # critical openning
     ws ::Float64  # openning at inflection
-    model::String # model type ("bilinear" or "hordijk")
+    model::String # softening model ("bilinear" or "hordijk")
 
     function MCJoint(prms::Dict{Symbol,Float64})
         return  MCJoint(;prms...)
@@ -96,7 +96,7 @@ function σmax_derivs(mat::MCJoint, upa)
         if upa < mat.wc
             dz = ((81*upa^2*e^(-6.93*upa/mat.wc)/mat.wc^3) - (6.93*(1 + 27*upa^3/mat.wc^3)*e^(-6.93*upa/mat.wc)/mat.wc) - 0.02738402432/mat.wc)
         else
-            dz = 0
+            dz = 0.0
         end
         dσmax = dz*mat.σmax0
     end

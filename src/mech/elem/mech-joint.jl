@@ -5,7 +5,7 @@ mutable struct MechJoint<:Mechanical
     shape ::ShapeType
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
-    tag   ::String
+    tag   ::Union{Int,AbstractString}
     mat   ::Material
     active::Bool
     linked_elems::Array{Element,1}
@@ -72,21 +72,22 @@ function matrixT(J::Matrix{Float64})
         L2 = vec(J[1,:])
         L3 = vec(J[2,:])
         L1 = cross(L2, L3)  # L1 is normal to the first element face
-        L1 /= norm(L1)
-        L2 /= norm(L2)
-        L3 /= norm(L3)
+        normalize!(L1)
+        normalize!(L2)
+        normalize!(L3)
         return [L1 L2 L3]'
     else
         L2 = vec(J)
         L1 = [ L2[2], -L2[1] ] # It follows the anti-clockwise numbering of 2D elements: L1 should be normal to the first element face
-        L1 /= norm(L1)
-        L2 /= norm(L2)
+        normalize!(L1)
+        normalize!(L2)
         return [L1 L2]'
     end
 end
 
 function elem_stiffness(elem::MechJoint)
     ndim   = elem.shared_data.ndim
+    th     = elem.shared_data.thickness
     nnodes = length(elem.nodes)
     hnodes = div(nnodes, 2) # half the number of total nodes
     fshape = elem.shape.facet_shape
@@ -120,7 +121,7 @@ function elem_stiffness(elem::MechJoint)
         @gemm B = T*NN
 
         # compute K
-        coef = detJ*ip.w
+        coef = detJ*ip.w*th
         D    = mountD(elem.mat, ip.data)
         @gemm DB = D*B
         @gemm K += coef*B'*DB
@@ -133,6 +134,7 @@ end
 
 function elem_update!(elem::MechJoint, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
     ndim   = elem.shared_data.ndim
+    th     = elem.shared_data.thickness
     nnodes = length(elem.nodes)
     hnodes = div(nnodes, 2) # half the number of total nodes
     fshape = elem.shape.facet_shape
@@ -170,7 +172,7 @@ function elem_update!(elem::MechJoint, U::Array{Float64,1}, F::Array{Float64,1},
         # internal force
         @gemv Δω = B*dU
         Δσ   = stress_update(elem.mat, ip.data, Δω)
-        coef = detJ*ip.w
+        coef = detJ*ip.w*th
         @gemv dF += coef*B'*Δσ
     end
 

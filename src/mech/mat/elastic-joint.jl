@@ -17,9 +17,9 @@ mutable struct JointIpState<:IpState
 end
 
 mutable struct ElasticJoint<:Material
-    E::Float64
-    ν::Float64
-    α::Float64
+    E::Float64 # Young modulus from bulk material
+    ν::Float64 # Poisson ration from bulk material
+    α::Float64 # elastic displacement scale factor
 
     function ElasticJoint(prms::Dict{Symbol,Float64})
         return  ElasticJoint(;prms...)

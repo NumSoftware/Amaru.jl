@@ -5,7 +5,7 @@ mutable struct MechSolid<:Mechanical
     shape ::ShapeType
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
-    tag   ::String
+    tag   ::Union{Int,AbstractString}
     mat   ::Material
     active::Bool
     linked_elems::Array{Element,1}
@@ -134,6 +134,7 @@ end
 
 function elem_stiffness(elem::MechSolid)
     ndim   = elem.shared_data.ndim
+    th     = elem.shared_data.thickness
     nnodes = length(elem.nodes)
     C = elem_coords(elem)
     K = zeros(nnodes*ndim, nnodes*ndim)
@@ -154,7 +155,7 @@ function elem_stiffness(elem::MechSolid)
         setB(elem.shared_data, dNdX, detJ, B)
 
         # compute K
-        coef = detJ*ip.w
+        coef = detJ*ip.w*th
         D    = calcD(elem.mat, ip.data) 
         @gemm DB = D*B
         @gemm K += coef*B'*DB
@@ -167,38 +168,43 @@ end
 
 function elem_mass(elem::MechSolid)
     ndim   = elem.shared_data.ndim
+    th     = elem.shared_data.thickness
     nnodes = length(elem.nodes)
+    ρ = elem.mat.ρ
     C = elem_coords(elem)
     M = zeros(nnodes*ndim, nnodes*ndim)
-    B = zeros(6, nnodes*ndim)
     N = zeros(ndim, nnodes*ndim)
-
-    J  = Array{Float64}(ndim, ndim)
+    J = Array{Float64}(ndim, ndim)
 
     for ip in elem.ips
         # compute N matrix
-        S    = elem.shape.func(ip.R)
+        Ni   = elem.shape.func(ip.R)
+        dNdR = elem.shape.deriv(ip.R)
+
         for i=1:nnodes
             for j=1:ndim
-                N[j,i*3-1+j] = S[i] #TODO: check
+                N[j, (i-1)*ndim+j] = Ni[i]
             end
         end
 
-        dNdR = elem.shape.deriv(ip.R)
         @gemm J = dNdR*C
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # compute K
-        coef = elem.mat.ρ*detJ*ip.w
+        coef = ρ*detJ*ip.w*th
         @gemm M += coef*N'*N
     end
-    return M
+
+    keys = (:ux, :uy, :uz)[1:ndim]
+    map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
+    return M, map, map
 end
 
 
 function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
     ndim   = elem.shared_data.ndim
+    th     = elem.shared_data.thickness
     nnodes = length(elem.nodes)
     keys   = (:ux, :uy, :uz)[1:ndim]
     map    = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
@@ -225,7 +231,7 @@ function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1},
 
         @gemv Δε = B*dU
         Δσ   = stress_update(elem.mat, ip.data, Δε)
-        coef = detJ*ip.w
+        coef = detJ*ip.w*th
         @gemv dF += coef*B'*Δσ
     end
 

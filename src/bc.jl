@@ -20,9 +20,10 @@ mutable struct BC
             expr = target
         elseif ty==Expr
             expr = target
-        elseif ty==Int || ty==Array{Int,1}
-            expr = :(id in $target)
-        elseif ty==String
+        #elseif ty==Int || ty==Array{Int,1}
+            #expr = :(id in $target)
+        #elseif ty==String
+        elseif ty<:TagType
             expr = :(isequal(tag,$target))
         end
 
@@ -114,9 +115,9 @@ function configure_dofs!(dom, bcs::Array{BC,1})
 end
 
 # Returns the values for essential and natural boundary conditions according to bcs
-function get_bc_vals(domain, bcs::Array{BC,1})
+function get_bc_vals(domain, bcs::Array{BC,1}, t=0.0)
     # This function will be called for each time increment
-    t = domain.shared_data.t
+    #t = domain.shared_data.t
 
     ndofs = domain.ndofs
     U = zeros(ndofs)
@@ -137,7 +138,7 @@ function get_bc_vals(domain, bcs::Array{BC,1})
                     end
                 end
             end
-        else
+        else # bc.type is :face or :edge
             for obj in bc.objects
                 
                 elem, facet = isa(obj,Element)? (obj,nothing) : (obj.oelem,obj)

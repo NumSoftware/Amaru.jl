@@ -13,7 +13,7 @@ abstract type Element
     #shared_data ::SharedAnalysisData
 end
 
-function new_element(etype::Type{<:Element}, shape::ShapeType, nodes::Array{Node,1}, shared_data::SharedAnalysisData, tag::String="")
+function new_element(etype::Type{<:Element}, shape::ShapeType, nodes::Array{Node,1}, shared_data::SharedAnalysisData, tag::TagType=0)
     elem = etype()
     elem.id     = 0
     elem.shape  = shape

@@ -82,7 +82,7 @@ function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}}
     ncells    = length(mesh.cells)
     dom.elems = Array{Element,1}(ncells)
     Nips      = zeros(Int, ncells)       # list with number of ips per element
-    Tips      = Array{String,1}(ncells)  # list with the ip tag per element
+    Tips      = Array{TagType,1}(ncells)  # list with the ip tag per element
     Tips     .= ""
     for mb in matbinds
         cells = mesh.cells[mb.expr]
@@ -102,8 +102,10 @@ function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}}
             elem.id = cell.id
             elem.mat = mb.mat
             dom.elems[cell.id] = elem
-            Nips[elem.id] = mb.nips
-            Tips[elem.id] = mb.iptag
+            #Nips[elem.id] = mb.nips
+            Nips[elem.id] = cell.nips
+            #Tips[elem.id] = mb.iptag
+            Tips[elem.id] = cell.iptag
         end
     end
 
@@ -129,7 +131,7 @@ function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}}
     dom.faces = Array{Face}(0)
     for (i,cell) in enumerate(mesh.faces)
         conn = [ p.id for p in cell.points ]
-        face = Face(cell.shape, dom.nodes[conn], ndim)
+        face = Face(cell.shape, dom.nodes[conn], ndim, cell.tag)
         face.oelem = dom.elems[cell.ocell.id]
         face.id = i
         push!(dom.faces, face)
@@ -139,7 +141,7 @@ function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}}
     dom.edges = Array{Edge}(0)
     for (i,cell) in enumerate(mesh.edges)
         conn = [ p.id for p in cell.points ]
-        edge = Edge(cell.shape, dom.nodes[conn], ndim)
+        edge = Edge(cell.shape, dom.nodes[conn], ndim, cell.tag)
         edge.oelem = dom.elems[cell.ocell.id]
         edge.id = i
         push!(dom.edges, edge)

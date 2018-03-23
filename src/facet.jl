@@ -8,7 +8,7 @@ mutable struct Face<:Facet
     ndim ::Integer
     oelem::Union{Element,Void}
     id::Int
-    tag::String
+    tag::TagType
 
     function Face(shape, nodes, ndim, tag="")
         this = new(shape, nodes, ndim)
@@ -25,7 +25,7 @@ mutable struct Edge<:Facet
     ndim ::Integer
     oelem::Union{Element,Void}
     id::Int
-    tag::String
+    tag::TagType
 
     function Edge(shape, nodes, ndim, tag="")
         this = new(shape, nodes, ndim)

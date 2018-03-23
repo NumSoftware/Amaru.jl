@@ -25,10 +25,11 @@ mutable struct ElasticSolid<:Material
         return  ElasticSolid(;prms...)
     end
 
-    function ElasticSolid(;E=1.0, nu=0.0, rho=NaN)
-        if E<=0.0      ; error("Invalid value for E: $E") end
-        if !(0<=nu<0.5); error("Invalid value for nu: $nu") end
-        this    = new(E, nu, rho)
+    function ElasticSolid(;E=1.0, nu=0.0, rho=0.0)
+        E<=0.0       && error("Invalid value for E: $E")
+        !(0<=nu<0.5) && error("Invalid value for nu: $nu")
+        rho<0.0      && error("Invalid value for rho: $rho")
+        this = new(E, nu, rho)
         return this
     end
 end

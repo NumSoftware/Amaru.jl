@@ -7,7 +7,7 @@ mutable struct MechBeam<:Mechanical
     shape ::ShapeType
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
-    tag   ::String
+    tag   ::Union{Int,AbstractString}
     mat   ::Material
     active::Bool
     linked_elems::Array{Element,1}

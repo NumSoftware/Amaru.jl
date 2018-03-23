@@ -5,7 +5,7 @@ using Base.Test
 bl  = Block3D( [0 0 0; 1.0 6.0 1.0], nx=1, ny=10, nz=3)
 bl1 = BlockInset( [0.2 0.2 0.2; 0.2 5.8 0.2], curvetype="polyline", embedded=true)
 bl2 = copy(bl1)
-move!(bl2, x=0.6)
+move!(bl2, dx=0.6)
 bls = [ bl, bl1, bl2 ]
 
 msh = Mesh(bls, verbose=true)
@@ -31,5 +31,5 @@ bcs = [
        BC(:face, :(z==1), :(tz=-1000)),
       ]
 
-@test solve!(dom, bcs, nincs=20, verbose=true, saveincs=false)
+@test solve!(dom, bcs, nincs=20, verbose=true)
 save(dom, "dom1.vtk")

@@ -24,7 +24,7 @@ mutable struct Ip
     w    ::Float64
     X    ::Array{Float64,1}
     id   ::Int
-    tag  ::String
+    tag  ::TagType
     owner::Any    # Element
     data ::IpState  # Ip current state
     data0::IpState  # Ip state for the last converged increment

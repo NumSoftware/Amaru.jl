@@ -56,9 +56,7 @@ end
 struct MaterialBind
     mat  :: Material
     expr :: Union{Symbol,Expr}
-    nips :: Int
-    iptag:: String
-    function MaterialBind(target::Union{Symbol, Int, Array{Int,1}, UnitRange{Int}, Expr, String}, mat::Material; nips::Int=0, iptag="")
+    function MaterialBind(target::Union{Symbol, Int, Array{Int,1}, UnitRange{Int}, Expr, String}, mat::Material)
         expr = :()
         ty = typeof(target)
         if ty==Symbol
@@ -67,12 +65,13 @@ struct MaterialBind
             expr = target
         elseif ty==Expr
             expr = target
-        elseif ty==Int || ty==Array{Int,1} || ty==UnitRange{Int}
-            expr = :(id in $target)
-        elseif ty==String
-            expr = :(tag==$target)
+        #elseif ty==Int || ty==Array{Int,1} || ty==UnitRange{Int}
+            #expr = :(id in $target)
+        elseif ty<:Union{Int,String}
+            #expr = :(tag==$target)
+            expr = :(isequal(tag, $target))
         end
 
-        return new(mat, expr, nips, iptag)
+        return new(mat, expr)
     end
 end

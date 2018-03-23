@@ -4,8 +4,8 @@ using Base.Test
 # Mesh generation
 bl  = Block3D( [0 0 0; 1.0 6.0 1.0], nx=3, ny=20, nz=3)
 bl1 = BlockInset( [0.2 0.2 0.2; 0.2 5.8 0.2], curvetype="polyline")
-bl2 = move!( copy(bl1), x=0.6)
-bl3 = move!( copy(bl1), x=0.3)
+bl2 = move!( copy(bl1), dx=0.6)
+bl3 = move!( copy(bl1), dx=0.3)
 bls = [bl, bl1, bl2, bl3 ]
 
 mesh = Mesh(bls, verbose=true)

@@ -17,16 +17,17 @@ cell_points = msh.cells[:solids][:points]
 
 tag!(bar_points[end], "tip")
 tag!(cell_points, "fixed_points")
+iptag!(msh.cells[:joints1D], "joint_ips")
 
 # Finite elements:
 
 phi = 30*pi/180; dm=0.15138; c=20.0
 mats = [
         MaterialBind(:solids,   ElasticSolid(E=24e3, nu=0.2)),
-        MaterialBind(:lines,    ElasticRod(E=1.e8, A=0.005)),
+        #MaterialBind(:lines,    ElasticRod(E=1.e8, A=0.005)),
         MaterialBind(:lines,    ElasticRod(E=200e6, A=0.00011)),
         MaterialBind(:joints1D, CEBJoint1D(TauM=12, TauR=3, s1=0.001, s2=0.0011, s3=0.004, alpha=0.5, beta=0.5,
-                                           ks=(12/0.001)*5, kn=50000, A=0.005), iptag="joint_ips")
+                                           ks=(12/0.001)*5, kn=50000, A=0.005))
        ]
 
 mon_tip     = Logger(:node, "tip")
@@ -39,19 +40,19 @@ dom = Domain(msh, mats, loggers)
 bc1 = BC(:node, "fixed_points", :(ux=0, uy=0, uz=0))
 bc2 = BC(:node, "tip", :(uy=+0.0003))
 
-@test solve!(dom, [bc1, bc2], nincs=10, autoinc=true, verbose=true)
+@test solve!(dom, [bc1, bc2], nincs=10, auto_inc=true, verbose=true)
 
 bc2 = BC(:node, "tip", :(uy=-0.0001))
-@test solve!(dom, [bc1, bc2], nincs=10, autoinc=true, verbose=true)
+@test solve!(dom, [bc1, bc2], nincs=10, auto_inc=true, verbose=true)
 
 bc2 = BC(:node, "tip", :(uy=+0.0006))
-@test solve!(dom, [bc1, bc2], nincs=10, autoinc=true, verbose=true)
+@test solve!(dom, [bc1, bc2], nincs=10, auto_inc=true, verbose=true)
 
 bc2 = BC(:node, "tip", :(uy=-0.0005))
-@test solve!(dom, [bc1, bc2], nincs=10, autoinc=true, verbose=true)
+@test solve!(dom, [bc1, bc2], nincs=10, auto_inc=true, verbose=true)
 
 bc2 = BC(:node, "tip", :(uy=+0.005))
-@test solve!(dom, [bc1, bc2], nincs=30, autoinc=true, verbose=true)
+@test solve!(dom, [bc1, bc2], nincs=30, auto_inc=true, verbose=true)
 
 using PyPlot
 tab = mon_jnt_ip.table
