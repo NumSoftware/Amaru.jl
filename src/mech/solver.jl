@@ -100,29 +100,38 @@ Available options are:
 
 `nincs=1` : Number of increments
 
-`autoinc=false` : Sets automatic increments size. The first increment size will be `1/nincs`
+`auto_inc=false` : Sets automatic increments size. The first increment size will be `1/nincs`
 
 `maxits=5` : The maximum number of Newton-Rapson iterations per increment
 
-`saveincs=false` : If true, saves output files according to `nout` option
+`save_incs=false` : If true, saves output files according to `nouts` option
 
-`nout=0` : Number of output files per analysis
+`nouts=0` : Number of output files per analysis
 
 `scheme= :FE` : Predictor-corrector scheme at iterations. Available schemes are `:FE` and `:ME`
 
 `saveips=false` : If true, saves corresponding output files with ip information
 
 """
-function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::Bool=false, 
-    tol::Number=1e-2, verbose::Bool=true, saveincs::Bool=false, nout::Int=0,
+function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, auto_inc::Bool=false, 
+    tol::Number=1e-2, verbose::Bool=true, nouts::Int=0,
     scheme::Symbol = :FE, save_ips::Bool=false)::Bool
-    
-    (saveincs && nout==0) && (nout=10)  # default value for nout
-    saveincs = nout>0
 
     if verbose
         print_with_color(:cyan,"FEM analysis:\n", bold=true) 
         tic()
+    end
+    
+    save_incs = nouts>0
+    if save_incs
+        if nouts>nincs
+            nincs = nouts
+            info("  nincs changed to $nincs to match nouts")
+        end
+        if nincs%nouts != 0
+            nincs = nincs - (nincs%nouts) + nouts
+            info("  nincs changed to $nincs to be a multiple of nouts")
+        end
     end
 
     # Get dofs organized according to boundary conditions
@@ -154,7 +163,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
     update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
 
     # Save initial file
-    if dom.nincs == 0 && saveincs 
+    if dom.nincs == 0 && save_incs 
         save(dom, "$(dom.filekey)-0.vtk", verbose=false, save_ips=save_ips)
         verbose && print_with_color(:green, "  $(dom.filekey)-0.vtk file written (Domain)\n")
     end
@@ -168,7 +177,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
     t  = 0.0
     dt = 1.0/nincs # initial dt value
 
-    dT = 1.0/nout  # output time increment for saving vtk file
+    dT = 1.0/nouts  # output time increment for saving vtk file
     T  = dT        # output time for saving the next vtk file
 
     ttol = 1e-9    # time tolerance
@@ -278,25 +287,24 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
 
             update_loggers!(dom) # Tracking nodes, ips, elements, etc.
 
-            # Check for saving output file
-            Tn = t + dt
-            if Tn+ttol>=T && saveincs
-                iout += 1
-                save(dom, "$(dom.filekey)-$iout.vtk", verbose=false, save_ips=save_ips)
-                T = Tn - mod(Tn, dT) + dT
-                verbose && print_with_color(:green, "  $(dom.filekey)-$iout.vtk file written (Domain)\n")
-            end
-
             # Update time t and dt
             inc += 1
             t   += dt
-            if autoinc
+
+            # Check for saving output file
+            if abs(t - T) < ttol
+                iout += 1
+                save(dom, "$(dom.filekey)-$iout.vtk", verbose=false, save_ips=save_ips)
+                T += dT # find the next output time
+                verbose && print_with_color(:green, "  $(dom.filekey)-$iout.vtk file written (Domain)\n")
+            end
+
+            if auto_inc
                 dt = min(1.5*dt, 1.0/nincs)
                 dt = round(dt, -ceil(Int, log10(dt))+3)  # round to 3 significant digits
-                dt = min(dt, 1.0-t) 
             end
         else
-            if autoinc
+            if auto_inc
                 verbose && println("    increment failed.")
                 dt *= 0.5
                 dt = round(dt, -ceil(Int, log10(dt))+3)  # round to 3 significant digits

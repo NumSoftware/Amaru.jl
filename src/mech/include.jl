@@ -1,7 +1,7 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 include("elem/mech.jl")
-export elem_config_dofs, elem_init, elem_stiffness, elem_RHS, elem_update!, elem_vals
+export elem_config_dofs, elem_init, elem_stiffness, elem_mass, elem_update!, elem_vals
 export set_state
 
 # Elements
@@ -37,4 +37,5 @@ include("mat/elastic-joint1d.jl")
 include("mat/ceb-joint1d.jl")
 
 include("solver.jl")
+include("dynsolver.jl")
 export solve!
