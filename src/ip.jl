@@ -39,7 +39,6 @@ mutable struct Ip
 end
 
 # The functions below can be used in conjuntion with sort
-import FemMesh.get_x, FemMesh.get_y, FemMesh.get_z
 get_x(ip::Ip) = ip.X[1]
 get_y(ip::Ip) = ip.X[2]
 get_z(ip::Ip) = ip.X[3]

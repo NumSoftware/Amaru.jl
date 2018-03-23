@@ -60,7 +60,6 @@ mutable struct Node
 end
 
 # The functions below can be used in conjuntion with sort
-import FemMesh.get_x, FemMesh.get_y, FemMesh.get_z
 get_x(node::Node) = node.X[1]
 get_y(node::Node) = node.X[2]
 get_z(node::Node) = node.X[3]

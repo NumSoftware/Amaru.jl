@@ -32,6 +32,7 @@ end
 @reexport using FemMesh
 import FemMesh.save # to be extended
 import FemMesh.update! # to be extended
+import FemMesh.get_x, FemMesh.get_y, FemMesh.get_z # to be extended
 
 # Tools module
 include("tools/linalg.jl")
