@@ -6,7 +6,7 @@ mutable struct HMSolid<:Hydromechanical
     shape ::ShapeType
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
-    tag   ::String
+    tag   ::TagType
     mat   ::Material
     active::Bool
     linked_elems::Array{Element,1}
