@@ -5,7 +5,7 @@ mutable struct MechSolid<:Mechanical
     shape ::ShapeType
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
-    tag   ::Union{Int,AbstractString}
+    tag   ::TagType
     mat   ::Material
     active::Bool
     linked_elems::Array{Element,1}
