@@ -24,19 +24,21 @@ mutable struct DruckerPrager<:Material
     α::Float64
     κ::Float64
     H::Float64
+    ρ::Float64
 
     function DruckerPrager(prms::Dict{Symbol,Float64})
         return DruckerPrager(;prms...)
     end
 
-    function DruckerPrager(;E=NaN, nu=0.0, alpha=0.0, kappa=0.0, H=0.0)
+    function DruckerPrager(;E=NaN, nu=0.0, alpha=0.0, kappa=0.0, H=0.0, rho=0.0)
         @assert E>0.0
         @assert 0.0<=nu<0.5
         @assert alpha>=0.0
         @assert kappa>0.0
         @assert H>=0.0
-
-        this    = new(E, nu, alpha, kappa, H)
+        @assert rho>=0.0
+        
+        this    = new(E, nu, alpha, kappa, H, rho)
         return this 
     end
 end
