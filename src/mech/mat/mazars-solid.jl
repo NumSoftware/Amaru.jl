@@ -49,7 +49,7 @@ mutable struct Mazars<:Material
         @assert Bc>0.0
         @assert rho>=0.0
 
-        this     = new(E, nu, eps0, At, Bt, Ac, Bc, rho=0.0)
+        this     = new(E, nu, eps0, At, Bt, Ac, Bc, rho)
         this.De  = calcDe(E, nu, :general)
         this.invDe  = inv(this.De)
         return this 
