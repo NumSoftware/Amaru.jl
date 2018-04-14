@@ -136,48 +136,17 @@ function stress_update(mat::DruckerPrager, ipd::DruckerPragerIpState, Δε::Arra
     return Δσ
 end
 
-function ip_state_vals(mat::DruckerPrager, ipd::DruckerPragerIpState)
-    ndim = ipd.shared_data.ndim
-    σ  = ipd.σ
-    ε  = ipd.ε
-    j1   = trace(σ)
-    sr2  = √2.
-    srj2d = √J2D(σ)
-    #pl_r  = srj2d/(mat.κ- mat.α*j1)
-    #pl_r  = srj2d/j1
 
-    if ndim==2;
-        return Dict(
-          :sxx => σ[1],
-          :syy => σ[2],
-          :szz => σ[3],
-          :sxy => σ[4]/sr2,
-          :exx => ε[1],
-          :eyy => ε[2],
-          :ezz => ε[3],
-          :exy => ε[4]/sr2,
-          :p   => sum(σ[1:3])/3.0 )
-    else
-        return Dict(
-          :sxx => σ[1],
-          :syy => σ[2],
-          :szz => σ[3],
-          :sxy => σ[4]/sr2,
-          :syz => σ[5]/sr2,
-          :sxz => σ[6]/sr2,
-          :exx => ε[1],
-          :eyy => ε[2],
-          :ezz => ε[3],
-          :exy => ε[4]/sr2,
-          :eyz => ε[5]/sr2,
-          :exz => ε[6]/sr2,
-          :ev  => trace(ε),
-          :epa => trace(ipd.εpa),
-          :dg  => ipd.Δγ,
-          :j1  => j1,
-          :srj2d => srj2d,
-          :p   => trace(σ)/3.0
-          #:pl_r=> pl_r
-          )
-    end
+function ip_state_vals(mat::DruckerPrager, ipd::DruckerPragerIpState)
+    ndim  = ipd.shared_data.ndim
+    σ, ε  = ipd.σ, ipd.ε
+    j1    = trace(σ)
+    srj2d = √J2D(σ)
+
+    D = stress_strain_dict(σ, ε, ndim)
+    D[:epa]   = ipd.εpa
+    D[:j1]    = j1
+    D[:srj2d] = srj2d
+
+    return D
 end
