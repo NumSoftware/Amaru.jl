@@ -32,6 +32,7 @@ mutable struct Mazars<:Material
     Bt::Float64
     Ac::Float64
     Bc::Float64
+    ρ::Float64
     De::Tensor4
     invDe::Tensor4
 
@@ -39,15 +40,16 @@ mutable struct Mazars<:Material
         return Mazars(;prms...)
     end
 
-    function Mazars(;E=NaN, nu=0.0, eps0=NaN, At=NaN, Bt=NaN, Ac=NaN, Bc=NaN)
+    function Mazars(;E=NaN, nu=0.0, eps0=NaN, At=NaN, Bt=NaN, Ac=NaN, Bc=NaN, rho=0.0)
         @assert E>0.0
         @assert 0.0<=nu<0.5
         @assert At>0.0
         @assert Ac>0.0
         @assert Bt>0.0
         @assert Bc>0.0
+        @assert rho>=0.0
 
-        this     = new(E, nu, eps0, At, Bt, Ac, Bc)
+        this     = new(E, nu, eps0, At, Bt, Ac, Bc, rho)
         this.De  = calcDe(E, nu, :general)
         this.invDe  = inv(this.De)
         return this 
