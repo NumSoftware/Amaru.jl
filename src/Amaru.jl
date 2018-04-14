@@ -35,6 +35,8 @@ import FemMesh.update! # to be extended
 import FemMesh.get_x, FemMesh.get_y, FemMesh.get_z # to be extended
 
 # Tools module
+include("tools/constants.jl")
+include("tools/math.jl")
 include("tools/linalg.jl")
 include("tools/expr.jl")
 include("tools/table.jl")

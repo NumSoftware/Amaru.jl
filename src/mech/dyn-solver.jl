@@ -3,6 +3,7 @@
 export dynsolve!
 
 # Assemble the global stiffness matrix
+#=
 function mount_K(dom::Domain, ndofs::Int)
 
     R, C, V = Int64[], Int64[], Float64[]
@@ -29,6 +30,7 @@ function mount_K(dom::Domain, ndofs::Int)
 
     return K
 end
+=#
 
 
 # Assemble the global mass matrix

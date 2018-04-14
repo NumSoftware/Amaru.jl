@@ -6,7 +6,6 @@ mutable struct MCJointIpState<:IpState
     shared_data::SharedAnalysisData
     σ  ::Array{Float64,1}
     w  ::Array{Float64,1}
-    wpa::Array{Float64,1}
     upa::Float64  # max plastic displacement
     Δλ ::Float64  # plastic multiplier
     h  ::Float64  # element size
@@ -15,7 +14,6 @@ mutable struct MCJointIpState<:IpState
         ndim = shared_data.ndim
         this.σ = zeros(ndim)
         this.w = zeros(ndim)
-        this.wpa = zeros(ndim)
         this.upa = 0.0
         this.Δλ  = 0.0
         this.h  = 0.0
@@ -73,7 +71,7 @@ function calc_σmax(mat::MCJoint, upa)
         if upa < mat.wc
             z = (1 + 27*(upa/mat.wc)^3)*e^(-6.93*upa/mat.wc) - 28*(upa/mat.wc)*e^(-6.93)
         else
-            z = 0
+            z = 0.0
         end
         σmax = z*mat.σmax0
     end
@@ -224,7 +222,7 @@ function mountD(mat::MCJoint, ipd::MCJointIpState)
     if ipd.Δλ == 0.0 # Elastic 
         return De
     elseif σmax == 0.0 # No more tensile strength 
-        return zeros(ndim, ndim)
+        return De*1e-10
     else # Elastic-plastic
         v = yield_derivs(mat, ipd, ipd.σ)
         r = potential_derivs(mat, ipd, ipd.σ, ipd.upa)

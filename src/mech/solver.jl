@@ -100,7 +100,7 @@ Available options are:
 
 `nincs=1` : Number of increments
 
-`auto_inc=false` : Sets automatic increments size. The first increment size will be `1/nincs`
+`autoinc=false` : Sets automatic increments size. The first increment size will be `1/nincs`
 
 `maxits=5` : The maximum number of Newton-Rapson iterations per increment
 
@@ -113,7 +113,7 @@ Available options are:
 `saveips=false` : If true, saves corresponding output files with ip information
 
 """
-function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, auto_inc::Bool=false, 
+function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::Bool=false, maxincs::Int=0,
     tol::Number=1e-2, verbose::Bool=true, nouts::Int=0,
     scheme::Symbol = :FE, save_ips::Bool=false)::Bool
 
@@ -176,6 +176,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, auto_inc::
     # Incremental analysis
     t  = 0.0
     dt = 1.0/nincs # initial dt value
+    dt_bk = 0.0
 
     dT = 1.0/nouts  # output time increment for saving vtk file
     T  = dT        # output time for saving the next vtk file
@@ -291,6 +292,11 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, auto_inc::
             inc += 1
             t   += dt
 
+            if maxincs != 0 && inc > maxincs
+                print_with_color(:red, "  solver maxincs = $maxincs reached (try maxincs=0)\n")
+                break
+            end
+
             # Check for saving output file
             if abs(t - T) < ttol
                 iout += 1
@@ -299,12 +305,24 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, auto_inc::
                 verbose && print_with_color(:green, "  $(dom.filekey)-$iout.vtk file written (Domain)\n")
             end
 
-            if auto_inc
-                dt = min(1.5*dt, 1.0/nincs)
-                dt = round(dt, -ceil(Int, log10(dt))+3)  # round to 3 significant digits
+            if autoinc
+                if dt_bk>0.0
+                    dt = dt_bk
+                else
+                    dt = min(1.5*dt, 1.0/nincs)
+                    #dt = 1.5*dt
+                    dt = round(dt, -ceil(Int, log10(dt))+3)  # round to 3 significant digits
+                end
+            end
+            dt_bk = 0.0
+
+            # Fix dt in case d+dt>T
+            if t+dt>T
+                dt_bk = dt
+                dt = T-t
             end
         else
-            if auto_inc
+            if autoinc
                 verbose && println("    increment failed.")
                 dt *= 0.5
                 dt = round(dt, -ceil(Int, log10(dt))+3)  # round to 3 significant digits

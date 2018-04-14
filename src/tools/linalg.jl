@@ -37,7 +37,7 @@ end
 macro showm(M)
     return quote
         println($(string(M)), "=")
-        Base.showarray(STDOUT, $M, false)
+        Base.showarray(STDOUT, $(esc(M)), false)
         println()
         #=
         dim = size($M)

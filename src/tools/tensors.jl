@@ -7,30 +7,11 @@ export Tensor2, Tensor4
 const Tensor2 = Array{Float64,1}
 const Tensor4 = Array{Float64,2}
 
-tensor2() = zeros(6)
-tensor4() = zeros(6,6)
+const V2M = [ 1., 1., 1., SR2, SR2, SR2 ]
+const M2V = [ 1., 1., 1., 1.0/SR2, 1.0/SR2, 1.0/SR2 ] # Use .* operator
 
 const tI  = [1., 1., 1., 0., 0., 0.]
-
-import Base.trace
-trace(T::Tensor2) = sum(T[1:3])
-J1(T::Tensor2) = sum(T[1:3])
-#J2(T::Tensor2) = 0.5*dot(T,T) # TODO: Check
-
-function I2(T::Tensor2)
-    t11, t22, t33, t12, t23, t13 = T
-    return t11*t22 + t22*t33 + t11*t33 - 0.5*t12*t12 - 0.5*t23*t23 - 0.5*t13*t13
-end
-
-function I3(T::Tensor2)
-    t11, t22, t33, t12, t23, t13 = T
-    sq2 = √2.0
-    t12 /= sq2
-    t23 /= sq2
-    t13 /= sq2
-    return t11*(t22*t33 - t23*t23) - t12*(t12*t33 - t23*t13) + t13*(t12*t23 - t22*t13)
-end
-
+const Isym = eye(6)
 
 const Psd = [  
     2/3. -1/3. -1/3. 0. 0. 0.
@@ -40,34 +21,39 @@ const Psd = [
       0.    0.    0. 0. 1. 0.
       0.    0.    0. 0. 0. 1. ]
 
-const Isym = eye(6)
+dev(T::Tensor2) = Psd*T # deviatoric tensor
 
-function dev(T::Tensor2) # deviatoric tensor
-    return Psd*T
-end
+# Tensor invariants
+import Base.trace
+trace(T::Tensor2) = sum(T[1:3])
+J1(T::Tensor2) = sum(T[1:3])
+J2(T::Tensor2) = 0.5*dot(T,T)
 
+# Deviatoric tensor invariants
 function J2D(T::Tensor2)
     #return J2(Psd*T)
     t11, t22, t33, t12, t23, t13 = T
-    sq2 = √2.0
-    t12 /= sq2
-    t23 /= sq2
-    t13 /= sq2
+    t12 /= SR2
+    t23 /= SR2
+    t13 /= SR2
     return 1/6*( (t11-t22)^2 + (t22-t33)^2 + (t33-t11)^2 ) + t12*t12 + t23*t23 + t13*t13
 end
-
 
 function J3D(T::Tensor2)
     return J3(Psd*T)
 end
 
+"""
+Computes the eigenvalues of a second order tensor written in Mandel notation.
+The eigenvalues are sorted from highest to lowest
+"""
+function eigvals(T::Tensor2)::Vect
+    @assert length(T) == 6
 
-function principal(T::Tensor2)::Vect
     t11, t22, t33, t12, t23, t13 = T
-    sq2 = √2.0
-    t12 /= sq2
-    t23 /= sq2
-    t13 /= sq2
+    t23 /= SR2
+    t13 /= SR2
+    t12 /= SR2
     i1 = t11 + t22 + t33
     i2 = t11*t22 + t22*t33 + t11*t33 - t12*t12 - t23*t23 - t13*t13
 
@@ -95,12 +81,20 @@ function principal(T::Tensor2)::Vect
     return P
 end
 
-function principal_dir(T::Tensor2)
-    sr2 = √2.
+import Base.eig
+
+"""
+Computes eigenvalues and eigenvectors of a second order tensor written in Mandel notation.
+The first eigenvalues corresponds to the highest.
+The eigenvectors are returned columnwise and disposed in a clockwise coordinate system.
+"""
+function eig(T::Tensor2)
+    @assert length(T) == 6
+
     # full notation
-    F = [ T[1]      T[4]/sr2  T[6]/sr2 ;
-          T[4]/sr2  T[2]      T[5]/sr2 ;
-          T[6]/sr2  T[5]/sr2  T[3]     ]
+    F = [ T[1]      T[6]/SR2  T[5]/SR2 ;
+          T[6]/SR2  T[2]      T[4]/SR2 ;
+          T[5]/SR2  T[4]/SR2  T[3]     ]
     L, V = eig(F, permute=false, scale=false)
 
     # force a clockwise system
@@ -115,68 +109,111 @@ function principal_dir(T::Tensor2)
     L = circshift(L, shift)
     V = circshift(V, (0,shift))
     return L, V
-    #@show L
-    #exit()
-    #return L
 end
-
-
-const V2M = [ 1., 1., 1., √2., √2., √2. ]
-const M2V = [ 1., 1., 1., √.5, √.5, √.5 ] # Use .* operator
 
 function tfull(T::Tensor2)
     t1, t2, t3, t4, t5, t6 = T.*M2V
     return [ 
-        t1 t4 t6
-        t4 t2 t5
-        t6 t5 t3 ]
+        t1 t6 t5
+        t6 t2 t4
+        t5 t4 t3 ]
 end
+
 
 function matrix2Mandel(M::Array{Float64,2})
     t11 = M[1,1]
     t22 = M[2,2]
     t33 = M[3,3]
-    t12 = M[1,2]
     t23 = M[2,3]
     t13 = M[1,3]
-    return [t11, t22, t33, t12, t23, t13] .* V2M
+    t12 = M[1,2]
+    return [t11, t22, t33, t23, t13, t12] .* V2M
 end
+
+
+import Base.norm
+norm(T::Tensor2) = √dot(T,T)
+
 
 function dyad(T1::Tensor2, T2::Tensor2)
     return T1 * T2'
 end
 
+
 ⊗ = dyad
+
 
 function inner(T1::Tensor4, T2::Tensor4)
     return sum(T1 .* T2)
 end
 
+
 function inner(T1::Tensor4, T2::Tensor2)
     return T1 * T2
 end
+
 
 function inner(T1::Tensor2, T2::Tensor4)
     return T2*T1
 end
 
+
 function inner(T1::Tensor2, T2::Tensor4, T3::Tensor2)
-    return sum(T2*T1 .* T3)
+    return dot(T2*T1, T3)
 end
 
 ∷ = inner
 
-function rotation4(V::Array{Float64,2}, T::Tensor4)
+function tensor_rot!(V::Array{Float64,2}, T::Tensor4)
     l1, m1, n1 = V[:,1]
     l2, m2, n2 = V[:,2]
     l3, m3, n3 = V[:,3]
 
-    sq2 = √2.0
+    T[1,1] =     l1*l1;  T[1,2] =     m1*m1;  T[1,3] =     n1*n1;   T[1,4] =   SR2*m1*n1;  T[1,5] =   SR2*n1*l1;  T[1,6] =   SR2*l1*m1;   
+    T[2,1] =     l2*l2;  T[2,2] =     m2*m2;  T[2,3] =     n2*n2;   T[2,4] =   SR2*m2*n2;  T[2,5] =   SR2*n2*l2;  T[2,6] =   SR2*l2*m2;   
+    T[3,1] =     l3*l3;  T[3,2] =     m3*m3;  T[3,3] =     n3*n3;   T[3,4] =   SR2*m3*n3;  T[3,5] =   SR2*n3*l3;  T[3,6] =   SR2*l3*m3;   
+    T[4,1] = SR2*l2*l3;  T[4,2] = SR2*m2*m3;  T[4,3] = SR2*n2*n3;   T[4,4] = m2*n3+m3*n2;  T[4,5] = l2*n3+l3*n2;  T[4,6] = l2*m3+l3*m2;   
+    T[5,1] = SR2*l3*l1;  T[5,2] = SR2*m3*m1;  T[5,3] = SR2*n3*n1;   T[5,4] = m3*n1+m1*n3;  T[5,5] = l3*n1+l1*n3;  T[5,6] = l3*m1+l1*m3; 
+    T[6,1] = SR2*l1*l2;  T[6,2] = SR2*m1*m2;  T[6,3] = SR2*n1*n2;   T[6,4] = m1*n2+m2*n1;  T[6,5] = l1*n2+l2*n1;  T[6,6] = l1*m2+l2*m1;   
+    return T
+end
 
-    T[1,1] =     l1*l1;  T[1,2] =     m1*m1;  T[1,3] =     n1*n1;  T[1,4] =   sq2*l1*m1;  T[1,5] =   sq2*m1*n1;  T[1,6] =   sq2*n1*l1     
-    T[2,1] =     l2*l2;  T[2,2] =     m2*m2;  T[2,3] =     n2*n2;  T[2,4] =   sq2*l2*m2;  T[2,5] =   sq2*m2*n2;  T[2,6] =   sq2*n2*l2     
-    T[3,1] =     l3*l3;  T[3,2] =     m3*m3;  T[3,3] =     n3*n3;  T[3,4] =   sq2*l3*m3;  T[3,5] =   sq2*m3*n3;  T[3,6] =   sq2*n3*l3     
-    T[4,1] = sq2*l1*l2;  T[4,2] = sq2*m1*m2;  T[4,3] = sq2*n1*n2;  T[4,4] = l1*m2+l2*m1;  T[4,5] = m1*n2+m2*n1;  T[4,6] = l1*n2+l2*n1     
-    T[5,1] = sq2*l2*l3;  T[5,2] = sq2*m2*m3;  T[5,3] = sq2*n2*n3;  T[5,4] = l2*m3+l3*m2;  T[5,5] = m2*n3+m3*n2;  T[5,6] = l2*n3+l3*n2     
-    T[6,1] = sq2*l3*l1;  T[6,2] = sq2*m3*m1;  T[6,3] = sq2*n3*n1;  T[6,4] = l3*m1+l1*m3;  T[6,5] = m3*n1+m1*n3;  T[6,6] = l3*n1+l1*n3 
+function tensor_rot(V::Array{Float64,2})
+    T = zeros(6,6)
+    tensor_rot!(V, T)
+    return T
+end
+
+"""
+Return a dictionary with conventional stress and stress values
+from stress and strain tensors defined in Mandel notation.
+"""
+@inline function stress_strain_dict(σ::Tensor2, ε::Tensor2, ndim::Int)
+    if ndim==2;
+        return Dict{Symbol,Float64}(
+          :sxx => σ[1],
+          :syy => σ[2],
+          :szz => σ[3],
+          :sxy => σ[6]/SR2,
+          :exx => ε[1],
+          :eyy => ε[2],
+          :ezz => ε[3],
+          :exy => ε[6]/SR2,
+          )
+    else
+        return Dict{Symbol,Float64}(
+          :sxx => σ[1],
+          :syy => σ[2],
+          :szz => σ[3],
+          :syz => σ[4]/SR2,
+          :sxz => σ[5]/SR2,
+          :sxy => σ[6]/SR2,
+          :exx => ε[1],
+          :eyy => ε[2],
+          :ezz => ε[3],
+          :eyz => ε[4]/SR2,
+          :exz => ε[5]/SR2,
+          :exy => ε[6]/SR2,
+          )
+    end
 end

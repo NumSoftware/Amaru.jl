@@ -19,7 +19,28 @@ end
 matching_shape_class(::Type{MechSolid}) = SOLID_SHAPE
 
 function elem_init(elem::MechSolid)
-    nothing
+    if (:h in fieldnames(elem.ips[1].data))
+        # Element volume/area
+        V = 0.0
+        C = elem_coords(elem)
+        for ip in elem.ips
+            dNdR = elem.shape.deriv(ip.R)
+            J    = dNdR*C
+            detJ = det(J)
+            V   += detJ*ip.w
+        end
+
+        # Representative length size for an integration point
+        nips = length(elem.ips)
+        ndim = elem.shared_data.ndim
+        h = (V/nips)^(1/ndim)
+
+        for ip in elem.ips
+            ip.data.h = h
+        end
+    end
+
+    return nothing
 end
 
 function distributed_bc(elem::MechSolid, facet::Union{Facet, Void}, key::Symbol, fun::Functor)
@@ -93,7 +114,6 @@ end
 
 function setB(shared_data::SharedAnalysisData, dNdX::Matx, detJ::Float64, B::Matx)
     ndim, nnodes = size(dNdX)
-    sqr2 = √2.0
     B   .= 0.0
 
     if ndim==2
@@ -101,7 +121,7 @@ function setB(shared_data::SharedAnalysisData, dNdX::Matx, detJ::Float64, B::Mat
             j = i-1
             B[1,1+j*ndim] = dNdX[1,i]
             B[2,2+j*ndim] = dNdX[2,i]
-            B[4,1+j*ndim] = dNdX[2,i]/sqr2; B[4,2+j*ndim] = dNdX[1,i]/sqr2
+            B[6,1+j*ndim] = dNdX[2,i]/SR2; B[6,2+j*ndim] = dNdX[1,i]/SR2
         end
         if shared_data.model_type==:axisymmetric
             for i in 1:nnodes
@@ -111,7 +131,7 @@ function setB(shared_data::SharedAnalysisData, dNdX::Matx, detJ::Float64, B::Mat
                 B[1,1+j*ndim] = dNdX[1,i]
                 B[2,2+j*ndim] = dNdX[2,i]
                 B[3,1+j*ndim] =    N[i]/r
-                B[4,1+j*ndim] = dNdX[2,i]/sqr2; B[4,2+j*ndim] = dNdX[1,i]/sqr2
+                B[6,1+j*ndim] = dNdX[2,i]/SR2; B[6,2+j*ndim] = dNdX[1,i]/SR2
             end
         end
     else
@@ -123,9 +143,9 @@ function setB(shared_data::SharedAnalysisData, dNdX::Matx, detJ::Float64, B::Mat
             B[1,1+j*ndim] = dNdx
             B[2,2+j*ndim] = dNdy
             B[3,3+j*ndim] = dNdz
-            B[4,1+j*ndim] = dNdy/sqr2;   B[4,2+j*ndim] = dNdx/sqr2
-            B[5,2+j*ndim] = dNdz/sqr2;   B[5,3+j*ndim] = dNdy/sqr2
-            B[6,1+j*ndim] = dNdz/sqr2;   B[6,3+j*ndim] = dNdx/sqr2
+            B[4,2+j*ndim] = dNdz/SR2;   B[4,3+j*ndim] = dNdy/SR2
+            B[5,1+j*ndim] = dNdz/SR2;   B[5,3+j*ndim] = dNdx/SR2
+            B[6,1+j*ndim] = dNdy/SR2;   B[6,2+j*ndim] = dNdx/SR2
         end
     end
 
