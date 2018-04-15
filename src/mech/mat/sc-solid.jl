@@ -44,6 +44,7 @@ mutable struct SmearedCrack<:Material
     function SmearedCrack(;E=NaN, nu=NaN, ft=NaN, mu=NaN, alpha=NaN, wc=NaN, ws=NaN, softcurve="hordijk")
         this = new(E, nu, ft, mu, alpha, wc, ws, softcurve)
         this.α = 1.0
+        this.α = 0.5
         return this 
     end
 end
@@ -185,12 +186,16 @@ function calcD(mat::SmearedCrack, ipd::SmearedCrackIpState)
 
         D = T'*D*T
     else
-        if ipd.upa >= mat.wc && ipd.w[1] >= 0.0 #0.95*mat.wc
-            k = 100.0
+        if ipd.upa/mat.wc>0.99 && ipd.w[1] >= 0.0 #0.95*mat.wc
+            #@show "hiiiiiiiiiiiiiiiiiiiiiiiii"
+            k = 1e-2
             D = De
             D[1,:] .= (   k, 0.0, 0.0, 0.0, 0.0, 0.0 )
             D[5,:] .= ( 0.0, 0.0, 0.0, 0.0,   k, 0.0 )
             D[6,:] .= ( 0.0, 0.0, 0.0, 0.0, 0.0,   k )
+        #D[1,:] .= ( kn*h, 0.0, 0.0, 0.0, 0.0, 0.0 )
+        #D[5,:] .= (    0.0, 0.0, 0.0, 0.0, ks*h, 0.0 )
+        #D[6,:] .= (    0.0, 0.0, 0.0, 0.0, 0.0, ks*h )
 
             D = T'*D*T
         else
@@ -273,32 +278,32 @@ function yield_n1_and_deriv(mat::SmearedCrack, ipd::SmearedCrackIpState, ςtr::A
     kn = mat.E*mat.α/ipd.h
     ks = kn/((1.0+mat.ν)) # for conventional eng. stress/strain ks = E/(2*(1+ν))*α/h
     μ = mat.μ
+
     # quantities at n+1
     if ςtr[1]>0
-        ς  = [ ςtr[1]/(1+2*Δλ*kn*μ^2),  ςtr[2]/(2*ks*Δλ+1),  ςtr[3]/(2*ks*Δλ+1) ]
-        dς = [ -2*kn*μ^2*ςtr[1]/(1+2*Δλ*kn*μ^2)^2,  -2*ks*ςtr[2]/(2*ks*Δλ+1)^2,  -2*ks*ςtr[3]/(2*ks*Δλ+1)^2 ]
-        drdς = [ -4*kn*μ^4*ςtr[1]/(1+2*Δλ*kn*μ^2)^2,  -4*ks*ςtr[2]/(2*ks*Δλ+1)^2,  -4*ks*ςtr[3]/(2*ks*Δλ+1)^2 ]
+        ς     = [ ςtr[1]/(1+2*Δλ*kn*μ^2),  ςtr[2]/(2*ks*Δλ+1),  ςtr[3]/(2*ks*Δλ+1) ]
+        dςdΔλ = [ -2*kn*μ^2*ςtr[1]/(1+2*Δλ*kn*μ^2)^2,  -2*ks*ςtr[2]/(2*ks*Δλ+1)^2,  -2*ks*ςtr[3]/(2*ks*Δλ+1)^2 ]
+        drdΔλ  = [ -4*kn*μ^4*ςtr[1]/(1+2*Δλ*kn*μ^2)^2,  -4*ks*ςtr[2]/(2*ks*Δλ+1)^2,  -4*ks*ςtr[3]/(2*ks*Δλ+1)^2 ]
     else
-        ς  = [ ςtr[1],  ςtr[2]/(2*ks*Δλ+1),  ςtr[3]/(2*ks*Δλ+1) ]
-        dς = [ 0,  -2*ks*ςtr[2]/(2*ks*Δλ+1)^2,  -2*ks*ςtr[3]/(2*ks*Δλ+1)^2 ]
-        drdς = [ 0,  -4*ks*ςtr[2]/(2*ks*Δλ+1)^2,  -4*ks*ςtr[3]/(2*ks*Δλ+1)^2 ]
+        ς     = [ ςtr[1],  ςtr[2]/(2*ks*Δλ+1),  ςtr[3]/(2*ks*Δλ+1) ]
+        dςdΔλ = [ 0,  -2*ks*ςtr[2]/(2*ks*Δλ+1)^2,  -2*ks*ςtr[3]/(2*ks*Δλ+1)^2 ]
+        drdΔλ  = [ 0,  -4*ks*ςtr[2]/(2*ks*Δλ+1)^2,  -4*ks*ςtr[3]/(2*ks*Δλ+1)^2 ]
     end
 
-   
     r      = potential_derivs(mat, ipd, ς)
     norm_r = norm(r)
 
-    upa  = ipd.upa + Δλ*norm_r # CHECK
+    upa  = ipd.upa + Δλ*norm_r
     σmax = calc_σmax(mat, ipd, upa)
     fn1  = sqrt(ς[2]^2 + ς[3]^2) + (ς[1]-σmax)*μ
     m    = σmax_deriv(mat, ipd, upa)
-    dςmax= m * (norm_r + Δλ*dot(r/norm_r, drdς))
+    dςmaxdΔλ = m * (norm_r + Δλ*dot(r/norm_r, drdΔλ))
 
 
     if ς[2]==0 && ς[3]==0
-        dfn1 = (dς[1] - dςmax)*μ
+        dfn1 = (dςdΔλ[1] - dςmaxdΔλ)*μ
     else
-        dfn1 = 1/sqrt(ς[2]^2 + ς[3]^2) * (2*ς[2]*dς[1] + 2*ς[3]*dς[3]) + (dς[1] - dςmax)*μ
+        dfn1 = 1/sqrt(ς[2]^2 + ς[3]^2) * (2*ς[2]*dςdΔλ[1] + 2*ς[3]*dςdΔλ[3]) + (dςdΔλ[1] - dςmaxdΔλ)*μ
     end
 
     #@show fn1
@@ -311,7 +316,7 @@ function yield_n1_and_deriv(mat::SmearedCrack, ipd::SmearedCrackIpState, ςtr::A
         @show r
         @show ς
         @show m
-        @show dςmax
+        @show dςmaxdΔλ
         @show fn1
         @show dfn1
         #exit()
@@ -401,8 +406,11 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
     else
         #@show ipd.upa/mat.wc
         #@show ipd.w[1]/mat.wc
+        #@show ipd.w[1]
+        #@show ςtr[1]
 
-        if ipd.upa >= 0.98*mat.wc && ipd.w[1] >= 0.0 && ςtr[1]>=0.0 
+        if ipd.upa/mat.wc >= 0.99 && ipd.w[1] >= 0.0 && ςtr[1]>=0.0 
+            #println("111111111111111111111111111111111111")
             r1 = [ ςtr[1]/kn, ςtr[2]/ks, ςtr[3]/ks ]
             ipd.Δλ   = norm(r1)
             ipd.upa += ipd.Δλ
@@ -417,11 +425,17 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
             Δλ   = 0.0
             #Δλ   = 1e-10
             upa  = ipd.upa
-            tol = 1e-3
+            tol = 1e-2
 
             r = potential_derivs(mat, ipd, ςini)
             m = σmax_deriv(mat, ipd, ipd.upa)  # ∂σmax/∂upa
             Δλ0 = yield_func(mat, ipd, ςtr) / (kn*r[1]-m*norm(r))
+            if isnan(Δλ0)
+                @show Δλ0
+            end
+            if Δλ0<=0
+                #println("nooooooooooooooooooooooooooooooooooooooooo")
+            end
             @assert Δλ0>0
             #Δλ = Δλ0
             f = 0.0
@@ -444,10 +458,11 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
 
             if Δλ<0 
                 σmax = calc_σmax(mat, ipd, ipd.upa)
-                warn("negative Δλ")
+                warn("Δλ calculation failed using NR")
                 @show σmax
-                @show ipd.upa
-                #@show Δλ
+                @show ipd.upa/mat.wc
+                @show ςini
+                @show Δλ
                 Δλ=Δλ0
 
                 if ςtr[1]>0
@@ -457,6 +472,9 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
                 end
                 r    = potential_derivs(mat, ipd, ς)
                 upa  = ipd.upa + Δλ*norm(r)
+                #@show ς
+                F = yield_func(mat, ipd, ς)
+                @show F
             end
             ipd.upa = upa
             ipd.Δλ  = Δλ
@@ -467,7 +485,7 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
 
             # Return to surface:
             Fend  = yield_func(mat, ipd, ς)
-            #@show Fend
+            @show Fend
             #exit()
 
             #if false 
