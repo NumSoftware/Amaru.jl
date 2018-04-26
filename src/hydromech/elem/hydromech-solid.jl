@@ -273,7 +273,7 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
 
     dF = zeros(nnodes*ndim)
     Bu = zeros(6, nnodes*ndim)
-    dQ = zeros(nnodes)
+    dFw = zeros(nnodes)
     Bp = zeros(ndim, nnodes)
 
     DB = Array{Float64}(6, nnodes*ndim)
@@ -308,13 +308,13 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
 
 
         coef = Δt*detJ*ip.w
-        @gemv dQ -= coef*Bp'*V
+        @gemv dFw -= coef*Bp'*V
     end
 
     #@show dF
-    #@show dQ
+    #@show dFw
 
     DF[map_u] += dF
-    DF[map_p] += dQ
+    DF[map_p] += dFw
 end
 

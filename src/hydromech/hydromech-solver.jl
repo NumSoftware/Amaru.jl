@@ -71,7 +71,6 @@ function mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
         end
 
     end
-        #@show RHS
 
     # generating sparse matrix G
     local G
@@ -87,10 +86,10 @@ end
 
 
 # Solves for a load/displacement increment
-function hm_solve_step(K::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu::Int)
-    #  [  K11   K12 ]  [ U1? ]    [ F1  ]
+function hm_solve_step!(G::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu::Int)
+    #  [  G11   G12 ]  [ U1? ]    [ F1  ]
     #  |            |  |     | =  |     |
-    #  [  K21   K22 ]  [ U2  ]    [ F2? ]
+    #  [  G21   G22 ]  [ U2  ]    [ F2? ]
 
     ndofs = length(DU)
     umap  = 1:nu
@@ -102,24 +101,24 @@ function hm_solve_step(K::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu:
     # Global stifness matrix
     if nu>0
         nu1 = nu+1
-        K11 = K[1:nu, 1:nu]
-        K12 = K[1:nu, nu1:end]
-        K21 = K[nu1:end, 1:nu]
+        G11 = G[1:nu, 1:nu]
+        G12 = G[1:nu, nu1:end]
+        G21 = G[nu1:end, 1:nu]
     end
-    K22 = K[nu+1:end, nu+1:end]
+    G22 = G[nu+1:end, nu+1:end]
 
     F1  = DF[1:nu]
     U2  = DU[nu+1:end]
 
     # Solve linear system
-    F2 = K22*U2
+    F2 = G22*U2
     U1 = zeros(nu)
     if nu>0
-        RHS = F1 - K12*U2
+        RHS = F1 - G12*U2
         try
-            LUfact = lufact(K11)
+            LUfact = lufact(G11)
             U1  = LUfact\RHS
-            F2 += K21*U1
+            F2 += G21*U1
         catch err
             warn("solve!: $err")
             U1 .= NaN
@@ -158,7 +157,7 @@ Available options are:
 `saveips=false` : If true, saves corresponding output files with ip information
 
 """
-function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Float64=NaN, nincs=1::Int, maxits::Int=5, autoinc::Bool=false, 
+function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Float64=NaN, nincs::Int=1, maxits::Int=5, autoinc::Bool=false, 
     tol::Number=1e-2, verbose::Bool=true, saveincs::Bool=false, nouts::Int=0,
     scheme::Symbol = :FE, save_ips::Bool=false)::Bool
     
@@ -177,7 +176,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     @assert time_span>0.0
 
     # Get dofs organized according to boundary conditions
-    dofs, nu = configure_dofs!(dom, bcs)
+    dofs, nu = configure_dofs!(dom, bcs) # unknown dofs first
     ndofs = length(dofs)
     umap  = 1:nu         # map for unknown displacements and pw
     pmap  = nu+1:ndofs   # map for prescribed displacements and pw
@@ -187,13 +186,6 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     # Get array with all integration points
     ips = [ ip for elem in dom.elems for ip in elem.ips ]
 
-    # Get forces and displacements from boundary conditions
-    #Uex, Fex = get_bc_vals(dom, bcs)
-
-    # Global RHS vector 
-    #RHS   = mount_RHS(dom, ndofs, 0.0)
-    #Fex .+= RHS
-
     # Setup quantities at dofs
     if dom.nincs == 0
         for (i,dof) in enumerate(dofs)
@@ -202,7 +194,9 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
         end
     end
 
-    update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
+    if dom.nincs == 0
+        update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
+    end
 
     # Save initial file
     if dom.nincs == 0 && saveincs 
@@ -262,6 +256,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
         maxfails  = 3    # maximum number of it. fails with residual change less than 90%
         nfails    = 0    # counter for iteration fails
         local G::SparseMatrixCSC{Float64,Int64}
+        local RHS::Array{Float64,1}
         for it=1:maxits
             #@show it
             if it>1; ΔUi .= 0.0 end # essential values are applied only at first iteration
@@ -270,16 +265,14 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
 
             # Try FE step
             verbose && print("    assembling... \r")
-            if remountG
-                G, RHS = mount_G_RHS(dom, ndofs, it==1?dt:0.0 ) # TODO: check for dt after iter 1
-            end
+            G, RHS = mount_G_RHS(dom, ndofs, it==1?dt:0.0 ) # TODO: check for dt after iter 1
 
             R .+= RHS
             #@show R
 
             # Solve
             verbose && print("    solving...   \r")
-            hm_solve_step(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
+            hm_solve_step!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
 
             # Update
             verbose && print("    updating... \r")
@@ -302,7 +295,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
                 K2 = mount_G(dom, ndofs)
                 G  = 0.5*(G + G2)
                 verbose && print("    solving...   \r")
-                hm_solve_step(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
+                hm_solve_step!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
                 for ip in ips; ip.data = deepcopy(ip.data0) end
 
                 ΔFin .= 0.0
@@ -326,7 +319,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
                 @printf(" residue: %-10.4e\n", residue)
             end
 
-            if residue < tol;        converged = true ; remountK=false; break end
+            if residue < tol;        converged = true ; remountG=false; break end
             if isnan(residue);       converged = false; break end
             if it > maxits;          converged = false; break end
             if residue > 0.9*lastres;  nfails += 1 end
@@ -335,8 +328,8 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
 
         if converged
             # Update forces and displacement for the current stage
-            F .+= ΔFin
-            U .+= ΔUa
+            #F .+= ΔFin
+            #U .+= ΔUa
 
             Uex .= UexN
             Fex .= FexN
@@ -368,7 +361,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             if autoinc
                 dt = min(1.5*dt, 1.0/nincs)
                 dt = round(dt, -ceil(Int, log10(dt))+3)  # round to 3 significant digits
-                dt = min(dt, 1.0-t) 
+                dt = min(dt, 1.0-t)
             end
         else
             if autoinc
