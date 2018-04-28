@@ -37,7 +37,7 @@ dom = Domain(mesh, materials, logger)
 
 
 t1 = 10.0
-pt(t) = t>t1? -10.0 : -10.0/t1*t
+pt(t) = t>t1? load : load/t1*t
 
 # Stage 1: loading
 
@@ -50,6 +50,8 @@ bcs = [
 ]
 
 hm_solve!(dom, bcs, end_time=t1, saveincs=true, verbose=true)
+
+#@show dom.nodes[44].dofs
 
 
 # Stage 2: draining
@@ -64,37 +66,44 @@ bcs = [
 
 
 for t in times
-    hm_solve!(dom, bcs, end_time=t, nincs=1, tol=1, nouts=0, saveincs=true, verbose=true)
+    hm_solve!(dom, bcs, end_time=t, nincs=1, tol=1, nouts=1, saveincs=true, verbose=true)
 end
+
+#@show dom.nodes[44].dofs
+#@show dom.nodes[1].dofs
 
 
 # Output
 
-function calc_Ue(depth, t)
+function calc_Ue(Z, t)
     T = cv*t/hd^2
-    sum = 1.0
+    sum = 0.0
     for i=0:100
 		M = pi/2*(2*i+1)
-		sum = sum - 2/M*sin(M*depth/hd)*exp(-M^2*T)
+		sum = sum + 2/M*sin(M*Z)*exp(-M^2*T)
     end
     return sum
 end
 
 using PyPlot
+save(logger[1], "data.dat")
 
 book = logger[1].book
 @show length(book.tables)
 
 for (i,table) in enumerate(book.tables[3:end])
-    plot(table[:uw]/load, table[:z], "-o")
+    plot(table[:uw]/load, 1.-table[:z]/hd, "-o")
 
-    Z = table[:z]
-    D = hd .- Z
+    Z = 1 - table[:z]/hd
     t = times[i]
-    Ue = 1 .- calc_Ue.(D, t)
-    plot(Ue, table[:z], "k")
+    #Ue = 1 .- calc_Ue.(Z, t)
+    Ue = calc_Ue.(1.-Z, t)
+    plot(Ue, table[:z]/hd, "k")
 end
 
+@show book.tables[end][:uw]
+
+ylim(1,0)
 show()
 
 

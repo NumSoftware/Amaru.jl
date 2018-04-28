@@ -36,6 +36,9 @@ mutable struct Domain
     stage::Integer
     shared_data::SharedAnalysisData
 
+    F::Array{Float64,1} # Domain's natural values
+    U::Array{Float64,1} # Domain's essential values
+
     function Domain(;filekey::String="out")
         this = new()
 

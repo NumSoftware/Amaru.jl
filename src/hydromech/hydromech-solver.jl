@@ -2,6 +2,24 @@
 
 export solve!
 
+
+#=
+mutable struct HMSolver<:Solver
+    nincs::Integer
+    nouts::Integer
+    filekey::String
+    #loggers::Array{AbstractLogger,1}
+    stage::Integer
+    shared_data::SharedAnalysisData
+
+    Fint::Array{Float64,1}
+end
+
+function run(solver::HMSolver, dom::Domain, bc::BC, ....)
+end
+=#
+
+
 # Assemble the global stiffness matrix
 function mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
 
@@ -229,7 +247,21 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
 
     Fex  = zeros(ndofs)  # vector of external loads
     Uex  = zeros(ndofs)  # vector of external essential values
-    Uex, Fex = get_bc_vals(dom, bcs) # get values at time t
+
+    Uex, Fex = get_bc_vals(dom, bcs) # get values at time t  #TODO pick internal forces and displacements instead!
+    #@show dom.nodes[44].dofs
+    #@show nu
+    #@show ndofs
+    
+    #for (i,dof) in enumerate(dofs)
+        #Uex[i] = dof.vals[dof.name]
+        #Fex[i] = dof.vals[dof.natname]
+    #end
+#
+    #Uex[umap] .= 0.0
+    #Fex[pmap] .= 0.0
+
+    #@show Uex
 
     remountG = true
 
@@ -242,6 +274,13 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
         UexN, FexN = get_bc_vals(dom, bcs) # get values at time t+dt
         ΔUex = UexN - Uex
         ΔFex = FexN - Fex
+
+        #@show UexN
+        @show ΔUex
+        @show ΔFex
+#
+        #dom.nincs > 1 && stop
+
 
         #@show ΔUex
         #@show ΔFex
@@ -273,6 +312,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             # Solve
             verbose && print("    solving...   \r")
             hm_solve_step!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
+
 
             # Update
             verbose && print("    updating... \r")

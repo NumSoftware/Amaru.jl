@@ -107,7 +107,7 @@ function setBu(shared_data::SharedAnalysisData, dNdX::Matx, detJ::Float64, B::Ma
             B[2,2+j*ndim] = dNdX[2,i]
             B[4,1+j*ndim] = dNdX[2,i]/sqr2; B[4,2+j*ndim] = dNdX[1,i]/sqr2
         end
-        if shared_data.analysis_type==:axisymmetric
+        if shared_data.model_type==:axisymmetric
             for i in 1:nnodes
                 N =elem.shape.func(R)
                 j = i-1
