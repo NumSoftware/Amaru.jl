@@ -73,7 +73,7 @@ function calcK(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState) # Hydr
 end
 
 function stress_update(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState, Δε::Array{Float64,1}, Δuw::Float64, G::Array{Float64,1})
-    De = calcDe(mat.E, mat.nu, ipd.shared_data.model_type)
+    De = calcD(mat, ipd)
     Δσ = De*Δε
     ipd.ε += Δε
     ipd.σ += Δσ
@@ -84,56 +84,5 @@ function stress_update(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState
 end
 
 function ip_state_vals(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState)
-    ndim = ipd.shared_data.ndim
-    σ  = ipd.σ
-    ε  = ipd.ε
-    sr2  = 2.0^0.5
-
-    if ndim==2;
-        if ipd.shared_data.model_type == :plane_stress
-            return Dict(
-                :sxx => σ[1],
-                :syy => σ[2],
-                :szz => σ[3],
-                :sxy => σ[4]/sr2,
-                :syz => σ[5]/sr2,
-                :sxz => σ[6]/sr2,
-                :exx => ε[1],
-                :eyy => ε[2],
-                :ezz => ε[3],
-                :exy => ε[4]/sr2,
-                :eyz => ε[5]/sr2,
-                :exz => ε[6]/sr2,
-                :s_m => sum(σ[1:3])/3.0,
-            )
-        else
-            return Dict(
-                :sxx => σ[1],
-                :syy => σ[2],
-                :szz => σ[3],
-                :sxy => σ[4]/sr2,
-                :exx => ε[1],
-                :eyy => ε[2],
-                :ezz => ε[3],
-                :exy => ε[4]/sr2,
-                :s_m => sum(σ[1:3])/3.0
-            )
-        end
-    else
-        return Dict(
-            :sxx => σ[1],
-            :syy => σ[2],
-            :szz => σ[3],
-            :sxy => σ[4]/sr2,
-            :syz => σ[5]/sr2,
-            :sxz => σ[6]/sr2,
-            :exx => ε[1],
-            :eyy => ε[2],
-            :ezz => ε[3],
-            :exy => ε[4]/sr2,
-            :eyz => ε[5]/sr2,
-            :exz => ε[6]/sr2,
-            :s_m => sum(σ[1:3])/3.0
-        )
-    end
+    return stress_strain_dict(ipd.σ, ipd.ε, ipd.shared_data.ndim)
 end

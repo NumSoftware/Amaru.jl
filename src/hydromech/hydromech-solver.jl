@@ -79,15 +79,14 @@ function mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
                 for j=1:nc
                     push!(R, rmap[i])
                     push!(C, cmap[j])
-                    push!(V, α*Δt*H[i,j])
+                    push!(V, -α*Δt*H[i,j])
                 end
             end
             
             # Assembling RHS components
             Uw = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes ]
-            RHS[rmap] -= Δt*H*Uw
+            RHS[rmap] -= Δt*(H*Uw)
         end
-
     end
 
     # generating sparse matrix G
@@ -178,7 +177,7 @@ Available options are:
 function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Float64=NaN, nincs::Int=1, maxits::Int=5, autoinc::Bool=false, 
     tol::Number=1e-2, verbose::Bool=true, saveincs::Bool=false, nouts::Int=0,
     scheme::Symbol = :FE, save_ips::Bool=false)::Bool
-    
+
     # Arguments checking
     (saveincs && nouts==0) && (nouts=10)  # default value for nouts
     saveincs = nouts>0
@@ -245,13 +244,13 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     ΔUa  = zeros(ndofs)  # vector of essential values (e.g. displacements) for this increment
     ΔUi  = zeros(ndofs)  # vector of essential values for current iteration
 
+    uw_map = [ dof.eq_id for dof in dofs if dof.name == :uw ]
+    uz_map  = [ dof.eq_id for dof in dofs if dof.name == :uz ]
+
     Fex  = zeros(ndofs)  # vector of external loads
     Uex  = zeros(ndofs)  # vector of external essential values
 
     Uex, Fex = get_bc_vals(dom, bcs) # get values at time t  #TODO pick internal forces and displacements instead!
-    #@show dom.nodes[44].dofs
-    #@show nu
-    #@show ndofs
     
     #for (i,dof) in enumerate(dofs)
         #Uex[i] = dof.vals[dof.name]
@@ -261,9 +260,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     #Uex[umap] .= 0.0
     #Fex[pmap] .= 0.0
 
-    #@show Uex
-
-    remountG = true
+    #@show Fex
 
     while t < tend - ttol
         verbose && print_with_color(:blue, "  increment $inc from t=$(round(t,10)) to t=$(round(t+dt,10)) (dt=$(round(dt,10))):", bold=true) # color 111
@@ -276,14 +273,11 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
         ΔFex = FexN - Fex
 
         #@show UexN
-        @show ΔUex
-        @show ΔFex
+        #@show ΔUex
+        #@show ΔFex
 #
         #dom.nincs > 1 && stop
 
-
-        #@show ΔUex
-        #@show ΔFex
 
         R   .= ΔFex    # residual
         ΔUa .= 0.0
@@ -299,7 +293,6 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
         for it=1:maxits
             #@show it
             if it>1; ΔUi .= 0.0 end # essential values are applied only at first iteration
-            if it>1; remountG=true end 
             lastres = residue # residue from last iteration
 
             # Try FE step
@@ -312,6 +305,11 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             # Solve
             verbose && print("    solving...   \r")
             hm_solve_step!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
+
+            R .-= RHS # remove extra components added before solving
+
+            #@show R[uw_map]
+            #@show R[uz_map]
 
 
             # Update
@@ -327,6 +325,10 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
                 elem_update!(elem, ΔUt, ΔFin, dt)
             end
 
+            #@show ΔFin
+            @show round.(ΔFin[uw_map], 10)
+            @show round.(ΔFin[uz_map], 10)
+
             residue = maximum(abs, (ΔFex-ΔFin)[umap] ) 
 
             # use ME scheme
@@ -335,7 +337,9 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
                 K2 = mount_G(dom, ndofs)
                 G  = 0.5*(G + G2)
                 verbose && print("    solving...   \r")
+                R .+= RHS
                 hm_solve_step!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
+                R .-= RHS # remove extra components added before solving
                 for ip in ips; ip.data = deepcopy(ip.data0) end
 
                 ΔFin .= 0.0
@@ -359,7 +363,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
                 @printf(" residue: %-10.4e\n", residue)
             end
 
-            if residue < tol;        converged = true ; remountG=false; break end
+            if residue < tol;        converged = true ; break end
             if isnan(residue);       converged = false; break end
             if it > maxits;          converged = false; break end
             if residue > 0.9*lastres;  nfails += 1 end
@@ -367,10 +371,6 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
         end
 
         if converged
-            # Update forces and displacement for the current stage
-            #F .+= ΔFin
-            #U .+= ΔUa
-
             Uex .= UexN
             Fex .= FexN
 

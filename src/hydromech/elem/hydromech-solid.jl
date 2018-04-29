@@ -97,15 +97,14 @@ end
 
 function setBu(shared_data::SharedAnalysisData, dNdX::Matx, detJ::Float64, B::Matx)
     ndim, nnodes = size(dNdX)
-    sqr2 = √2.0
-    B[:] = 0.0
+    B .= 0.0
 
     if ndim==2
         for i in 1:nnodes
             j = i-1
             B[1,1+j*ndim] = dNdX[1,i]
             B[2,2+j*ndim] = dNdX[2,i]
-            B[4,1+j*ndim] = dNdX[2,i]/sqr2; B[4,2+j*ndim] = dNdX[1,i]/sqr2
+            B[6,1+j*ndim] = dNdX[2,i]/SR2; B[6,2+j*ndim] = dNdX[1,i]/SR2
         end
         if shared_data.model_type==:axisymmetric
             for i in 1:nnodes
@@ -115,7 +114,7 @@ function setBu(shared_data::SharedAnalysisData, dNdX::Matx, detJ::Float64, B::Ma
                 B[1,1+j*ndim] = dNdX[1,i]
                 B[2,2+j*ndim] = dNdX[2,i]
                 B[3,1+j*ndim] =    N[i]/r
-                B[4,1+j*ndim] = dNdX[2,i]/sqr2; B[4,2+j*ndim] = dNdX[1,i]/sqr2
+                B[6,1+j*ndim] = dNdX[2,i]/SR2; B[6,2+j*ndim] = dNdX[1,i]/SR2
             end
         end
     else
@@ -127,9 +126,9 @@ function setBu(shared_data::SharedAnalysisData, dNdX::Matx, detJ::Float64, B::Ma
             B[1,1+j*ndim] = dNdx
             B[2,2+j*ndim] = dNdy
             B[3,3+j*ndim] = dNdz
-            B[4,1+j*ndim] = dNdy/sqr2;   B[4,2+j*ndim] = dNdx/sqr2
-            B[5,2+j*ndim] = dNdz/sqr2;   B[5,3+j*ndim] = dNdy/sqr2
-            B[6,1+j*ndim] = dNdz/sqr2;   B[6,3+j*ndim] = dNdx/sqr2
+            B[4,2+j*ndim] = dNdz/SR2;   B[4,3+j*ndim] = dNdy/SR2
+            B[5,1+j*ndim] = dNdz/SR2;   B[5,3+j*ndim] = dNdx/SR2
+            B[6,1+j*ndim] = dNdy/SR2;   B[6,2+j*ndim] = dNdx/SR2
         end
     end
 
@@ -166,13 +165,8 @@ function elem_stiffness(elem::HMSolid)
     end
 
     # map
-    dof_keys = (:ux, :uy, :uz)[1:ndim]
-    map = Int[]
-    for node in elem.nodes
-        for key in dof_keys
-            push!(map, node.dofdict[key].eq_id)
-        end
-    end
+    keys = (:ux, :uy, :uz)[1:ndim]
+    map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
 
     return K, map, map
 end
@@ -183,7 +177,7 @@ function elem_coupling_matrix(elem::HMSolid)
     ndim   = elem.shared_data.ndim
     nnodes = length(elem.nodes)
     C   = elem_coords(elem)
-    B   = zeros(6, nnodes*ndim)
+    Bu   = zeros(6, nnodes*ndim)
     Cup = zeros(nnodes*ndim, nnodes) # u-p coupling matrix
 
     J  = Array{Float64}(ndim, ndim)
@@ -193,20 +187,20 @@ function elem_coupling_matrix(elem::HMSolid)
 
     for ip in elem.ips
 
-        # compute B matrix
+        # compute Bu matrix
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = dNdR*C
         @gemm dNdX = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        setBu(elem.shared_data, dNdX, detJ, B)
+        setBu(elem.shared_data, dNdX, detJ, Bu)
 
         # compute K
         coef = detJ*ip.w
         mNt = m*N'
 
-        @gemm Cup += coef*B'*mNt
+        @gemm Cup -= coef*Bu'*mNt
     end
 
     # map
@@ -242,13 +236,13 @@ function elem_conductivity_matrix(elem::HMSolid)
         K = calcK(elem.mat, ip.data)
         coef = detJ*ip.w/elem.mat.gw
         @gemm KBp = K*Bp
-        @gemm H += coef*Bp'*KBp
+        @gemm H -= coef*Bp'*KBp
     end
 
     # map
     map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
 
-    return -H, map, map
+    return H, map, map
 end
 
 
@@ -271,10 +265,10 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
     #@show dUw
     #@show dU
 
-    dF = zeros(nnodes*ndim)
-    Bu = zeros(6, nnodes*ndim)
+    dF  = zeros(nnodes*ndim)
+    Bu  = zeros(6, nnodes*ndim)
     dFw = zeros(nnodes)
-    Bp = zeros(ndim, nnodes)
+    Bp  = zeros(ndim, nnodes)
 
     DB = Array{Float64}(6, nnodes*ndim)
     J  = Array{Float64}(ndim, ndim)
@@ -299,20 +293,18 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
 
         Δuw = N'*dUw # interpolation to the integ. point
 
-        #@show Δuw
         Δσ, V = stress_update(elem.mat, ip.data, Δε, Δuw, G)
-        Δσ .+= Δuw*m
-        #@show V
+        Δσ  .-= Δuw*m # get total stress
+
         coef = detJ*ip.w
         @gemv dF += coef*Bu'*Δσ
 
-
         coef = Δt*detJ*ip.w
-        @gemv dFw -= coef*Bp'*V
+        @gemv dFw += coef*Bp'*V
+        Δεvol = dot(m, Δε)
+        coef  = Δεvol*detJ*ip.w
+        dFw  -= coef*N
     end
-
-    #@show dF
-    #@show dFw
 
     DF[map_u] += dF
     DF[map_p] += dFw

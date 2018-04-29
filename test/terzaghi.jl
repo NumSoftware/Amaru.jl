@@ -37,6 +37,7 @@ dom = Domain(mesh, materials, logger)
 
 
 t1 = 10.0
+times .+= t1
 pt(t) = t>t1? load : load/t1*t
 
 # Stage 1: loading
