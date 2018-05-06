@@ -31,17 +31,7 @@ function elem_init(elem::Hydromechanical)::Void
 end
 
 """
-`elem_stiffness(mat, elem)`
-
-Returns the stiffness matrix for `elem` according to material `mat`.
-This function must be redefined by concrete types.
-"""
-function elem_stiffness(elem::Hydromechanical)::Array{Float64,2}
-    error("elem_stiffness function not defined for material type $(typeof(elem.mat))")
-end
-
-"""
-`elem_dF!(mat, elem)`
+`elem_update!(mat, elem)`
 
 Returns the force increment vector dF given a displecement increment vector `dU`
 for `elem` according to material `mat`.

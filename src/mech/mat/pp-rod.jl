@@ -77,7 +77,7 @@ function stress_update(mat::PPRod, ipd::PPRodIpState, Δε::Float64)
 end
 
 function ip_state_vals(mat::PPRod, ipd::PPRodIpState)
-    return Dict(
+    return Dict{Symbol,Float64}(
       :sa => ipd.σ,
       :ea => ipd.ε,
       :epa_ppt => ipd.εpa,

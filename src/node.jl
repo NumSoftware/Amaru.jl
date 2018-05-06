@@ -26,6 +26,7 @@ mutable struct Dof
     end
 end
 
+const NULL_DOF = Dof(:null, :null)
 
 # Node
 # ====
@@ -111,4 +112,36 @@ end
 function nodes_coords(nodes::Array{Node,1}, ndim=3)
     nnodes = length(nodes)
     [ nodes[i].X[j] for i=1:nnodes, j=1:ndim]
+end
+
+# Get the dofs ids
+@inline function nodes_map(nodes::Array{Node,1}, key::Symbol)
+    return [ node.dofdict[key].eq_id for node in elem.nodes if haskey(node.dofdict, key) ]
+end
+
+# Get the dofs ids for the given keys
+@inline function nodes_map(nodes::Array{Node,1}, keys::NTuple{N, Symbol} ) where N
+    return [ node.dofdict[key].eq_id for node in elem.nodes for key in keys if haskey(node.dofdict, key) ]
+end
+
+# Get the values for a given key
+@inline function nodes_values(nodes::Array{Node,1}, key::Symbol)
+    return [ node.dofdict[key].vals[key] for node in elem.nodes if haskey(node.dofdict, s) ]
+end
+
+# Get the values for the given keys
+@inline function nodes_values(nodes::Array{Node,1}, keys::NTuple{N, Symbol} ) where N
+    return [ node.dofdict[key].eq_id for node in elem.nodes for key in keys if haskey(node.dofdict, key) ]
+end
+
+function nodes_dof_vals(nodes::Array{Node,1})
+    table = DTable()
+    for node in nodes
+        dict = Dict{Symbol,Float64}()
+        for dof in node.dofs
+            dict = merge(dict, dof.vals)
+        end
+        push!(table, dict)
+    end
+    return table
 end

@@ -52,7 +52,7 @@ include("shared-data.jl")
 export SharedAnalysisData
 
 include("node.jl")
-export Node, Dof, add_dof
+export Node, Dof, add_dof, nodes_dof_vals
 
 include("ip.jl")
 export Ip, ip_vals, maximum, minimum, sort
@@ -63,7 +63,7 @@ export Material, MaterialBind, read_prms
 
 include("element.jl")
 export Element
-export set_mat, get_nodes, get_ips, set_state, getcoords, getvals, get_map
+export set_mat, get_nodes, get_ips, set_state, getcoords, getvals, get_map, elems_ip_vals
 
 include("facet.jl")
 export Facet, Face, Edge
@@ -107,7 +107,7 @@ include("hydromech/include.jl")
 @show_array_function AbstractLogger
 @show_function Domain
 
-@show_function DTable
+#@show_function DTable
 @show_function DBook
 
 end#module

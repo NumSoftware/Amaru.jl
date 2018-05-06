@@ -117,7 +117,6 @@ end
 # Returns the values for essential and natural boundary conditions according to bcs
 function get_bc_vals(domain, bcs::Array{BC,1}, t=0.0)
     # This function will be called for each time increment
-    #t = domain.shared_data.t
 
     ndofs = domain.ndofs
     U = zeros(ndofs)
@@ -131,7 +130,7 @@ function get_bc_vals(domain, bcs::Array{BC,1}, t=0.0)
                 x, y, z = node.X
                 for (key,fun) in zip(bc.keys, bc.funs)
                     dof = node.dofdict[key]
-                    if key==dof.name # essential bc (prescribed should not be modified!)
+                    if key==dof.name # essential bc (dof.prescribed should not be modified!)
                         U[dof.eq_id] = fun(t,x,y,z)
                     else # natural bc
                         F[dof.eq_id] += fun(t,x,y,z)

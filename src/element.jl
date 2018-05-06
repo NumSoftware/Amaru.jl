@@ -165,3 +165,23 @@ function getindex(elems::Array{Element,1}, filter_ex::Expr)
     end
     return result
 end
+
+"""
+`elem_ip_vals(elem)`
+
+Returns a table with values from all ips in the element.
+This function can be specialized by concrete types.
+"""
+function elems_ip_vals(elem::Element)
+    table = DTable()
+    #try
+        for ip in elem.ips
+            D = ip_state_vals(elem.mat, ip.data)
+            push!(table, D)
+        end
+    #catch 
+    #end
+
+    return table
+end
+

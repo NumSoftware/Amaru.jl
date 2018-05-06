@@ -36,6 +36,7 @@ function mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
         has_stiffness_matrix    = method_exists(elem_stiffness, (ty,))
         has_coupling_matrix     = method_exists(elem_coupling_matrix, (ty,))
         has_conductivity_matrix = method_exists(elem_conductivity_matrix, (ty,))
+        has_RHS_vector          = method_exists(elem_RHS_vector, (ty,))
 
 
         # Assemble the stiffness matrix
@@ -79,13 +80,19 @@ function mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
                 for j=1:nc
                     push!(R, rmap[i])
                     push!(C, cmap[j])
-                    push!(V, -α*Δt*H[i,j])
+                    push!(V, α*Δt*H[i,j])
                 end
             end
             
             # Assembling RHS components
             Uw = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes ]
             RHS[rmap] -= Δt*(H*Uw)
+        end
+
+        # Assemble ramaining RHS vectors
+        if has_RHS_vector
+            Q, map = elem_RHS_vector(elem)
+            RHS[map] += Δt*Q
         end
     end
 
@@ -190,7 +197,6 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     if !isnan(end_time)
         time_span = end_time - dom.shared_data.t
     end
-    @assert time_span>0.0
 
     # Get dofs organized according to boundary conditions
     dofs, nu = configure_dofs!(dom, bcs) # unknown dofs first
@@ -203,23 +209,24 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     # Get array with all integration points
     ips = [ ip for elem in dom.elems for ip in elem.ips ]
 
-    # Setup quantities at dofs
+    # Setup for fisrt stage
     if dom.nincs == 0
+        # Tracking nodes, ips, elements, etc.
+        update_loggers!(dom)  
+
+        # Setup initial quantities at dofs
         for (i,dof) in enumerate(dofs)
             dof.vals[dof.name]    = 0.0
             dof.vals[dof.natname] = 0.0
         end
+
+        # Save first output file
+        if saveincs 
+            save(dom, "$(dom.filekey)-0.vtk", verbose=false, save_ips=save_ips)
+            verbose && print_with_color(:green, "  $(dom.filekey)-0.vtk file written (Domain)\n")
+        end
     end
 
-    if dom.nincs == 0
-        update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
-    end
-
-    # Save initial file
-    if dom.nincs == 0 && saveincs 
-        save(dom, "$(dom.filekey)-0.vtk", verbose=false, save_ips=save_ips)
-        verbose && print_with_color(:green, "  $(dom.filekey)-0.vtk file written (Domain)\n")
-    end
 
     # Backup the last converged state at ips. TODO: make backup to a vector of states
     for ip in ips
@@ -229,7 +236,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     # Incremental analysis
     t    = dom.shared_data.t # current time
     tend = t + time_span  # end time
-    dt = time_span/nincs # initial dt value
+    Δt = time_span/nincs # initial Δt value
 
     dT = time_span/nouts  # output time increment for saving vtk file
     T  = t + dT        # output time for saving the next vtk file
@@ -245,12 +252,12 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     ΔUi  = zeros(ndofs)  # vector of essential values for current iteration
 
     uw_map = [ dof.eq_id for dof in dofs if dof.name == :uw ]
-    uz_map  = [ dof.eq_id for dof in dofs if dof.name == :uz ]
+    uz_map = [ dof.eq_id for dof in dofs if dof.name == :uz ]
 
     Fex  = zeros(ndofs)  # vector of external loads
     Uex  = zeros(ndofs)  # vector of external essential values
 
-    Uex, Fex = get_bc_vals(dom, bcs) # get values at time t  #TODO pick internal forces and displacements instead!
+    Uex, Fex = get_bc_vals(dom, bcs, t) # get values at time t  #TODO pick internal forces and displacements instead!
     
     #for (i,dof) in enumerate(dofs)
         #Uex[i] = dof.vals[dof.name]
@@ -260,24 +267,23 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     #Uex[umap] .= 0.0
     #Fex[pmap] .= 0.0
 
-    #@show Fex
+    #@show round.(Fex,10)
 
     while t < tend - ttol
-        verbose && print_with_color(:blue, "  increment $inc from t=$(round(t,10)) to t=$(round(t+dt,10)) (dt=$(round(dt,10))):", bold=true) # color 111
+        verbose && print_with_color(:blue, "  increment $inc from t=$(round(t,10)) to t=$(round(t+Δt,10)) (dt=$(round(Δt,10))):", bold=true) # color 111
         verbose && println()
 
         # Get forces and displacements from boundary conditions
-        dom.shared_data.t = t + dt
-        UexN, FexN = get_bc_vals(dom, bcs) # get values at time t+dt
+        dom.shared_data.t = t + Δt
+        UexN, FexN = get_bc_vals(dom, bcs, t) # get values at time t+Δt
         ΔUex = UexN - Uex
         ΔFex = FexN - Fex
 
-        #@show UexN
-        #@show ΔUex
-        #@show ΔFex
+        #@show round.(UexN, 10)
+        #@show round.(ΔUex, 10)
+        #@show round.(ΔFex, 10)
 #
         #dom.nincs > 1 && stop
-
 
         R   .= ΔFex    # residual
         ΔUa .= 0.0
@@ -297,7 +303,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
 
             # Try FE step
             verbose && print("    assembling... \r")
-            G, RHS = mount_G_RHS(dom, ndofs, it==1?dt:0.0 ) # TODO: check for dt after iter 1
+            G, RHS = mount_G_RHS(dom, ndofs, it==1?Δt:0.0 ) # TODO: check for Δt after iter 1
 
             R .+= RHS
             #@show R
@@ -306,7 +312,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             verbose && print("    solving...   \r")
             hm_solve_step!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
 
-            R .-= RHS # remove extra components added before solving
+            #R .-= RHS # remove extra components added before solving
 
             #@show R[uw_map]
             #@show R[uz_map]
@@ -322,12 +328,13 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             ΔFin .= 0.0
             ΔUt   = ΔUa + ΔUi
             for elem in dom.elems  
-                elem_update!(elem, ΔUt, ΔFin, dt)
+                elem_update!(elem, ΔUt, ΔFin, Δt)
             end
 
-            #@show ΔFin
-            @show round.(ΔFin[uw_map], 10)
-            @show round.(ΔFin[uz_map], 10)
+            #@show round.(ΔFin, 10)
+            #@show round.(ΔFin[uw_map], 10)
+            @show sum(ΔFin[uw_map])
+            #@show round.(ΔFin[uz_map], 10)
 
             residue = maximum(abs, (ΔFex-ΔFin)[umap] ) 
 
@@ -337,15 +344,15 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
                 K2 = mount_G(dom, ndofs)
                 G  = 0.5*(G + G2)
                 verbose && print("    solving...   \r")
-                R .+= RHS
+                #R .+= RHS
                 hm_solve_step!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
-                R .-= RHS # remove extra components added before solving
+                #R .-= RHS # remove extra components added before solving
                 for ip in ips; ip.data = deepcopy(ip.data0) end
 
                 ΔFin .= 0.0
                 ΔUt   = ΔUa + ΔUi
                 for elem in dom.elems  
-                    elem_update!(elem, ΔUt, ΔFin, dt)
+                    elem_update!(elem, ΔUt, ΔFin, Δt)
                 end
 
                 residue = maximum(abs, (ΔFex-ΔFin)[umap] )
@@ -355,8 +362,10 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             ΔUa .+= ΔUi
 
             # Residual vector for next iteration
-            R = ΔFex - ΔFin  
+            R = ΔFex - ΔFin  #
             R[pmap] .= 0.0  # Zero at prescribed positions
+            @show maximum(abs, R[uw_map])
+            @show maximum(abs, R[uz_map])
 
             if verbose
                 print_with_color(:bold, "    it $it  ")
@@ -374,7 +383,6 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             Uex .= UexN
             Fex .= FexN
 
-
             # Backup converged state at ips
             for ip in ips; ip.data0 = deepcopy(ip.data) end
 
@@ -387,7 +395,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             update_loggers!(dom) # Tracking nodes, ips, elements, etc.
 
             # Check for saving output file
-            Tn = t + dt
+            Tn = t + Δt
             if Tn+ttol>=T && saveincs
                 iout += 1
                 save(dom, "$(dom.filekey)-$iout.vtk", verbose=false, save_ips=save_ips)
@@ -395,20 +403,20 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
                 verbose && print_with_color(:green, "  $(dom.filekey)-$iout.vtk file written (Domain)\n")
             end
 
-            # Update time t and dt
+            # Update time t and Δt
             inc += 1
-            t   += dt
+            t   += Δt
             if autoinc
-                dt = min(1.5*dt, 1.0/nincs)
-                dt = round(dt, -ceil(Int, log10(dt))+3)  # round to 3 significant digits
-                dt = min(dt, 1.0-t)
+                Δt = min(1.5*Δt, 1.0/nincs)
+                Δt = round(Δt, -ceil(Int, log10(Δt))+3)  # round to 3 significant digits
+                Δt = min(Δt, 1.0-t)
             end
         else
             if autoinc
                 verbose && println("    increment failed.")
-                dt *= 0.5
-                dt = round(dt, -ceil(Int, log10(dt))+3)  # round to 3 significant digits
-                if dt < ttol
+                Δt *= 0.5
+                Δt = round(Δt, -ceil(Int, log10(Δt))+3)  # round to 3 significant digits
+                if Δt < ttol
                     print_with_color(:red, "solve!: solver did not converge\n",)
                     return false
                 end
