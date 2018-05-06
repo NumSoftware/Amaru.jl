@@ -6,7 +6,7 @@ blocks = [
     Block2D( [0 0; 1 2], nx=1, ny=2),
 ]
 
-mesh = Mesh(blocks, verbose=true)
+msh = Mesh(blocks, verbose=true)
 
 # Finite element analysis
 
@@ -24,7 +24,7 @@ logger = [
             GroupLogger(:nodes, :(x==0) ),
 ]
 
-dom = Domain(mesh, materials, logger)
+dom = Domain(msh, materials, logger)
 
 
 t1 = 10.0
@@ -37,7 +37,7 @@ bcs = [
     BC(:node, :(y==2), :(uw=0.) ),
 ]
 
-hm_solve!(dom, bcs, end_time=10.0, saveincs=true, verbose=true)
+hm_solve!(dom, bcs, end_time=10.0, tol=0.1, saveincs=true, verbose=true)
 
 # Stage 2: draining
 bcs = [
@@ -46,7 +46,7 @@ bcs = [
     BC(:node, :(y==2), :(uw=0.) ),
 ]
 
-hm_solve!(dom, bcs, end_time=1000.0, nincs=1, tol=1, nouts=1, saveincs=true, verbose=true)
+hm_solve!(dom, bcs, end_time=1000.0, tol=0.1, nouts=1, saveincs=true, verbose=true)
 
 #@show dom.nodes[44].dofs
 #@show dom.nodes[1].dofs
@@ -65,4 +65,4 @@ for (i,table) in enumerate(book.tables)
 end
 
 @show book.tables[end][:uw]
-show()
+#show()

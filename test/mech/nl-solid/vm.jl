@@ -30,12 +30,12 @@ dom = Domain(msh, mat, mon)
 #bcs[2] = top
 #@test solve!(dom, bcs, auto_inc=true, nincs=10, tol=1e-2)
 
-
-tab = mon.table
-
-using PyPlot
-plot( tab[:ezz], tab[:szz], "-o")
-show()
-plot( tab[:j1], tab[:srj2d], "-o")
-show()
+if !isdefined(:NOPLOTS)
+    using PyPlot
+    tab = mon.table
+    plot( tab[:ezz], tab[:szz], "-o")
+    show()
+    plot( tab[:j1], tab[:srj2d], "-o")
+    show()
+end
 

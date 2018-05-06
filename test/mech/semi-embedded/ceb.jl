@@ -30,10 +30,10 @@ mats = [
                                            ks=(12/0.001)*5, kn=50000, A=0.005))
        ]
 
-mon_tip     = Logger(:node, "tip")
-mon_jnt_ip  = Logger(:ip, "joint_ips")
-mon_jnt_ips = GroupLogger(:ips, "joint_ips", by=get_y)
-loggers = [ mon_tip, mon_jnt_ip, mon_jnt_ips ]
+log_tip     = Logger(:node, "tip")
+log_jnt_ip  = Logger(:ip, "joint_ips")
+log_jnt_ips = GroupLogger(:ips, "joint_ips", by=get_y)
+loggers = [ log_tip, log_jnt_ip, log_jnt_ips ]
 
 dom = Domain(msh, mats, loggers)
 
@@ -54,15 +54,16 @@ bc2 = BC(:node, "tip", :(uy=-0.0005))
 bc2 = BC(:node, "tip", :(uy=+0.005))
 @test solve!(dom, [bc1, bc2], nincs=30, auto_inc=true, verbose=true)
 
-using PyPlot
-tab = mon_jnt_ip.table
-plot(tab[:ur], tab[:tau], marker="o", color="blue")
-show()
+if !isdefined(:NOPLOTS)
+    using PyPlot
+    tab = log_jnt_ip.table
+    plot(tab[:ur], tab[:tau], marker="o", color="blue")
+    show()
 
-#book = mon_joint_ips.book
-#save(mon_joint_ips, "book.dat")
-#for tab in book.tables
-    #plot(tab[:y], tab[:tau], marker="o")
-#end
-#show()
-
+    #book = log_joint_ips.book
+    #save(log_joint_ips, "book.dat")
+    #for tab in book.tables
+        #plot(tab[:y], tab[:tau], marker="o")
+    #end
+    #show()
+end
