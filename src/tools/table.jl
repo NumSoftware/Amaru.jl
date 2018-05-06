@@ -8,24 +8,40 @@ export DTable, DBook, push!, keys, getindex, save, loadtable, loadbook
 # DTable object
 
 type DTable
-    data  ::Array{Array{Float64,1},1}
-    dict  ::Dict{Symbol,Array{Float64,1}} # Data index
+    data    ::Array{Array{Float64,1},1}
+    colindex::Dict{Symbol,Int} # Data index
+    fields  ::Array{Symbol,1}
     function DTable()
         this = new()
-        this.dict = Dict{Symbol,Array{Float64,1}}() 
+        this.data     = [ ]
+        this.colindex = Dict{Symbol,Int}() 
+        this.fields   = []
         return this
     end
-    function DTable(header::Array{Symbol,1}, matrix::Array{Float64,2}=zeros(0,0))
+    function DTable(header::Array{Symbol,1})
         this = new()
-        if length(matrix)==0
-            this.data = [ [] for s in header]
-        else
-            nh = length(header)
-            nf = size(matrix,2)
-            if nh != nf; error("DTable: header and data fields do not match") end
-            this.data = [ matrix[:,i] for i=1:nh]
-        end
-        this.dict = Dict( k=>v for (k,v) in zip(header, this.data) )
+        this.data     = [ Float64[] for s in header ]
+        this.colindex = Dict( key=>i for (i,key) in enumerate(header) )
+        this.fields   = copy(header)
+    end
+    function DTable(header::Array{Symbol,1}, data::Array{Array{Float64,1},1})
+        this      = new()
+        nfields   = length(header)
+        ncols     = length(data)
+        nfields  != ncols && error("DTable: header and data fields do not match")
+        this.data     = deepcopy(data)
+        this.colindex = Dict( key=>i for (i,key) in enumerate(header) )
+        this.fields   = copy(header)
+        return this
+    end
+    function DTable(header::Array{Symbol,1}, matrix::Array{Float64,2})
+        this      = new()
+        nfields   = length(header)
+        ncols     = size(matrix,2)
+        nfields  != ncols && error("DTable: header and data fields do not match")
+        this.data     = [ matrix[:,i] for i=1:nfields ]
+        this.colindex = Dict( key=>i for (i,key) in enumerate(header) )
+        this.fields   = copy(header)
         return this
     end
 end
@@ -41,7 +57,8 @@ type DBook
 end
 
 import Base.push!
-function push!(table::DTable, row::Array{Float64})
+function push!(table::DTable, row::Array{Float64,1})
+    @assert length(table.fields)==length(row)
     for (i,val) in enumerate(row)
         push!(table.data[i], val)
     end
@@ -52,66 +69,74 @@ function push!(book::DBook, table::DTable)
 end
 
 function keys(table::DTable)
-    return keys(table.dict)
+    return table.fields
 end
 
-function push!(table::DTable, dict::Dict{Symbol,Float64})
-    if length(table.dict)==0
-        table.data   = [ [v] for (k,v) in dict ]
-        table.dict   = Dict( k=>v for (k,v) in zip(keys(dict), table.data) )
+function Base.push!(table::DTable, dict::Associative{Symbol,Float64})
+    if length(table.data)==0
+        table.data     = [ Float64[v] for (k,v) in dict ]
+        table.colindex = Dict( key=>i for (i,key) in enumerate(keys(dict)) )
+        table.fields   = collect(keys(dict))
     else
         nrows = length(table.data[1])
         for (k,v) in dict
             # Add data
-            if haskey(table.dict, k)
-                push!(table[k], v)
-            else
+            colindex = get(table.colindex, k, 0)
+            if colindex==0
                 # add new column
-                new_arr = zeros(nrows)
-                push!(new_arr, v)
-                push!(table.data, new_arr)
-                table.dict[k] = new_arr
+                new_col = zeros(nrows)
+                push!(new_col, v)
+                push!(table.data, new_col)
+                push!(table.fields, k)
+                table.colindex[k] = length(table.data)
+            else
+                push!(table.data[colindex], v)
             end
         end
         # Add zero for missing values if any
-        for arr in table.data
-            if length(arr)==nrows
-                push!(arr, 0.0)
+        for col in table.data
+            if length(col)==nrows
+                push!(col, 0.0)
             end
         end
     end
 end
 
-function getindex(table::DTable, field::Symbol)
-    return table.dict[field]
+function Base.getindex(table::DTable, key::Symbol)
+    return table.data[table.colindex[key]]
 end
 
-function getindex(book::DBook, index::Int64)
+function Base.getindex(table::DTable, keys::Array{Symbol,1})
+    data = [ table[key] for key in keys ]
+    subtable = DTable(keys, data)
+    return subtable
+end
+
+function Base.getindex(book::DBook, index::Int)
     return book.tables[index]
 end
 
+Base.start(book::DBook) = 1
+Base.next(book::DBook, idx::Int) = book.tables[idx], idx+1
+Base.done(book::DBook, idx::Int) = idx == length(book.tables)
 
 function save(table::DTable, filename::String; verbose::Bool=true)
     format = split(filename*".", ".")[2]
     f  = open(filename, "w")
-    nc = length(table.dict)     # number of fields (columns)
+    nc = length(table.fields)     # number of fields (columns)
     nr = length(table.data[1])  # number of rows
 
     if format=="dat"
-        # map for ordered header
-        ord_header = sort(collect(keys(table.dict)))
-        ord_table  = [ table[key] for key in ord_header ]
-
         # print header
         for i=1:nc
-            @printf(f, "%18s", ord_header[i])
+            @printf(f, "%12s", table.fields[i])
             print(f, i!=nc? "\t" : "\n")
         end
 
         # print values
         for i=1:nr
             for j=1:nc
-                @printf(f, "%18.10e", ord_table[j][i])
+                @printf(f, "%12.6e", table.data[j][i])
                 print(f, j!=nc? "\t" : "\n")
             end
         end
@@ -121,7 +146,7 @@ function save(table::DTable, filename::String; verbose::Bool=true)
 
     if format=="json"
         # enconding
-        str  = JSON.json(table.dict, 4)
+        str  = JSON.json(table.colindex, 4)
         print(f, str)
 
         verbose && print_with_color(:green, "  file $filename written (DTable)\n")
@@ -138,7 +163,7 @@ function save(book::DBook, filename::String; verbose::Bool=true)
 
     if format=="json"
         # generate dictionary
-        dict_arr = [ table.dict for table in book.tables ]
+        dict_arr = [ table.colindex for table in book.tables ]
         str  = JSON.json(dict_arr, 4)
         print(f, str)
 
@@ -152,22 +177,19 @@ function save(book::DBook, filename::String; verbose::Bool=true)
             nitems = length(table.data[1])
             print(f, "Table (snapshot=$k, items=$nitems)\n")
 
-            nc = length(table.dict)     # number of fields (columns)
+            nc = length(table.colindex)     # number of fields (columns)
             nr = length(table.data[1])  # number of rows
-
-            ord_header = sort(collect(keys(table.dict)))
-            ord_table  = [ table[key] for key in ord_header ]
 
             # print header
             for i=1:nc
-                @printf(f, "%18s", ord_header[i])
+                @printf(f, "%12s", table.fields[i])
                 print(f, i!=nc? "\t" : "\n")
             end
 
             # print values
             for i=1:nr
                 for j=1:nc
-                    @printf(f, "%18.10e", ord_table[j][i])
+                    @printf(f, "%12.6e", table.data[j][i])
                     print(f, j!=nc? "\t" : "\n")
                 end
             end
@@ -186,9 +208,9 @@ function loadtable(filename::String)
     format = split(filename*".", ".")[2]
     if format=="dat"
         data, headstr = readdlm(filename, '\t', header=true, use_mmap=false)
-        header = Symbol[ Symbol(strip(field)) for field in vec(headstr) ]
+        fields = Symbol[ Symbol(strip(field)) for field in vec(headstr) ]
 
-        table = DTable(header, data)
+        table = DTable(fields , data)
         return table
     end
 end
@@ -198,21 +220,38 @@ function loadbook(filename::String)
     f      = open(filename, "r")
     book   = DBook()
     if format=="dat"
-        while !eof(f)
-            line = readline(f)
-            line=="" && continue
+        lines = readlines(f)
+        header_expected = false
+        for line in lines
+            strip(line)=="" && continue
             items = split(line)
             if items[1]=="Table"
-                keys = [ Symbol(key) for key in split(readline(f)) ]
-                push!(book.tables, DTable(keys))
-            else
-                length(book.tables) == 0 && error("loadbook: Wrong file format. Use loadtable() to read a table")
-                row = parse.(items)
-                push!(book.tables[end], row)
+                header_expected = true
+                continue
             end
+            if header_expected
+                fields = [ Symbol(key) for key in split(line) ]
+                push!(book.tables, DTable(fields))
+                continue
+            end
+
+            length(book.tables) == 0 && error("loadbook: Wrong file format. Use loadtable() to read a table")
+            row = parse.(items)
+            push!(book.tables[end], row)
+            header_expected = false
         end
     end
 
     close(f)
     return book
+end
+
+import Base.show
+
+function show(io::IO, table::DTable)
+    nc = length(table.colindex)  # number of fields (columns)
+    nr = length(table.data[1])   # number of rows
+    matrix = [ table.data[j][i] for i=1:nr, j=1:nc ]
+    header = reshape(Text.([:row; table.fields]), (1, nc+1))
+    Base.showarray(io, [header; collect(1:nr) matrix], false, header=false)
 end
