@@ -182,13 +182,14 @@ Available options are:
 
 """
 function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Float64=NaN, nincs::Int=1, maxits::Int=5, autoinc::Bool=false, 
-    tol::Number=1e-2, verbose::Bool=true, nouts::Int=0,
+    tol::Number=1e-2, verbose::Bool=true, silent::Bool=false, nouts::Int=0,
     scheme::Symbol = :FE, save_ips::Bool=false)::Bool
 
     # Arguments checking
     saveincs = nouts>0
+    silent && (verbose=false)
 
-    if verbose
+    if !silent
         print_with_color(:cyan,"Hydromechanical FE analysis: Stage $(dom.stage+1)\n", bold=true) 
         tic()
     end
@@ -203,7 +204,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     umap  = 1:nu         # map for unknown displacements and pw
     pmap  = nu+1:ndofs   # map for prescribed displacements and pw
     dom.ndofs = length(dofs)
-    verbose && println("  unknown dofs: $nu")
+    silent || println("  unknown dofs: $nu")
     
     # Get array with all integration points
     ips = [ ip for elem in dom.elems for ip in elem.ips ]
@@ -222,7 +223,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
         # Save first output file
         if saveincs 
             save(dom, "$(dom.filekey)-0.vtk", verbose=false, save_ips=save_ips)
-            verbose && print_with_color(:green, "  $(dom.filekey)-0.vtk file written (Domain)\n")
+            silent || print_with_color(:green, "  $(dom.filekey)-0.vtk file written (Domain)\n")
         end
     end
 
@@ -258,25 +259,32 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
 
     Uex, Fex = get_bc_vals(dom, bcs, t) # get values at time t  #TODO pick internal forces and displacements instead!
     
-    #for (i,dof) in enumerate(dofs)
-        #Uex[i] = dof.vals[dof.name]
-        #Fex[i] = dof.vals[dof.natname]
-    #end
+    for (i,dof) in enumerate(dofs)
+        U[i] = dof.vals[dof.name]
+        F[i] = dof.vals[dof.natname]
+    end
 #
     #Uex[umap] .= 0.0
     #Fex[pmap] .= 0.0
 
-    #@show round.(Fex,10)
+    #@show round.(F,10)
 
     while t < tend - ttol
-        verbose && print_with_color(:blue, "  increment $inc from t=$(round(t,10)) to t=$(round(t+Δt,10)) (dt=$(round(Δt,10))):", bold=true) # color 111
-        verbose && println()
+
+        verbose && print_with_color(:blue, "  increment $inc from t=$(signif(t,9)) to t=$(signif(t+Δt,9)) (dt=$(signif(Δt,9))):\n", bold=true) # color 111
 
         # Get forces and displacements from boundary conditions
         dom.shared_data.t = t + Δt
         UexN, FexN = get_bc_vals(dom, bcs, t+Δt) # get values at time t+Δt
-        ΔUex = UexN - Uex
-        ΔFex = FexN - Fex
+
+        ΔUex = UexN - U
+        ΔFex = FexN - F
+
+        ΔUex[umap] = 0.0
+        ΔFex[pmap] = 0.0
+
+        #ΔUex = UexN - Uex
+        #ΔFex = FexN - Fex
 
         #@show round.(UexN, 10)
         #@show round.(ΔUex, 10)
@@ -336,6 +344,12 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             if verbose
                 print_with_color(:bold, "    it $it  ")
                 @printf(" residue: %-10.4e\n", residue)
+            else
+                if !silent
+                    print_with_color(:blue, "  increment $inc: ", bold=true)
+                    print_with_color(:bold, "  it $it  ")
+                    @printf("residue: %-10.4e  \r", residue)
+                end
             end
 
             if residue < tol;        converged = true ; break end
@@ -346,6 +360,8 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
         end
 
         if converged
+            U .+= ΔUa
+            F .+= ΔFin
             Uex .= UexN
             Fex .= FexN
 
@@ -366,7 +382,8 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
                 iout += 1
                 save(dom, "$(dom.filekey)-$iout.vtk", verbose=false, save_ips=save_ips)
                 T = Tn - mod(Tn, dT) + dT
-                verbose && print_with_color(:green, "  $(dom.filekey)-$iout.vtk file written (Domain)\n")
+                silent || verbose || print("                                             \r")
+                silent || print_with_color(:green, "  $(dom.filekey)-$iout.vtk file written (Domain)\n")
             end
 
             # Update time t and Δt
@@ -381,9 +398,10 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             end
         else
             if autoinc
-                verbose && println("    increment failed.")
-                Δt *= 0.5
-                Δt = round(Δt, -ceil(Int, log10(Δt))+3)  # round to 3 significant digits
+                silent || println("    increment failed.")
+                #Δt *= 0.5
+                #Δt = round(Δt, -ceil(Int, log10(Δt))+3)  # round to 3 significant digits
+                Δt = signif(0.5*Δt, 3)
                 if Δt < ttol
                     print_with_color(:red, "solve!: solver did not converge\n",)
                     return false
@@ -396,7 +414,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     end
 
     # time spent
-    if verbose
+    if !silent
         h, r = divrem(toq(), 3600)
         m, r = divrem(r, 60)
         println("  time spent: $(h)h $(m)m $(round(r,3))s")

@@ -1,6 +1,8 @@
 using Amaru
 
+
 # Mesh generation
+# ===============
 
 blocks = [
     Block3D( [0 0 0; 1 1 10], nx=1, ny=1, nz=10, shape=HEX8),
@@ -8,7 +10,9 @@ blocks = [
 
 msh = Mesh(blocks, verbose=true)
 
+
 # Finite element analysis
+# =======================
 
 # Analysis data
 load = 10.0   
@@ -22,7 +26,6 @@ cv   = k/(mv*gw)   # consolidation coefficient
 T = [ 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.6, 1.0 ]
 times = T*(hd^2/cv)
 t1 = times[1]/10
-t1 = 10.0
 times .+= t1
 
 materials = [
@@ -35,22 +38,28 @@ logger = [
 
 dom = Domain(msh, materials, logger)
 
+
 # Stage 1: hydrostatic pore-pressure
-tlong = 1000*hd^2/cv
+# ==================================
+
+tlong = 10000*hd^2/cv
 
 bcs = [
-    BC(:node, :all, :(ux=0, uy=0, uz=0) ), # TODO: check uz=0
+    BC(:node, :all, :(ux=0, uy=0) ),
     BC(:node, :(z==0), :(ux=0, uy=0, uz=0) ),
     BC(:node, :(z==10), :(uw=0.) ),
 ]
 
-hm_solve!(dom, bcs, end_time=tlong, nincs=2, tol=1, verbose=true)
+hm_solve!(dom, bcs, end_time=tlong, nincs=2, tol=1e-2, nouts=1, verbose=true)
 
 dom.shared_data.t = 0.0
 
-# Stage 2: loading
-pt(t) = t>=t1? -load : -load/t1*t
 
+# Stage 2: loading
+# ================
+
+pt(t) = -load
+#pt(t) = t>=t1? -load : -load/t1*t
 
 bcs = [
     BC(:node, :all, :(ux=0, uy=0) ),
@@ -59,10 +68,11 @@ bcs = [
     BC(:node, :(z==10), :(uw=0.) ),
 ]
 
-hm_solve!(dom, bcs, end_time=t1, nincs=4, verbose=true)
+hm_solve!(dom, bcs, end_time=t1, nincs=4, tol=1e-2, nouts=1, verbose=true)
 
 
 # Stage 3: draining
+# =================
 
 bcs = [
     BC(:node, :all, :(ux=0, uy=0) ),
@@ -71,14 +81,17 @@ bcs = [
     BC(:node, :(z==10), :(uw=0.) ),
 ]
 
-Uw_vals = []
-for t in times
-    hm_solve!(dom, bcs, end_time=t, nincs=20, tol=1, nouts=1, verbose=true)
+Uw_vals = [] # A list with porepressure vectors
+for t in times[1:end]
+    hm_solve!(dom, bcs, end_time=t, nincs=20, tol=1e-2, nouts=1, verbose=false)
     push!( Uw_vals, logger[1].book[end][:uw] )
 end
 
-# Output
 
+# Output
+# ======
+
+# Terzaghi's 1-d consolidation
 function calc_Ue(Z, T)
     sum = 0.0
     for i=0:4
@@ -89,21 +102,22 @@ function calc_Ue(Z, T)
 end
 
 using PyPlot
-save(logger[1], "book.dat")
 
-book = logger[1].book
 
-Uwini = book.tables[2][:uw]
-Z     = 1 - book.tables[2][:z]/hd
+# numerical curves
+book  = logger[1].book
+Uwini = book.tables[2][:uw]       # hydrostatic porepressure
+Z     = 1 - book.tables[2][:z]/hd # normalized depth
 for Uw in Uw_vals
-    dUw = (Uw - Uwini)/load
+    dUw = (Uw - Uwini)/load       # excess of porepressure
     plot(dUw, Z, "-o")
 end
 
+# analytical curves
 for Ti in T
     Ue = calc_Ue.(Z, Ti)
     plot(Ue, Z, "k")
 end
 
 ylim(1,0)
-#show()
+show()
