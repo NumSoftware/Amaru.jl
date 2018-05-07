@@ -23,12 +23,12 @@ bcs = [
 ]
 
 dom = Domain(msh, mat, mon)
-@test solve!(dom, bcs, auto_inc=true, nincs=40, tol=1e-2)
+@test solve!(dom, bcs, autoinc=true, nincs=40, tol=1e-2)
 
 # boundary conditions
 #top    = BC(:node, :(z==0.5) , uz=+0.008)
 #bcs[2] = top
-#@test solve!(dom, bcs, auto_inc=true, nincs=10, tol=1e-2)
+#@test solve!(dom, bcs, autoinc=true, nincs=10, tol=1e-2)
 
 if !isdefined(:NOPLOTS)
     using PyPlot

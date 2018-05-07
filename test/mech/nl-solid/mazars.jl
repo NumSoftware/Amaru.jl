@@ -14,6 +14,6 @@ bcs = [
        BC(:face, :(z==1), uz=-10e-3)
       ]
 
-@test solve!(dom, bcs, auto_inc=true, nincs=20, maxits=4, tol=0.01, verbose=true)
+@test solve!(dom, bcs, autoinc=true, nincs=20, maxits=4, tol=0.01, verbose=true)
 
 

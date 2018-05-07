@@ -40,19 +40,19 @@ dom = Domain(msh, mats, loggers)
 bc1 = BC(:node, "fixed_points", :(ux=0, uy=0, uz=0))
 bc2 = BC(:node, "tip", :(uy=+0.0003))
 
-@test solve!(dom, [bc1, bc2], nincs=10, auto_inc=true, verbose=true)
+@test solve!(dom, [bc1, bc2], nincs=10, autoinc=true, verbose=true)
 
 bc2 = BC(:node, "tip", :(uy=-0.0001))
-@test solve!(dom, [bc1, bc2], nincs=10, auto_inc=true, verbose=true)
+@test solve!(dom, [bc1, bc2], nincs=10, autoinc=true, verbose=true)
 
 bc2 = BC(:node, "tip", :(uy=+0.0006))
-@test solve!(dom, [bc1, bc2], nincs=10, auto_inc=true, verbose=true)
+@test solve!(dom, [bc1, bc2], nincs=10, autoinc=true, verbose=true)
 
 bc2 = BC(:node, "tip", :(uy=-0.0005))
-@test solve!(dom, [bc1, bc2], nincs=10, auto_inc=true, verbose=true)
+@test solve!(dom, [bc1, bc2], nincs=10, autoinc=true, verbose=true)
 
 bc2 = BC(:node, "tip", :(uy=+0.005))
-@test solve!(dom, [bc1, bc2], nincs=30, auto_inc=true, verbose=true)
+@test solve!(dom, [bc1, bc2], nincs=30, autoinc=true, verbose=true)
 
 if !isdefined(:NOPLOTS)
     using PyPlot
