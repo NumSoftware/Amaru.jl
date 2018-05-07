@@ -5,8 +5,10 @@ export LinSeep
 mutable struct LinSeepIpState<:IpState
     shared_data::SharedAnalysisData
     uw::Float64
+    V::Array{Float64,1}
     function LinSeepIpState(shared_data::SharedAnalysisData=SharedAnalysisData()) 
         this = new(shared_data)
+        this.V  = zeros(shared_data.ndim)
         this.uw = 0.0
         return this
     end
@@ -48,9 +50,21 @@ function calcK(mat::LinSeep, ipd::LinSeepIpState) # Hydraulic conductivity matri
     end
 end
 
+function update_state!(mat::LinSeep, ipd::LinSeepIpState, Δuw::Float64, G::Array{Float64,1})
+    K = calcK(mat, ipd)
+    ipd.V   = -K*G
+    ipd.uw += Δuw
+    return ipd.V
+end
+
+
 function ip_state_vals(mat::LinSeep, ipd::LinSeepIpState)
     D = Dict{Symbol, Float64}()
-    #D[:uw] = ipd.uw  # TODO
+    D[:vx] = ipd.V[1]
+    D[:vy] = ipd.V[2]
+    if ipd.shared_data.ndim==3
+        D[:vz] = ipd.V[3]
+    end
 
     return D
 end

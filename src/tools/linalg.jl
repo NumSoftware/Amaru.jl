@@ -34,43 +34,6 @@ function norm2(J)
     error("No rule to calculate norm2 of a $r x $c matrix")
 end
 
-macro showm(M)
-    return quote
-        println($(string(M)), "=")
-        Base.showarray(STDOUT, $(esc(M)), false)
-        println()
-        #=
-        dim = size($M)
-        if length(dim)==1
-            print(" [ ")
-            for i=1:dim[1]
-                if abs($M[i])<1e-3
-                    @printf("%13.6e ", $M[i])
-                else
-                    @printf("%13.6f ", $M[i])
-                end
-            end
-            println(" ]")
-        else
-            print(" [ ")
-            for i=1:dim[1]
-                for j=1:dim[2]
-                    if abs($M[i,j])<1e-3
-                        @printf("%13.6e ", $M[i,j])
-                    else
-                        @printf("%13.6f ", $M[i,j])
-                    end
-                end
-                if i<dim[1]
-                    print("\n   ")
-                end
-            end
-            println(" ]")
-        end
-        =#
-    end
-end
-
 
 # C  = α*A*B
 # C  = α*A'*B'

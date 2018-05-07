@@ -5,6 +5,7 @@ import Base.getindex
 import Base.maximum
 import Base.minimum
 import Base.sort
+import DataStructures.OrderedDict
 
 # Dof
 # ===
@@ -20,9 +21,9 @@ mutable struct Dof
     natname ::Symbol  # natural value name
     eq_id ::Int64     # number of equation in global system
     prescribed::Bool  # flag for prescribed dof
-    vals::Dict{Symbol,Float64}
+    vals::OrderedDict{Symbol,Float64}
     function Dof(name::Symbol, natname::Symbol) 
-        new(name, natname, 0, false, Dict())
+        new(name, natname, 0, false, OrderedDict{Symbol,Float64}())
     end
 end
 
@@ -43,16 +44,16 @@ vector that represents the node coordinates.
 `dofs`: An array of `Dof` objects
 """
 mutable struct Node
+    id      ::Int
     X       ::Array{Float64,1}
     tag     ::TagType
-    id      ::Int
     dofs    ::Array{Dof,1}
-    dofdict ::Dict{Symbol,Dof}
+    dofdict ::OrderedDict{Symbol,Dof}
  
     function Node(X::Array{Float64,1}; tag::TagType=0, id::Int=-1)
-        this = new(X, tag, id)
+        this = new(id, X, tag)
         this.dofs = []
-        this.dofdict = Dict()
+        this.dofdict = OrderedDict{Symbol,Dof}()
         return this
     end
     #function Node(point::Point; id::Int=-1)
@@ -85,7 +86,7 @@ end
 
 # Get node values in a dictionary
 function node_vals(node::Node)
-    coords = Dict( :x => node.X[1], :y => node.X[2], :z => node.X[3] )
+    coords = OrderedDict( :x => node.X[1], :y => node.X[2], :z => node.X[3] )
     all_vals = [ dof.vals for dof in node.dofs ]
     return merge(coords, all_vals...)
 end
@@ -134,10 +135,21 @@ end
     return [ node.dofdict[key].eq_id for node in elem.nodes for key in keys if haskey(node.dofdict, key) ]
 end
 
+
+function nodes_dof_vals(node::Node)
+    table = DTable()
+    dict = OrderedDict{Symbol,Float64}(:id=> node.id)
+    for dof in node.dofs
+        dict = merge(dict, dof.vals)
+    end
+    push!(table, dict)
+    return table
+end
+
 function nodes_dof_vals(nodes::Array{Node,1})
     table = DTable()
     for node in nodes
-        dict = Dict{Symbol,Float64}()
+        dict = OrderedDict{Symbol,Float64}(:id=> node.id)
         for dof in node.dofs
             dict = merge(dict, dof.vals)
         end

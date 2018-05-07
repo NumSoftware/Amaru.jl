@@ -23,6 +23,7 @@ type DTable
         this.data     = [ Float64[] for s in header ]
         this.colindex = Dict( key=>i for (i,key) in enumerate(header) )
         this.fields   = copy(header)
+        return this
     end
     function DTable(header::Array{Symbol,1}, data::Array{Array{Float64,1},1})
         this      = new()
@@ -116,12 +117,18 @@ function Base.getindex(book::DBook, index::Int)
     return book.tables[index]
 end
 
+function Base.endof(book::DBook)
+    return length(book.tables)
+end
+
 Base.start(book::DBook) = 1
 Base.next(book::DBook, idx::Int) = book.tables[idx], idx+1
 Base.done(book::DBook, idx::Int) = idx == length(book.tables)
 
 function save(table::DTable, filename::String; verbose::Bool=true)
     format = split(filename*".", ".")[2]
+    format != "dat" && error("save DTable: filename should have \"dat\" extension")
+
     f  = open(filename, "w")
     nc = length(table.fields)     # number of fields (columns)
     nr = length(table.data[1])  # number of rows
@@ -159,6 +166,8 @@ end
 
 function save(book::DBook, filename::String; verbose::Bool=true)
     format = split(filename*".", ".")[2]
+    format != "dat" && error("save DBook: filename should have \"dat\" extension")
+
     f  = open(filename, "w") 
 
     if format=="json"
@@ -206,6 +215,8 @@ end
 
 function loadtable(filename::String)
     format = split(filename*".", ".")[2]
+    format != "dat" && error("loadtable: filename should have \"dat\" extension")
+
     if format=="dat"
         data, headstr = readdlm(filename, '\t', header=true, use_mmap=false)
         fields = Symbol[ Symbol(strip(field)) for field in vec(headstr) ]
@@ -217,6 +228,8 @@ end
 
 function loadbook(filename::String)
     format = split(filename*".", ".")[2]
+    format != "dat" && error("loadbook: filename should have \"dat\" extension")
+
     f      = open(filename, "r")
     book   = DBook()
     if format=="dat"
@@ -229,16 +242,16 @@ function loadbook(filename::String)
                 header_expected = true
                 continue
             end
-            if header_expected
+            if header_expected # add new table
                 fields = [ Symbol(key) for key in split(line) ]
                 push!(book.tables, DTable(fields))
+                header_expected = false
                 continue
             end
 
             length(book.tables) == 0 && error("loadbook: Wrong file format. Use loadtable() to read a table")
             row = parse.(items)
-            push!(book.tables[end], row)
-            header_expected = false
+            push!(book.tables[end], row) # udpate newest table
         end
     end
 
@@ -246,12 +259,22 @@ function loadbook(filename::String)
     return book
 end
 
-import Base.show
-
-function show(io::IO, table::DTable)
+function Base.show(io::IO, table::DTable)
     nc = length(table.colindex)  # number of fields (columns)
     nr = length(table.data[1])   # number of rows
     matrix = [ table.data[j][i] for i=1:nr, j=1:nc ]
     header = reshape(Text.([:row; table.fields]), (1, nc+1))
+    print(io, "DTable $(nr)x$nc:\n")
     Base.showarray(io, [header; collect(1:nr) matrix], false, header=false)
+end
+
+function Base.show(io::IO, book::DBook)
+    print(io, "DBook (tables=$(length(book.tables))):\n")
+    for (k,table) in enumerate(book.tables)
+        # print table label
+        nitems = length(table.data[1])
+        #print(io, "  Table (snapshot=$k, items=$nitems):\n")
+        str = "  "*replace(string(table), "\n","\n  ")
+        print(io, str, "\n")
+    end
 end

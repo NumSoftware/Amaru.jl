@@ -6,13 +6,13 @@ blocks = [
     Block3D( [0 0 0; 1 1 10], nx=1, ny=1, nz=10, shape=HEX8),
 ]
 
-mesh = Mesh(blocks, verbose=true)
+msh = Mesh(blocks, verbose=true)
 
 # Finite element analysis
 
 # Analysis data
 load = 10.0   
-k    = 1.0E-6  # permeability
+k    = 1.0E-5  # permeability
 E    = 5000.0  # Young modulus
 nu   = 0.25    # Poisson
 gw   = 10.0    # water specific weight
@@ -20,11 +20,10 @@ hd   = 10.0    # drainage height
 mv   = (1+nu)*(1-2*nu)/(E*(1-nu))
 cv   = k/(mv*gw)   # consolidation coefficient
 T = [ 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.6, 1.0 ]
-times = T*(hd^2/cv)*2
-@show times
+times = T*(hd^2/cv)
 t1 = times[1]/10
+t1 = 10.0
 times .+= t1
-@show times
 
 materials = [
     MaterialBind(:solids, ElasticSolidLinSeep(E=E, nu=nu, k=k, gw=gw) ),
@@ -34,25 +33,24 @@ logger = [
     GroupLogger(:nodes, :(x==0 && y==0) ),
 ]
 
-dom = Domain(mesh, materials, logger)
+dom = Domain(msh, materials, logger)
 
-# Stage 0: hydrostatic pore-pressure
-tlong = 1000000.0
+# Stage 1: hydrostatic pore-pressure
+tlong = 1000*hd^2/cv
 
 bcs = [
-    BC(:node, :all, :(ux=0, uy=0) ),
+    BC(:node, :all, :(ux=0, uy=0, uz=0) ), # TODO: check uz=0
     BC(:node, :(z==0), :(ux=0, uy=0, uz=0) ),
     BC(:node, :(z==10), :(uw=0.) ),
 ]
 
-hm_solve!(dom, bcs, end_time=tlong, nincs=1, tol=1, saveincs=true, verbose=true)
+hm_solve!(dom, bcs, end_time=tlong, nincs=2, tol=1, verbose=true)
 
-#exit()
 dom.shared_data.t = 0.0
 
-# Stage 1: loading
-#pt(t) = t>=t1? -load : -load/t1*t
-pt(t) = t>=t1? -load : 0.0
+# Stage 2: loading
+pt(t) = t>=t1? -load : -load/t1*t
+
 
 bcs = [
     BC(:node, :all, :(ux=0, uy=0) ),
@@ -61,10 +59,10 @@ bcs = [
     BC(:node, :(z==10), :(uw=0.) ),
 ]
 
-hm_solve!(dom, bcs, end_time=t1, saveincs=true, verbose=true)
+hm_solve!(dom, bcs, end_time=t1, nincs=4, verbose=true)
 
 
-# Stage 2: draining
+# Stage 3: draining
 
 bcs = [
     BC(:node, :all, :(ux=0, uy=0) ),
@@ -73,9 +71,10 @@ bcs = [
     BC(:node, :(z==10), :(uw=0.) ),
 ]
 
-for t in times[1:4]
-    @show t
-    hm_solve!(dom, bcs, end_time=t, nincs=1, tol=1, nouts=1, saveincs=true, verbose=true)
+Uw_vals = []
+for t in times
+    hm_solve!(dom, bcs, end_time=t, nincs=20, tol=1, nouts=1, verbose=true)
+    push!( Uw_vals, logger[1].book[end][:uw] )
 end
 
 # Output
@@ -96,9 +95,8 @@ book = logger[1].book
 
 Uwini = book.tables[2][:uw]
 Z     = 1 - book.tables[2][:z]/hd
-@show Uwini
-for (i,table) in enumerate(book.tables[4:end])
-    dUw = (table[:uw] - Uwini)/load
+for Uw in Uw_vals
+    dUw = (Uw - Uwini)/load
     plot(dUw, Z, "-o")
 end
 
@@ -107,10 +105,5 @@ for Ti in T
     plot(Ue, Z, "k")
 end
 
-@show book.tables[end][:uw]
-
 ylim(1,0)
-show()
-
-#save(dom, "dom.vtk")
-
+#show()

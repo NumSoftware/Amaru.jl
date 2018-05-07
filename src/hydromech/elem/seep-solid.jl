@@ -144,8 +144,7 @@ function elem_RHS_vector(elem::SeepSolid)
 
     J    = Array{Float64}(ndim, ndim)
     dNdX = Array{Float64}(ndim, nnodes)
-    Z    = zeros(ndim)
-    Z[end] = 1.0 # hydrostatic gradient
+    Z    = [0.0, 0.0, 1.0] # hydrostatic gradient
 
     for ip in elem.ips
 
@@ -180,6 +179,7 @@ function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1
 
     dUw = DU[map_p] # nodal pore-pressure increments
     Uw  = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes ]
+    Uw += dUw # nodal pore-pressure at step n+1
 
     dF  = zeros(nnodes*ndim)
     Bu  = zeros(6, nnodes*ndim)
@@ -207,8 +207,7 @@ function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1
 
         Δuw = N'*dUw # interpolation to the integ. point
 
-        k = calcK(elem.mat, ip.data)
-        V = -k*G
+        V = update_state!(elem.mat, ip.data, Δuw, G)
 
         coef = Δt*detJ*ip.w
         @gemv dFw += coef*Bp'*V

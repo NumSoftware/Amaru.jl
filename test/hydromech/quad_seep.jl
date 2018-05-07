@@ -32,12 +32,13 @@ dom = Domain(msh, materials, logger)
 #end
 
 uw_f(t) = t/10.0
-#qw_f(t) = t/10.0
+fw_f(t) = t/10.0
 
 # Stage 1: loading
 
 bcs = [
-    BC(:node, :(y==0), :(uw=$uw_f(t)) ),
+    #BC(:node, :(y==0), :(uw=$uw_f(t)) ),
+    BC(:node, :(y==0), :(fw=$fw_f(t)) ),
     BC(:node, :(y==2), :(uw=0.) ),
 ]
 
@@ -62,6 +63,7 @@ save(logger[1], "book.dat")
 
 book = logger[1].book
 @show length(book.tables)
+@show book
 
 for (i,table) in enumerate(book.tables)
     plot(table[:uw], table[:y], "-o")

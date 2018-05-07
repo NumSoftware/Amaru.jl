@@ -36,9 +36,6 @@ mutable struct Domain
     stage::Integer
     shared_data::SharedAnalysisData
 
-    F::Array{Float64,1} # Domain's natural values
-    U::Array{Float64,1} # Domain's essential values
-
     function Domain(;filekey::String="out")
         this = new()
 
@@ -198,8 +195,7 @@ function reset!(dom)
 
     # Reconfigure nodes
     for node in dom.nodes
-        node.dofs = []
-        node.dofdict = Dict{Symbol,Dof}()
+        node.dofs = empty!(node.dofs)
     end
 
     # Reconfigure elements, dofs and ips
@@ -226,6 +222,7 @@ function reset!(dom)
     end
 
 end
+
 
 function save(dom::Domain, filename::String; verbose=true, save_ips=false)
     # Saves the dom information in vtk format
@@ -261,6 +258,18 @@ function save(dom::Domain, filename::String; verbose=true, save_ips=false)
         point_vector_data["U"] = U
     end
 
+    if :vy in node_labels
+        vx_idx = findfirst(node_labels, :vx)
+        vy_idx = findfirst(node_labels, :vy)
+        vz_idx = findfirst(node_labels, :vz)
+        if vz_idx>0
+            V = node_vals[:, [vx_idx, vy_idx, vz_idx]]
+        else
+            V = hcat( node_vals[:, [vx_idx, vy_idx]], zeros(nnodes) )
+        end
+        point_vector_data["V"] = V
+    end
+
     # Write scalars
     point_scalar_data["node-id"] = [ node.id for node in dom.nodes ]
 
@@ -287,7 +296,7 @@ function save(dom::Domain, filename::String; verbose=true, save_ips=false)
                                      cell_scalar_data=cell_scalar_data)
 
     # Save file
-    save(vtk_data, filename)
+    save_vtk(vtk_data, filename)
 
     verbose && print_with_color(:green, "  file $filename written (Domain)\n")
 
@@ -335,7 +344,6 @@ function node_and_elem_vals(dom::Domain)
     for node in dom.nodes
         for dof in node.dofs
             union!(node_fields_set, keys(dof.vals))
-            #@show dof.vals
         end
     end
     #node_fields_set = Set( key for node in dom.nodes for dof in node.dofs for key in keys(dof.vals) )
@@ -556,8 +564,7 @@ function nodal_vals_recovery(dom::Domain)
 end
 
 
-import Base.convert
-function convert(::Type{VTK_unstructured_grid}, dom::Domain)
+function Base.convert(::Type{VTK_unstructured_grid}, dom::Domain)
 
     # Saves the dom information in vtk format
     nnodes = length(dom.nodes)

@@ -182,11 +182,10 @@ Available options are:
 
 """
 function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Float64=NaN, nincs::Int=1, maxits::Int=5, autoinc::Bool=false, 
-    tol::Number=1e-2, verbose::Bool=true, saveincs::Bool=false, nouts::Int=0,
+    tol::Number=1e-2, verbose::Bool=true, nouts::Int=0,
     scheme::Symbol = :FE, save_ips::Bool=false)::Bool
 
     # Arguments checking
-    (saveincs && nouts==0) && (nouts=10)  # default value for nouts
     saveincs = nouts>0
 
     if verbose
@@ -211,14 +210,14 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
 
     # Setup for fisrt stage
     if dom.nincs == 0
-        # Tracking nodes, ips, elements, etc.
-        update_loggers!(dom)  
-
         # Setup initial quantities at dofs
         for (i,dof) in enumerate(dofs)
             dof.vals[dof.name]    = 0.0
             dof.vals[dof.natname] = 0.0
         end
+
+        # Tracking nodes, ips, elements, etc.
+        update_loggers!(dom)  
 
         # Save first output file
         if saveincs 
@@ -275,14 +274,14 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
 
         # Get forces and displacements from boundary conditions
         dom.shared_data.t = t + Δt
-        UexN, FexN = get_bc_vals(dom, bcs, t) # get values at time t+Δt
+        UexN, FexN = get_bc_vals(dom, bcs, t+Δt) # get values at time t+Δt
         ΔUex = UexN - Uex
         ΔFex = FexN - Fex
 
         #@show round.(UexN, 10)
         #@show round.(ΔUex, 10)
+        #@show round.(FexN, 10)
         #@show round.(ΔFex, 10)
-#
         #dom.nincs > 1 && stop
 
         R   .= ΔFex    # residual
@@ -297,7 +296,6 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
         local G::SparseMatrixCSC{Float64,Int64}
         local RHS::Array{Float64,1}
         for it=1:maxits
-            #@show it
             if it>1; ΔUi .= 0.0 end # essential values are applied only at first iteration
             lastres = residue # residue from last iteration
 
@@ -306,17 +304,10 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             G, RHS = mount_G_RHS(dom, ndofs, it==1?Δt:0.0 ) # TODO: check for Δt after iter 1
 
             R .+= RHS
-            #@show R
 
             # Solve
             verbose && print("    solving...   \r")
             hm_solve_step!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
-
-            #R .-= RHS # remove extra components added before solving
-
-            #@show R[uw_map]
-            #@show R[uz_map]
-
 
             # Update
             verbose && print("    updating... \r")
@@ -331,32 +322,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
                 elem_update!(elem, ΔUt, ΔFin, Δt)
             end
 
-            #@show round.(ΔFin, 10)
-            #@show round.(ΔFin[uw_map], 10)
-            @show sum(ΔFin[uw_map])
-            #@show round.(ΔFin[uz_map], 10)
-
             residue = maximum(abs, (ΔFex-ΔFin)[umap] ) 
-
-            # use ME scheme
-            if residue > tol && scheme == :ME
-                verbose && print("    assembling... \r")
-                K2 = mount_G(dom, ndofs)
-                G  = 0.5*(G + G2)
-                verbose && print("    solving...   \r")
-                #R .+= RHS
-                hm_solve_step!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
-                #R .-= RHS # remove extra components added before solving
-                for ip in ips; ip.data = deepcopy(ip.data0) end
-
-                ΔFin .= 0.0
-                ΔUt   = ΔUa + ΔUi
-                for elem in dom.elems  
-                    elem_update!(elem, ΔUt, ΔFin, Δt)
-                end
-
-                residue = maximum(abs, (ΔFex-ΔFin)[umap] )
-            end
 
             # Update accumulated displacement
             ΔUa .+= ΔUi
@@ -364,8 +330,8 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             # Residual vector for next iteration
             R = ΔFex - ΔFin  #
             R[pmap] .= 0.0  # Zero at prescribed positions
-            @show maximum(abs, R[uw_map])
-            @show maximum(abs, R[uz_map])
+            #@show maximum(abs, R[uw_map])
+            #@show maximum(abs, R[uz_map])
 
             if verbose
                 print_with_color(:bold, "    it $it  ")
@@ -406,6 +372,8 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             # Update time t and Δt
             inc += 1
             t   += Δt
+
+            # Get new Δt
             if autoinc
                 Δt = min(1.5*Δt, 1.0/nincs)
                 Δt = round(Δt, -ceil(Int, log10(Δt))+3)  # round to 3 significant digits

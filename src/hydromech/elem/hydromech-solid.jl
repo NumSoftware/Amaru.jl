@@ -296,10 +296,6 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
     Uw += dUw # nodal pore-pressure at step n+1
     m = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
 
-    #@show Uw
-    #@show dUw
-    #@show dU
-
     dF  = zeros(nnodes*ndim)
     Bu  = zeros(6, nnodes*ndim)
     dFw = zeros(nnodes)
@@ -323,14 +319,13 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         @gemv Δε = Bu*dU
 
         Bp = dNdX
-        #@show Bp
         G   = Bp*Uw/elem.mat.gw # flow gradient
         G[end] += 1.0; # gradient due to gravity
 
         Δuw = N'*dUw # interpolation to the integ. point
 
         Δσ, V = stress_update(elem.mat, ip.data, Δε, Δuw, G)
-        Δσ  -= Δuw*m # get total stress
+        Δσ -= Δuw*m # get total stress
 
         coef = detJ*ip.w
         @gemv dF += coef*Bu'*Δσ
@@ -341,11 +336,6 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         coef  = Δεvol*detJ*ip.w
         dFw  -= coef*N
     end
-
-
-    #@show dF[3:3:end]
-    #@show sum(dFw)
-    @show Δεvol = dot(m, Δε)
 
     DF[map_u] += dF
     DF[map_p] += dFw

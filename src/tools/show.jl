@@ -3,14 +3,38 @@
 import Base.show
 export show
 
-function print_short(io::IO, obj::Any)
+# show variables or expressions content including calling file
+# this is a modified version from the Julia Base.@show macro
+macro show(exs...)
+    blk = Expr(:block)
+    filename = @__FILE__
+    for ex in exs
+        push!(blk.args, :(print_with_color(:light_magenta, $(string(ex)*" = "), repr(begin value=$(esc(ex)) end))))
+        filename != nothing && push!(blk.args, :(print_with_color(:blue, " : ", basename($filename), "\n")))
+    end
+    if !isempty(exs); push!(blk.args, :value); end
+    return blk
+end
+
+# show the content of an array variable or expression including calling file
+macro showm(M)
+    filename = @__FILE__
+    return quote
+        print_with_color(:light_magenta, $(string(M)), " = \n")
+        Base.showarray(STDOUT, $(esc(M)), false)
+        filename != nothing && print_with_color(:blue, " : ", basename($filename))
+        println()
+    end
+end
+
+function print_compact(io::IO, obj::Any)
     ty = typeof(obj) # update type
     if isbits(ty) || ty in [Symbol, Expr]
         print(io, obj)
     elseif ty<:AbstractString
         print(io, "\"", obj, "\"")
     elseif ty<:AbstractArray
-        print_short_array(obj)
+        print_array_compact(obj)
     #elseif ty<:Dict
         #print_short_dict(obj)
     else
@@ -19,7 +43,7 @@ function print_short(io::IO, obj::Any)
 end
 
 
-function print_short_array(io::IO, array::AbstractArray)
+function print_array_compact(io::IO, array::AbstractArray)
     const maxn = 8
     n = length(array)
     half = div(maxn,2)
@@ -37,8 +61,9 @@ function print_short_array(io::IO, array::AbstractArray)
     print(io, "]")
 end
 
+
 # Prints the values of an object fields
-function print_datatype_fields(io::IO, obj::Any)
+function print_field_values(io::IO, obj::Any)
     ctype = typeof(obj)
     print(io, ctype, " with:")
     for (field, ty) in zip(fieldnames(ctype), ctype.types )
@@ -62,7 +87,7 @@ function print_datatype_fields(io::IO, obj::Any)
             array = getfield(obj, field)
             n = length(array)
             if eltype(ty)<:Real && length(size(array))==1
-                print_short_array(io, array)
+                print_array_compact(io, array)
             else
                 if n==0
                     print(io, ty, " [ ]")
@@ -78,14 +103,14 @@ function print_datatype_fields(io::IO, obj::Any)
                 if has_id
                     ids = [ item.id for item in array ]
                     print(io, ", id fields ")
-                    print_short_array(io, ids)
+                    print_array_compact(io, ids)
                 end
                 # add items names if available
                 has_name = all( :name in fieldnames(item) for item in array[1:min(maxn,n)] )
                 if has_name
                     names = [ item.name for item in array ]
                     print(io, ", name fields ")
-                    print_short_array(io, names)
+                    print_array_compact(io, names)
                 end
             end
         elseif ty<:AbstractArray
@@ -93,14 +118,14 @@ function print_datatype_fields(io::IO, obj::Any)
             str   = replace(string(size(array)), ", ", "×")[2:end-1]
             print(io, ty, ", size ", str)
         else
-            print_short(io, item)
+            print_compact(io, item)
         end
     end
     return nothing
 end
 
 # Print arrays of objects
-function print_datatype_array(io::IO, array::AbstractArray)
+function print_array_values(io::IO, array::AbstractArray)
     print(io, length(array), "-element ",typeof(array), ":")
     n = length(array)
     maxn = 8
@@ -117,11 +142,11 @@ function print_datatype_array(io::IO, array::AbstractArray)
 end
 
 
-# Generates show functions for data types
+# Generates show functions to display data types
 macro show_function(datatype)
     return quote
         function $(esc(:show))(io::IO, obj::$datatype)
-            print_datatype_fields(io, obj)
+            print_field_values(io, obj)
         end
     end
 end
@@ -130,7 +155,7 @@ end
 macro show_array_function(datatype)
     return quote
         function $(esc(:show))(io::IO, array::Array{<:$(datatype),1})
-            print_datatype_array(io, array)
+            print_array_values(io, array)
         end
     end
 end

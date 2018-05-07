@@ -41,8 +41,8 @@ include("tools/linalg.jl")
 include("tools/expr.jl")
 include("tools/table.jl")
 include("tools/tensors.jl")
-include("tools/show.jl")
 include("tools/functor.jl")
+include("tools/show.jl")
 
 # generic exports
 export max, min, sort, reset, getindex, sort, copy!, show
@@ -106,8 +106,5 @@ include("hydromech/include.jl")
 @show_function AbstractLogger
 @show_array_function AbstractLogger
 @show_function Domain
-
-#@show_function DTable
-@show_function DBook
 
 end#module

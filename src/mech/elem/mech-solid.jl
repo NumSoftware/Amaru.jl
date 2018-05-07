@@ -105,8 +105,6 @@ function distributed_bc(elem::MechSolid, facet::Union{Facet, Void}, key::Symbol,
         F += N*Q'*(nJ*w) # F is a matrix
     end
 
-    @show F
-
     # generate a map
     keys = (:ux, :uy, :uz)[1:ndim]
     map  = [ node.dofdict[key].eq_id for node in target.nodes for key in keys ]

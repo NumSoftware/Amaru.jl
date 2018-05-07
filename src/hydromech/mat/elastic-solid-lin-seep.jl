@@ -6,11 +6,13 @@ mutable struct ElasticSolidLinSeepIpState<:IpState
     shared_data::SharedAnalysisData
     σ::Array{Float64,1}
     ε::Array{Float64,1}
+    V::Array{Float64,1}
     uw::Float64
     function ElasticSolidLinSeepIpState(shared_data::SharedAnalysisData=SharedAnalysisData()) 
         this = new(shared_data)
         this.σ = zeros(6)
         this.ε = zeros(6)
+        this.V = zeros(shared_data.ndim)
         this.uw = 0.0
         return this
     end
@@ -75,14 +77,22 @@ end
 function stress_update(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState, Δε::Array{Float64,1}, Δuw::Float64, G::Array{Float64,1})
     De = calcD(mat, ipd)
     Δσ = De*Δε
-    ipd.ε += Δε
-    ipd.σ += Δσ
-    ipd.uw += Δuw
+    ipd.ε  += Δε
+    ipd.σ  += Δσ
     K = calcK(mat, ipd)
-    V = -K*G
-    return Δσ, V
+    ipd.V   = -K*G
+    ipd.uw += Δuw
+    return Δσ, ipd.V
 end
 
 function ip_state_vals(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState)
-    return stress_strain_dict(ipd.σ, ipd.ε, ipd.shared_data.ndim)
+    D = stress_strain_dict(ipd.σ, ipd.ε, ipd.shared_data.ndim)
+
+    D[:vx] = ipd.V[1]
+    D[:vy] = ipd.V[2]
+    if ipd.shared_data.ndim==3
+        D[:vz] = ipd.V[3]
+    end
+
+    return D
 end
