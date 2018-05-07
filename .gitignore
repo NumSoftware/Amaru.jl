@@ -2,5 +2,6 @@
 *.jl.*.cov
 *.jl.mem
 *.vtk
+*.dat
 .ipynb_checkpoints
 sandbox
