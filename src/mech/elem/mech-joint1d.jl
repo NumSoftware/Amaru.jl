@@ -173,3 +173,27 @@ function elem_update!(elem::MechJoint1D, U::Array{Float64,1}, F::Array{Float64,1
     F[map] += dF
 end
 
+
+function elem_extrapolated_node_vals(elem::MechJoint1D)
+    all_ip_vals = [ ip_state_vals(elem.mat, ip.data) for ip in elem.ips ]
+    nips        = length(elem.ips) 
+    fields      = keys(all_ip_vals[1])
+    nfields     = length(fields)
+
+    # matrix with all ip values (nip x nvals)
+    W = mapreduce(transpose, vcat, collect.(values.(all_ip_vals)))
+
+    hook = elem.linked_elems[1]
+    bar  = elem.linked_elems[2]
+
+    E = extrapolator(bar.shape, nips)
+    N = E*W # (nbnodes x nfields)
+
+    nhnodes = length(hook.nodes)
+    N = [ zeros(nhnodes, nfields); N ]
+
+    # Filling nodal and elem vals
+    node_vals = OrderedDict{Symbol, Array{Float64,1}}(field => N[:,i] for (i,field) in enumerate(fields))
+
+    return node_vals
+end

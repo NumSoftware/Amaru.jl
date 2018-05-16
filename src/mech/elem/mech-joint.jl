@@ -179,3 +179,17 @@ function elem_update!(elem::MechJoint, U::Array{Float64,1}, F::Array{Float64,1},
     F[map] += dF
 end
 
+function elem_extrapolated_node_vals(elem::MechJoint)
+    nips = length(elem.ips) 
+
+    E  = extrapolator(elem.shape.basic_shape, nips)
+    Sn = E*[ ip.data.σ[1] for ip in elem.ips ]
+    Wn = E*[ ip.data.w[1] for ip in elem.ips ]
+    N  = [ Sn Wn; Sn Wn ]
+
+    node_vals = OrderedDict{Symbol, Array{Float64,1}}()
+    node_vals[:sn] = [ Sn; Sn ]
+    node_vals[:wn] = [ Wn; Wn ]
+
+    return node_vals
+end
