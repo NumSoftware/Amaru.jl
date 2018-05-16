@@ -2,6 +2,7 @@
 
 # Tensor definitions using Mandel notation
 
+import DataStructures.OrderedDict
 export Tensor2, Tensor4
 
 const Tensor2 = Array{Float64,1}
@@ -190,7 +191,7 @@ from stress and strain tensors defined in Mandel notation.
 """
 @inline function stress_strain_dict(σ::Tensor2, ε::Tensor2, ndim::Int)
     if ndim==2;
-        return Dict{Symbol,Float64}(
+        return OrderedDict{Symbol,Float64}(
           :sxx => σ[1],
           :syy => σ[2],
           :szz => σ[3],
@@ -201,7 +202,7 @@ from stress and strain tensors defined in Mandel notation.
           :exy => ε[6]/SR2,
           )
     else
-        return Dict{Symbol,Float64}(
+        return OrderedDict{Symbol,Float64}(
           :sxx => σ[1],
           :syy => σ[2],
           :szz => σ[3],
