@@ -10,7 +10,9 @@ mutable struct Logger<:AbstractLogger
     table    :: DTable
 
     function Logger(applyto::Symbol, target::Union{Expr, TagType}, filename="")
-        @assert(applyto in (:node, :ip, :faces, :edges) )
+        available = (:node, :ip, :face, :edge)
+        applyto in available || error("Logger: applyto shoud be one of $available. got :$applyto")
+
         this = new()
         this.applyto  = applyto
         this.table    = DTable()
@@ -38,7 +40,8 @@ mutable struct GroupLogger<:AbstractLogger
     book     :: DBook
 
     function GroupLogger(applyto::Symbol, target::Union{Expr, TagType}, filename=""; by::Function=identity)
-        @assert(applyto in (:nodes, :ips, :node, :ip) )
+        available = (:node, :ip)
+        applyto in available || error("GroupLogger: applyto shoud be one of $available. got :$applyto")
         this = new()
         this.applyto  = applyto
         this.book     = DBook()
@@ -79,11 +82,11 @@ function set_logger(domain, logger::Logger)
         elseif length(ips) > 1
             warn("set_logger: More than one ip match expression: $(logger.expr)")
         end
-    elseif logger.applyto == :faces
+    elseif logger.applyto == :face
         faces = domain.faces[logger.expr]
         length(faces) == 0 && warn("set_logger: No faces found for expression: $(logger.expr)")
         logger.objects = faces[:nodes]
-    elseif logger.applyto == :edges
+    elseif logger.applyto == :edge
         edges = domain.edges[logger.expr]
         length(edges) == 0 && warn("set_logger: No edges found for expression: $(logger.expr)")
         logger.objects = edges[:nodes]
@@ -93,14 +96,14 @@ end
 
 
 function set_logger(domain, logger::GroupLogger)
-    if logger.applyto == :nodes
+    if logger.applyto == :node
         logger.objects = domain.nodes[logger.expr]
         length(logger.objects) == 0 && warn("set_logger: No nodes found for expression: $(logger.expr)")
 
         if logger.by != identity
             logger.objects = sort(logger.objects, by=logger.by)
         end
-    elseif logger.applyto == :ips
+    elseif logger.applyto == :ip
         logger.objects = domain.elems[:ips][logger.expr]
         length(logger.objects) == 0 && warn("set_logger: No ips found for expression: $(logger.expr)")
 
@@ -124,9 +127,11 @@ end
 
 function save(logger::AbstractLogger)
     if logger.filename != ""
-        try   save(logger, logger.filename, verbose=false)
-        catch warn("Problem writing file ", logger.filename)
-        end
+        #try   
+            save(logger, logger.filename, verbose=false)
+        #catch 
+            #warn("Problem writing file ", logger.filename)
+        #end
     end
 end
 
@@ -140,7 +145,7 @@ function update_logger!(logger::Logger)
     elseif logger.applyto == :ip
         ip   = logger.objects[1]
         vals = ip_state_vals(ip.owner.mat, ip.data)
-    elseif logger.applyto in (:faces, :edges)
+    elseif logger.applyto in (:face, :edge)
         tableU = DTable()
         tableF = DTable()
         for node in logger.objects
@@ -165,12 +170,12 @@ function update_logger!(logger::GroupLogger)
     length(logger.objects)==0 && return
     table = DTable()
 
-    if logger.applyto == :nodes
+    if logger.applyto == :node
         for node in logger.objects
             vals = node_vals(node)
             push!(table, vals)
         end
-    elseif logger.applyto == :ips
+    elseif logger.applyto == :ip
         for ip in logger.objects
             vals = ip_vals(ip)  # includes ip global coordinates
             push!(table, vals)
