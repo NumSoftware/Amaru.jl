@@ -114,7 +114,7 @@ Available options are:
 
 """
 function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::Bool=false, maxincs::Int=0,
-    tol::Number=1e-2, verbose::Bool=true, nouts::Int=0,
+    tol::Number=1e-2, verbose::Bool=true, nouts::Int=0, outdir="",
     scheme::Symbol = :FE, save_ips::Bool=false)::Bool
 
     if verbose
@@ -132,7 +132,13 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
             nincs = nincs - (nincs%nouts) + nouts
             info("  nincs changed to $nincs to be a multiple of nouts")
         end
+
+        strip(outdir) == "" && (outdir = ".")
+        isdir(outdir) || error("solve!: output directory <$outdir> not fount")
+        outdir[end] in ('/', '\\')  && (outdir = outdir[1:end-1])
     end
+
+    #@show outdir
 
     # Get dofs organized according to boundary conditions
     dofs, nu = configure_dofs!(dom, bcs)
@@ -164,8 +170,8 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
 
     # Save initial file
     if dom.nincs == 0 && save_incs 
-        save(dom, "$(dom.filekey)-0.vtk", verbose=false, save_ips=save_ips)
-        verbose && print_with_color(:green, "  $(dom.filekey)-0.vtk file written (Domain)\n")
+        save(dom, "$outdir/$(dom.filekey)-0.vtk", verbose=false, save_ips=save_ips)
+        verbose && print_with_color(:green, "  $outdir/$(dom.filekey)-0.vtk file written (Domain)\n")
     end
 
     # Backup the last converged state at ips. TODO: make backup to a vector of states
@@ -300,9 +306,9 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
             # Check for saving output file
             if abs(t - T) < ttol
                 iout += 1
-                save(dom, "$(dom.filekey)-$iout.vtk", verbose=false, save_ips=save_ips)
+                save(dom, "$outdir/$(dom.filekey)-$iout.vtk", verbose=false, save_ips=save_ips)
                 T += dT # find the next output time
-                verbose && print_with_color(:green, "  $(dom.filekey)-$iout.vtk file written (Domain)\n")
+                verbose && print_with_color(:green, "  $outdir/$(dom.filekey)-$iout.vtk file written (Domain)\n")
             end
 
             if autoinc
