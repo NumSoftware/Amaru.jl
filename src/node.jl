@@ -1,12 +1,5 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-import Base.reset
-import Base.getindex
-import Base.maximum
-import Base.minimum
-import Base.sort
-import DataStructures.OrderedDict
-
 # Dof
 # ===
 
@@ -79,7 +72,7 @@ end
 
 
 # Index operator for node to get a dof
-function getindex(node::Node, s::Symbol)
+function Base.getindex(node::Node, s::Symbol)
     return node.dofdict[s]
 end
 
@@ -96,13 +89,13 @@ end
 # ===============
 
 # Index operator for an collection of nodes
-function getindex(nodes::Array{Node,1}, s::Symbol) 
+function Base.getindex(nodes::Array{Node,1}, s::Symbol) 
     s==:all && return nodes
     error("Element getindex: Invalid symbol $s")
 end
 
 # Index operator for an collection of nodes
-function getindex(nodes::Array{Node,1}, filter_ex::Expr) 
+function Base.getindex(nodes::Array{Node,1}, filter_ex::Expr) 
     @assert filter_ex.head in (:call, :&&, :||)
     expr = fix_comparison_scalar(filter_ex)
     fun  = Functor(:(x,y,z,id,tag), expr)
