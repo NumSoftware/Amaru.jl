@@ -9,7 +9,7 @@ mat = MaterialBind(:solids, ElasticSolid(E=100.0, nu=0.2) )
 
 mons = [
         Logger(:node, :(x==1 && y==1), "node.dat"),
-        GroupLogger(:nodes, :(y==1), "nodes.dat"),
+        GroupLogger(:node, :(y==1), "nodes.dat"),
        ]
 
 dom = Domain(msh, mat, mons)
