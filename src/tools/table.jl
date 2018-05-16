@@ -130,8 +130,8 @@ function save(table::DTable, filename::String; verbose::Bool=true)
     format != "dat" && error("save DTable: filename should have \"dat\" extension")
 
     f  = open(filename, "w")
-    nc = length(table.fields)     # number of fields (columns)
-    nr = length(table.data[1])  # number of rows
+    nc = length(table.fields)             # number of fields (columns)
+    nr = nc>0 ? length(table.data[1]) : 0 # number of rows
 
     if format=="dat"
         # print header
@@ -182,12 +182,12 @@ function save(book::DBook, filename::String; verbose::Bool=true)
     if format=="dat"
 
         for (k,table) in enumerate(book.tables)
-            # print table label
-            nitems = length(table.data[1])
-            print(f, "Table (snapshot=$k, items=$nitems)\n")
 
-            nc = length(table.colindex)     # number of fields (columns)
-            nr = length(table.data[1])  # number of rows
+            nc = length(table.fields)             # number of fields (columns)
+            nr = nc>0 ? length(table.data[1]) : 0 # number of rows
+
+            # print table label
+            print(f, "Table (snapshot=$k, rows=$nr)\n")
 
             # print header
             for i=1:nc
