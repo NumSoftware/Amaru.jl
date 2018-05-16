@@ -85,7 +85,7 @@ end
 
 function elem_vals(elem::MechRod)
     #get area and average axial force
-    vals = Dict(:A => elem.mat.A )
+    vals = OrderedDict(:A => elem.mat.A )
     mean_sa = mean( ip_state_vals(elem.mat, ip.data)[:sa] for ip in elem.ips )
     vals[:sa] = mean_sa
     vals[:fa] = elem.mat.A*mean_sa
