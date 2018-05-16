@@ -32,7 +32,7 @@ mats = [
 
 log_tip     = Logger(:node, "tip")
 log_jnt_ip  = Logger(:ip, "joint_ips")
-log_jnt_ips = GroupLogger(:ips, "joint_ips", by=get_y)
+log_jnt_ips = GroupLogger(:ip, "joint_ips", by=get_y)
 loggers = [ log_tip, log_jnt_ip, log_jnt_ips ]
 
 dom = Domain(msh, mats, loggers)
