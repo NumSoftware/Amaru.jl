@@ -347,7 +347,7 @@ function node_and_elem_vals(dom::Domain)
         end
     end
     #node_fields_set = Set( key for node in dom.nodes for dof in node.dofs for key in keys(dof.vals) )
-    node_fields_idx = Dict( key=>i for (i,key) in enumerate(node_fields_set) )
+    node_fields_idx = OrderedDict( key=>i for (i,key) in enumerate(node_fields_set) )
     nfields = length(node_fields_set)
     NV = zeros(nnodes, nfields)
     for node in dom.nodes
@@ -358,16 +358,21 @@ function node_and_elem_vals(dom::Domain)
         end
     end
 
-    # add nodal values from patch recovery
-    V_rec, fields_rec = nodal_vals_recovery(dom)
+    # add nodal values from patch recovery (solid elements) : regression + averaging
+    V_rec, fields_rec = nodal_patch_recovery(dom)
     NV = [ NV V_rec ]
     node_fields = [ collect(node_fields_set); fields_rec ]
+
+    # add nodal values from local recovery (joints) : extrapolation + averaging
+    V_rec, fields_rec = nodal_local_recovery(dom)
+    NV = [ NV V_rec ]
+    node_fields = [ node_fields; fields_rec ]
 
     # element values
     nelems = length(dom.elems)
     all_elem_vals   = [ elem_vals(elem) for elem in dom.elems ]
     elem_fields_set = Set( key for elem in dom.elems for key in keys(all_elem_vals[elem.id]) )
-    elem_fields_idx = Dict( key=>i for (i,key) in enumerate(elem_fields_set) )
+    elem_fields_idx = OrderedDict( key=>i for (i,key) in enumerate(elem_fields_set) )
     nfields = length(elem_fields_set)
     EV = zeros(nelems, nfields)
     for elem in dom.elems
@@ -396,7 +401,7 @@ function reg_terms(x::Float64, y::Float64, z::Float64, nterms::Int64)
 end
 
 
-function nodal_vals_recovery(dom::Domain)
+function nodal_patch_recovery(dom::Domain)
     ndim = dom.shared_data.ndim
     nnodes = length(dom.nodes)
     length(dom.faces)==0 && return zeros(nnodes,0), Symbol[]
@@ -460,7 +465,7 @@ function nodal_vals_recovery(dom::Domain)
     end
 
     # all data from ips per element and field names
-    all_ips_vals   = Array{Array{Dict{Symbol,Float64}},1}()
+    all_ips_vals   = Array{Array{OrderedDict{Symbol,Float64}},1}()
     all_fields_set = Set{Symbol}()
     for elem in dom.elems
         if elem.shape.class==SOLID_SHAPE
@@ -473,7 +478,7 @@ function nodal_vals_recovery(dom::Domain)
     end
 
     # map field => index
-    all_fields_idx = Dict( key=>i for (i,key) in enumerate(all_fields_set) )
+    all_fields_idx = OrderedDict( key=>i for (i,key) in enumerate(all_fields_set) )
     nfields = length(all_fields_set)
 
     # matrices for all nodal values and repetitions
@@ -561,6 +566,58 @@ function nodal_vals_recovery(dom::Domain)
 
     return V_vals, collect(all_fields_set)
 
+end
+
+
+function nodal_local_recovery(dom::Domain)
+    # Recovers nodal values from non-solid elements as joints and joint1d elements
+    # The element type should implement the elem_extrapolated_node_vals function
+
+    ndim = dom.shared_data.ndim
+    nnodes = length(dom.nodes)
+
+    # all local data from elements
+    all_node_vals  = Array{OrderedDict{Symbol,Array{Float64,1}}, 1}()
+    all_fields_set = OrderedSet{Symbol}()
+    rec_elements   = Array{Element, 1}()
+
+    for elem in dom.elems
+        elem.shape.class == SOLID_SHAPE && continue
+        node_vals = elem_extrapolated_node_vals(elem)
+        length(node_vals) == 0 && continue
+
+        push!(rec_elements, elem)
+        push!(all_node_vals, node_vals)
+        union!(all_fields_set, keys(node_vals))
+    end
+
+    # map field => index
+    all_fields_idx = OrderedDict( key=>i for (i,key) in enumerate(all_fields_set) )
+    nfields = length(all_fields_set)
+
+    # matrices for all nodal values and repetitions
+    V_vals =  zeros(Float64, nnodes, nfields)
+    V_reps =  zeros(Int64  , nnodes, nfields)
+
+    length(rec_elements) == 0 && return V_vals, collect(all_fields_set)
+
+    # local recovery
+    for (i,elem) in enumerate(rec_elements)
+        node_vals = all_node_vals[i]
+        row_idxs  = [ node.id for node in elem.nodes ]
+
+        for (field, vals) in node_vals
+            idx = all_fields_idx[field]
+            V_vals[row_idxs, idx] .+= vals
+            V_reps[row_idxs, idx] .+= 1
+        end
+    end
+
+    # average values
+    V_vals ./= V_reps
+    V_vals[isnan.(V_vals)] = 0.0
+
+    return V_vals, collect(all_fields_set)
 end
 
 

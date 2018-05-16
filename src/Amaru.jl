@@ -18,6 +18,8 @@ set_mat, set_bc, clear_bc, solve!, save
 """
 module Amaru
 using  Base, JSON, Reexport
+import DataStructures.OrderedDict
+import DataStructures.OrderedSet
 
 #Using non-registered (jet) package FemMesh
 #Pkg.installed("FemMesh") == nothing && Pkg.clone("https://github.com/RaulDurand/FemMesh")
