@@ -40,5 +40,5 @@ new_ip_state(mat::ElasticBeam, shared_data::SharedAnalysisData) = BeamIpState(sh
 #end
 
 function ip_state_vals(mat::ElasticBeam, ipd::BeamIpState)
-    return Dict()
+    return OrderedDict{Symbol, Float64}()
 end

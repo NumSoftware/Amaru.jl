@@ -90,7 +90,7 @@ function stress_update(mat::ElasticJoint1D, ipd::Joint1DIpState, deps)
 end
 
 function ip_state_vals(mat::ElasticJoint1D, ipd::Joint1DIpState)
-    return Dict(
+    return OrderedDict(
       :ur   => ipd.eps[1] ,
       :tau  => ipd.sig[1] )
 end

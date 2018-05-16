@@ -83,13 +83,13 @@ end
 function ip_state_vals(mat::ElasticJoint, ipd::JointIpState)
     ndim = ipd.shared_data.ndim
     if ndim == 2
-        return Dict(
+        return OrderedDict(
           :w1  => ipd.w[1] ,
           :w2  => ipd.w[2] ,
           :s1  => ipd.σ[1] ,
           :s2  => ipd.σ[2] )
     else
-        return Dict(
+        return OrderedDict(
           :w1  => ipd.w[1] ,
           :w2  => ipd.w[2] ,
           :w3  => ipd.w[3] ,

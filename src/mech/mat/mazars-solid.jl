@@ -18,6 +18,8 @@ mutable struct MazarsIpState<:IpState
         this.ε = zeros(6)
         this.lastΔε = zeros(6)
         this.φ = 0.0
+        this.φc = 0.0
+        this.φt = 0.0
         this.ε̅max = 0.0
         this.D = zeros(6,6)
         return this
@@ -277,9 +279,9 @@ function ip_state_vals(mat::Mazars, ipd::MazarsIpState)
     σ, ε  = ipd.σ, ipd.ε
 
     D = stress_strain_dict(σ, ε, ndim)
-    D[:dam]  = ipd.dam
-    D[:damt] = ipd.damt
-    D[:damc] = ipd.damc
+    D[:dam]  = ipd.φ
+    D[:damt] = ipd.φt
+    D[:damc] = ipd.φc
     D[:eq]   = ipd.ε̅max
 
     return D

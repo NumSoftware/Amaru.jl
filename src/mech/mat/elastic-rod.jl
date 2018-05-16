@@ -49,7 +49,7 @@ function stress_update(mat::ElasticRod, ipd::ElasticRodIpState, Δε::Float64)
 end
 
 function ip_state_vals(mat::ElasticRod, ipd::ElasticRodIpState)
-    return Dict(
+    return OrderedDict(
       :sa => ipd.σ,
       :ea => ipd.ε,
       :Fa => ipd.σ*mat.A,

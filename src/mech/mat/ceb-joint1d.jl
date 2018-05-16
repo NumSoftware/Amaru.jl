@@ -187,7 +187,7 @@ function stress_update(mat::CEBJoint1D, ipd::CEBJoint1DIpState, Δε::Vect)
 end
 
 function ip_state_vals(mat::CEBJoint1D, ipd::CEBJoint1DIpState)
-    return Dict(
+    return OrderedDict(
       :ur   => ipd.ε[1] ,
       :tau  => ipd.σ[1] ,
       )

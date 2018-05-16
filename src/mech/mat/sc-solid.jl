@@ -303,7 +303,7 @@ function yield_n1_and_deriv(mat::SmearedCrack, ipd::SmearedCrackIpState, ςtr::A
     if ς[2]==0 && ς[3]==0
         dfn1 = (dςdΔλ[1] - dςmaxdΔλ)*μ
     else
-        dfn1 = 1/sqrt(ς[2]^2 + ς[3]^2) * (2*ς[2]*dςdΔλ[1] + 2*ς[3]*dςdΔλ[3]) + (dςdΔλ[1] - dςmaxdΔλ)*μ
+        dfn1 = 1/sqrt(ς[2]^2 + ς[3]^2) * (ς[2]*dςdΔλ[2] + ς[3]*dςdΔλ[3]) + (dςdΔλ[1] - dςmaxdΔλ)*μ
     end
 
     #@show fn1
@@ -347,7 +347,7 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
     if !ipd.hascrack
         P = eigvals(σtr)
         if P[1]>mat.ft
-            P, V = eig(σtr)
+            P, V = eig(σtr) 
             ipd.T = tensor_rot(V) 
             ipd.hascrack = true
 
@@ -377,6 +377,9 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
     idx  = [1, 5, 6]     # indexes for components in the crack plane
     Δw   = (T*Δε)[idx]./mand*ipd.h
 
+    @show Δε
+    @show Δw
+
 
     kn = mat.E*mat.α/ipd.h
     ks = kn/((1.0+mat.ν)) # for conventional eng. stress/strain ks = E/(2*(1+ν))*α/h
@@ -388,7 +391,7 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
 
     h = ipd.h
     De[1,:] .= ( kn*h, 0.0, 0.0, 0.0, 0.0, 0.0 )
-    De[5,:] .= (    0.0, 0.0, 0.0, 0.0, ks*h,   0.0 )
+    De[5,:] .= (    0.0, 0.0, 0.0, 0.0, ks*h,   0.0)
     De[6,:] .= (    0.0, 0.0, 0.0, 0.0, 0.0, ks*h )
 
     De = T'*De*T
@@ -407,7 +410,7 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
         #@show ipd.upa/mat.wc
         #@show ipd.w[1]/mat.wc
         #@show ipd.w[1]
-        #@show ςtr[1]
+        #@show ςtr
 
         if ipd.upa/mat.wc >= 0.99 && ipd.w[1] >= 0.0 && ςtr[1]>=0.0 
             #println("111111111111111111111111111111111111")
@@ -440,7 +443,8 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
             #Δλ = Δλ0
             f = 0.0
 
-            for Δλ in (Δλ0, 0.0, 1e-10)
+            #for Δλ in (Δλ0, 0.0, 1e-10)
+            for Δλ in (0.0, 1e-10)
                 for i=1:maxits
                     f, df, ς, upa = yield_n1_and_deriv(mat, ipd, ςtr, Δλ)
                     Δλ = Δλ - f/df
@@ -485,12 +489,17 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
 
             # Return to surface:
             Fend  = yield_func(mat, ipd, ς)
-            @show Fend
-            #exit()
+            #@show Fend
+            #@show Δλ
+            σmax = calc_σmax(mat, ipd, ipd.upa)
+            #@show upa
+            #@show σmax
+            #@show ς
+
 
             #if false 
-            if abs(Fend) > 1e-1
-                #@show Fend
+            if abs(Fend) > 1e-2
+                @show Fend
             end
         end
     end
@@ -510,6 +519,7 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
 
     ipd.w += Δw
     Δσ = ipd.σ - σini
+    #@show Δσ
 
     return Δσ 
 end
@@ -523,9 +533,17 @@ function ip_state_vals(mat::SmearedCrack, ipd::SmearedCrackIpState)
 
     mand = (1.0, SR2, SR2)
     T    = ipd.T
-    s1    = (T*ipd.σ)[1] # trial stress components in the crack plane
+    if ipd.hascrack
+        s1    = (T*ipd.σ)[1] # trial stress components in the crack plane
+        s2    = (T*ipd.σ)[5] # trial stress components in the crack plane
+        s3    = (T*ipd.σ)[6] # trial stress components in the crack plane
+    else
+        s1 = s2 = s3 = 0.0
+    end
     D[:upa] = ipd.upa
     D[:s1]  = s1
+    D[:s2]  = s2
+    D[:s3]  = s3
     D[:w]  = ipd.w[1]
     D[:crack]  = float(ipd.hascrack)
     return D
