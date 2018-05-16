@@ -1,5 +1,8 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
+# Abstract Element type
+# =====================
+
 abstract type Element 
     #Element subtypes must have the following fields:
     #id    ::Int
@@ -13,6 +16,7 @@ abstract type Element
     #shared_data ::SharedAnalysisData
 end
 
+# Function to create new concrete types filled with relevant information
 function new_element(etype::Type{<:Element}, shape::ShapeType, nodes::Array{Node,1}, shared_data::SharedAnalysisData, tag::TagType=0)
     elem = etype()
     elem.id     = 0
@@ -26,6 +30,58 @@ function new_element(etype::Type{<:Element}, shape::ShapeType, nodes::Array{Node
     return elem
 end
 
+# Functions that should be available in all concrete types derived from Element
+# =============================================================================
+
+"""
+`elem_config_dofs(elem)`
+
+Sets up the dofs for all nodes in `elem` according with its type.
+This function can be specialized by concrete types.
+"""
+function elem_config_dofs(elem::Element)
+    # No-op function but can be specialized by concrete types
+    return nothing
+end
+
+
+"""
+`elem_init(elem)`
+
+Configures `elem` according to its type.
+This function can be specialized by concrete types.
+"""
+function elem_init(elem::Mechanical)
+    # No-op function but can be specialized by concrete types
+    return nothing
+end
+
+
+"""
+`elem_vals(elem)`
+
+Returns a dictionary with values for the element.
+Those values are intended to be constant along the element.
+This function can be specialized by concrete types.
+"""
+function elem_vals(elem::Element)
+    return Dict{Symbol, Float64}()
+end
+
+
+"""
+`elem_extrapolated_node_vals(elem)`
+
+Returns a dictionary with nodal values obtained by extrapolation
+of values at ip points.
+"""
+function elem_extrapolated_node_vals(elem::Element)
+    return Dict{Symbol, Float64}()
+end
+
+
+# Auxiliary functions for elements
+# ================================
 
 # Get the element coordinates matrix
 function elem_coords(elem::Element)
@@ -174,13 +230,10 @@ This function can be specialized by concrete types.
 """
 function elems_ip_vals(elem::Element)
     table = DTable()
-    #try
-        for ip in elem.ips
-            D = ip_state_vals(elem.mat, ip.data)
-            push!(table, D)
-        end
-    #catch 
-    #end
+    for ip in elem.ips
+        D = ip_state_vals(elem.mat, ip.data)
+        push!(table, D)
+    end
 
     return table
 end
