@@ -17,17 +17,17 @@ end
 mutable struct ElasticRod<:Material
     E::Float64
     A::Float64
-    ro::Float64
+    ρ::Float64
     
     function ElasticRod(prms::Dict{Symbol,Float64})
         return  ElasticRod(;prms...)
     end
 
-    function ElasticRod(;E::Number=1.0, A::Number=1.0, ro::Number=1.0)
+    function ElasticRod(;E::Number=1.0, A::Number=1.0, ρ::Number=1.0)
         if E<=0.0; error("Invalid value for E: $E") end
         if A<=0.0; error("Invalid value for A: $A") end
-        if ro<0.0; error("Invalid value for ro: $ro") end
-        this = new(E,A,ro)
+        if ρ<0.0; error("Invalid value for ρ: $ρ") end
+        this = new(E,A,ρ)
         return this
     end
 end
