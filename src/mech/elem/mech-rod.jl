@@ -72,7 +72,7 @@ function elem_mass(elem::MechRod)
 
         # compute M
         coef = ro*A*detJ*ip.w
-        @gemm M += coef*N'*N #falta multiplicar pela espessura.. perguntar onde esta.. acho que ja esta inlcuida pois precisa K
+        @gemm M += coef*N'*N 
 
     end
 
