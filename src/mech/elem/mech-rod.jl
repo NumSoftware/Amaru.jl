@@ -49,6 +49,65 @@ function elem_stiffness(elem::MechRod)
     return K, map, map
 end
 
+function elem_mass(elem::MechRod) 
+    ndim   = elem.shared_data.ndim
+    nnodes = length(elem.nodes)
+    ro = elem.mat.ro
+    A = elem.mat.A
+    
+    C = elem_coords(elem)
+    M = zeros(nnodes*ndim, nnodes*ndim)
+    J  = Array{Float64}(1, ndim)
+    N = zeros(ndim, ndim*nnodes)
+    
+    for ip in elem.ips
+
+        dNdR = elem.shape.deriv(ip.R)
+        Ni = elem.shape.func(ip.R) #encontrei em shape.jl FemMesh
+        setNt(ndim,Ni,N)    
+
+        @gemm J = dNdR*C
+        detJ = norm(J)
+        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+
+        # compute M
+        coef = ro*A*detJ*ip.w
+        @gemm M += coef*N'*N #falta multiplicar pela espessura.. perguntar onde esta.. acho que ja esta inlcuida pois precisa K
+
+    end
+
+    keys = (:ux, :uy, :uz)[1:ndim]
+    map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
+    return M, map, map
+end
+
+
+function setNt(ndim::Int,Ni::Vect, N::Matx)
+    nnodes = length(Ni) 
+    N[:] = 0.0
+
+    if ndim==2
+        for i in 1:nnodes
+            j = i-1
+            N[1,1+j*ndim] = Ni[i]
+            N[2,2+j*ndim] = Ni[i]
+        end
+    elseif ndim==3
+        for i in 1:nnodes
+            j    = i-1
+            N[1,1+j*ndim] = Ni[i]
+            N[2,2+j*ndim] = Ni[i]
+            N[3,3+j*ndim] = Ni[i]
+       end
+    else
+        for i in 1:nodes
+            j = i-1
+            N[1,1+j*ndim] = Ni[i]
+        end    
+    end
+    
+end
+            
 function elem_update!(elem::MechRod, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
     ndim   = elem.shared_data.ndim
     nnodes = length(elem.nodes)
