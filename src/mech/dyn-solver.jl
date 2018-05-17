@@ -392,7 +392,7 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, m
             ΔUa .+= ΔUi
 
             # Residual vector for next iteration
-            Fex_Fin .= Fex .- Fin  # Check this variable, it is not the residue actually
+            Fex_Fin .= Fex .- Fina  # Check this variable, it is not the residue actually
             Fex_Fin[pmap] .= 0.0  # Zero at prescribed positions
 
             if verbose
@@ -400,6 +400,7 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, m
                 @printf(" residue: %-10.4e\n", residue)
             end
 
+            if residue > tol; Fina -= ΔFin end
             if residue < tol;        converged = true ; remountK=false; break end
             if isnan(residue);       converged = false; break end
             if it > maxits;          converged = false; break end
