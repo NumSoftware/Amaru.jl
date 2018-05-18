@@ -51,7 +51,7 @@ end
 Configures `elem` according to its type.
 This function can be specialized by concrete types.
 """
-function elem_init(elem::Mechanical)
+function elem_init(elem::Element)
     # No-op function but can be specialized by concrete types
     return nothing
 end
@@ -198,7 +198,7 @@ function getindex(elems::Array{Element,1}, s::Symbol)
     s == :solids && return filter(elem -> elem.shape.class==SOLID_SHAPE, elems)
     s == :lines && return filter(elem -> elem.shape.class==LINE_SHAPE, elems)
     s == :embedded && return filter(elem -> elem.shape.class==LINE_SHAPE && length(elem.linked_elems)>0, elems)
-    s == :joints1D && return filter(elem -> elem.shape.class==JOINT1D_SHAPE, elems)
+    s in (:joints1d, :joints1D) && return filter(elem -> elem.shape.class==JOINT1D_SHAPE, elems)
     s == :joints && return filter(elem -> elem.shape.class==JOINT_SHAPE, elems)
     s == :nodes && return get_nodes(elems)
     s == :ips && return get_ips(elems)
