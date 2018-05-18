@@ -73,7 +73,7 @@ function keys(table::DTable)
     return table.fields
 end
 
-function Base.push!(table::DTable, dict::Associative{Symbol,Float64})
+function Base.push!(table::DTable, dict::Associative)
     if length(table.data)==0
         table.data     = [ Float64[v] for (k,v) in dict ]
         table.colindex = Dict( key=>i for (i,key) in enumerate(keys(dict)) )
