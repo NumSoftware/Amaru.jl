@@ -52,7 +52,7 @@ end
 
 
 function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}},
-                loggers::Union{AbstractLogger, Array}=[];
+                loggers::Union{AbstractLogger,Array}=[];
                 model_type::Symbol=:general, thickness::Real=1.0, filekey::String="out", verbose::Bool=true)
 
     # Fix arguments
@@ -167,7 +167,7 @@ function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}}
 
     # Setting loggers
     for logger in loggers
-        set_logger(dom, logger)
+        setup_logger!(dom, logger)
     end
     dom.loggers = loggers
 
@@ -189,13 +189,40 @@ function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}}
     return dom
 end
 
-function reset!(dom)
+
+# Function for setting loggers
+"""
+    setlogger!(domain, logger)
+
+Register a new `logger` in `domain`.
+
+    setlogger!(domain, loggers)
+
+Register each logger from the array `loggers` in `domain`.
+
+"""
+function setlogger!(dom::Domain, logger::Union{AbstractLogger, Array{<:AbstractLogger,1}})
+    loggers = typeof(logger)<:AbstractLogger ? [logger] : logger
+    setup_logger!.(dom, loggers)
+    dom.loggers = loggers
+end
+
+
+# Function for updating loggers
+update_loggers!(domain::Domain) = update_logger!.(domain.loggers)
+
+
+# Function to reset a domain
+#= This is error prone specially with ips in loggers
+A new Domain is preferable
+function reset!(dom::Domain) 
     dom.nincs = 0
     dom.stage = 0
 
-    # Reconfigure nodes
+    # Reconfigure nodes and dofs
     for node in dom.nodes
-        node.dofs = empty!(node.dofs)
+        empty!(node.dofs)
+        empty!(node.dofdict)
     end
 
     # Reconfigure elements, dofs and ips
@@ -213,15 +240,32 @@ function reset!(dom)
 
     # Reconfigure loggers
     for logger in dom.loggers
-        set_logger(dom, logger)
-        if typeof(logger)==Logger
-            logger.table = DTable()
-        else
-            logger.book= DBook()
-        end
+        setup_logger!(dom, logger)
+    end
+end
+
+function reset!(dom::Domain)
+    dom.nincs = 0
+    dom.stage = 0
+
+    # Reconfigure nodes and dofs
+    for node in dom.nodes
+        reset!(node)
+    end
+
+    # Reconfigure elements, dofs and ips
+    for elem in dom.elems
+        reset!(elem)
+    end
+
+    # Reconfigure loggers
+    for logger in dom.loggers
+        reset!(logger)
     end
 
 end
+
+=#
 
 
 function save(dom::Domain, filename::String; verbose=true, save_ips=false)
@@ -681,6 +725,7 @@ function Base.convert(::Type{VTK_unstructured_grid}, dom::Domain)
                                  point_vector_data=point_vector_data,
                                  cell_scalar_data=cell_scalar_data)
 end
+
 
 import FemMesh.mplot
 function mplot(dom::Domain; args...)
