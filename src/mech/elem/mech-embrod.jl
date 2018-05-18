@@ -33,7 +33,6 @@ function elem_map(elem::MechEmbRod)
     ndim = elem.shared_data.ndim
     keys = (:ux, :uy, :uz)[1:ndim]
     solid = elem.linked_elems[1]
-    #vcat([ [node.dofdict[key].eq_id for key in dof_keys] for node in solid.nodes]...)
     return [ node.dofdict[key].eq_id for node in solid.nodes for key in keys ]
 end
 
@@ -93,13 +92,8 @@ function elem_stiffness(elem::MechEmbRod)
     NN = elem.cache_NN
     map = elem_map(elem)
     return NN*K*NN', map, map
-
-    #keys = (:ux, :uy, :uz)[1:ndim]
-    #map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-    #return K, map, map
 end
 
-#function elem_dF!(elem::MechEmbRod, dU::Array{Float64,1})
 function elem_update!(elem::MechEmbRod, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
     NN  = elem.cache_NN
     map = elem_map(elem)
