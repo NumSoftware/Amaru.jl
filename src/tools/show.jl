@@ -10,7 +10,7 @@ macro show(exs...)
     filename = @__FILE__
     for ex in exs
         push!(blk.args, :(print_with_color(:light_magenta, $(string(ex)*" = "), repr(begin value=$(esc(ex)) end))))
-        filename != nothing && push!(blk.args, :(print_with_color(:blue, " : ", basename($filename), "\n")))
+        #filename != nothing && push!(blk.args, :(print_with_color(:blue, " : ", basename($filename), "\n")))
     end
     if !isempty(exs); push!(blk.args, :value); end
     return blk
@@ -22,8 +22,8 @@ macro showm(M)
     return quote
         print_with_color(:light_magenta, $(string(M)), " = \n")
         Base.showarray(STDOUT, $(esc(M)), false)
-        filename != nothing && print_with_color(:blue, " : ", basename($filename))
-        println()
+        #filename != nothing && print_with_color(:blue, " : ", basename($filename))
+        println() 
     end
 end
 
