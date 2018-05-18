@@ -125,10 +125,10 @@ function matrix2Mandel(M::Array{Float64,2})
     t11 = M[1,1]
     t22 = M[2,2]
     t33 = M[3,3]
-    t23 = M[2,3]
-    t13 = M[1,3]
-    t12 = M[1,2]
-    return [t11, t22, t33, t23, t13, t12] .* V2M
+    t23 = M[2,3]*SR2
+    t13 = M[1,3]*SR2
+    t12 = M[1,2]*SR2
+    return [t11, t22, t33, t23, t13, t12]
 end
 
 
