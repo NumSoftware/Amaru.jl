@@ -154,10 +154,6 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
     # Get forces and displacements from boundary conditions
     Uex, Fex = get_bc_vals(dom, bcs)
 
-    # Global RHS vector 
-    RHS   = mount_RHS(dom, ndofs, 0.0)
-    Fex .+= RHS
-
     # Setup quantities at dofs
     if dom.nincs == 0
         for (i,dof) in enumerate(dofs)
