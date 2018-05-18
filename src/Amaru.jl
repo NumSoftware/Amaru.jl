@@ -35,6 +35,7 @@ end
 import FemMesh.save # to be extended
 import FemMesh.update! # to be extended
 import FemMesh.get_x, FemMesh.get_y, FemMesh.get_z # to be extended
+import FemMesh.tag!
 
 # Tools module
 include("tools/constants.jl")
@@ -70,6 +71,9 @@ export set_mat, get_nodes, get_ips, set_state, getcoords, getvals, get_map, elem
 include("facet.jl")
 export Facet, Face, Edge
 
+include("tag.jl")
+export tag!
+
 include("bc.jl")
 #export NodeBC, FaceBC, EdgeBC, apply_bc
 export BC, apply_bc
@@ -79,7 +83,7 @@ export Logger, GroupLogger
 export update_logger!
 
 include("domain.jl")
-export reset!
+export reset!, setlogger!
 
 
 # Mechanical module
