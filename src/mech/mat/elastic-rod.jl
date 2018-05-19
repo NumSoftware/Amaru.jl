@@ -27,8 +27,7 @@ mutable struct ElasticRod<:Material
         E<=0.0 && error("Invalid value for E: $E")
         A<=0.0 && error("Invalid value for A: $A")
         rho<0.0 && error("Invalid value for rho: $rho")
-        this = new(E, A, rho)
-        return this
+        return new(E, A, rho)
     end
 end
 

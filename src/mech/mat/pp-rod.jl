@@ -24,17 +24,19 @@ mutable struct PPRod<:Material
     A::Float64
     σy0::Float64
     H::Float64
+    ρ::Float64
 
     function PPRod(prms::Dict{Symbol,Float64})
         return  PPRod(;prms...)
     end
 
-    function PPRod(;E=NaN, A=NaN, sig_y=NaN, H=0.0)
-        @assert E>0
-        @assert A>0
-        @assert sig_y>0
-        this = new(E, A, sig_y, H)
-        this
+    function PPRod(;E=NaN, A=NaN, sig_y=NaN, H=0.0, rho::Number=0.0)
+        E<=0.0 && error("Invalid value for E: $E")
+        A<=0.0 && error("Invalid value for A: $A")
+        sig_y<0.0 && error("Invalid value for sig_y: $sig_y")
+        rho<0.0 && error("Invalid value for rho: $rho")
+
+        return new(E, A, sig_y, H, rho)
     end
 end
 
