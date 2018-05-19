@@ -52,7 +52,7 @@ verbose=true)
 materials = [
     MaterialBind(:solids, DruckerPrager(E=Ec, nu=0.2, rho=roc, alpha=0.4312, kappa=3771.2) ),
     MaterialBind(:joints1D, ElasticJoint1D(ks=1.e7, kn=1.e7, A=Aa) ),
-    MaterialBind(:lines   , ElasticRod(E=Ea, A=Aa, ro=roa) ),
+    MaterialBind(:lines   , ElasticRod(E=Ea, A=Aa, rho=roa) ),
 
 ]
 
@@ -71,7 +71,7 @@ BC(:node, :(x==6*0.0254 && z==11*0.0254 && y==86*0.0254), fz=:( (((-13.5)/0.0002
     ]
 
 
-dynsolve!(dom, bcs, time_span=0.05, nincs=1000, verbose=true, filekey="dyn", nouts=100, auto_inc=true, alpha=0.0, beta=0.0)
-#dynsolve!(dom, bcs, time_span=0.1, nincs=50, verbose=true, filekey="dyn", nouts=100, auto_inc=true)
+dynsolve!(dom, bcs, time_span=0.05, nincs=1000, verbose=true, filekey="dyn", nouts=100, autoinc=true, alpha=0.0, beta=0.0)
+#dynsolve!(dom, bcs, time_span=0.1, nincs=50, verbose=true, filekey="dyn", nouts=100, autoinc=true)
 #using Glob
 #rm.(glob("*.vtk"))
