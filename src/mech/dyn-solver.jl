@@ -199,7 +199,7 @@ Available options are:
 
 `nincs=1` : Number of increments
 
-`auto_inc=false` : Sets automatic increments size. The first increment size will be `1/nincs`
+`autoinc=false` : Sets automatic increments size. The first increment size will be `1/nincs`
 
 `maxits=5` : The maximum number of Newton-Rapson iterations per increment
 
@@ -212,7 +212,7 @@ Available options are:
 `saveips=false` : If true, saves corresponding output files with ip information
 
 """
-function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, maxits::Int=5, auto_inc::Bool=false, 
+function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, maxits::Int=5, autoinc::Bool=false, 
                    nouts::Int=0, nmods::Int=10, alpha::Real=0.0, beta::Real=0.0,
                    tol::Number=1e-2, verbose::Bool=true, save_incs::Bool=false, 
                    scheme::Symbol = :FE, save_ips::Bool=false, filekey="out")::Bool
@@ -444,7 +444,7 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, m
             end
 
 
-            if auto_inc
+            if autoinc
                 dt = min(1.5*dt, Dt/nincs)
                 dt = round(dt, -ceil(Int, log10(dt))+3)  # round to 3 significant digits
             end
@@ -454,7 +454,7 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, m
                 dt = T-t
             end
         else
-            if auto_inc
+            if autoinc
                 verbose && println("    increment failed.")
                 dt *= 0.5
                 dt = round(dt, -ceil(Int, log10(dt))+3)  # round to 3 significant digits
