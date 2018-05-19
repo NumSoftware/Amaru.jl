@@ -12,31 +12,35 @@ FILES = [
     "fem/show.jl",
     "fem/logger.jl",
 
-    # Static analysis: solid elements
-    "mech/elastic-solid/solid.jl",
-    "mech/elastic-solid/elastic.jl",
-    "mech/elastic-solid/one-elem.jl",
+    # Static analysis: solid models
+    "mech/solid/elastic-elems.jl",
+    "mech/solid/elastic-hex8.jl",
+    "mech/solid/dp.jl",
+    "mech/solid/vm.jl",
+    "mech/solid/mazars.jl",
+    #"mech/solid/sc.jl",
+    #"mech/solid/sc-beam.jl",
 
-    # Static analysis: joint elements
+    # Static analysis: rod models
+    "mech/rod/truss.jl",
+    "mech/rod/pprod.jl",
+
+    # Static analysis: beam models
+    #"mech/beam/beam.jl",
+
+    # Static analysis: joint models
     "mech/joint/joint1d.jl",
     "mech/joint/joint2d.jl",
 
     # Static analysis: embeddeed and semi-embedded elements
-    "mech/semi-embedded/embed.jl",
-    "mech/semi-embedded/ceb.jl",
+    "mech/inset/embed.jl",
+    "mech/inset/ceb.jl",
 
-    # Nonlinear static analysis: solid elements
-    "mech/nl-solid/dp.jl",
-    "mech/nl-solid/vm.jl",
-    "mech/nl-solid/mazars.jl",
-    #"mech/nl-solid/sc.jl",
-    #"mech/nl-solid/sc-beam.jl",
+    # Dynamic analysis:
+    "mech/dynamic/dyn-solid.jl",
 
-    # Dynamic analysis: solid elements
-    #"mech/daynamic/dyn-solid.jl",
-
-    # Hydromechanical analysis: solid elements
-    #"hydromech/terzaghi.jl",
+    # Hydromechanical analysis:
+    "hydromech/terzaghi.jl",
    ]
 
 
@@ -47,3 +51,5 @@ FILES = [
         println()
     end
 end
+
+include("clean.jl")
