@@ -23,10 +23,10 @@ mutable struct ElasticRod<:Material
         return  ElasticRod(;prms...)
     end
 
-    function ElasticRod(;E::Number=1.0, A::Number=1.0, rho::Number=0.0)
+    function ElasticRod(;E::Number=NaN, A::Number=NaN, rho::Number=0.0)
         E<=0.0 && error("Invalid value for E: $E")
         A<=0.0 && error("Invalid value for A: $A")
-        rho<=0.0 && error("Invalid value for rho: $rho")
+        rho<0.0 && error("Invalid value for rho: $rho")
         this = new(E, A, rho)
         return this
     end
