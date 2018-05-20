@@ -335,7 +335,7 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, m
         verbose && print_with_color(:blue, "  increment $inc from t=$(round(t,10)) to t=$(round(t+dt,10)) (dt=$(round(dt,10))):", bold=true) # color 111
         verbose && println()
         #R   .= FexN - F    # residual
-        Fex_Fin = Fex-Fin    # residual
+        Fex_Fin = Fex-Fina    # residual
         ΔUa .= 0.0
         ΔUi .= Uex    # essential values at iteration i # TODO: check for prescribed disps
 
