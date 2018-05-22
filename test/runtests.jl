@@ -33,7 +33,7 @@ FILES = [
     "mech/joint/joint2d.jl",
 
     # Static analysis: embeddeed and semi-embedded elements
-    "mech/inset/embed.jl",
+    "mech/inset/embedded.jl",
     "mech/inset/ceb.jl",
 
     # Dynamic analysis:

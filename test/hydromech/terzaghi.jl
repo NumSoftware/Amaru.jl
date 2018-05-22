@@ -33,7 +33,7 @@ materials = [
 ]
 
 logger = [
-    GroupLogger(:nodes, :(x==0 && y==0) ),
+    GroupLogger(:node, :(x==0 && y==0) ),
 ]
 
 dom = Domain(msh, materials, logger)
@@ -91,33 +91,35 @@ end
 # Output
 # ======
 
-# Terzaghi's 1-d consolidation
-function calc_Ue(Z, T)
-    sum = 0.0
-    for i=0:4
-		M = pi/2*(2*i+1)
-		sum = sum + 2/M*sin(M*Z)*exp(-M^2*T)
+if !isdefined(:NOPLOTS)
+    # Terzaghi's 1-d consolidation
+    function calc_Ue(Z, T)
+        sum = 0.0
+        for i=0:4
+            M = pi/2*(2*i+1)
+            sum = sum + 2/M*sin(M*Z)*exp(-M^2*T)
+        end
+        return sum
     end
-    return sum
+
+    using PyPlot
+
+
+    # numerical curves
+    book  = logger[1].book
+    Uwini = book.tables[2][:uw]       # hydrostatic porepressure
+    Z     = 1 - book.tables[2][:z]/hd # normalized depth
+    for Uw in Uw_vals
+        dUw = (Uw - Uwini)/load       # excess of porepressure
+        plot(dUw, Z, "-o")
+    end
+
+    # analytical curves
+    for Ti in T
+        Ue = calc_Ue.(Z, Ti)
+        plot(Ue, Z, "k")
+    end
+
+    ylim(1,0)
+    show()
 end
-
-using PyPlot
-
-
-# numerical curves
-book  = logger[1].book
-Uwini = book.tables[2][:uw]       # hydrostatic porepressure
-Z     = 1 - book.tables[2][:z]/hd # normalized depth
-for Uw in Uw_vals
-    dUw = (Uw - Uwini)/load       # excess of porepressure
-    plot(dUw, Z, "-o")
-end
-
-# analytical curves
-for Ti in T
-    Ue = calc_Ue.(Z, Ti)
-    plot(Ue, Z, "k")
-end
-
-ylim(1,0)
-show()
