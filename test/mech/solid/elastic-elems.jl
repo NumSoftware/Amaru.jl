@@ -1,7 +1,9 @@
 using Amaru
 using Base.Test
 
-for shape in (TRI3, TRI6, QUAD4, QUAD8, QUAD9)
+dis = [ -0.012, -0.095 ]
+
+for shape in (TRI3, TRI6, QUAD4, QUAD8, QUAD9) 
     print_with_color(:cyan, shape.name); println()
     bl = Block2D( [0 0; 1 1], nx=5, ny=5, shape=shape)
     mesh = Mesh(bl, verbose=false)
@@ -19,11 +21,16 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8, QUAD9)
         BC(:face, 20, :(ty=-10.) ),
     ]
 
-    @test solve!(dom, bcs, nincs=1)
+    solve!(dom, bcs, nincs=1)
+
+    top_node = dom.nodes[:(y==1)][1]
+    ux = top_node.dofdict[:ux].vals[:ux]
+    uy = top_node.dofdict[:uy].vals[:uy]
+    @show ux, uy
+    @test [ux, uy] ≈ dis atol=4e-2
 
     println( nodes_dof_vals(dom.nodes[:(y==1)][1]) )
 
-    #println(dom.nodes[:(y==1)][1].dofdict[:uy].vals)
 end
 
 for shape in (TET4, TET10, HEX8, HEX20)
@@ -46,8 +53,11 @@ for shape in (TET4, TET10, HEX8, HEX20)
         BC(:face, 20, :(tz=-10.) ),
     ]
 
-    @test solve!(dom, bcs, nincs=1)
+    solve!(dom, bcs, nincs=1)
 
-    #println(dom.nodes[:(z==1)][1].dofdict[:uz].vals)
-    println( nodes_dof_vals(dom.nodes[:(z==1)][1]) )
+    top_node = dom.nodes[:(z==1)][1]
+    uy = top_node.dofdict[:uy].vals[:uy]
+    uz = top_node.dofdict[:uz].vals[:uz]
+    @show uy, uz
+    @test [uy, uz] ≈ dis atol=1e-2
 end

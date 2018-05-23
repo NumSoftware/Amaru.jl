@@ -3,6 +3,7 @@
 # William Weaver & Paul Johnston
 
 using Amaru
+using Base.Test
 
 # Mesh generation
 
@@ -49,7 +50,17 @@ bcs4 = [
     BC(:element, :all, :(tz=-1) ),
 ]
 
-for bcs in [bcs1, bcs2, bcs3, bcs4]
+ana_list = ["Nodal load", "Edge load", "Triangular face load", "Volume load"]
+bcs_list = [bcs1, bcs2, bcs3, bcs4]
+dis_list = [
+            [ 0.0, 0.0, 4.0, 0.0, 4.0, 4.0, 0.0, 4.0 ],
+            [ 0.0, 0.0, 3.32088, 0.0, -4.6002, 3.1998, 0.0, -4.32047 ],
+            [ 0.0, 0.0, 1.51044, 0.0, 1.4499, -2.4501, 0.0, -2.31023, ],
+            [ 0.0, 0.0, -0.5, 0.0, -0.5, -0.5, 0.0, -0.5 ] ]
+
+for (ana, bcs, dis) in zip(ana_list, bcs_list, dis_list)
+
+    println("\nLoad case: $ana \n")
 
     dom = Domain(mesh, materials)
     solve!(dom, bcs, nincs=1, nouts=1, verbose=true)
@@ -57,6 +68,8 @@ for bcs in [bcs1, bcs2, bcs3, bcs4]
     println("Displacements:")
     D = nodes_dof_vals(dom.nodes)[[:ux, :uy, :uz]]
     println(D)
+
+    @test dis ≈ D[:uz] atol=1e-5
 
     println("Stress:")
     S = elems_ip_vals(dom.elems[1])[[:sxx, :syy, :szz, :syz, :sxz, :sxy]]
