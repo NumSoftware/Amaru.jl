@@ -58,8 +58,6 @@ mutable struct MCJoint<:Material
         @assert(isnan(ws) || ws>0)
         @assert(E > 0 && nu >= 0 && ft > 0 && mu > 0 && alpha > 0 && wc > 0)
 
-        @show(ws)
-        @show(wc)
         this = new(E, nu, ft, mu, alpha, wc, ws, softcurve)
         return this
     end
@@ -336,13 +334,6 @@ function stress_update(mat::MCJoint, ipd::MCJointIpState, Δw::Array{Float64,1})
 
     # σ trial and F trial
     σtr  = ipd.σ + De*Δw
-
-    if isnan(σtr[1])
-      @show(σtr)
-      @show(ipd.σ) 
-      @show(Δw) 
-      @show(De)
-    end
 
     Ftr  = yield_func(mat, ipd, σtr) 
 
