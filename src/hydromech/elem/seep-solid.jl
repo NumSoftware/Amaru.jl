@@ -142,9 +142,10 @@ function elem_RHS_vector(elem::SeepSolid)
     Bp     = zeros(ndim, nnodes)
     KZ     = zeros(ndim)
 
-    J    = Array{Float64}(ndim, ndim)
-    dNdX = Array{Float64}(ndim, nnodes)
-    Z    = [0.0, 0.0, 1.0] # hydrostatic gradient
+    J      = Array{Float64}(ndim, ndim)
+    dNdX   = Array{Float64}(ndim, nnodes)
+    Z      = zeros(ndim) # hydrostatic gradient
+    Z[end] = 1.0
 
     for ip in elem.ips
 
