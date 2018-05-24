@@ -13,6 +13,7 @@ mat = MaterialBind(:all, VonMises(E=2.0e8, nu=0.28, σy=5.0e5) )
 
 mon = Logger(:ip, "ip")
 
+
 # boundary conditions
 bcs = [
     #BC(:node, :(x==0 && y==0 && z==0) , ux=0, uy=0, uz=0),
@@ -22,7 +23,11 @@ bcs = [
     BC(:node, :(y==0 || y==1.0), uy=0),
 ]
 
-dom = Domain(msh, mat, mon)
+dom = Domain(msh, mat)
+
+mon = Logger(dom.elems[:ips][1])
+setlogger!(dom, mon)
+
 @test solve!(dom, bcs, autoinc=true, nincs=40, tol=1e-2)
 
 # boundary conditions
@@ -30,7 +35,8 @@ dom = Domain(msh, mat, mon)
 #bcs[2] = top
 #@test solve!(dom, bcs, autoinc=true, nincs=10, tol=1e-2)
 
-if !isdefined(:NOPLOTS)
+
+if Amaru.Debug.makeplots
     using PyPlot
     tab = mon.table
     plot( tab[:ezz], tab[:szz], "-o")

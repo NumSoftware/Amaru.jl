@@ -54,7 +54,7 @@ bc2 = BC(:node, "tip", :(uy=-0.0005))
 bc2 = BC(:node, "tip", :(uy=+0.005))
 @test solve!(dom, [bc1, bc2], nincs=30, autoinc=true, verbose=true)
 
-if !isdefined(:NOPLOTS)
+if Amaru.Debug.makeplots
     using PyPlot
     tab = log_jnt_ip.table
     plot(tab[:ur], tab[:tau], marker="o", color="blue")

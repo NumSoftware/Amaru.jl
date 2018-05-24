@@ -38,7 +38,7 @@ try
 catch
 end
 
-if !isdefined(:NOPLOTS)
+if Amaru.Debug.makeplots
     using PyPlot
     tab = log_edge.table
     plot(-tab[:uz], -tab[:fz], marker="o", color="blue")

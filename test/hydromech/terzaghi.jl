@@ -91,7 +91,7 @@ end
 # Output
 # ======
 
-if !isdefined(:NOPLOTS)
+if Amaru.Debug.makeplots
     # Terzaghi's 1-d consolidation
     function calc_Ue(Z, T)
         sum = 0.0

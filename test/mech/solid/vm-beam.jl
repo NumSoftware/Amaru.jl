@@ -29,12 +29,6 @@ setlogger!(dom, mon)
 
 @test solve!(dom, bcs, autoinc=true, nincs=6, nouts=1, tol=1e-2)
 
-# boundary conditions
-#top    = BC(:node, :(z==0.5) , uz=+0.008)
-#bcs[2] = top
-#@test solve!(dom, bcs, autoinc=true, nincs=10, tol=1e-2)
-
-
 if Amaru.Debug.makeplots
     using PyPlot
     tab = mon.table

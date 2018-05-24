@@ -21,53 +21,29 @@ materials = [
 ]
 
 logger = [
-            GroupLogger(:nodes, :(x==0) ),
+    GroupLogger(:node, :(x==0) ),
 ]
 
 dom = Domain(msh, materials, logger)
 
-#for node in dom.nodes
-    #@show node.id
-    #@show node.dofs
-#end
-
-uw_f(t) = t/10.0
 fw_f(t) = t/10.0
 
-# Stage 1: loading
-
 bcs = [
-    #BC(:node, :(y==0), :(uw=$uw_f(t)) ),
     BC(:node, :(y==0), :(fw=$fw_f(t)) ),
     BC(:node, :(y==2), :(uw=0.) ),
 ]
 
-hm_solve!(dom, bcs, end_time=500.0, tol=0.1, saveincs=true, verbose=true)
-
-# Stage 2: draining
-bcs = [
-    #BC(:node, :(y==0), :(uw=$uw_f(t)) ),
-    BC(:node, :(y==2), :(uw=0.) ),
-]
-
-hm_solve!(dom, bcs, end_time=1000.0, tol=0.1, nouts=1, saveincs=true, verbose=true)
-
-#@show dom.nodes[44].dofs
-#@show dom.nodes[1].dofs
-
+hm_solve!(dom, bcs, end_time=500.0, tol=0.1, verbose=true)
 
 # Output
 
-using PyPlot
-save(logger[1], "book.dat")
+if Amaru.Debug.makeplots
+    using PyPlot
+    save(logger[1], "book.dat")
 
-book = logger[1].book
-@show length(book.tables)
-@show book
-
-for (i,table) in enumerate(book.tables)
-    plot(table[:uw], table[:y], "-o")
+    book = logger[1].book
+    for (i,table) in enumerate(book.tables)
+        plot(table[:uw], table[:y], "-o")
+    end
 end
 
-@show book.tables[end][:uw]
-#show()

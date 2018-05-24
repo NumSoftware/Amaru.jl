@@ -4,7 +4,8 @@ using Base.Test
 
 path  = dirname(@__FILE__)
 tests = readdir(path)
-const NOPLOTS = 1
+Amaru.Debug.makeplots = false
+
 
 print_with_color(:green, "\x1b[1m", "\nRunning tests...\n", "\x1b[0m")
 
