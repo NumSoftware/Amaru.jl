@@ -9,7 +9,8 @@ macro show(exs...)
     blk = Expr(:block)
     filename = @__FILE__
     for ex in exs
-        push!(blk.args, :(print_with_color(:light_magenta, $(string(ex)*" = "), repr(begin value=$(esc(ex)) end))))
+        push!(blk.args, :(print_with_color(:light_magenta, $(string(ex)*" = "), begin :(value=$(esc(ex))) end )))
+        println()
         #filename != nothing && push!(blk.args, :(print_with_color(:blue, " : ", basename($filename), "\n")))
     end
     if !isempty(exs); push!(blk.args, :value); end
