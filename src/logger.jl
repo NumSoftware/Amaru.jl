@@ -103,7 +103,7 @@ mutable struct FacetLogger<:AbstractLogger
     end
 
     function FacetLogger(facets::Array{<:Facet,1}, filename::String="")
-        this = new(expr)
+        this = new()
         this.facets = facets
         this.nodes  = facets[:nodes]
         this.filename = filename
