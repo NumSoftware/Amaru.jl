@@ -3,20 +3,6 @@
 import Base.show
 export show
 
-# show variables or expressions content including calling file
-# this is a modified version from the Julia Base.@show macro
-macro show(exs...)
-    blk = Expr(:block)
-    filename = @__FILE__
-    for ex in exs
-        push!(blk.args, :(print_with_color(:light_magenta, $(string(ex)*" = "), begin :(value=$(esc(ex))) end )))
-        println()
-        #filename != nothing && push!(blk.args, :(print_with_color(:blue, " : ", basename($filename), "\n")))
-    end
-    if !isempty(exs); push!(blk.args, :value); end
-    return blk
-end
-
 # show the content of an array variable or expression including calling file
 macro showm(M)
     filename = @__FILE__
