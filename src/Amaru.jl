@@ -27,8 +27,8 @@ import DataStructures.OrderedSet
 try
     eval(:(using FemMesh))
 catch err
-    #println(err)
-    Pkg.clone("https://github.com/RaulDurand/FemMesh")
+    println("Error loading FemMesh package.")
+    println("run `pkg.clone(\"https://github.com/RaulDurand/FemMesh\")` to install the FemMesh package.")
 end
 
 @reexport using FemMesh
@@ -36,6 +36,16 @@ import FemMesh.save # to be extended
 import FemMesh.update! # to be extended
 import FemMesh.get_x, FemMesh.get_y, FemMesh.get_z # to be extended
 import FemMesh.tag!
+
+
+# Debug
+mutable struct DebugFlags
+    enabled::Bool
+    makeplots::Bool
+end
+const Debug = DebugFlags(false, true)
+#export Debug
+
 
 # Tools module
 include("tools/constants.jl")
