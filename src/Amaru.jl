@@ -27,8 +27,11 @@ import DataStructures.OrderedSet
 try
     eval(:(using FemMesh))
 catch err
-    println("Error loading FemMesh package.")
-    println("run `pkg.clone(\"https://github.com/RaulDurand/FemMesh\")` to install the FemMesh package.")
+    if isa(err, ArgumentError)
+        contains(err.msg, "FemMesh not found") && pkg.clone("https://github.com/NumSoftware/FemMesh")
+    else
+        error("Amaru: Error loading FemMesh package.")
+    end
 end
 
 @reexport using FemMesh
