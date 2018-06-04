@@ -343,7 +343,8 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
     if verbose
         h, r = divrem(toq(), 3600)
         m, r = divrem(r, 60)
-        println("  time spent: $(h)h $(m)m $(round(r,3))s")
+        #println("  time spent: $(round(Int,h))h $(round(Int,m))m $(round(r,3))s")
+        @printf("  time spent: %1dh %1dm %1.3fs \n", h, m, r)
     end
 
     # Update number of used increments at domain
