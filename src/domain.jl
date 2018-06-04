@@ -3,6 +3,9 @@
 export Domain
 
 
+abstract type AbstractDomain
+end
+
 """
 `Domain(mesh, [filekey="out"])`
 
@@ -21,13 +24,14 @@ Creates an `Domain` object based on a Mesh object `mesh` and represents the geom
 `filekey` : An string object that is used as part of the filename of resulting analyses files
 
 """
-mutable struct Domain
+mutable struct Domain<:AbstractDomain
     ndim ::Int
     nodes::Array{Node,1}
     elems::Array{Element,1}
     faces::Array{Face,1}
     edges::Array{Edge,1}
     filekey::String
+    #mesh::Mesh
 
     loggers::Array{AbstractLogger,1}
     nincs::Integer
@@ -48,6 +52,17 @@ mutable struct Domain
         this.stage   = 0
         return this
     end
+end
+
+
+mutable struct SubDomain<:AbstractDomain
+    ndim ::Int
+    nodes::Array{Node,1}
+    elems::Array{Element,1}
+    faces::Array{Face,1}
+    edges::Array{Edge,1}
+
+    shared_data::SharedAnalysisData
 end
 
 
@@ -268,129 +283,22 @@ end
 =#
 
 
-function save(dom::Domain, filename::String; verbose=true, save_ips=false)
-    # Saves the dom information in vtk format
-    nnodes = length(dom.nodes)
-    nelems = length(dom.elems)
-
-    # points, cells and cell types
-    points  = [ node.X[i] for node in dom.nodes, i in 1:3]
-    cells   = [ [node.id for node in elem.nodes] for elem in dom.elems ]
-    cell_tys= [ elem.shape.vtk_type for elem in dom.elems ]
-    
-    # Node and element data
-    point_scalar_data = Dict()
-    point_vector_data = Dict()
-    cell_scalar_data  = Dict()
-
-    # Get node and elem values
-    #node_vals, node_labels, elem_vals, elem_labels = all_node_and_elem_vals(dom.nodes, dom.elems)
-    node_vals, node_labels, elem_vals, elem_labels = node_and_elem_vals(dom)
-    nncomps = length(node_labels)
-    necomps = length(elem_labels)
-
-    # Write vectors
-    if :uy in node_labels
-        ux_idx = findfirst(node_labels, :ux)
-        uy_idx = findfirst(node_labels, :uy)
-        uz_idx = findfirst(node_labels, :uz)
-        if uz_idx>0
-            U = node_vals[:, [ux_idx, uy_idx, uz_idx]]
-        else
-            U = hcat( node_vals[:, [ux_idx, uy_idx]], zeros(nnodes) )
-        end
-        point_vector_data["U"] = U
-    end
-
-    if :vy in node_labels
-        vx_idx = findfirst(node_labels, :vx)
-        vy_idx = findfirst(node_labels, :vy)
-        vz_idx = findfirst(node_labels, :vz)
-        if vz_idx>0
-            V = node_vals[:, [vx_idx, vy_idx, vz_idx]]
-        else
-            V = hcat( node_vals[:, [vx_idx, vy_idx]], zeros(nnodes) )
-        end
-        point_vector_data["V"] = V
-    end
-
-    # Write scalars
-    point_scalar_data["node-id"] = [ node.id for node in dom.nodes ]
-
-    # Write nodal scalar data
-    for i=1:nncomps
-        field = string(node_labels[i])
-        point_scalar_data[field] = node_vals[:,i]
-    end
-
-    # Write cell data
-    cell_scalar_data["elem-id"] = [ elem.id for elem in dom.elems ]
-    cell_scalar_data["cell-type"] = [ elem.shape.vtk_type for elem in dom.elems ]
-
-    # Write elem scalar data
-    for i=1:necomps
-        field = string(elem_labels[i])
-        cell_scalar_data[field] = elem_vals[:,i]
-    end
-    
-    vtk_data = VTK_unstructured_grid("Amaru - Finite Element Structures and Tools",
-                                     points, cells, cell_tys,
-                                     point_scalar_data=point_scalar_data,
-                                     point_vector_data=point_vector_data,
-                                     cell_scalar_data=cell_scalar_data)
-
-    # Save file
-    save_vtk(vtk_data, filename)
-
-    verbose && print_with_color(:green, "  file $filename written (Domain)\n")
-
-    # save ip information as vtk
-    if save_ips
-        # List of ips
-        ips = [ ip for elem in dom.elems for ip in elem.ips ]
-        nips = length(ips)
-
-        # points, cells and cell types
-        points = [ ips.X[i] for ip in ips, i in 1:3]
-        cells  = [ [ip.id] for ip in ips ]
-        cell_tys = ones(Int, nips) # VTK_VERTEX
-
-        # get values at ips
-        table = DTable()
-        for ip in ips
-            push!(table, ip_vals(ip))
-        end
-
-        # Write ip scalar data
-        point_scalar_data = Dict()
-        for field in keys(table)
-            point_scalar_data[string(field)] = table[field]
-        end
-
-        vtk_data = VTK_unstructured_grid("Amaru - Finite Element Structures and Tools",
-                                         points, cells, cell_tys,
-                                         point_scalar_data=point_scalar_data)
-
-        # Save file
-        ips_filename = splitext(filename)[1]*"-ip.vtk"
-        save(vtk_data, ips_filename)
-
-        verbose && print_with_color(:green, "  file $ips_filename written (Domain IPs)\n")
-    end
-end
-
 function node_and_elem_vals(dom::Domain)
+    # Return symbols and values for nodes and elements
+    # Note: nodal ids must be in sequential order
+
     # nodal values
     nnodes = length(dom.nodes)
 
+    # get node field symbols
     node_fields_set = Set{Symbol}()
-    #node_fields_set = Set( key for node in dom.nodes for dof in node.dofs for key in keys(dof.vals) )
     for node in dom.nodes
         for dof in node.dofs
             union!(node_fields_set, keys(dof.vals))
         end
     end
-    #node_fields_set = Set( key for node in dom.nodes for dof in node.dofs for key in keys(dof.vals) )
+
+    # get node field values
     node_fields_idx = OrderedDict( key=>i for (i,key) in enumerate(node_fields_set) )
     nfields = length(node_fields_set)
     NV = zeros(nnodes, nfields)
@@ -446,6 +354,7 @@ end
 
 
 function nodal_patch_recovery(dom::Domain)
+    # Note: nodal ids must be in sequential order
     ndim = dom.shared_data.ndim
     nnodes = length(dom.nodes)
     length(dom.faces)==0 && return zeros(nnodes,0), Symbol[]
@@ -616,6 +525,7 @@ end
 function nodal_local_recovery(dom::Domain)
     # Recovers nodal values from non-solid elements as joints and joint1d elements
     # The element type should implement the elem_extrapolated_node_vals function
+    # Note: nodal ids must be in sequential order
 
     ndim = dom.shared_data.ndim
     nnodes = length(dom.nodes)
@@ -665,11 +575,16 @@ function nodal_local_recovery(dom::Domain)
 end
 
 
-function Base.convert(::Type{VTK_unstructured_grid}, dom::Domain)
-
+function save(dom::Domain, filename::String; verbose=true, save_ips=false)
     # Saves the dom information in vtk format
     nnodes = length(dom.nodes)
     nelems = length(dom.elems)
+
+    # Backup and renumber nodal ids sequentialy
+    id_bk = [ node.id for node in dom.nodes ]
+    for (i,node) in enumerate(dom.nodes) 
+        node.id = i
+    end
 
     # points, cells and cell types
     points  = [ node.X[i] for node in dom.nodes, i in 1:3]
@@ -682,7 +597,6 @@ function Base.convert(::Type{VTK_unstructured_grid}, dom::Domain)
     cell_scalar_data  = Dict()
 
     # Get node and elem values
-    #node_vals, node_labels, elem_vals, elem_labels = all_node_and_elem_vals(dom.nodes, dom.elems)
     node_vals, node_labels, elem_vals, elem_labels = node_and_elem_vals(dom)
     nncomps = length(node_labels)
     necomps = length(elem_labels)
@@ -700,8 +614,20 @@ function Base.convert(::Type{VTK_unstructured_grid}, dom::Domain)
         point_vector_data["U"] = U
     end
 
+    if :vy in node_labels
+        vx_idx = findfirst(node_labels, :vx)
+        vy_idx = findfirst(node_labels, :vy)
+        vz_idx = findfirst(node_labels, :vz)
+        if vz_idx>0
+            V = node_vals[:, [vx_idx, vy_idx, vz_idx]]
+        else
+            V = hcat( node_vals[:, [vx_idx, vy_idx]], zeros(nnodes) )
+        end
+        point_vector_data["V"] = V
+    end
+
     # Write scalars
-    point_scalar_data["node-id"] = [ node.id for node in dom.nodes ]
+    point_scalar_data["node-id"] = id_bk
 
     # Write nodal scalar data
     for i=1:nncomps
@@ -717,6 +643,134 @@ function Base.convert(::Type{VTK_unstructured_grid}, dom::Domain)
     for i=1:necomps
         field = string(elem_labels[i])
         cell_scalar_data[field] = elem_vals[:,i]
+    end
+
+    # Restore nodal ids
+    for (i,node) in enumerate(dom.nodes)
+        node.id = id_bk[i]
+    end
+    
+    vtk_data = VTK_unstructured_grid("Amaru - Finite Element Structures and Tools",
+                                     points, cells, cell_tys,
+                                     point_scalar_data=point_scalar_data,
+                                     point_vector_data=point_vector_data,
+                                     cell_scalar_data=cell_scalar_data)
+
+    # Save file
+    save_vtk(vtk_data, filename)
+
+    verbose && print_with_color(:green, "  file $filename written (Domain)\n")
+
+    # save ip information as vtk
+    if save_ips
+        # List of ips
+        ips = [ ip for elem in dom.elems for ip in elem.ips ]
+        nips = length(ips)
+
+        # points, cells and cell types
+        points = [ ips.X[i] for ip in ips, i in 1:3]
+        cells  = [ [ip.id] for ip in ips ] # TODO: check : [ [i] for i=1:nips ]
+        cell_tys = ones(Int, nips) # VTK_VERTEX
+
+        # get values at ips
+        table = DTable()
+        for ip in ips
+            push!(table, ip_vals(ip))
+        end
+
+        # Write ip scalar data
+        point_scalar_data = Dict()
+        for field in keys(table)
+            point_scalar_data[string(field)] = table[field]
+        end
+
+        vtk_data = VTK_unstructured_grid("Amaru - Finite Element Structures and Tools",
+                                         points, cells, cell_tys,
+                                         point_scalar_data=point_scalar_data)
+
+        # Save file
+        ips_filename = splitext(filename)[1]*"-ip.vtk"
+        save(vtk_data, ips_filename)
+
+        verbose && print_with_color(:green, "  file $ips_filename written (Domain IPs)\n")
+    end
+end
+
+
+function Base.convert(::Type{VTK_unstructured_grid}, dom::Domain)
+
+    # Saves the dom information in vtk format
+    nnodes = length(dom.nodes)
+    nelems = length(dom.elems)
+
+    # Backup and renumber nodal ids sequentialy
+    id_bk = [ node.id for node in dom.nodes ]
+    for (i,node) in enumerate(dom.nodes) 
+        node.id = i
+    end
+
+    # points, cells and cell types
+    points  = [ node.X[i] for node in dom.nodes, i in 1:3]
+    cells   = [ [node.id for node in elem.nodes] for elem in dom.elems ]
+    cell_tys= [ elem.shape.vtk_type for elem in dom.elems ]
+    
+    # Node and element data
+    point_scalar_data = Dict()
+    point_vector_data = Dict()
+    cell_scalar_data  = Dict()
+
+    # Get node and elem values
+    node_vals, node_labels, elem_vals, elem_labels = node_and_elem_vals(dom)
+    nncomps = length(node_labels)
+    necomps = length(elem_labels)
+
+    # Write vectors
+    if :uy in node_labels
+        ux_idx = findfirst(node_labels, :ux)
+        uy_idx = findfirst(node_labels, :uy)
+        uz_idx = findfirst(node_labels, :uz)
+        if uz_idx>0
+            U = node_vals[:, [ux_idx, uy_idx, uz_idx]]
+        else
+            U = hcat( node_vals[:, [ux_idx, uy_idx]], zeros(nnodes) )
+        end
+        point_vector_data["U"] = U
+    end
+
+    if :vy in node_labels
+        vx_idx = findfirst(node_labels, :vx)
+        vy_idx = findfirst(node_labels, :vy)
+        vz_idx = findfirst(node_labels, :vz)
+        if vz_idx>0
+            V = node_vals[:, [vx_idx, vy_idx, vz_idx]]
+        else
+            V = hcat( node_vals[:, [vx_idx, vy_idx]], zeros(nnodes) )
+        end
+        point_vector_data["V"] = V
+    end
+
+    # Write scalars
+    point_scalar_data["node-id"] = id_bk
+
+    # Write nodal scalar data
+    for i=1:nncomps
+        field = string(node_labels[i])
+        point_scalar_data[field] = node_vals[:,i]
+    end
+
+    # Write cell data
+    cell_scalar_data["elem-id"] = [ elem.id for elem in dom.elems ]
+    cell_scalar_data["cell-type"] = [ elem.shape.vtk_type for elem in dom.elems ]
+
+    # Write elem scalar data
+    for i=1:necomps
+        field = string(elem_labels[i])
+        cell_scalar_data[field] = elem_vals[:,i]
+    end
+
+    # Restore nodal ids
+    for (i,node) in enumerate(dom.nodes)
+        node.id = id_bk[i]
     end
     
     return VTK_unstructured_grid("Amaru - Finite Element Structures and Tools",
