@@ -59,7 +59,6 @@ get_x(node::Node) = node.X[1]
 get_y(node::Node) = node.X[2]
 get_z(node::Node) = node.X[3]
 
-
 # Add a new degree of freedom to a node
 function add_dof(node::Node, name::Symbol, natname::Symbol)
     if !haskey(node.dofdict, name)
@@ -74,6 +73,11 @@ end
 # Index operator for node to get a dof
 function Base.getindex(node::Node, s::Symbol)
     return node.dofdict[s]
+end
+
+# General node sorting
+function Base.sort!(nodes::Array{Node,1})
+    return sort!(nodes, by=node->sum(node.X))
 end
 
 
