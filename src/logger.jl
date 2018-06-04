@@ -211,6 +211,7 @@ function setup_logger!(domain, logger::IpGroupLogger)
     logger.ips = domain.elems[:ips][logger.expr]
     length(logger.ips)==0 && warn("setup_logger: No ips found for expression: $(logger.expr)")
     logger.by != identity && sort!(logger.ips, by=logger.by)
+    return nothing
 end
 
 
@@ -225,6 +226,57 @@ function update_logger!(logger::IpGroupLogger)
     push!(logger.book, table)
     save(logger)
 end
+
+
+# Logger for a group of elements
+# ==============================
+
+
+mutable struct ElemGroupLogger<:AbstractLogger
+    expr     :: Expr
+    elems    :: Array{Element,1}
+    nodes    :: Array{Node,1}
+    ips      :: Array{Ip,1}
+    filename :: String
+    ipsbook  :: DBook
+    nodesbook:: DBook
+
+    function ElemGroupLogger(expr::Expr, filename::String="")
+        this = new(expr)
+        this.filename = filename
+        this.ipsbook = DBook()
+        this.nodesbook = DBook()
+        return this
+    end
+
+    function ElemGroupLogger(elems::Array{<:Element,1}, filename::String="")
+        this = new(:())
+        this.elems = elems
+        this.nodes = elems[:nodes]
+        this.ips   = elems[:ips]
+        this.ipsbook = DBook()
+        this.nodesbook = DBook()
+        return this
+    end
+end
+
+
+function setup_logger!(domain, logger::ElemGroupLogger)
+    logger.expr == :() && return
+    elems = domain.elems[logger.expr]
+    sort!(elems)
+    n = length(elems)
+    n == 0 && warn("setup_logger: No elems found for expression: $(logger.expr)")
+    return nothing
+end
+
+
+function update_logger!(logger::ElemGroupLogger)
+    isdefined(logger, :ip) || return
+    push!(logger.table, ip_vals(logger.ip))
+    save(logger)
+end
+
 
 
 # Function to create loggers
