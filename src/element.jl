@@ -139,9 +139,8 @@ end
 Especifies the material model `mat` to be used to represent the behavior of a set of `Element` objects `elems`.
 """
 function set_mat(elems::Array{Element,1}, mat::Material; nips::Int64=0)
-    if length(elems)==0
-        warn("Defining material model $(typeof(mat)) for an empty array of elements.\n")
-    end
+    length(elems)==0 && warn("Defining material model $(typeof(mat)) for an empty array of elements.\n")
+
     for elem in elems
         set_mat(elem, mat, nips=nips)
     end
@@ -221,6 +220,32 @@ function getindex(elems::Array{Element,1}, filter_ex::Expr)
     end
     return result
 end
+
+# General element sorting
+function Base.sort!(elems::Array{<:Element,1})
+    length(elems)==0 && return
+
+    # General sorting
+    sorted = sort(elems, by=elem->sum(nodes_coords(elem.nodes)))
+
+    # Check type of elements
+    shapes = [ elem.shapetype for elem in elems ]
+    shape  = shapes[1]
+
+    if all(shapes.==shape)
+        if shape in (LIN2, LIN3)
+            node_ids = Set(node.id for elem in sorted for node in elem.nodes)
+            for elem in sorted
+
+            end
+        elseif shape in (JLIN3, JLIN4)
+        end
+    end
+
+    # General sorting
+    return sorted
+end
+
 
 """
 `elem_ip_vals(elem)`
