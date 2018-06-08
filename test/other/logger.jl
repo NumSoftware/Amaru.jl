@@ -17,6 +17,7 @@ faces_mon1 = Logger(:face, :(z==1) )
 faces_mon2 = Logger(:face, :(z==1) )
 edges_mon1 = Logger(:edge, :(z==1) )
 edges_mon2 = Logger(:edge, :(z==1) )
+#barra1_mon = GroupLogger(:elem, "barra1") TODO
 
 ip_mon1   = Logger(:ip, 1 )
 ip_mon2   = Logger(:ip, :(x>0.5 && y>0.5 && z>0.5) )
