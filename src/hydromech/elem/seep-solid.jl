@@ -17,7 +17,7 @@ mutable struct SeepSolid<:Hydromechanical
     end
 end
 
-matching_shape_class(::Type{SeepSolid}) = SOLID_SHAPE
+matching_shape_family(::Type{SeepSolid}) = SOLID_SHAPE
 
 function elem_config_dofs(elem::SeepSolid)::Void
     for node in elem.nodes

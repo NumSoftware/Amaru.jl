@@ -16,7 +16,7 @@ mutable struct MechRod<:Mechanical
     end
 end
 
-matching_shape_class(::Type{MechRod}) = LINE_SHAPE
+matching_shape_family(::Type{MechRod}) = LINE_SHAPE
 
 function elem_stiffness(elem::MechRod)
     ndim   = elem.shared_data.ndim

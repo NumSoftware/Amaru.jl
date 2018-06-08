@@ -17,7 +17,7 @@ mutable struct MechEmbRod<:Mechanical
     MechEmbRod() = new()
 end
 
-matching_shape_class(::Type{MechEmbRod}) = LINE_SHAPE
+matching_shape_family(::Type{MechEmbRod}) = LINE_SHAPE
 
 # Returns the corresponding embedded element type
 function embedded_elem_type(::Type{MechRod})

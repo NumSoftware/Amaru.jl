@@ -75,7 +75,6 @@ export Ip, ip_vals, maximum, minimum, sort
 
 include("material.jl")
 export Material, MaterialBind, read_prms
-#export matching_elem_type
 
 include("element.jl")
 export Element
@@ -96,7 +95,7 @@ export Logger, GroupLogger
 export update_logger!
 
 include("domain.jl")
-export reset!, setlogger!
+export Domain, SubDomain, reset!, setlogger!
 
 
 # Mechanical module

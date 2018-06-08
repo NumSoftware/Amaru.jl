@@ -18,7 +18,7 @@ mutable struct MechJoint1D<:Mechanical
     MechJoint1D() = new()
 end
 
-matching_shape_class(::Type{MechJoint1D}) = JOINT1D_SHAPE
+matching_shape_family(::Type{MechJoint1D}) = JOINT1D_SHAPE
 
 
 function elem_init(elem::MechJoint1D)::Void

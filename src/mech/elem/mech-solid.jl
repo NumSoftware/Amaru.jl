@@ -16,7 +16,7 @@ mutable struct MechSolid<:Mechanical
     end
 end
 
-matching_shape_class(::Type{MechSolid}) = SOLID_SHAPE
+matching_shape_family(::Type{MechSolid}) = SOLID_SHAPE
 
 function elem_init(elem::MechSolid)
     if (:h in fieldnames(elem.ips[1].data))

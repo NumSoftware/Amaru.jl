@@ -1,8 +1,5 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export Domain
-
-
 abstract type AbstractDomain
 end
 
@@ -25,7 +22,6 @@ Creates an `Domain` object based on a Mesh object `mesh` and represents the geom
 
 """
 mutable struct Domain<:AbstractDomain
-    ndim ::Int
     nodes::Array{Node,1}
     elems::Array{Element,1}
     faces::Array{Face,1}
@@ -56,13 +52,33 @@ end
 
 
 mutable struct SubDomain<:AbstractDomain
-    ndim ::Int
     nodes::Array{Node,1}
     elems::Array{Element,1}
     faces::Array{Face,1}
-    edges::Array{Edge,1}
 
     shared_data::SharedAnalysisData
+end
+
+function SubDomain(dom::Domain, expr::Expr)
+    elems = dom.elems[expr]
+    node_ids = unique( node.id for elem in elems for node in elem.nodes )
+    nodes = dom.nodes[node_ids]
+
+    cells  = [ elem.cell for elem in elems ]
+    scells = get_surface(cells)
+    ecells = get_edges(scells)  
+
+    # Setting faces
+    faces = Array{Face}(0)
+    for (i,cell) in enumerate(scells)
+        conn = [ p.id for p in cell.points ]
+        face = Face(cell.shape, dom.nodes[conn], ndim, cell.tag)
+        face.oelem = dom.elems[cell.ocell.id]
+        face.id = i
+        push!(faces, face)
+    end
+
+    return SubDomain(nodes, elems, faces, edges, dom.shared_data, node_map, elem_map)
 end
 
 
@@ -77,7 +93,7 @@ function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}}
     dom  = Domain(filekey=filekey)
 
     # Shared analysis data
-    ndim = dom.ndim = mesh.ndim
+    ndim = mesh.ndim
     dom.shared_data = SharedAnalysisData()
     dom.shared_data.ndim = ndim 
     dom.shared_data.model_type = model_type
@@ -107,7 +123,7 @@ function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}}
         etype = matching_elem_type(mb.mat)
         for cell in cells
             ty = cell.embedded ? embedded_elem_type(etype) : etype
-            if matching_shape_class(ty) != cell.shape.class
+            if matching_shape_family(ty) != cell.shape.family
                 error("Domain: material model $(typeof(mb.mat)) cannot be used with shape $(cell.shape.name) (cell id: $(cell.id))\n")
             end
 
@@ -283,9 +299,9 @@ end
 =#
 
 
-function node_and_elem_vals(dom::Domain)
+function node_and_elem_vals(dom::AbstractDomain)
     # Return symbols and values for nodes and elements
-    # Note: nodal ids must be in sequential order
+    # Note: nodal ids must be numbered starting from 1
 
     # nodal values
     nnodes = length(dom.nodes)
@@ -353,8 +369,9 @@ function reg_terms(x::Float64, y::Float64, z::Float64, nterms::Int64)
 end
 
 
-function nodal_patch_recovery(dom::Domain)
-    # Note: nodal ids must be in sequential order
+function nodal_patch_recovery(dom::AbstractDomain)
+    # Note: nodal ids must be numbered starting from 1
+
     ndim = dom.shared_data.ndim
     nnodes = length(dom.nodes)
     length(dom.faces)==0 && return zeros(nnodes,0), Symbol[]
@@ -372,7 +389,7 @@ function nodal_patch_recovery(dom::Domain)
     patches     = [ Element[] for i=1:nnodes ] # internal patches
     bry_patches = [ Element[] for i=1:nnodes ] # boundary patches
     for elem in dom.elems
-        elem.shape.class != SOLID_SHAPE && continue
+        elem.shape.family != SOLID_SHAPE && continue
         for node in elem.nodes[1:elem.shape.basic_shape.npoints] # only at corners
             if at_bound[node.id] 
                 push!(bry_patches[node.id], elem)
@@ -421,7 +438,7 @@ function nodal_patch_recovery(dom::Domain)
     all_ips_vals   = Array{Array{OrderedDict{Symbol,Float64}},1}()
     all_fields_set = Set{Symbol}()
     for elem in dom.elems
-        if elem.shape.class==SOLID_SHAPE
+        if elem.shape.family==SOLID_SHAPE
             ips_vals = [ ip_state_vals(elem.mat, ip.data) for ip in elem.ips ]
             push!(all_ips_vals, ips_vals)
             union!(all_fields_set, keys(ips_vals[1]))
@@ -522,10 +539,10 @@ function nodal_patch_recovery(dom::Domain)
 end
 
 
-function nodal_local_recovery(dom::Domain)
+function nodal_local_recovery(dom::AbstractDomain)
     # Recovers nodal values from non-solid elements as joints and joint1d elements
     # The element type should implement the elem_extrapolated_node_vals function
-    # Note: nodal ids must be in sequential order
+    # Note: nodal ids must be numbered starting from 1
 
     ndim = dom.shared_data.ndim
     nnodes = length(dom.nodes)
@@ -536,7 +553,7 @@ function nodal_local_recovery(dom::Domain)
     rec_elements   = Array{Element, 1}()
 
     for elem in dom.elems
-        elem.shape.class == SOLID_SHAPE && continue
+        elem.shape.family == SOLID_SHAPE && continue
         node_vals = elem_extrapolated_node_vals(elem)
         length(node_vals) == 0 && continue
 
@@ -575,12 +592,14 @@ function nodal_local_recovery(dom::Domain)
 end
 
 
-function save(dom::Domain, filename::String; verbose=true, save_ips=false)
+function save(dom::AbstractDomain, filename::String; verbose=true, save_ips=false)
     # Saves the dom information in vtk format
+
+    #=
     nnodes = length(dom.nodes)
     nelems = length(dom.elems)
 
-    # Backup and renumber nodal ids sequentialy
+    # Backup and renumber nodal ids starting from 1
     id_bk = [ node.id for node in dom.nodes ]
     for (i,node) in enumerate(dom.nodes) 
         node.id = i
@@ -649,12 +668,17 @@ function save(dom::Domain, filename::String; verbose=true, save_ips=false)
     for (i,node) in enumerate(dom.nodes)
         node.id = id_bk[i]
     end
+
     
     vtk_data = VTK_unstructured_grid("Amaru - Finite Element Structures and Tools",
                                      points, cells, cell_tys,
                                      point_scalar_data=point_scalar_data,
                                      point_vector_data=point_vector_data,
                                      cell_scalar_data=cell_scalar_data)
+    =#
+
+    # Convert domain to VTK data
+    vtk_data = convert(VTK_unstructured_grid, dom)
 
     # Save file
     save_vtk(vtk_data, filename)
@@ -697,7 +721,7 @@ function save(dom::Domain, filename::String; verbose=true, save_ips=false)
 end
 
 
-function Base.convert(::Type{VTK_unstructured_grid}, dom::Domain)
+function Base.convert(::Type{VTK_unstructured_grid}, dom::AbstractDomain)
 
     # Saves the dom information in vtk format
     nnodes = length(dom.nodes)
@@ -781,28 +805,48 @@ function Base.convert(::Type{VTK_unstructured_grid}, dom::Domain)
 end
 
 
-import FemMesh.mplot
-function mplot(dom::Domain; args...)
-    ugrid = convert(VTK_unstructured_grid, dom)
-    if dom.ndim==3 # Plot the surface only
-        nodes     = get_nodes(dom.faces)
-        node_ids  = [ node.id for node in nodes ]
-        id_dict   = Dict{Int,Int}( node.id=>i for (i,node) in enumerate(nodes) )
-        oelem_ids = [ face.oelem.id for face in dom.faces ]
 
-        ugrid.points = [ node.X[i] for node in nodes, i=1:3 ]
-        ugrid.cells  = [ [ id_dict[node.id] for node in face.nodes] for face in dom.faces ]
+"""
+    mplot(dom<:AbstractDomain, args...)
+
+    Plots `dom` using the PyPlot package.
+"""
+function FemMesh.mplot(dom::AbstractDomain; args...)
+
+    any(node.id==0 for node in dom.nodes) && error("mplot: all nodes must have a valid id")
+
+    ugrid = convert(VTK_unstructured_grid, dom)
+    if dom.ndim==3 
+        # Get data from the domain surface
+        srf_nodes = get_nodes(dom.faces)
+
+        # local map for surface nodes
+        srf_node_map = zeros(Int, maximum(node.id for node in srf_nodes))
+        for (i,node) in enumerate(srf_nodes); srf_node_map[node.id] = i end
+
+        # map for domain nodes
+        dom_node_map = zeros(Int, maximum(node.id for node in dom.nodes))
+        for (i,node) in enumerate(dom.nodes); dom_node_map[node.id] = i end
+        dom_node_idxs = [ dom_node_map[node.id] for node in srf_nodes ]
+
+        # map for domain elements
+        dom_elem_map = zeros(Int, maximum(elem.id for elem in dom.elems))
+        for (i,elem) in enumerate(dom.elems); dom_elem_map[elem.id] = i end
+        oelem_idxs = [ dom_elem_map[face.oelem.id] for face in dom.faces ]
+
+        ugrid.points = [ node.X[i] for node in srf_nodes, i=1:3 ]
+        ugrid.cells  = [ [ srf_node_map[node.id] for node in face.nodes] for face in dom.faces ]
         ugrid.cell_types = [ face.shape.vtk_type for face in dom.faces ]
 
         # update data
         for (field, data) in ugrid.point_scalar_data
-            ugrid.point_scalar_data[field] = data[node_ids]
+            ugrid.point_scalar_data[field] = data[dom_node_idxs]
         end
         for (field, data) in ugrid.cell_scalar_data
-            ugrid.cell_scalar_data[field] = data[oelem_ids]
+            ugrid.cell_scalar_data[field] = data[oelem_idxs]
         end
         for (field, data) in ugrid.point_vector_data
-            ugrid.point_vector_data[field] = data[node_ids, :]
+            ugrid.point_vector_data[field] = data[dom_node_idxs, :]
         end
     end
     mplot(ugrid; args...)

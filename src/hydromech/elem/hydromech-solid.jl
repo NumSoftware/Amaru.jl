@@ -17,7 +17,7 @@ mutable struct HMSolid<:Hydromechanical
     end
 end
 
-matching_shape_class(::Type{HMSolid}) = SOLID_SHAPE
+matching_shape_family(::Type{HMSolid}) = SOLID_SHAPE
 
 function elem_init(elem::HMSolid)
     nothing

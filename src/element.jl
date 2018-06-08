@@ -17,10 +17,11 @@ abstract type Element
 end
 
 # Function to create new concrete types filled with relevant information
-function new_element(etype::Type{<:Element}, shape::ShapeType, nodes::Array{Node,1}, shared_data::SharedAnalysisData, tag::TagType=0)
+function new_element(etype::Type{<:Element}, cell::Cell, nodes::Array{Node,1}, shared_data::SharedAnalysisData, tag::TagType=0)
     elem = etype()
     elem.id     = 0
     elem.shape  = shape
+    elem.cell   = cell
     elem.nodes  = nodes
     elem.ips    = []
     elem.tag    = tag
@@ -110,14 +111,14 @@ function elem_config_ips(elem::Element, nips::Int=0)
     shape = elem.shape
 
     # fix for link elements
-    if shape.class==JOINT1D_SHAPE
+    if shape.family==JOINT1D_SHAPE
         bar   = elem.linked_elems[2]
         C     = elem_coords(bar)
         shape = bar.shape
     end
 
     # fix for joint elements
-    if shape.class==JOINT_SHAPE
+    if shape.family==JOINT_SHAPE
         C     = C[1:div(end,2),:]
         shape = shape.facet_shape
     end 
@@ -194,11 +195,11 @@ end
 # Index operator for a collection of elements
 function getindex(elems::Array{Element,1}, s::Symbol)
     s == :all && return elems
-    s == :solids && return filter(elem -> elem.shape.class==SOLID_SHAPE, elems)
-    s == :lines && return filter(elem -> elem.shape.class==LINE_SHAPE, elems)
-    s == :embedded && return filter(elem -> elem.shape.class==LINE_SHAPE && length(elem.linked_elems)>0, elems)
-    s in (:joints1d, :joints1D) && return filter(elem -> elem.shape.class==JOINT1D_SHAPE, elems)
-    s == :joints && return filter(elem -> elem.shape.class==JOINT_SHAPE, elems)
+    s == :solids && return filter(elem -> elem.shape.family==SOLID_SHAPE, elems)
+    s == :lines && return filter(elem -> elem.shape.family==LINE_SHAPE, elems)
+    s == :embedded && return filter(elem -> elem.shape.family==LINE_SHAPE && length(elem.linked_elems)>0, elems)
+    s in (:joints1d, :joints1D) && return filter(elem -> elem.shape.family==JOINT1D_SHAPE, elems)
+    s == :joints && return filter(elem -> elem.shape.family==JOINT_SHAPE, elems)
     s == :nodes && return get_nodes(elems)
     s == :ips && return get_ips(elems)
     error("Element getindex: Invalid symbol $s")

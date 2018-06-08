@@ -18,7 +18,7 @@ mutable struct MechBeam<:Mechanical
     end
 end
 
-matching_shape_class(::Type{MechBeam}) = LINE_SHAPE
+matching_shape_family(::Type{MechBeam}) = LINE_SHAPE
 
 function beam_shape_func(ξ::Float64, nnodes::Int)
     if nnodes==2

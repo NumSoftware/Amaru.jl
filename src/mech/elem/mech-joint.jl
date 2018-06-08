@@ -16,8 +16,8 @@ mutable struct MechJoint<:Mechanical
     end
 end
 
-# Return the shape class that works with this element
-matching_shape_class(::Type{MechJoint}) = JOINT_SHAPE
+# Return the shape family that works with this element
+matching_shape_family(::Type{MechJoint}) = JOINT_SHAPE
 
 function elem_init(elem::MechJoint)
 

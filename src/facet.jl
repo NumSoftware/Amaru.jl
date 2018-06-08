@@ -56,13 +56,7 @@ end
 
 # Get all nodes from a collection of facets
 function get_nodes(facets::Array{<:Facet,1})
-    nodes = Set{Node}()
-    for facet in facets
-        for node in facet.nodes
-            push!(nodes, node)
-        end
-    end
-    return [node for node in nodes]
+    return collect( OrderedSet(node for facet in facets for node in facet.nodes) )
 end
 
 # Index operator for a collection of facets
