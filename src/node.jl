@@ -112,6 +112,7 @@ function nodes_coords(nodes::Array{Node,1}, ndim=3)
     [ nodes[i].X[j] for i=1:nnodes, j=1:ndim]
 end
 
+#=
 # Get the dofs ids
 @inline function nodes_map(nodes::Array{Node,1}, key::Symbol)
     return [ node.dofdict[key].eq_id for node in elem.nodes if haskey(node.dofdict, key) ]
@@ -131,6 +132,7 @@ end
 @inline function nodes_values(nodes::Array{Node,1}, keys::NTuple{N, Symbol} ) where N
     return [ node.dofdict[key].eq_id for node in elem.nodes for key in keys if haskey(node.dofdict, key) ]
 end
+=#
 
 
 function nodes_dof_vals(node::Node)

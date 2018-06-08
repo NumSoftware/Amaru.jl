@@ -4,6 +4,7 @@
 mutable struct HMSolid<:Hydromechanical
     id    ::Int
     shape ::ShapeType
+    cell  ::Cell
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::TagType

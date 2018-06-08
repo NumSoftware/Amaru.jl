@@ -7,6 +7,7 @@ abstract type Element
     #Element subtypes must have the following fields:
     #id    ::Int
     #shape ::ShapeType
+    #cell  ::Cell
     #nodes ::Array{Node,1}
     #ips   ::Array{Ip,1}
     #tag   ::String
@@ -20,7 +21,7 @@ end
 function new_element(etype::Type{<:Element}, cell::Cell, nodes::Array{Node,1}, shared_data::SharedAnalysisData, tag::TagType=0)
     elem = etype()
     elem.id     = 0
-    elem.shape  = shape
+    elem.shape  = cell.shape
     elem.cell   = cell
     elem.nodes  = nodes
     elem.ips    = []
@@ -193,7 +194,7 @@ function getindex(elem::Element, s::Symbol)
 end
 
 # Index operator for a collection of elements
-function getindex(elems::Array{Element,1}, s::Symbol)
+function getindex(elems::Array{<:Element,1}, s::Symbol)
     s == :all && return elems
     s == :solids && return filter(elem -> elem.shape.family==SOLID_SHAPE, elems)
     s == :lines && return filter(elem -> elem.shape.family==LINE_SHAPE, elems)
@@ -205,8 +206,15 @@ function getindex(elems::Array{Element,1}, s::Symbol)
     error("Element getindex: Invalid symbol $s")
 end
 
+
+# Index operator for a collection of elements using a string
+function getindex(elems::Array{<:Element,1}, tag::String)
+    return [ elem for elem in elems if elem.tag==tag ]
+end
+
+
 # Index operator for a collection of elements using an expression
-function getindex(elems::Array{Element,1}, filter_ex::Expr)
+function getindex(elems::Array{<:Element,1}, filter_ex::Expr)
     @assert filter_ex.head in (:call, :&&, :||)
     expr = fix_comparison_arrays(filter_ex)
     fun  = Functor(:(x,y,z,id,tag), expr)
