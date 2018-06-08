@@ -59,6 +59,7 @@ mutable struct SubDomain<:AbstractDomain
     shared_data::SharedAnalysisData
 end
 
+
 function SubDomain(dom::Domain, expr::Expr)
     elems = dom.elems[expr]
     node_ids = unique( node.id for elem in elems for node in elem.nodes )
@@ -66,7 +67,7 @@ function SubDomain(dom::Domain, expr::Expr)
 
     cells  = [ elem.cell for elem in elems ]
     scells = get_surface(cells)
-    ecells = get_edges(scells)  
+    #ecells = get_edges(scells)  
 
     # Setting faces
     faces = Array{Face}(0)
@@ -78,7 +79,7 @@ function SubDomain(dom::Domain, expr::Expr)
         push!(faces, face)
     end
 
-    return SubDomain(nodes, elems, faces, edges, dom.shared_data, node_map, elem_map)
+    return SubDomain(nodes, elems, faces, dom.shared_data)
 end
 
 
@@ -128,7 +129,7 @@ function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}}
             end
 
             conn = [ p.id for p in cell.points ]
-            elem = new_element(ty, cell.shape, dom.nodes[conn], dom.shared_data, cell.tag)
+            elem = new_element(ty, cell, dom.nodes[conn], dom.shared_data, cell.tag)
 
             elem.id = cell.id
             elem.mat = mb.mat
@@ -330,11 +331,13 @@ function node_and_elem_vals(dom::AbstractDomain)
     V_rec, fields_rec = nodal_patch_recovery(dom)
     NV = [ NV V_rec ]
     node_fields = [ collect(node_fields_set); fields_rec ]
+    @show node_fields
 
     # add nodal values from local recovery (joints) : extrapolation + averaging
     V_rec, fields_rec = nodal_local_recovery(dom)
     NV = [ NV V_rec ]
     node_fields = [ node_fields; fields_rec ]
+    @show node_fields
 
     # element values
     nelems = length(dom.elems)
@@ -670,7 +673,7 @@ function save(dom::AbstractDomain, filename::String; verbose=true, save_ips=fals
     end
 
     
-    vtk_data = VTK_unstructured_grid("Amaru - Finite Element Structures and Tools",
+    vtk_data = UnstructuredGrid("Amaru - Finite Element Structures and Tools",
                                      points, cells, cell_tys,
                                      point_scalar_data=point_scalar_data,
                                      point_vector_data=point_vector_data,
@@ -678,10 +681,10 @@ function save(dom::AbstractDomain, filename::String; verbose=true, save_ips=fals
     =#
 
     # Convert domain to VTK data
-    vtk_data = convert(VTK_unstructured_grid, dom)
+    ugrid = convert(UnstructuredGrid, dom)
 
     # Save file
-    save_vtk(vtk_data, filename)
+    save_vtk(ugrid, filename)
 
     verbose && print_with_color(:green, "  file $filename written (Domain)\n")
 
@@ -708,30 +711,47 @@ function save(dom::AbstractDomain, filename::String; verbose=true, save_ips=fals
             point_scalar_data[string(field)] = table[field]
         end
 
-        vtk_data = VTK_unstructured_grid("Amaru - Finite Element Structures and Tools",
+        ugrid = UnstructuredGrid("Amaru - Finite Element Structures and Tools",
                                          points, cells, cell_tys,
                                          point_scalar_data=point_scalar_data)
 
         # Save file
         ips_filename = splitext(filename)[1]*"-ip.vtk"
-        save(vtk_data, ips_filename)
+        save(ugrid, ips_filename)
 
         verbose && print_with_color(:green, "  file $ips_filename written (Domain IPs)\n")
     end
 end
 
 
-function Base.convert(::Type{VTK_unstructured_grid}, dom::AbstractDomain)
+function save_dom_json(dom::AbstractDomain, filename::String)
+    data = Dict{String,Any}()
+    ugrid = convert(UnstructuredGrid, dom)
+
+    data["coords"]     = ugrid.coords
+    data["incidences"] = ugrid.cells
+    data["elem_types"] = [ string(typeof(elem)) for elem in dom.elems]
+    data["node_data"]  = ugrid.point_scalar_data
+    data["elem_data"]  = ugrid.cell_scalar_data
+    data["elem_ip_data"] = [ elem_vals(elem) for elem in dom.elems]
+
+    f = open(filename, "w")
+    JSON.json(f, data)
+    close(f)
+end
+
+
+function Base.convert(::Type{UnstructuredGrid}, dom::AbstractDomain)
 
     # Saves the dom information in vtk format
     nnodes = length(dom.nodes)
     nelems = length(dom.elems)
 
     # Backup and renumber nodal ids sequentialy
-    id_bk = [ node.id for node in dom.nodes ]
-    for (i,node) in enumerate(dom.nodes) 
-        node.id = i
-    end
+    node_ids_bk = [ node.id for node in dom.nodes ]
+    for (i,node) in enumerate(dom.nodes); node.id = i end
+    elem_ids_bk = [ elem.id for elem in dom.elems ]
+    for (i,elem) in enumerate(dom.elems); elem.id = i end
 
     # points, cells and cell types
     points  = [ node.X[i] for node in dom.nodes, i in 1:3]
@@ -774,7 +794,7 @@ function Base.convert(::Type{VTK_unstructured_grid}, dom::AbstractDomain)
     end
 
     # Write scalars
-    point_scalar_data["node-id"] = id_bk
+    point_scalar_data["node-id"] = node_ids_bk
 
     # Write nodal scalar data
     for i=1:nncomps
@@ -792,12 +812,11 @@ function Base.convert(::Type{VTK_unstructured_grid}, dom::AbstractDomain)
         cell_scalar_data[field] = elem_vals[:,i]
     end
 
-    # Restore nodal ids
-    for (i,node) in enumerate(dom.nodes)
-        node.id = id_bk[i]
-    end
+    # Restore nodal and elem ids
+    for (i,node) in enumerate(dom.nodes); node.id = node_ids_bk[i] end
+    for (i,elem) in enumerate(dom.elems); elem.id = elem_ids_bk[i] end
     
-    return VTK_unstructured_grid("Amaru - Finite Element Structures and Tools",
+    return UnstructuredGrid("Amaru - Finite Element Structures and Tools",
                                  points, cells, cell_tys,
                                  point_scalar_data=point_scalar_data,
                                  point_vector_data=point_vector_data,
@@ -815,7 +834,7 @@ function FemMesh.mplot(dom::AbstractDomain; args...)
 
     any(node.id==0 for node in dom.nodes) && error("mplot: all nodes must have a valid id")
 
-    ugrid = convert(VTK_unstructured_grid, dom)
+    ugrid = convert(UnstructuredGrid, dom)
     if dom.ndim==3 
         # Get data from the domain surface
         srf_nodes = get_nodes(dom.faces)
