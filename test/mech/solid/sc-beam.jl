@@ -20,17 +20,17 @@ mats = [
 ]
 
 # Loggers
-log_edge = Logger(:edges, 10)
+log_edge = EdgeLogger(10)
 
 #dom = Domain(msh, mats, model_type=:plane_stress, thickness=1.0)
 dom = Domain(msh, mats, log_edge)
 
 # Boundary conditions
 bcs = [
-       BC(:node, :(y==0 && z==0), :(ux=0, uy=0, uz=0 )),
-       BC(:node, :(y==0.6 && z==0), :(ux=0, uz=0)),
-       BC(:edge, :(y==0.2 && z==0.1), :(uz=-1e-3)),
-       BC(:edge, :(y==0.4 && z==0.1), :(uz=-1e-3)),
+       NodeBC(:(y==0 && z==0), :(ux=0, uy=0, uz=0 )),
+       NodeBC(:(y==0.6 && z==0), :(ux=0, uz=0)),
+       EdgeBC(:(y==0.2 && z==0.1), :(uz=-1e-3)),
+       EdgeBC(:(y==0.4 && z==0.1), :(uz=-1e-3)),
       ]
 
 try

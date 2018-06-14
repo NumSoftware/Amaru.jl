@@ -15,10 +15,9 @@ mats = [
 dom = Domain(msh, mats)
 
 bcs = [
-       BC(:node, :(x==0 && y==0), :(ux=0, uy=0)),
-       BC(:node, :(x==1 && y==0), :(uy=0)),
-       BC(:node, :(x==1 && y==0), :(ux=0.003)),
-       #BC(:node, :(x==1 && y==0), :(fx=5010.0)),
+       NodeBC(:(x==0 && y==0), :(ux=0, uy=0)),
+       NodeBC(:(x==1 && y==0), :(uy=0)),
+       NodeBC(:(x==1 && y==0), :(ux=0.003)),
       ]
 
 

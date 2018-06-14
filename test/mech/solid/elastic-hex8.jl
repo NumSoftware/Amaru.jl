@@ -19,35 +19,35 @@ materials = [
 # Load cases
 
 bcs1 = [
-    BC(:node, :(x==0 && y==0 && z==0), :(ux=0, uy=0) ),
-    BC(:node, :(x==1 && y==0 && z==0), :(uy=0) ),
-    BC(:node, :(x==0 && y==1 && z==0), :(ux=0) ),
-    BC(:node, :(z==0), :(uz=0) ),
-    BC(:node, :(z==1), :(fz=1) ),
+    NodeBC(:(x==0 && y==0 && z==0), :(ux=0, uy=0) ),
+    NodeBC(:(x==1 && y==0 && z==0), :(uy=0) ),
+    NodeBC(:(x==0 && y==1 && z==0), :(ux=0) ),
+    NodeBC(:(z==0), :(uz=0) ),
+    NodeBC(:(z==1), :(fz=1) ),
 ]
 
 bcs2 = [
-    BC(:node, :(x==0 && y==0 && z==0), :(ux=0, uy=0) ),
-    BC(:node, :(x==1 && y==0 && z==0), :(uy=0) ),
-    BC(:node, :(x==0 && y==1 && z==0), :(ux=0) ),
-    BC(:node, :(z==0), :(uz=0) ),
-    BC(:edge, :(y==1 && z==1), :(ty=2) ),
+    NodeBC(:(x==0 && y==0 && z==0), :(ux=0, uy=0) ),
+    NodeBC(:(x==1 && y==0 && z==0), :(uy=0) ),
+    NodeBC(:(x==0 && y==1 && z==0), :(ux=0) ),
+    NodeBC(:(z==0), :(uz=0) ),
+    EdgeBC(:(y==1 && z==1), :(ty=2) ),
 ]
 
 bcs3 = [
-    BC(:node, :(x==0 && y==0 && z==0), :(ux=0, uy=0) ),
-    BC(:node, :(x==1 && y==0 && z==0), :(uy=0) ),
-    BC(:node, :(x==0 && y==1 && z==0), :(ux=0) ),
-    BC(:node, :(z==0), :(uz=0) ),
-    BC(:face, :(x==1), :(tx=3*z) ),
+    NodeBC(:(x==0 && y==0 && z==0), :(ux=0, uy=0) ),
+    NodeBC(:(x==1 && y==0 && z==0), :(uy=0) ),
+    NodeBC(:(x==0 && y==1 && z==0), :(ux=0) ),
+    NodeBC(:(z==0), :(uz=0) ),
+    FaceBC(:(x==1), :(tx=3*z) ),
 ]
 
 bcs4 = [
-    BC(:node, :(x==0 && y==0 && z==0), :(ux=0, uy=0) ),
-    BC(:node, :(x==1 && y==0 && z==0), :(uy=0) ),
-    BC(:node, :(x==0 && y==1 && z==0), :(ux=0) ),
-    BC(:node, :(z==0), :(uz=0) ),
-    BC(:element, :all, :(tz=-1) ),
+    NodeBC(:(x==0 && y==0 && z==0), :(ux=0, uy=0) ),
+    NodeBC(:(x==1 && y==0 && z==0), :(uy=0) ),
+    NodeBC(:(x==0 && y==1 && z==0), :(ux=0) ),
+    NodeBC(:(z==0), :(uz=0) ),
+    ElemBC(:(x>=0), :(tz=-1) ),
 ]
 
 ana_list = ["Nodal load", "Edge load", "Triangular face load", "Volume load"]

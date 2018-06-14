@@ -6,7 +6,7 @@ using Base.Test
 bl  = Block2D( [0 0; 0.2 0.1], nx=2, ny=4, shape=QUAD4)
 msh = Mesh(bl, verbose=true)
 generate_joints!(msh)
-iptag!(msh.cells[:joints], 100)
+iptag!(msh.cells[:joints], "jips")
 
 # finite element analysis
 
@@ -19,14 +19,14 @@ mats = [
 ]
 
 # Loggers
-logger = Logger(:ip, 100)
+logger = IpLogger("jips")
 
 dom = Domain(msh, mats, logger, model_type=:plane_stress, thickness=1.0)
 
 # Boundary conditions
 bcs = [
-       BC(:face, :(x==0), :(ux=0, uy=0 )),
-       BC(:face, :(x==0.2), :(ux=2.0*1.7e-4)),
+       FaceBC(:(x==0), :(ux=0, uy=0 )),
+       FaceBC(:(x==0.2), :(ux=2.0*1.7e-4)),
       ]
 
 @test solve!(dom, bcs, autoinc=true, nincs=20, maxits=3, tol=0.01, verbose=true, scheme=:ME, nouts=10)

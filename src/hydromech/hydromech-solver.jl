@@ -178,12 +178,10 @@ Available options are:
 
 `scheme= :FE` : Predictor-corrector scheme at iterations. Available schemes are `:FE` and `:ME`
 
-`saveips=false` : If true, saves corresponding output files with ip information
-
 """
 function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Float64=NaN, nincs::Int=1, maxits::Int=5, autoinc::Bool=false, 
     tol::Number=1e-2, verbose::Bool=true, silent::Bool=false, nouts::Int=0,
-    scheme::Symbol = :FE, save_ips::Bool=false)::Bool
+    scheme::Symbol = :FE)
 
     # Arguments checking
     saveincs = nouts>0
@@ -222,7 +220,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
 
         # Save first output file
         if saveincs 
-            save(dom, "$(dom.filekey)-0.vtk", verbose=false, save_ips=save_ips)
+            save(dom, "$(dom.filekey)-0.vtk", verbose=false)
             silent || print_with_color(:green, "  $(dom.filekey)-0.vtk file written (Domain)\n")
         end
     end
@@ -380,7 +378,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             Tn = t + Δt
             if Tn+ttol>=T && saveincs
                 iout += 1
-                save(dom, "$(dom.filekey)-$iout.vtk", verbose=false, save_ips=save_ips)
+                save(dom, "$(dom.filekey)-$iout.vtk", verbose=false)
                 T = Tn - mod(Tn, dT) + dT
                 silent || verbose || print("                                             \r")
                 silent || print_with_color(:green, "  $(dom.filekey)-$iout.vtk file written (Domain)\n")

@@ -23,9 +23,9 @@ dom = Domain(mesh, materials)
 # Finite element modeling
 
 bcs = [
-    BC(:node, :(y==0 && z==0), :(ux=0, uy=0, uz=0) ),
-    BC(:node, :(y==2 && z==0), :(uz=0) ),
-    BC(:node, :(y==1 && z==0.2), :(fz=-10) ),
+    NodeBC(:(y==0 && z==0), :(ux=0, uy=0, uz=0) ),
+    NodeBC(:(y==2 && z==0), :(uz=0) ),
+    NodeBC(:(y==1 && z==0.2), :(fz=-10) ),
 ]
 
 

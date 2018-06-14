@@ -83,6 +83,33 @@ function SubDomain(dom::Domain, expr::Expr)
 end
 
 
+function SubDomain(elems::Array{<:Element,1})
+    nodesset = OrderedSet(node for elem in elems for node in elem.nodes)
+    nodes    = collect(nodesset)
+
+    nodemap = zeros(maximum(node.id for node in nodes))
+    for (i,node) in enumerate(nodes); nodemap[node.id] = i end
+
+    elemmap = zeros(maximum(elem.id for elem in elems))
+    for (i,elem) in enumerate(elems); elemmap[elem.id] = i end
+
+    cells  = [ elem.cell for elem in elems ]
+    scells = get_surface(cells)
+
+    # Setting faces
+    faces = Array{Face}(0)
+    for (i,cell) in enumerate(scells)
+        conn = [ nodemap[p.id] for p in cell.points ]
+        face = Face(cell.shape, nodes[conn], ndim, cell.tag)
+        face.oelem = elems[elemmap[cell.ocell.id]]
+        face.id = i
+        push!(faces, face)
+    end
+
+    return SubDomain(nodes, elems, faces, SharedAnalysisData())
+end
+
+
 function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}},
                 loggers::Union{AbstractLogger,Array}=[];
                 model_type::Symbol=:general, thickness::Real=1.0, filekey::String="out", verbose::Bool=true)
@@ -331,13 +358,11 @@ function node_and_elem_vals(dom::AbstractDomain)
     V_rec, fields_rec = nodal_patch_recovery(dom)
     NV = [ NV V_rec ]
     node_fields = [ collect(node_fields_set); fields_rec ]
-    @show node_fields
 
     # add nodal values from local recovery (joints) : extrapolation + averaging
     V_rec, fields_rec = nodal_local_recovery(dom)
     NV = [ NV V_rec ]
     node_fields = [ node_fields; fields_rec ]
-    @show node_fields
 
     # element values
     nelems = length(dom.elems)
@@ -595,91 +620,23 @@ function nodal_local_recovery(dom::AbstractDomain)
 end
 
 
-function save(dom::AbstractDomain, filename::String; verbose=true, save_ips=false)
-    # Saves the dom information in vtk format
-
-    #=
-    nnodes = length(dom.nodes)
-    nelems = length(dom.elems)
-
-    # Backup and renumber nodal ids starting from 1
-    id_bk = [ node.id for node in dom.nodes ]
-    for (i,node) in enumerate(dom.nodes) 
-        node.id = i
+function save(dom::AbstractDomain, filename::String; verbose=true)
+    filetype = split(filename, ".")[end]
+    if     filetype=="vtk" ; save_dom_vtk(dom, filename, verbose=verbose)
+    elseif filetype=="json"; save_dom_json(dom, filename, verbose=verbose)
+    else   error("save: Cannot save $(typeof(dom)) in $filetype format. Available formats are vtk and json")
     end
+end
 
-    # points, cells and cell types
-    points  = [ node.X[i] for node in dom.nodes, i in 1:3]
-    cells   = [ [node.id for node in elem.nodes] for elem in dom.elems ]
-    cell_tys= [ elem.shape.vtk_type for elem in dom.elems ]
-    
-    # Node and element data
-    point_scalar_data = Dict()
-    point_vector_data = Dict()
-    cell_scalar_data  = Dict()
 
-    # Get node and elem values
-    node_vals, node_labels, elem_vals, elem_labels = node_and_elem_vals(dom)
-    nncomps = length(node_labels)
-    necomps = length(elem_labels)
+function save(elems::Array{<:Element,1}, filename::String; verbose=true)
+    # Save a group of elements as a subdomain
+    subdom = SubDomain(elems)
+    save(subdom, filename, verbose=verbose)
+end
 
-    # Write vectors
-    if :uy in node_labels
-        ux_idx = findfirst(node_labels, :ux)
-        uy_idx = findfirst(node_labels, :uy)
-        uz_idx = findfirst(node_labels, :uz)
-        if uz_idx>0
-            U = node_vals[:, [ux_idx, uy_idx, uz_idx]]
-        else
-            U = hcat( node_vals[:, [ux_idx, uy_idx]], zeros(nnodes) )
-        end
-        point_vector_data["U"] = U
-    end
 
-    if :vy in node_labels
-        vx_idx = findfirst(node_labels, :vx)
-        vy_idx = findfirst(node_labels, :vy)
-        vz_idx = findfirst(node_labels, :vz)
-        if vz_idx>0
-            V = node_vals[:, [vx_idx, vy_idx, vz_idx]]
-        else
-            V = hcat( node_vals[:, [vx_idx, vy_idx]], zeros(nnodes) )
-        end
-        point_vector_data["V"] = V
-    end
-
-    # Write scalars
-    point_scalar_data["node-id"] = id_bk
-
-    # Write nodal scalar data
-    for i=1:nncomps
-        field = string(node_labels[i])
-        point_scalar_data[field] = node_vals[:,i]
-    end
-
-    # Write cell data
-    cell_scalar_data["elem-id"] = [ elem.id for elem in dom.elems ]
-    cell_scalar_data["cell-type"] = [ elem.shape.vtk_type for elem in dom.elems ]
-
-    # Write elem scalar data
-    for i=1:necomps
-        field = string(elem_labels[i])
-        cell_scalar_data[field] = elem_vals[:,i]
-    end
-
-    # Restore nodal ids
-    for (i,node) in enumerate(dom.nodes)
-        node.id = id_bk[i]
-    end
-
-    
-    vtk_data = UnstructuredGrid("Amaru - Finite Element Structures and Tools",
-                                     points, cells, cell_tys,
-                                     point_scalar_data=point_scalar_data,
-                                     point_vector_data=point_vector_data,
-                                     cell_scalar_data=cell_scalar_data)
-    =#
-
+function save_dom_vtk(dom::AbstractDomain, filename::String; verbose=true)
     # Convert domain to VTK data
     ugrid = convert(UnstructuredGrid, dom)
 
@@ -687,57 +644,40 @@ function save(dom::AbstractDomain, filename::String; verbose=true, save_ips=fals
     save_vtk(ugrid, filename)
 
     verbose && print_with_color(:green, "  file $filename written (Domain)\n")
-
-    # save ip information as vtk
-    if save_ips
-        # List of ips
-        ips = [ ip for elem in dom.elems for ip in elem.ips ]
-        nips = length(ips)
-
-        # points, cells and cell types
-        points = [ ips.X[i] for ip in ips, i in 1:3]
-        cells  = [ [ip.id] for ip in ips ] # TODO: check : [ [i] for i=1:nips ]
-        cell_tys = ones(Int, nips) # VTK_VERTEX
-
-        # get values at ips
-        table = DTable()
-        for ip in ips
-            push!(table, ip_vals(ip))
-        end
-
-        # Write ip scalar data
-        point_scalar_data = Dict()
-        for field in keys(table)
-            point_scalar_data[string(field)] = table[field]
-        end
-
-        ugrid = UnstructuredGrid("Amaru - Finite Element Structures and Tools",
-                                         points, cells, cell_tys,
-                                         point_scalar_data=point_scalar_data)
-
-        # Save file
-        ips_filename = splitext(filename)[1]*"-ip.vtk"
-        save(ugrid, ips_filename)
-
-        verbose && print_with_color(:green, "  file $ips_filename written (Domain IPs)\n")
-    end
 end
 
 
-function save_dom_json(dom::AbstractDomain, filename::String)
-    data = Dict{String,Any}()
+function save_dom_json(dom::AbstractDomain, filename::String; verbose=true)
+    data  = OrderedDict{String,Any}()
     ugrid = convert(UnstructuredGrid, dom)
 
-    data["coords"]     = ugrid.coords
-    data["incidences"] = ugrid.cells
-    data["elem_types"] = [ string(typeof(elem)) for elem in dom.elems]
-    data["node_data"]  = ugrid.point_scalar_data
-    data["elem_data"]  = ugrid.cell_scalar_data
-    data["elem_ip_data"] = [ elem_vals(elem) for elem in dom.elems]
+    data["points"] = ugrid.points
+    data["cells"]  = ugrid.cells
+    data["types"]  = [ split(string(typeof(elem)),".")[end] for elem in dom.elems]
+    data["point_scalar_data"] = ugrid.point_scalar_data
+    data["cell_scalar_data"]  = ugrid.cell_scalar_data
+
+    X = [ ip.X[1] for elem in dom.elems for ip in elem.ips ]
+    Y = [ ip.X[2] for elem in dom.elems for ip in elem.ips ]
+    Z = [ ip.X[3] for elem in dom.elems for ip in elem.ips ]
+    data["state_points"] = [ X, Y, Z ]
+    
+    cell_state_points = []
+    k = 0
+    for elem in dom.elems
+        nips = length(elem.ips)
+        push!(cell_state_points, collect(k+1:k+nips))
+        k += nips
+    end
+    data["cell_state_points"] = cell_state_points
+
+    data["state_point_scalar_data"] = [ ip_state_vals(elem.mat, ip.data) for elem in dom.elems for ip in elem.ips ]
 
     f = open(filename, "w")
-    JSON.json(f, data)
+    print(f, JSON.json(data,4))
     close(f)
+
+    verbose && print_with_color(:green, "  file $filename written (Domain)\n")
 end
 
 
@@ -803,7 +743,7 @@ function Base.convert(::Type{UnstructuredGrid}, dom::AbstractDomain)
     end
 
     # Write cell data
-    cell_scalar_data["elem-id"] = [ elem.id for elem in dom.elems ]
+    cell_scalar_data["elem-id"] = elem_ids_bk
     cell_scalar_data["cell-type"] = [ elem.shape.vtk_type for elem in dom.elems ]
 
     # Write elem scalar data

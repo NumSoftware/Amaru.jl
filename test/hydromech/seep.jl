@@ -21,7 +21,7 @@ materials = [
 ]
 
 logger = [
-    GroupLogger(:node, :(x==0) ),
+    NodeGroupLogger(:(x==0)),
 ]
 
 dom = Domain(msh, materials, logger)
@@ -29,8 +29,8 @@ dom = Domain(msh, materials, logger)
 fw_f(t) = t/10.0
 
 bcs = [
-    BC(:node, :(y==0), :(fw=$fw_f(t)) ),
-    BC(:node, :(y==2), :(uw=0.) ),
+    NodeBC(:(y==0), :(fw=$fw_f(t)) ),
+    NodeBC(:(y==2), :(uw=0.) ),
 ]
 
 hm_solve!(dom, bcs, end_time=500.0, tol=0.1, verbose=true)

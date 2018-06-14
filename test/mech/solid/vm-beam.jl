@@ -12,19 +12,19 @@ iptag!(msh.cells[end], "ip")
 mat = MaterialBind(:all, VonMises(E=210e6, nu=0.3, σy=0.24e6) )
 #mat = MaterialBind(:all, DruckerPrager(E=210e6, nu=0.3, alpha=0.05e6, kappa=0.1 ) )
 
-mon = Logger(:ip, "ip")
+mon = NodeLogger("ip")
 
 
 # boundary conditions
 bcs = [
-    BC(:node, :(y==0), :(uy=0)),
-    BC(:node, :(y==0 && z==0), :(uz=0)),
-    BC(:node, :(x==0 && y==0 && z==0), :(ux=0)),
-    BC(:edge, :(y==1 && z==0), :(uz=-0.1)),
+    NodeBC(:(y==0), :(uy=0)),
+    NodeBC(:(y==0 && z==0), :(uz=0)),
+    FaceBC(:(x==0 && y==0 && z==0), :(ux=0)),
+    FaceBC(:(y==1 && z==0), :(uz=-0.1)),
 ]
 
 dom = Domain(msh, mat)
-mon = Logger(dom.edges[:(y==1 && z==0)])
+mon = NodeLogger(dom.edges[:(y==1 && z==0)])
 setlogger!(dom, mon)
 
 @test solve!(dom, bcs, autoinc=true, nincs=6, nouts=1, tol=1e-2)

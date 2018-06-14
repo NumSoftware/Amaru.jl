@@ -33,7 +33,7 @@ materials = [
 ]
 
 logger = [
-    GroupLogger(:node, :(x==0 && y==0) ),
+    NodeGroupLogger(:(x==0 && y==0) ),
 ]
 
 dom = Domain(msh, materials, logger)
@@ -45,9 +45,9 @@ dom = Domain(msh, materials, logger)
 tlong = 10000*hd^2/cv
 
 bcs = [
-    BC(:node, :all, :(ux=0, uy=0) ),
-    BC(:node, :(z==0), :(ux=0, uy=0, uz=0) ),
-    BC(:node, :(z==10), :(uw=0.) ),
+    NodeBC(:(z==0), :(ux=0, uy=0, uz=0) ),
+    NodeBC(:(x>=0), :(ux=0, uy=0) ),
+    NodeBC(:(z==10), :(uw=0.) ),
 ]
 
 hm_solve!(dom, bcs, end_time=tlong, nincs=2, tol=1e-2, nouts=1, verbose=true)
@@ -62,10 +62,10 @@ pt(t) = -load
 #pt(t) = t>=t1? -load : -load/t1*t
 
 bcs = [
-    BC(:node, :all, :(ux=0, uy=0) ),
-    BC(:node, :(z==0), :(ux=0, uy=0, uz=0) ),
-    BC(:face, :(z==10), :(tz=$pt(t)) ),
-    BC(:node, :(z==10), :(uw=0.) ),
+    NodeBC(:(z==0), :(ux=0, uy=0, uz=0) ),
+    NodeBC(:(x>=0), :(ux=0, uy=0) ),
+    FaceBC(:(z==10), :(tz=$pt(t)) ),
+    NodeBC(:(z==10), :(uw=0.) ),
 ]
 
 hm_solve!(dom, bcs, end_time=t1, nincs=4, tol=1e-2, nouts=1, verbose=true)
@@ -75,10 +75,10 @@ hm_solve!(dom, bcs, end_time=t1, nincs=4, tol=1e-2, nouts=1, verbose=true)
 # =================
 
 bcs = [
-    BC(:node, :all, :(ux=0, uy=0) ),
-    BC(:node, :(z==0), :(ux=0, uy=0, uz=0) ),
-    BC(:face, :(z==10), :(tz=$pt(t)) ),
-    BC(:node, :(z==10), :(uw=0.) ),
+    NodeBC(:(z==0), :(ux=0, uy=0, uz=0) ),
+    NodeBC(:(x>=0), :(ux=0, uy=0) ),
+    FaceBC(:(z==10), :(tz=$pt(t)) ),
+    NodeBC(:(z==10), :(uw=0.) ),
 ]
 
 Uw_vals = [] # A list with porepressure vectors

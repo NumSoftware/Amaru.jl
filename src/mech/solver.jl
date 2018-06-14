@@ -115,7 +115,7 @@ Available options are:
 """
 function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::Bool=false, maxincs::Int=0,
     tol::Number=1e-2, verbose::Bool=true, nouts::Int=0, outdir="",
-    scheme::Symbol = :FE, save_ips::Bool=false)::Bool
+    scheme::Symbol = :FE)::Bool
 
     if verbose
         print_with_color(:cyan,"FEM analysis:\n", bold=true) 
@@ -166,7 +166,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
 
     # Save initial file
     if dom.nincs == 0 && save_incs 
-        save(dom, "$outdir/$(dom.filekey)-0.vtk", verbose=false, save_ips=save_ips)
+        save(dom, "$outdir/$(dom.filekey)-0.vtk", verbose=false)
         verbose && print_with_color(:green, "  $outdir/$(dom.filekey)-0.vtk file written (Domain)\n")
     end
 
@@ -260,6 +260,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
 
             # Residual vector for next iteration
             R = ΔFex - ΔFin  
+            #@show R
             R[pmap] .= 0.0  # Zero at prescribed positions
 
             if verbose
@@ -302,7 +303,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
             # Check for saving output file
             if abs(t - T) < ttol
                 iout += 1
-                save(dom, "$outdir/$(dom.filekey)-$iout.vtk", verbose=false, save_ips=save_ips)
+                save(dom, "$outdir/$(dom.filekey)-$iout.vtk", verbose=false)
                 T += dT # find the next output time
                 verbose && print_with_color(:green, "  $outdir/$(dom.filekey)-$iout.vtk file written (Domain)\n")
             end

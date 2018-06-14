@@ -1,72 +1,262 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-mutable struct BC
-    bctype::Symbol
+
+function parse_conditions(expconds::Expr=:(); kwconds::Array...)
+    # List of boundary conditions
+    keys = Symbol[]
+    vals = Union{Real,Symbol,Expr}[]
+    funs = Functor[]
+
+    conds = expconds.head == :(=) ? Expr(:tuple, expconds) : expconds
+    conds.head != :tuple && error("BC: invalid expression in boundary condition: $expconds")
+
+    # evaluates each condition in tuple
+    for cond in conds.args
+        cond.head != :(=) && error("BC: invalid expression in boundary condition: $cond")
+        key, val = cond.args[1:2] 
+        typeof(key) != Symbol && error("BC: invalid expression in boundary condition: $cond")
+        fun = Functor( :(t,x,y,z), val )
+        push!(keys, key)
+        push!(vals, val)
+        push!(funs, fun)
+    end
+
+    # add conditions from keyword arguments
+    for (key,val) in kwconds
+        fun = Functor( :(t,x,y,z), val )
+        push!(keys, key)
+        push!(vals, val)
+        push!(funs, fun)
+    end
+
+    return keys, vals, funs
+end
+
+
+abstract type BC
+end
+
+
+# NodeBC
+# ======
+
+
+mutable struct NodeBC<:BC
     expr::Union{Symbol,Expr}
     keys::Array{Symbol} 
     vals::Array{T} where T<:Union{Real,Symbol,Expr}
     funs::Array{Functor}
+    nodes::Array{Node,1}
 
-    objects::Array{T} where T<:Union{Node,Face,Edge,Element}
+    function NodeBC(expr::Union{Expr,TagType}, expconds::Expr=:(); kwconds::Array...)
+        typeof(expr)<:TagType && (expr=:(isequal(tag,$expr)))
+        keys, vals, funs = parse_conditions(expconds; kwconds...)
+        return new(expr, keys, vals, funs, [])
+    end
 
-    function BC(bctype::Symbol, target::Union{Int, Array{Int,1}, Expr, Symbol, String}, expconds::Expr=:(); kwconds::Array...)
-        bctypes = (:node, :face, :edge, :element)
-        !(bctype in bctypes) && error("BC: boundary condition type should be one of $bctypes. :$bctype received")
+    function NodeBC(nodes::Array{Node,1}, expconds::Expr=:(); kwconds::Array...)
+        keys, vals, funs = parse_conditions(expconds; kwconds...)
+        return new(:(), keys, vals, funs, nodes)
+    end
+end
 
-        ty = typeof(target)
-        if ty==Symbol
-            targets = (:all, :solids, :lines, :joints, :joints1D)
-            !(target in targets) && error("BC: invalid targe :$target")
-            expr = target
-        elseif ty==Expr
-            expr = target
-        #elseif ty==Int || ty==Array{Int,1}
-            #expr = :(id in $target)
-        #elseif ty==String
-        elseif ty<:TagType
-            expr = :(isequal(tag,$target))
+
+function setup_bc!(dom, bc::NodeBC)
+    # Filter objects according to bc criteria
+    bc.expr==:() || (bc.nodes = dom.nodes[bc.expr])
+    length(bc.nodes)==0 && warn("setup_bc!: applying boundary conditions to empty array of nodes while evaluating expression $(bc.expr)")
+
+    # Find prescribed essential bcs
+    for (key,fun) in zip(bc.keys, bc.funs)
+        for node in bc.nodes
+            !haskey(node.dofdict, key) && error("get_dofs!: key ($key) not found in node $(node.id)")
+            dof = node.dofdict[key]
+            dof.name == key && (dof.prescribed = true)
         end
+    end
+end
 
-        # List of boundary conditions
-        keys = Symbol[]
-        vals = Union{Real,Symbol,Expr}[]
-        funs = Functor[]
 
-        conds = expconds.head == :(=) ? Expr(:tuple, expconds) : expconds
-        conds.head != :tuple && error("BC: invalid expression in boundary condition: $expconds")
+function compute_bc_vals!(bc::NodeBC, t::Float64, U::Array{Float64,1}, F::Array{Float64,1})
+    essential_keys = Set( dof.name for node in bc.nodes for dof in node.dofs )
 
-        # evaluates each condition in tuple
-        for cond in conds.args
-            cond.head != :(=) && error("BC: invalid expression in boundary condition: $cond")
-            key, val = cond.args[1:2] 
-            typeof(key) != Symbol && error("BC: invalid expression in boundary condition: $cond")
-            fun = Functor( :(t,x,y,z), val )
-            push!(keys, key)
-            push!(vals, val)
-            push!(funs, fun)
+    for node in bc.nodes
+        x, y, z = node.X
+        for (key,fun) in zip(bc.keys, bc.funs)
+            dof = node.dofdict[key]
+            if key==dof.name # essential bc (dof.prescribed should not be modified!)
+                U[dof.eq_id] = fun(t,x,y,z)
+            else # natural bc
+                F[dof.eq_id] += fun(t,x,y,z)
+            end
         end
+    end
+end
 
-        # add conditions from keyword arguments
-        for (key,val) in kwconds
-            fun = Functor( :(t,x,y,z), val )
-            push!(keys, key)
-            push!(vals, val)
-            push!(funs, fun)
+
+# FaceBC and EdgeBC
+# =================
+
+
+mutable struct FaceBC<:BC
+    expr::Union{Symbol,Expr}
+    keys::Array{Symbol} 
+    vals::Array{T} where T<:Union{Real,Symbol,Expr}
+    funs::Array{Functor}
+    faces::Array{Face,1}
+
+    function FaceBC(expr::Union{Expr,TagType}, expconds::Expr=:(); kwconds::Array...)
+        typeof(expr)<:TagType && (expr=:(isequal(tag,$expr)))
+        keys, vals, funs = parse_conditions(expconds; kwconds...)
+        return new(expr, keys, vals, funs, [])
+    end
+
+    function FaceBC(faces::Array{<:Face,1}, expconds::Expr=:(); kwconds::Array...)
+        keys, vals, funs = parse_conditions(expconds; kwconds...)
+        return new(:(), keys, vals, funs, faces)
+    end
+end
+
+
+mutable struct EdgeBC<:BC
+    expr::Union{Symbol,Expr}
+    keys::Array{Symbol} 
+    vals::Array{T} where T<:Union{Real,Symbol,Expr}
+    funs::Array{Functor}
+    edges::Array{Edge,1}
+
+    function EdgeBC(expr::Union{Expr,TagType}, expconds::Expr=:(); kwconds::Array...)
+        typeof(expr)<:TagType && (expr=:(isequal(tag,$expr)))
+        keys, vals, funs = parse_conditions(expconds; kwconds...)
+        return new(expr, keys, vals, funs, [])
+    end
+
+    function EdgeBC(edges::Array{<:Edge,1}, expconds::Expr=:(); kwconds::Array...)
+        keys, vals, funs = parse_conditions(expconds; kwconds...)
+        return new(:(), keys, vals, funs, edges)
+    end
+end
+
+
+function setup_bc!(dom, bc::Union{FaceBC,EdgeBC})
+    # Filter objects according to bc criteria
+    if typeof(bc)==FaceBC
+        bc.expr==:() || (bc.faces = dom.faces[bc.expr])
+        facets = bc.faces
+    else
+        bc.expr==:() || (bc.edges = dom.edges[bc.expr])
+        facets = bc.edges
+    end
+    length(facets)==0 && warn("setup_bc!: applying boundary conditions to empty array of faces/edges while evaluating expression $(bc.expr)")
+
+    #@show bc.expr
+    #@show facets
+
+    # Find prescribed essential bcs
+    for (key,fun) in zip(bc.keys, bc.funs)  # e.g. key = tx, ty, tn, etc...
+        for facet in facets
+            for node in facet.nodes
+                !haskey(node.dofdict, key) && continue # if key not found, assume it is a natural bc
+                dof = node.dofdict[key]
+                dof.name == key && (dof.prescribed = true)
+            end
         end
+    end
+end
 
-        return new(bctype, expr, keys, vals, funs)
+
+function compute_bc_vals!(bc::Union{FaceBC,EdgeBC}, t::Float64, U::Array{Float64,1}, F::Array{Float64,1})
+    facets = typeof(bc)==FaceBC ? bc.faces : bc.edges
+    essential_keys = Set( dof.name for facet in facets for node in facet.nodes for dof in node.dofs )
+
+    for facet in facets
+        elem = facet.oelem
+        
+        for (key,fun) in zip(bc.keys, bc.funs)
+            if key in essential_keys
+                for node in facet.nodes
+                    if haskey(node.dofdict, key)
+                        dof = node.dofdict[key]
+                        x, y, z = node.X
+                        U[dof.eq_id] = fun(t,x,y,z)
+                    end
+                end
+            else
+                Fd, map = distributed_bc(elem, facet, key, fun)
+                F[map] += Fd
+            end
+        end
+    end
+end
+
+
+# ElemBC
+# ======
+
+
+mutable struct ElemBC<:BC
+    expr::Union{Symbol,Expr}
+    keys::Array{Symbol} 
+    vals::Array{T} where T<:Union{Real,Symbol,Expr}
+    funs::Array{Functor}
+    elems::Array{Element,1}
+
+    function ElemBC(expr::Union{Expr,TagType}, expconds::Expr=:(); kwconds::Array...)
+        typeof(expr)<:TagType && (expr=:(isequal(tag,$expr)))
+        keys, vals, funs = parse_conditions(expconds; kwconds...)
+        return new(expr, keys, vals, funs, [])
+    end
+
+    function ElemBC(elems::Array{<:Element,1}, expconds::Expr=:(); kwconds::Array...)
+        keys, vals, funs = parse_conditions(expconds; kwconds...)
+        return new(:(), keys, vals, funs, elems)
     end
 end
 
 
 # Return a vector with all domain dofs and the number of unknown dofs according to bcs
-function configure_dofs!(dom, bcs::Array{BC,1})
+function setup_bc!(dom, bc::ElemBC)
     # Filter objects according to bc criteria
-    for bc in bcs
-        dict       = Dict(:node=>dom.nodes, :face=>dom.faces, :edge=>dom.edges, :elem=>dom.elems, :element=>dom.elems)
-        bc.objects = dict[bc.bctype][bc.expr]
-        length(bc.objects)==0 && warn("eval_bc!: applying boundary conditions to empty array of $(bc.bctype)s while using expression $(bc.expr)")
+    bc.expr==:() || (bc.elems = dom.elems[bc.expr])
+    length(bc.elems)==0 && warn("setup_bc!: applying boundary conditions to empty array of elements while evaluating expression $(bc.expr)")
+
+    # Find prescribed essential bcs
+    for (key,fun) in zip(bc.keys, bc.funs)  # e.g. key = tx, ty, tn, etc...
+        for elem in bc.elems
+            for node in elem.nodes
+                !haskey(node.dofdict, key) && continue # if key not found, assume it is a natural bc
+                dof = node.dofdict[key]
+                dof.name == key && (dof.prescribed = true)
+            end
+        end
     end
+end
+
+
+function compute_bc_vals!(bc::ElemBC, t::Float64, U::Array{Float64,1}, F::Array{Float64,1})
+    essential_keys = Set( dof.name for elem in bc.elems for node in elem.nodes for dof in node.dofs )
+
+    for elem in bc.elems
+        for (key,fun) in zip(bc.keys, bc.funs)
+            if key in essential_keys
+                for node in elem.nodes
+                    if haskey(node.dofdict, key)
+                        dof = node.dofdict[key]
+                        x, y, z = node.X
+                        U[dof.eq_id] = fun(t,x,y,z)
+                    end
+                end
+            else
+                Fd, map = distributed_bc(elem, nothing, key, fun)
+                F[map] += Fd
+            end
+        end
+    end
+end
+
+
+# Return a vector with all domain dofs and the number of unknown dofs according to bcs
+function configure_dofs!(dom, bcs::Array{<:BC,1})
 
     # All dofs
     dofs = Dof[dof for node in dom.nodes for dof in node.dofs]
@@ -76,27 +266,9 @@ function configure_dofs!(dom, bcs::Array{BC,1})
         dof.prescribed = false
     end
 
-    # Find essential bcs
+    # Setup bcs and prescribed marker for each dof
     for bc in bcs
-        if bc.bctype == :node
-            for (key,fun) in zip(bc.keys, bc.funs)
-                for node in bc.objects
-                    !haskey(node.dofdict, key) && error("get_dofs!: key ($key) not found in node $(node.id)")
-                    dof = node.dofdict[key]
-                    dof.name == key && (dof.prescribed = true)
-                end
-            end
-        else # :face, :edge, :element
-            for (key,fun) in zip(bc.keys, bc.funs)  # e.g. key = tx, ty, tn, etc...
-                for obj in bc.objects
-                    for node in obj.nodes
-                        !haskey(node.dofdict, key) && continue # if key not found, assume it is a natural bc
-                        dof = node.dofdict[key]
-                        dof.name == key && (dof.prescribed = true)
-                    end
-                end
-            end
-        end
+        setup_bc!(dom, bc)
     end
 
     # Split dofs
@@ -114,50 +286,17 @@ function configure_dofs!(dom, bcs::Array{BC,1})
     return dofs, nu
 end
 
+
 # Returns the values for essential and natural boundary conditions according to bcs
-function get_bc_vals(domain, bcs::Array{BC,1}, t=0.0)
+function get_bc_vals(domain, bcs::Array{<:BC,1}, t=0.0)
     # This function will be called for each time increment
 
     ndofs = domain.ndofs
     U = zeros(ndofs)
     F = zeros(ndofs)
 
-    essential_keys = Set( dof.name for node in domain.nodes for dof in node.dofs )
-
     for bc in bcs
-        if bc.bctype == :node
-            for node in bc.objects
-                x, y, z = node.X
-                for (key,fun) in zip(bc.keys, bc.funs)
-                    dof = node.dofdict[key]
-                    if key==dof.name # essential bc (dof.prescribed should not be modified!)
-                        U[dof.eq_id] = fun(t,x,y,z)
-                    else # natural bc
-                        F[dof.eq_id] += fun(t,x,y,z)
-                    end
-                end
-            end
-        else # bc.type is :face or :edge
-            for obj in bc.objects
-                
-                elem, facet = isa(obj,Element)? (obj,nothing) : (obj.oelem,obj)
-                
-                for (key,fun) in zip(bc.keys, bc.funs)
-                    if key in essential_keys
-                        for node in obj.nodes
-                            if haskey(node.dofdict, key)
-                                dof = node.dofdict[key]
-                                x, y, z = node.X
-                                U[dof.eq_id] = fun(t,x,y,z)
-                            end
-                        end
-                    else
-                        Fd, map = distributed_bc(elem, facet, key, fun)
-                        F[map] += Fd
-                    end
-                end
-            end
-        end
+        compute_bc_vals!(bc, t, U, F)
     end
 
     return U, F

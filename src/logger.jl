@@ -15,7 +15,8 @@ mutable struct NodeLogger<:AbstractLogger
     filename :: String
     table    :: DTable
 
-    function NodeLogger(expr::Expr, filename::String="")
+    function NodeLogger(expr::Union{Expr,TagType}, filename::String="")
+        typeof(expr)<:TagType && ( expr=:(isequal(tag,$expr)) )
         this = new(expr)
         this.filename = filename
         this.table = DTable()
@@ -26,13 +27,12 @@ mutable struct NodeLogger<:AbstractLogger
 end
 
 function setup_logger!(domain, logger::NodeLogger)
-    logger.table = DTable()
-    isdefined(logger, :node) && return
+    logger.expr==:() && return
     nodes = domain.nodes[logger.expr]
     n = length(nodes)
     n == 0 && warn("setup_logger: No nodes found for expression: $(logger.expr)")
-    n >  1 && warn("setup_logger: More than one node match expression: $(logger.expr)")
-    n == 1 && (logger.node = nodes[1])
+    n >  1 && info("setup_logger: More than one node match expression: $(logger.expr)")
+    n >= 1 && (logger.node = nodes[1])
     return nothing
 end
 
@@ -53,7 +53,8 @@ mutable struct IpLogger<:AbstractLogger
     filename :: String
     table    :: DTable
 
-    function IpLogger(expr::Expr, filename::String="")
+    function IpLogger(expr::Union{Expr,TagType}, filename::String="")
+        typeof(expr)<:TagType && ( expr=:(isequal(tag,$expr)) )
         this = new(expr)
         this.filename = filename
         this.table = DTable()
@@ -65,13 +66,12 @@ end
 
 
 function setup_logger!(domain, logger::IpLogger)
-    logger.table = DTable()
-    isdefined(logger, :ip) && return
+    logger.expr==:() && return
     ips = domain.elems[:ips][logger.expr]
     n = length(ips)
     n == 0 && warn("setup_logger: No ips found for expression: $(logger.expr)")
-    n >  1 && warn("setup_logger: More than one ip match expression: $(logger.expr)")
-    n == 1 && (logger.ip = ips[1])
+    n >  1 && info("setup_logger: More than one ip match expression: $(logger.expr)")
+    n >= 1 && (logger.ip = ips[1])
     return nothing
 end
 
@@ -87,50 +87,64 @@ end
 # ==========================
 
 
-mutable struct FacetLogger<:AbstractLogger
+abstract type FacetLogger<:AbstractLogger
+end
+
+
+mutable struct FaceLogger<:FacetLogger
     expr     :: Expr
-    facets   :: Array{<:Facet,1}
+    faces    :: Array{Face,1}
     nodes    :: Array{Node,1}
     filename :: String
     table    :: DTable
 
-    function FacetLogger(applyto::Symbol, expr::Expr, filename::String="")
-        this = new(expr)
-        this.facets = applyto==:face ? Array{Face,1}() : Array{Edge,1}()
-        this.filename = filename
-        this.table = DTable()
-        return this
+    function FaceLogger(expr::Union{Expr,TagType}, filename::String="")
+        typeof(expr)<:TagType && ( expr=:(isequal(tag,$expr)) )
+        return new(expr, [], [], filename, DTable())
     end
 
-    function FacetLogger(facets::Array{<:Facet,1}, filename::String="")
-        this = new()
-        this.facets = facets
-        this.nodes  = facets[:nodes]
-        this.filename = filename
-        this.table = DTable()
-        return this
+    function FaceLogger(faces::Array{Face,1}, filename::String="")
+        return new(:(), faces, faces[:nodes], filename, DTable())
     end
 end
 
-function setup_logger!(domain, logger::FacetLogger)
-    logger.table = DTable()
-    length(logger.facets)>0 && return
-    if eltype(logger.facets) == Face
-        faces = domain.faces[logger.expr]
-        length(faces) == 0 && warn("setup_logger: No faces found for expression: $(logger.expr)")
-        logger.facets = faces
-        logger.nodes = faces[:nodes]
-    else
-        edges = domain.edges[logger.expr]
-        length(edges) == 0 && warn("setup_logger: No edges found for expression: $(logger.expr)")
-        logger.facets = edges
-        logger.nodes = edges[:nodes]
+
+mutable struct EdgeLogger<:FacetLogger
+    expr     :: Expr
+    edges    :: Array{Edge,1}
+    nodes    :: Array{Node,1}
+    filename :: String
+    table    :: DTable
+
+    function EdgeLogger(expr::Union{Expr,TagType}, filename::String="")
+        typeof(expr)<:TagType && ( expr=:(isequal(tag,$expr)) )
+        return new(expr, [], [], filename, DTable())
     end
 
+    function EdgeLogger(edges::Array{Edge,1}, filename::String="")
+        return new(:(), edges, edges[:nodes], filename, DTable())
+    end
 end
+
+
+function setup_logger!(domain, logger::FaceLogger)
+    logger.expr==:() && return
+    logger.faces = domain.faces[logger.expr]
+    length(logger.faces) == 0 && warn("setup_logger: No faces found for expression: $(logger.expr)")
+    logger.nodes = logger.faces[:nodes]
+end
+
+
+function setup_logger!(domain, logger::EdgeLogger)
+    logger.expr==:() && return
+    logger.edges = domain.edges[logger.expr]
+    length(logger.edges) == 0 && warn("setup_logger: No edges found for expression: $(logger.expr)")
+    logger.nodes = logger.edges[:nodes]
+end
+
 
 function update_logger!(logger::FacetLogger)
-    length(logger.facets)==0 && return
+    length(logger.nodes)==0 && return
 
     tableU = DTable()
     tableF = DTable()
@@ -163,14 +177,18 @@ mutable struct NodeGroupLogger<:AbstractLogger
     by       :: Function # used for sorting
     book     :: DBook
 
-    NodeGroupLogger(expr::Expr, filename::String="", by::Function=identity) = new(expr, Array{Node,1}(), filename, by, DBook())
-    NodeGroupLogger(nodes::Array{Node,1}, filename::String="", by::Function=identity) = new(:(), nodes, filename, by, DBook())
+    function NodeGroupLogger(expr::Expr, filename::String=""; by::Function=identity) 
+        typeof(expr)<:TagType && ( expr=:(isequal(tag,$expr)) )
+        new(expr, Array{Node,1}(), filename, by, DBook()) 
+    end
+    function NodeGroupLogger(nodes::Array{Node,1}, filename::String=""; by::Function=identity)
+        new(:(), nodes, filename, by, DBook()) 
+    end
 end
 
 
 function setup_logger!(domain, logger::NodeGroupLogger)
-    logger.book = DBook()
-    length(logger.nodes) > 0 && return
+    logger.expr==:() && return
     logger.nodes = domain.nodes[logger.expr]
     length(logger.nodes) == 0 && warn("setup_logger: No nodes found for expression: $(logger.expr)")
     logger.by != identity && sort!(logger.nodes, by=logger.by)
@@ -200,14 +218,18 @@ mutable struct IpGroupLogger<:AbstractLogger
     by       :: Function # used for sorting
     book     :: DBook
 
-    IpGroupLogger(expr::Expr, filename::String="", by::Function=identity) = new(expr, Array{Ip,1}(), filename, by, DBook())
-    IpGroupLogger(ips::Array{Ip,1}, filename::String="", by::Function=identity) = new(:(), ips, filename, by, DBook())
+    function IpGroupLogger(expr::Union{Expr,TagType}, filename::String=""; by::Function=identity)
+        typeof(expr)<:TagType && ( expr=:(isequal(tag,$expr)) )
+        new(expr, Array{Ip,1}(), filename, by, DBook())
+    end
+    function IpGroupLogger(ips::Array{Ip,1}, filename::String=""; by::Function=identity)
+        new(:(), ips, filename, by, DBook())
+    end
 end
 
 
 function setup_logger!(domain, logger::IpGroupLogger)
-    logger.book = DBook()
-    length(logger.ips)>0 && return
+    logger.expr==:() && return
     logger.ips = domain.elems[:ips][logger.expr]
     length(logger.ips)==0 && warn("setup_logger: No ips found for expression: $(logger.expr)")
     logger.by != identity && sort!(logger.ips, by=logger.by)
@@ -226,57 +248,6 @@ function update_logger!(logger::IpGroupLogger)
     push!(logger.book, table)
     save(logger)
 end
-
-
-# Logger for a group of elements
-# ==============================
-
-
-mutable struct ElemGroupLogger<:AbstractLogger
-    expr     :: Expr
-    elems    :: Array{Element,1}
-    nodes    :: Array{Node,1}
-    ips      :: Array{Ip,1}
-    filename :: String
-    ipsbook  :: DBook
-    nodesbook:: DBook
-
-    function ElemGroupLogger(expr::Expr, filename::String="")
-        this = new(expr)
-        this.filename = filename
-        this.ipsbook = DBook()
-        this.nodesbook = DBook()
-        return this
-    end
-
-    function ElemGroupLogger(elems::Array{<:Element,1}, filename::String="")
-        this = new(:())
-        this.elems = elems
-        this.nodes = elems[:nodes]
-        this.ips   = elems[:ips]
-        this.ipsbook = DBook()
-        this.nodesbook = DBook()
-        return this
-    end
-end
-
-
-function setup_logger!(domain, logger::ElemGroupLogger)
-    logger.expr == :() && return
-    elems = domain.elems[logger.expr]
-    sort!(elems)
-    n = length(elems)
-    n == 0 && warn("setup_logger: No elems found for expression: $(logger.expr)")
-    return nothing
-end
-
-
-function update_logger!(logger::ElemGroupLogger)
-    isdefined(logger, :ip) || return
-    push!(logger.table, ip_vals(logger.ip))
-    save(logger)
-end
-
 
 
 # Function to create loggers

@@ -215,7 +215,7 @@ Available options are:
 function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, maxits::Int=5, autoinc::Bool=false, 
                    nouts::Int=0, nmods::Int=10, alpha::Real=0.0, beta::Real=0.0,
                    tol::Number=1e-2, verbose::Bool=true, save_incs::Bool=false, 
-                   scheme::Symbol = :FE, save_ips::Bool=false, filekey="out")::Bool
+                   scheme::Symbol = :FE, filekey="out")::Bool
 
     if verbose
         print_with_color(:cyan,"FEM dynamic analysis:\n", bold=true) 
@@ -296,7 +296,7 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, m
 
     # Save initial file
     if save_incs
-        save(dom, "$(dom.filekey)-0.vtk", verbose=false, save_ips=save_ips)
+        save(dom, "$(dom.filekey)-0.vtk", verbose=false)
         verbose && print_with_color(:green, "  $(dom.filekey)-0.vtk file written (Domain)\n")
     end
 
@@ -438,7 +438,7 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, m
             # Check for saving output file
             if abs(t - T) < ttol
                 iout += 1
-                save(dom, "$(dom.filekey)-$iout.vtk", verbose=false, save_ips=save_ips)
+                save(dom, "$(dom.filekey)-$iout.vtk", verbose=false)
                 T += dT # find the next output time
                 verbose && print_with_color(:green, "  $(dom.filekey)-$iout.vtk file written (Domain)\n")
             end

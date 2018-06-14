@@ -23,10 +23,10 @@ mats = [
 ]
 
 # Loggers
-log_ip = Logger(:ip, 100)
-log_face = Logger(:faces, 10)
-log_n3 = Logger(:node, 3)
-log_n5 = Logger(:node, 5)
+log_ip = IpLogger(100)
+log_face = FaceLogger(10)
+log_n3 = NodeLogger(3)
+log_n5 = NodeLogger(5)
 loggers = [log_ip, log_face, log_n3, log_n5]
 
 #dom = Domain(msh, mats, model_type=:plane_stress, thickness=1.0)
@@ -34,9 +34,9 @@ dom = Domain(msh, mats, loggers)
 
 # Boundary conditions
 bcs = [
-       BC(:node, :(x==0 && y==0 ), :(ux=0, uy=0 )),
-       BC(:node, :(x==0.2 && y==0 ), :(uy=0 )),
-       BC(:face, 10, :(uy=8*1e-4)),
+       NodeBC(:(x==0 && y==0 ), :(ux=0, uy=0 )),
+       NodeBC(:(x==0.2 && y==0 ), :(uy=0 )),
+       FaceBC(10, :(uy=8*1e-4)),
        #BC(:node, :(x<0.1), :(ux=0, uy=0 )),
        #BC(:node, :(x>0.1), :(ux=1e-5)),
        #BC(:node, :(x>0.1), :(ux=0, uy=8.0*1.7e-4)),

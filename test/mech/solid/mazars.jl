@@ -11,19 +11,19 @@ mat = MaterialBind(:solids, Mazars(E=30000, nu=0.2, eps0=1.e-4, At=0.9, Bt=5000.
 dom = Domain(msh, mat) 
 
 tag!(dom.elems[:ips][1], "ip")
-#logger = Logger(:ip, "ip")
-logger = Logger(:face, :(z==1))
+#logger = IpLogger("ip")
+logger = FaceLogger(:(z==1))
 setlogger!(dom, logger)
 
 bcs = [
-       BC(:node, :(x==0), ux=0)
-       BC(:node, :(y==0), uy=0)
-       BC(:node, :(z==0), uz=0)
+       NodeBC(:(x==0), ux=0)
+       NodeBC(:(y==0), uy=0)
+       NodeBC(:(z==0), uz=0)
 
-       BC(:node, :(z==0), ux=0, uy=0)
+       NodeBC(:(z==0), ux=0, uy=0)
 
-       #BC(:face, :(z==1), uz=-1.2e-2)
-       BC(:face, :(z==1), uz=+2e-3)
+       #NodeBC(:(z==1), uz=-1.2e-2)
+       FaceBC(:(z==1), uz=+2e-3)
       ]
 
 @test solve!(dom, bcs, autoinc=true, nincs=100, maxits=4, tol=0.002, nouts=10, verbose=true)

@@ -8,15 +8,15 @@ msh = Mesh(bl, verbose=true)
 mat = MaterialBind(:solids, ElasticSolid(E=100.0, nu=0.2) )
 
 mons = [
-        Logger(:node, :(x==1 && y==1), "node.dat"),
-        GroupLogger(:node, :(y==1), "nodes.dat"),
+        NodeLogger(:(x==1 && y==1), "node.dat"),
+        NodeGroupLogger(:(y==1), "nodes.dat"),
        ]
 
 dom = Domain(msh, mat, mons)
 
 bcs = [
-        BC(:node, :(y==0), ux=0, uy=0),
-        BC(:face, :(y==1), ty=2),
+        NodeBC(:(y==0), ux=0, uy=0),
+        FaceBC(:(y==1), ty=2),
       ]
 
 

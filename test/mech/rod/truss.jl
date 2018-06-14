@@ -17,10 +17,10 @@ mats = [
 dom = Domain(msh, mats)
 
 bcs = [
-       BC(:node, :(x==0 && y==0), :(ux=0, uy=0)),
-       BC(:node, :(x==0 && y==9), :(ux=0, uy=0)),
-       BC(:node, :(x==9 && y==0), :(fy=-450.)),
-       BC(:node, :(x==18&& y==0), :(fy=-450.)),
+       NodeBC(:(x==0 && y==0), :(ux=0, uy=0)),
+       NodeBC(:(x==0 && y==9), :(ux=0, uy=0)),
+       NodeBC(:(x==9 && y==0), :(fy=-450.)),
+       NodeBC(:(x==18&& y==0), :(fy=-450.)),
       ]
 
 @test solve!(dom, bcs, verbose=true)
@@ -37,10 +37,10 @@ msh = Mesh(blt, verbose=false)
 dom = Domain(msh, mats)
 
 bcs = [
-       BC(:node, :(x==0 && y==0 && z==0), :(ux=0)),
-       BC(:node, :(x==0 && y==1 && z==0), :(ux=0, uy=0, uz=0)),
-       BC(:node, :(x==0 && y==1 && z==1), :(ux=0, uy=0)),
-       BC(:node, :(x==0 && y==0), :(fz=-50.)),
+       NodeBC(:(x==0 && y==0 && z==0), :(ux=0)),
+       NodeBC(:(x==0 && y==1 && z==0), :(ux=0, uy=0, uz=0)),
+       NodeBC(:(x==0 && y==1 && z==1), :(ux=0, uy=0)),
+       NodeBC(:(x==0 && y==0), :(fz=-50.)),
       ]
 
 @test solve!(dom, bcs, verbose=true)

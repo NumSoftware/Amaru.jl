@@ -444,20 +444,19 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
             f = 0.0
 
             #for Δλ in (Δλ0, 0.0, 1e-10)
-            for Δλ in (0.0, 1e-10)
-                for i=1:maxits
-                    f, df, ς, upa = yield_n1_and_deriv(mat, ipd, ςtr, Δλ)
-                    Δλ = Δλ - f/df
-                    #@show f, df, Δλ
-                    abs(f) < tol && break
-                    if i == maxits || isnan(Δλ)
-                        #warn("max iterations reached")
-                        #@show f, Δλ
-                        Δλ = -1.0
-                        break
-                    end
-                end
+            #for Δλ in (0.0, 1e-10)
+            Δλ = 0.0
+            for i=1:maxits
+                f, df, ς, upa = yield_n1_and_deriv(mat, ipd, ςtr, Δλ)
+                Δλ = Δλ - f/df
+                #@show f, df, Δλ
                 abs(f) < tol && break
+                if i == maxits || isnan(Δλ)
+                    #warn("max iterations reached")
+                    #@show f, Δλ
+                    Δλ = -1.0
+                    break
+                end
             end
 
             if Δλ<0 

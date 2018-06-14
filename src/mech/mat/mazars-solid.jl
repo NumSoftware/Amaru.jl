@@ -6,22 +6,18 @@ mutable struct MazarsIpState<:IpState
     shared_data::SharedAnalysisData
     σ::Tensor2
     ε::Tensor2
-    lastΔε::Tensor2
     φt::Float64
     φc::Float64
     φ::Float64  # damage
     ε̅max::Float64
-    D::Array{Float64,2}
     function MazarsIpState(shared_data::SharedAnalysisData=SharedAnalysisData()) 
         this = new(shared_data)
         this.σ = zeros(6)
         this.ε = zeros(6)
-        this.lastΔε = zeros(6)
         this.φ = 0.0
         this.φc = 0.0
         this.φt = 0.0
         this.ε̅max = 0.0
-        this.D = zeros(6,6)
         return this
     end
 end
@@ -50,6 +46,7 @@ mutable struct Mazars<:Material
         @assert Bt>0.0
         @assert Bc>0.0
         @assert rho>=0.0
+        @assert eps0>0
 
         this     = new(E, nu, eps0, At, Bt, Ac, Bc, rho)
         this.De  = calcDe(E, nu, :general)
@@ -83,15 +80,29 @@ pos(x) = (abs(x)+x)/2.0
 neg(x) = (-abs(x)+x)/2.0
 
 
-function calcD2(mat::Mazars, ipd::MazarsIpState)
+function calcD(mat::Mazars, ipd::MazarsIpState)
     # There is something wrong with the derivatives here
+    return mat.De
+    #return (1.0 - ipd.φ)*mat.De
 
-    if ipd.φ <= 0.0
+    # Equivalent strain scalar
+    εp = eigvals(ipd.ε)
+    #ε̅ = √sum( pos(εp[i])^2 for i=1:3 )
+    ε̅ = norm(pos.(εp[i]))
+    ε̅ == 0.0 && (ε̅ += 1e-15)
+    ε̅max = max(ipd.ε̅max, mat.ε̅0)
+
+    if ε̅<ε̅max
+    #if ipd.φ <= 0.0
+        @show "elastic"
         # Elastic constitutive matrix
-        return mat.De
+        #return mat.De
+        return (1.0 - ipd.φ)*mat.De
     else
+        @show "plastic"
+        #ipd.φt ipd.φc
         # Principal stresses and principal directions
-        σp = eigvals(ipd.σ)
+        σp, V = eig(ipd.σ)
         σp = [ σp; zeros(3) ]
         # Eigen vectors
         p1 = V[:, 1]
@@ -105,15 +116,35 @@ function calcD2(mat::Mazars, ipd::MazarsIpState)
         Dei= inv(mat.De)
         εt = Dei*σt
         εc = Dei*σc
-        εv = sum(pos.(εt)) + sum(pos.(εc))
+        #εc = ipd.ε - εt
+        #@show σp
+        #@show σt
+        #@show σc
+        #@show εt
+        #@show εc
+        #εv = sum(pos.(εt)) + sum(pos.(εc))
+        εv = sum(pos.(εt)) + sum(neg.(εc))
+        #εv = sum(pos.(εp))
 
-        # Equivalent strain scalar
-        εp = eigvals(ipd.ε)
-        ε̅ = √sum( pos(εp[i])^2 for i=1:3 )
+        εv +=  1e-15 # avoid division by zero
+        #ε̅<ipd.ε̅max && return mat.De
+            
 
         # Tensile and compression damage weights
-        αt =  sum(pos.(εt))/εv
-        αc =  sum(pos.(εc))/εv
+        αt = clamp(sum(pos.(εt))/εv, 0.0, 1.0)
+        αc = clamp(sum(neg.(εc))/εv, 0.0, 1.0)
+
+        #αt = sum( εt[i]*εp[i] for i=1:3 ) / ε̅^2
+        #αc = sum( εc[i]*εp[i] for i=1:3 ) / ε̅^2
+
+        #@show εp
+        #@show αc+αt
+        #@show εp
+        #@show ipd.φ
+        #@show ε̅
+        #@show αt
+        #@show αc
+        #error()
 
         # Constitutive matrix calculation
         dφtdε̅ = (1.0-mat.At)*mat.ε̅0*ε̅^-2 + mat.At*mat.Bt*exp( -mat.Bt*(ε̅-mat.ε̅0) )
@@ -123,98 +154,37 @@ function calcD2(mat::Mazars, ipd::MazarsIpState)
         dφdε  = (αt*dφtdε̅ + αc*dφcdε̅) * dε̅dε
 
         #@show dφdε'*mat.De
-        D     = (1.0 - ipd.φ)*mat.De - (dφdε'*mat.De)'*ipd.ε'
-
-        return D
-    end
-end
-
-
-function calcDsecante(mat::Mazars, ipd::MazarsIpState)
-    if ipd.φ <= 0.0
-        return mat.De
-    else
-        D = (1.0 - ipd.φ)*mat.De 
-        return D
-    end
-end
-
-function calcD(mat::Mazars, ipd::MazarsIpState)
-    if ipd.φ <= 0.0
-        return mat.De
-    else
-        D = zeros(6,6)
-        δ = mat.ε̅0/20  # 20 seems to work better
-        κ = 1.0e-15    # important because some components may be zero
-        δε = sign.(ipd.lastΔε .+ κ)*δ
-        #δε = ones(6)*δ
-
-        Δε = zeros(6)
-        for i=1:6
-            Δε[i] = δε[i]
-            if i>1; Δε[i-1] = 0.0 end
-            Δσ = mazars_Δσ(mat, ipd, Δε)
-            Di = Δσ/Δε[i]
-            D[:,i] = Di
-        end
-        return D
-    end
-end
-
-
-function mazars_Δσ(mat::Mazars, ipd::MazarsIpState, Δε::Vect)::Vect
-    # Auxiliary function to aid the calculation of numerical D matrix
-    ε = ipd.ε + Δε    # Total strain
-    εp = eigvals(ε) # Principal stresses tensor
-
-    # Equivalent strain scalar
-    ε̅ = √sum( pos(εp[i])^2 for i=1:3 )
-    ε̅max = max(ipd.ε̅max, mat.ε̅0)
-
-    if ε̅ < ε̅max  # linear-elastic increment
-        φ = ipd.φ
-    else # increment with damage
-        σp = eigvals(ipd.σ)
-        σp = [ σp; zeros(3) ]
-
-        # Damage calculation
-        φt = 1.0 - (1-mat.At)*mat.ε̅0/ε̅ - mat.At/exp(mat.Bt*(ε̅-mat.ε̅0))
-        φc = 1.0 - (1-mat.Ac)*mat.ε̅0/ε̅ - mat.Ac/exp(mat.Bc*(ε̅-mat.ε̅0))
-        #φt = max(ipd.φt, φt)
-        #φc = max(ipd.φc, φc)
-
-        # Tensile and compression tensors
-        σt = pos.(σp)
-        σc = neg.(σp)
-        εt = mat.invDe*σt
-        εc = mat.invDe*σc
-
-        εv = sum(pos(εt[i]) + pos(εc[i]) for i=1:3)
-
-        # Tensile and compressive damage weights
-        αt =  sum(pos(εt[i]) for i=1:3)/εv
-        αc =  sum(pos(εc[i]) for i=1:3)/εv
-        if εv==0.0
-            αt = αc = 0.5
+        #D     = (1.0 - ipd.φ)*mat.De - (dφdε'*mat.De)'*ipd.ε'
+        D     = (1.0 - ipd.φ)*mat.De - dφdε*(mat.De*ipd.ε)'
+        if isnan(D[1,1])
+            @showm D
+            @show ipd.φt
+            @show ipd.φc
+            @show σp
+            @show σt
+            @show σc
+            @show εt
+            @show εc
+            @show εv
+            @show εp
+            @show ε̅
+            @show αt
+            @show αc
+            @show mat.ε̅0
+            @show dφtdε̅
+            @show dφcdε̅
+            @show dφdε
+            @show dε̅dε
+            @show dφtdε̅
+            @show dφcdε̅        
         end
 
-        # Damage variable
-        φ = αt*φt + αc*φc
+        return D
     end
-
-    # Total stress and stress increment
-    σ = (1.0 - φ)*mat.De*ε
-
-    Δσ    = σ - ipd.σ
-    return Δσ 
-    
 end
 
 
 function stress_update(mat::Mazars, ipd::MazarsIpState, Δε::Array{Float64,1})
-    if !isnan(Δε[1])
-        ipd.lastΔε = copy(Δε)
-    end
     σini  = ipd.σ
     ipd.ε = ipd.ε + Δε
 
@@ -225,12 +195,16 @@ function stress_update(mat::Mazars, ipd::MazarsIpState, Δε::Array{Float64,1})
     εp = eigvals(ipd.ε)
 
     # Equivalent strain scalar
-    ε̅ = √sum( pos(εp[i])^2 for i=1:3 )
+    #ε̅ = √sum( pos(εp[i])^2 for i=1:3 )
+    ε̅ = norm(pos.(εp))
+    ε̅ == 0.0 && (ε̅ += 1e-15)
     ipd.ε̅max = max(ipd.ε̅max, mat.ε̅0)
 
     if ε̅ < ipd.ε̅max  # linear-elastic increment
+        #@show "Elast"
         ipd.σ = (1.0 - ipd.φ)*mat.De*ipd.ε
     else # increment with damage: A previous elastic step is desired
+        #@show "Plast"
         ipd.ε̅max = ε̅
 
         # Principal stresses and principal directions
@@ -252,19 +226,25 @@ function stress_update(mat::Mazars, ipd::MazarsIpState, Δε::Array{Float64,1})
         εt = mat.invDe*σt
         εc = mat.invDe*σc
 
-        εv = sum(pos(εt[i]) + pos(εc[i]) for i=1:3)
+        #εv = sum(pos(εt[i]) + pos(εc[i]) for i=1:3)
+        εv = sum(pos.(εt)) + sum(neg.(εc))
+        εv == 0.0 && (εv += 1e-15)
 
         # Tensile and compressive damage weights
-        αt =  sum(pos(εt[i]) for i=1:3)/εv
-        αc =  sum(pos(εc[i]) for i=1:3)/εv
-        if εv==0.0
-            αt = αc = 0.5
-        end
+        #αt =  sum(pos(εt[i]) for i=1:3)/εv
+        #αc =  sum(pos(εc[i]) for i=1:3)/εv
+        αt = clamp(sum(pos.(εt))/εv, 0.0, 1.0)
+        αc = clamp(sum(neg.(εc))/εv, 0.0, 1.0)
 
         # Damage variable
         φ = αt*ipd.φt + αc*ipd.φc
-        ipd.φ = max(φ, ipd.φ)
-        #ipd.φ = φ
+        ipd.φ = clamp(φ, ipd.φ, 0.999)
+        #@show ipd.φ
+        #@show αt
+        #@show αc
+        #@show ipd.φt
+        #@show ipd.φc
+        #error()
 
         # Total stress and stress increment
         ipd.σ = (1.0 - ipd.φ)*mat.De*ipd.ε

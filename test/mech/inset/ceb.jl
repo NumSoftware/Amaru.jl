@@ -30,28 +30,28 @@ mats = [
                                            ks=(12/0.001)*5, kn=50000, A=0.005))
        ]
 
-log_tip     = Logger(:node, "tip")
-log_jnt_ip  = Logger(:ip, "joint_ips")
-log_jnt_ips = GroupLogger(:ip, "joint_ips", by=get_y)
+log_tip     = NodeLogger("tip")
+log_jnt_ip  = IpLogger("joint_ips")
+log_jnt_ips = IpGroupLogger("joint_ips", by=get_y)
 loggers = [ log_tip, log_jnt_ip, log_jnt_ips ]
 
 dom = Domain(msh, mats, loggers)
 
-bc1 = BC(:node, "fixed_points", :(ux=0, uy=0, uz=0))
-bc2 = BC(:node, "tip", :(uy=+0.0003))
+bc1 = NodeBC("fixed_points", :(ux=0, uy=0, uz=0))
+bc2 = NodeBC("tip", :(uy=+0.0003))
 
 @test solve!(dom, [bc1, bc2], nincs=10, autoinc=true, verbose=true)
 
-bc2 = BC(:node, "tip", :(uy=-0.0001))
+bc2 = NodeBC("tip", :(uy=-0.0001))
 @test solve!(dom, [bc1, bc2], nincs=10, autoinc=true, verbose=true)
 
-bc2 = BC(:node, "tip", :(uy=+0.0006))
+bc2 = NodeBC("tip", :(uy=+0.0006))
 @test solve!(dom, [bc1, bc2], nincs=10, autoinc=true, verbose=true)
 
-bc2 = BC(:node, "tip", :(uy=-0.0005))
+bc2 = NodeBC("tip", :(uy=-0.0005))
 @test solve!(dom, [bc1, bc2], nincs=10, autoinc=true, verbose=true)
 
-bc2 = BC(:node, "tip", :(uy=+0.005))
+bc2 = NodeBC("tip", :(uy=+0.005))
 @test solve!(dom, [bc1, bc2], nincs=30, autoinc=true, verbose=true)
 
 if Amaru.Debug.makeplots

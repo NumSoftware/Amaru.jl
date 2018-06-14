@@ -88,10 +88,11 @@ export tag!
 
 include("bc.jl")
 #export NodeBC, FaceBC, EdgeBC, apply_bc
-export BC, apply_bc
+export NodeBC, FaceBC, EdgeBC, ElemBC, apply_bc
 
 include("logger.jl")
 export Logger, GroupLogger
+export NodeLogger, IpLogger, FaceLogger, EdgeLogger, NodeGroupLogger, IpGroupLogger
 export update_logger!
 
 include("domain.jl")

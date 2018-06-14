@@ -21,12 +21,12 @@ mats = [
 dom = Domain(mesh, mats)
 
 bcs = [
-       BC(:node, :(y==0 && z==0), :(uy=0, uz=0)),
-       BC(:node, :(y==6 && z==0), :(uz=0)),
-       BC(:face, :(z==1), :(tz=-1000 )),
+       NodeBC(:(y==0 && z==0), :(uy=0, uz=0)),
+       NodeBC(:(y==6 && z==0), :(uz=0)),
+       FaceBC(:(z==1), :(tz=-1000 )),
       ]
 
-mon = Logger(:node, :(x==0.5 && y==1.0 && z==0.5) )
+mon = NodeLogger(:(x==0.5 && y==1.0 && z==0.5) )
 #set_logger(dom, mon)
 
 @test solve!(dom, bcs, nincs=20, verbose=true)
