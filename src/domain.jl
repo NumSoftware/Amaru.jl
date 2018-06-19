@@ -775,7 +775,7 @@ function FemMesh.mplot(dom::AbstractDomain; args...)
     any(node.id==0 for node in dom.nodes) && error("mplot: all nodes must have a valid id")
 
     ugrid = convert(UnstructuredGrid, dom)
-    if dom.ndim==3 
+    if dom.shared_data.ndim==3 
         # Get data from the domain surface
         srf_nodes = get_nodes(dom.faces)
 
