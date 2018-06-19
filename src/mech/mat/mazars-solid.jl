@@ -82,25 +82,21 @@ neg(x) = (-abs(x)+x)/2.0
 
 function calcD(mat::Mazars, ipd::MazarsIpState)
     # There is something wrong with the derivatives here
-    return mat.De
-    #return (1.0 - ipd.φ)*mat.De
 
     # Equivalent strain scalar
     εp = eigvals(ipd.ε)
-    #ε̅ = √sum( pos(εp[i])^2 for i=1:3 )
-    ε̅ = norm(pos.(εp[i]))
+    ε̅ = norm(pos.(εp))
     ε̅ == 0.0 && (ε̅ += 1e-15)
     ε̅max = max(ipd.ε̅max, mat.ε̅0)
 
     if ε̅<ε̅max
-    #if ipd.φ <= 0.0
-        @show "elastic"
-        # Elastic constitutive matrix
-        #return mat.De
+        #@show "elastic"
         return (1.0 - ipd.φ)*mat.De
     else
-        @show "plastic"
-        #ipd.φt ipd.φc
+        #@show "plastic"
+        #return (1.0 - ipd.φ)*mat.De
+        return mat.De
+
         # Principal stresses and principal directions
         σp, V = eig(ipd.σ)
         σp = [ σp; zeros(3) ]
@@ -116,35 +112,13 @@ function calcD(mat::Mazars, ipd::MazarsIpState)
         Dei= inv(mat.De)
         εt = Dei*σt
         εc = Dei*σc
-        #εc = ipd.ε - εt
-        #@show σp
-        #@show σt
-        #@show σc
-        #@show εt
-        #@show εc
-        #εv = sum(pos.(εt)) + sum(pos.(εc))
         εv = sum(pos.(εt)) + sum(neg.(εc))
-        #εv = sum(pos.(εp))
 
         εv +=  1e-15 # avoid division by zero
-        #ε̅<ipd.ε̅max && return mat.De
-            
 
         # Tensile and compression damage weights
         αt = clamp(sum(pos.(εt))/εv, 0.0, 1.0)
         αc = clamp(sum(neg.(εc))/εv, 0.0, 1.0)
-
-        #αt = sum( εt[i]*εp[i] for i=1:3 ) / ε̅^2
-        #αc = sum( εc[i]*εp[i] for i=1:3 ) / ε̅^2
-
-        #@show εp
-        #@show αc+αt
-        #@show εp
-        #@show ipd.φ
-        #@show ε̅
-        #@show αt
-        #@show αc
-        #error()
 
         # Constitutive matrix calculation
         dφtdε̅ = (1.0-mat.At)*mat.ε̅0*ε̅^-2 + mat.At*mat.Bt*exp( -mat.Bt*(ε̅-mat.ε̅0) )
@@ -156,29 +130,6 @@ function calcD(mat::Mazars, ipd::MazarsIpState)
         #@show dφdε'*mat.De
         #D     = (1.0 - ipd.φ)*mat.De - (dφdε'*mat.De)'*ipd.ε'
         D     = (1.0 - ipd.φ)*mat.De - dφdε*(mat.De*ipd.ε)'
-        if isnan(D[1,1])
-            @showm D
-            @show ipd.φt
-            @show ipd.φc
-            @show σp
-            @show σt
-            @show σc
-            @show εt
-            @show εc
-            @show εv
-            @show εp
-            @show ε̅
-            @show αt
-            @show αc
-            @show mat.ε̅0
-            @show dφtdε̅
-            @show dφcdε̅
-            @show dφdε
-            @show dε̅dε
-            @show dφtdε̅
-            @show dφcdε̅        
-        end
-
         return D
     end
 end
