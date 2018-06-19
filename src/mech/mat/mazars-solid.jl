@@ -124,7 +124,6 @@ function calcD(mat::Mazars, ipd::MazarsIpState)
         dφtdε̅ = (1.0-mat.At)*mat.ε̅0*ε̅^-2 + mat.At*mat.Bt*exp( -mat.Bt*(ε̅-mat.ε̅0) )
         dφcdε̅ = (1.0-mat.Ac)*mat.ε̅0*ε̅^-2 + mat.Ac*mat.Bc*exp( -mat.Bc*(ε̅-mat.ε̅0) )
         dε̅dε  = sum( pos(εp[i])*(1+sign(εp[i]))*P[i] for i=1:3 ) / (2*ε̅)
-        #dε̅dε  = [ dε̅dε; zeros(3) ]
         dφdε  = (αt*dφtdε̅ + αc*dφcdε̅) * dε̅dε
 
         #@show dφdε'*mat.De
@@ -146,7 +145,6 @@ function stress_update(mat::Mazars, ipd::MazarsIpState, Δε::Array{Float64,1})
     εp = eigvals(ipd.ε)
 
     # Equivalent strain scalar
-    #ε̅ = √sum( pos(εp[i])^2 for i=1:3 )
     ε̅ = norm(pos.(εp))
     ε̅ == 0.0 && (ε̅ += 1e-15)
     ipd.ε̅max = max(ipd.ε̅max, mat.ε̅0)
@@ -163,13 +161,8 @@ function stress_update(mat::Mazars, ipd::MazarsIpState, Δε::Array{Float64,1})
         σp = [ σp; zeros(3) ]
 
         # Damage calculation
-        φt = 1.0 - (1-mat.At)*mat.ε̅0/ε̅ - mat.At/exp(mat.Bt*(ε̅-mat.ε̅0))
-        φc = 1.0 - (1-mat.Ac)*mat.ε̅0/ε̅ - mat.Ac/exp(mat.Bc*(ε̅-mat.ε̅0))
-
-        #ipd.φt = max(ipd.φt, φt)
-        #ipd.φc = max(ipd.φc, φc)
-        ipd.φt = φt
-        ipd.φc = φc
+        ipd.φt = 1.0 - (1-mat.At)*mat.ε̅0/ε̅ - mat.At/exp(mat.Bt*(ε̅-mat.ε̅0))
+        ipd.φc = 1.0 - (1-mat.Ac)*mat.ε̅0/ε̅ - mat.Ac/exp(mat.Bc*(ε̅-mat.ε̅0))
 
         # Tensile and compression tensors
         σt = pos.(σp)
@@ -182,20 +175,12 @@ function stress_update(mat::Mazars, ipd::MazarsIpState, Δε::Array{Float64,1})
         εv == 0.0 && (εv += 1e-15)
 
         # Tensile and compressive damage weights
-        #αt =  sum(pos(εt[i]) for i=1:3)/εv
-        #αc =  sum(pos(εc[i]) for i=1:3)/εv
         αt = clamp(sum(pos.(εt))/εv, 0.0, 1.0)
         αc = clamp(sum(neg.(εc))/εv, 0.0, 1.0)
 
         # Damage variable
         φ = αt*ipd.φt + αc*ipd.φc
         ipd.φ = clamp(φ, ipd.φ, 0.999)
-        #@show ipd.φ
-        #@show αt
-        #@show αc
-        #@show ipd.φt
-        #@show ipd.φc
-        #error()
 
         # Total stress and stress increment
         ipd.σ = (1.0 - ipd.φ)*mat.De*ipd.ε
