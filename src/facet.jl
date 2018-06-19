@@ -37,7 +37,7 @@ end
 
 
 function getindex(facets::Array{T,1}, filter_ex::Expr) where T<:Facet
-    @assert filter_ex.head in (:call, :&&, :||)
+    filter_ex.head in (:call, :&&, :||) || error("getindex: ill-formed condition while filterin face/edge")
     expr = fix_comparison_arrays(filter_ex)
     fun  = Functor(:(x,y,z,id,tag), expr)
    
