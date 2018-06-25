@@ -213,12 +213,12 @@ function save(book::DBook, filename::String; verbose::Bool=true)
 end
 
 
-function loadtable(filename::String)
+function loadtable(filename::String, delim='\t')
     format = split(filename*".", ".")[2]
     format != "dat" && error("loadtable: filename should have \"dat\" extension")
 
     if format=="dat"
-        data, headstr = readdlm(filename, '\t', header=true, use_mmap=false)
+        data, headstr = readdlm(filename, delim, header=true, use_mmap=false)
         fields = Symbol[ Symbol(strip(field)) for field in vec(headstr) ]
 
         table = DTable(fields , data)
