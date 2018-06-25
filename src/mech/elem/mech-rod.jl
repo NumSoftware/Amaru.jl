@@ -111,6 +111,77 @@ function setNt(ndim::Int,Ni::Vect, N::Matx)
     
 end
 
+function distributed_bc(elem::MechRod, facet::Union{Facet, Void}, key::Symbol, fun::Functor)
+    ndim  = elem.shared_data.ndim
+
+    # Check bcs
+    (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
+    !(key in (:tx, :ty, :tz, :tn)) && error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
+
+    target = facet!=nothing? facet : elem
+    nodes  = target.nodes
+    nnodes = length(nodes)
+    t      = elem.shared_data.t
+    A = elem.mat.A
+
+    # Force boundary condition
+    nnodes = length(nodes)
+
+    # Calculate the target coordinates matrix
+    C = nodes_coords(nodes, ndim)
+
+    # Vector with values to apply
+    Q = zeros(ndim)
+
+    # Calculate the nodal values
+    F     = zeros(nnodes, ndim)
+    shape = target.shape
+    ips   = get_ip_coords(shape)
+
+    for i=1:size(ips,1)
+        R = vec(ips[i,:])
+        w = R[end]
+        N = shape.func(R)
+        D = shape.deriv(R)
+        J = D*C
+        nJ = norm2(J)
+        X = C'*N
+        if ndim==2
+            x, y = X
+            val = fun(t,x,y,0.0)
+            if key == :tx
+                Q = [val, 0.0]
+            elseif key == :ty
+                Q = [0.0, val]
+            elseif key == :tn
+                n = [J[1,2], -J[1,1]]
+                Q = val*n/norm(n)
+            end
+        else
+            x, y, z = X
+            val = fun(t,x,y,z)
+            if key == :tx
+                Q = [val, 0.0, 0.0]
+            elseif key == :ty
+                Q = [0.0, val, 0.0]
+            elseif key == :tz
+                Q = [0.0, 0.0, val]
+            elseif key == :tn && ndim==3
+                n = cross(J[1,:], J[2,:])
+                Q = val*n/norm(n)
+            end
+        end
+        F += A*N*Q'*(nJ*w) # F is a matrix
+    end
+
+    # generate a map
+    keys = (:ux, :uy, :uz)[1:ndim]
+    map  = [ node.dofdict[key].eq_id for node in target.nodes for key in keys ]
+
+    return reshape(F', nnodes*ndim), map
+end
+                        
+                        
 function elem_update!(elem::MechRod, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
     ndim   = elem.shared_data.ndim
     nnodes = length(elem.nodes)
