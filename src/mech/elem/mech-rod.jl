@@ -122,7 +122,7 @@ function distributed_bc(elem::MechRod, facet::Union{Facet, Void}, key::Symbol, f
     nodes  = target.nodes
     nnodes = length(nodes)
     t      = elem.shared_data.t
-    A = elem.mat.A
+    A      = elem.mat.A
 
     # Force boundary condition
     nnodes = length(nodes)
@@ -171,7 +171,7 @@ function distributed_bc(elem::MechRod, facet::Union{Facet, Void}, key::Symbol, f
                 Q = val*n/norm(n)
             end
         end
-        F += A*N*Q'*(nJ*w) # F is a matrix
+        F += N*Q'*(A*nJ*w) # F is a matrix
     end
 
     # generate a map
