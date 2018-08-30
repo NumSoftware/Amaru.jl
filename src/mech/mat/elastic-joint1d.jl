@@ -55,12 +55,12 @@ new_ip_state(mat::ElasticJoint1D, shared_data::SharedAnalysisData) = Joint1DIpSt
 
 function set_state(ipd::Joint1DIpState, sig=zeros(0), eps=zeros(0))
     if length(sig)==3
-        ipd.sig[:] = sig
+        ipd.sig .= sig
     else
         if length(sig)!=0; error("MecElasticSolid: Wrong size for stress array: $sig") end
     end
     if length(eps)==3
-        ipd.eps[:] = eps
+        ipd.eps .= eps
     else
         if length(eps)!=0; error("MecElasticSolid: Wrong size for strain array: $eps") end
     end

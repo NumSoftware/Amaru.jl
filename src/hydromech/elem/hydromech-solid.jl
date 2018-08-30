@@ -25,7 +25,7 @@ function elem_init(elem::HMSolid)
 end
 
 
-function distributed_bc(elem::HMSolid, facet::Union{Facet, Void}, key::Symbol, fun::Functor)
+function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol, fun::Functor)
     ndim  = elem.shared_data.ndim
 
     # Check bcs
@@ -33,7 +33,7 @@ function distributed_bc(elem::HMSolid, facet::Union{Facet, Void}, key::Symbol, f
     !(key in (:tx, :ty, :tz, :tn)) && error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
     # TODO: add tq boundary condition (fluid volume per area)
 
-    target = facet!=nothing? facet : elem
+    target = facet!=nothing ? facet : elem
     nodes  = target.nodes
     nnodes = length(nodes)
     t      = elem.shared_data.t
@@ -144,9 +144,9 @@ function elem_stiffness(elem::HMSolid)
     K = zeros(nnodes*ndim, nnodes*ndim)
     B = zeros(6, nnodes*ndim)
 
-    DB = Array{Float64}(6, nnodes*ndim)
-    J  = Array{Float64}(ndim, ndim)
-    dNdX = Array{Float64}(ndim, nnodes)
+    DB = Array{Float64}(undef, 6, nnodes*ndim)
+    J  = Array{Float64}(undef, ndim, ndim)
+    dNdX = Array{Float64}(undef, ndim, nnodes)
 
     for ip in elem.ips
 
@@ -181,8 +181,8 @@ function elem_coupling_matrix(elem::HMSolid)
     Bu  = zeros(6, nnodes*ndim)
     Cup = zeros(nnodes*ndim, nnodes) # u-p coupling matrix
 
-    J  = Array{Float64}(ndim, ndim)
-    dNdX = Array{Float64}(ndim, nnodes)
+    J  = Array{Float64}(undef, ndim, ndim)
+    dNdX = Array{Float64}(undef, ndim, nnodes)
 
     m = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
 
@@ -221,8 +221,8 @@ function elem_conductivity_matrix(elem::HMSolid)
     Bp     = zeros(ndim, nnodes)
     KBp    = zeros(ndim, nnodes)
 
-    J    = Array{Float64}(ndim, ndim)
-    dNdX = Array{Float64}(ndim, nnodes)
+    J    = Array{Float64}(undef, ndim, ndim)
+    dNdX = Array{Float64}(undef, ndim, nnodes)
 
     for ip in elem.ips
 
@@ -254,8 +254,8 @@ function elem_RHS_vector(elem::HMSolid)
     Bp     = zeros(ndim, nnodes)
     KZ     = zeros(ndim)
 
-    J    = Array{Float64}(ndim, ndim)
-    dNdX = Array{Float64}(ndim, nnodes)
+    J    = Array{Float64}(undef, ndim, ndim)
+    dNdX = Array{Float64}(undef, ndim, nnodes)
     Z    = [0.0, 0.0, 1.0] # hydrostatic gradient
 
     for ip in elem.ips
@@ -302,9 +302,9 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
     dFw = zeros(nnodes)
     Bp  = zeros(ndim, nnodes)
 
-    DB = Array{Float64}(6, nnodes*ndim)
-    J  = Array{Float64}(ndim, ndim)
-    dNdX = Array{Float64}(ndim, nnodes)
+    DB = Array{Float64}(undef, 6, nnodes*ndim)
+    J  = Array{Float64}(undef, ndim, ndim)
+    dNdX = Array{Float64}(undef, ndim, nnodes)
     Δε = zeros(6)
 
     for ip in elem.ips

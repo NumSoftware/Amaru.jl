@@ -1,5 +1,5 @@
 using Amaru
-using Base.Test
+using Test
 
 # Mesh generation
 bl  = Block3D( [0 0 0; 1.0 6.0 1.0], nx=1, ny=10, nz=3)

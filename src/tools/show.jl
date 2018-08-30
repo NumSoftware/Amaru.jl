@@ -1,29 +1,25 @@
-# This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
-
-import Base.show
-export show
 
 # show the content of an array variable or expression including calling file
 macro showm(M)
     filename = @__FILE__
     return quote
-        print_with_color(:light_magenta, $(string(M)), " = \n")
-        Base.showarray(STDOUT, $(esc(M)), false)
-        #filename != nothing && print_with_color(:blue, " : ", basename($filename))
+        printstyled($(string(M)), " = \n", color=:light_magenta)
+        #Base.showarray(STDOUT, $(esc(M)), false)
+        Base.print_matrix(stdout, $(esc(M)))
+        #filename != nothing && printstyled(" : ", basename($filename), color=:blue)
         println() 
     end
 end
 
 function print_compact(io::IO, obj::Any)
     ty = typeof(obj) # update type
-    if isbits(ty) || ty in [Symbol, Expr]
+
+    if isbitstype(ty) || ty in [Symbol, Expr]
         print(io, obj)
     elseif ty<:AbstractString
         print(io, "\"", obj, "\"")
     elseif ty<:AbstractArray
         print_array_compact(obj)
-    #elseif ty<:Dict
-        #print_short_dict(obj)
     else
         print(io, ty)
     end
@@ -31,7 +27,7 @@ end
 
 
 function print_array_compact(io::IO, array::AbstractArray)
-    const maxn = 8
+    maxn = 8
     n = length(array)
     half = div(maxn,2)
     idx = n<=maxn ? [1:n;] : [1:half; n-half+1:n]
@@ -52,60 +48,46 @@ end
 # Prints the values of an object fields
 function print_field_values(io::IO, obj::Any)
     ctype = typeof(obj)
-    print(io, ctype, " with:")
+    print(io, ctype)
     for (field, ty) in zip(fieldnames(ctype), ctype.types )
         print(io, "\n  ", field, ": ")
         if !isdefined(obj, field)
-            print(io, ty, "#undef ")
+            print(io, ty, "undef ")
             continue
         end
 
         item = getfield(obj, field)
         ty   = typeof(item) # update type
-        if :name in fieldnames(ty) 
+
+
+        if isbitstype(ty)
+            print(io, item)
+        elseif ty==String
+            print(io, "\"", item, "\"")
+        elseif :name in fieldnames(ty) 
             if isdefined(item, :name)
-                print(io, ty, ", name field ", getfield(item, :name))
+                print(io, ty, " name=", getfield(item, :name))
+            else
+                print(io, ty, " undef")
             end
         elseif :id in fieldnames(ty) 
             if isdefined(item, :id )
-                print(io, ty, ", id field ", getfield(item, :id ))
-            end
-        elseif ty<:AbstractArray && ndims(ty)==1
-            array = getfield(obj, field)
-            n = length(array)
-            if eltype(ty)<:Real && length(size(array))==1
-                print_array_compact(io, array)
+                print(io, ty, " id=", getfield(item, :id ))
             else
-                if n==0
-                    print(io, ty, " [ ]")
-                else
-                    print(io, ty, ", length ", length(array))
-                end
+                print(io, ty, " undef")
             end
-
-            if n>0
-                maxn = 10
-                # add items IDs if available
-                has_id = all( :id in fieldnames(item) for item in array[1:min(maxn,n)] )
-                if has_id
-                    ids = [ item.id for item in array ]
-                    print(io, ", id fields ")
-                    print_array_compact(io, ids)
-                end
-                # add items names if available
-                has_name = all( :name in fieldnames(item) for item in array[1:min(maxn,n)] )
-                if has_name
-                    names = [ item.name for item in array ]
-                    print(io, ", name fields ")
-                    print_array_compact(io, names)
-                end
-            end
+        #elseif ty <: AbstractVecOrMat{<:Real}
+            #print(io, summary(item))
         elseif ty<:AbstractArray
-            array = getfield(obj, field)
-            str   = replace(string(size(array)), ", ", "×")[2:end-1]
-            print(io, ty, ", size ", str)
+            s = summary(item)
+            if length(s)>40
+                s = s[ 1: findfirst("{",s).start-1 ]
+            end
+            print(io, s)
+        elseif ty<:Function
+            print(io, "Function ", item)
         else
-            print_compact(io, item)
+            print(io, summary(item))
         end
     end
     return nothing
@@ -113,37 +95,18 @@ end
 
 # Print arrays of objects
 function print_array_values(io::IO, array::AbstractArray)
-    print(io, length(array), "-element ",typeof(array), ":")
+    print(io, summary(array))
     n = length(array)
+    n==0 && return
+    print(io, ":")
     maxn = 8
     half = div(maxn,2)
     idx = n<=maxn ? [1:n;] : [1:half; n-half+1:n]
     for i in idx
-        str = "\n  "*replace(string(array[i]), "\n","\n  ")
-        print(io, str)
+        print(io, "\n  ", i, ": ", replace(string(array[i]), "\n" => "\n  "))
         if n>maxn && i==half
             print(io, "\n    ⋮")
         end
     end
-    return nothing
+    return
 end
-
-
-# Generates show functions to display data types
-macro show_function(datatype)
-    return quote
-        function $(esc(:show))(io::IO, obj::$datatype)
-            print_field_values(io, obj)
-        end
-    end
-end
-
-# Reuses show function to display array of objects
-macro show_array_function(datatype)
-    return quote
-        function $(esc(:show))(io::IO, array::Array{<:$(datatype),1})
-            print_array_values(io, array)
-        end
-    end
-end
-

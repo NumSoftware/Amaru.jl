@@ -30,8 +30,8 @@ function setup_logger!(domain, logger::NodeLogger)
     logger.expr==:() && return
     nodes = domain.nodes[logger.expr]
     n = length(nodes)
-    n == 0 && warn("setup_logger: No nodes found for expression: $(logger.expr)")
-    n >  1 && info("setup_logger: More than one node match expression: $(logger.expr)")
+    n == 0 && @warn "setup_logger: No nodes found for expression:" expr=logger.expr
+    n >  1 && @info "setup_logger: More than one node match expression:" expr=logger.expr
     n >= 1 && (logger.node = nodes[1])
     return nothing
 end
@@ -69,8 +69,8 @@ function setup_logger!(domain, logger::IpLogger)
     logger.expr==:() && return
     ips = domain.elems[:ips][logger.expr]
     n = length(ips)
-    n == 0 && warn("setup_logger: No ips found for expression: $(logger.expr)")
-    n >  1 && info("setup_logger: More than one ip match expression: $(logger.expr)")
+    n == 0 && @warn "setup_logger: No ips found for expression:" expr=logger.expr
+    n >  1 && @info "setup_logger: More than one ip match expression:" expr=logger.expr
     n >= 1 && (logger.ip = ips[1])
     return nothing
 end
@@ -130,7 +130,7 @@ end
 function setup_logger!(domain, logger::FaceLogger)
     logger.expr==:() && return
     logger.faces = domain.faces[logger.expr]
-    length(logger.faces) == 0 && warn("setup_logger: No faces found for expression: $(logger.expr)")
+    length(logger.faces) == 0 && @warn "setup_logger: No faces found for expression:" expr=logger.expr
     logger.nodes = logger.faces[:nodes]
 end
 
@@ -138,7 +138,7 @@ end
 function setup_logger!(domain, logger::EdgeLogger)
     logger.expr==:() && return
     logger.edges = domain.edges[logger.expr]
-    length(logger.edges) == 0 && warn("setup_logger: No edges found for expression: $(logger.expr)")
+    length(logger.edges) == 0 && @warn "setup_logger: No edges found for expression:" expr=logger.expr
     logger.nodes = logger.edges[:nodes]
 end
 
@@ -190,7 +190,7 @@ end
 function setup_logger!(domain, logger::NodeGroupLogger)
     logger.expr==:() && return
     logger.nodes = domain.nodes[logger.expr]
-    length(logger.nodes) == 0 && warn("setup_logger: No nodes found for expression: $(logger.expr)")
+    length(logger.nodes) == 0 && @warn "setup_logger: No nodes found for expression:" expr=logger.expr
     logger.by != identity && sort!(logger.nodes, by=logger.by)
 end
 
@@ -231,7 +231,7 @@ end
 function setup_logger!(domain, logger::IpGroupLogger)
     logger.expr==:() && return
     logger.ips = domain.elems[:ips][logger.expr]
-    length(logger.ips)==0 && warn("setup_logger: No ips found for expression: $(logger.expr)")
+    length(logger.ips)==0 && @warn "setup_logger: No ips found for expression:" expr=logger.expr
     logger.by != identity && sort!(logger.ips, by=logger.by)
     return nothing
 end

@@ -3,7 +3,7 @@
 # William Weaver & Paul Johnston
 
 using Amaru
-using Base.Test
+using Test
 
 # Mesh generation
 
@@ -68,8 +68,6 @@ for (ana, bcs, dis) in zip(ana_list, bcs_list, dis_list)
     println("Displacements:")
     D = nodes_dof_vals(dom.nodes)[[:ux, :uy, :uz]]
     println(D)
-    println(D[:uz])
-    println(dis)
 
     @test dis ≈ D[:uz] atol=1e-5
 

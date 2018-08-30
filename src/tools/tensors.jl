@@ -25,8 +25,7 @@ const Psd = [
 dev(T::Tensor2) = Psd*T # deviatoric tensor
 
 # Tensor invariants
-import Base.trace
-trace(T::Tensor2) = sum(T[1:3])
+LinearAlgebra.tr(T::Tensor2) = sum(T[1:3])
 J1(T::Tensor2) = sum(T[1:3])
 J2(T::Tensor2) = 0.5*dot(T,T)
 
@@ -48,7 +47,7 @@ end
 Computes the eigenvalues of a second order tensor written in Mandel notation.
 The eigenvalues are sorted from highest to lowest
 """
-function eigvals(T::Tensor2)::Vect
+function eigenvals(T::Tensor2)::Vect
     @assert length(T) == 6
 
     t11, t22, t33, t12, t23, t13 = T
@@ -63,7 +62,7 @@ function eigvals(T::Tensor2)::Vect
     end
 
     i3 = t11*(t22*t33 - t23*t23) - t12*(t12*t33 - t23*t13) + t13*(t12*t23 - t22*t13)
-    val = round( (2*i1^3 - 9*i1*i2 + 27*i3 )/( 2*(i1^2 - 3*i2)^(3/2) ), 14 )
+    val = round( (2*i1^3 - 9*i1*i2 + 27*i3 )/( 2*(i1^2 - 3*i2)^(3/2) ), digits=14 )
     θ = 1/3*acos( val )
 
     r = 2/3*√(i1^2-3*i2)
@@ -82,21 +81,28 @@ function eigvals(T::Tensor2)::Vect
     return P
 end
 
-import Base.eig
 
 """
 Computes eigenvalues and eigenvectors of a second order tensor written in Mandel notation.
 The first eigenvalues corresponds to the highest.
 The eigenvectors are returned columnwise and disposed in a clockwise coordinate system.
 """
-function eig(T::Tensor2)
+function LinearAlgebra.eigen(T::Tensor2)
     @assert length(T) == 6
 
     # full notation
     F = [ T[1]      T[6]/SR2  T[5]/SR2 ;
           T[6]/SR2  T[2]      T[4]/SR2 ;
           T[5]/SR2  T[4]/SR2  T[3]     ]
-    L, V = eig(F, permute=false, scale=false)
+    L, V = eigen(F, permute=false, scale=false)
+
+    #=
+    p = sortperm(L, rev=true)
+
+    L = L[p]
+    V = V[:,p]
+    V[:,3] = cross(V[:,1], V[:,2])
+    =#
 
     # force a clockwise system
     if norm( cross(V[:,2], V[:,3]) - V[:,1] ) > 1e-5
@@ -132,8 +138,7 @@ function matrix2Mandel(M::Array{Float64,2})
 end
 
 
-import Base.norm
-norm(T::Tensor2) = √dot(T,T)
+LinearAlgebra.norm(T::Tensor2) = √dot(T,T)
 
 
 function dyad(T1::Tensor2, T2::Tensor2)

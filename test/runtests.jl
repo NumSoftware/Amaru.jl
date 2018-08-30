@@ -1,13 +1,13 @@
 # Constants
 using Amaru
-using Base.Test
+using Test
 
 path  = dirname(@__FILE__)
 tests = readdir(path)
 Amaru.Debug.makeplots = false
 
 
-print_with_color(:green, "\x1b[1m", "\nRunning tests...\n", "\x1b[0m")
+printstyled("\x1b[1m", "\nRunning tests...\n", "\x1b[0m", color=:green)
 
 FILES = [
     "other/show.jl",
@@ -47,7 +47,8 @@ FILES = [
 
 @testset begin
     for file in FILES
-        print_with_color(:white, "Running test file ", file,"...\n", bold=true)
+        printstyled("Running test file ", file,"...\n", bold=true, color=:white)
+        @show file
         include(file)
         println()
     end

@@ -31,7 +31,7 @@ mutable struct Ip
 
     function Ip(R::Array, w::Float64)
         this     = new(vec(R), w)
-        this.X   = Array{Float64}(3)
+        this.X   = zeros(3)
         this.tag = ""
         this.owner = nothing
         return this
@@ -67,7 +67,7 @@ function getindex(ips::Array{Ip,1}, cond::Expr)
         error("Ip getindex: Invalid condition ", cond)
     end
 
-    result = Array{Ip}(0)
+    result = Ip[]
     for ip in ips
         x, y, z = ip.X
         if Base.invokelatest(fun, x, y, z, ip.id, ip.tag)
@@ -75,7 +75,7 @@ function getindex(ips::Array{Ip,1}, cond::Expr)
         end
     end
 
-    length(result) == 0 && warn("getindex: No ips found for expression: $cond\n")
+    length(result) == 0 && @warn "getindex: No ips found for expression:" cond
     return result
 end
 

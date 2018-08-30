@@ -39,17 +39,17 @@ mutable struct MCJoint<:Material
 
         if isnan(wc)
         	if softcurve == "linear"
-        		 wc = round(2*GF/(1000*ft), 10)
+        		 wc = round(2*GF/(1000*ft), digits=10)
             elseif softcurve == "bilinear"
                 if isnan(Gf)
-                    wc = round(5*GF/(1000*ft), 10)
-                    ws = round(wc*0.15, 10)
+                    wc = round(5*GF/(1000*ft), digits=10)
+                    ws = round(wc*0.15, digits=10)
                 else
-                    wc = round((8*GF- 6*Gf)/(1000*ft), 10)
-                    ws = round(1.5*Gf/(1000*ft), 10)
+                    wc = round((8*GF- 6*Gf)/(1000*ft), digits=10)
+                    ws = round(1.5*Gf/(1000*ft), digits=10)
                 end
             elseif softcurve == "hordijk"
-                wc = round(GF/(194.7019536*ft), 10)
+                wc = round(GF/(194.7019536*ft), digits=10)
             end    
         end
 
@@ -64,7 +64,7 @@ mutable struct MCJoint<:Material
 end
 
 # Returns the element type that works with this material model
-@static if isdefined(:MechJoint)
+@static if @isdefined MechJoint
     matching_elem_type(::MCJoint) = MechJoint
 end
 
@@ -142,6 +142,7 @@ function calc_σmax(mat::MCJoint, ipd::MCJointIpState, upa::Float64)
         σmax = a - b*upa
     elseif mat.softcurve == "hordijk"
         if upa < mat.wc
+            e = exp(1.0)
             z = (1 + 27*(upa/mat.wc)^3)*e^(-6.93*upa/mat.wc) - 28*(upa/mat.wc)*e^(-6.93)
         else
             z = 0.0
@@ -172,6 +173,7 @@ function σmax_deriv(mat::MCJoint, ipd::MCJointIpState, upa::Float64)
         dσmax = -b
     elseif mat.softcurve == "hordijk"
         if upa < mat.wc
+            e = exp(1.0)
             dz = ((81*upa^2*e^(-6.93*upa/mat.wc)/mat.wc^3) - (6.93*(1 + 27*upa^3/mat.wc^3)*e^(-6.93*upa/mat.wc)/mat.wc) - 0.02738402432/mat.wc)
         else
             dz = 0.0
@@ -201,7 +203,7 @@ end
 
 function calc_Δλ(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
     ndim = ipd.shared_data.ndim
-    maxits = 50
+    maxits = 100
     Δλ     = 0.0
     f      = 0.0
     upa    = 0.0
@@ -258,8 +260,11 @@ function calc_Δλ(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
         abs(f) < tol && break
 
         if i == maxits || isnan(Δλ)
-            error("calculation error $i, $Δλ")
-            break
+            @error """MCJoint: Could not find Δλ. This may happen when the system
+            becomes hypostatic and thus the global stiffness matrix is near syngular.
+            Increasing the mesh refinement may result in a nonsingular matrix.
+            """ iterations=i Δλ
+            error()
         end
     end
     return Δλ
@@ -363,9 +368,7 @@ function stress_update(mat::MCJoint, ipd::MCJointIpState, Δw::Array{Float64,1})
                       
         # Return to surface:
         F  = yield_func(mat, ipd, ipd.σ)   
-        if F > 1e-3
-            warn("the value of the yield function is $F")
-        end
+        F > 1e-3 && @warn "MCJoint: Yield function value outside tolerance:" F
 
     end
         ipd.w += Δw

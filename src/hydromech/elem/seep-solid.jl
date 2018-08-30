@@ -20,7 +20,7 @@ end
 
 matching_shape_family(::Type{SeepSolid}) = SOLID_SHAPE
 
-function elem_config_dofs(elem::SeepSolid)::Void
+function elem_config_dofs(elem::SeepSolid)
     for node in elem.nodes
         add_dof(node, :uw, :fw)
     end
@@ -31,7 +31,7 @@ function elem_init(elem::SeepSolid)
 end
 
 
-function distributed_bc(elem::SeepSolid, facet::Union{Facet, Void}, key::Symbol, fun::Functor)
+function distributed_bc(elem::SeepSolid, facet::Union{Facet,Nothing}, key::Symbol, fun::Functor)
     ndim  = elem.shared_data.ndim
 
     # Check bcs
@@ -39,7 +39,7 @@ function distributed_bc(elem::SeepSolid, facet::Union{Facet, Void}, key::Symbol,
     !(key in (:tx, :ty, :tz, :tn)) && error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
     # TODO: add tq boundary condition (fluid volume per area)
 
-    target = facet!=nothing? facet : elem
+    target = facet!=nothing ? facet : elem
     nodes  = target.nodes
     nnodes = length(nodes)
     t      = elem.shared_data.t
@@ -110,8 +110,8 @@ function elem_conductivity_matrix(elem::SeepSolid)
     Bp     = zeros(ndim, nnodes)
     KBp    = zeros(ndim, nnodes)
 
-    J    = Array{Float64}(ndim, ndim)
-    dNdX = Array{Float64}(ndim, nnodes)
+    J    = Array{Float64}(undef, ndim, ndim)
+    dNdX = Array{Float64}(undef, ndim, nnodes)
 
     for ip in elem.ips
 
@@ -143,8 +143,8 @@ function elem_RHS_vector(elem::SeepSolid)
     Bp     = zeros(ndim, nnodes)
     KZ     = zeros(ndim)
 
-    J      = Array{Float64}(ndim, ndim)
-    dNdX   = Array{Float64}(ndim, nnodes)
+    J      = Array{Float64}(undef, ndim, ndim)
+    dNdX   = Array{Float64}(undef, ndim, nnodes)
     Z      = zeros(ndim) # hydrostatic gradient
     Z[end] = 1.0
 
@@ -188,9 +188,9 @@ function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1
     dFw = zeros(nnodes)
     Bp  = zeros(ndim, nnodes)
 
-    DB = Array{Float64}(6, nnodes*ndim)
-    J  = Array{Float64}(ndim, ndim)
-    dNdX = Array{Float64}(ndim, nnodes)
+    DB = Array{Float64}(undef, 6, nnodes*ndim)
+    J  = Array{Float64}(undef, ndim, ndim)
+    dNdX = Array{Float64}(undef, ndim, nnodes)
 
     for ip in elem.ips
 

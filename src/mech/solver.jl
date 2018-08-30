@@ -51,7 +51,7 @@ function solve_step(K::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu::In
     umap  = 1:nu
     pmap  = nu+1:ndofs
     if nu == ndofs 
-        warn("solve!: No essential boundary conditions.")
+        @warn "solve!: No essential boundary conditions."
     end
 
     # Global stifness matrix
@@ -72,11 +72,11 @@ function solve_step(K::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu::In
     if nu>0
         RHS = F1 - K12*U2
         try
-            LUfact = lufact(K11)
+            LUfact = lu(K11)
             U1  = LUfact\RHS
             F2 += K21*U1
         catch err
-            warn("solve!: $err")
+            @warn "solve!: $err"
             U1 .= NaN
         end
     end
@@ -118,8 +118,8 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
     scheme::Symbol = :FE)::Bool
 
     if verbose
-        print_with_color(:cyan,"FEM analysis:\n", bold=true) 
-        tic()
+        printstyled("FEM analysis:\n", bold=true, color=:cyan)
+        tic = time()
     end
     
     save_incs = nouts>0
@@ -167,7 +167,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
     # Save initial file
     if dom.nincs == 0 && save_incs 
         save(dom, "$outdir/$(dom.filekey)-0.vtk", verbose=false)
-        verbose && print_with_color(:green, "  $outdir/$(dom.filekey)-0.vtk file written (Domain)\n")
+        verbose && printstyled("  $outdir/$(dom.filekey)-0.vtk file written (Domain)\n", color=:green)
     end
 
     # Backup the last converged state at ips. TODO: make backup to a vector of states
@@ -193,10 +193,12 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
     ΔUa  = zeros(ndofs)  # vector of essential values (e.g. displacements) for this increment
     ΔUi  = zeros(ndofs)  # vector of essential values for current iteration
 
+    local K::SparseMatrixCSC{Float64,Int64}
+
     remountK = true
 
     while t < 1.0 - ttol
-        verbose && print_with_color(:blue, "  increment $inc from t=$(round(t,10)) to t=$(round(t+dt,10)) (dt=$(round(dt,10))):", bold=true) # color 111
+        verbose && printstyled("  increment $inc from t=$(round(t,digits=10)) to t=$(round(t+dt,digits=10)) (dt=$(round(dt,digits=10))):", bold=true, color=:blue) # color 111
         verbose && println()
         ΔUex, ΔFex = dt*Uex, dt*Fex     # increment of external vectors
         R   .= ΔFex    # residual
@@ -208,7 +210,6 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
         converged = false
         maxfails  = 3    # maximum number of it. fails with residual change less than 90%
         nfails    = 0    # counter for iteration fails
-        local K::SparseMatrixCSC{Float64,Int64}
         for it=1:maxits
             if it>1; ΔUi .= 0.0 end # essential values are applied only at first iteration
             if it>1; remountK=true end 
@@ -264,7 +265,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
             R[pmap] .= 0.0  # Zero at prescribed positions
 
             if verbose
-                print_with_color(:bold, "    it $it  ")
+                printstyled("    it $it  ", bold=true)
                 @printf(" residue: %-10.4e\n", residue)
             end
 
@@ -296,7 +297,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
             t   += dt
 
             if maxincs != 0 && inc > maxincs
-                print_with_color(:red, "  solver maxincs = $maxincs reached (try maxincs=0)\n")
+                printstyled("  solver maxincs = $maxincs reached (try maxincs=0)\n", color=:red)
                 break
             end
 
@@ -305,7 +306,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
                 iout += 1
                 save(dom, "$outdir/$(dom.filekey)-$iout.vtk", verbose=false)
                 T += dT # find the next output time
-                verbose && print_with_color(:green, "  $outdir/$(dom.filekey)-$iout.vtk file written (Domain)\n")
+                verbose && printstyled("  $outdir/$(dom.filekey)-$iout.vtk file written (Domain)\n", color=:green)
             end
 
             if autoinc
@@ -314,7 +315,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
                 else
                     dt = min(1.5*dt, 1.0/nincs)
                     #dt = 1.5*dt
-                    dt = round(dt, -ceil(Int, log10(dt))+3)  # round to 3 significant digits
+                    dt = round(dt, digits=-ceil(Int, log10(dt))+3)  # round to 3 significant digits
                 end
             end
             dt_bk = 0.0
@@ -328,13 +329,13 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
             if autoinc
                 verbose && println("    increment failed.")
                 dt *= 0.5
-                dt = round(dt, -ceil(Int, log10(dt))+3)  # round to 3 significant digits
+                dt = round(dt, digits =-ceil(Int, log10(dt))+3)  # round to 3 significant digits
                 if dt < ttol
-                    print_with_color(:red, "solve!: solver did not converge\n",)
+                    printstyled("solve!: solver did not converge\n", color=:red)
                     return false
                 end
             else
-                print_with_color(:red, "solve!: solver did not converge\n",)
+                printstyled("solve!: solver did not converge\n", color=:red)
                 return false
             end
         end
@@ -342,7 +343,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
 
     # time spent
     if verbose
-        h, r = divrem(toq(), 3600)
+        h, r = divrem(time()-tic, 3600)
         m, r = divrem(r, 60)
         #println("  time spent: $(round(Int,h))h $(round(Int,m))m $(round(r,3))s")
         @printf("  time spent: %1dh %1dm %1.3fs \n", h, m, r)

@@ -35,7 +35,7 @@ mutable struct ElasticJoint<:Material
 end
 
 # Returns the element type that works with this material model
-@static if isdefined(:MechJoint)
+@static if @isdefined MechJoint
     matching_elem_type(::ElasticJoint) = MechJoint
 end
 
@@ -44,12 +44,12 @@ new_ip_state(mat::ElasticJoint, shared_data::SharedAnalysisData) = JointIpState(
 
 function set_state(ipd::JointIpState, sig=zeros(0), w=zeros(0))
     if length(sig)==3
-        ipd.σ[:] = sig
+        ipd.σ .= sig
     else
         if length(sig)!=0; error("ElasticJoint: Wrong size for stress array: $sig") end
     end
     if length(w)==3
-        ipd.w[:] = w
+        ipd.w .= w
     else
         if length(w)!=0; error("ElasticJoint: Wrong size for strain array: $w") end
     end

@@ -14,7 +14,6 @@ mutable struct LinSeepIpState<:IpState
     end
 end
 
-@show_function LinSeepIpState
 
 mutable struct LinSeep<:Material
     k ::Float64

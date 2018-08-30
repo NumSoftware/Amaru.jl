@@ -1,10 +1,10 @@
 using Amaru
-using Base.Test
+using Test
 
 dis = [ -0.012, -0.095 ]
 
 for shape in (TRI3, TRI6, QUAD4, QUAD8, QUAD9) 
-    print_with_color(:cyan, shape.name); println()
+    printstyled(shape.name, color=:cyan); println()
     bl = Block2D( [0 0; 1 1], nx=5, ny=5, shape=shape)
     mesh = Mesh(bl, verbose=false)
     tag!(mesh.faces[:(y==0)], "bottom") # bottom face
@@ -34,7 +34,7 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8, QUAD9)
 end
 
 for shape in (TET4, TET10, HEX8, HEX20)
-    print_with_color(:cyan, shape.name); println()
+    printstyled(shape.name, color=:cyan); println()
     bl = Block3D( [0 0 0; 1 1 1], nx=5, ny=5, nz=5, shape=shape)
     mesh = Mesh(bl, verbose=false)
     tag!(mesh.faces[:(z==0)], "bottom") # bottom face

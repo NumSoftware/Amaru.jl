@@ -8,7 +8,7 @@ abstract type Hydromechanical<:Element end
 Sets up the dofs for all nodes in `elem` according to material mat.
 This function can be overloaded by concrete types.
 """
-function elem_config_dofs(elem::Hydromechanical)::Void
+function elem_config_dofs(elem::Hydromechanical)
     for node in elem.nodes
         add_dof(node, :uw, :fw)
         add_dof(node, :ux, :fx)
@@ -24,7 +24,7 @@ Sets up `elem` according to material `mat`.
 This function is called after mat is assigned to `elem` by function `set_mat`.
 This function can be overloaded by concrete types.
 """
-function elem_init(elem::Hydromechanical)::Void
+function elem_init(elem::Hydromechanical)
     # No-op function but can be specialized by concrete types
     # This is called by set_mat(...) function
     return nothing

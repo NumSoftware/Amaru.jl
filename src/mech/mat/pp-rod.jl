@@ -69,7 +69,7 @@ function stress_update(mat::PPRod, ipd::PPRodIpState, Δε::Float64)
     σini = ipd.σ
     σtr    = σini + E*Δε
     ftr    = yield_func(mat, ipd, σtr)
-    ipd.Δγ = ftr>0.0? ftr/(E+H) : 0.0
+    ipd.Δγ = ftr>0.0 ? ftr/(E+H) : 0.0
     Δεp    = ipd.Δγ*sign(σtr)
     ipd.εpa += ipd.Δγ
     ipd.σ  = σtr - E*Δεp

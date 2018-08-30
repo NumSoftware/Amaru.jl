@@ -20,7 +20,7 @@ function copy!(target::Material, source::Material)
     for fld in fieldnames(source)
         if filedtype(T, fld) <: Array
             if isdefined(target,fld)
-                getfield(target, fld)[:] = getfield(source, fld)[:]
+                getfield(target, fld) .= getfield(source, fld)
             else
                 setfield!(target, fld, copy(getfield(source, fld)))
             end

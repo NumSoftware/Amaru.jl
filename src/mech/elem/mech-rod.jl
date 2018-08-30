@@ -26,7 +26,7 @@ function elem_stiffness(elem::MechRod)
     C = elem_coords(elem)
     K = zeros(nnodes*ndim, nnodes*ndim)
     B = zeros(1, nnodes*ndim)
-    J = Array{Float64}(1, ndim)
+    J = Array{Float64}(undef, 1, ndim)
 
     for ip in elem.ips
         dNdR = elem.shape.deriv(ip.R)
@@ -34,7 +34,7 @@ function elem_stiffness(elem::MechRod)
         detJ = norm(J)
 
         # mount B
-        B[:] = 0.0
+        B .= 0.0
         for i in 1:nnodes
             for j=1:ndim
                 B[1,j+(i-1)*ndim] = dNdR[1,i]*J[j]/detJ^2.0
@@ -60,9 +60,9 @@ function elem_mass(elem::MechRod)
     
     C = elem_coords(elem)
     M = zeros(nnodes*ndim, nnodes*ndim)
-    J  = Array{Float64}(1, ndim)
+    J  = Array{Float64}(undef, 1, ndim)
     N = zeros(ndim, ndim*nnodes)
-    #N = Array{Float64}(ndim, ndim*nnodes)
+    #N = Array{Float64}(undef, ndim, ndim*nnodes)
     
     for ip in elem.ips
 
@@ -87,7 +87,7 @@ end
                         
 function setNt(ndim::Int,Ni::Vect, N::Matx)
     nnodes = length(Ni) 
-    N[:] = 0.0
+    N .= 0.0
 
     if ndim==2
         for i in 1:nnodes
@@ -111,14 +111,14 @@ function setNt(ndim::Int,Ni::Vect, N::Matx)
     
 end
 
-function distributed_bc(elem::MechRod, facet::Union{Facet, Void}, key::Symbol, fun::Functor)
+function distributed_bc(elem::MechRod, facet::Union{Facet, Nothing}, key::Symbol, fun::Functor)
     ndim  = elem.shared_data.ndim
 
     # Check bcs
     (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
     !(key in (:tx, :ty, :tz, :tn)) && error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
 
-    target = facet!=nothing? facet : elem
+    target = facet!=nothing ? facet : elem
     nodes  = target.nodes
     nnodes = length(nodes)
     t      = elem.shared_data.t
@@ -193,14 +193,14 @@ function elem_update!(elem::MechRod, U::Array{Float64,1}, F::Array{Float64,1}, Î
     dF = zeros(nnodes*ndim)
     C  = elem_coords(elem)
     B  = zeros(1, nnodes*ndim)
-    J  = Array{Float64}(1, ndim)
+    J  = Array{Float64}(undef, 1, ndim)
     for ip in elem.ips
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = dNdR*C
         detJ = norm(J)
 
         # mount B
-        B[:] = 0.0
+        B .= 0.0
         for i in 1:nnodes
             for j=1:ndim
                 B[1,j+(i-1)*ndim] = dNdR[1,i]*J[j]/detJ^2.0

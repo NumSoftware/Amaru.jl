@@ -1,9 +1,9 @@
 using Amaru
-using Base.Test
+using Test
 
 # mesh generation
 
-bl  = Block2D( [0 0; 0.2 0.1], nx=2, ny=4, shape=QUAD4)
+bl  = Block2D( [0 0; 0.2 0.1], nx=2, ny=6, shape=QUAD4)
 msh = Mesh(bl, verbose=true)
 generate_joints!(msh)
 iptag!(msh.cells[:joints], "jips")

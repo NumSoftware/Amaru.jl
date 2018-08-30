@@ -20,7 +20,8 @@ end
 matching_shape_family(::Type{MechSolid}) = SOLID_SHAPE
 
 function elem_init(elem::MechSolid)
-    if (:h in fieldnames(elem.ips[1].data))
+    ipdata_ty = typeof(elem.ips[1].data)
+    if :h in fieldnames(ipdata_ty)
         # Element volume/area
         V = 0.0
         C = elem_coords(elem)
@@ -44,14 +45,14 @@ function elem_init(elem::MechSolid)
     return nothing
 end
 
-function distributed_bc(elem::MechSolid, facet::Union{Facet, Void}, key::Symbol, fun::Functor)
+function distributed_bc(elem::MechSolid, facet::Union{Facet, Nothing}, key::Symbol, fun::Functor)
     ndim  = elem.shared_data.ndim
 
     # Check bcs
     (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
     !(key in (:tx, :ty, :tz, :tn)) && error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
 
-    target = facet!=nothing? facet : elem
+    target = facet!=nothing ? facet : elem
     nodes  = target.nodes
     nnodes = length(nodes)
     t      = elem.shared_data.t
@@ -161,9 +162,9 @@ function elem_stiffness(elem::MechSolid)
     K = zeros(nnodes*ndim, nnodes*ndim)
     B = zeros(6, nnodes*ndim)
 
-    DB = Array{Float64}(6, nnodes*ndim)
-    J  = Array{Float64}(ndim, ndim)
-    dNdX = Array{Float64}(ndim, nnodes)
+    DB = Array{Float64}(undef, 6, nnodes*ndim)
+    J  = Array{Float64}(undef, ndim, ndim)
+    dNdX = Array{Float64}(undef, ndim, nnodes)
 
     for ip in elem.ips
 
@@ -195,7 +196,7 @@ function elem_mass(elem::MechSolid)
     C = elem_coords(elem)
     M = zeros(nnodes*ndim, nnodes*ndim)
     N = zeros(ndim, nnodes*ndim)
-    J = Array{Float64}(ndim, ndim)
+    J = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
         # compute N matrix
@@ -234,9 +235,9 @@ function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1},
     dF = zeros(nnodes*ndim)
     B  = zeros(6, nnodes*ndim)
 
-    DB = Array{Float64}(6, nnodes*ndim)
-    J  = Array{Float64}(ndim, ndim)
-    dNdX = Array{Float64}(ndim, nnodes)
+    DB = Array{Float64}(undef, 6, nnodes*ndim)
+    J  = Array{Float64}(undef, ndim, ndim)
+    dNdX = Array{Float64}(undef, ndim, nnodes)
     Δε = zeros(6)
 
     C = elem_coords(elem)

@@ -1,5 +1,5 @@
 using Amaru
-using Base.Test
+using Test
 
 
 # 2D Truss

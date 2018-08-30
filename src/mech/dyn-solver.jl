@@ -75,7 +75,7 @@ function solve_system!(K::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu:
     umap  = 1:nu
     pmap  = nu+1:ndofs
     if nu == ndofs 
-        warn("solve!: No essential boundary conditions.")
+        @warn "solve!: No essential boundary conditions."
     end
 
     # Global stifness matrix
@@ -96,11 +96,11 @@ function solve_system!(K::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu:
     if nu>0
         RHS = F1 - K12*U2
         try
-            LUfact = lufact(K11)
+            LUfact = lu(K11)
             U1  = LUfact\RHS
             F2 += K21*U1
         catch err
-            warn("solve!: $err")
+            @warn "solve!: $err"
             U1 .= NaN
         end
     end
@@ -114,8 +114,7 @@ end
 
 function frequencies(dom::Domain, bcs::Array; nmods::Int=5, savemods=true, verbose=true)
     if verbose
-        print_with_color(:cyan,"FEM modal analysis:\n", bold=true) 
-        tic()
+        printstyled("FEM modal analysis:\n", bold=true, color=:cyan) 
     end
 
     # Get dofs organized according to boundary conditions
@@ -162,7 +161,7 @@ function frequencies(dom::Domain, bcs::Array; nmods::Int=5, savemods=true, verbo
         end
 
         save(dom, dom.filekey * "-defmod$idefmod.vtk", verbose=false) # saves current domain state for modal deformated
-        verbose && print_with_color(:green, "  ", dom.filekey * "-defmod$idefmod.vtk file written (Domain)\n")
+        verbose && printstyled("  ", dom.filekey * "-defmod$idefmod.vtk file written (Domain)\n", color=:green)
         idefmod += 1
 
     end
@@ -218,8 +217,8 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, m
                    scheme::Symbol = :FE, filekey="out")::Bool
 
     if verbose
-        print_with_color(:cyan,"FEM dynamic analysis:\n", bold=true) 
-        tic()
+        printstyled("FEM dynamic analysis:\n", bold=true, color=:cyan)
+        tic = time()
     end
     
     (save_incs && nouts==0) && (nouts=min(nincs,10))  # default value for nouts
@@ -297,7 +296,7 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, m
     # Save initial file
     if save_incs
         save(dom, "$(dom.filekey)-0.vtk", verbose=false)
-        verbose && print_with_color(:green, "  $(dom.filekey)-0.vtk file written (Domain)\n")
+        verbose && printstyled("  $(dom.filekey)-0.vtk file written (Domain)\n", color=:green)
     end
 
     # Incremental analysis
@@ -332,7 +331,7 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, m
     while t < tend - ttol
         Uex, Fex = get_bc_vals(dom, bcs, t+dt) # get values at time t+dt
 
-        verbose && print_with_color(:blue, "  increment $inc from t=$(round(t,10)) to t=$(round(t+dt,10)) (dt=$(round(dt,10))):", bold=true) # color 111
+        verbose && printstyled("  increment $inc from t=$(round(t,digits=10)) to t=$(round(t+dt,digits=10)) (dt=$(round(dt,digits=10))):", bold=true, color=:blue) # color 111
         verbose && println()
         #R   .= FexN - F    # residual
         Fex_Fin = Fex-Fina    # residual
@@ -344,7 +343,7 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, m
         converged = false
         maxfails  = 3    # maximum number of it. fails with residual change less than 90%
         nfails    = 0    # counter for iteration fails
-        local K::SparseMatrixCSC{Float64,Int64}
+        #local K::SparseMatrixCSC{Float64,Int64}
 
         for it=1:maxits
             if it>1; ΔUi .= 0.0 end # essential values are applied only at first iteration
@@ -396,7 +395,7 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, m
             Fex_Fin[pmap] .= 0.0  # Zero at prescribed positions
 
             if verbose
-                print_with_color(:bold, "    it $it  ")
+                printstyled("    it $it  ", bold=true)
                 @printf(" residue: %-10.4e\n", residue)
             end
 
@@ -440,13 +439,13 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, m
                 iout += 1
                 save(dom, "$(dom.filekey)-$iout.vtk", verbose=false)
                 T += dT # find the next output time
-                verbose && print_with_color(:green, "  $(dom.filekey)-$iout.vtk file written (Domain)\n")
+                verbose && printstyled("  $(dom.filekey)-$iout.vtk file written (Domain)\n", color=:green)
             end
 
 
             if autoinc
                 dt = min(1.5*dt, Dt/nincs)
-                dt = round(dt, -ceil(Int, log10(dt))+3)  # round to 3 significant digits
+                dt = round(dt, digits=-ceil(Int, log10(dt))+3)  # round to 3 significant digits
             end
 
             # Fix dt in case d+dt>T
@@ -457,13 +456,13 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, m
             if autoinc
                 verbose && println("    increment failed.")
                 dt *= 0.5
-                dt = round(dt, -ceil(Int, log10(dt))+3)  # round to 3 significant digits
+                dt = round(dt, digits=-ceil(Int, log10(dt))+3)  # round to 3 significant digits
                 if dt < ttol
-                    print_with_color(:red, "solve!: solver did not converge\n",)
+                    printstyled("solve!: solver did not converge\n", color=:red)
                     return false
                 end
             else
-                print_with_color(:red, "solve!: solver did not converge\n",)
+                printstyled("solve!: solver did not converge\n", color=:red)
                 return false
             end
         end
@@ -471,9 +470,9 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, m
 
     # time spent
     if verbose
-        h, r = divrem(toq(), 3600)
+        h, r = divrem(time()-tic, 3600)
         m, r = divrem(r, 60)
-        println("  time spent: $(h)h $(m)m $(round(r,3))s")
+        println("  time spent: $(h)h $(m)m $(round(r,digits=3))s")
     end
 
     # Update number of used increments at domain

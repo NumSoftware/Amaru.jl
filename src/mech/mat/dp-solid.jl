@@ -55,12 +55,12 @@ end
 
 function set_state(ipd::DruckerPragerIpState; sig=zeros(0), eps=zeros(0))
     if length(sig)==6
-        ipd.σ[:] = sig.*V2M
+        ipd.σ .= sig.*V2M
     else
         if length(sig)!=0; error("DruckerPrager: Wrong size for stress array: $sig") end
     end
     if length(eps)==6
-        ipd.ε[:] = eps.*V2M
+        ipd.ε .= eps.*V2M
     else
         if length(eps)!=0; error("DruckerPrager: Wrong size for strain array: $eps") end
     end
@@ -92,7 +92,7 @@ function calcD(mat::DruckerPrager, ipd::DruckerPragerIpState)
         N  = V
         Nu = N/norm(N)
     else # apex
-        Nu = 1./√3.*tI
+        Nu = 1.0/√3.0*tI
         V  = Nu
     end
 
@@ -111,22 +111,22 @@ function stress_update(mat::DruckerPrager, ipd::DruckerPragerIpState, Δε::Arra
         ipd.σ  = σtr
     else
         # plastic 
-        K, G  = mat.E/(3.*(1.-2.*mat.ν)), mat.E/(2.*(1.+mat.ν))
+        K, G  = mat.E/(3.0*(1.0-2.0*mat.ν)), mat.E/(2.0*(1.0+mat.ν))
         α, H  = mat.α, mat.H
-        n     = 1./√(3.*α*α+0.5)
+        n     = 1.0/√(3.0*α*α+0.5)
         j1tr  = J1(σtr)
         j2dtr = J2D(σtr)
 
         if √j2dtr - ipd.Δγ*n*G > 0.0 # conventional return
             ipd.Δγ = ftr/(9*α*α*n*K + n*G + H)
             j1     = j1tr - 9*ipd.Δγ*α*n*K
-            m      = 1. - ipd.Δγ*n*G/√j2dtr
-            ipd.σ  = m*dev(σtr) + j1/3.*tI
+            m      = 1.0 - ipd.Δγ*n*G/√j2dtr
+            ipd.σ  = m*dev(σtr) + j1/3.0*tI
         else # return to apex
             κ      = mat.κ
             ipd.Δγ = (α*j1tr-κ-H*ipd.εpa)/(3*√3*α*K + H)
             j1     = j1tr - 3*√3*ipd.Δγ*K
-            ipd.σ  = j1/3.*tI
+            ipd.σ  = j1/3.0*tI
         end
 
         ipd.εpa += ipd.Δγ
@@ -142,7 +142,7 @@ end
 function ip_state_vals(mat::DruckerPrager, ipd::DruckerPragerIpState)
     ndim  = ipd.shared_data.ndim
     σ, ε  = ipd.σ, ipd.ε
-    j1    = trace(σ)
+    j1    = tr(σ)
     srj2d = √J2D(σ)
 
     D = stress_strain_dict(σ, ε, ndim)

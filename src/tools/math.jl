@@ -39,12 +39,11 @@ function cubic_roots(a,b,c,d)
         
         F = a*X.^3 .+ b.*X.^2 .+ c.*X .+ d
         f = maximum(abs, F)
-        f > ftol && warn("cubic_roots: residue ($f) greather than ftol")
+        f > ftol && @warn "cubic_roots: residue ($f) greather than ftol"
         return sort(X)
     else # one real root: use Newton method
         maxits = 40
         tol = 1e-12
-        i   = 0
         x   = 0.0
         x0  = 0.0
         der = 3*a*x0^2 + 2*b*x0 + c
@@ -57,10 +56,10 @@ function cubic_roots(a,b,c,d)
             err = abs(x - x0)
             err<tol && break
             x0 = x
+            i == maxits && @warn "cubic_roots: max number of iterations reached."
         end
-        i == maxits && warn("cubic_roots: max number of iterations reached.")
         f = a*x^3 + b*x^2 + c*x + d
-        f > ftol && warn("cubic_roots: residue ($f) greather than ftol")
+        f > ftol && @warn "cubic_roots: residue ($f) greather than ftol"
         return Float64[ x ]
     end
 end

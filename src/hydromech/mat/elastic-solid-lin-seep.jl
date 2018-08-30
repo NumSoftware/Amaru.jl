@@ -18,7 +18,6 @@ mutable struct ElasticSolidLinSeepIpState<:IpState
     end
 end
 
-@show_function ElasticSolidLinSeepIpState
 
 mutable struct ElasticSolidLinSeep<:Material
     E ::Float64
@@ -51,12 +50,12 @@ function set_state(ipd::ElasticSolidLinSeepIpState; sig=zeros(0), eps=zeros(0))
     sq2 = √2.0
     mdl = [1, 1, 1, sq2, sq2, sq2]
     if length(sig)==6
-        ipd.σ[:] = sig.*mdl
+        ipd.σ .= sig.*mdl
     else
         if length(sig)!=0; error("ElasticSolidLinSeep: Wrong size for stress array: $sig") end
     end
     if length(eps)==6
-        ipd.ε[:] = eps.*mdl
+        ipd.ε .= eps.*mdl
     else
         if length(eps)!=0; error("ElasticSolidLinSeep: Wrong size for strain array: $eps") end
     end

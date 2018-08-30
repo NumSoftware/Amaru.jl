@@ -1,7 +1,7 @@
 # Remove output files from tests
 
 path  = dirname(@__FILE__)
-files = readdir(path)
+#files = readdir(path)
 
 println("  deleting temporary files...")
 for (root, dirs, files) in walkdir(path)

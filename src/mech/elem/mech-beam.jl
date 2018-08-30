@@ -23,28 +23,28 @@ matching_shape_family(::Type{MechBeam}) = LINE_SHAPE
 
 function beam_shape_func(ξ::Float64, nnodes::Int)
     if nnodes==2
-        N = Array{Float64}(4)
+        N = Array{Float64}(undef,4)
         x = (ξ+1)/2
         N[1] = 1 - 3*x^2 + 2*x^3
         N[2] = x - 2*x^2 + x^3
         N[3] = 3*x^2 - 2*x^3
         N[4] = x^3 - x^2
     else
-        N = Array{Float64}(4)
+        N = Array{Float64}(undef,4)
     end
     return N
 end
 
 function beam_second_deriv(ξ::Float64, nnodes::Int)
     if nnodes==2
-        DD = Array{Float64}(4)
+        DD = Array{Float64}(undef,4)
     else
-        DD = Array{Float64}(6)
+        DD = Array{Float64}(undef,6)
     end
     return DD
 end
 
-function elem_config_dofs(elem::MechBeam)::Void
+function elem_config_dofs(elem::MechBeam)
     ndim = elem.shared_data.ndim
     if ndim==2
         for node in elem.nodes

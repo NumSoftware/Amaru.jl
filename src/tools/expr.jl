@@ -21,7 +21,7 @@ end
 # Fixes comparisons expressions using a tolerance
 function fix_comparison_scalar(expr::Expr)
     mexpr = copy(expr) # expression to be modified
-    const tol = 1e-6
+    tol = 1e-6
 
     fix_comp = function(expr::Expr)
         symb = expr.args[1]
@@ -76,7 +76,7 @@ function fix_comparison_arrays(expr::Expr)
             return expr
         end
         if symb == :(==)
-            return :(maximum(abs.($a-$b)) < $tol)
+            return :(maximum(abs.($a.-$b)) < $tol)
         end
         if symb == :(>=)
             return :(minimum($a) > maximum($b) - $tol)

@@ -141,7 +141,7 @@ end
 Especifies the material model `mat` to be used to represent the behavior of a set of `Element` objects `elems`.
 """
 function set_mat(elems::Array{Element,1}, mat::Material; nips::Int64=0)
-    length(elems)==0 && warn("Defining material model $(typeof(mat)) for an empty array of elements.\n")
+    length(elems)==0 && @warn "Defining material model $(typeof(mat)) for an empty array of elements."
 
     for elem in elems
         set_mat(elem, mat, nips=nips)
@@ -219,7 +219,7 @@ function getindex(elems::Array{<:Element,1}, filter_ex::Expr)
     expr = fix_comparison_arrays(filter_ex)
     fun  = Functor(:(x,y,z,id,tag), expr)
 
-    result = Array{Element}(0)
+    result = Element[]
     for elem in elems
         coords = nodes_coords(elem.nodes)
         x = coords[:,1]

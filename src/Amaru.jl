@@ -17,22 +17,22 @@ set_mat, set_bc, clear_bc, solve!, save
 
 """
 module Amaru
-using  Base, JSON, Reexport
-import DataStructures.OrderedDict
-import DataStructures.OrderedSet
+using Printf, Statistics, LinearAlgebra, SparseArrays, DelimitedFiles
+using JSON, DataStructures, Reexport
+import DataStructures.OrderedDict, DataStructures.OrderedSet
 
 #Using non-registered (jet) package FemMesh
 #Pkg.installed("FemMesh") == nothing && Pkg.clone("https://github.com/RaulDurand/FemMesh")
 
-try
-    eval(:(using FemMesh))
-catch err
-    if isa(err, ArgumentError)
-        contains(err.msg, "FemMesh not found") && pkg.clone("https://github.com/NumSoftware/FemMesh")
-    else
-        error("Amaru: Error loading FemMesh package.")
-    end
-end
+#try
+    #eval(:(using FemMesh))
+#catch err
+    #if isa(err, ArgumentError)
+        #contains(err.msg, "FemMesh not found") && pkg.clone("https://github.com/NumSoftware/FemMesh")
+    #else
+        #error("Amaru: Error loading FemMesh package.")
+    #end
+#end
 
 @reexport using FemMesh
 import FemMesh.save # to be extended
@@ -49,6 +49,8 @@ end
 const Debug = DebugFlags(false, true)
 #export Debug
 
+# eye function
+eye(n::Int64) = Array{Float64}(I,n,n)
 
 # Tools module
 include("tools/constants.jl")
@@ -105,25 +107,18 @@ include("mech/include.jl")
 # Hydromechanical module
 include("hydromech/include.jl")
 
-# show functions for common structures and arrays
-@show_function Dof
-@show_array_function Dof
-@show_function Node
-@show_array_function Node
-@show_function Ip
-@show_array_function Ip
-@show_function Element
-@show_array_function Element
-@show_function Material
-@show_array_function Material
-@show_function MaterialBind
-@show_array_function MaterialBind
-@show_function BC
-@show_array_function BC
-@show_function Facet
-@show_array_function Facet
-@show_function AbstractLogger
-@show_array_function AbstractLogger
-@show_function Domain
+# show function for Amaru types
+for datatype in (:Dof, :Node, :Ip, :IpState, :Element, :Material, :MaterialBind, :BC, :Facet, :AbstractLogger, :Domain)
+    eval( quote
+        function Base.show(io::IO, obj::$datatype)
+            print_field_values(io, obj)
+        end
+
+        function Base.show(io::IO, array::Array{<:$datatype,1})
+            print_array_values(io, array)
+        end
+    end )
+end
+
 
 end#module

@@ -85,7 +85,8 @@ macro gemm(expr)
         end
     end
 
-    return :( BLAS.gemm!($tA, $tB, $(esc(α))*$s, $(esc(A)), $(esc(B)), $β, $(esc(C)) ) )
+    res  = :( BLAS.gemm!($tA, $tB, $(esc(α))*$s, $(esc(A)), $(esc(B)), $β, $(esc(C)) ) )
+    return res
 end
 
 
@@ -171,7 +172,7 @@ macro axpy(expr)
 
     if β == 0.0
         return quote
-            $(esc(Y))[:] = 0.0
+            $(esc(Y)) .= 0.0
             BLAS.axpy!( $(esc(α))*$s, $(esc(X)), $(esc(Y)) )
         end
     else

@@ -1,5 +1,5 @@
 using Amaru
-using Base.Test
+using Test
 
 bl  = Block3D( [0 0 0; 1. 1. 1.], nx=5, ny=5, nz=5, shape=HEX8)
 

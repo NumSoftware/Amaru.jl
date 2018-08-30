@@ -129,7 +129,7 @@ function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}}
     dom.shared_data.t = 0.0
 
     if verbose
-        print_with_color(:cyan, "Domain setup:", bold=true)
+        printstyled("Domain setup:", bold=true, color=:cyan)
         println()
     end
 
@@ -139,14 +139,14 @@ function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}}
     # Setting new elements
     verbose && print("  setting elements...\r")
     ncells    = length(mesh.cells)
-    dom.elems = Array{Element,1}(ncells)
+    dom.elems = Array{Element,1}(undef, ncells)
     Nips      = zeros(Int, ncells)       # list with number of ips per element
-    Tips      = Array{TagType,1}(ncells)  # list with the ip tag per element
+    Tips      = Array{TagType,1}(undef, ncells)  # list with the ip tag per element
     Tips     .= ""
     for mb in matbinds
         cells = mesh.cells[mb.expr]
         if isempty(cells)
-            warn("Domain: binding material model $(typeof(mb.mat)) to an empty list of cells (expr: $(mb.expr))")
+            @warn "Domain: binding material model $(typeof(mb.mat)) to an empty list of cells:" expr=mb.expr
         end
         etype = matching_elem_type(mb.mat)
         for cell in cells
@@ -187,7 +187,7 @@ function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}}
     end
 
     # Setting faces
-    dom.faces = Array{Face}(0)
+    dom.faces = Face[]
     for (i,cell) in enumerate(mesh.faces)
         conn = [ p.id for p in cell.points ]
         face = Face(cell.shape, dom.nodes[conn], ndim, cell.tag)
@@ -197,7 +197,7 @@ function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}}
     end
 
     # Setting edges
-    dom.edges = Array{Edge}(0)
+    dom.edges = Edge[]
     for (i,cell) in enumerate(mesh.edges)
         conn = [ p.id for p in cell.points ]
         edge = Edge(cell.shape, dom.nodes[conn], ndim, cell.tag)
@@ -262,7 +262,7 @@ Register each logger from the array `loggers` in `domain`.
 """
 function setlogger!(dom::Domain, logger::Union{AbstractLogger, Array{<:AbstractLogger,1}})
     loggers = typeof(logger)<:AbstractLogger ? [logger] : logger
-    setup_logger!.(dom, loggers)
+    setup_logger!.(Ref(dom), loggers)
     dom.loggers = loggers
 end
 
@@ -491,8 +491,9 @@ function nodal_patch_recovery(dom::AbstractDomain)
         fields = unique( key for elem in patch for key in keys(all_ips_vals[elem.id][1]) )
 
         last_subpatch  = [] # elements of a subpatch for a particular field
-        invM = Array{Float64,2}(0,0)
-        N    = Array{Int64,2}(0,0)
+        invM = Array{Float64,2}(undef,0,0)
+        #N    = Array{Int64,2}(0,0)
+        local N
         subpatch_ips = Ip[]
         subpatch_nodes = Node[]
         nterms = 0
@@ -512,13 +513,13 @@ function nodal_patch_recovery(dom::AbstractDomain)
 
                 # number of polynomial terms
                 if ndim==3
-                    nterms = m>=10? 10 : m>=7? 7 : m>=4? 4 : 1
+                    nterms = m>=10 ? 10 : m>=7 ? 7 : m>=4 ? 4 : 1
                 else
-                    nterms = m>=6? 6 : m>=4? 4 : m>=3? 3 : 1
+                    nterms = m>=6 ? 6 : m>=4 ? 4 : m>=3 ? 3 : 1
                 end
 
                 # matrix M for regression
-                M = Array{Float64,2}(m,nterms)
+                M = Array{Float64,2}(undef,m,nterms)
                 for (i,ip) in enumerate(subpatch_ips)
                     x, y, z = ip.X
                     if ndim==3
@@ -530,7 +531,7 @@ function nodal_patch_recovery(dom::AbstractDomain)
                 invM = pinv(M)
 
                 # find nodal values
-                N = Array{Float64,2}(n,nterms)
+                N = Array{Float64,2}(undef,n,nterms)
                 for (i,node) in enumerate(subpatch_nodes)
                     x, y, z = node.X
                     if ndim==3
@@ -560,7 +561,7 @@ function nodal_patch_recovery(dom::AbstractDomain)
 
     # average values
     V_vals ./= V_reps
-    V_vals[isnan.(V_vals)] = 0.0
+    V_vals[isnan.(V_vals)] .= 0.0
 
     return V_vals, collect(all_fields_set)
 
@@ -614,7 +615,7 @@ function nodal_local_recovery(dom::AbstractDomain)
 
     # average values
     V_vals ./= V_reps
-    V_vals[isnan.(V_vals)] = 0.0
+    V_vals[isnan.(V_vals)] .= 0.0
 
     return V_vals, collect(all_fields_set)
 end
@@ -643,7 +644,7 @@ function save_dom_vtk(dom::AbstractDomain, filename::String; verbose=true)
     # Save file
     save_vtk(ugrid, filename)
 
-    verbose && print_with_color(:green, "  file $filename written (Domain)\n")
+    verbose && printstyled("  file $filename written (Domain)\n", color=:green)
 end
 
 
@@ -677,7 +678,7 @@ function save_dom_json(dom::AbstractDomain, filename::String; verbose=true)
     print(f, JSON.json(data,4))
     close(f)
 
-    verbose && print_with_color(:green, "  file $filename written (Domain)\n")
+    verbose && printstyled("  file $filename written (Domain)\n", color=green)
 end
 
 
@@ -696,7 +697,7 @@ function Base.convert(::Type{UnstructuredGrid}, dom::AbstractDomain)
     # points, cells and cell types
     points  = [ node.X[i] for node in dom.nodes, i in 1:3]
     cells   = [ [node.id for node in elem.nodes] for elem in dom.elems ]
-    cell_tys= [ elem.shape.vtk_type for elem in dom.elems ]
+    cell_tys= [ Int(elem.shape.vtk_type) for elem in dom.elems ]
     
     # Node and element data
     point_scalar_data = Dict()
@@ -710,10 +711,10 @@ function Base.convert(::Type{UnstructuredGrid}, dom::AbstractDomain)
 
     # Write vectors
     if :uy in node_labels
-        ux_idx = findfirst(node_labels, :ux)
-        uy_idx = findfirst(node_labels, :uy)
-        uz_idx = findfirst(node_labels, :uz)
-        if uz_idx>0
+        ux_idx = findfirst(isequal(:ux), node_labels)
+        uy_idx = findfirst(isequal(:uy), node_labels)
+        uz_idx = findfirst(isequal(:uz), node_labels)
+        if uz_idx!=nothing
             U = node_vals[:, [ux_idx, uy_idx, uz_idx]]
         else
             U = hcat( node_vals[:, [ux_idx, uy_idx]], zeros(nnodes) )
@@ -722,10 +723,10 @@ function Base.convert(::Type{UnstructuredGrid}, dom::AbstractDomain)
     end
 
     if :vy in node_labels
-        vx_idx = findfirst(node_labels, :vx)
-        vy_idx = findfirst(node_labels, :vy)
-        vz_idx = findfirst(node_labels, :vz)
-        if vz_idx>0
+        vx_idx = findfirst(isequal(:vx), node_labels)
+        vy_idx = findfirst(isequal(:vy), node_labels)
+        vz_idx = findfirst(isequal(:vz), node_labels)
+        if vz_idx!=nothing
             V = node_vals[:, [vx_idx, vy_idx, vz_idx]]
         else
             V = hcat( node_vals[:, [vx_idx, vy_idx]], zeros(nnodes) )
@@ -744,7 +745,7 @@ function Base.convert(::Type{UnstructuredGrid}, dom::AbstractDomain)
 
     # Write cell data
     cell_scalar_data["elem-id"] = elem_ids_bk
-    cell_scalar_data["cell-type"] = [ elem.shape.vtk_type for elem in dom.elems ]
+    cell_scalar_data["cell-type"] = [ Int(elem.shape.vtk_type) for elem in dom.elems ]
 
     # Write elem scalar data
     for i=1:necomps
@@ -795,7 +796,7 @@ function FemMesh.mplot(dom::AbstractDomain; args...)
 
         ugrid.points = [ node.X[i] for node in srf_nodes, i=1:3 ]
         ugrid.cells  = [ [ srf_node_map[node.id] for node in face.nodes] for face in dom.faces ]
-        ugrid.cell_types = [ face.shape.vtk_type for face in dom.faces ]
+        ugrid.cell_types = [ Int(face.shape.vtk_type) for face in dom.faces ]
 
         # update data
         for (field, data) in ugrid.point_scalar_data

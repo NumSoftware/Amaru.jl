@@ -57,12 +57,12 @@ new_ip_state(mat::SmearedCrack, shared_data::SharedAnalysisData) = SmearedCrackI
 
 function set_state(ipd::SmearedCrackIpState; sig=zeros(0), eps=zeros(0))
     if length(sig)==6
-        ipd.σ[:] = sig
+        ipd.σ .= sig
     else
         if length(sig)!=0; error("SmearedCrack: Wrong size for stress array: $sig") end
     end
     if length(eps)==6
-        ipd.ε[:] = eps
+        ipd.ε .= eps
     else
         if length(eps)!=0; error("SmearedCrack: Wrong size for strain array: $eps") end
     end
@@ -345,9 +345,9 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
     # Check for cracks
 
     if !ipd.hascrack
-        P = eigvals(σtr)
+        P = eigenvals(σtr)
         if P[1]>mat.ft
-            P, V = eig(σtr) 
+            P, V = eigen(σtr) 
             ipd.T = tensor_rot(V) 
             ipd.hascrack = true
 
@@ -452,7 +452,7 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
                 #@show f, df, Δλ
                 abs(f) < tol && break
                 if i == maxits || isnan(Δλ)
-                    #warn("max iterations reached")
+                    #@warn "max iterations reached"
                     #@show f, Δλ
                     Δλ = -1.0
                     break
@@ -461,7 +461,7 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
 
             if Δλ<0 
                 σmax = calc_σmax(mat, ipd, ipd.upa)
-                warn("Δλ calculation failed using NR")
+                @warn "Δλ calculation failed using NR"
                 @show σmax
                 @show ipd.upa/mat.wc
                 @show ςini

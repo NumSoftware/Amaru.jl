@@ -22,7 +22,7 @@ end
 matching_shape_family(::Type{MechJoint1D}) = JOINT1D_SHAPE
 
 
-function elem_init(elem::MechJoint1D)::Void
+function elem_init(elem::MechJoint1D)
     hook = elem.linked_elems[1]
     bar  = elem.linked_elems[2]
     Ch = elem_coords(hook)

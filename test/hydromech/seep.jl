@@ -1,4 +1,5 @@
 using Amaru
+using Test
 
 # Mesh generation
 

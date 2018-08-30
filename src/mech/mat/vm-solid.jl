@@ -46,12 +46,12 @@ new_ip_state(mat::VonMises, shared_data::SharedAnalysisData) = VonMisesIpState(s
 
 function set_state(ipd::VonMisesIpState; sig=zeros(0), eps=zeros(0))
     if length(sig)==6
-        ipd.σ[:] = sig.*V2M
+        ipd.σ .= sig.*V2M
     else
         if length(sig)!=0; error("VonMises: Wrong size for stress array: $sig") end
     end
     if length(eps)==6
-        ipd.ε[:] = eps.*V2M
+        ipd.ε .= eps.*V2M
     else
         if length(eps)!=0; error("VonMises: Wrong size for strain array: $eps") end
     end
@@ -98,7 +98,7 @@ function stress_update(mat::VonMises, ipd::VonMisesIpState, Δε::Array{Float64,
         ipd.σ  = σtr
     else
         # plastic 
-        K, G  = mat.E/(3.*(1.-2.*mat.ν)), mat.E/(2.*(1.+mat.ν))
+        K, G  = mat.E/(3.0*(1.0-2.0*mat.ν)), mat.E/(2.0*(1.0+mat.ν))
         H     = mat.H
         j1tr  = J1(σtr)
         j2dtr = J2D(σtr)
@@ -106,8 +106,8 @@ function stress_update(mat::VonMises, ipd::VonMisesIpState, Δε::Array{Float64,
         @assert √j2dtr - ipd.Δγ*√2*G > 0.0
         ipd.Δγ = ftr/(√6*G + H)
         j1     = j1tr
-        m      = 1. - ipd.Δγ*√2*G/√j2dtr
-        ipd.σ  = m*dev(σtr) + j1/3.*tI
+        m      = 1.0 - ipd.Δγ*√2*G/√j2dtr
+        ipd.σ  = m*dev(σtr) + j1/3.0*tI
 
         ipd.εpa += ipd.Δγ
 
@@ -121,7 +121,7 @@ end
 function ip_state_vals(mat::VonMises, ipd::VonMisesIpState)
     ndim  = ipd.shared_data.ndim
     σ, ε  = ipd.σ, ipd.ε
-    j1    = trace(σ)
+    j1    = tr(σ)
     srj2d = √J2D(σ)
 
     D = stress_strain_dict(σ, ε, ndim)

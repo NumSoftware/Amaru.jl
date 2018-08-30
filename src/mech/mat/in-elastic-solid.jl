@@ -14,7 +14,6 @@ mutable struct InElasticSolidIpState<:IpState
     end
 end
 
-@show_function InElasticSolidIpState
 
 mutable struct InElasticSolid<:Material
     E ::Float64
@@ -43,12 +42,12 @@ function set_state(ipd::InElasticSolidIpState; sig=zeros(0), eps=zeros(0))
     sq2 = √2.0
     mdl = [1, 1, 1, sq2, sq2, sq2]
     if length(sig)==6
-        ipd.σ[:] = sig.*mdl
+        ipd.σ .= sig.*mdl
     else
         if length(sig)!=0; error("InElasticSolid: Wrong size for stress array: $sig") end
     end
     if length(eps)==6
-        ipd.ε[:] = eps.*mdl
+        ipd.ε .= eps.*mdl
     else
         if length(eps)!=0; error("InElasticSolid: Wrong size for strain array: $eps") end
     end
@@ -58,21 +57,21 @@ function calcDe(E::Number, nu::Number, atype::Symbol)
     if atype==:plane_stress
         c = E/(1.0-nu^2)
         return [
-            c    c*nu 0. 0. 0. 0.
-            c*nu c    0. 0. 0. 0.
-            0.   0.   0. 0. 0. 0.
-            0.   0.   0. c*(1.-nu) 0. 0.
-            0.   0.   0. 0. 0. 0.
-            0.   0.   0. 0. 0. 0. ]
+            c    c*nu 0.0 0.0 0.0 0.0
+            c*nu c    0.0 0.0 0.0 0.0
+            0.0   0.0   0.0 0.0 0.0 0.0
+            0.0   0.0   0.0 c*(1.0-nu) 0.0 0.0
+            0.0   0.0   0.0 0.0 0.0 0.0
+            0.0   0.0   0.0 0.0 0.0 0.0 ]
     else
         c = E/((1.0+nu)*(1.0-2.0*nu))
         return [
-            c*(1-nu) c*nu     c*nu     0.         0.         0.
-            c*nu     c*(1-nu) c*nu     0.         0.         0.
-            c*nu     c*nu     c*(1-nu) 0.         0.         0.
-            0.       0.       0.       c*(1-2*nu) 0.         0.
-            0.       0.       0.       0.         c*(1-2*nu) 0.
-            0.       0.       0.       0.         0.         c*(1-2*nu) ]
+            c*(1-nu) c*nu     c*nu     0.0         0.0         0.0
+            c*nu     c*(1-nu) c*nu     0.0         0.0         0.0
+            c*nu     c*nu     c*(1-nu) 0.0         0.0         0.0
+            0.0       0.0       0.0       c*(1-2*nu) 0.0         0.0
+            0.0       0.0       0.0       0.0         c*(1-2*nu) 0.0
+            0.0       0.0       0.0       0.0         0.0         c*(1-2*nu) ]
     end
 end
 

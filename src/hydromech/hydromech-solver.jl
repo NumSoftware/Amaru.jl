@@ -33,10 +33,10 @@ function mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
     for elem in dom.elems
 
         ty = typeof(elem)
-        has_stiffness_matrix    = method_exists(elem_stiffness, (ty,))
-        has_coupling_matrix     = method_exists(elem_coupling_matrix, (ty,))
-        has_conductivity_matrix = method_exists(elem_conductivity_matrix, (ty,))
-        has_RHS_vector          = method_exists(elem_RHS_vector, (ty,))
+        has_stiffness_matrix    = hasmethod(elem_stiffness, (ty,))
+        has_coupling_matrix     = hasmethod(elem_coupling_matrix, (ty,))
+        has_conductivity_matrix = hasmethod(elem_conductivity_matrix, (ty,))
+        has_RHS_vector          = hasmethod(elem_RHS_vector, (ty,))
 
 
         # Assemble the stiffness matrix
@@ -119,7 +119,7 @@ function hm_solve_step!(G::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu
     umap  = 1:nu
     pmap  = nu+1:ndofs
     if nu == ndofs 
-        warn("solve!: No essential boundary conditions.")
+        @warn "solve!: No essential boundary conditions."
     end
 
     # Global stifness matrix
@@ -140,11 +140,11 @@ function hm_solve_step!(G::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu
     if nu>0
         RHS = F1 - G12*U2
         try
-            LUfact = lufact(G11)
+            LUfact = lu(G11)
             U1  = LUfact\RHS
             F2 += G21*U1
         catch err
-            warn("solve!: $err")
+            @warn "solve!: $err"
             U1 .= NaN
         end
     end
@@ -188,8 +188,8 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     silent && (verbose=false)
 
     if !silent
-        print_with_color(:cyan,"Hydromechanical FE analysis: Stage $(dom.stage+1)\n", bold=true) 
-        tic()
+        printstyled("Hydromechanical FE analysis: Stage $(dom.stage+1)\n", bold=true, color=:cyan)
+        tic = time()
     end
 
     if !isnan(end_time)
@@ -221,7 +221,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
         # Save first output file
         if saveincs 
             save(dom, "$(dom.filekey)-0.vtk", verbose=false)
-            silent || print_with_color(:green, "  $(dom.filekey)-0.vtk file written (Domain)\n")
+            silent || printstyled("  $(dom.filekey)-0.vtk file written (Domain)\n", color=:green)
         end
     end
 
@@ -269,7 +269,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
 
     while t < tend - ttol
 
-        verbose && print_with_color(:blue, "  increment $inc from t=$(signif(t,9)) to t=$(signif(t+Δt,9)) (dt=$(signif(Δt,9))):\n", bold=true) # color 111
+        verbose && printstyled("  increment $inc from t=$(round(t,sigdigits=9)) to t=$(round(t+Δt,sigdigits=9)) (dt=$(round(Δt,sigdigits=9))):\n", bold=true, color=:blue) # color 111
 
         # Get forces and displacements from boundary conditions
         dom.shared_data.t = t + Δt
@@ -278,17 +278,11 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
         ΔUex = UexN - U
         ΔFex = FexN - F
 
-        ΔUex[umap] = 0.0
-        ΔFex[pmap] = 0.0
+        ΔUex[umap] .= 0.0
+        ΔFex[pmap] .= 0.0
 
         #ΔUex = UexN - Uex
         #ΔFex = FexN - Fex
-
-        #@show round.(UexN, 10)
-        #@show round.(ΔUex, 10)
-        #@show round.(FexN, 10)
-        #@show round.(ΔFex, 10)
-        #dom.nincs > 1 && stop
 
         R   .= ΔFex    # residual
         ΔUa .= 0.0
@@ -307,7 +301,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
 
             # Try FE step
             verbose && print("    assembling... \r")
-            G, RHS = mount_G_RHS(dom, ndofs, it==1?Δt:0.0 ) # TODO: check for Δt after iter 1
+            G, RHS = mount_G_RHS(dom, ndofs, it==1 ? Δt : 0.0 ) # TODO: check for Δt after iter 1
 
             R .+= RHS
 
@@ -340,12 +334,12 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             #@show maximum(abs, R[uz_map])
 
             if verbose
-                print_with_color(:bold, "    it $it  ")
+                printstyled("    it $it  ", bold=true)
                 @printf(" residue: %-10.4e\n", residue)
             else
                 if !silent
-                    print_with_color(:blue, "  increment $inc: ", bold=true)
-                    print_with_color(:bold, "  it $it  ")
+                    printstyled("  increment $inc: ", bold=true, color=:blue)
+                    printstyled("  it $it  ", bold=true)
                     @printf("residue: %-10.4e  \r", residue)
                 end
             end
@@ -381,7 +375,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
                 save(dom, "$(dom.filekey)-$iout.vtk", verbose=false)
                 T = Tn - mod(Tn, dT) + dT
                 silent || verbose || print("                                             \r")
-                silent || print_with_color(:green, "  $(dom.filekey)-$iout.vtk file written (Domain)\n")
+                silent || printstyled("  $(dom.filekey)-$iout.vtk file written (Domain)\n", color=:green)
             end
 
             # Update time t and Δt
@@ -391,7 +385,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             # Get new Δt
             if autoinc
                 Δt = min(1.5*Δt, 1.0/nincs)
-                Δt = round(Δt, -ceil(Int, log10(Δt))+3)  # round to 3 significant digits
+                Δt = round(Δt, digits=-ceil(Int, log10(Δt))+3)  # round to 3 significant digits
                 Δt = min(Δt, 1.0-t)
             end
         else
@@ -399,13 +393,13 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
                 silent || println("    increment failed.")
                 #Δt *= 0.5
                 #Δt = round(Δt, -ceil(Int, log10(Δt))+3)  # round to 3 significant digits
-                Δt = signif(0.5*Δt, 3)
+                Δt = round(0.5*Δt, sigdigits=3)
                 if Δt < ttol
-                    print_with_color(:red, "solve!: solver did not converge\n",)
+                    printstyled("solve!: solver did not converge\n", color=:red)
                     return false
                 end
             else
-                print_with_color(:red, "solve!: solver did not converge\n",)
+                printstyled("solve!: solver did not converge\n", color=:red)
                 return false
             end
         end
@@ -413,9 +407,9 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
 
     # time spent
     if !silent
-        h, r = divrem(toq(), 3600)
+        h, r = divrem(time()-tic, 3600)
         m, r = divrem(r, 60)
-        println("  time spent: $(h)h $(m)m $(round(r,3))s")
+        println("  time spent: $(h)h $(m)m $(round(r,digits=3))s")
     end
 
     # Update number of used increments at domain

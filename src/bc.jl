@@ -1,7 +1,7 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 
-function parse_conditions(expconds::Expr=:(); kwconds::Array...)
+function parse_conditions(expconds::Expr=:(); kwconds...)
     # List of boundary conditions
     keys = Symbol[]
     vals = Union{Real,Symbol,Expr}[]
@@ -48,13 +48,13 @@ mutable struct NodeBC<:BC
     funs::Array{Functor}
     nodes::Array{Node,1}
 
-    function NodeBC(expr::Union{Expr,TagType}, expconds::Expr=:(); kwconds::Array...)
+    function NodeBC(expr::Union{Expr,TagType}, expconds::Expr=:(); kwconds...)
         typeof(expr)<:TagType && (expr=:(isequal(tag,$expr)))
         keys, vals, funs = parse_conditions(expconds; kwconds...)
         return new(expr, keys, vals, funs, [])
     end
 
-    function NodeBC(nodes::Array{Node,1}, expconds::Expr=:(); kwconds::Array...)
+    function NodeBC(nodes::Array{Node,1}, expconds::Expr=:(); kwconds...)
         keys, vals, funs = parse_conditions(expconds; kwconds...)
         return new(:(), keys, vals, funs, nodes)
     end
@@ -64,7 +64,7 @@ end
 function setup_bc!(dom, bc::NodeBC)
     # Filter objects according to bc criteria
     bc.expr==:() || (bc.nodes = dom.nodes[bc.expr])
-    length(bc.nodes)==0 && warn("setup_bc!: applying boundary conditions to empty array of nodes while evaluating expression $(bc.expr)")
+    length(bc.nodes)==0 && @warn "setup_bc!: applying boundary conditions to empty array of nodes while evaluating expression" bc.expr
 
     # Find prescribed essential bcs
     for (key,fun) in zip(bc.keys, bc.funs)
@@ -105,13 +105,13 @@ mutable struct FaceBC<:BC
     funs::Array{Functor}
     faces::Array{Face,1}
 
-    function FaceBC(expr::Union{Expr,TagType}, expconds::Expr=:(); kwconds::Array...)
+    function FaceBC(expr::Union{Expr,TagType}, expconds::Expr=:(); kwconds...)
         typeof(expr)<:TagType && (expr=:(isequal(tag,$expr)))
         keys, vals, funs = parse_conditions(expconds; kwconds...)
         return new(expr, keys, vals, funs, [])
     end
 
-    function FaceBC(faces::Array{<:Face,1}, expconds::Expr=:(); kwconds::Array...)
+    function FaceBC(faces::Array{<:Face,1}, expconds::Expr=:(); kwconds...)
         keys, vals, funs = parse_conditions(expconds; kwconds...)
         return new(:(), keys, vals, funs, faces)
     end
@@ -125,13 +125,13 @@ mutable struct EdgeBC<:BC
     funs::Array{Functor}
     edges::Array{Edge,1}
 
-    function EdgeBC(expr::Union{Expr,TagType}, expconds::Expr=:(); kwconds::Array...)
+    function EdgeBC(expr::Union{Expr,TagType}, expconds::Expr=:(); kwconds...)
         typeof(expr)<:TagType && (expr=:(isequal(tag,$expr)))
         keys, vals, funs = parse_conditions(expconds; kwconds...)
         return new(expr, keys, vals, funs, [])
     end
 
-    function EdgeBC(edges::Array{<:Edge,1}, expconds::Expr=:(); kwconds::Array...)
+    function EdgeBC(edges::Array{<:Edge,1}, expconds::Expr=:(); kwconds...)
         keys, vals, funs = parse_conditions(expconds; kwconds...)
         return new(:(), keys, vals, funs, edges)
     end
@@ -147,7 +147,7 @@ function setup_bc!(dom, bc::Union{FaceBC,EdgeBC})
         bc.expr==:() || (bc.edges = dom.edges[bc.expr])
         facets = bc.edges
     end
-    length(facets)==0 && warn("setup_bc!: applying boundary conditions to empty array of faces/edges while evaluating expression $(bc.expr)")
+    length(facets)==0 && @warn "setup_bc!: applying boundary conditions to empty array of faces/edges while evaluating expression" bc.expr
 
     #@show bc.expr
     #@show facets
@@ -201,13 +201,13 @@ mutable struct ElemBC<:BC
     funs::Array{Functor}
     elems::Array{Element,1}
 
-    function ElemBC(expr::Union{Expr,TagType}, expconds::Expr=:(); kwconds::Array...)
+    function ElemBC(expr::Union{Expr,TagType}, expconds::Expr=:(); kwconds...)
         typeof(expr)<:TagType && (expr=:(isequal(tag,$expr)))
         keys, vals, funs = parse_conditions(expconds; kwconds...)
         return new(expr, keys, vals, funs, [])
     end
 
-    function ElemBC(elems::Array{<:Element,1}, expconds::Expr=:(); kwconds::Array...)
+    function ElemBC(elems::Array{<:Element,1}, expconds::Expr=:(); kwconds...)
         keys, vals, funs = parse_conditions(expconds; kwconds...)
         return new(:(), keys, vals, funs, elems)
     end
@@ -218,7 +218,7 @@ end
 function setup_bc!(dom, bc::ElemBC)
     # Filter objects according to bc criteria
     bc.expr==:() || (bc.elems = dom.elems[bc.expr])
-    length(bc.elems)==0 && warn("setup_bc!: applying boundary conditions to empty array of elements while evaluating expression $(bc.expr)")
+    length(bc.elems)==0 && @warn "setup_bc!: applying boundary conditions to empty array of elements while evaluating expression" bc.expr
 
     # Find prescribed essential bcs
     for (key,fun) in zip(bc.keys, bc.funs)  # e.g. key = tx, ty, tn, etc...

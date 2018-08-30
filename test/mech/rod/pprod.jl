@@ -1,5 +1,5 @@
 using Amaru
-using Base.Test
+using Test
 
 coord = [ 0. 0.; 1. 0. ]
 conn  = [ 1 2 ]

@@ -1,5 +1,5 @@
 using Amaru
-using Base.Test
+using Test
 
 # mesh generation
 
