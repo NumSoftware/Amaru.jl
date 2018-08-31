@@ -11,7 +11,7 @@ const HeaderType = Union{Symbol,AbstractString}
 mutable struct DTable
     data    ::Array{Array{Float64,1},1}
     colindex::Dict{Symbol,Int} # Data index
-    fields  ::Array{HeaderType,1}
+    fields  ::Array{Symbol,1}
     function DTable()
         this = new()
         this.data     = [ ]
@@ -22,30 +22,30 @@ mutable struct DTable
     function DTable(header::Array{<:HeaderType,1})
         this = new()
         this.data     = [ Float64[] for s in header ]
-        this.colindex = Dict( key=>i for (i,key) in enumerate(header) )
-        this.fields   = copy(header)
+        this.colindex = Dict( Symbol(key)=>i for (i,key) in enumerate(header) )
+        this.fields   = Symbol.(header)
         return this
     end
-    function DTable(header::Array{<:HeaderType,1}, data::Array{Array{Float64,1},1})
-        this      = new()
-        nfields   = length(header)
-        ncols     = length(data)
-        nfields  != ncols && error("DTable: header and data fields do not match")
-        this.data     = deepcopy(data)
-        this.colindex = Dict( key=>i for (i,key) in enumerate(header) )
-        this.fields   = copy(header)
-        return this
-    end
-    function DTable(header::Array{<:HeaderType,1}, matrix::Array{Float64,2})
-        this      = new()
-        nfields   = length(header)
-        ncols     = size(matrix,2)
-        nfields  != ncols && error("DTable: header and data fields do not match")
-        this.data     = [ matrix[:,i] for i=1:nfields ]
-        this.colindex = Dict( key=>i for (i,key) in enumerate(header) )
-        this.fields   = copy(header)
-        return this
-    end
+end
+
+
+function DTable(header::Array{<:HeaderType,1}, data::Array{Array{Float64,1},1})
+    this      = DTable(header)
+    nfields   = length(header)
+    ncols     = length(data)
+    nfields  != ncols && error("DTable: header and number of data columns do not match")
+    this.data = deepcopy(data)
+    return this
+end
+
+
+function DTable(header::Array{<:HeaderType,1}, matrix::Array{Float64,2})
+    this      = DTable(header)
+    nfields   = length(header)
+    ncols     = size(matrix,2)
+    nfields  != ncols && error("DTable: header and number of data columns do not match")
+    this.data = [ matrix[:,i] for i=1:nfields ]
+    return this
 end
 
 
@@ -58,6 +58,7 @@ mutable struct DBook
     end
 end
 
+
 import Base.push!
 function push!(table::DTable, row::Array{Float64,1})
     @assert length(table.fields)==length(row)
@@ -65,6 +66,7 @@ function push!(table::DTable, row::Array{Float64,1})
         push!(table.data[i], val)
     end
 end
+
 
 function push!(book::DBook, table::DTable)
     push!(book.tables, table)
