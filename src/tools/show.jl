@@ -11,6 +11,53 @@ macro showm(M)
     end
 end
 
+
+# Prints the values of an object fields
+function print_field_values(io::IO, obj::Any)
+    ctype = typeof(obj)
+    print(io, ctype)
+    for (field, ty) in zip(fieldnames(ctype), ctype.types )
+        print(io, "\n  ", field, ": ")
+        if !isdefined(obj, field)
+            print(io, ty, "undef ")
+            continue
+        end
+
+        item = getfield(obj, field)
+        ty   = typeof(item) # update type
+
+        if isbitstype(ty) || ty in (String, Symbol, Expr)
+            print(io, repr(item))
+        elseif :name in fieldnames(ty) 
+            if isdefined(item, :name)
+                print(io, ty, " name=", getfield(item, :name))
+            else
+                print(io, ty, " undef")
+            end
+        elseif :id in fieldnames(ty) 
+            if isdefined(item, :id )
+                print(io, ty, " id=", getfield(item, :id ))
+            else
+                print(io, ty, " undef")
+            end
+        #elseif ty <: AbstractVecOrMat{<:Real}
+            #print(io, summary(item))
+        elseif ty<:AbstractArray
+            s = summary(item)
+            if length(s)>40
+                s = s[ 1: findfirst("{",s).start-1 ]
+            end
+            print(io, s)
+        elseif ty<:Function
+            print(io, "Function ", item)
+        else
+            print(io, summary(item))
+        end
+    end
+    return nothing
+end
+
+
 function print_compact(io::IO, obj::Any)
     ty = typeof(obj) # update type
 
@@ -44,54 +91,6 @@ function print_array_compact(io::IO, array::AbstractArray)
     print(io, "]")
 end
 
-
-# Prints the values of an object fields
-function print_field_values(io::IO, obj::Any)
-    ctype = typeof(obj)
-    print(io, ctype)
-    for (field, ty) in zip(fieldnames(ctype), ctype.types )
-        print(io, "\n  ", field, ": ")
-        if !isdefined(obj, field)
-            print(io, ty, "undef ")
-            continue
-        end
-
-        item = getfield(obj, field)
-        ty   = typeof(item) # update type
-
-
-        if isbitstype(ty)
-            print(io, item)
-        elseif ty==String
-            print(io, "\"", item, "\"")
-        elseif :name in fieldnames(ty) 
-            if isdefined(item, :name)
-                print(io, ty, " name=", getfield(item, :name))
-            else
-                print(io, ty, " undef")
-            end
-        elseif :id in fieldnames(ty) 
-            if isdefined(item, :id )
-                print(io, ty, " id=", getfield(item, :id ))
-            else
-                print(io, ty, " undef")
-            end
-        #elseif ty <: AbstractVecOrMat{<:Real}
-            #print(io, summary(item))
-        elseif ty<:AbstractArray
-            s = summary(item)
-            if length(s)>40
-                s = s[ 1: findfirst("{",s).start-1 ]
-            end
-            print(io, s)
-        elseif ty<:Function
-            print(io, "Function ", item)
-        else
-            print(io, summary(item))
-        end
-    end
-    return nothing
-end
 
 # Print arrays of objects
 function print_array_values(io::IO, array::AbstractArray)

@@ -10,7 +10,7 @@ const HeaderType = Union{Symbol,AbstractString}
 
 mutable struct DTable
     data    ::Array{Array{Float64,1},1}
-    colindex::Dict{HeaderType,Int} # Data index
+    colindex::Dict{Symbol,Int} # Data index
     fields  ::Array{HeaderType,1}
     function DTable()
         this = new()
@@ -228,7 +228,7 @@ function loadtable(filename::String, delim='\t')
 
     if format=="dat"
         data, headstr = readdlm(filename, delim, header=true, use_mmap=false)
-        fields = [ strip(field) for field in vec(headstr) ]
+        fields = [ Symbol(strip(field)) for field in vec(headstr) ]
 
         table = DTable(fields , data)
         return table
