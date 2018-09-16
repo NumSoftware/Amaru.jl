@@ -3,7 +3,7 @@ using Amaru
 # Mesh generation
 
 blocks = [
-    Block3D( [0 0 0; 0.2 2.0 0.2], nx=2, ny=12, nz=2, shape=HEX8),
+    Block3D( [0 0 0; 0.2 2.0 0.2], nx=2, ny=12, nz=2, cellshape=HEX8),
 ]
 
 mesh = Mesh(blocks, verbose=true)

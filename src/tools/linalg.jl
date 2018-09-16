@@ -4,7 +4,7 @@
 const Vect = Array{Float64, 1}
 const Matx = Array{Float64, 2}
 
-export @showm
+eye(n) = Array{Float64,2}(I, n, n)
 
 # Fancy matrix printing
 function print_matrix(M::Array{Float64,2})

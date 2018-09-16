@@ -7,7 +7,7 @@ using Test
 
 # Mesh generation
 
-block = Block3D( [0 0 0; 1 1 1], nx=1, ny=1, nz=1, shape=HEX8) 
+block = Block3D( [0 0 0; 1 1 1], nx=1, ny=1, nz=1, cellshape=HEX8) 
 mesh = Mesh(block, verbose=true, reorder=false)
 
 # Domain definition

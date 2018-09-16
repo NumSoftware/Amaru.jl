@@ -1,7 +1,7 @@
 using Amaru
 using Test
 
-bl = Block3D( [0 0 0; 1 1 1], nx=4, ny=4, nz=4, shape=HEX8)
+bl = Block3D( [0 0 0; 1 1 1], nx=4, ny=4, nz=4, cellshape=HEX8)
 mesh = Mesh(bl, verbose=false)
 
 mat = MaterialBind(:solids, ElasticSolid(E=100.0, nu=0.2) )

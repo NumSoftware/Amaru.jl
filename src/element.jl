@@ -120,7 +120,7 @@ function elem_config_ips(elem::Element, nips::Int=0)
 
     # fix for joint elements
     if shape.family==JOINT_SHAPE
-        C     = C[1:div(end,2),:]
+        C     = C[1:shape.facet_shape.npoints, : ]
         shape = shape.facet_shape
     end 
 
@@ -128,9 +128,8 @@ function elem_config_ips(elem::Element, nips::Int=0)
     for ip in elem.ips
         N = shape.func(ip.R)
         ip.X = C'*N
-        if length(ip.X)==2 # complete z=0.0 for 2D analyses
-            ip.X = [ ip.X; 0.0 ]
-        end
+        # complete z=0.0 for 2D analyses
+        length(ip.X)==2 && push!(ip.X, 0.0)
     end
 end
 
