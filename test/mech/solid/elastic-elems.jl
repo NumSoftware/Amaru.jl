@@ -5,7 +5,7 @@ dis = [ -0.012, -0.095 ]
 
 for shape in (TRI3, TRI6, QUAD4, QUAD8, QUAD9) 
     printstyled(shape.name, color=:cyan); println()
-    bl = Block2D( [0 0; 1 1], nx=5, ny=5, cellshape=shape)
+    bl = Block2D( [0 0; 1 1], nx=2, ny=2, cellshape=shape)
     mesh = Mesh(bl, verbose=false)
     tag!(mesh.faces[:(y==0)], "bottom") # bottom face
     tag!(mesh.faces[:(y==1)], "top") # top face
@@ -35,7 +35,7 @@ end
 
 for shape in (TET4, TET10, HEX8, HEX20)
     printstyled(shape.name, color=:cyan); println()
-    bl = Block3D( [0 0 0; 1 1 1], nx=5, ny=5, nz=5, cellshape=shape)
+    bl = Block3D( [0 0 0; 1 1 1], nx=2, ny=2, nz=2, cellshape=shape)
     mesh = Mesh(bl, verbose=false)
     tag!(mesh.faces[:(z==0)], "bottom") # bottom face
     tag!(mesh.faces[:(z==1)], "top") # top face

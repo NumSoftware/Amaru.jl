@@ -2,7 +2,7 @@ using Amaru
 using Test
 
 # Mesh generation
-bl  = Block3D( [0 0 0; 1.0 6.0 1.0], nx=3, ny=20, nz=3)
+bl  = Block3D( [0 0 0; 1.0 6.0 1.0], nx=3, ny=5, nz=3)
 bl1 = BlockInset( [0.2 0.2 0.2; 0.2 5.8 0.2], curvetype="polyline")
 bl2 = move!( copy(bl1), dx=0.6)
 bl3 = move!( copy(bl1), dx=0.3)
@@ -31,5 +31,4 @@ mon = NodeLogger(:(x==0.5 && y==1.0 && z==0.5) )
 
 @test solve!(dom, bcs, nincs=20, verbose=true)
 
-@show dom.nodes[:(y==3.0 && z==0)][1].dofdict[:uz].vals
 save(dom, "dom1.vtk")
