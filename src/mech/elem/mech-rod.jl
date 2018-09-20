@@ -20,13 +20,17 @@ end
 matching_shape_family(::Type{MechRod}) = LINE_SHAPE
 
 function elem_stiffness(elem::MechRod)
+    local E::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
+
     ndim   = elem.shared_data.ndim
     nnodes = length(elem.nodes)
+
     A = elem.mat.A
     C = elem_coords(elem)
     K = zeros(nnodes*ndim, nnodes*ndim)
     B = zeros(1, nnodes*ndim)
     J = Array{Float64}(undef, 1, ndim)
+
 
     for ip in elem.ips
         dNdR = elem.shape.deriv(ip.R)
@@ -41,12 +45,12 @@ function elem_stiffness(elem::MechRod)
             end
         end
 
-        E    = calcD(elem.mat,ip.data)
+        E    = calcD(elem.mat, ip.data)
         coef = E*A*detJ*ip.w
         @gemm K += coef*B'*B
     end
-    keys = (:ux, :uy, :uz)[1:ndim]
-    map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
+    keys = [:ux, :uy, :uz][1:ndim]
+    map  = Int[ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
     return K, map, map
 end
             
@@ -80,8 +84,8 @@ function elem_mass(elem::MechRod)
 
     end
 
-    keys = (:ux, :uy, :uz)[1:ndim]
-    map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
+    keys = [:ux, :uy, :uz][1:ndim]
+    map  = Int[ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
     return M, map, map
 end
                         
@@ -175,25 +179,29 @@ function distributed_bc(elem::MechRod, facet::Union{Facet, Nothing}, key::Symbol
     end
 
     # generate a map
-    keys = (:ux, :uy, :uz)[1:ndim]
-    map  = [ node.dofdict[key].eq_id for node in target.nodes for key in keys ]
+    keys = [:ux, :uy, :uz][1:ndim]
+    map  = Int[ node.dofdict[key].eq_id for node in target.nodes for key in keys ]
 
     return reshape(F', nnodes*ndim), map
 end
                         
                         
 function elem_update!(elem::MechRod, U::Array{Float64,1}, F::Array{Float64,1}, Î”t::Float64)
+    local A::Float64, coef::Float64, dNdR::Matrix{Float64}
+
     ndim   = elem.shared_data.ndim
     nnodes = length(elem.nodes)
     A      = elem.mat.A
-    keys   = (:ux, :uy, :uz)[1:ndim]
-    map    = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
+    keys   = [:ux, :uy, :uz][1:ndim]
+    map    = Int[ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
 
     dU = U[map]
     dF = zeros(nnodes*ndim)
     C  = elem_coords(elem)
     B  = zeros(1, nnodes*ndim)
     J  = Array{Float64}(undef, 1, ndim)
+
+
     for ip in elem.ips
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = dNdR*C
@@ -210,10 +218,11 @@ function elem_update!(elem::MechRod, U::Array{Float64,1}, F::Array{Float64,1}, Î
         deps = (B*dU)[1]
         dsig = stress_update(elem.mat, ip.data, deps)
         coef = A*detJ*ip.w
-        dF  += coef*B'*dsig
+        dF  .+= coef*vec(B')*dsig
     end
 
-    F[map] += dF
+    F[map] .+= dF
+    #return
 end
 
 function elem_vals(elem::MechRod)
