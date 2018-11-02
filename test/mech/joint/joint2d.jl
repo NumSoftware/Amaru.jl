@@ -22,6 +22,7 @@ mats = [
 logger = IpLogger("jips")
 
 dom = Domain(msh, mats, logger, model_type=:plane_stress, thickness=1.0)
+#dom = Domain(msh, mats, logger, thickness=1.0)
 
 # Boundary conditions
 bcs = [
@@ -29,6 +30,13 @@ bcs = [
        FaceBC(:(x==0.2), :(ux=2.0*1.7e-4)),
       ]
 
-@test solve!(dom, bcs, autoinc=true, nincs=20, maxits=3, tol=0.01, verbose=true, scheme=:ME, nouts=10)
+try
+    @test solve!(dom, bcs, autoinc=true, nincs=20, maxits=3, tol=0.01, verbose=true, scheme=:ME, nouts=10)
+catch
+end
 
-save(dom, "dom1.vtk")
+if Amaru.Debug.makeplots
+    using PyPlot
+    table = logger.table
+    plot(table[:upa], table[:s1])
+end
