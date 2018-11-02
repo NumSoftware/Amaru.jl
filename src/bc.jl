@@ -69,7 +69,7 @@ function setup_bc!(dom, bc::NodeBC)
     # Find prescribed essential bcs
     for (key,fun) in zip(bc.keys, bc.funs)
         for node in bc.nodes
-            !haskey(node.dofdict, key) && error("get_dofs!: key ($key) not found in node $(node.id)")
+            !haskey(node.dofdict, key) && continue #error("get_dofs!: key ($key) not found in node $(node.id)")
             dof = node.dofdict[key]
             dof.name == key && (dof.prescribed = true)
         end
