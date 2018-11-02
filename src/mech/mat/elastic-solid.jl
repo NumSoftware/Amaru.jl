@@ -54,25 +54,25 @@ function set_state(ipd::ElasticSolidIpState; sig=zeros(0), eps=zeros(0))
     end
 end
 
-function calcDe(E::Number, nu::Number, model_type::Symbol)
+function calcDe(E::Number, ν::Number, model_type::Symbol)
     if model_type==:plane_stress
-        c = E/(1.0-nu^2)
+        c = E/(1.0-ν^2)
         return [
-            c    c*nu 0.0 0.0 0.0 0.0
-            c*nu c    0.0 0.0 0.0 0.0
-            0.0   0.0   0.0 0.0 0.0 0.0
-            0.0   0.0   0.0 c*(1.0-nu) 0.0 0.0
-            0.0   0.0   0.0 0.0 0.0 0.0
-            0.0   0.0   0.0 0.0 0.0 0.0 ]
+            c    c*ν   0.0  0.0  0.0  0.0
+            c*ν  c     0.0  0.0  0.0  0.0
+            0.0  0.0   0.0  0.0  0.0  0.0
+            0.0  0.0   0.0  0.0  0.0  0.0
+            0.0  0.0   0.0  0.0  0.0  0.0 
+            0.0  0.0   0.0  0.0  0.0  c*(1.0-ν) ]
     else
-        c = E/((1.0+nu)*(1.0-2.0*nu))
+        c = E/((1.0+ν)*(1.0-2.0*ν))
         return [
-            c*(1-nu) c*nu     c*nu     0.0         0.0         0.0
-            c*nu     c*(1-nu) c*nu     0.0         0.0         0.0
-            c*nu     c*nu     c*(1-nu) 0.0         0.0         0.0
-            0.0       0.0       0.0       c*(1-2*nu) 0.0         0.0
-            0.0       0.0       0.0       0.0         c*(1-2*nu) 0.0
-            0.0       0.0       0.0       0.0         0.0         c*(1-2*nu) ]
+            c*(1-ν) c*ν     c*ν     0.0         0.0         0.0
+            c*ν     c*(1-ν) c*ν     0.0         0.0         0.0
+            c*ν     c*ν     c*(1-ν) 0.0         0.0         0.0
+            0.0     0.0     0.0     c*(1-2*ν)   0.0         0.0
+            0.0     0.0     0.0     0.0         c*(1-2*ν)   0.0
+            0.0     0.0     0.0     0.0         0.0         c*(1-2*ν) ]
     end
 end
 
