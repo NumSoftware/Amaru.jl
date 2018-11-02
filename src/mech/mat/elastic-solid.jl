@@ -64,6 +64,7 @@ function calcDe(E::Number, ν::Number, model_type::Symbol)
             0.0  0.0   0.0  0.0  0.0  0.0
             0.0  0.0   0.0  0.0  0.0  0.0 
             0.0  0.0   0.0  0.0  0.0  c*(1.0-ν) ]
+        # ezz = -ν/E*(sxx+syy)
     else
         c = E/((1.0+ν)*(1.0-2.0*ν))
         return [

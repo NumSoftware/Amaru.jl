@@ -65,15 +65,21 @@ function setup_bc!(dom, bc::NodeBC)
     # Filter objects according to bc criteria
     bc.expr==:() || (bc.nodes = dom.nodes[bc.expr])
     length(bc.nodes)==0 && @warn "setup_bc!: applying boundary conditions to empty array of nodes while evaluating expression" bc.expr
+    not_found_keys = Set()
 
     # Find prescribed essential bcs
     for (key,fun) in zip(bc.keys, bc.funs)
         for node in bc.nodes
-            !haskey(node.dofdict, key) && continue #error("get_dofs!: key ($key) not found in node $(node.id)")
+            if !haskey(node.dofdict, key)
+                push!(not_found_keys, key)
+                continue 
+            end
             dof = node.dofdict[key]
             dof.name == key && (dof.prescribed = true)
         end
     end
+
+    length(not_found_keys)>0 && @warn "setup_bc!: the following keys were not found at some nodes: $(join(not_found_keys,", "))"
 end
 
 
@@ -148,9 +154,6 @@ function setup_bc!(dom, bc::Union{FaceBC,EdgeBC})
         facets = bc.edges
     end
     length(facets)==0 && @warn "setup_bc!: applying boundary conditions to empty array of faces/edges while evaluating expression" bc.expr
-
-    #@show bc.expr
-    #@show facets
 
     # Find prescribed essential bcs
     for (key,fun) in zip(bc.keys, bc.funs)  # e.g. key = tx, ty, tn, etc...
