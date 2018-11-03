@@ -70,16 +70,11 @@ function setup_bc!(dom, bc::NodeBC)
     # Find prescribed essential bcs
     for (key,fun) in zip(bc.keys, bc.funs)
         for node in bc.nodes
-            if !haskey(node.dofdict, key)
-                push!(not_found_keys, key)
-                continue 
-            end
+            !haskey(node.dofdict, key) && continue
             dof = node.dofdict[key]
             dof.name == key && (dof.prescribed = true)
         end
     end
-
-    length(not_found_keys)>0 && @warn "setup_bc!: the following keys were not found at some nodes: $(join(not_found_keys,", "))"
 end
 
 
@@ -89,6 +84,7 @@ function compute_bc_vals!(bc::NodeBC, t::Float64, U::Array{Float64,1}, F::Array{
     for node in bc.nodes
         x, y, z = node.X
         for (key,fun) in zip(bc.keys, bc.funs)
+            !haskey(node.dofdict, key) && continue
             dof = node.dofdict[key]
             if key==dof.name # essential bc (dof.prescribed should not be modified!)
                 U[dof.eq_id] = fun(t,x,y,z)
@@ -155,11 +151,13 @@ function setup_bc!(dom, bc::Union{FaceBC,EdgeBC})
     end
     length(facets)==0 && @warn "setup_bc!: applying boundary conditions to empty array of faces/edges while evaluating expression" bc.expr
 
+    not_found_keys = Set()
+
     # Find prescribed essential bcs
-    for (key,fun) in zip(bc.keys, bc.funs)  # e.g. key = tx, ty, tn, etc...
+    for (key,fun) in zip(bc.keys, bc.funs)
         for facet in facets
             for node in facet.nodes
-                !haskey(node.dofdict, key) && continue # if key not found, assume it is a natural bc
+                !haskey(node.dofdict, key) && continue
                 dof = node.dofdict[key]
                 dof.name == key && (dof.prescribed = true)
             end
