@@ -195,7 +195,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
 
     local K::SparseMatrixCSC{Float64,Int64}
 
-    remountK = true
+    #remountK = true
 
     while t < 1.0 - ttol
         verbose && printstyled("  increment $inc from t=$(round(t,digits=10)) to t=$(round(t+dt,digits=10)) (dt=$(round(dt,digits=10))):", bold=true, color=:blue) # color 111
@@ -212,12 +212,13 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
         nfails    = 0    # counter for iteration fails
         for it=1:maxits
             if it>1; ΔUi .= 0.0 end # essential values are applied only at first iteration
-            if it>1; remountK=true end 
+            #if it>1; remountK=true end 
             lastres = residue # residue from last iteration
 
             # Try FE step
             verbose && print("    assembling... \r")
-            remountK && (K = mount_K(dom, ndofs))
+            #remountK && (K = mount_K(dom, ndofs))
+            K = mount_K(dom, ndofs)
 
             # Solve
             verbose && print("    solving...   \r")
