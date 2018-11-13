@@ -44,4 +44,5 @@ include("mat/integrator.jl")
 # Solvers
 include("solver.jl")
 include("dyn-solver.jl")
+include("modal-solver.jl")
 export solve!
