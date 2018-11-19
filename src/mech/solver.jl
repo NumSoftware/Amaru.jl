@@ -126,11 +126,11 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
     if save_incs
         if nouts>nincs
             nincs = nouts
-            info("  nincs changed to $nincs to match nouts")
+            @info "  nincs changed to $nincs to match nouts"
         end
         if nincs%nouts != 0
             nincs = nincs - (nincs%nouts) + nouts
-            info("  nincs changed to $nincs to be a multiple of nouts")
+            @info "  nincs changed to $nincs to be a multiple of nouts"
         end
 
         strip(outdir) == "" && (outdir = ".")
