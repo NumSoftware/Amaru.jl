@@ -111,74 +111,64 @@ function solve_system!(K::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu:
 end
 
 
+function SismicForce(dom::Domain, bcs, M::SparseMatrixCSC{Float64, Int}, F::Vect, AS::Array{Float64,2}, keysis::Symbol,
+tfia::Float64, tds::Float64)
 
-function frequencies(dom::Domain, bcs::Array; nmods::Int=5, savemods=true, verbose=true)
-    if verbose
-        printstyled("FEM modal analysis:\n", bold=true, color=:cyan) 
-    end
-
-    # Get dofs organized according to boundary conditions
     dofs, nu = configure_dofs!(dom, bcs)
 
     ndofs = length(dofs)
-    umap  = 1:nu         # map for unknown displacements
-    pmap  = nu+1:ndofs   # map for prescribed displacements
-    dom.ndofs = length(dofs)
-    verbose && println("  unknown dofs: $nu")
 
-    K = mount_K(dom, ndofs)
-    M = mount_M(dom, ndofs)
-
-    if nu>0
-        K11 = K[1:nu, 1:nu]
-        M11 = M[1:nu, 1:nu]
-    end
-
-    # Inverse of the lumped matrix in vector form
-    m11 = inv.(sum(M11, 2)) 
-    P = m11.*K11
-
-    # Eigenvalues and eigenvectors
-    neign = min(20, length(m11)-2)
-    L, V =eigs(P, nev=neign, which=:SM)
-
-
-    p = sortperm(real(L))
-    q = [ i for (i,v) in enumerate(L) if imag(v)!=0.0 ] 
-    r = [ i for (i,v) in enumerate(L) if real(v)<=0.0 ] 
-    pp = setdiff(p, union(q,r))
-
-    L = L[pp][1:nmods].^0.5
-    V = V[pp][1:nmods]
-
-    idefmod = 1    
-    for j=1:nmod
-
-        Umod = V[:,j]
-
-        for (k,dof) in enumerate(dofs)
-            dof.vals[dof.name] = Umod[k] 
+    ndat = length(AS) #quantity of aceleration data
+    AS2 = zeros(ndat+1) #Sismic aceleration data how vector
+    c = 0
+    for i=1:size(AS,1)
+        for j=1:size(AS,2)
+            c += 1
+            AS2[c+1] = AS[i,j]
         end
-
-        save(dom, dom.filekey * "-defmod$idefmod.vtk", verbose=false) # saves current domain state for modal deformated
-        verbose && printstyled("  ", dom.filekey * "-defmod$idefmod.vtk file written (Domain)\n", color=:green)
-        idefmod += 1
-
     end
 
-    # reset displacement values
-    for (k,dof) in enumerate(dofs)
-        dof.vals[dof.name] = 0.0
+    vts = zeros(ndat+1) #time vetor correspond to acelerations
+    
+    for i=1:ndat+1
+        vts[i] = (i-1)*tds/ndat
     end
+    
+    FAS = hcat(vts,AS2) # Function of aceleration
+    #Interpolation of the aceleration value
 
-    return L, V
+        inic = 0
+        fin = 0
 
-end
+        for i=1:ndat
+            if FAS[i,1]<=tfia<=FAS[i+1,1]
+                inic = i
+                fin = i+1
+            end
+            if inic!=0 & fin!=0; break end
+        end
+    
+        m = (FAS[fin,2]-FAS[inic,2])/(FAS[fin,1]-FAS[inic,1])
+        acel = FAS[inic,2] + m*(tfia - FAS[inic,1])
+    #@show acel
 
-function rayleigh_coeffs(w1::Float64, w2::Float64, xi1::Float64, xi2::Float64=xi1)
-    alpha = 2 * ((w1 ^ 2) * w2 * xi2 - w1 * (w2 ^ 2) * xi1) / ((w1 ^ 2)-(w2 ^ 2))
-    beta  = 2 * (w1 * xi1 - w2 * xi2)/((w1 ^ 2) - (w2 ^ 2))
-    return alpha, beta
+    #Dof sismic aceleration    
+
+    VAS  = zeros(ndofs) #Sismic aceleration vector accord dof
+
+    nodes = dom.nodes
+    
+    for node in nodes
+        dof = node.dofdict[keysis]
+        VAS[dof.eq_id] += acel
+    end    
+    
+    #Dof sismic force
+    FS = M*VAS
+    F += FS
+
+    return F
+
 end
 
 
@@ -211,7 +201,7 @@ Available options are:
 `saveips=false` : If true, saves corresponding output files with ip information
 
 """
-function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, maxits::Int=5, autoinc::Bool=false, 
+function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds::Float64=0.0, tss::Float64=0.0, nincs::Int=1, maxits::Int=5, autoinc::Bool=false, 
                    nouts::Int=0, nmods::Int=10, alpha::Real=0.0, beta::Real=0.0,
                    tol::Number=1e-2, verbose::Bool=true, save_incs::Bool=false, 
                    scheme::Symbol = :FE, filekey="out")::Bool
@@ -275,6 +265,19 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, m
     for ip in ips
         ip.data0 = deepcopy(ip.data)
     end
+    
+                
+    #If the problem is sismic, read the sismic acelerations asking to user the file's name AS:SeismicAcelerations
+
+    if sism==true
+         print("What is the .dat file name of the sismic acelerations?")
+         AS = readdlm("$(chomp(readline())).dat")
+         AS= 9.81*AS
+         print("What is the key correspond to sismic direction (fx, fy, fz)?")
+         keysis = Symbol(readline())
+    end 
+
+                
 
     # Initial accelerations
     K = mount_K(dom, ndofs)
@@ -282,6 +285,14 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, m
     A = zeros(ndofs) 
     V = zeros(ndofs) 
     Uex, Fex = get_bc_vals(dom, bcs) # get values at time t
+                
+    #If the problem has a sism, the force sismic is add
+
+    if sism==true && tss<=0 #tss:time when seismic activity starts tds: time of seismic duration 0:current time =0s
+        M = mount_M(dom,ndofs)
+        Fex = SismicForce(dom, bcs, M, Fex,AS,keysis,0.0,tds)
+    end                
+                
     solve_system!(M, A, Fex, nu)
 
     for (i,dof) in enumerate(dofs)
@@ -330,6 +341,14 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, nincs::Int=1, m
 
     while t < tend - ttol
         Uex, Fex = get_bc_vals(dom, bcs, t+dt) # get values at time t+dt
+                    
+        #If the problem has a sism, the force sismic is add
+                   
+        if sism==true && tss<=t+dt && tds+tss>=t+dt
+            M = mount_M(dom,ndofs)
+            Fex = SismicForce(dom, bcs, M,Fex,AS,keysis,t+dt,tds)
+        end
+                    
 
         verbose && printstyled("  increment $inc from t=$(round(t,digits=10)) to t=$(round(t+dt,digits=10)) (dt=$(round(dt,digits=10))):", bold=true, color=:blue) # color 111
         verbose && println()
