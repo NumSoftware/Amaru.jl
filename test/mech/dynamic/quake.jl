@@ -1,13 +1,10 @@
 using Amaru
 
-#Unidades kN,m,kPa
+#Units kN,m,kPa
 
 
-# Entrada de dados
-# Concreto
-fc = 40                    # resistência à compressão
-
-# Modulo de Elasticidade
+# Input data
+fc = 40     
 Ec0 = 21.5e6
 ae  = 0.9
 fcm = fc+8
@@ -17,38 +14,38 @@ Ec  = ai*Eci
 #Ec = 30e6
 roc = 2.6
 
-#VIGA1H###################
+#Beam1
 
 bl1  = Block3D( [0 0 2.7;0.3 4 2.9], nx=1, ny=10, nz=1, cellshape=HEX20)
 bl2  = Block3D( [0 0 2.9;0.3 4 3.0], nx=1, ny=10, nz=1, cellshape=HEX20)
 
-#VIGA2H###################
+#Beam2
 bl3  = Block3D( [4.3 0 2.7;4.6 4 2.9], nx=1, ny=10, nz=1, cellshape=HEX20)
 bl4  = Block3D( [4.3 0 2.9;4.6 4 3], nx=1, ny=10, nz=1, cellshape=HEX20)
 
-#VIGA1V###################
+#Beam3
 bl5  = Block3D( [0.3 -0.3 2.7;4.3 0.0 2.9], nx=10, ny=1, nz=1, cellshape=HEX20)
 bl6  = Block3D( [0.3 -0.3 2.9;4.3 0.0 3], nx=10, ny=1, nz=1, cellshape=HEX20)
-#VIGA2V###################
+#Beam4
 bl7  = Block3D( [0.3 4.0 2.7;4.3 4.3 2.9], nx=10, ny=1, nz=1, cellshape=HEX20)
 bl8  = Block3D( [0.3 4.0 2.9;4.3 4.3 3], nx=10, ny=1, nz=1, cellshape=HEX20)
-#COLUNA 1
+#Column1
 bl9  = Block3D( [0. -0.3 0.;0.30 0.0 2.7], nx=1, ny=1, nz=9, cellshape=HEX20)
 
-#COLUNA 2
+#Column2
 bl10  = Block3D( [0 4.0 0;0.30 4.3 2.7], nx=1, ny=1, nz=9, cellshape=HEX20)
 
-#COLUNA 3
+#Column3
 bl11  = Block3D( [4.3 -0.3 0.;4.6 0.0 2.7], nx=1, ny=1, nz=9, cellshape=HEX20)
 
-#COLUNA 4
+#Column4
 bl12  = Block3D( [4.3 4.0 0;4.60 4.3 2.7], nx=1, ny=1, nz=9, cellshape=HEX20)
 
-#LAJE
+#Plate
 bl13  = Block3D( [0.3 0 2.9;4.3 4 3], nx=10, ny=10, nz=1, cellshape=HEX20)
 
 
-#Blocos Adicionais  Apoios
+#Adicional Blocks to suports
 
 bl14  = Block3D( [0 -0.3 2.7;0.3 0.0 2.9], nx=1, ny=1, nz=1, cellshape=HEX20)
 bl15  = Block3D( [0 -0.3 2.9;0.3 0.0 3.0], nx=1, ny=1, nz=1, cellshape=HEX20)
@@ -66,7 +63,7 @@ bl21  = Block3D( [4.3 4.0 2.9;4.6 4.3 3.0], nx=1, ny=1, nz=1, cellshape=HEX20)
 mesh=Mesh(bl1,bl2,bl3,bl4,bl5,bl6,bl7,bl8,bl9,bl10,bl11,bl12,bl13,bl14,bl15,bl16,bl17,bl18,bl19,bl20,bl21,verbose=true)
 
 
-#Definicao de material
+#Definition of the material
 
 materials = [
     MaterialBind(:solids, ElasticSolid(E=Ec, nu=0.2, rho=roc))
@@ -76,7 +73,7 @@ materials = [
 dom = Domain(mesh,materials)
 
 
-#Definicao condicoes de contorno
+#Definition of the boundary conditions
 bcs = [
     NodeBC( :(z==0), :( uz = 0, uy=0, ux=0 ))
 ]
