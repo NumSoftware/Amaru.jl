@@ -32,6 +32,8 @@ FILES = [
     # Static analysis: joint models
     "mech/joint/joint1d.jl",
     "mech/joint/joint2d.jl",
+    "mech/joint/joint2d_tag.jl",
+    "mech/joint/joint3d_tag.jl",
 
     # Static analysis: embeddeed and semi-embedded elements
     "mech/inset/embedded.jl",
