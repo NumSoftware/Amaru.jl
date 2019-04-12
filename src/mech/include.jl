@@ -21,7 +21,9 @@ include("mat/dp-solid.jl")
 include("mat/vm-solid.jl")
 include("mat/mazars-solid.jl")
 include("mat/sc-solid.jl")
-include("mat/ortho-solid.jl")
+include("mat/nic-solid.jl")
+#include("mat/ortho-solid.jl")
+#include("mat/ortho-concrete-solid.jl")
 
 # Models for truss elements
 include("mat/elastic-rod.jl")
