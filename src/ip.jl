@@ -9,7 +9,16 @@ import Base.sort
 
 Abstract type for objects to store the state at integration points.
 """
-abstract type IpState end
+abstract type IpState 
+    #analysis_data::AnalysisData
+    #other data
+end
+
+function clone(src::IpState)
+    dst = deepcopy(src)
+    dst.analysis_data= src.analysis_data# keep original analyses data
+    return dst
+end
 
 
 
@@ -27,7 +36,7 @@ mutable struct Ip
     tag  ::TagType
     owner::Any    # Element
     data ::IpState  # Ip current state
-    data0::IpState  # Ip state for the last converged increment
+    #data0::IpState  # Ip state for the last converged increment
 
     function Ip(R::Array, w::Float64)
         this     = new(vec(R), w)
