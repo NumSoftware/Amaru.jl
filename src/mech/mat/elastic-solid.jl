@@ -2,18 +2,6 @@
 
 export ElasticSolid
 
-mutable struct ElasticSolidIpState<:IpState
-    shared_data::SharedAnalysisData
-    σ::Array{Float64,1}
-    ε::Array{Float64,1}
-    function ElasticSolidIpState(shared_data::SharedAnalysisData=SharedAnalysisData()) 
-        this = new(shared_data)
-        this.σ = zeros(6)
-        this.ε = zeros(6)
-        return this
-    end
-end
-
 
 mutable struct ElasticSolid<:Material
     E ::Float64
@@ -33,11 +21,33 @@ mutable struct ElasticSolid<:Material
     end
 end
 
+
+mutable struct ElasticSolidIpState<:IpState
+    analysis_data::AnalysisData
+    σ::Array{Float64,1}
+    ε::Array{Float64,1}
+    function ElasticSolidIpState(analysis_data::AnalysisData=AnalysisData()) 
+        this = new(analysis_data)
+        this.σ = zeros(6)
+        this.ε = zeros(6)
+        return this
+    end
+end
+
+
 # Returns the element type that works with this material model
 matching_elem_type(::ElasticSolid) = MechSolid
 
 # Create a new instance of Ip data
-new_ip_state(mat::ElasticSolid, shared_data::SharedAnalysisData) = ElasticSolidIpState(shared_data)
+new_ip_state(mat::ElasticSolid, analysis_data::AnalysisData) = ElasticSolidIpState(analysis_data)
+
+
+function set_state!(dst::ElasticSolidIpState, src::ElasticSolidIpState)
+    dst.σ .= src.σ
+    dst.ε .= src.ε
+    return dst
+end
+
 
 function set_state(ipd::ElasticSolidIpState; sig=zeros(0), eps=zeros(0))
     sq2 = √2.0
@@ -78,11 +88,11 @@ function calcDe(E::Number, ν::Number, model_type::Symbol)
 end
 
 function calcD(mat::ElasticSolid, ipd::ElasticSolidIpState)
-    return calcDe(mat.E, mat.nu, ipd.shared_data.model_type)
+    return calcDe(mat.E, mat.nu, ipd.analysis_data.model_type)
 end
 
 function stress_update(mat::ElasticSolid, ipd::ElasticSolidIpState, dε::Array{Float64,1})
-    De = calcDe(mat.E, mat.nu, ipd.shared_data.model_type)
+    De = calcDe(mat.E, mat.nu, ipd.analysis_data.model_type)
     dσ = De*dε
     ipd.ε += dε
     ipd.σ += dσ
@@ -90,5 +100,5 @@ function stress_update(mat::ElasticSolid, ipd::ElasticSolidIpState, dε::Array{F
 end
 
 function ip_state_vals(mat::ElasticSolid, ipd::ElasticSolidIpState)
-    return stress_strain_dict(ipd.σ, ipd.ε, ipd.shared_data.ndim)
+    return stress_strain_dict(ipd.σ, ipd.ε, ipd.analysis_data.ndim)
 end

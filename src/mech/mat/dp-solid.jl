@@ -3,13 +3,13 @@
 export DruckerPrager
 
 mutable struct DruckerPragerIpState<:IpState
-    shared_data::SharedAnalysisData
+    analysis_data::AnalysisData
     σ::Tensor2
     ε::Tensor2
     εpa::Float64
     Δγ::Float64
-    function DruckerPragerIpState(shared_data::SharedAnalysisData=SharedAnalysisData()) 
-        this = new(shared_data)
+    function DruckerPragerIpState(analysis_data::AnalysisData=AnalysisData()) 
+        this = new(analysis_data)
         this.σ   = zeros(6)
         this.ε   = zeros(6)
         this.εpa = 0.0
@@ -46,7 +46,7 @@ end
 matching_elem_type(::DruckerPrager) = MechSolid
 
 # Create a new instance of Ip data
-new_ip_state(mat::DruckerPrager, shared_data::SharedAnalysisData) = DruckerPragerIpState(shared_data)
+new_ip_state(mat::DruckerPrager, analysis_data::AnalysisData) = DruckerPragerIpState(analysis_data)
 
 function nlE(fc::Float64, εc::Float64, ε::Array{Float64,1})
     εv = abs(sum(ε[1:3]))
@@ -78,7 +78,7 @@ end
 function calcD(mat::DruckerPrager, ipd::DruckerPragerIpState)
     α   = mat.α
     H   = mat.H
-    De  = calcDe(mat.E, mat.ν, ipd.shared_data.model_type)
+    De  = calcDe(mat.E, mat.ν, ipd.analysis_data.model_type)
 
     if ipd.Δγ==0.0
         return De
@@ -101,7 +101,7 @@ end
 
 function stress_update(mat::DruckerPrager, ipd::DruckerPragerIpState, Δε::Array{Float64,1})
     σini = ipd.σ
-    De   = calcDe(mat.E, mat.ν, ipd.shared_data.model_type)
+    De   = calcDe(mat.E, mat.ν, ipd.analysis_data.model_type)
     σtr  = ipd.σ + inner(De, Δε)
     ftr  = yield_func(mat, ipd, σtr)
 
@@ -140,7 +140,7 @@ end
 
 
 function ip_state_vals(mat::DruckerPrager, ipd::DruckerPragerIpState)
-    ndim  = ipd.shared_data.ndim
+    ndim  = ipd.analysis_data.ndim
     σ, ε  = ipd.σ, ipd.ε
     j1    = tr(σ)
     srj2d = √J2D(σ)

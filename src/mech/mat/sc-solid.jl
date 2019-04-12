@@ -3,7 +3,7 @@
 export SmearedCrack
 
 mutable struct SmearedCrackIpState<:IpState
-    shared_data::SharedAnalysisData
+    analysis_data::AnalysisData
     σ::Tensor2
     ε::Tensor2
     w::Array{Float64,1} # relative displacements in the crack plane
@@ -13,8 +13,8 @@ mutable struct SmearedCrackIpState<:IpState
     Δλ ::Float64  # plastic multiplier
     h  ::Float64  # element size fraction for a integration point
     hascrack::Bool
-    function SmearedCrackIpState(shared_data::SharedAnalysisData=SharedAnalysisData()) 
-        this = new(shared_data)
+    function SmearedCrackIpState(analysis_data::AnalysisData=AnalysisData()) 
+        this = new(analysis_data)
         this.σ = zeros(6)
         this.ε = zeros(6)
         this.T = eye(6)
@@ -53,7 +53,7 @@ end
 matching_elem_type(::SmearedCrack) = MechSolid
 
 # Create a new instance of Ip data
-new_ip_state(mat::SmearedCrack, shared_data::SharedAnalysisData) = SmearedCrackIpState(shared_data)
+new_ip_state(mat::SmearedCrack, analysis_data::AnalysisData) = SmearedCrackIpState(analysis_data)
 
 function set_state(ipd::SmearedCrackIpState; sig=zeros(0), eps=zeros(0))
     if length(sig)==6
@@ -165,7 +165,7 @@ end
 
 
 function calcD(mat::SmearedCrack, ipd::SmearedCrackIpState)
-    De = calcDe(mat.E, mat.ν, ipd.shared_data.model_type)
+    De = calcDe(mat.E, mat.ν, ipd.analysis_data.model_type)
     ipd.hascrack || return De
     #@show ipd.hascrack
 
@@ -336,7 +336,7 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
 
     σini  = ipd.σ
     ipd.ε = ipd.ε + Δε
-    De    = calcDe(mat.E, mat.ν, ipd.shared_data.model_type)
+    De    = calcDe(mat.E, mat.ν, ipd.analysis_data.model_type)
     Δσe   = De*Δε
     σtr   = ipd.σ + Δσe
     #@show De*(ipd.ε)
@@ -524,7 +524,7 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
 end
 
 function ip_state_vals(mat::SmearedCrack, ipd::SmearedCrackIpState)
-    ndim  = ipd.shared_data.ndim
+    ndim  = ipd.analysis_data.ndim
     σ, ε  = ipd.σ, ipd.ε
 
     D = stress_strain_dict(σ, ε, ndim)

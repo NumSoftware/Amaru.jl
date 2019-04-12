@@ -3,15 +3,15 @@
 export MCJoint
 
 mutable struct MCJointIpState<:IpState
-    shared_data::SharedAnalysisData
+    analysis_data::AnalysisData
     σ  ::Array{Float64,1} # stress
     w  ::Array{Float64,1} # relative displacements
     upa::Float64  # effective plastic relative displacement
     Δλ ::Float64  # plastic multiplier
     h  ::Float64  # characteristic length from bulk elements
-    function MCJointIpState(shared_data::SharedAnalysisData=SharedAnalysisData())
-        this = new(shared_data)
-        ndim = shared_data.ndim
+    function MCJointIpState(analysis_data::AnalysisData=AnalysisData())
+        this = new(analysis_data)
+        ndim = analysis_data.ndim
         this.σ = zeros(ndim)
         this.w = zeros(ndim)
         this.upa = 0.0
@@ -37,7 +37,7 @@ mutable struct MCJoint<:Material
 
     function MCJoint(;E=NaN, nu=NaN, ft=NaN, mu=NaN, alpha=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear")
 
-        if isnan(wc)
+        if isnan(wc) # TODO: Remove 1000 from here and from examples!
         	if softcurve == "linear"
         		 wc = round(2*GF/(1000*ft), digits=10)
             elseif softcurve == "bilinear"
@@ -49,7 +49,7 @@ mutable struct MCJoint<:Material
                     ws = round(1.5*Gf/(1000*ft), digits=10)
                 end
             elseif softcurve == "hordijk"
-                wc = round(GF/(194.7019536*ft), digits=10)
+                wc = round(GF/(194.7019536*ft), digits=10)  # use 0.194
             end    
         end
 
@@ -69,14 +69,14 @@ end
 end
 
 # Create a new instance of Ip data
-new_ip_state(mat::MCJoint, shared_data::SharedAnalysisData) = MCJointIpState(shared_data)
+new_ip_state(mat::MCJoint, analysis_data::AnalysisData) = MCJointIpState(analysis_data)
 
 function set_state(ipd::MCJointIpState, sig=zeros(0), eps=zeros(0))
     @assert(false)
 end
 
 function yield_func(mat::MCJoint, ipd::MCJointIpState, σ::Array{Float64,1})
-    ndim = ipd.shared_data.ndim
+    ndim = ipd.analysis_data.ndim
     σmax = calc_σmax(mat, ipd, ipd.upa)
     if ndim == 3
         return sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*mat.μ
@@ -87,7 +87,7 @@ end
 
 
 function yield_deriv(mat::MCJoint, ipd::MCJointIpState)
-    ndim = ipd.shared_data.ndim
+    ndim = ipd.analysis_data.ndim
     if ndim == 3
         return [ mat.μ, ipd.σ[2]/sqrt(ipd.σ[2]^2 + ipd.σ[3]^2), ipd.σ[3]/sqrt(ipd.σ[2]^2 + ipd.σ[3]^2)]
     else
@@ -96,7 +96,7 @@ function yield_deriv(mat::MCJoint, ipd::MCJointIpState)
 end
 
 function potential_derivs(mat::MCJoint, ipd::MCJointIpState, σ::Array{Float64,1})
-    ndim = ipd.shared_data.ndim
+    ndim = ipd.analysis_data.ndim
     if ndim == 3
             if σ[1] >= 0.0 
                 # G1:
@@ -184,7 +184,7 @@ function σmax_deriv(mat::MCJoint, ipd::MCJointIpState, upa::Float64)
 end
 
 function calc_kn_ks_De(mat::MCJoint, ipd::MCJointIpState)
-    ndim = ipd.shared_data.ndim
+    ndim = ipd.analysis_data.ndim
     kn = mat.E*mat.α/ipd.h
     G  = mat.E/(2.0*(1.0+mat.ν))
     ks = G*mat.α/ipd.h
@@ -202,7 +202,7 @@ function calc_kn_ks_De(mat::MCJoint, ipd::MCJointIpState)
 end
 
 function calc_Δλ(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
-    ndim = ipd.shared_data.ndim
+    ndim = ipd.analysis_data.ndim
     maxits = 100
     Δλ     = 0.0
     f      = 0.0
@@ -271,7 +271,7 @@ function calc_Δλ(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
 end
 
 function calc_σ_upa(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
-    ndim = ipd.shared_data.ndim
+    ndim = ipd.analysis_data.ndim
     μ = mat.μ
     kn, ks, De = calc_kn_ks_De(mat, ipd)
 
@@ -295,7 +295,7 @@ function calc_σ_upa(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
 end
 
 function mountD(mat::MCJoint, ipd::MCJointIpState)
-    ndim = ipd.shared_data.ndim
+    ndim = ipd.analysis_data.ndim
     kn, ks, De = calc_kn_ks_De(mat, ipd)
     σmax = calc_σmax(mat, ipd, ipd.upa)
 
@@ -330,7 +330,7 @@ function mountD(mat::MCJoint, ipd::MCJointIpState)
 end
 
 function stress_update(mat::MCJoint, ipd::MCJointIpState, Δw::Array{Float64,1})
-    ndim = ipd.shared_data.ndim
+    ndim = ipd.analysis_data.ndim
     σini = copy(ipd.σ)
 
     μ = mat.μ
@@ -377,7 +377,7 @@ function stress_update(mat::MCJoint, ipd::MCJointIpState, Δw::Array{Float64,1})
 end
 
 function ip_state_vals(mat::MCJoint, ipd::MCJointIpState)
-    ndim = ipd.shared_data.ndim
+    ndim = ipd.analysis_data.ndim
     if ndim == 3
        return Dict(
           :w1  => ipd.w[1] ,

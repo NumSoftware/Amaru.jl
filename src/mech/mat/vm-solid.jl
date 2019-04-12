@@ -1,13 +1,13 @@
 export VonMises
 
 mutable struct VonMisesIpState<:IpState
-    shared_data::SharedAnalysisData
+    analysis_data::AnalysisData
     σ::Tensor2
     ε::Tensor2
     εpa::Float64
     Δγ::Float64
-    function VonMisesIpState(shared_data::SharedAnalysisData=SharedAnalysisData()) 
-        this = new(shared_data)
+    function VonMisesIpState(analysis_data::AnalysisData=AnalysisData()) 
+        this = new(analysis_data)
         this.σ   = zeros(6)
         this.ε   = zeros(6)
         this.εpa = 0.0
@@ -42,7 +42,7 @@ end
 matching_elem_type(::VonMises) = MechSolid
 
 # Create a new instance of Ip data
-new_ip_state(mat::VonMises, shared_data::SharedAnalysisData) = VonMisesIpState(shared_data)
+new_ip_state(mat::VonMises, analysis_data::AnalysisData) = VonMisesIpState(analysis_data)
 
 function set_state(ipd::VonMisesIpState; sig=zeros(0), eps=zeros(0))
     if length(sig)==6
@@ -70,7 +70,7 @@ function calcD(mat::VonMises, ipd::VonMisesIpState)
     σy = mat.σy 
     H  = mat.H
     #De = mat.De
-    De  = calcDe(mat.E, mat.ν, ipd.shared_data.model_type)
+    De  = calcDe(mat.E, mat.ν, ipd.analysis_data.model_type)
 
     if ipd.Δγ==0.0
         return De
@@ -88,7 +88,7 @@ end
 
 function stress_update(mat::VonMises, ipd::VonMisesIpState, Δε::Array{Float64,1})
     σini = ipd.σ
-    De   = calcDe(mat.E, mat.ν, ipd.shared_data.model_type)
+    De   = calcDe(mat.E, mat.ν, ipd.analysis_data.model_type)
     σtr  = ipd.σ + inner(De, Δε)
     ftr  = yield_func(mat, ipd, σtr)
 
@@ -119,7 +119,7 @@ function stress_update(mat::VonMises, ipd::VonMisesIpState, Δε::Array{Float64,
 end
 
 function ip_state_vals(mat::VonMises, ipd::VonMisesIpState)
-    ndim  = ipd.shared_data.ndim
+    ndim  = ipd.analysis_data.ndim
     σ, ε  = ipd.σ, ipd.ε
     j1    = tr(σ)
     srj2d = √J2D(σ)

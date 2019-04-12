@@ -3,17 +3,17 @@
 export CEBJoint1D
 
 mutable struct CEBJoint1DIpState<:IpState
-    shared_data::SharedAnalysisData
+    analysis_data::AnalysisData
     σ  ::Array{Float64,1}
-    ε  ::Array{Float64,1}
+    u  ::Array{Float64,1}
     τy ::Float64      # max stress
     sy ::Float64      # accumulated relative displacement
     elastic::Bool
-    function CEBJoint1DIpState(shared_data::SharedAnalysisData=SharedAnalysisData())
-        this = new(shared_data)
-        ndim = shared_data.ndim
+    function CEBJoint1DIpState(analysis_data::AnalysisData=AnalysisData())
+        this = new(analysis_data)
+        ndim = analysis_data.ndim
         this.σ = zeros(ndim)
-        this.ε = zeros(ndim)
+        this.u = zeros(ndim)
         this.τy = 0.0
         this.sy = 0.0
         this.elastic = false
@@ -83,7 +83,17 @@ end
 matching_elem_type(::CEBJoint1D) = MechJoint1D
 
 # Creates a new instance of Ip data
-new_ip_state(mat::CEBJoint1D, shared_data::SharedAnalysisData) = CEBJoint1DIpState(shared_data)
+new_ip_state(mat::CEBJoint1D, analysis_data::AnalysisData) = CEBJoint1DIpState(analysis_data)
+
+
+function set_state!(dst::CEBJoint1DIpState, src::CEBJoint1DIpState)
+    dst.σ      .= dst.σ        
+    dst.u      .= dst.u 
+    dst.τy      = dst.τy
+    dst.sy      = dst.sy
+    dst.elastic = dst.elastic
+    return dst
+end
 
 function Tau(mat::CEBJoint1D, sy::Float64)
     if sy<mat.s1
@@ -117,21 +127,21 @@ function deriv(mat::CEBJoint1D, ipd::CEBJoint1DIpState, sy::Float64)
 end
 
 function set_state(ipd::CEBJoint1DIpState, sig=zeros(0), eps=zeros(0))
-    ndim = ipd.shared_data.ndim
+    ndim = ipd.analysis_data.ndim
     if length(sig)==ndim
         ipd.σ .= sig
     else
         if length(sig)!=0; error("CEBJoint1DIpState: Wrong size for stress array: $sig") end
     end
     if length(eps)==ipd.3
-        ipd.ε .= eps
+        ipd.u .= eps
     else
         if length(eps)!=0; error("CEBJoint1DIpState: Wrong size for strain array: $eps") end
     end
 end
 
 function calcD(mat::CEBJoint1D, ipd::CEBJoint1DIpState)
-    ndim = ipd.shared_data.ndim
+    ndim = ipd.analysis_data.ndim
     if ipd.elastic
         ks = mat.ks
     else
@@ -139,7 +149,7 @@ function calcD(mat::CEBJoint1D, ipd::CEBJoint1DIpState)
     end
 
     kn = mat.kn
-    if ipd.shared_data.ndim==2
+    if ipd.analysis_data.ndim==2
         return [  ks  0.0 
                  0.0   kn ]
     else
@@ -153,10 +163,10 @@ function yield_func(mat::CEBJoint1D, ipd::CEBJoint1DIpState, τ::Float64)
     return abs(τ) - ipd.τy
 end
 
-function stress_update(mat::CEBJoint1D, ipd::CEBJoint1DIpState, Δε::Vect)
+function stress_update(mat::CEBJoint1D, ipd::CEBJoint1DIpState, Δu::Vect)
     ks = mat.ks
     kn = mat.kn
-    Δs = Δε[1]      # relative displacement
+    Δs = Δu[1]      # relative displacement
     τini = ipd.σ[1] # initial shear stress
     τtr  = τini + ks*Δs # elastic trial
 
@@ -176,19 +186,19 @@ function stress_update(mat::CEBJoint1D, ipd::CEBJoint1DIpState, Δε::Vect)
 
     # calculate Δσ
     Δτ = τ - τini
-    Δσ = kn*Δε
+    Δσ = kn*Δu
     Δσ[1] = Δτ
 
-    # update ε and σ
-    ipd.ε += Δε
-    ipd.σ += Δσ
+    # update u and σ
+    ipd.u .+= Δu
+    ipd.σ .+= Δσ
 
     return Δσ
 end
 
 function ip_state_vals(mat::CEBJoint1D, ipd::CEBJoint1DIpState)
     return OrderedDict(
-      :ur   => ipd.ε[1] ,
+      :ur   => ipd.u[1] ,
       :tau  => ipd.σ[1] ,
       )
 end

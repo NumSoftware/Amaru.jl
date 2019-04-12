@@ -3,14 +3,14 @@
 export PPRod
 
 mutable struct PPRodIpState<:IpState
-    shared_data::SharedAnalysisData
+    analysis_data::AnalysisData
     σ::Float64
     ε::Float64
     εpa::Float64
     Δγ ::Float64
 
-    function PPRodIpState(shared_data::SharedAnalysisData=SharedAnalysisData())
-        this = new(shared_data)
+    function PPRodIpState(analysis_data::AnalysisData=AnalysisData())
+        this = new(analysis_data)
         this.σ = 0.0
         this.ε = 0.0
         this.εpa = 0.0
@@ -43,11 +43,14 @@ end
 matching_elem_type(::PPRod) = MechRod
 
 # Create a new instance of Ip data
-new_ip_state(mat::PPRod, shared_data::SharedAnalysisData) = PPRodIpState(shared_data)
+new_ip_state(mat::PPRod, analysis_data::AnalysisData) = PPRodIpState(analysis_data)
 
-function set_state(ipd::PPRodIpState, σ=NaN, ε=NaN)
-    if !isnan(σ); ipd.σ = σ end
-    if !isnan(ε); ipd.ε = ε end
+function set_state!(dst::PPRodIpState, src::PPRodIpState)
+    dst.σ = src.σ
+    dst.ε = src.ε
+    dst.εpa = src.εpa
+    dst.Δγ  = src.Δγ
+    return dst
 end
 
 function yield_func(mat::PPRod, ipd::PPRodIpState, σ::Float64)

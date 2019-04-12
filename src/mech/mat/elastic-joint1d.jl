@@ -2,19 +2,6 @@
 
 export ElasticJoint1D
 
-mutable struct Joint1DIpState<:IpState
-    shared_data::SharedAnalysisData
-    ndim::Int
-    sig ::Array{Float64,1}
-    eps ::Array{Float64,1}
-    function Joint1DIpState(shared_data::SharedAnalysisData=SharedAnalysisData())
-        this = new(shared_data)
-        ndim = shared_data.ndim
-        this.sig = zeros(ndim)
-        this.eps = zeros(ndim)
-        return this
-    end
-end
 
 mutable struct ElasticJoint1D<:Material
     ks::Float64
@@ -29,9 +16,9 @@ mutable struct ElasticJoint1D<:Material
         # A : section area
         # dm: section diameter
         # h : section perimeter
-        @assert ks>=0
-        @assert kn>=0
-        @assert (h>0 || A>0 || dm>0)
+        ks>=0 || error("ks should be greater than zero")
+        kn>=0 || error("kn should be greater than zero")
+        (h>0 || A>0 || dm>0) || error("perimeter h, section area A or diameter dm should be provided")
 
         if isnan(h) 
             if A>0
@@ -47,29 +34,38 @@ mutable struct ElasticJoint1D<:Material
     end
 end
 
+
+mutable struct Joint1DIpState<:IpState
+    analysis_data::AnalysisData
+    ndim::Int
+    σ ::Array{Float64,1}
+    u ::Array{Float64,1}
+    function Joint1DIpState(analysis_data::AnalysisData=AnalysisData())
+        this = new(analysis_data)
+        ndim = analysis_data.ndim
+        this.σ = zeros(ndim)
+        this.u = zeros(ndim)
+        return this
+    end
+end
+
+
 # Returns the element type that works with this material
 matching_elem_type(::ElasticJoint1D) = MechJoint1D
 
 # Create a new instance of Ip data
-new_ip_state(mat::ElasticJoint1D, shared_data::SharedAnalysisData) = Joint1DIpState(shared_data)
+new_ip_state(mat::ElasticJoint1D, analysis_data::AnalysisData) = Joint1DIpState(analysis_data)
 
-function set_state(ipd::Joint1DIpState, sig=zeros(0), eps=zeros(0))
-    if length(sig)==3
-        ipd.sig .= sig
-    else
-        if length(sig)!=0; error("MecElasticSolid: Wrong size for stress array: $sig") end
-    end
-    if length(eps)==3
-        ipd.eps .= eps
-    else
-        if length(eps)!=0; error("MecElasticSolid: Wrong size for strain array: $eps") end
-    end
+function set_state!(dst::Joint1DIpState, src::Joint1DIpState)
+    dst.σ .= dst.σ        
+    dst.u .= dst.u 
+    return dst
 end
 
 function calcD(mat::ElasticJoint1D, ipd::Joint1DIpState)
     ks = mat.ks
     kn = mat.kn
-    if ipd.shared_data.ndim==2
+    if ipd.analysis_data.ndim==2
         return [  ks  0.0 
                  0.0   kn ]
     else
@@ -80,17 +76,17 @@ function calcD(mat::ElasticJoint1D, ipd::Joint1DIpState)
 end
 
 
-function stress_update(mat::ElasticJoint1D, ipd::Joint1DIpState, deps)
+function stress_update(mat::ElasticJoint1D, ipd::Joint1DIpState, Δu)
     D = calcD(mat, ipd)
-    dsig = D*deps
+    Δσ = D*Δu
 
-    ipd.eps += deps
-    ipd.sig += dsig
-    return dsig
+    ipd.u .+= Δu
+    ipd.σ .+= Δσ
+    return Δσ
 end
 
 function ip_state_vals(mat::ElasticJoint1D, ipd::Joint1DIpState)
     return OrderedDict(
-      :ur   => ipd.eps[1] ,
-      :tau  => ipd.sig[1] )
+      :ur   => ipd.u[1] ,
+      :tau  => ipd.σ[1] )
 end

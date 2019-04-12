@@ -3,11 +3,11 @@
 export ElasticRod
 
 mutable struct ElasticRodIpState<:IpState
-    shared_data::SharedAnalysisData
+    analysis_data::AnalysisData
     σ::Float64
     ε::Float64
-    function ElasticRodIpState(shared_data::SharedAnalysisData=SharedAnalysisData())
-        this = new(shared_data)
+    function ElasticRodIpState(analysis_data::AnalysisData=AnalysisData())
+        this = new(analysis_data)
         this.σ = 0.0
         this.ε = 0.0
         return this
@@ -34,7 +34,7 @@ end
 matching_elem_type(::ElasticRod) = MechRod
 
 # Create a new instance of Ip data
-new_ip_state(mat::ElasticRod, shared_data::SharedAnalysisData) = ElasticRodIpState(shared_data)
+new_ip_state(mat::ElasticRod, analysis_data::AnalysisData) = ElasticRodIpState(analysis_data)
 
 function set_state(ipd::ElasticRodIpState, σ=NaN, ε=NaN)
     if !isnan(σ); ipd.σ = σ end

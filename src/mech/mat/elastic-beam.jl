@@ -3,11 +3,11 @@
 export ElasticBeam
 
 mutable struct BeamIpState<:IpState
-    shared_data::SharedAnalysisData
+    analysis_data::AnalysisData
     #σ::Float64
     #ε::Float64
-    function BeamIpState(shared_data::SharedAnalysisData=SharedAnalysisData())
-        return new(shared_data)
+    function BeamIpState(analysis_data::AnalysisData=AnalysisData())
+        return new(analysis_data)
     end
 end
 
@@ -32,7 +32,7 @@ end
 matching_elem_type(::ElasticBeam) = MechBeam
 
 # Create a new instance of Ip data
-new_ip_state(mat::ElasticBeam, shared_data::SharedAnalysisData) = BeamIpState(shared_data)
+new_ip_state(mat::ElasticBeam, analysis_data::AnalysisData) = BeamIpState(analysis_data)
 
 #function set_state(ipd::BeamIpState, σ=NaN, ε=NaN)
     #if !isnan(σ); ipd.σ = σ end
