@@ -43,11 +43,12 @@ function J3D(T::Tensor2)
     return J3(Psd*T)
 end
 
+
 """
 Computes the eigenvalues of a second order tensor written in Mandel notation.
 The eigenvalues are sorted from highest to lowest
 """
-function eigenvals(T::Tensor2)::Vect
+function eigvals(T::Tensor2)::Vect
     @assert length(T) == 6
 
     t11, t22, t33, t12, t23, t13 = T
@@ -63,6 +64,8 @@ function eigenvals(T::Tensor2)::Vect
 
     i3 = t11*(t22*t33 - t23*t23) - t12*(t12*t33 - t23*t13) + t13*(t12*t23 - t22*t13)
     val = round( (2*i1^3 - 9*i1*i2 + 27*i3 )/( 2*(i1^2 - 3*i2)^(3/2) ), digits=14 )
+    val = round(val, digits=11) # to avoid 1.000000000000001
+
     θ = 1/3*acos( val )
 
     r = 2/3*√(i1^2-3*i2)
@@ -96,7 +99,7 @@ function LinearAlgebra.eigen(T::Tensor2)
           T[5]/SR2  T[4]/SR2  T[3]     ]
     L, V = eigen(F, permute=false, scale=false)
 
-    V[:,3] = normalize(cross(V[:,1], V[:,2]))
+    V[:,3] .= normalize(cross(V[:,1], V[:,2]))
 
     #=
     p = sortperm(L, rev=true)
@@ -186,6 +189,21 @@ function tensor_rot!(V::Array{Float64,2}, T::Tensor4)
     T[5,1] = SR2*l3*l1;  T[5,2] = SR2*m3*m1;  T[5,3] = SR2*n3*n1;   T[5,4] = m3*n1+m1*n3;  T[5,5] = l3*n1+l1*n3;  T[5,6] = l3*m1+l1*m3; 
     T[6,1] = SR2*l1*l2;  T[6,2] = SR2*m1*m2;  T[6,3] = SR2*n1*n2;   T[6,4] = m1*n2+m2*n1;  T[6,5] = l1*n2+l2*n1;  T[6,6] = l1*m2+l2*m1;   
     return T
+end
+
+
+function tensor_rotmat!(R::Tensor4, V::Array{Float64,2})
+    l1, m1, n1 = V[:,1]
+    l2, m2, n2 = V[:,2]
+    l3, m3, n3 = V[:,3]
+
+    R[1,1] =     l1*l1;  R[1,2] =     m1*m1;  R[1,3] =     n1*n1;   R[1,4] =   SR2*m1*n1;  R[1,5] =   SR2*n1*l1;  R[1,6] =   SR2*l1*m1;   
+    R[2,1] =     l2*l2;  R[2,2] =     m2*m2;  R[2,3] =     n2*n2;   R[2,4] =   SR2*m2*n2;  R[2,5] =   SR2*n2*l2;  R[2,6] =   SR2*l2*m2;   
+    R[3,1] =     l3*l3;  R[3,2] =     m3*m3;  R[3,3] =     n3*n3;   R[3,4] =   SR2*m3*n3;  R[3,5] =   SR2*n3*l3;  R[3,6] =   SR2*l3*m3;   
+    R[4,1] = SR2*l2*l3;  R[4,2] = SR2*m2*m3;  R[4,3] = SR2*n2*n3;   R[4,4] = m2*n3+m3*n2;  R[4,5] = l2*n3+l3*n2;  R[4,6] = l2*m3+l3*m2;   
+    R[5,1] = SR2*l3*l1;  R[5,2] = SR2*m3*m1;  R[5,3] = SR2*n3*n1;   R[5,4] = m3*n1+m1*n3;  R[5,5] = l3*n1+l1*n3;  R[5,6] = l3*m1+l1*m3; 
+    R[6,1] = SR2*l1*l2;  R[6,2] = SR2*m1*m2;  R[6,3] = SR2*n1*n2;   R[6,4] = m1*n2+m2*n1;  R[6,5] = l1*n2+l2*n1;  R[6,6] = l1*m2+l2*m1;   
+    return R
 end
 
 function tensor_rot(V::Array{Float64,2})
