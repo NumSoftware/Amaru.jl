@@ -14,11 +14,11 @@ abstract type Element
     #mat   ::Material
     #active::Bool
     #linked_elems::Array{Element,1}
-    #shared_data ::SharedAnalysisData
+    #analysis_data ::AnalysisData
 end
 
 # Function to create new concrete types filled with relevant information
-function new_element(etype::Type{<:Element}, cell::Cell, nodes::Array{Node,1}, shared_data::SharedAnalysisData, tag::TagType=0)
+function new_element(etype::Type{<:Element}, cell::Cell, nodes::Array{Node,1}, analysis_data::AnalysisData, tag::TagType=0)
     elem = etype()
     elem.id     = 0
     elem.shape  = cell.shape
@@ -28,7 +28,7 @@ function new_element(etype::Type{<:Element}, cell::Cell, nodes::Array{Node,1}, s
     elem.tag    = tag
     elem.active = true
     elem.linked_elems = []
-    elem.shared_data  = shared_data
+    elem.analysis_data  = analysis_data
     return elem
 end
 
@@ -88,7 +88,7 @@ end
 # Get the element coordinates matrix
 function elem_coords(elem::Element)
     nnodes = length(elem.nodes)
-    ndim   = elem.shared_data.ndim
+    ndim   = elem.analysis_data.ndim
     return [ elem.nodes[i].X[j] for i=1:nnodes, j=1:ndim]
 end
 
@@ -103,7 +103,7 @@ function elem_config_ips(elem::Element, nips::Int=0)
         w = ipc[i,4]
         elem.ips[i] = Ip(R, w)
         elem.ips[i].id = i
-        elem.ips[i].data = new_ip_state(elem.mat, elem.shared_data)
+        elem.ips[i].data = new_ip_state(elem.mat, elem.analysis_data)
         elem.ips[i].owner = elem
     end
 

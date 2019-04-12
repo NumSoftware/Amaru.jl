@@ -34,7 +34,7 @@ mutable struct Domain<:AbstractDomain
     nouts::Integer
     ndofs::Integer
     stage::Integer
-    shared_data::SharedAnalysisData
+    analysis_data::AnalysisData
 
     function Domain(;filekey::String="out")
         this = new()
@@ -56,7 +56,7 @@ mutable struct SubDomain<:AbstractDomain
     elems::Array{Element,1}
     faces::Array{Face,1}
 
-    shared_data::SharedAnalysisData
+    analysis_data::AnalysisData
 end
 
 
@@ -79,7 +79,7 @@ function SubDomain(dom::Domain, expr::Expr)
         push!(faces, face)
     end
 
-    return SubDomain(nodes, elems, faces, dom.shared_data)
+    return SubDomain(nodes, elems, faces, dom.analysis_data)
 end
 
 
@@ -106,7 +106,7 @@ function SubDomain(elems::Array{<:Element,1})
         push!(faces, face)
     end
 
-    return SubDomain(nodes, elems, faces, SharedAnalysisData())
+    return SubDomain(nodes, elems, faces, AnalysisData())
 end
 
 
@@ -122,11 +122,11 @@ function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}}
 
     # Shared analysis data
     ndim = mesh.ndim
-    dom.shared_data = SharedAnalysisData()
-    dom.shared_data.ndim = ndim 
-    dom.shared_data.model_type = model_type
-    dom.shared_data.thickness = thickness
-    dom.shared_data.t = 0.0
+    dom.analysis_data = AnalysisData()
+    dom.analysis_data.ndim = ndim 
+    dom.analysis_data.model_type = model_type
+    dom.analysis_data.thickness = thickness
+    dom.analysis_data.t = 0.0
 
     if verbose
         printstyled("Domain setup:", bold=true, color=:cyan)
@@ -156,7 +156,7 @@ function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}}
             end
 
             conn = [ p.id for p in cell.points ]
-            elem = new_element(ty, cell, dom.nodes[conn], dom.shared_data, cell.tag)
+            elem = new_element(ty, cell, dom.nodes[conn], dom.analysis_data, cell.tag)
 
             elem.id = cell.id
             elem.mat = mb.mat
@@ -400,7 +400,7 @@ end
 function nodal_patch_recovery(dom::AbstractDomain)
     # Note: nodal ids must be numbered starting from 1
 
-    ndim = dom.shared_data.ndim
+    ndim = dom.analysis_data.ndim
     nnodes = length(dom.nodes)
     length(dom.faces)==0 && return zeros(nnodes,0), Symbol[]
 
@@ -573,7 +573,7 @@ function nodal_local_recovery(dom::AbstractDomain)
     # The element type should implement the elem_extrapolated_node_vals function
     # Note: nodal ids must be numbered starting from 1
 
-    ndim = dom.shared_data.ndim
+    ndim = dom.analysis_data.ndim
     nnodes = length(dom.nodes)
 
     # all local data from elements
@@ -771,12 +771,12 @@ end
 
     Plots `dom` using the PyPlot package.
 """
-function FemMesh.mplot(dom::AbstractDomain; args...)
+function mplot2(dom::AbstractDomain; args...)
 
     any(node.id==0 for node in dom.nodes) && error("mplot: all nodes must have a valid id")
 
     ugrid = convert(UnstructuredGrid, dom)
-    if dom.shared_data.ndim==3 
+    if dom.analysis_data.ndim==3 
         # Get data from the domain surface
         srf_nodes = get_nodes(dom.faces)
 
@@ -810,4 +810,99 @@ function FemMesh.mplot(dom::AbstractDomain; args...)
         end
     end
     mplot(ugrid; args...)
+end
+
+
+function Base.convert(::Type{FemMesh.Mesh}, dom::AbstractDomain)
+    mesh = Mesh()
+    mesh.ndim = dom.analysis_data.ndim
+
+    # Setting points
+    npoints = length(dom.nodes)
+    for i=1:npoints
+        X = dom.nodes[i].X
+        point = Point(X[1], X[2], X[3])
+        push!(mesh.points, point)
+    end
+
+    # Setting cells
+    ncells = length(dom.elems)
+    for i=1:ncells
+        elem = dom.elems[i]
+        points = [ mesh.points[node.id] for node in elem.nodes ]
+        push!(mesh.cells, Cell(elem.shape, points ) )
+    end
+
+    update!(mesh)
+
+    # Node and element data
+    point_scalar_data = mesh.point_scalar_data
+    point_vector_data = mesh.point_vector_data
+    cell_scalar_data  = mesh.cell_scalar_data
+ 
+    # Get node and elem values
+    node_vals, node_labels, elem_vals, elem_labels = node_and_elem_vals(dom)
+    nncomps = length(node_labels)
+    necomps = length(elem_labels)
+
+    # Write vectors
+    if :uy in node_labels
+        ux_idx = findfirst(isequal(:ux), node_labels)
+        uy_idx = findfirst(isequal(:uy), node_labels)
+        uz_idx = findfirst(isequal(:uz), node_labels)
+        if uz_idx!=nothing
+            U = node_vals[:, [ux_idx, uy_idx, uz_idx]]
+        else
+            U = hcat( node_vals[:, [ux_idx, uy_idx]], zeros(npoints) )
+        end
+        point_vector_data["U"] = U
+    end
+
+    if :vy in node_labels
+        vx_idx = findfirst(isequal(:vx), node_labels)
+        vy_idx = findfirst(isequal(:vy), node_labels)
+        vz_idx = findfirst(isequal(:vz), node_labels)
+        if vz_idx!=nothing
+            V = node_vals[:, [vx_idx, vy_idx, vz_idx]]
+        else
+            V = hcat( node_vals[:, [vx_idx, vy_idx]], zeros(npoints) )
+        end
+        point_vector_data["V"] = V
+    end
+
+    # Write scalars
+    point_scalar_data["point-id"] = collect(1:npoints)
+
+    # Write nodal scalar data
+    for i=1:nncomps
+        field = string(node_labels[i])
+        point_scalar_data[field] = node_vals[:,i]
+    end
+
+    # Write cell data
+    cell_scalar_data["cell-id"] = collect(1:ncells)
+    cell_scalar_data["cell-type"] = [ Int(elem.shape.vtk_type) for elem in dom.elems ]
+
+    # Write elem scalar data
+    for i=1:necomps
+        field = string(elem_labels[i])
+        cell_scalar_data[field] = elem_vals[:,i]
+    end
+
+    return mesh
+end
+
+
+"""
+    mplot(dom<:AbstractDomain, args...)
+
+    Plots `dom` using the PyPlot package.
+"""
+function FemMesh.mplot(dom::AbstractDomain, filename::String=""; args...)
+
+    any(node.id==0 for node in dom.nodes) && error("mplot: all nodes must have a valid id")
+
+    mesh = convert(Mesh, dom)
+
+    FemMesh.mplot(mesh, filename; args...)
 end
