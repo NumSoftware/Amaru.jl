@@ -10,7 +10,7 @@ mutable struct MechJoint1D<:Mechanical
     mat   ::Material
     active::Bool
     linked_elems::Array{Element,1}
-    shared_data ::SharedAnalysisData
+    analysis_data::AnalysisData
 
     # specific fields
     cache_B   ::Array{Array{Float64,2}}
@@ -56,15 +56,15 @@ function mount_T(J::Matx)
         L = [1.0, 0.0, 0.0]
         if norm(L-L1) < 1.0e-4; L = [0.0, 1.0, 0.0] end
         # Performing cross product to obtain a second vector
-        L2  = cross(L1, L)
-        L2 /= norm(L2)
+        L2  = normalize(cross(L1, L))
     end
 
     # Finding third vector
-    L3 = cross(L1, L2)
-    L3 /= norm(L3)
+    L3 = normalize(cross(L1, L2))
 
-    return hcat(L1, L2, L3)'
+    return [ L1'; L2'; L3' ]
+
+    #return hcat(L1, L2, L3)'
 end
 
 
@@ -91,7 +91,7 @@ function mountB(elem::MechJoint1D, R, Ch, Ct)
     # I is a ndim x ndim identity matrix
 
 
-    ndim = elem.shared_data.ndim
+    ndim = elem.analysis_data.ndim
     hook = elem.linked_elems[1]
     bar  = elem.linked_elems[2]
     nnodes  = length(elem.nodes)
@@ -123,7 +123,7 @@ function mountB(elem::MechJoint1D, R, Ch, Ct)
 end
 
 function elem_stiffness(elem::MechJoint1D)
-    ndim = elem.shared_data.ndim
+    ndim = elem.analysis_data.ndim
     nnodes = length(elem.nodes)
     mat    = elem.mat
     hook = elem.linked_elems[1]
@@ -148,7 +148,7 @@ function elem_stiffness(elem::MechJoint1D)
 end
 
 function elem_update!(elem::MechJoint1D, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
-    ndim   = elem.shared_data.ndim
+    ndim   = elem.analysis_data.ndim
     nnodes = length(elem.nodes)
     mat    = elem.mat
     keys   = (:ux, :uy, :uz)[1:ndim]
@@ -156,7 +156,7 @@ function elem_update!(elem::MechJoint1D, U::Array{Float64,1}, F::Array{Float64,1
 
     dU = U[map]
     dF = zeros(nnodes*ndim)
-    deps = zeros(ndim)
+    Δu = zeros(ndim)
 
     hook = elem.linked_elems[1]
     bar  = elem.linked_elems[2]
@@ -164,11 +164,11 @@ function elem_update!(elem::MechJoint1D, U::Array{Float64,1}, F::Array{Float64,1
         B    = elem.cache_B[i]
         detJ = elem.cache_detJ[i]
         D    = calcD(mat, ip.data)
-        @gemv deps = B*dU
-        dsig = stress_update(mat, ip.data, deps)
+        @gemv Δu = B*dU
+        Δσ = stress_update(mat, ip.data, Δu)
         coef = detJ*ip.w
-        dsig[1]  *= mat.h
-        @gemv dF += coef*B'*dsig
+        Δσ[1]  *= mat.h
+        @gemv dF += coef*B'*Δσ
     end
 
     F[map] += dF

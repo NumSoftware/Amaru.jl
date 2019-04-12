@@ -13,7 +13,7 @@ function elem_config_dofs(elem::Mechanical)
     for node in elem.nodes
         add_dof(node, :ux, :fx)
         add_dof(node, :uy, :fy)
-        if elem.shared_data.ndim==3; add_dof(node, :uz, :fz) end
+        if elem.analysis_data.ndim==3; add_dof(node, :uz, :fz) end
     end
 end
 
@@ -35,7 +35,7 @@ Returns the mass matrix for `elem`.
 This function must be defined by each concrete type.
 """
 function elem_mass(elem::Mechanical)
-   ndim=elem.shared_data.ndim 
+   ndim=elem.analysis_data.ndim 
    ndofs = length(elem.nodes)*ndim 
    M = zeros(ndofs, ndofs)
    keys = (:ux, :uy, :uz)[1:ndim]

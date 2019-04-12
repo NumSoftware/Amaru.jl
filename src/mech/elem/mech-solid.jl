@@ -10,7 +10,7 @@ mutable struct MechSolid<:Mechanical
     mat   ::Material
     active::Bool
     linked_elems::Array{Element,1}
-    shared_data::SharedAnalysisData
+    analysis_data::AnalysisData
 
     function MechSolid(); 
         return new() 
@@ -34,7 +34,7 @@ function elem_init(elem::MechSolid)
 
         # Representative length size for an integration point
         nips = length(elem.ips)
-        ndim = elem.shared_data.ndim
+        ndim = elem.analysis_data.ndim
         h = (V/nips)^(1/ndim)
 
         for ip in elem.ips
@@ -46,7 +46,7 @@ function elem_init(elem::MechSolid)
 end
 
 function distributed_bc(elem::MechSolid, facet::Union{Facet, Nothing}, key::Symbol, fun::Functor)
-    ndim  = elem.shared_data.ndim
+    ndim  = elem.analysis_data.ndim
 
     # Check bcs
     (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
@@ -55,7 +55,7 @@ function distributed_bc(elem::MechSolid, facet::Union{Facet, Nothing}, key::Symb
     target = facet!=nothing ? facet : elem
     nodes  = target.nodes
     nnodes = length(nodes)
-    t      = elem.shared_data.t
+    t      = elem.analysis_data.t
 
     # Force boundary condition
     nnodes = length(nodes)
@@ -114,7 +114,7 @@ function distributed_bc(elem::MechSolid, facet::Union{Facet, Nothing}, key::Symb
     return reshape(F', nnodes*ndim), map
 end
 
-function setB(shared_data::SharedAnalysisData, dNdX::Matx, detJ::Float64, B::Matx)
+function setB(analysis_data::AnalysisData, dNdX::Matx, detJ::Float64, B::Matx)
     ndim, nnodes = size(dNdX)
     B   .= 0.0
 
@@ -125,7 +125,7 @@ function setB(shared_data::SharedAnalysisData, dNdX::Matx, detJ::Float64, B::Mat
             B[2,2+j*ndim] = dNdX[2,i]
             B[6,1+j*ndim] = dNdX[2,i]/SR2; B[6,2+j*ndim] = dNdX[1,i]/SR2
         end
-        if shared_data.model_type==:axisymmetric
+        if analysis_data.model_type==:axisymmetric
             for i in 1:nnodes
                 N =elem.shape.func(R)
                 j = i-1
@@ -155,8 +155,8 @@ function setB(shared_data::SharedAnalysisData, dNdX::Matx, detJ::Float64, B::Mat
 end
 
 function elem_stiffness(elem::MechSolid)
-    ndim   = elem.shared_data.ndim
-    th     = elem.shared_data.thickness
+    ndim   = elem.analysis_data.ndim
+    th     = elem.analysis_data.thickness
     nnodes = length(elem.nodes)
     C = elem_coords(elem)
     K = zeros(nnodes*ndim, nnodes*ndim)
@@ -174,7 +174,7 @@ function elem_stiffness(elem::MechSolid)
         @gemm dNdX = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        setB(elem.shared_data, dNdX, detJ, B)
+        setB(elem.analysis_data, dNdX, detJ, B)
 
         # compute K
         coef = detJ*ip.w*th
@@ -189,8 +189,8 @@ function elem_stiffness(elem::MechSolid)
 end
 
 function elem_mass(elem::MechSolid)
-    ndim   = elem.shared_data.ndim
-    th     = elem.shared_data.thickness
+    ndim   = elem.analysis_data.ndim
+    th     = elem.analysis_data.thickness
     nnodes = length(elem.nodes)
     ρ = elem.mat.ρ
     C = elem_coords(elem)
@@ -225,8 +225,8 @@ end
 
 
 function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
-    ndim   = elem.shared_data.ndim
-    th     = elem.shared_data.thickness
+    ndim   = elem.analysis_data.ndim
+    th     = elem.analysis_data.thickness
     nnodes = length(elem.nodes)
     keys   = (:ux, :uy, :uz)[1:ndim]
     map    = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
@@ -249,7 +249,7 @@ function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1},
         @gemm dNdX = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
-        setB(elem.shared_data, dNdX, detJ, B)
+        setB(elem.analysis_data, dNdX, detJ, B)
 
         @gemv Δε = B*dU
         Δσ   = stress_update(elem.mat, ip.data, Δε)

@@ -10,7 +10,7 @@ mutable struct MechRod<:Mechanical
     mat   ::Material
     active::Bool
     linked_elems::Array{Element,1}
-    shared_data ::SharedAnalysisData
+    analysis_data::AnalysisData
 
     function MechRod()
         return new() 
@@ -22,7 +22,7 @@ matching_shape_family(::Type{MechRod}) = LINE_SHAPE
 function elem_stiffness(elem::MechRod)
     local E::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
 
-    ndim   = elem.shared_data.ndim
+    ndim   = elem.analysis_data.ndim
     nnodes = length(elem.nodes)
 
     A = elem.mat.A
@@ -57,7 +57,7 @@ end
 
 function elem_mass(elem::MechRod) 
                 
-    ndim   = elem.shared_data.ndim
+    ndim   = elem.analysis_data.ndim
     nnodes = length(elem.nodes)
     ρ = elem.mat.ρ
     A = elem.mat.A
@@ -116,7 +116,7 @@ function setNt(ndim::Int,Ni::Vect, N::Matx)
 end
 
 function distributed_bc(elem::MechRod, facet::Union{Facet, Nothing}, key::Symbol, fun::Functor)
-    ndim  = elem.shared_data.ndim
+    ndim  = elem.analysis_data.ndim
 
     # Check bcs
     (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
@@ -125,7 +125,7 @@ function distributed_bc(elem::MechRod, facet::Union{Facet, Nothing}, key::Symbol
     target = facet!=nothing ? facet : elem
     nodes  = target.nodes
     nnodes = length(nodes)
-    t      = elem.shared_data.t
+    t      = elem.analysis_data.t
     A      = elem.mat.A
 
     # Force boundary condition
@@ -189,7 +189,7 @@ end
 function elem_update!(elem::MechRod, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
     local A::Float64, coef::Float64, dNdR::Matrix{Float64}
 
-    ndim   = elem.shared_data.ndim
+    ndim   = elem.analysis_data.ndim
     nnodes = length(elem.nodes)
     A      = elem.mat.A
     keys   = [:ux, :uy, :uz][1:ndim]
