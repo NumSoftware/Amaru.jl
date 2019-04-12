@@ -66,8 +66,8 @@ include("tools/show.jl")
 export max, min, sort, reset, getindex, sort, copy!, show
 
 # Fem module
-include("shared-data.jl")
-export SharedAnalysisData
+include("analysis-data.jl")
+export AnalysisData
 
 include("node.jl")
 export Node, Dof, add_dof, nodes_dof_vals
