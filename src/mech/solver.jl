@@ -114,11 +114,19 @@ Available options are:
 
 """
 function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::Bool=false, maxincs::Int=0,
-    tol::Number=1e-2, verbose::Bool=true, nouts::Int=0, outdir="",
-    scheme::Symbol = :FE)::Bool
+    tol::Number=1e-2, verbose::Bool=true, nouts::Int=0, outdir::String="",
+    scheme::Symbol = :FE)
+
+    tol>0 || error("solve! : tolerance should be greater than zero")
+    analysis_data = dom.analysis_data
+    analysis_data.nstage += 1
+    analysis_data.ninc    = 0
+    #@show analysis_data.nstage
+    #@show objectid(analysis_data)
 
     if verbose
         printstyled("FEM analysis:\n", bold=true, color=:cyan)
+        println("  model type: ", analysis_data.model_type)
         tic = time()
     end
     
@@ -149,13 +157,14 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
     verbose && println("  unknown dofs: $nu")
     
     # Get array with all integration points
-    ips = [ ip for elem in dom.elems for ip in elem.ips ]
+    #ips = [ ip for elem in dom.elems for ip in elem.ips ]
 
     # Get forces and displacements from boundary conditions
     Uex, Fex = get_bc_vals(dom, bcs)
 
     # Setup quantities at dofs
-    if dom.nincs == 0
+    #if dom.nincs == 0
+    if analysis_data.nstage==1
         for (i,dof) in enumerate(dofs)
             dof.vals[dof.name]    = 0.0
             dof.vals[dof.natname] = 0.0
@@ -165,15 +174,21 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
     update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
 
     # Save initial file
-    if dom.nincs == 0 && save_incs 
+    #if dom.nincs == 0 && save_incs 
+    if analysis_data.nstage==1 && save_incs
         save(dom, "$outdir/$(dom.filekey)-0.vtk", verbose=false)
         verbose && printstyled("  $outdir/$(dom.filekey)-0.vtk file written (Domain)\n", color=:green)
     end
 
+    # Get the domain current state and backup
+    State = [ ip.data for elem in dom.elems for ip in elem.ips ]
+    StateBk = clone.(State)
+
+
     # Backup the last converged state at ips. TODO: make backup to a vector of states
-    for ip in ips
-        ip.data0 = deepcopy(ip.data)
-    end
+    #for ip in ips
+        #ip.data0 = deepcopy(ip.data)
+    #end
 
     # Incremental analysis
     t  = 0.0
@@ -184,7 +199,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
     T  = dT        # output time for saving the next vtk file
 
     ttol = 1e-9    # time tolerance
-    inc  = 1       # increment counter
+    inc  = 0       # increment counter
     iout = dom.nouts     # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
@@ -198,8 +213,17 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
     #remountK = true
 
     while t < 1.0 - ttol
-        verbose && printstyled("  increment $inc from t=$(round(t,digits=10)) to t=$(round(t+dt,digits=10)) (dt=$(round(dt,digits=10))):", bold=true, color=:blue) # color 111
+        # Update counters
+        #t   += dt
+        #@show t
+        #@show dt
+        inc += 1
+        analysis_data.ninc += 1
+
+        #verbose && printstyled("  stage $(analysis_data.nstage) increment $inc from t=$(round(t-dt,digits=10)) to t=$(round(t,digits=10)) (dt=$(round(dt,digits=10))):", bold=true, color=:blue) # color 111
+        verbose && printstyled("  stage $(analysis_data.nstage) increment $inc from t=$(round(t,digits=10)) to t=$(round(t+dt,digits=10)) (dt=$(round(dt,digits=10))):", bold=true, color=:blue) # color 111
         verbose && println()
+
         ΔUex, ΔFex = dt*Uex, dt*Fex     # increment of external vectors
         R   .= ΔFex    # residual
         ΔUa .= 0.0
@@ -228,7 +252,8 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
             verbose && print("    updating... \r")
 
             # Restore the state to last converged increment
-            for ip in ips; ip.data = deepcopy(ip.data0) end
+            #for ip in ips; ip.data = deepcopy(ip.data0) end
+            set_state!.(State, StateBk)
 
             # Get internal forces and update data at integration points (update ΔFin)
             ΔFin .= 0.0
@@ -246,11 +271,12 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
                 K  = 0.5*(K + K2)
                 verbose && print("    solving...   \r")
                 solve_step(K, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
-                for ip in ips; ip.data = deepcopy(ip.data0) end
+                #for ip in ips; ip.data = deepcopy(ip.data0) end
+                set_state!.(State, StateBk)
 
                 ΔFin .= 0.0
                 ΔUt   = ΔUa + ΔUi
-                for elem in dom.elems  
+                for elem in dom.elems
                     elem_update!(elem, ΔUt, ΔFin, dt)
                 end
 
@@ -270,6 +296,10 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
                 @printf(" residue: %-10.4e\n", residue)
             end
 
+            #residue > 0.5 && error()
+            #t > 0.8 && error()
+            #error()
+
             if residue < tol;        converged = true ; remountK=false; break end
             if isnan(residue);       converged = false; break end
             if it > maxits;          converged = false; break end
@@ -283,7 +313,12 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
             U .+= ΔUa
 
             # Backup converged state at ips
-            for ip in ips; ip.data0 = deepcopy(ip.data) end
+            #for ip in ips; ip.data0 = deepcopy(ip.data) end
+            set_state!.(StateBk, State)
+
+            #for (ipdb, ipd) in zip(State, StateBk)
+                #copy!(ipdb, ipd)
+            #end
 
             # Update nodal variables at dofs
             for (i,dof) in enumerate(dofs)
@@ -294,8 +329,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
             update_loggers!(dom) # Tracking nodes, ips, elements, etc.
 
             # Update time t and dt
-            inc += 1
-            t   += dt
+            t += dt
 
             if maxincs != 0 && inc > maxincs
                 printstyled("  solver maxincs = $maxincs reached (try maxincs=0)\n", color=:red)
@@ -304,19 +338,25 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
 
             # Check for saving output file
             if abs(t - T) < ttol
-                iout += 1
+                analysis_data.nout += 1
+                iout = analysis_data.nout
+                #iout += 1
                 save(dom, "$outdir/$(dom.filekey)-$iout.vtk", verbose=false)
                 T += dT # find the next output time
                 verbose && printstyled("  $outdir/$(dom.filekey)-$iout.vtk file written (Domain)\n", color=:green)
             end
 
             if autoinc
+                #@show autoinc
+                #@show dt
                 if dt_bk>0.0
                     dt = dt_bk
                 else
                     dt = min(1.5*dt, 1.0/nincs)
+                    #@show dt
                     #dt = 1.5*dt
                     dt = round(dt, digits=-ceil(Int, log10(dt))+3)  # round to 3 significant digits
+                    #@show dt
                 end
             end
             dt_bk = 0.0
@@ -326,9 +366,17 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
                 dt_bk = dt
                 dt = T-t
             end
+            #@show T
+            #@show dt
         else
+            # Restore counters
+            #t   += dt
+            analysis_data.ninc -= 1
+            inc -= 1
+
             # Restore the state to last converged increment
-            for ip in ips; ip.data = deepcopy(ip.data0) end
+            #for ip in ips; ip.data = deepcopy(ip.data0) end
+            #set_state!.(State, StateBk)
 
             if autoinc
                 verbose && println("    increment failed.")
@@ -342,7 +390,10 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
                 printstyled("solve!: solver did not converge\n", color=:red)
                 return false
             end
+            #@show t
         end
+        #t>=0 && error()
+        #error()
     end
 
     # time spent
@@ -354,8 +405,8 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
     end
 
     # Update number of used increments at domain
-    dom.nincs += inc
-    dom.nouts = iout
+    #dom.nincs += inc
+    #dom.nouts = iout
 
     return true
 
