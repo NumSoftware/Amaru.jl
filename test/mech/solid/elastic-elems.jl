@@ -11,7 +11,7 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8, QUAD9)
     tag!(mesh.faces[:(y==1)], "top") # top face
 
     materials = [
-        MaterialBind(0, ElasticSolid(E=100.0, nu=0.2) ),
+        MaterialBind(:solids, ElasticSolid(E=100.0, nu=0.2) ),
     ]
 
     dom = Domain(mesh, materials, verbose=false)
@@ -42,7 +42,7 @@ for shape in (TET4, TET10, HEX8, HEX20)
     tag!(mesh.faces[:(x==0 || x==1)], "sides") # lateral face
 
     materials = [
-        MaterialBind(0, ElasticSolid(E=100.0, nu=0.2) ),
+        MaterialBind(:solids, ElasticSolid(E=100.0, nu=0.2) ),
     ]
 
     dom = Domain(mesh, materials, verbose=false)

@@ -5,3 +5,4 @@
 *.dat
 .ipynb_checkpoints
 sandbox
+**/vault

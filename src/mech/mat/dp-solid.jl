@@ -48,22 +48,10 @@ matching_elem_type(::DruckerPrager) = MechSolid
 # Create a new instance of Ip data
 new_ip_state(mat::DruckerPrager, analysis_data::AnalysisData) = DruckerPragerIpState(analysis_data)
 
+
 function nlE(fc::Float64, εc::Float64, ε::Array{Float64,1})
     εv = abs(sum(ε[1:3]))
     return 2*fc*(εc-εv)/εc^2
-end
-
-function set_state(ipd::DruckerPragerIpState; sig=zeros(0), eps=zeros(0))
-    if length(sig)==6
-        ipd.σ .= sig.*V2M
-    else
-        if length(sig)!=0; error("DruckerPrager: Wrong size for stress array: $sig") end
-    end
-    if length(eps)==6
-        ipd.ε .= eps.*V2M
-    else
-        if length(eps)!=0; error("DruckerPrager: Wrong size for strain array: $eps") end
-    end
 end
 
 function yield_func(mat::DruckerPrager, ipd::DruckerPragerIpState, σ::Tensor2)

@@ -18,7 +18,7 @@ abstract type Element
 end
 
 # Function to create new concrete types filled with relevant information
-function new_element(etype::Type{<:Element}, cell::Cell, nodes::Array{Node,1}, analysis_data::AnalysisData, tag::TagType=0)
+function new_element(etype::Type{<:Element}, cell::Cell, nodes::Array{Node,1}, analysis_data::AnalysisData, tag::String=0)
     elem = etype()
     elem.id     = 0
     elem.shape  = cell.shape

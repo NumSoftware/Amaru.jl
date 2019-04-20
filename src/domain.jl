@@ -122,6 +122,7 @@ function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}}
 
     # Shared analysis data
     ndim = mesh.ndim
+    #dom.analysis_data = Dict(:ndim=>ndim, :model_type=>model_type, :thickness=>thickness, :t=>0.0 )
     dom.analysis_data = AnalysisData()
     dom.analysis_data.ndim = ndim 
     dom.analysis_data.model_type = model_type
@@ -141,7 +142,7 @@ function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}}
     ncells    = length(mesh.cells)
     dom.elems = Array{Element,1}(undef, ncells)
     Nips      = zeros(Int, ncells)       # list with number of ips per element
-    Tips      = Array{TagType,1}(undef, ncells)  # list with the ip tag per element
+    Tips      = Array{String,1}(undef, ncells)  # list with the ip tag per element
     Tips     .= ""
     for mb in matbinds
         cells = mesh.cells[mb.expr]

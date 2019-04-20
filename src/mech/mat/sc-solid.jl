@@ -55,19 +55,6 @@ matching_elem_type(::SmearedCrack) = MechSolid
 # Create a new instance of Ip data
 new_ip_state(mat::SmearedCrack, analysis_data::AnalysisData) = SmearedCrackIpState(analysis_data)
 
-function set_state(ipd::SmearedCrackIpState; sig=zeros(0), eps=zeros(0))
-    if length(sig)==6
-        ipd.σ .= sig
-    else
-        if length(sig)!=0; error("SmearedCrack: Wrong size for stress array: $sig") end
-    end
-    if length(eps)==6
-        ipd.ε .= eps
-    else
-        if length(eps)!=0; error("SmearedCrack: Wrong size for strain array: $eps") end
-    end
-end
-
 
 function calc_σmax(mat::SmearedCrack, ipd::SmearedCrackIpState, upa::Float64)
     wc  = mat.wc

@@ -13,7 +13,7 @@ mesh = Mesh(block, verbose=true, reorder=false)
 # Domain definition
 
 materials = [
-    MaterialBind(0, ElasticSolid(E=1.0, nu=0.3) ),
+    MaterialBind(:solids, ElasticSolid(E=1.0, nu=0.3) ),
 ]
 
 # Load cases

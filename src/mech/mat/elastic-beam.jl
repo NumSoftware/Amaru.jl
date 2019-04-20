@@ -34,11 +34,6 @@ matching_elem_type(::ElasticBeam) = MechBeam
 # Create a new instance of Ip data
 new_ip_state(mat::ElasticBeam, analysis_data::AnalysisData) = BeamIpState(analysis_data)
 
-#function set_state(ipd::BeamIpState, σ=NaN, ε=NaN)
-    #if !isnan(σ); ipd.σ = σ end
-    #if !isnan(ε); ipd.ε = ε end
-#end
-
 function ip_state_vals(mat::ElasticBeam, ipd::BeamIpState)
     return OrderedDict{Symbol, Float64}()
 end

@@ -1,3 +1,15 @@
+# This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
+
+"""
+Returns max(x,0)
+"""
+pos(x) = (abs(x)+x)/2.0
+
+"""
+Returns min(x,0)
+"""
+neg(x) = (-abs(x)+x)/2.0
+
 
 """
 Returns a vector with the real roots of the quadratic polynomial ax^2 + bx + c

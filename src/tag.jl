@@ -3,8 +3,8 @@
 # Tag functions
 for T in (Node, Element, Ip, Edge, Face)
     @eval begin
-        tag!(object::$T, tag::TagType) = (object.tag = tag)
-        tag!(objects::Array{$T,1}, tag::TagType) = for object in objects; object.tag = tag end
+        tag!(object::$T, tag::String) = (object.tag = tag)
+        tag!(objects::Array{$T,1}, tag::String) = for object in objects; object.tag = tag end
     end
 end
 

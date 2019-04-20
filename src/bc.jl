@@ -48,8 +48,8 @@ mutable struct NodeBC<:BC
     funs::Array{Functor}
     nodes::Array{Node,1}
 
-    function NodeBC(expr::Union{Expr,TagType}, expconds::Expr=:(); kwconds...)
-        typeof(expr)<:TagType && (expr=:(isequal(tag,$expr)))
+    function NodeBC(expr::Union{Expr,String}, expconds::Expr=:(); kwconds...)
+        typeof(expr)<:String && (expr=:(isequal(tag,$expr)))
         keys, vals, funs = parse_conditions(expconds; kwconds...)
         return new(expr, keys, vals, funs, [])
     end
@@ -107,8 +107,8 @@ mutable struct FaceBC<:BC
     funs::Array{Functor}
     faces::Array{Face,1}
 
-    function FaceBC(expr::Union{Expr,TagType}, expconds::Expr=:(); kwconds...)
-        typeof(expr)<:TagType && (expr=:(isequal(tag,$expr)))
+    function FaceBC(expr::Union{Expr,String}, expconds::Expr=:(); kwconds...)
+        typeof(expr)<:String && (expr=:(isequal(tag,$expr)))
         keys, vals, funs = parse_conditions(expconds; kwconds...)
         return new(expr, keys, vals, funs, [])
     end
@@ -127,8 +127,8 @@ mutable struct EdgeBC<:BC
     funs::Array{Functor}
     edges::Array{Edge,1}
 
-    function EdgeBC(expr::Union{Expr,TagType}, expconds::Expr=:(); kwconds...)
-        typeof(expr)<:TagType && (expr=:(isequal(tag,$expr)))
+    function EdgeBC(expr::Union{Expr,String}, expconds::Expr=:(); kwconds...)
+        typeof(expr)<:String && (expr=:(isequal(tag,$expr)))
         keys, vals, funs = parse_conditions(expconds; kwconds...)
         return new(expr, keys, vals, funs, [])
     end
@@ -202,8 +202,8 @@ mutable struct ElemBC<:BC
     funs::Array{Functor}
     elems::Array{Element,1}
 
-    function ElemBC(expr::Union{Expr,TagType}, expconds::Expr=:(); kwconds...)
-        typeof(expr)<:TagType && (expr=:(isequal(tag,$expr)))
+    function ElemBC(expr::Union{Expr,String}, expconds::Expr=:(); kwconds...)
+        typeof(expr)<:String && (expr=:(isequal(tag,$expr)))
         keys, vals, funs = parse_conditions(expconds; kwconds...)
         return new(expr, keys, vals, funs, [])
     end

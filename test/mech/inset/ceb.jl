@@ -30,12 +30,33 @@ mats = [
                                            ks=(12/0.001)*5, kn=50000, A=0.005))
        ]
 
+#mats = [
+        #"solids"   => ElasticSolid(E=24e3, nu=0.2),
+        #"lines"    => ElasticRod(E=200e6, A=0.00011),
+        #"joints1D" => CEBJoint1D(TauM=12, TauR=3, s1=0.001, s2=0.0011, s3=0.004, alpha=0.5, beta=0.5,
+                                 #ks=(12/0.001)*5, kn=50000, A=0.005)
+       #]
+
 log_tip     = NodeLogger("tip")
 log_jnt_ip  = IpLogger("joint_ips")
 log_jnt_ips = IpGroupLogger("joint_ips", by=get_y)
 loggers = [ log_tip, log_jnt_ip, log_jnt_ips ]
 
+#loggers = [
+           #"tip"       => NodeLogger(),
+           #"joint_ips" => IpLogger(),
+           #"joint_ips" => IpGroupLogger(sort=:y, rev=true),
+           #:(x>4)      => IpGroupLogger()
+           #]
+
 dom = Domain(msh, mats, loggers)
+
+#bcs = [ 
+       #"fixed_points" => NodeBC(ux=0),
+       #"tip"          => NodeBC(uy=0.0003),
+       #:(y==0)        => FaceBC(uy=0.0)
+      #]
+
 
 bc1 = NodeBC("fixed_points", :(ux=0, uy=0, uz=0))
 bc2 = NodeBC("tip", :(uy=+0.0003))

@@ -8,14 +8,14 @@ blocks = [
 
 mesh = Mesh(blocks, verbose=true)
 #tag!(mesh.points[1], 1)
-tag!(mesh.cells    , 10) # all cells
+#tag!(mesh.cells, 10) # all cells
 #tag!(mesh.ips[:(x>0)], 1000)
 
 
 # Domain definition
 
 materials = [
-    MaterialBind(10, ElasticSolid(E=30e6, nu=0.2, rho=24.0) ),
+    MaterialBind(:solids, ElasticSolid(E=30e6, nu=0.2, rho=24.0) ),
 ]
 
 dom = Domain(mesh, materials)

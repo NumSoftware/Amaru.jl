@@ -61,30 +61,12 @@ matching_elem_type(::Mazars) = MechSolid
 # Create a new instance of Ip data
 new_ip_state(mat::Mazars, analysis_data::AnalysisData) = MazarsIpState(analysis_data)
 
-function set_state(ipd::MazarsIpState; sig=zeros(0), eps=zeros(0))
-    if length(sig)==6
-        ipd.σ .= sig.*V2M
-    else
-        if length(sig)!=0; error("Mazars: Wrong size for stress array: $sig") end
-    end
-    if length(eps)==6
-        ipd.ε .= eps.*V2M
-    else
-        if length(eps)!=0; error("Mazars: Wrong size for strain array: $eps") end
-    end
-end
-
-
-# special functions
-pos(x) = (abs(x)+x)/2.0
-neg(x) = (-abs(x)+x)/2.0
-
 
 function calcD(mat::Mazars, ipd::MazarsIpState)
     # There is something wrong with the derivatives here
 
     # Equivalent strain scalar
-    εp = eigenvals(ipd.ε)
+    εp = eigvals(ipd.ε)
     ε̅ = norm(pos.(εp))
     ε̅ == 0.0 && (ε̅ += 1e-15)
     ε̅max = max(ipd.ε̅max, mat.ε̅0)
@@ -142,7 +124,7 @@ function stress_update(mat::Mazars, ipd::MazarsIpState, Δε::Array{Float64,1})
     nu = mat.nu
 
     # Principal stresses tensor
-    εp = eigenvals(ipd.ε)
+    εp = eigvals(ipd.ε)
 
     # Equivalent strain scalar
     ε̅ = norm(pos.(εp))
@@ -157,7 +139,7 @@ function stress_update(mat::Mazars, ipd::MazarsIpState, Δε::Array{Float64,1})
         ipd.ε̅max = ε̅
 
         # Principal stresses and principal directions
-        σp = eigenvals(ipd.σ)
+        σp = eigvals(ipd.σ)
         σp = [ σp; zeros(3) ]
 
         # Damage calculation

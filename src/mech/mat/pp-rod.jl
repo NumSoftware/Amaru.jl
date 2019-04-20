@@ -45,14 +45,6 @@ matching_elem_type(::PPRod) = MechRod
 # Create a new instance of Ip data
 new_ip_state(mat::PPRod, analysis_data::AnalysisData) = PPRodIpState(analysis_data)
 
-function set_state!(dst::PPRodIpState, src::PPRodIpState)
-    dst.σ = src.σ
-    dst.ε = src.ε
-    dst.εpa = src.εpa
-    dst.Δγ  = src.Δγ
-    return dst
-end
-
 function yield_func(mat::PPRod, ipd::PPRodIpState, σ::Float64)
     σya = mat.σy0 + mat.H*ipd.εpa
     return abs(σ) - σya

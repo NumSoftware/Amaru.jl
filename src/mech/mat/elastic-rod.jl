@@ -36,11 +36,6 @@ matching_elem_type(::ElasticRod) = MechRod
 # Create a new instance of Ip data
 new_ip_state(mat::ElasticRod, analysis_data::AnalysisData) = ElasticRodIpState(analysis_data)
 
-function set_state(ipd::ElasticRodIpState, σ=NaN, ε=NaN)
-    if !isnan(σ); ipd.σ = σ end
-    if !isnan(ε); ipd.ε = ε end
-end
-
 function stress_update(mat::ElasticRod, ipd::ElasticRodIpState, Δε::Float64)
     E  = mat.E
     Δσ = mat.E*Δε

@@ -9,7 +9,7 @@ import Base.copy!
 `Material`
 
 Abstract type for objects used to store material parameters and to define
-the bejaviour of elements.
+the behaviour of elements.
 """
 abstract type Material end
 

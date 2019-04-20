@@ -15,8 +15,8 @@ mutable struct NodeLogger<:AbstractLogger
     filename :: String
     table    :: DTable
 
-    function NodeLogger(expr::Union{Expr,TagType}, filename::String="")
-        typeof(expr)<:TagType && ( expr=:(isequal(tag,$expr)) )
+    function NodeLogger(expr::Union{Expr,String}, filename::String="")
+        typeof(expr)<:String && ( expr=:(isequal(tag,$expr)) )
         this = new(expr)
         this.filename = filename
         this.table = DTable()
@@ -53,8 +53,8 @@ mutable struct IpLogger<:AbstractLogger
     filename :: String
     table    :: DTable
 
-    function IpLogger(expr::Union{Expr,TagType}, filename::String="")
-        typeof(expr)<:TagType && ( expr=:(isequal(tag,$expr)) )
+    function IpLogger(expr::Union{Expr,String}, filename::String="")
+        typeof(expr)<:String && ( expr=:(isequal(tag,$expr)) )
         this = new(expr)
         this.filename = filename
         this.table = DTable()
@@ -98,8 +98,8 @@ mutable struct FaceLogger<:FacetLogger
     filename :: String
     table    :: DTable
 
-    function FaceLogger(expr::Union{Expr,TagType}, filename::String="")
-        typeof(expr)<:TagType && ( expr=:(isequal(tag,$expr)) )
+    function FaceLogger(expr::Union{Expr,String}, filename::String="")
+        typeof(expr)<:String && ( expr=:(isequal(tag,$expr)) )
         return new(expr, [], [], filename, DTable())
     end
 
@@ -116,8 +116,8 @@ mutable struct EdgeLogger<:FacetLogger
     filename :: String
     table    :: DTable
 
-    function EdgeLogger(expr::Union{Expr,TagType}, filename::String="")
-        typeof(expr)<:TagType && ( expr=:(isequal(tag,$expr)) )
+    function EdgeLogger(expr::Union{Expr,String}, filename::String="")
+        typeof(expr)<:String && ( expr=:(isequal(tag,$expr)) )
         return new(expr, [], [], filename, DTable())
     end
 
@@ -178,7 +178,7 @@ mutable struct NodeGroupLogger<:AbstractLogger
     book     :: DBook
 
     function NodeGroupLogger(expr::Expr, filename::String=""; by::Function=identity) 
-        typeof(expr)<:TagType && ( expr=:(isequal(tag,$expr)) )
+        typeof(expr)<:String && ( expr=:(isequal(tag,$expr)) )
         new(expr, Array{Node,1}(), filename, by, DBook()) 
     end
     function NodeGroupLogger(nodes::Array{Node,1}, filename::String=""; by::Function=identity)
@@ -218,8 +218,8 @@ mutable struct IpGroupLogger<:AbstractLogger
     by       :: Function # used for sorting
     book     :: DBook
 
-    function IpGroupLogger(expr::Union{Expr,TagType}, filename::String=""; by::Function=identity)
-        typeof(expr)<:TagType && ( expr=:(isequal(tag,$expr)) )
+    function IpGroupLogger(expr::Union{Expr,String}, filename::String=""; by::Function=identity)
+        typeof(expr)<:String && ( expr=:(isequal(tag,$expr)) )
         new(expr, Array{Ip,1}(), filename, by, DBook())
     end
     function IpGroupLogger(ips::Array{Ip,1}, filename::String=""; by::Function=identity)
@@ -265,11 +265,11 @@ Logger(::Array{Node,1}, args...) = error("Logger: use GroupLogger function to lo
 Logger(::Array{Ip,1}, args...)   = error("Logger: use GroupLogger function to log a group of ips.")
 
 
-function Logger(applyto::Symbol, target::Union{Expr, TagType}, filename="")
+function Logger(applyto::Symbol, target::Union{Expr, String}, filename="")
     available = (:node, :ip, :face, :edge)
     applyto in available || error("Logger: applyto shoud be one of $available. got :$applyto")
 
-    typeof(target)<:TagType && (target = :(isequal(tag, $target)))
+    typeof(target)<:String && (target = :(isequal(tag, $target)))
 
     if applyto==:node
         return NodeLogger(target, filename)
@@ -280,11 +280,11 @@ function Logger(applyto::Symbol, target::Union{Expr, TagType}, filename="")
     end
 end
 
-function GroupLogger(applyto::Symbol, target::Union{Expr, TagType}, filename=""; by::Function=identity)
+function GroupLogger(applyto::Symbol, target::Union{Expr, String}, filename=""; by::Function=identity)
     available = (:node, :ip)
     applyto in available || error("GroupLogger: applyto shoud be one of $available. got :$applyto")
 
-    typeof(target)<:TagType && (target = :(isequal(tag, $target)))
+    typeof(target)<:String && (target = :(isequal(tag, $target)))
 
     if applyto==:node
         return NodeGroupLogger(target, filename)

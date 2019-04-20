@@ -20,6 +20,37 @@ function clone(src::IpState)
     return dst
 end
 
+function Base.copy(src::IpState)
+    T = typeof(src)
+    dst = ccall(:jl_new_struct_uninit, Any, (Any,), T)
+    names = fieldnames(T)
+    for name in names
+        val = getfield(src, name)
+        if hasmethod(copy, (typeof(val),))
+            setfield!(dst, name, copy(val))
+        else
+            setfield!(dst, name, val)
+        end
+    end
+    return dst
+end
+
+
+function Base.copyto!(dst::IpState, src::IpState)
+    names = fieldnames(typeof(src))
+    for name in names
+        val = getfield(src, name)
+        if isbits(val)
+            setfield!(dst, name, val)
+        elseif typeof(val)<:AbstractArray
+            copyto!(getfield(dst,name), val)
+        else
+            setfield!(dst, name, val)
+            #error("copyto!(::IpState, ::IpState): unsupported field type: $(typeof(val))")
+        end
+    end
+end
+
 
 
 """
@@ -33,7 +64,7 @@ mutable struct Ip
     w    ::Float64
     X    ::Array{Float64,1}
     id   ::Int
-    tag  ::TagType
+    tag  ::String
     owner::Any    # Element
     data ::IpState  # Ip current state
     #data0::IpState  # Ip state for the last converged increment

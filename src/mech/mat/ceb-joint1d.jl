@@ -86,15 +86,6 @@ matching_elem_type(::CEBJoint1D) = MechJoint1D
 new_ip_state(mat::CEBJoint1D, analysis_data::AnalysisData) = CEBJoint1DIpState(analysis_data)
 
 
-function set_state!(dst::CEBJoint1DIpState, src::CEBJoint1DIpState)
-    dst.σ      .= dst.σ        
-    dst.u      .= dst.u 
-    dst.τy      = dst.τy
-    dst.sy      = dst.sy
-    dst.elastic = dst.elastic
-    return dst
-end
-
 function Tau(mat::CEBJoint1D, sy::Float64)
     if sy<mat.s1
         return mat.τmax*(sy/mat.s1)^mat.α
@@ -123,20 +114,6 @@ function deriv(mat::CEBJoint1D, ipd::CEBJoint1DIpState, sy::Float64)
     else
         #return 0.0
         return mat.ks/1000
-    end
-end
-
-function set_state(ipd::CEBJoint1DIpState, sig=zeros(0), eps=zeros(0))
-    ndim = ipd.analysis_data.ndim
-    if length(sig)==ndim
-        ipd.σ .= sig
-    else
-        if length(sig)!=0; error("CEBJoint1DIpState: Wrong size for stress array: $sig") end
-    end
-    if length(eps)==ipd.3
-        ipd.u .= eps
-    else
-        if length(eps)!=0; error("CEBJoint1DIpState: Wrong size for strain array: $eps") end
     end
 end
 

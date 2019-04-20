@@ -14,6 +14,7 @@ mutable struct AnalysisData
         this.model_type = :general # plane_stress, axisymmetric
         this.thickness = 1.0
         this.t = 0.0
+
         this.nstage = 0 # current stage
         this.ninc   = 0 # current increment
         this.nout   = 0 # output files counter

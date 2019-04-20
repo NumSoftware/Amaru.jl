@@ -39,11 +39,11 @@ vector that represents the node coordinates.
 mutable struct Node
     id      ::Int
     X       ::Array{Float64,1}
-    tag     ::TagType
+    tag     ::String
     dofs    ::Array{Dof,1}
     dofdict ::OrderedDict{Symbol,Dof}
  
-    function Node(X::Array{Float64,1}; tag::TagType=0, id::Int=-1)
+    function Node(X::Array{Float64,1}; tag::String=0, id::Int=-1)
         this = new(id, X, tag)
         this.dofs = []
         this.dofdict = OrderedDict{Symbol,Dof}()

@@ -69,18 +69,6 @@ matching_elem_type(::NIConcrete) = MechSolid
 new_ip_state(mat::NIConcrete, analysis_data::AnalysisData) = NIConcreteIpState(mat, analysis_data)
 
 
-function set_state!(dst::NIConcreteIpState, src::NIConcreteIpState)
-    dst.σ     .= src.σ
-    dst.ε     .= src.ε
-    dst.ε̅cmax  = src.ε̅cmax
-    dst.ε̅tmax  = src.ε̅tmax
-    dst.h      = src.h
-    dst.damt   = src.damt
-    dst.damc   = src.damc
-    dst.in_linear_range = src.in_linear_range
-    return dst
-end
-
 function uniaxial_σ(mat::NIConcrete, ipd::NIConcreteIpState, εi::Float64)
     if εi>=0  # tension: Nilsson and Oldenburg 1982; Beshara and Virdi 1991; Wu and Yao 1998
         εt0 = mat.ft/mat.E0

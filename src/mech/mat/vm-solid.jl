@@ -44,19 +44,6 @@ matching_elem_type(::VonMises) = MechSolid
 # Create a new instance of Ip data
 new_ip_state(mat::VonMises, analysis_data::AnalysisData) = VonMisesIpState(analysis_data)
 
-function set_state(ipd::VonMisesIpState; sig=zeros(0), eps=zeros(0))
-    if length(sig)==6
-        ipd.σ .= sig.*V2M
-    else
-        if length(sig)!=0; error("VonMises: Wrong size for stress array: $sig") end
-    end
-    if length(eps)==6
-        ipd.ε .= eps.*V2M
-    else
-        if length(eps)!=0; error("VonMises: Wrong size for strain array: $eps") end
-    end
-end
-
 function yield_func(mat::VonMises, ipd::VonMisesIpState, σ::Tensor2)
     j1  = J1(σ)
     j2d = J2D(σ)

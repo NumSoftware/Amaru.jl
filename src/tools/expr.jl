@@ -1,23 +1,5 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-function subs_equal_by_approx(expr::Expr) # deprecated
-    mexpr = copy(expr) # expression to be modified
-    for (i,arg) in enumerate(mexpr.args)
-        if typeof(arg)!=Expr; continue end
-        if arg.head == :call
-            if arg.args[1] == :(==)
-                a = arg.args[2]
-                b = arg.args[3]
-                mexpr.args[i] = :(isapprox($a,$b,rtol= 1e-8 ))
-                continue
-            end
-        else
-            subs_equal_by_approx(arg)
-        end
-    end
-    return mexpr
-end
-
 # Fixes comparisons expressions using a tolerance
 function fix_comparison_scalar(expr::Expr)
     mexpr = copy(expr) # expression to be modified
@@ -62,6 +44,25 @@ function fix_comparison_scalar(expr::Expr)
     end
     return mexpr
 end
+
+
+# Define a function based on an expression
+export @fun
+export @cond
+
+macro fun(expr)
+    return quote
+        (t, x, y, z) -> $expr
+    end
+end
+
+macro cond(expr)
+    expr = fix_comparison_scalar(expr)
+    return quote
+        (t, x, y, z) -> $expr
+    end
+end
+
 
 # Fixes comparisons in array expressions using a tolerance
 function fix_comparison_arrays(expr::Expr)

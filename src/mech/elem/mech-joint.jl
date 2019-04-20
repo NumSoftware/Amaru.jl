@@ -6,7 +6,7 @@ mutable struct MechJoint<:Mechanical
     cell  ::Cell
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
-    tag   ::TagType
+    tag   ::String
     mat   ::Material
     active::Bool
     linked_elems::Array{Element,1}

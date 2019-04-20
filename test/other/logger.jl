@@ -9,7 +9,7 @@ mat = MaterialBind(:solids, ElasticSolid(E=100.0, nu=0.2) )
 # Loggers
 node_mon1 = NodeLogger(:(x==1 && y==1 && z==1) )
 node_mon2 = NodeLogger(:(x==1 && y==0 ) )
-node_mon3 = NodeLogger(1)
+node_mon3 = NodeLogger("1")
 
 nodes_mon1 = GroupLogger(:node, :(x==1 && y==1 ) )
 
@@ -19,7 +19,7 @@ edges_mon1 = EdgeLogger(:(z==1) )
 edges_mon2 = EdgeLogger(:(z==1) )
 #barra1_mon = GroupLogger(:elem, "barra1") TODO
 
-ip_mon1   = IpLogger(1)
+ip_mon1   = IpLogger("1")
 ip_mon2   = IpLogger(:(x>0.5 && y>0.5 && z>0.5) )
 
 ips_mon1   = GroupLogger(:ip, :(x>0.5 && y>0.5) )

@@ -42,28 +42,6 @@ matching_elem_type(::ElasticSolid) = MechSolid
 new_ip_state(mat::ElasticSolid, analysis_data::AnalysisData) = ElasticSolidIpState(analysis_data)
 
 
-function set_state!(dst::ElasticSolidIpState, src::ElasticSolidIpState)
-    dst.σ .= src.σ
-    dst.ε .= src.ε
-    return dst
-end
-
-
-function set_state(ipd::ElasticSolidIpState; sig=zeros(0), eps=zeros(0))
-    sq2 = √2.0
-    mdl = [1, 1, 1, sq2, sq2, sq2]
-    if length(sig)==6
-        ipd.σ .= sig.*mdl
-    else
-        if length(sig)!=0; error("ElasticSolid: Wrong size for stress array: $sig") end
-    end
-    if length(eps)==6
-        ipd.ε .= eps.*mdl
-    else
-        if length(eps)!=0; error("ElasticSolid: Wrong size for strain array: $eps") end
-    end
-end
-
 function calcDe(E::Number, ν::Number, model_type::Symbol)
     if model_type==:plane_stress
         c = E/(1.0-ν^2)

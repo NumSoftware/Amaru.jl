@@ -182,7 +182,8 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
 
     # Get the domain current state and backup
     State = [ ip.data for elem in dom.elems for ip in elem.ips ]
-    StateBk = clone.(State)
+    #StateBk = clone.(State)
+    StateBk = copy.(State)
 
 
     # Backup the last converged state at ips. TODO: make backup to a vector of states
@@ -253,7 +254,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
 
             # Restore the state to last converged increment
             #for ip in ips; ip.data = deepcopy(ip.data0) end
-            set_state!.(State, StateBk)
+            copyto!.(State, StateBk)
 
             # Get internal forces and update data at integration points (update ΔFin)
             ΔFin .= 0.0
@@ -272,7 +273,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
                 verbose && print("    solving...   \r")
                 solve_step(K, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
                 #for ip in ips; ip.data = deepcopy(ip.data0) end
-                set_state!.(State, StateBk)
+                copyto!.(State, StateBk)
 
                 ΔFin .= 0.0
                 ΔUt   = ΔUa + ΔUi
@@ -314,7 +315,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
 
             # Backup converged state at ips
             #for ip in ips; ip.data0 = deepcopy(ip.data) end
-            set_state!.(StateBk, State)
+            copyto!.(StateBk, State)
 
             #for (ipdb, ipd) in zip(State, StateBk)
                 #copy!(ipdb, ipd)
@@ -376,7 +377,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
 
             # Restore the state to last converged increment
             #for ip in ips; ip.data = deepcopy(ip.data0) end
-            #set_state!.(State, StateBk)
+            #copyto!.(State, StateBk)
 
             if autoinc
                 verbose && println("    increment failed.")

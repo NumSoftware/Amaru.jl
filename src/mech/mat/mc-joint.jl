@@ -71,10 +71,6 @@ end
 # Create a new instance of Ip data
 new_ip_state(mat::MCJoint, analysis_data::AnalysisData) = MCJointIpState(analysis_data)
 
-function set_state(ipd::MCJointIpState, sig=zeros(0), eps=zeros(0))
-    @assert(false)
-end
-
 function yield_func(mat::MCJoint, ipd::MCJointIpState, σ::Array{Float64,1})
     ndim = ipd.analysis_data.ndim
     σmax = calc_σmax(mat, ipd, ipd.upa)

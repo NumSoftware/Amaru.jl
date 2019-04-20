@@ -84,19 +84,6 @@ matching_elem_type(::Orthotropic) = MechSolid
 # Create a new instance of Ip data
 new_ip_state(mat::Orthotropic, analysis_data::AnalysisData) = OrthotropicIpState(analysis_data)
 
-function set_state(ipd::OrthotropicIpState; sig=zeros(0), eps=zeros(0))
-    if length(sig)==6
-        ipd.σ[:] = sig.*V2M
-    else
-        if length(sig)!=0; error("Orthotropic: Wrong size for stress array: $sig") end
-    end
-    if length(eps)==6
-        ipd.ε[:] = eps.*V2M
-    else
-        if length(eps)!=0; error("Orthotropic: Wrong size for strain array: $eps") end
-    end
-end
-
 
 function loading_func(mat::Orthotropic, σ::Tensor2)
     j2d = J2D(σ)

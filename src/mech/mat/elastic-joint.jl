@@ -42,18 +42,6 @@ end
 # Create a new instance of Ip data
 new_ip_state(mat::ElasticJoint, analysis_data::AnalysisData) = JointIpState(analysis_data)
 
-function set_state(ipd::JointIpState, sig=zeros(0), w=zeros(0))
-    if length(sig)==3
-        ipd.σ .= sig
-    else
-        if length(sig)!=0; error("ElasticJoint: Wrong size for stress array: $sig") end
-    end
-    if length(w)==3
-        ipd.w .= w
-    else
-        if length(w)!=0; error("ElasticJoint: Wrong size for strain array: $w") end
-    end
-end
 
 function mountD(mat::ElasticJoint, ipd::JointIpState)
     ndim = ipd.analysis_data.ndim

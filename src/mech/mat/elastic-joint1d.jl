@@ -2,6 +2,20 @@
 
 export ElasticJoint1D
 
+mutable struct Joint1DIpState<:IpState
+    analysis_data::AnalysisData
+    ndim::Int
+    σ ::Array{Float64,1}
+    u ::Array{Float64,1}
+    function Joint1DIpState(analysis_data::AnalysisData=AnalysisData())
+        this = new(analysis_data)
+        ndim = analysis_data.ndim
+        this.σ = zeros(ndim)
+        this.u = zeros(ndim)
+        return this
+    end
+end
+
 
 mutable struct ElasticJoint1D<:Material
     ks::Float64
@@ -35,32 +49,11 @@ mutable struct ElasticJoint1D<:Material
 end
 
 
-mutable struct Joint1DIpState<:IpState
-    analysis_data::AnalysisData
-    ndim::Int
-    σ ::Array{Float64,1}
-    u ::Array{Float64,1}
-    function Joint1DIpState(analysis_data::AnalysisData=AnalysisData())
-        this = new(analysis_data)
-        ndim = analysis_data.ndim
-        this.σ = zeros(ndim)
-        this.u = zeros(ndim)
-        return this
-    end
-end
-
-
 # Returns the element type that works with this material
 matching_elem_type(::ElasticJoint1D) = MechJoint1D
 
 # Create a new instance of Ip data
 new_ip_state(mat::ElasticJoint1D, analysis_data::AnalysisData) = Joint1DIpState(analysis_data)
-
-function set_state!(dst::Joint1DIpState, src::Joint1DIpState)
-    dst.σ .= dst.σ        
-    dst.u .= dst.u 
-    return dst
-end
 
 function calcD(mat::ElasticJoint1D, ipd::Joint1DIpState)
     ks = mat.ks
