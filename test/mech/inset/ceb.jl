@@ -56,7 +56,7 @@ bcs[2] = "tip" => NodeBC(uy=-0.0005)
 bcs[2] = "tip" => NodeBC(uy=+0.005)
 @test solve!(dom, bcs, nincs=20, autoinc=true, verbose=true)
 
-if Amaru.Debug.makeplots
+if Amaru.debug.makeplots
     using PyPlot
     log_jnt_ip = loggers[2].second
     tab = log_jnt_ip.table

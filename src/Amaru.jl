@@ -44,8 +44,7 @@ mutable struct DebugFlags
     enabled::Bool
     makeplots::Bool
 end
-const Debug = DebugFlags(false, true)
-#export Debug
+const debug = DebugFlags(false, true)
 
 # eye function
 eye(n::Int64) = Array{Float64}(I,n,n)

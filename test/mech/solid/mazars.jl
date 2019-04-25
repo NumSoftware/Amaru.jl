@@ -35,7 +35,7 @@ bcs = [
 
 @test solve!(dom, bcs, autoinc=true, nincs=100, maxits=4, tol=0.002, nouts=10, verbose=true)
 
-if Amaru.Debug.makeplots
+if Amaru.debug.makeplots
     using PyPlot
     tab = log2.table
     #plot(tab[:ezz], tab[:szz], marker="o")

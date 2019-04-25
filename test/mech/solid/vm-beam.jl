@@ -29,7 +29,7 @@ setlogger!(dom, mon)
 
 @test solve!(dom, bcs, autoinc=true, nincs=6, nouts=1, tol=1e-2)
 
-if Amaru.Debug.makeplots
+if Amaru.debug.makeplots
     using PyPlot
     tab = mon.table
     plot( tab[:uz], tab[:fz], "-o")

@@ -54,7 +54,7 @@ bcs = [
 @test solve!(dom, bcs, autoinc=true, nincs=100, maxits=4, tol=0.1, verbose=true, scheme=:FE, nouts=50, maxincs=0)
 
 
-if Amaru.Debug.makeplots
+if Amaru.debug.makeplots
     using PyPlot
     tab = log_face.table
     plot(log_n5.table[:ux] - log_n3.table[:ux], log_face.table[:fy],  marker="o", color="blue")
