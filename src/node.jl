@@ -99,11 +99,21 @@ function Base.getindex(nodes::Array{Node,1}, s::Symbol)
 end
 
 # Index operator for an collection of nodes
+function Base.getindex(nodes::Array{Node,1}, s::String) 
+    R = [ node for node in nodes if node.tag==s ]
+    sort!(R, by=node->sum(node.X))
+end
+
+# Index operator for an collection of nodes
 function Base.getindex(nodes::Array{Node,1}, filter_ex::Expr) 
-    @assert filter_ex.head in (:call, :&&, :||)
-    expr = fix_comparison_scalar(filter_ex)
-    fun  = Functor(:(x,y,z,id,tag), expr)
-    return [ n for n in nodes if fun(n.X[1], n.X[2], n.X[3], n.id, n.tag) ]
+    R = Node[]
+    for node in nodes
+        x, y, z = node.X
+        eval_arith_expr(filter_ex, x=x, y=y, z=z) && push!(R, node)
+    end
+
+    sort!(R, by=node->sum(node.X))
+    return R
 end
 
 # Get node coordinates for an collection of nodes as a matrix

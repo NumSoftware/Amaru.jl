@@ -1,22 +1,23 @@
 using Amaru
 
 # Finite element entities
-bl  = Block2D( [0 0; 1 1], nx=4, ny=4, cellshape=QUAD9)
+bl  = Block2D( [0 0; 1 1], nx=4, ny=4, cellshape=QUAD9, tag="solids")
 msh = Mesh(bl, verbose=true)
 
 
-mat = MaterialBind(:solids, ElasticSolid(E=100.0, nu=0.2) )
+mats = [ "solids" =>  ElasticSolid(E=100.0, nu=0.2) ]
+dom = Domain(msh, mats)
 
-mons = [
-        NodeLogger(:(x==1 && y==1), "node.dat"),
-        NodeGroupLogger(:(y==1), "nodes.dat"),
+loggers = [
+        :(x==1 && y==1) => NodeLogger("node.dat"),
+        :(y==1)         => NodeGroupLogger("nodes.dat"),
        ]
+setloggers!(dom, loggers)
 
-dom = Domain(msh, mat, mons)
 
 bcs = [
-        NodeBC(:(y==0), ux=0, uy=0),
-        FaceBC(:(y==1), ty=2),
+        :(y==0) => NodeBC(ux=0, uy=0),
+        :(y==1) => FaceBC(ty=2),
       ]
 
 
@@ -32,9 +33,9 @@ println(bl)
 println(msh)
 
 
-println(mat)
-println(mons[1])
-println(mons)
+println(mats)
+println(loggers[1])
+println(loggers)
 println(bcs[1])
 println(bcs)
 println(dom.nodes[1].dofs[1])

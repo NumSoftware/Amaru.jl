@@ -7,47 +7,47 @@ using Test
 
 # Mesh generation
 
-block = Block3D( [0 0 0; 1 1 1], nx=1, ny=1, nz=1, cellshape=HEX8) 
+block = Block3D( [0 0 0; 1 1 1], nx=1, ny=1, nz=1, cellshape=HEX8, tag="solid") 
 mesh = Mesh(block, verbose=true, reorder=false)
 
 # Domain definition
 
 materials = [
-    MaterialBind(:solids, ElasticSolid(E=1.0, nu=0.3) ),
+    "solid" => ElasticSolid(E=1.0, nu=0.3),
 ]
 
 # Load cases
 
 bcs1 = [
-    NodeBC(:(x==0 && y==0 && z==0), :(ux=0, uy=0) ),
-    NodeBC(:(x==1 && y==0 && z==0), :(uy=0) ),
-    NodeBC(:(x==0 && y==1 && z==0), :(ux=0) ),
-    NodeBC(:(z==0), :(uz=0) ),
-    NodeBC(:(z==1), :(fz=1) ),
+    :(x==0 && y==0 && z==0) => NodeBC(ux=0, uy=0),
+    :(x==1 && y==0 && z==0) => NodeBC(uy=0),
+    :(x==0 && y==1 && z==0) => NodeBC(ux=0),
+    :(z==0)                 => NodeBC(uz=0),
+    :(z==1)                 => NodeBC(fz=1),
 ]
 
 bcs2 = [
-    NodeBC(:(x==0 && y==0 && z==0), :(ux=0, uy=0) ),
-    NodeBC(:(x==1 && y==0 && z==0), :(uy=0) ),
-    NodeBC(:(x==0 && y==1 && z==0), :(ux=0) ),
-    NodeBC(:(z==0), :(uz=0) ),
-    EdgeBC(:(y==1 && z==1), :(ty=2) ),
+    :(x==0 && y==0 && z==0) => NodeBC(ux=0, uy=0),
+    :(x==1 && y==0 && z==0) => NodeBC(uy=0),
+    :(x==0 && y==1 && z==0) => NodeBC(ux=0),
+    :(z==0)                 => NodeBC(uz=0),
+    :(y==1 && z==1)         => EdgeBC(ty=2),
 ]
 
 bcs3 = [
-    NodeBC(:(x==0 && y==0 && z==0), :(ux=0, uy=0) ),
-    NodeBC(:(x==1 && y==0 && z==0), :(uy=0) ),
-    NodeBC(:(x==0 && y==1 && z==0), :(ux=0) ),
-    NodeBC(:(z==0), :(uz=0) ),
-    FaceBC(:(x==1), :(tx=3*z) ),
+    :(x==0 && y==0 && z==0) => NodeBC(ux=0, uy=0),
+    :(x==1 && y==0 && z==0) => NodeBC(uy=0),
+    :(x==0 && y==1 && z==0) => NodeBC(ux=0),
+    :(z==0)                 => NodeBC(uz=0),
+    :(x==1)                 => FaceBC(tx=:(3*z)),
 ]
 
 bcs4 = [
-    NodeBC(:(x==0 && y==0 && z==0), :(ux=0, uy=0) ),
-    NodeBC(:(x==1 && y==0 && z==0), :(uy=0) ),
-    NodeBC(:(x==0 && y==1 && z==0), :(ux=0) ),
-    NodeBC(:(z==0), :(uz=0) ),
-    ElemBC(:(x>=0), :(tz=-1) ),
+    :(x==0 && y==0 && z==0) => NodeBC(ux=0, uy=0),
+    :(x==1 && y==0 && z==0) => NodeBC(uy=0),
+    :(x==0 && y==1 && z==0) => NodeBC(ux=0),
+    :(z==0)                 => NodeBC(uz=0),
+    :(x>=0)                 => ElemBC(tz=-1),
 ]
 
 ana_list = ["Nodal load", "Edge load", "Triangular face load", "Volume load"]

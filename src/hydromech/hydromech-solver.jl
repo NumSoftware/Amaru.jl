@@ -10,7 +10,7 @@ mutable struct HMSolver<:Solver
     filekey::String
     #loggers::Array{AbstractLogger,1}
     stage::Integer
-    shared_data::SharedAnalysisData
+    analysis_data::SharedAnalysisData
 
     Fint::Array{Float64,1}
 end
@@ -193,7 +193,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     end
 
     if !isnan(end_time)
-        time_span = end_time - dom.shared_data.t
+        time_span = end_time - dom.analysis_data.t
     end
 
     # Get dofs organized according to boundary conditions
@@ -226,13 +226,12 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     end
 
 
-    # Backup the last converged state at ips. TODO: make backup to a vector of states
-    for ip in ips
-        ip.data0 = deepcopy(ip.data)
-    end
+    # Get the domain current state and backup
+    State = [ ip.data for elem in dom.elems for ip in elem.ips ]
+    StateBk = copy.(State)
 
     # Incremental analysis
-    t    = dom.shared_data.t # current time
+    t    = dom.analysis_data.t # current time
     tend = t + time_span  # end time
     Δt = time_span/nincs # initial Δt value
 
@@ -261,18 +260,13 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
         U[i] = dof.vals[dof.name]
         F[i] = dof.vals[dof.natname]
     end
-#
-    #Uex[umap] .= 0.0
-    #Fex[pmap] .= 0.0
-
-    #@show round.(F,10)
 
     while t < tend - ttol
 
         verbose && printstyled("  increment $inc from t=$(round(t,sigdigits=9)) to t=$(round(t+Δt,sigdigits=9)) (dt=$(round(Δt,sigdigits=9))):\n", bold=true, color=:blue) # color 111
 
         # Get forces and displacements from boundary conditions
-        dom.shared_data.t = t + Δt
+        dom.analysis_data.t = t + Δt
         UexN, FexN = get_bc_vals(dom, bcs, t+Δt) # get values at time t+Δt
 
         ΔUex = UexN - U
@@ -280,9 +274,6 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
 
         ΔUex[umap] .= 0.0
         ΔFex[pmap] .= 0.0
-
-        #ΔUex = UexN - Uex
-        #ΔFex = FexN - Fex
 
         R   .= ΔFex    # residual
         ΔUa .= 0.0
@@ -313,7 +304,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             verbose && print("    updating... \r")
 
             # Restore the state to last converged increment
-            for ip in ips; ip.data = deepcopy(ip.data0) end
+            copyto!.(State, StateBk)
 
             # Get internal forces and update data at integration points (update ΔFin)
             ΔFin .= 0.0
@@ -330,8 +321,6 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             # Residual vector for next iteration
             R = ΔFex - ΔFin  #
             R[pmap] .= 0.0  # Zero at prescribed positions
-            #@show maximum(abs, R[uw_map])
-            #@show maximum(abs, R[uz_map])
 
             if verbose
                 printstyled("    it $it  ", bold=true)
@@ -358,7 +347,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             Fex .= FexN
 
             # Backup converged state at ips
-            for ip in ips; ip.data0 = deepcopy(ip.data) end
+            copyto!.(StateBk, State)
 
             # Update nodal variables at dofs
             for (i,dof) in enumerate(dofs)

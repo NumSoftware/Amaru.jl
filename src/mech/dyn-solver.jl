@@ -2,36 +2,6 @@
 
 export dynsolve!
 
-# Assemble the global stiffness matrix
-#=
-function mount_K(dom::Domain, ndofs::Int)
-
-    R, C, V = Int64[], Int64[], Float64[]
-
-    for elem in dom.elems
-        Ke, rmap, cmap = elem_stiffness(elem)
-        nr, nc = size(Ke)
-        for i=1:nr
-            for j=1:nc
-                push!(R, rmap[i])
-                push!(C, cmap[j])
-                push!(V, Ke[i,j])
-            end
-        end
-    end
-
-    local K
-    try
-        K = sparse(R, C, V, ndofs, ndofs)
-    catch err
-        @show ndofs
-        @show err
-    end
-
-    return K
-end
-=#
-
 
 # Assemble the global mass matrix
 function mount_M(dom::Domain, ndofs::Int)
@@ -60,9 +30,6 @@ function mount_M(dom::Domain, ndofs::Int)
 
     return M
 end
-
-
-
 
 
 # Solves for a load/displacement increment
@@ -172,8 +139,6 @@ tfia::Float64, tds::Float64)
 end
 
 
-
-
 """
     solve!(D, bcs, options...) -> Bool
 
@@ -223,7 +188,6 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds
         #info("  updating nincs to $nincs")
     end
 
-
     # Dictionary of data keys related with a dof
     components_dict = Dict(:ux => (:ux, :fx, :vx, :ax), 
                            :uy => (:uy, :fy, :vy, :ay),
@@ -241,13 +205,6 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds
     # Get array with all integration points
     ips = [ ip for elem in dom.elems for ip in elem.ips ]
 
-    # Get forces and displacements from boundary conditions
-    #Uex, Fex = get_bc_vals(dom, bcs)
-
-    # Global RHS vector 
-    #RHS   = mount_RHS(dom, ndofs, 0.0)
-    #Fex .+= RHS
-
     # Setup quantities at dofs
     if dom.nincs == 0
         for (i,dof) in enumerate(dofs)
@@ -259,14 +216,10 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds
         end
     end
 
+    # Get the domain current state and backup
+    State = [ ip.data for elem in dom.elems for ip in elem.ips ]
+    StateBk = copy.(State)
 
-
-    # Backup the last converged state at ips. TODO: make backup to a vector of states
-    for ip in ips
-        ip.data0 = deepcopy(ip.data)
-    end
-    
-                
     #If the problem is sismic, read the sismic acelerations asking to user the file's name AS:SeismicAcelerations
 
     if sism==true
@@ -277,7 +230,6 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds
          keysis = Symbol(readline())
     end 
 
-                
 
     # Initial accelerations
     K = mount_K(dom, ndofs)
@@ -312,7 +264,7 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds
 
     # Incremental analysis
     Dt = time_span
-    t  = dom.shared_data.t
+    t  = dom.analysis_data.t
     tend = t + Dt # end time
     dt = Dt/nincs # initial dt value
 
@@ -322,7 +274,6 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds
     ttol = 1e-9    # time tolerance
     inc  = 1       # increment counter
     iout = dom.nouts     # file output counter
-    #F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
     Fin  = zeros(ndofs)  # total internal force
@@ -335,9 +286,7 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds
     Va   = zeros(ndofs)
     #lastFin = zeros(ndofs)
 
-    remountK = true
-
-
+    #remountK = true
 
     while t < tend - ttol
         Uex, Fex = get_bc_vals(dom, bcs, t+dt) # get values at time t+dt
@@ -366,12 +315,13 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds
 
         for it=1:maxits
             if it>1; ΔUi .= 0.0 end # essential values are applied only at first iteration
-            if it>1; remountK=true end 
+            #if it>1; remountK=true end 
             lastres = residue # residue from last iteration
 
             # Try FE step
             verbose && print("    assembling K... \r")
-            remountK && (K = mount_K(dom, ndofs))
+            #remountK && (K = mount_K(dom, ndofs))
+            K = mount_K(dom, ndofs)
 
             C   = alpha*M + beta*K # Damping matrix
             Kp  = K + (4/(dt^2))*M + (2/dt)*C # pseudo-stiffness matrix
@@ -385,7 +335,7 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds
             verbose && print("    updating... \r")
 
             # Restore the state to last converged increment
-            for ip in ips; ip.data = deepcopy(ip.data0) end
+            copyto!.(State, StateBk)
 
             # Get internal forces and update data at integration points (update ΔFin)
             ΔFin .= 0.0
@@ -432,7 +382,7 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds
             U .+= ΔUa
 
             # Backup converged state at ips
-            for ip in ips; ip.data0 = deepcopy(ip.data) end
+            copyto!.(StateBk, State)
 
             # Update vectors for velocity and acceleration
             A = Aa

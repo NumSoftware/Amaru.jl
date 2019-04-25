@@ -51,27 +51,3 @@ function read_prms(filename::String)
 
     return mats_prms
 end
-
-
-struct MaterialBind
-    mat  :: Material
-    expr :: Union{Symbol,Expr}
-    function MaterialBind(target::Union{Symbol, Int, Array{Int,1}, UnitRange{Int}, Expr, String}, mat::Material)
-        expr = :()
-        ty = typeof(target)
-        if ty==Symbol
-            targets = (:all, :solids, :lines, :joints, :joints1D)
-            !(target in targets) && error("MaterialBind: target should be one of $targets. :$target received")
-            expr = target
-        elseif ty==Expr
-            expr = target
-        #elseif ty==Int || ty==Array{Int,1} || ty==UnitRange{Int}
-            #expr = :(id in $target)
-        elseif ty<:Union{Int,String}
-            #expr = :(tag==$target)
-            expr = :(isequal(tag, $target))
-        end
-
-        return new(mat, expr)
-    end
-end

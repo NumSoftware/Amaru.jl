@@ -3,19 +3,15 @@ using Amaru
 # Mesh generation
 
 blocks = [
-    Block3D( [0 0 0; 0.2 2.0 0.2], nx=2, ny=12, nz=2, cellshape=HEX8),
+    Block3D( [0 0 0; 0.2 2.0 0.2], nx=2, ny=12, nz=2, cellshape=HEX8, tag="solids"),
 ]
 
 mesh = Mesh(blocks, verbose=true)
-#tag!(mesh.points[1], 1)
-#tag!(mesh.cells, 10) # all cells
-#tag!(mesh.ips[:(x>0)], 1000)
-
 
 # Domain definition
 
 materials = [
-    MaterialBind(:solids, ElasticSolid(E=30e6, nu=0.2, rho=24.0) ),
+    "solids" => ElasticSolid(E=30e6, nu=0.2, rho=24.0)
 ]
 
 dom = Domain(mesh, materials)
@@ -23,9 +19,9 @@ dom = Domain(mesh, materials)
 # Finite element modeling
 
 bcs = [
-    NodeBC(:(y==0 && z==0), :(ux=0, uy=0, uz=0) ),
-    NodeBC(:(y==2 && z==0), :(uz=0) ),
-    NodeBC(:(y==1 && z==0.2), :(fz=-10) ),
+    :(y==0 && z==0)   => NodeBC(ux=0, uy=0, uz=0),
+    :(y==2 && z==0)   => NodeBC(uz=0),
+    :(y==1 && z==0.2) => NodeBC(fz=-10),
 ]
 
 

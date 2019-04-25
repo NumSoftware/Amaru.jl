@@ -2,8 +2,8 @@ using Amaru
 using Test
 
 # Mesh generation
-bl  = Block3D( [0 0 0; 1.0 6.0 1.0], nx=3, ny=5, nz=3)
-bl1 = BlockInset( [0.2 0.2 0.2; 0.2 5.8 0.2], curvetype="polyline")
+bl  = Block3D( [0 0 0; 1.0 6.0 1.0], nx=4, ny=6, nz=2, tag="solids")
+bl1 = BlockInset( [0.2 0.2 0.2; 0.2 5.8 0.2], curvetype="polyline", tag="bars", jointtag="joints")
 bl2 = move!( copy(bl1), dx=0.6)
 bl3 = move!( copy(bl1), dx=0.3)
 bls = [bl, bl1, bl2, bl3 ]
@@ -13,21 +13,25 @@ mesh = Mesh(bls, verbose=true)
 # FEM analysis
 
 mats = [
-    MaterialBind(:solids  , ElasticSolid(E=1.e4, nu=0.) ),
-    MaterialBind(:joints1D, ElasticJoint1D(ks=1.e5, kn=1.e5, A=0.005) ),
-    MaterialBind(:lines   , ElasticRod(E=1.e8, A=0.005) ),
+    "solids" => ElasticSolid(E=1.e4, nu=0.),
+    "joints" => ElasticJoint1D(ks=1.e5, kn=1.e5, A=0.005),
+    "bars"   => ElasticRod(E=1.e8, A=0.005),
 ]
 
 dom = Domain(mesh, mats)
 
 bcs = [
-       NodeBC(:(y==0 && z==0), :(uy=0, uz=0)),
-       NodeBC(:(y==6 && z==0), :(uz=0)),
-       FaceBC(:(z==1), :(tz=-1000 )),
+       :(y==0 && z==0) => NodeBC(uy=0, uz=0),
+       :(y==6 && z==0) => NodeBC(uz=0),
+       :(z==1) => FaceBC(tz=-1000 ),
       ]
 
-mon = NodeLogger(:(x==0.5 && y==1.0 && z==0.5) )
-#set_logger(dom, mon)
+mon = NodeLogger()
+loggers = [
+           :(x==0.5 && y==3.0 && z==0.5) => mon
+          ]
+
+setloggers!(dom, loggers)
 
 @test solve!(dom, bcs, nincs=20, verbose=true)
 

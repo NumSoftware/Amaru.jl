@@ -95,31 +95,22 @@ function ip_vals(ip::Ip)
     return merge(coords, vals)
 end
 
-# Index operator for a ip collection using expression
-function getindex(ips::Array{Ip,1}, cond::Expr) 
-    condm = fix_comparison_scalar(cond)
-    funex = :( (x,y,z,id,tag) -> false )
-    funex.args[2].args[2] = condm
-    fun = nothing
-    try
-        fun   = eval(funex)
-    catch
-        error("Ip getindex: Invalid condition ", cond)
-    end
 
-    result = Ip[]
+# Index operator for a ip collection using expression
+function Base.getindex(ips::Array{Ip,1}, filter_ex::Expr) 
+    R = Ip[]
     for ip in ips
         x, y, z = ip.X
-        if Base.invokelatest(fun, x, y, z, ip.id, ip.tag)
-            push!(result, ip)
-        end
+        eval_arith_expr(filter_ex, x=x, y=y, z=z) && push!(R, ip)
     end
-
-    length(result) == 0 && @warn "getindex: No ips found for expression:" cond
-    return result
+    return R
 end
 
-getindex(ips::Array{Ip,1}, cond::String) = getindex(ips, parse(cond))
+
+function getindex(ips::Array{Ip,1}, s::String) 
+    return [ ip for ip in ips if ip.tag==s ]
+end
+
 
 # Get the maximum value of a given coordinate for the whole collection of ips
 function maximum(ips::Array{Ip,1}, dir::Symbol) 
@@ -131,11 +122,4 @@ function minimum(ips::Array{Ip,1}, dir::Symbol)
     idx = findfisrt((:x, :y, :z), dir)
     minimum([ip.X[idx] for ip in ips])
 end
-
-# Sort a collection of ips in a given direction
-#function sort(ips::Array{Ip,1}, dir::Symbol=:x; rev::Bool=false) 
-    #idx  = findfirst((:x, :y, :z), dir)
-    #idxs = sortperm([ip.X[idx] for ip in ips], rev=rev)
-    #return ips[idxs]
-#end
 

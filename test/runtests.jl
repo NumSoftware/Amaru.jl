@@ -43,6 +43,7 @@ FILES = [
     "mech/dynamic/dyn-solid.jl",
 
     # Hydromechanical analysis:
+    "hydromech/seep.jl",
     "hydromech/terzaghi.jl",
    ]
 

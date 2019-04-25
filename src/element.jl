@@ -139,7 +139,7 @@ end
 
 Especifies the material model `mat` to be used to represent the behavior of a set of `Element` objects `elems`.
 """
-function set_mat(elems::Array{Element,1}, mat::Material; nips::Int64=0)
+function set_mat(elems::Array{<:Element,1}, mat::Material; nips::Int64=0)
     length(elems)==0 && @warn "Defining material model $(typeof(mat)) for an empty array of elements."
 
     for elem in elems
@@ -149,7 +149,7 @@ end
 
 
 # Define the state at all integration points in a collection of elements
-function set_state(elems::Array{Element,1}; args...)
+function set_state(elems::Array{<:Element,1}; args...)
     for elem in elems
         for ip in elem.ips
             set_state(ip.data; args...)
@@ -159,7 +159,7 @@ end
 
 
 # Get all nodes from a collection of elements
-function get_nodes(elems::Array{Element,1})
+function get_nodes(elems::Array{<:Element,1})
     nodes = Set{Node}()
     for elem in elems
         for node in elem.nodes
@@ -171,14 +171,15 @@ end
 
 
 # Get all ips from a collection of elements
-function get_ips(elems::Array{Element,1})
-    ips = Ip[]
-    for elem in elems
-        for ip in elem.ips
-            push!(ips, ip)
-        end
-    end
-    return ips
+function get_ips(elems::Array{<:Element,1})
+    return [ ip for elem in elems for ip in elem.ips ]
+end
+
+
+function Base.getproperty(elems::Array{<:Element,1}, s::Symbol)
+    s == :ips   && return get_ips(elems)
+    s == :nodes && return get_nodes(elems)
+    error("type Array{Element,1} has no property $s")
 end
 
 # Index operator for an element
@@ -214,19 +215,20 @@ end
 
 # Index operator for a collection of elements using an expression
 function getindex(elems::Array{<:Element,1}, filter_ex::Expr)
-    @assert filter_ex.head in (:call, :&&, :||)
-    expr = fix_comparison_arrays(filter_ex)
-    fun  = Functor(:(x,y,z,id,tag), expr)
-
-    result = Element[]
-    for elem in elems
-        coords = nodes_coords(elem.nodes)
-        x = coords[:,1]
-        y = coords[:,2]
-        z = coords[:,3]
-        fun(x, y, z, elem.id, elem.tag) && push!(result, elem) 
+    nodes = elems[:nodes]
+    nodemap = zeros(Int, maximum(node.id for node in nodes) )
+    T = Bool[]
+    for (i,node) in enumerate(nodes)
+        nodemap[node.id] = i
+        x, y, z = node.X
+        push!(T, eval_arith_expr(filter_ex, x=x, y=y, z=z))
     end
-    return result
+
+    R = Element[]
+    for elem in elems
+        all( T[nodemap[node.id]] for node in elem.nodes ) && push!(R, elem)
+    end
+    return R
 end
 
 # General element sorting

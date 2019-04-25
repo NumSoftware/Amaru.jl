@@ -25,7 +25,7 @@ function elem_init(elem::HMSolid)
 end
 
 
-function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol, fun::Functor)
+function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.analysis_data.ndim
 
     # Check bcs
@@ -62,27 +62,27 @@ function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol,
         X = C'*N
         if ndim==2
             x, y = X
-            val = fun(t,x,y,0.0)
+            vip = eval_arith_expr(val, t=t, x=x)
             if key == :tx
-                Q = [val, 0.0]
+                Q = [vip, 0.0]
             elseif key == :ty
-                Q = [0.0, val]
+                Q = [0.0, vip]
             elseif key == :tn
                 n = [J[1,2], -J[1,1]]
-                Q = val*n/norm(n)
+                Q = vip*n/norm(n)
             end
         else
             x, y, z = X
-            val = fun(t,x,y,z)
+            vip = eval_arith_expr(val, t=t, x=x)
             if key == :tx
-                Q = [val, 0.0, 0.0]
+                Q = [vip, 0.0, 0.0]
             elseif key == :ty
-                Q = [0.0, val, 0.0]
+                Q = [0.0, vip, 0.0]
             elseif key == :tz
-                Q = [0.0, 0.0, val]
+                Q = [0.0, 0.0, vip]
             elseif key == :tn && ndim==3
                 n = cross(J[1,:], J[2,:])
-                Q = val*n/norm(n)
+                Q = vip*n/norm(n)
             end
         end
         F += N*Q'*(nJ*w) # F is a matrix

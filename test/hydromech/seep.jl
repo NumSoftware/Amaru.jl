@@ -4,7 +4,7 @@ using Test
 # Mesh generation
 
 blocks = [
-    Block2D( [0 0; 1 2], nx=1, ny=4),
+    Block2D( [0 0; 1 2], nx=1, ny=4, tag="solids"),
 ]
 
 msh = Mesh(blocks, verbose=true)
@@ -18,20 +18,20 @@ nu   = 0.25    # Poisson
 gw   = 10.0    # water specific weight
 
 materials = [
-    MaterialBind(:solids, LinSeep(k=k, gw=gw) ),
+    "solids" => LinSeep(k=k, gw=gw)
 ]
+dom = Domain(msh, materials)
 
-logger = [
-    NodeGroupLogger(:(x==0)),
+log1 = NodeGroupLogger()
+loggers = [
+    :(x==0) => log1
 ]
+setloggers!(dom, loggers)
 
-dom = Domain(msh, materials, logger)
-
-fw_f(t) = t/10.0
 
 bcs = [
-    NodeBC(:(y==0), :(fw=$fw_f(t)) ),
-    NodeBC(:(y==2), :(uw=0.) ),
+       :(y==0) => NodeBC(fw=:(t/10.0)),
+       :(y==2) => NodeBC(uw=0.),
 ]
 
 hm_solve!(dom, bcs, end_time=500.0, tol=0.1, verbose=true)
@@ -40,9 +40,9 @@ hm_solve!(dom, bcs, end_time=500.0, tol=0.1, verbose=true)
 
 if Amaru.Debug.makeplots
     using PyPlot
-    save(logger[1], "book.dat")
+    save(log1, "book.dat")
 
-    book = logger[1].book
+    book = log1.book
     for (i,table) in enumerate(book.tables)
         plot(table[:uw], table[:y], "-o")
     end

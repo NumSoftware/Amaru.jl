@@ -6,7 +6,7 @@ using Test
 # ===============
 
 blocks = [
-    Block3D( [0 0 0; 1 1 10], nx=1, ny=1, nz=10, cellshape=HEX8),
+    Block3D( [0 0 0; 1 1 10], nx=1, ny=1, nz=10, cellshape=HEX8, tag="solids"),
 ]
 
 msh = Mesh(blocks, verbose=true)
@@ -30,14 +30,15 @@ t1 = times[1]/10
 times .+= t1
 
 materials = [
-    MaterialBind(:solids, ElasticSolidLinSeep(E=E, nu=nu, k=k, gw=gw) ),
+    "solids" => ElasticSolidLinSeep(E=E, nu=nu, k=k, gw=gw)
 ]
+dom = Domain(msh, materials)
 
-logger = [
-    NodeGroupLogger(:(x==0 && y==0) ),
+log1 = NodeGroupLogger()
+loggers = [
+    :(x==0 && y==0) => log1
 ]
-
-dom = Domain(msh, materials, logger)
+setloggers!(dom, loggers)
 
 
 # Stage 1: hydrostatic pore-pressure
@@ -46,14 +47,14 @@ dom = Domain(msh, materials, logger)
 tlong = 10000*hd^2/cv
 
 bcs = [
-    NodeBC(:(z==0), :(ux=0, uy=0, uz=0) ),
-    NodeBC(:(x>=0), :(ux=0, uy=0) ),
-    NodeBC(:(z==10), :(uw=0.) ),
+    :(z==0)  => NodeBC(ux=0, uy=0, uz=0),
+    :(x>=0)  => NodeBC(ux=0, uy=0),
+    :(z==10) => NodeBC(uw=0.),
 ]
 
 hm_solve!(dom, bcs, end_time=tlong, nincs=2, tol=1e-2, nouts=1, verbose=true)
 
-dom.shared_data.t = 0.0
+dom.analysis_data.t = 0.0
 
 
 # Stage 2: loading
@@ -63,10 +64,10 @@ pt(t) = -load
 #pt(t) = t>=t1? -load : -load/t1*t
 
 bcs = [
-    NodeBC(:(z==0), :(ux=0, uy=0, uz=0) ),
-    NodeBC(:(x>=0), :(ux=0, uy=0) ),
-    FaceBC(:(z==10), :(tz=$pt(t)) ),
-    NodeBC(:(z==10), :(uw=0.) ),
+    :(z==0)  => NodeBC(ux=0, uy=0, uz=0),
+    :(x>=0)  => NodeBC(ux=0, uy=0),
+    :(z==10) => FaceBC(tz=-load),
+    :(z==10) => NodeBC(uw=0.),
 ]
 
 hm_solve!(dom, bcs, end_time=t1, nincs=4, tol=1e-2, nouts=1, verbose=true)
@@ -76,16 +77,16 @@ hm_solve!(dom, bcs, end_time=t1, nincs=4, tol=1e-2, nouts=1, verbose=true)
 # =================
 
 bcs = [
-    NodeBC(:(z==0), :(ux=0, uy=0, uz=0) ),
-    NodeBC(:(x>=0), :(ux=0, uy=0) ),
-    FaceBC(:(z==10), :(tz=$pt(t)) ),
-    NodeBC(:(z==10), :(uw=0.) ),
+    :(z==0)  => NodeBC(ux=0, uy=0, uz=0),
+    :(x>=0)  => NodeBC(ux=0, uy=0),
+    :(z==10) => FaceBC(tz=-load),
+    :(z==10) => NodeBC(uw=0.),
 ]
 
 Uw_vals = [] # A list with porepressure vectors
 for t in times[1:end]
     hm_solve!(dom, bcs, end_time=t, nincs=20, tol=1e-2, nouts=1, verbose=false)
-    push!( Uw_vals, logger[1].book[end][:uw] )
+    push!( Uw_vals, log1.book[end][:uw] )
 end
 
 
@@ -107,7 +108,7 @@ if Amaru.Debug.makeplots
 
 
     # numerical curves
-    book  = logger[1].book
+    book  = log1.book
     Uwini = book.tables[2][:uw]       # hydrostatic porepressure
     Z     = 1 .- book.tables[2][:z]/hd # normalized depth
     for Uw in Uw_vals

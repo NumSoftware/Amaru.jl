@@ -22,8 +22,6 @@ using JSON, DataStructures, Reexport
 import DataStructures.OrderedDict, DataStructures.OrderedSet
 
 #Using non-registered (jet) package FemMesh
-#Pkg.installed("FemMesh") == nothing && Pkg.clone("https://github.com/RaulDurand/FemMesh")
-
 #try
     #eval(:(using FemMesh))
 #catch err
@@ -59,7 +57,6 @@ include("tools/linalg.jl")
 include("tools/expr.jl")
 include("tools/table.jl")
 include("tools/tensors.jl")
-include("tools/functor.jl")
 include("tools/show.jl")
 
 # generic exports
@@ -76,11 +73,11 @@ include("ip.jl")
 export Ip, ip_vals, maximum, minimum, sort
 
 include("material.jl")
-export Material, MaterialBind, read_prms
+export Material, read_prms
 
 include("element.jl")
 export Element
-export set_mat, get_nodes, get_ips, set_state, getcoords, getvals, get_map, elems_ip_vals
+export get_nodes, get_ips, getcoords, getvals, get_map, elems_ip_vals
 
 include("facet.jl")
 export Facet, Face, Edge
@@ -98,7 +95,7 @@ export NodeLogger, IpLogger, FaceLogger, EdgeLogger, NodeGroupLogger, IpGroupLog
 export update_logger!
 
 include("domain.jl")
-export Domain, SubDomain, reset!, setlogger!
+export Domain, SubDomain, reset!, setloggers!
 
 
 # Mechanical module
@@ -108,7 +105,7 @@ include("mech/include.jl")
 include("hydromech/include.jl")
 
 # show function for Amaru types
-for datatype in (:Dof, :Node, :Ip, :IpState, :Element, :Material, :MaterialBind, :BC, :Facet, :AbstractLogger, :Domain)
+for datatype in (:Dof, :Node, :Ip, :IpState, :Element, :Material, :BC, :Facet, :AbstractLogger, :Domain)
     eval( quote
         function Base.show(io::IO, obj::$datatype)
             print_field_values(io, obj)

@@ -110,13 +110,7 @@ function SubDomain(elems::Array{<:Element,1})
 end
 
 
-function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}},
-                loggers::Union{AbstractLogger,Array}=[];
-                model_type::Symbol=:general, thickness::Real=1.0, filekey::String="out", verbose::Bool=true)
-
-    # Fix arguments
-    if typeof(matbinds)==MaterialBind   ; matbinds = [ matbinds ] end
-    if typeof(loggers)<:AbstractLogger; loggers = [ loggers ] end
+function Domain(mesh::Mesh, matbinds::Array{<:Pair,1}; model_type::Symbol=:general, thickness::Real=1.0, filekey::String="out", verbose::Bool=true)
 
     dom  = Domain(filekey=filekey)
 
@@ -144,27 +138,25 @@ function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}}
     Nips      = zeros(Int, ncells)       # list with number of ips per element
     Tips      = Array{String,1}(undef, ncells)  # list with the ip tag per element
     Tips     .= ""
-    for mb in matbinds
-        cells = mesh.cells[mb.expr]
+    for (filter, mat) in matbinds
+        cells = mesh.cells[filter]
         if isempty(cells)
-            @warn "Domain: binding material model $(typeof(mb.mat)) to an empty list of cells:" expr=mb.expr
+            @warn "Domain: binding material model $(typeof(mat)) to an empty list of cells:" expr=filter
         end
-        etype = matching_elem_type(mb.mat)
+        etype = matching_elem_type(mat)
         for cell in cells
             ty = cell.embedded ? embedded_elem_type(etype) : etype
             if matching_shape_family(ty) != cell.shape.family
-                error("Domain: material model $(typeof(mb.mat)) cannot be used with shape $(cell.shape.name) (cell id: $(cell.id))\n")
+                error("Domain: material model $(typeof(mat)) cannot be used with shape $(cell.shape.name) (cell id: $(cell.id))\n")
             end
 
             conn = [ p.id for p in cell.points ]
             elem = new_element(ty, cell, dom.nodes[conn], dom.analysis_data, cell.tag)
 
             elem.id = cell.id
-            elem.mat = mb.mat
+            elem.mat = mat
             dom.elems[cell.id] = elem
-            #Nips[elem.id] = mb.nips
             Nips[elem.id] = cell.nips
-            #Tips[elem.id] = mb.iptag
             Tips[elem.id] = cell.iptag
         end
     end
@@ -225,12 +217,6 @@ function Domain(mesh::Mesh, matbinds::Union{MaterialBind, Array{MaterialBind,1}}
         elem_init(elem)
     end
 
-    # Setting loggers
-    for logger in loggers
-        setup_logger!(dom, logger)
-    end
-    dom.loggers = loggers
-
     if verbose
         print("  ", ndim, "D domain $model_type model      \n")
         @printf "  %5d nodes\n" length(dom.nodes)
@@ -261,10 +247,14 @@ Register a new `logger` in `domain`.
 Register each logger from the array `loggers` in `domain`.
 
 """
-function setlogger!(dom::Domain, logger::Union{AbstractLogger, Array{<:AbstractLogger,1}})
-    loggers = typeof(logger)<:AbstractLogger ? [logger] : logger
-    setup_logger!.(Ref(dom), loggers)
-    dom.loggers = loggers
+#function setloggers!(dom::Domain, logger::Union{AbstractLogger, Array{<:AbstractLogger,1}})
+function setloggers!(dom::Domain, loggers::Array{<:Pair,1})
+    dom.loggers = []
+    for (filter,logger) in loggers
+        push!(dom.loggers, logger)
+        setup_logger!(dom, filter, logger)
+    end
+    #setup_logger!.(Ref(dom), dom.loggers)
 end
 
 

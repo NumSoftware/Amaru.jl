@@ -121,8 +121,6 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
     analysis_data = dom.analysis_data
     analysis_data.nstage += 1
     analysis_data.ninc    = 0
-    #@show analysis_data.nstage
-    #@show objectid(analysis_data)
 
     if verbose
         printstyled("FEM analysis:\n", bold=true, color=:cyan)
@@ -146,7 +144,6 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
         outdir[end] in ('/', '\\')  && (outdir = outdir[1:end-1])
     end
 
-    #@show outdir
 
     # Get dofs organized according to boundary conditions
     dofs, nu = configure_dofs!(dom, bcs)
@@ -182,7 +179,6 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
 
     # Get the domain current state and backup
     State = [ ip.data for elem in dom.elems for ip in elem.ips ]
-    #StateBk = clone.(State)
     StateBk = copy.(State)
 
 
@@ -253,7 +249,6 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
             verbose && print("    updating... \r")
 
             # Restore the state to last converged increment
-            #for ip in ips; ip.data = deepcopy(ip.data0) end
             copyto!.(State, StateBk)
 
             # Get internal forces and update data at integration points (update ΔFin)
