@@ -5,9 +5,9 @@ mutable struct ModelEnv
     modeltype::Symbol      # Analysis type (eg. :general, :plane_stress, :plane_strain, etc.
     thickness::Float64     # Model thickness
     t::Float64             # Time in time dependent analysis
-    nstage::Int            # Current stage
-    ninc::Int              # Current increment
-    nout::Int              # Current output file number
+    cstage::Int            # Current stage
+    cinc::Int              # Current increment
+    cout::Int              # Current output file number
     function ModelEnv()
         this = new()
         this.ndim = 3
@@ -15,9 +15,9 @@ mutable struct ModelEnv
         this.thickness = 1.0
         this.t = 0.0
 
-        this.nstage = 0 # current stage
-        this.ninc   = 0 # current increment
-        this.nout   = 0 # output files counter
+        this.cstage = 0 # current stage
+        this.cinc   = 0 # current increment
+        this.cout   = 0 # output files counter
         return this
     end
 end

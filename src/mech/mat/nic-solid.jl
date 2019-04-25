@@ -317,7 +317,7 @@ function stress_update(mat::NIConcrete, ipd::NIConcreteIpState, Δε::Array{Floa
     ipd.damt = 1.0 - σfun(ipd.ε̅tmax)/ipd.ε̅tmax/mat.E0
     ipd.damc = 1.0 + σfun(-ipd.ε̅cmax)/ipd.ε̅cmax/mat.E0
 
-    #ipd.env.nstage==1 && ipd.env.ninc==2 && error()
+    #ipd.env.cstage==1 && ipd.env.cinc==2 && error()
 
     return Δσ
 end
