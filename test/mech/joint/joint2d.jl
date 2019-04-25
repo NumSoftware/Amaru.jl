@@ -18,7 +18,7 @@ mats = [
     #"joints" => ElasticJoint(E=E, nu=0.2, alpha=5)
 ]
 
-dom = Domain(msh, mats, model_type=:plane_stress, thickness=1.0)
+dom = Domain(msh, mats, modeltype=:plane_stress, thickness=1.0)
 
 # Loggers
 tag!(dom.elems["joints"].ips, "jips")

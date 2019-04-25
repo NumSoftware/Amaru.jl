@@ -3,11 +3,11 @@
 export ElasticRod
 
 mutable struct ElasticRodIpState<:IpState
-    analysis_data::AnalysisData
+    env::ModelEnv
     σ::Float64
     ε::Float64
-    function ElasticRodIpState(analysis_data::AnalysisData=AnalysisData())
-        this = new(analysis_data)
+    function ElasticRodIpState(env::ModelEnv=ModelEnv())
+        this = new(env)
         this.σ = 0.0
         this.ε = 0.0
         return this
@@ -34,7 +34,7 @@ end
 matching_elem_type(::ElasticRod) = MechRod
 
 # Create a new instance of Ip data
-new_ip_state(mat::ElasticRod, analysis_data::AnalysisData) = ElasticRodIpState(analysis_data)
+new_ip_state(mat::ElasticRod, env::ModelEnv) = ElasticRodIpState(env)
 
 function stress_update(mat::ElasticRod, ipd::ElasticRodIpState, Δε::Float64)
     E  = mat.E

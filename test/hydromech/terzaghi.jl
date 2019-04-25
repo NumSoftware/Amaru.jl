@@ -54,7 +54,7 @@ bcs = [
 
 hm_solve!(dom, bcs, end_time=tlong, nincs=2, tol=1e-2, nouts=1, verbose=true)
 
-dom.analysis_data.t = 0.0
+dom.env.t = 0.0
 
 
 # Stage 2: loading

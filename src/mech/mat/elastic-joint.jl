@@ -3,12 +3,12 @@
 export ElasticJoint
 
 mutable struct JointIpState<:IpState
-    analysis_data::AnalysisData
+    env::ModelEnv
     σ   ::Array{Float64,1}
     w   ::Array{Float64,1}
     h   ::Float64
-    function JointIpState(analysis_data::AnalysisData=AnalysisData())
-        this = new(analysis_data)
+    function JointIpState(env::ModelEnv=ModelEnv())
+        this = new(env)
         this.σ   = zeros(3)
         this.w = zeros(3)
         this.h = 0.0
@@ -40,11 +40,11 @@ end
 end
 
 # Create a new instance of Ip data
-new_ip_state(mat::ElasticJoint, analysis_data::AnalysisData) = JointIpState(analysis_data)
+new_ip_state(mat::ElasticJoint, env::ModelEnv) = JointIpState(env)
 
 
 function mountD(mat::ElasticJoint, ipd::JointIpState)
-    ndim = ipd.analysis_data.ndim
+    ndim = ipd.env.ndim
     G  = mat.E/(1.0+mat.ν)/2.0
     kn = mat.E*mat.α/ipd.h
     ks =     G*mat.α/ipd.h
@@ -59,7 +59,7 @@ function mountD(mat::ElasticJoint, ipd::JointIpState)
 end
 
 function stress_update(mat::ElasticJoint, ipd::JointIpState, Δu)
-    ndim = ipd.analysis_data.ndim
+    ndim = ipd.env.ndim
     D  = mountD(mat, ipd)
     Δσ = D*Δu
 
@@ -69,7 +69,7 @@ function stress_update(mat::ElasticJoint, ipd::JointIpState, Δu)
 end
 
 function ip_state_vals(mat::ElasticJoint, ipd::JointIpState)
-    ndim = ipd.analysis_data.ndim
+    ndim = ipd.env.ndim
     if ndim == 2
         return OrderedDict(
           :w1  => ipd.w[1] ,

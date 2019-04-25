@@ -3,15 +3,15 @@
 export CEBJoint1D
 
 mutable struct CEBJoint1DIpState<:IpState
-    analysis_data::AnalysisData
+    env::ModelEnv
     σ  ::Array{Float64,1}
     u  ::Array{Float64,1}
     τy ::Float64      # max stress
     sy ::Float64      # accumulated relative displacement
     elastic::Bool
-    function CEBJoint1DIpState(analysis_data::AnalysisData=AnalysisData())
-        this = new(analysis_data)
-        ndim = analysis_data.ndim
+    function CEBJoint1DIpState(env::ModelEnv=ModelEnv())
+        this = new(env)
+        ndim = env.ndim
         this.σ = zeros(ndim)
         this.u = zeros(ndim)
         this.τy = 0.0
@@ -83,7 +83,7 @@ end
 matching_elem_type(::CEBJoint1D) = MechJoint1D
 
 # Creates a new instance of Ip data
-new_ip_state(mat::CEBJoint1D, analysis_data::AnalysisData) = CEBJoint1DIpState(analysis_data)
+new_ip_state(mat::CEBJoint1D, env::ModelEnv) = CEBJoint1DIpState(env)
 
 
 function Tau(mat::CEBJoint1D, sy::Float64)
@@ -118,7 +118,7 @@ function deriv(mat::CEBJoint1D, ipd::CEBJoint1DIpState, sy::Float64)
 end
 
 function calcD(mat::CEBJoint1D, ipd::CEBJoint1DIpState)
-    ndim = ipd.analysis_data.ndim
+    ndim = ipd.env.ndim
     if ipd.elastic
         ks = mat.ks
     else
@@ -126,7 +126,7 @@ function calcD(mat::CEBJoint1D, ipd::CEBJoint1DIpState)
     end
 
     kn = mat.kn
-    if ipd.analysis_data.ndim==2
+    if ipd.env.ndim==2
         return [  ks  0.0 
                  0.0   kn ]
     else

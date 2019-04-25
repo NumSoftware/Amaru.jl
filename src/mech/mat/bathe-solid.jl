@@ -12,7 +12,7 @@ end
 
 
 mutable struct OrthotropicIpState<:IpState
-    analysis_data::AnalysisData
+    env::ModelEnv
     σ::Tensor2
     ε::Tensor2
     fmax::Float64
@@ -28,8 +28,8 @@ mutable struct OrthotropicIpState<:IpState
     fixed_planes::Array{FixedPlane,1}
     nfixed_planes::Int64
 
-    function OrthotropicIpState(analysis_data::AnalysisData=AnalysisData()) 
-        this = new(analysis_data)
+    function OrthotropicIpState(env::ModelEnv=ModelEnv()) 
+        this = new(env)
         this.σ  = zeros(6)
         this.ε  = zeros(6)
         this.fmax = 0.0
@@ -82,7 +82,7 @@ end
 matching_elem_type(::Orthotropic) = MechSolid
 
 # Create a new instance of Ip data
-new_ip_state(mat::Orthotropic, analysis_data::AnalysisData) = OrthotropicIpState(analysis_data)
+new_ip_state(mat::Orthotropic, env::ModelEnv) = OrthotropicIpState(env)
 
 
 function loading_func(mat::Orthotropic, σ::Tensor2)
@@ -287,7 +287,7 @@ function calcD(mat::Orthotropic, ipd::OrthotropicIpState)
     if !ipd.crushed && nactive_fails==0 # no fails
         if ipd.unloading # elastic regime
             # isotrophic
-            D = calcDe(mat.E0, mat.ν, ipd.analysis_data.model_type)
+            D = calcDe(mat.E0, mat.ν, ipd.env.modeltype)
             return D
         else # loading
             σp, V = eigen(ipd.σ)
@@ -312,7 +312,7 @@ function calcD(mat::Orthotropic, ipd::OrthotropicIpState)
             if σp[3] >= κ*fcm # σc'  low compression
 
                 Et = ( abs(σp[1])*Ep1 + abs(σp[2])*Ep2 + abs(σp[3])*Ep3 ) / (abs(σp[1]) + abs(σp[2]) + abs(σp[3]))
-                D = calcDe(Et, mat.ν, ipd.analysis_data.model_type)
+                D = calcDe(Et, mat.ν, ipd.env.modeltype)
                 return D
 
             else # σp[3]<κ*fcmax high compression
@@ -416,7 +416,7 @@ end
 
 function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Float64,1})
     σ0 = copy(ipd.σ)
-    De = calcDe(mat.E0, mat.ν, ipd.analysis_data.model_type)
+    De = calcDe(mat.E0, mat.ν, ipd.env.modeltype)
     σtr = ipd.σ + De*Δε
 
     E = mat.E0
@@ -437,7 +437,7 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
         εp = R*ipd.ε
 
         if ipd.unloading
-            D = calcDe(mat.E0, mat.ν, ipd.analysis_data.model_type)
+            D = calcDe(mat.E0, mat.ν, ipd.env.modeltype)
         else
             p  = sortperm(σp, rev=true)
             σp = σp[p] # ordered stresses
@@ -468,7 +468,7 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
                 else
                     Et = mat.E0
                 end
-                D = calcDe(Et, mat.ν, ipd.analysis_data.model_type)
+                D = calcDe(Et, mat.ν, ipd.env.modeltype)
 
             else # σp[3]<κ*fcmax high compression
 
@@ -522,10 +522,10 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
             Δσ = -ipd.σ
         else
             if ipd.unloading
-                D = calcDe(mat.E0, mat.ν, ipd.analysis_data.model_type)
+                D = calcDe(mat.E0, mat.ν, ipd.env.modeltype)
             else
                 Et = ( sigma(mat, εp[3]+Δεp[3]) - sigma(mat, εp[3]) ) / Δεp[3]
-                D  = calcDe(Et, mat.ν, ipd.analysis_data.model_type)
+                D  = calcDe(Et, mat.ν, ipd.env.modeltype)
             end
             Δσ = D*Δε
         end
@@ -663,7 +663,7 @@ end
 
 
 function ip_state_vals(mat::Orthotropic, ipd::OrthotropicIpState)
-    ndim  = ipd.analysis_data.ndim
+    ndim  = ipd.env.ndim
     σ, ε  = ipd.σ, ipd.ε
     j1    = tr(σ)
     srj2d = √J2D(σ)

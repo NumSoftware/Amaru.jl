@@ -11,7 +11,7 @@ mutable struct HMSolid<:Hydromechanical
     mat   ::Material
     active::Bool
     linked_elems::Array{Element,1}
-    analysis_data::AnalysisData
+    env::ModelEnv
 
     function HMSolid(); 
         return new() 
@@ -26,7 +26,7 @@ end
 
 
 function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
-    ndim  = elem.analysis_data.ndim
+    ndim  = elem.env.ndim
 
     # Check bcs
     (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
@@ -36,7 +36,7 @@ function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol,
     target = facet!=nothing ? facet : elem
     nodes  = target.nodes
     nnodes = length(nodes)
-    t      = elem.analysis_data.t
+    t      = elem.env.t
 
     # Force boundary condition
     nnodes = length(nodes)
@@ -96,7 +96,7 @@ function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol,
 end
 
 
-function setBu(analysis_data::AnalysisData, dNdX::Matx, detJ::Float64, B::Matx)
+function setBu(env::ModelEnv, dNdX::Matx, detJ::Float64, B::Matx)
     ndim, nnodes = size(dNdX)
     B .= 0.0
 
@@ -107,7 +107,7 @@ function setBu(analysis_data::AnalysisData, dNdX::Matx, detJ::Float64, B::Matx)
             B[2,2+j*ndim] = dNdX[2,i]
             B[6,1+j*ndim] = dNdX[2,i]/SR2; B[6,2+j*ndim] = dNdX[1,i]/SR2
         end
-        if analysis_data.model_type==:axisymmetric
+        if env.modeltype==:axisymmetric
             for i in 1:nnodes
                 N =elem.shape.func(R)
                 j = i-1
@@ -138,7 +138,7 @@ end
 
 
 function elem_stiffness(elem::HMSolid)
-    ndim   = elem.analysis_data.ndim
+    ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     C = elem_coords(elem)
     K = zeros(nnodes*ndim, nnodes*ndim)
@@ -156,7 +156,7 @@ function elem_stiffness(elem::HMSolid)
         @gemm dNdX = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        setBu(elem.analysis_data, dNdX, detJ, B)
+        setBu(elem.env, dNdX, detJ, B)
 
         # compute K
         coef = detJ*ip.w
@@ -175,7 +175,7 @@ end
 
 # matrix C
 function elem_coupling_matrix(elem::HMSolid) 
-    ndim   = elem.analysis_data.ndim
+    ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     C   = elem_coords(elem)
     Bu  = zeros(6, nnodes*ndim)
@@ -195,7 +195,7 @@ function elem_coupling_matrix(elem::HMSolid)
         @gemm dNdX = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        setBu(elem.analysis_data, dNdX, detJ, Bu)
+        setBu(elem.env, dNdX, detJ, Bu)
 
         # compute K
         coef = detJ*ip.w
@@ -214,7 +214,7 @@ end
 
 
 function elem_conductivity_matrix(elem::HMSolid)
-    ndim   = elem.analysis_data.ndim
+    ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     C      = elem_coords(elem)
     H      = zeros(nnodes, nnodes)
@@ -247,7 +247,7 @@ function elem_conductivity_matrix(elem::HMSolid)
 end
 
 function elem_RHS_vector(elem::HMSolid)
-    ndim   = elem.analysis_data.ndim
+    ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     C      = elem_coords(elem)
     Q      = zeros(nnodes)
@@ -282,7 +282,7 @@ end
 
 
 function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
-    ndim   = elem.analysis_data.ndim
+    ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
 
     keys   = (:ux, :uy, :uz)[1:ndim]
@@ -316,7 +316,7 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
         @gemm dNdX = inv(J)*dNdR
-        setBu(elem.analysis_data, dNdX, detJ, Bu)
+        setBu(elem.env, dNdX, detJ, Bu)
         @gemv Δε = Bu*dU
 
         Bp = dNdX

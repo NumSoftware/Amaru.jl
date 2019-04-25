@@ -10,7 +10,7 @@ mutable struct MechJoint<:Mechanical
     mat   ::Material
     active::Bool
     linked_elems::Array{Element,1}
-    analysis_data::AnalysisData
+    env::ModelEnv
 
     function MechJoint()
         return new()
@@ -87,8 +87,8 @@ function matrixT(J::Matrix{Float64})
 end
 
 function elem_stiffness(elem::MechJoint)
-    ndim   = elem.analysis_data.ndim
-    th     = elem.analysis_data.thickness
+    ndim   = elem.env.ndim
+    th     = elem.env.thickness
     nnodes = length(elem.nodes)
     hnodes = div(nnodes, 2) # half the number of total nodes
     fshape = elem.shape.facet_shape
@@ -134,8 +134,8 @@ function elem_stiffness(elem::MechJoint)
 end
 
 function elem_update!(elem::MechJoint, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
-    ndim   = elem.analysis_data.ndim
-    th     = elem.analysis_data.thickness
+    ndim   = elem.env.ndim
+    th     = elem.env.thickness
     nnodes = length(elem.nodes)
     hnodes = div(nnodes, 2) # half the number of total nodes
     fshape = elem.shape.facet_shape

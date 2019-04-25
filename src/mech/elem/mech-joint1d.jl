@@ -10,7 +10,7 @@ mutable struct MechJoint1D<:Mechanical
     mat   ::Material
     active::Bool
     linked_elems::Array{Element,1}
-    analysis_data::AnalysisData
+    env::ModelEnv
 
     # specific fields
     cache_B   ::Array{Array{Float64,2}}
@@ -91,7 +91,7 @@ function mountB(elem::MechJoint1D, R, Ch, Ct)
     # I is a ndim x ndim identity matrix
 
 
-    ndim = elem.analysis_data.ndim
+    ndim = elem.env.ndim
     hook = elem.linked_elems[1]
     bar  = elem.linked_elems[2]
     nnodes  = length(elem.nodes)
@@ -123,7 +123,7 @@ function mountB(elem::MechJoint1D, R, Ch, Ct)
 end
 
 function elem_stiffness(elem::MechJoint1D)
-    ndim = elem.analysis_data.ndim
+    ndim = elem.env.ndim
     nnodes = length(elem.nodes)
     mat    = elem.mat
     hook = elem.linked_elems[1]
@@ -148,7 +148,7 @@ function elem_stiffness(elem::MechJoint1D)
 end
 
 function elem_update!(elem::MechJoint1D, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
-    ndim   = elem.analysis_data.ndim
+    ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     mat    = elem.mat
     keys   = (:ux, :uy, :uz)[1:ndim]

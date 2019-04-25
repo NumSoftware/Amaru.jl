@@ -3,13 +3,13 @@
 export ElasticJoint1D
 
 mutable struct Joint1DIpState<:IpState
-    analysis_data::AnalysisData
+    env::ModelEnv
     ndim::Int
     σ ::Array{Float64,1}
     u ::Array{Float64,1}
-    function Joint1DIpState(analysis_data::AnalysisData=AnalysisData())
-        this = new(analysis_data)
-        ndim = analysis_data.ndim
+    function Joint1DIpState(env::ModelEnv=ModelEnv())
+        this = new(env)
+        ndim = env.ndim
         this.σ = zeros(ndim)
         this.u = zeros(ndim)
         return this
@@ -53,12 +53,12 @@ end
 matching_elem_type(::ElasticJoint1D) = MechJoint1D
 
 # Create a new instance of Ip data
-new_ip_state(mat::ElasticJoint1D, analysis_data::AnalysisData) = Joint1DIpState(analysis_data)
+new_ip_state(mat::ElasticJoint1D, env::ModelEnv) = Joint1DIpState(env)
 
 function calcD(mat::ElasticJoint1D, ipd::Joint1DIpState)
     ks = mat.ks
     kn = mat.kn
-    if ipd.analysis_data.ndim==2
+    if ipd.env.ndim==2
         return [  ks  0.0 
                  0.0   kn ]
     else

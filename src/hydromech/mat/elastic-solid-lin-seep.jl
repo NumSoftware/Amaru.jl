@@ -3,16 +3,16 @@
 export ElasticSolidLinSeep
 
 mutable struct ElasticSolidLinSeepIpState<:IpState
-    analysis_data::AnalysisData
+    env::ModelEnv
     σ::Array{Float64,1}
     ε::Array{Float64,1}
     V::Array{Float64,1}
     uw::Float64
-    function ElasticSolidLinSeepIpState(analysis_data::AnalysisData=AnalysisData()) 
-        this = new(analysis_data)
+    function ElasticSolidLinSeepIpState(env::ModelEnv=ModelEnv()) 
+        this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
-        this.V = zeros(analysis_data.ndim)
+        this.V = zeros(env.ndim)
         this.uw = 0.0
         return this
     end
@@ -44,7 +44,7 @@ end
 matching_elem_type(::ElasticSolidLinSeep) = HMSolid
 
 # Create a new instance of Ip data
-new_ip_state(mat::ElasticSolidLinSeep, analysis_data::AnalysisData) = ElasticSolidLinSeepIpState(analysis_data)
+new_ip_state(mat::ElasticSolidLinSeep, env::ModelEnv) = ElasticSolidLinSeepIpState(env)
 
 function set_state(ipd::ElasticSolidLinSeepIpState; sig=zeros(0), eps=zeros(0))
     sq2 = √2.0
@@ -62,11 +62,11 @@ function set_state(ipd::ElasticSolidLinSeepIpState; sig=zeros(0), eps=zeros(0))
 end
 
 function calcD(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState)
-    return calcDe(mat.E, mat.nu, ipd.analysis_data.model_type) # function calcDe defined at elastic-solid.jl
+    return calcDe(mat.E, mat.nu, ipd.env.modeltype) # function calcDe defined at elastic-solid.jl
 end
 
 function calcK(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState) # Hydraulic conductivity matrix
-    if ipd.analysis_data.ndim==2
+    if ipd.env.ndim==2
         return mat.k*eye(2)
     else
         return mat.k*eye(3)
@@ -85,11 +85,11 @@ function stress_update(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState
 end
 
 function ip_state_vals(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState)
-    D = stress_strain_dict(ipd.σ, ipd.ε, ipd.analysis_data.ndim)
+    D = stress_strain_dict(ipd.σ, ipd.ε, ipd.env.ndim)
 
     D[:vx] = ipd.V[1]
     D[:vy] = ipd.V[2]
-    if ipd.analysis_data.ndim==3
+    if ipd.env.ndim==3
         D[:vz] = ipd.V[3]
     end
 

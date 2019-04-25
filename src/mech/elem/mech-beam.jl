@@ -12,7 +12,7 @@ mutable struct MechBeam<:Mechanical
     mat   ::Material
     active::Bool
     linked_elems::Array{Element,1}
-    analysis_data::AnalysisData
+    env::ModelEnv
 
     function MechBeam()
         return new() 
@@ -45,7 +45,7 @@ function beam_second_deriv(ξ::Float64, nnodes::Int)
 end
 
 function elem_config_dofs(elem::MechBeam)
-    ndim = elem.analysis_data.ndim
+    ndim = elem.env.ndim
     if ndim==2
         for node in elem.nodes
             add_dof(node, :ux, :fx)
@@ -66,7 +66,7 @@ function elem_config_dofs(elem::MechBeam)
 end
 
 function elem_map(elem::MechBeam)::Array{Int,1}
-    if elem.analysis_data.ndim==2
+    if elem.env.ndim==2
         dof_keys = (:ux, :uy, :rz)
     else
         dof_keys = (:ux, :uy, :uz, :rx, :ry, :rz)

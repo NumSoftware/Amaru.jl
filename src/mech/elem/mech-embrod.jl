@@ -10,7 +10,7 @@ mutable struct MechEmbRod<:Mechanical
     mat   ::Material
     active::Bool
     linked_elems::Array{Element,1}
-    analysis_data::AnalysisData
+    env::ModelEnv
 
     # specific fields
     cache_NN::Array{Float64,2}
@@ -31,14 +31,14 @@ function elem_config_dofs(elem::MechEmbRod)
 end
 
 function elem_map(elem::MechEmbRod)
-    ndim = elem.analysis_data.ndim
+    ndim = elem.env.ndim
     keys = (:ux, :uy, :uz)[1:ndim]
     solid = elem.linked_elems[1]
     return [ node.dofdict[key].eq_id for node in solid.nodes for key in keys ]
 end
 
 function mountNN(elem::MechEmbRod)
-    ndim = elem.analysis_data.ndim
+    ndim = elem.env.ndim
     solid = elem.linked_elems[1]
     n  = length(solid.nodes)
     m  = length(elem.nodes)
@@ -64,7 +64,7 @@ function elem_init(elem::MechEmbRod)
 end
 
 function elem_stiffness(elem::MechEmbRod)
-    ndim   = elem.analysis_data.ndim
+    ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     A = elem.mat.A
     C = elem_coords(elem)
@@ -101,7 +101,7 @@ function elem_update!(elem::MechEmbRod, U::Array{Float64,1}, F::Array{Float64,1}
     dU  = U[map]
     dUr = NN'*dU
 
-    ndim   = elem.analysis_data.ndim
+    ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     A = elem.mat.A
 

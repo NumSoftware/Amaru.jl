@@ -3,7 +3,7 @@
 export SmearedCrack
 
 mutable struct SmearedCrackIpState<:IpState
-    analysis_data::AnalysisData
+    env::ModelEnv
     σ::Tensor2
     ε::Tensor2
     w::Array{Float64,1} # relative displacements in the crack plane
@@ -13,8 +13,8 @@ mutable struct SmearedCrackIpState<:IpState
     Δλ ::Float64  # plastic multiplier
     h  ::Float64  # element size fraction for a integration point
     hascrack::Bool
-    function SmearedCrackIpState(analysis_data::AnalysisData=AnalysisData()) 
-        this = new(analysis_data)
+    function SmearedCrackIpState(env::ModelEnv=ModelEnv()) 
+        this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
         this.T = eye(6)
@@ -53,7 +53,7 @@ end
 matching_elem_type(::SmearedCrack) = MechSolid
 
 # Create a new instance of Ip data
-new_ip_state(mat::SmearedCrack, analysis_data::AnalysisData) = SmearedCrackIpState(analysis_data)
+new_ip_state(mat::SmearedCrack, env::ModelEnv) = SmearedCrackIpState(env)
 
 
 function calc_σmax(mat::SmearedCrack, ipd::SmearedCrackIpState, upa::Float64)
@@ -152,7 +152,7 @@ end
 
 
 function calcD(mat::SmearedCrack, ipd::SmearedCrackIpState)
-    De = calcDe(mat.E, mat.ν, ipd.analysis_data.model_type)
+    De = calcDe(mat.E, mat.ν, ipd.env.modeltype)
     ipd.hascrack || return De
     #@show ipd.hascrack
 
@@ -323,7 +323,7 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
 
     σini  = ipd.σ
     ipd.ε = ipd.ε + Δε
-    De    = calcDe(mat.E, mat.ν, ipd.analysis_data.model_type)
+    De    = calcDe(mat.E, mat.ν, ipd.env.modeltype)
     Δσe   = De*Δε
     σtr   = ipd.σ + Δσe
     #@show De*(ipd.ε)
@@ -511,7 +511,7 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
 end
 
 function ip_state_vals(mat::SmearedCrack, ipd::SmearedCrackIpState)
-    ndim  = ipd.analysis_data.ndim
+    ndim  = ipd.env.ndim
     σ, ε  = ipd.σ, ipd.ε
 
     D = stress_strain_dict(σ, ε, ndim)

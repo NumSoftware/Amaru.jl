@@ -3,15 +3,15 @@
 export Mazars
 
 mutable struct MazarsIpState<:IpState
-    analysis_data::AnalysisData
+    env::ModelEnv
     σ::Tensor2
     ε::Tensor2
     φt::Float64
     φc::Float64
     φ::Float64  # damage
     ε̅max::Float64
-    function MazarsIpState(analysis_data::AnalysisData=AnalysisData()) 
-        this = new(analysis_data)
+    function MazarsIpState(env::ModelEnv=ModelEnv()) 
+        this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
         this.φ = 0.0
@@ -59,7 +59,7 @@ end
 matching_elem_type(::Mazars) = MechSolid
 
 # Create a new instance of Ip data
-new_ip_state(mat::Mazars, analysis_data::AnalysisData) = MazarsIpState(analysis_data)
+new_ip_state(mat::Mazars, env::ModelEnv) = MazarsIpState(env)
 
 
 function calcD(mat::Mazars, ipd::MazarsIpState)
@@ -173,7 +173,7 @@ function stress_update(mat::Mazars, ipd::MazarsIpState, Δε::Array{Float64,1})
 end
 
 function ip_state_vals(mat::Mazars, ipd::MazarsIpState)
-    ndim  = ipd.analysis_data.ndim
+    ndim  = ipd.env.ndim
     σ, ε  = ipd.σ, ipd.ε
 
     D = stress_strain_dict(σ, ε, ndim)

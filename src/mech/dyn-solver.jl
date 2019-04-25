@@ -264,7 +264,7 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds
 
     # Incremental analysis
     Dt = time_span
-    t  = dom.analysis_data.t
+    t  = dom.env.t
     tend = t + Dt # end time
     dt = Dt/nincs # initial dt value
 

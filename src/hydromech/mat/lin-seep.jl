@@ -3,12 +3,12 @@
 export LinSeep
 
 mutable struct LinSeepIpState<:IpState
-    analysis_data::AnalysisData
+    env::ModelEnv
     uw::Float64
     V::Array{Float64,1}
-    function LinSeepIpState(analysis_data::AnalysisData=AnalysisData()) 
-        this = new(analysis_data)
-        this.V  = zeros(analysis_data.ndim)
+    function LinSeepIpState(env::ModelEnv=ModelEnv()) 
+        this = new(env)
+        this.V  = zeros(env.ndim)
         this.uw = 0.0
         return this
     end
@@ -36,13 +36,13 @@ end
 matching_elem_type(::LinSeep) = SeepSolid
 
 # Create a new instance of Ip data
-new_ip_state(mat::LinSeep, analysis_data::AnalysisData) = LinSeepIpState(analysis_data)
+new_ip_state(mat::LinSeep, env::ModelEnv) = LinSeepIpState(env)
 
 function set_state(ipd::LinSeepIpState; uw=0.0)
 end
 
 function calcK(mat::LinSeep, ipd::LinSeepIpState) # Hydraulic conductivity matrix
-    if ipd.analysis_data.ndim==2
+    if ipd.env.ndim==2
         return mat.k*eye(2)
     else
         return mat.k*eye(3)
@@ -61,7 +61,7 @@ function ip_state_vals(mat::LinSeep, ipd::LinSeepIpState)
     D = Dict{Symbol, Float64}()
     D[:vx] = ipd.V[1]
     D[:vy] = ipd.V[2]
-    if ipd.analysis_data.ndim==3
+    if ipd.env.ndim==3
         D[:vz] = ipd.V[3]
     end
 

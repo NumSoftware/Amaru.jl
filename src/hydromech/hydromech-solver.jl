@@ -10,7 +10,7 @@ mutable struct HMSolver<:Solver
     filekey::String
     #loggers::Array{AbstractLogger,1}
     stage::Integer
-    analysis_data::SharedAnalysisData
+    env::SharedModelEnv
 
     Fint::Array{Float64,1}
 end
@@ -193,7 +193,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     end
 
     if !isnan(end_time)
-        time_span = end_time - dom.analysis_data.t
+        time_span = end_time - dom.env.t
     end
 
     # Get dofs organized according to boundary conditions
@@ -231,7 +231,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     StateBk = copy.(State)
 
     # Incremental analysis
-    t    = dom.analysis_data.t # current time
+    t    = dom.env.t # current time
     tend = t + time_span  # end time
     Δt = time_span/nincs # initial Δt value
 
@@ -266,7 +266,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
         verbose && printstyled("  increment $inc from t=$(round(t,sigdigits=9)) to t=$(round(t+Δt,sigdigits=9)) (dt=$(round(Δt,sigdigits=9))):\n", bold=true, color=:blue) # color 111
 
         # Get forces and displacements from boundary conditions
-        dom.analysis_data.t = t + Δt
+        dom.env.t = t + Δt
         UexN, FexN = get_bc_vals(dom, bcs, t+Δt) # get values at time t+Δt
 
         ΔUex = UexN - U

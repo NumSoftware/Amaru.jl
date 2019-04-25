@@ -3,14 +3,14 @@
 export PPRod
 
 mutable struct PPRodIpState<:IpState
-    analysis_data::AnalysisData
+    env::ModelEnv
     σ::Float64
     ε::Float64
     εpa::Float64
     Δγ ::Float64
 
-    function PPRodIpState(analysis_data::AnalysisData=AnalysisData())
-        this = new(analysis_data)
+    function PPRodIpState(env::ModelEnv=ModelEnv())
+        this = new(env)
         this.σ = 0.0
         this.ε = 0.0
         this.εpa = 0.0
@@ -43,7 +43,7 @@ end
 matching_elem_type(::PPRod) = MechRod
 
 # Create a new instance of Ip data
-new_ip_state(mat::PPRod, analysis_data::AnalysisData) = PPRodIpState(analysis_data)
+new_ip_state(mat::PPRod, env::ModelEnv) = PPRodIpState(env)
 
 function yield_func(mat::PPRod, ipd::PPRodIpState, σ::Float64)
     σya = mat.σy0 + mat.H*ipd.εpa

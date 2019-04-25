@@ -34,7 +34,7 @@ mutable struct Domain<:AbstractDomain
     nouts::Integer
     ndofs::Integer
     stage::Integer
-    analysis_data::AnalysisData
+    env::ModelEnv
 
     function Domain(;filekey::String="out")
         this = new()
@@ -56,7 +56,7 @@ mutable struct SubDomain<:AbstractDomain
     elems::Array{Element,1}
     faces::Array{Face,1}
 
-    analysis_data::AnalysisData
+    env::ModelEnv
 end
 
 
@@ -79,7 +79,7 @@ function SubDomain(dom::Domain, expr::Expr)
         push!(faces, face)
     end
 
-    return SubDomain(nodes, elems, faces, dom.analysis_data)
+    return SubDomain(nodes, elems, faces, dom.env)
 end
 
 
@@ -106,22 +106,22 @@ function SubDomain(elems::Array{<:Element,1})
         push!(faces, face)
     end
 
-    return SubDomain(nodes, elems, faces, AnalysisData())
+    return SubDomain(nodes, elems, faces, ModelEnv())
 end
 
 
-function Domain(mesh::Mesh, matbinds::Array{<:Pair,1}; model_type::Symbol=:general, thickness::Real=1.0, filekey::String="out", verbose::Bool=true)
+function Domain(mesh::Mesh, matbinds::Array{<:Pair,1}; modeltype::Symbol=:general, thickness::Real=1.0, filekey::String="out", verbose::Bool=true)
 
     dom  = Domain(filekey=filekey)
 
     # Shared analysis data
     ndim = mesh.ndim
-    #dom.analysis_data = Dict(:ndim=>ndim, :model_type=>model_type, :thickness=>thickness, :t=>0.0 )
-    dom.analysis_data = AnalysisData()
-    dom.analysis_data.ndim = ndim 
-    dom.analysis_data.model_type = model_type
-    dom.analysis_data.thickness = thickness
-    dom.analysis_data.t = 0.0
+    #dom.env = Dict(:ndim=>ndim, :modeltype=>modeltype, :thickness=>thickness, :t=>0.0 )
+    dom.env = ModelEnv()
+    dom.env.ndim = ndim 
+    dom.env.modeltype = modeltype
+    dom.env.thickness = thickness
+    dom.env.t = 0.0
 
     if verbose
         printstyled("Domain setup:", bold=true, color=:cyan)
@@ -151,7 +151,7 @@ function Domain(mesh::Mesh, matbinds::Array{<:Pair,1}; model_type::Symbol=:gener
             end
 
             conn = [ p.id for p in cell.points ]
-            elem = new_element(ty, cell, dom.nodes[conn], dom.analysis_data, cell.tag)
+            elem = new_element(ty, cell, dom.nodes[conn], dom.env, cell.tag)
 
             elem.id = cell.id
             elem.mat = mat
@@ -218,7 +218,7 @@ function Domain(mesh::Mesh, matbinds::Array{<:Pair,1}; model_type::Symbol=:gener
     end
 
     if verbose
-        print("  ", ndim, "D domain $model_type model      \n")
+        print("  ", ndim, "D domain $modeltype model      \n")
         @printf "  %5d nodes\n" length(dom.nodes)
         @printf "  %5d elements\n" length(dom.elems)
         if ndim==2
@@ -391,7 +391,7 @@ end
 function nodal_patch_recovery(dom::AbstractDomain)
     # Note: nodal ids must be numbered starting from 1
 
-    ndim = dom.analysis_data.ndim
+    ndim = dom.env.ndim
     nnodes = length(dom.nodes)
     length(dom.faces)==0 && return zeros(nnodes,0), Symbol[]
 
@@ -564,7 +564,7 @@ function nodal_local_recovery(dom::AbstractDomain)
     # The element type should implement the elem_extrapolated_node_vals function
     # Note: nodal ids must be numbered starting from 1
 
-    ndim = dom.analysis_data.ndim
+    ndim = dom.env.ndim
     nnodes = length(dom.nodes)
 
     # all local data from elements
@@ -767,7 +767,7 @@ function mplot2(dom::AbstractDomain; args...)
     any(node.id==0 for node in dom.nodes) && error("mplot: all nodes must have a valid id")
 
     ugrid = convert(UnstructuredGrid, dom)
-    if dom.analysis_data.ndim==3 
+    if dom.env.ndim==3 
         # Get data from the domain surface
         srf_nodes = get_nodes(dom.faces)
 
@@ -806,7 +806,7 @@ end
 
 function Base.convert(::Type{FemMesh.Mesh}, dom::AbstractDomain)
     mesh = Mesh()
-    mesh.ndim = dom.analysis_data.ndim
+    mesh.ndim = dom.env.ndim
 
     # Setting points
     npoints = length(dom.nodes)

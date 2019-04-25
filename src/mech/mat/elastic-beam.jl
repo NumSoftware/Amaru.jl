@@ -3,11 +3,11 @@
 export ElasticBeam
 
 mutable struct BeamIpState<:IpState
-    analysis_data::AnalysisData
+    env::ModelEnv
     #σ::Float64
     #ε::Float64
-    function BeamIpState(analysis_data::AnalysisData=AnalysisData())
-        return new(analysis_data)
+    function BeamIpState(env::ModelEnv=ModelEnv())
+        return new(env)
     end
 end
 
@@ -32,7 +32,7 @@ end
 matching_elem_type(::ElasticBeam) = MechBeam
 
 # Create a new instance of Ip data
-new_ip_state(mat::ElasticBeam, analysis_data::AnalysisData) = BeamIpState(analysis_data)
+new_ip_state(mat::ElasticBeam, env::ModelEnv) = BeamIpState(env)
 
 function ip_state_vals(mat::ElasticBeam, ipd::BeamIpState)
     return OrderedDict{Symbol, Float64}()

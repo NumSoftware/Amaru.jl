@@ -29,7 +29,7 @@ log_n3 = NodeLogger(3)
 log_n5 = NodeLogger(5)
 loggers = [log_ip, log_face, log_n3, log_n5]
 
-#dom = Domain(msh, mats, model_type=:plane_stress, thickness=1.0)
+#dom = Domain(msh, mats, modeltype=:plane_stress, thickness=1.0)
 dom = Domain(msh, mats, loggers)
 
 # Boundary conditions

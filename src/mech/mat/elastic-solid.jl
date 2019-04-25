@@ -23,11 +23,11 @@ end
 
 
 mutable struct ElasticSolidIpState<:IpState
-    analysis_data::AnalysisData
+    env::ModelEnv
     σ::Array{Float64,1}
     ε::Array{Float64,1}
-    function ElasticSolidIpState(analysis_data::AnalysisData=AnalysisData()) 
-        this = new(analysis_data)
+    function ElasticSolidIpState(env::ModelEnv=ModelEnv()) 
+        this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
         return this
@@ -39,11 +39,11 @@ end
 matching_elem_type(::ElasticSolid) = MechSolid
 
 # Create a new instance of Ip data
-new_ip_state(mat::ElasticSolid, analysis_data::AnalysisData) = ElasticSolidIpState(analysis_data)
+new_ip_state(mat::ElasticSolid, env::ModelEnv) = ElasticSolidIpState(env)
 
 
-function calcDe(E::Number, ν::Number, model_type::Symbol)
-    if model_type==:plane_stress
+function calcDe(E::Number, ν::Number, modeltype::Symbol)
+    if modeltype==:plane_stress
         c = E/(1.0-ν^2)
         return [
             c    c*ν   0.0  0.0  0.0  0.0
@@ -66,11 +66,11 @@ function calcDe(E::Number, ν::Number, model_type::Symbol)
 end
 
 function calcD(mat::ElasticSolid, ipd::ElasticSolidIpState)
-    return calcDe(mat.E, mat.nu, ipd.analysis_data.model_type)
+    return calcDe(mat.E, mat.nu, ipd.env.modeltype)
 end
 
 function stress_update(mat::ElasticSolid, ipd::ElasticSolidIpState, dε::Array{Float64,1})
-    De = calcDe(mat.E, mat.nu, ipd.analysis_data.model_type)
+    De = calcDe(mat.E, mat.nu, ipd.env.modeltype)
     dσ = De*dε
     ipd.ε += dε
     ipd.σ += dσ
@@ -78,5 +78,5 @@ function stress_update(mat::ElasticSolid, ipd::ElasticSolidIpState, dε::Array{F
 end
 
 function ip_state_vals(mat::ElasticSolid, ipd::ElasticSolidIpState)
-    return stress_strain_dict(ipd.σ, ipd.ε, ipd.analysis_data.ndim)
+    return stress_strain_dict(ipd.σ, ipd.ε, ipd.env.ndim)
 end

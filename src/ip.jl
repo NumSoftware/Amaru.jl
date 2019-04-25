@@ -10,13 +10,13 @@ import Base.sort
 Abstract type for objects to store the state at integration points.
 """
 abstract type IpState 
-    #analysis_data::AnalysisData
+    #env::ModelEnv
     #other data
 end
 
 function clone(src::IpState)
     dst = deepcopy(src)
-    dst.analysis_data= src.analysis_data# keep original analyses data
+    dst.env= src.env# keep original analyses data
     return dst
 end
 

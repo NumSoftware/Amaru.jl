@@ -3,15 +3,15 @@
 export MCJoint
 
 mutable struct MCJointIpState<:IpState
-    analysis_data::AnalysisData
+    env::ModelEnv
     σ  ::Array{Float64,1} # stress
     w  ::Array{Float64,1} # relative displacements
     upa::Float64  # effective plastic relative displacement
     Δλ ::Float64  # plastic multiplier
     h  ::Float64  # characteristic length from bulk elements
-    function MCJointIpState(analysis_data::AnalysisData=AnalysisData())
-        this = new(analysis_data)
-        ndim = analysis_data.ndim
+    function MCJointIpState(env::ModelEnv=ModelEnv())
+        this = new(env)
+        ndim = env.ndim
         this.σ = zeros(ndim)
         this.w = zeros(ndim)
         this.upa = 0.0
@@ -69,10 +69,10 @@ end
 end
 
 # Create a new instance of Ip data
-new_ip_state(mat::MCJoint, analysis_data::AnalysisData) = MCJointIpState(analysis_data)
+new_ip_state(mat::MCJoint, env::ModelEnv) = MCJointIpState(env)
 
 function yield_func(mat::MCJoint, ipd::MCJointIpState, σ::Array{Float64,1})
-    ndim = ipd.analysis_data.ndim
+    ndim = ipd.env.ndim
     σmax = calc_σmax(mat, ipd, ipd.upa)
     if ndim == 3
         return sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*mat.μ
@@ -83,7 +83,7 @@ end
 
 
 function yield_deriv(mat::MCJoint, ipd::MCJointIpState)
-    ndim = ipd.analysis_data.ndim
+    ndim = ipd.env.ndim
     if ndim == 3
         return [ mat.μ, ipd.σ[2]/sqrt(ipd.σ[2]^2 + ipd.σ[3]^2), ipd.σ[3]/sqrt(ipd.σ[2]^2 + ipd.σ[3]^2)]
     else
@@ -92,7 +92,7 @@ function yield_deriv(mat::MCJoint, ipd::MCJointIpState)
 end
 
 function potential_derivs(mat::MCJoint, ipd::MCJointIpState, σ::Array{Float64,1})
-    ndim = ipd.analysis_data.ndim
+    ndim = ipd.env.ndim
     if ndim == 3
             if σ[1] >= 0.0 
                 # G1:
@@ -180,7 +180,7 @@ function σmax_deriv(mat::MCJoint, ipd::MCJointIpState, upa::Float64)
 end
 
 function calc_kn_ks_De(mat::MCJoint, ipd::MCJointIpState)
-    ndim = ipd.analysis_data.ndim
+    ndim = ipd.env.ndim
     kn = mat.E*mat.α/ipd.h
     G  = mat.E/(2.0*(1.0+mat.ν))
     ks = G*mat.α/ipd.h
@@ -198,7 +198,7 @@ function calc_kn_ks_De(mat::MCJoint, ipd::MCJointIpState)
 end
 
 function calc_Δλ(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
-    ndim = ipd.analysis_data.ndim
+    ndim = ipd.env.ndim
     maxits = 100
     Δλ     = 0.0
     f      = 0.0
@@ -267,7 +267,7 @@ function calc_Δλ(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
 end
 
 function calc_σ_upa(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
-    ndim = ipd.analysis_data.ndim
+    ndim = ipd.env.ndim
     μ = mat.μ
     kn, ks, De = calc_kn_ks_De(mat, ipd)
 
@@ -291,7 +291,7 @@ function calc_σ_upa(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
 end
 
 function mountD(mat::MCJoint, ipd::MCJointIpState)
-    ndim = ipd.analysis_data.ndim
+    ndim = ipd.env.ndim
     kn, ks, De = calc_kn_ks_De(mat, ipd)
     σmax = calc_σmax(mat, ipd, ipd.upa)
 
@@ -326,7 +326,7 @@ function mountD(mat::MCJoint, ipd::MCJointIpState)
 end
 
 function stress_update(mat::MCJoint, ipd::MCJointIpState, Δw::Array{Float64,1})
-    ndim = ipd.analysis_data.ndim
+    ndim = ipd.env.ndim
     σini = copy(ipd.σ)
 
     μ = mat.μ
@@ -373,7 +373,7 @@ function stress_update(mat::MCJoint, ipd::MCJointIpState, Δw::Array{Float64,1})
 end
 
 function ip_state_vals(mat::MCJoint, ipd::MCJointIpState)
-    ndim = ipd.analysis_data.ndim
+    ndim = ipd.env.ndim
     if ndim == 3
        return Dict(
           :w1  => ipd.w[1] ,

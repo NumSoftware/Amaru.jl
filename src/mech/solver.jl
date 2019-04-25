@@ -118,13 +118,13 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
     scheme::Symbol = :FE)
 
     tol>0 || error("solve! : tolerance should be greater than zero")
-    analysis_data = dom.analysis_data
-    analysis_data.nstage += 1
-    analysis_data.ninc    = 0
+    env = dom.env
+    env.nstage += 1
+    env.ninc    = 0
 
     if verbose
         printstyled("FEM analysis:\n", bold=true, color=:cyan)
-        println("  model type: ", analysis_data.model_type)
+        println("  model type: ", env.modeltype)
         tic = time()
     end
     
@@ -161,7 +161,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
 
     # Setup quantities at dofs
     #if dom.nincs == 0
-    if analysis_data.nstage==1
+    if env.nstage==1
         for (i,dof) in enumerate(dofs)
             dof.vals[dof.name]    = 0.0
             dof.vals[dof.natname] = 0.0
@@ -172,7 +172,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
 
     # Save initial file
     #if dom.nincs == 0 && save_incs 
-    if analysis_data.nstage==1 && save_incs
+    if env.nstage==1 && save_incs
         save(dom, "$outdir/$(dom.filekey)-0.vtk", verbose=false)
         verbose && printstyled("  $outdir/$(dom.filekey)-0.vtk file written (Domain)\n", color=:green)
     end
@@ -215,10 +215,10 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
         #@show t
         #@show dt
         inc += 1
-        analysis_data.ninc += 1
+        env.ninc += 1
 
-        #verbose && printstyled("  stage $(analysis_data.nstage) increment $inc from t=$(round(t-dt,digits=10)) to t=$(round(t,digits=10)) (dt=$(round(dt,digits=10))):", bold=true, color=:blue) # color 111
-        verbose && printstyled("  stage $(analysis_data.nstage) increment $inc from t=$(round(t,digits=10)) to t=$(round(t+dt,digits=10)) (dt=$(round(dt,digits=10))):", bold=true, color=:blue) # color 111
+        #verbose && printstyled("  stage $(env.nstage) increment $inc from t=$(round(t-dt,digits=10)) to t=$(round(t,digits=10)) (dt=$(round(dt,digits=10))):", bold=true, color=:blue) # color 111
+        verbose && printstyled("  stage $(env.nstage) increment $inc from t=$(round(t,digits=10)) to t=$(round(t+dt,digits=10)) (dt=$(round(dt,digits=10))):", bold=true, color=:blue) # color 111
         verbose && println()
 
         ΔUex, ΔFex = dt*Uex, dt*Fex     # increment of external vectors
@@ -334,8 +334,8 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
 
             # Check for saving output file
             if abs(t - T) < ttol
-                analysis_data.nout += 1
-                iout = analysis_data.nout
+                env.nout += 1
+                iout = env.nout
                 #iout += 1
                 save(dom, "$outdir/$(dom.filekey)-$iout.vtk", verbose=false)
                 T += dT # find the next output time
@@ -367,7 +367,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
         else
             # Restore counters
             #t   += dt
-            analysis_data.ninc -= 1
+            env.ninc -= 1
             inc -= 1
 
             # Restore the state to last converged increment

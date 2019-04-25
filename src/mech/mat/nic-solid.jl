@@ -33,7 +33,7 @@ end
 
 
 mutable struct NIConcreteIpState<:IpState
-    analysis_data::AnalysisData
+    env::ModelEnv
     σ::Array{Float64,1}  # current stress
     ε::Array{Float64,1}  # current strain
     ε̅cmax::Float64 
@@ -45,8 +45,8 @@ mutable struct NIConcreteIpState<:IpState
 
     NIConcreteIpState() = new()
 
-    function NIConcreteIpState(mat::NIConcrete, analysis_data::AnalysisData=AnalysisData()) 
-        this = new(analysis_data)
+    function NIConcreteIpState(mat::NIConcrete, env::ModelEnv=ModelEnv()) 
+        this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
         this.ε̅cmax = 0.0
@@ -66,7 +66,7 @@ end
 matching_elem_type(::NIConcrete) = MechSolid
 
 # Create a new instance of Ip data
-new_ip_state(mat::NIConcrete, analysis_data::AnalysisData) = NIConcreteIpState(mat, analysis_data)
+new_ip_state(mat::NIConcrete, env::ModelEnv) = NIConcreteIpState(mat, env)
 
 
 function uniaxial_σ(mat::NIConcrete, ipd::NIConcreteIpState, εi::Float64)
@@ -199,7 +199,7 @@ function calcD(mat::NIConcrete, ipd::NIConcreteIpState)
 end
 
 
-#function calcDsec(mat::NIConcrete, ipd::NIConcreteIpState, Δε::Array{Float64,1}, model_type::Symbol)
+#function calcDsec(mat::NIConcrete, ipd::NIConcreteIpState, Δε::Array{Float64,1}, modeltype::Symbol)
 function stress_update(mat::NIConcrete, ipd::NIConcreteIpState, Δε::Array{Float64,1})
     # special functions
     pos(x) = (abs(x)+x)/2.0
@@ -317,13 +317,13 @@ function stress_update(mat::NIConcrete, ipd::NIConcreteIpState, Δε::Array{Floa
     ipd.damt = 1.0 - σfun(ipd.ε̅tmax)/ipd.ε̅tmax/mat.E0
     ipd.damc = 1.0 + σfun(-ipd.ε̅cmax)/ipd.ε̅cmax/mat.E0
 
-    #ipd.analysis_data.nstage==1 && ipd.analysis_data.ninc==2 && error()
+    #ipd.env.nstage==1 && ipd.env.ninc==2 && error()
 
     return Δσ
 end
 
 function ip_state_vals(mat::NIConcrete, ipd::NIConcreteIpState)
-    dict = stress_strain_dict(ipd.σ, ipd.ε, ipd.analysis_data.ndim)
+    dict = stress_strain_dict(ipd.σ, ipd.ε, ipd.env.ndim)
     dict[:damt] = ipd.damt
     dict[:damc] = ipd.damc
     return dict

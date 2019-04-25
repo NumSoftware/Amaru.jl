@@ -11,7 +11,7 @@ mutable struct SeepSolid<:Hydromechanical
     mat   ::Material
     active::Bool
     linked_elems::Array{Element,1}
-    analysis_data::AnalysisData
+    env::ModelEnv
 
     function SeepSolid(); 
         return new() 
@@ -32,7 +32,7 @@ end
 
 
 function distributed_bc(elem::SeepSolid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
-    ndim  = elem.analysis_data.ndim
+    ndim  = elem.env.ndim
 
     # Check bcs
     (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
@@ -42,7 +42,7 @@ function distributed_bc(elem::SeepSolid, facet::Union{Facet,Nothing}, key::Symbo
     target = facet!=nothing ? facet : elem
     nodes  = target.nodes
     nnodes = length(nodes)
-    t      = elem.analysis_data.t
+    t      = elem.env.t
 
     # Force boundary condition
     nnodes = length(nodes)
@@ -103,7 +103,7 @@ end
 
 
 function elem_conductivity_matrix(elem::SeepSolid)
-    ndim   = elem.analysis_data.ndim
+    ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     C      = elem_coords(elem)
     H      = zeros(nnodes, nnodes)
@@ -136,7 +136,7 @@ function elem_conductivity_matrix(elem::SeepSolid)
 end
 
 function elem_RHS_vector(elem::SeepSolid)
-    ndim   = elem.analysis_data.ndim
+    ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     C      = elem_coords(elem)
     Q      = zeros(nnodes)
@@ -172,7 +172,7 @@ end
 
 
 function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
-    ndim   = elem.analysis_data.ndim
+    ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
 
     map_p  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
@@ -201,7 +201,7 @@ function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
         @gemm dNdX = inv(J)*dNdR
-        setBu(elem.analysis_data, dNdX, detJ, Bu)
+        setBu(elem.env, dNdX, detJ, Bu)
 
         Bp = dNdX
         G  = Bp*Uw/elem.mat.gw # flow gradient

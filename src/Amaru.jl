@@ -63,8 +63,8 @@ include("tools/show.jl")
 export max, min, sort, reset, getindex, sort, copy!, show
 
 # Fem module
-include("analysis-data.jl")
-export AnalysisData
+include("model-env.jl")
+export ModelEnv
 
 include("node.jl")
 export Node, Dof, add_dof, nodes_dof_vals
