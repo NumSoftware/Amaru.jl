@@ -4,8 +4,6 @@ export ElasticBeam
 
 mutable struct BeamIpState<:IpState
     env::ModelEnv
-    #σ::Float64
-    #ε::Float64
     function BeamIpState(env::ModelEnv=ModelEnv())
         return new(env)
     end
@@ -21,9 +19,9 @@ mutable struct ElasticBeam<:Material
     end
 
     function ElasticBeam(;E=NaN, A=NaN, I=NaN, Ix=NaN, Iy=NaN, Iz=NaN)
-        @assert E>0.0
-        @assert A>0.0
-        @assert I>0.0
+        E>0.0 || error("Invalid value for E: $E")
+        A>0.0 || error("Invalid value for A: $A")
+        I>0.0 || error("Invalid value for I: $I")
         this = new(E,A,I)
         return this
     end
