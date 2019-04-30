@@ -28,7 +28,7 @@ function getlapse(sw::StopWatch)
     return sw.lapse + time() - sw.lasttime
 end
 
-function hms(lapse::Float64; format::Symbol=:hms)
+function formatlapse(lapse::Float64; format::Symbol=:hms)
     # format may be :hms, :ms, :s
     if format==:s
         return @sprintf("%5.3fs", lapse)
@@ -42,8 +42,8 @@ function hms(lapse::Float64; format::Symbol=:hms)
     end
 end
 
-function hms(sw::StopWatch; format::Symbol=:hms)
-    return hms(getlapse(sw), format=format)
+function see(sw::StopWatch; format::Symbol=:hms)
+    return formatlapse(getlapse(sw), format=format)
 end
 
 

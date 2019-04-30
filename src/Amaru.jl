@@ -57,6 +57,7 @@ include("tools/expr.jl")
 include("tools/table.jl")
 include("tools/tensors.jl")
 include("tools/show.jl")
+include("tools/stopwatch.jl")
 
 # generic exports
 export max, min, sort, reset, getindex, sort, copy!, show

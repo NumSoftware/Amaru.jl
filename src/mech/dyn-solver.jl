@@ -228,6 +228,9 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds
          keysis = Symbol(readline())
     end 
 
+    # Timing
+    sw = StopWatch()
+
     # Initial accelerations
     K = mount_K(dom, ndofs)
     M = mount_M(dom, ndofs)
@@ -433,11 +436,7 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds
     end
 
     # time spent
-    if verbose
-        h, r = divrem(time()-tic, 3600)
-        m, r = divrem(r, 60)
-        println("  time spent: $(h)h $(m)m $(round(r,digits=3))s")
-    end
+    verbose && println("  time spent: ", see(sw, format=:hms))
 
     # Update number of used increments at domain
     dom.nincs += inc

@@ -40,8 +40,6 @@ function elem_mass(elem::MechLumpedMass)
     keys = [:ux, :uy, :uz][1:ndim]
     map  = Int[ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
 
-    @show elem.nodes
-    @show map
     return M, map, map
 end
             

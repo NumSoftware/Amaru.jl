@@ -40,6 +40,7 @@ FILES = [
     "mech/inset/ceb.jl",
 
     # Dynamic analysis:
+    "mech/dynamic/dyn-spring.jl",
     "mech/dynamic/dyn-solid.jl",
 
     # Hydromechanical analysis:

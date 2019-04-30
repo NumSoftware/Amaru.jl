@@ -168,6 +168,10 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
         end
     end
 
+    # Timing
+    sw = StopWatch()
+
+    # Initial logging
     update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
 
     # Save initial file
@@ -393,12 +397,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
     end
 
     # time spent
-    if verbose
-        h, r = divrem(time()-tic, 3600)
-        m, r = divrem(r, 60)
-        #println("  time spent: $(round(Int,h))h $(round(Int,m))m $(round(r,3))s")
-        @printf("  time spent: %1dh %1dm %1.3fs \n", h, m, r)
-    end
+    verbose && println("  time spent: ", see(sw, format=:hms))
 
     # Update number of used increments at domain
     #dom.nincs += inc
