@@ -1,8 +1,9 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-include("elem/mech.jl")
 export elem_config_dofs, elem_init, elem_stiffness, elem_mass, elem_update!, elem_vals
 export set_state
+
+include("elem/mech.jl")
 
 # Elements
 include("elem/mech-solid.jl")
@@ -14,7 +15,7 @@ include("elem/mech-joint.jl")
 include("elem/mech-joint1d.jl")
 
 
-# Models for solid elements (2D and 3D)
+# Models for bulk elements
 include("mat/elastic-solid.jl")
 #include("mat/in-elastic-solid.jl")
 include("mat/dp-solid.jl")
@@ -24,6 +25,12 @@ include("mat/sc-solid.jl")
 include("mat/nic-solid.jl")
 #include("mat/ortho-solid.jl")
 #include("mat/ortho-concrete-solid.jl")
+
+# Spring, dumper, lumped mass
+include("elem/mech-lumpedmass.jl")
+include("mat/lumpedmass.jl")
+include("elem/mech-spring.jl")
+include("mat/elastic-spring.jl")
 
 # Models for truss elements
 include("mat/elastic-rod.jl")

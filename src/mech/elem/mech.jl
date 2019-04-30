@@ -12,8 +12,8 @@ This function can be specialized by concrete types.
 function elem_config_dofs(elem::Mechanical)
     for node in elem.nodes
         add_dof(node, :ux, :fx)
-        add_dof(node, :uy, :fy)
-        if elem.env.ndim==3; add_dof(node, :uz, :fz) end
+        elem.env.ndim>=2 && add_dof(node, :uy, :fy)
+        elem.env.ndim==3 && add_dof(node, :uz, :fz)
     end
 end
 

@@ -78,15 +78,13 @@ function solve_system!(K::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu:
 end
 
 
-function SismicForce(dom::Domain, bcs, M::SparseMatrixCSC{Float64, Int}, F::Vect, AS::Array{Float64,2}, keysis::Symbol,
-tfia::Float64, tds::Float64)
+function sismic_force(dom::Domain, bcs, M::SparseMatrixCSC{Float64, Int}, F::Vect, AS::Array{Float64,2}, keysis::Symbol, tfia::Float64, tds::Float64)
 
     dofs, nu = configure_dofs!(dom, bcs)
-
     ndofs = length(dofs)
 
-    ndat = length(AS) #quantity of aceleration data
-    AS2 = zeros(ndat+1) #Sismic aceleration data how vector
+    ndat = length(AS)    # quantity of aceleration data
+    AS2  = zeros(ndat+1) # sismic aceleration data how vector
     c = 0
     for i=1:size(AS,1)
         for j=1:size(AS,2)
@@ -95,37 +93,35 @@ tfia::Float64, tds::Float64)
         end
     end
 
-    vts = zeros(ndat+1) #time vetor correspond to acelerations
+    vts = zeros(ndat+1) # time vetor correspond to acelerations
     
     for i=1:ndat+1
         vts[i] = (i-1)*tds/ndat
     end
     
     FAS = hcat(vts,AS2) # Function of aceleration
-    #Interpolation of the aceleration value
 
-        inic = 0
-        fin = 0
+    # Interpolation of the aceleration value
 
-        for i=1:ndat
-            if FAS[i,1]<=tfia<=FAS[i+1,1]
-                inic = i
-                fin = i+1
-            end
-            if inic!=0 & fin!=0; break end
+    inic = 0
+    fin = 0
+
+    for i=1:ndat
+        if FAS[i,1]<=tfia<=FAS[i+1,1]
+            inic = i
+            fin = i+1
         end
-    
-        m = (FAS[fin,2]-FAS[inic,2])/(FAS[fin,1]-FAS[inic,1])
-        acel = FAS[inic,2] + m*(tfia - FAS[inic,1])
-    #@show acel
+        if inic!=0 & fin!=0; break end
+    end
+
+    m = (FAS[fin,2]-FAS[inic,2])/(FAS[fin,1]-FAS[inic,1])
+    acel = FAS[inic,2] + m*(tfia - FAS[inic,1])
 
     #Dof sismic aceleration    
 
     VAS  = zeros(ndofs) #Sismic aceleration vector accord dof
-
-    nodes = dom.nodes
     
-    for node in nodes
+    for node in dom.nodes
         dof = node.dofdict[keysis]
         VAS[dof.eq_id] += acel
     end    
@@ -166,7 +162,8 @@ Available options are:
 `saveips=false` : If true, saves corresponding output files with ip information
 
 """
-function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds::Float64=0.0, tss::Float64=0.0, nincs::Int=1, maxits::Int=5, autoinc::Bool=false, 
+function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds::Float64=0.0, tss::Float64=0.0, 
+                   nincs::Int=1, maxits::Int=5, autoinc::Bool=false, 
                    nouts::Int=0, nmods::Int=10, alpha::Real=0.0, beta::Real=0.0,
                    tol::Number=1e-2, verbose::Bool=true, save_incs::Bool=false, 
                    scheme::Symbol = :FE, filekey="out")::Bool
@@ -193,6 +190,8 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds
                            :uy => (:uy, :fy, :vy, :ay),
                            :uz => (:uz, :fz, :vz, :az))
 
+    # Set model environment as transient
+    dom.env.transient = true
 
     # Get dofs organized according to boundary conditions
     dofs, nu = configure_dofs!(dom, bcs)
@@ -221,7 +220,6 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds
     StateBk = copy.(State)
 
     #If the problem is sismic, read the sismic acelerations asking to user the file's name AS:SeismicAcelerations
-
     if sism==true
          print("What is the .dat file name of the sismic acelerations?")
          AS = readdlm("$(chomp(readline())).dat")
@@ -229,7 +227,6 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds
          print("What is the key correspond to sismic direction (fx, fy, fz)?")
          keysis = Symbol(readline())
     end 
-
 
     # Initial accelerations
     K = mount_K(dom, ndofs)
@@ -239,21 +236,19 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds
     Uex, Fex = get_bc_vals(dom, bcs) # get values at time t
                 
     #If the problem has a sism, the force sismic is add
-
-    if sism==true && tss<=0 #tss:time when seismic activity starts tds: time of seismic duration 0:current time =0s
-        M = mount_M(dom,ndofs)
-        Fex = SismicForce(dom, bcs, M, Fex,AS,keysis,0.0,tds)
+    if sism && tss<=0 #tss:time when seismic activity starts tds: time of seismic duration 0:current time =0s
+        #M = mount_M(dom,ndofs)
+        Fex = sismic_force(dom, bcs, M, Fex, AS, keysis, 0.0, tds)
     end                
-                
     solve_system!(M, A, Fex, nu)
 
+    # Initial values at nodes
     for (i,dof) in enumerate(dofs)
         us, fs, vs, as = components_dict[dof.name]
         dof.vals[vs] = V[i]
         dof.vals[as] = A[i]
         dof.vals[fs] = Fex[i]
     end
-
     update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
 
     # Save initial file
@@ -284,18 +279,16 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds
     TFin = zeros(ndofs)  
     Aa   = zeros(ndofs)
     Va   = zeros(ndofs)
-    #lastFin = zeros(ndofs)
 
     #remountK = true
 
     while t < tend - ttol
         Uex, Fex = get_bc_vals(dom, bcs, t+dt) # get values at time t+dt
                     
-        #If the problem has a sism, the force sismic is add
-                   
-        if sism==true && tss<=t+dt && tds+tss>=t+dt
+        # If the problem has a sism, the force sismic is added
+        if sism && tss<=t+dt && tds+tss>=t+dt
             M = mount_M(dom,ndofs)
-            Fex = SismicForce(dom, bcs, M,Fex,AS,keysis,t+dt,tds)
+            Fex = sismic_force(dom, bcs, M,Fex,AS,keysis,t+dt,tds)
         end
                     
 
@@ -397,11 +390,13 @@ function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds
                 dof.vals[as] = A[i]
             end
 
-            update_loggers!(dom) # Tracking nodes, ips, elements, etc.
 
             # Update time t and dt
             inc += 1
             t   += dt
+            dom.env.t = t
+
+            update_loggers!(dom) # Tracking nodes, ips, elements, etc.
 
             # Check for saving output file
             if abs(t - T) < ttol

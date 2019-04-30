@@ -34,9 +34,14 @@ function setup_logger!(domain, filter, logger::NodeLogger)
     return nothing
 end
 
-function update_logger!(logger::NodeLogger)
+function update_logger!(logger::NodeLogger, env::ModelEnv)
     isdefined(logger, :node) || return
-    push!(logger.table, node_vals(logger.node))
+
+    vals = node_vals(logger.node)
+    env.transient && (vals[:t] = env.t)
+    #env.transient && (vals = OrderedDict(:t=>env.t, vals...))
+    push!(logger.table, vals)
+
     save(logger)
 end
 
@@ -71,9 +76,12 @@ function setup_logger!(domain, filter, logger::IpLogger)
 end
 
 
-function update_logger!(logger::IpLogger)
+function update_logger!(logger::IpLogger, env::ModelEnv)
     isdefined(logger, :ip) || return
-    push!(logger.table, ip_vals(logger.ip))
+    vals = ip_vals(logger.ip)
+    env.transient && (vals[:t] = env.t)
+
+    push!(logger.table, vals)
     save(logger)
 end
 
@@ -130,7 +138,7 @@ function setup_logger!(domain, filter, logger::EdgeLogger)
 end
 
 
-function update_logger!(logger::FacetLogger)
+function update_logger!(logger::FacetLogger, env::ModelEnv)
     length(logger.nodes)==0 && return
 
     tableU = DTable()
@@ -147,6 +155,7 @@ function update_logger!(logger::FacetLogger)
     valsU = OrderedDict( key => mean(tableU[key]) for key in keys(tableU) ) # gets the average of essential values
     valsF = OrderedDict( key => sum(tableF[key])  for key in keys(tableF) ) # gets the sum for each component
     vals  = merge(valsU, valsF)
+    env.transient && (vals[:t] = env.t)
 
     push!(logger.table, vals)
     save(logger)
@@ -178,7 +187,7 @@ function setup_logger!(domain, filter, logger::NodeGroupLogger)
 end
 
 
-function update_logger!(logger::NodeGroupLogger)
+function update_logger!(logger::NodeGroupLogger, env::ModelEnv)
     length(logger.nodes) == 0 && return
 
     table = DTable()
@@ -221,7 +230,7 @@ function setup_logger!(domain, filter, logger::IpGroupLogger)
 end
 
 
-function update_logger!(logger::IpGroupLogger)
+function update_logger!(logger::IpGroupLogger, env::ModelEnv)
     length(logger.ips) == 0 && return
 
     table = DTable()

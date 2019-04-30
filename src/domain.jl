@@ -140,6 +140,9 @@ function Domain(mesh::Mesh, matbinds::Array{<:Pair,1}; modeltype::Symbol=:genera
     Tips     .= ""
     for (filter, mat) in matbinds
         cells = mesh.cells[filter]
+        if ! (cells isa Array)
+            cells = [ cells ]
+        end
         if isempty(cells)
             @warn "Domain: binding material model $(typeof(mat)) to an empty list of cells:" expr=filter
         end
@@ -259,7 +262,7 @@ end
 
 
 # Function for updating loggers
-update_loggers!(domain::Domain) = update_logger!.(domain.loggers)
+update_loggers!(domain::Domain) = update_logger!.(domain.loggers, Ref(domain.env))
 
 
 # Function to reset a domain

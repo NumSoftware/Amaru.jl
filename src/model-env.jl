@@ -4,6 +4,7 @@ mutable struct ModelEnv
     ndim::Int              # Analysis dimension
     modeltype::Symbol      # Analysis type (eg. :general, :plane_stress, :plane_strain, etc.
     thickness::Float64     # Model thickness
+    transient::Bool        # Time dependent analysis
     t::Float64             # Time in time dependent analysis
     cstage::Int            # Current stage
     cinc::Int              # Current increment
@@ -13,6 +14,7 @@ mutable struct ModelEnv
         this.ndim = 3
         this.modeltype = :general # plane_stress, axisymmetric
         this.thickness = 1.0
+        this.transient = false
         this.t = 0.0
 
         this.cstage = 0 # current stage

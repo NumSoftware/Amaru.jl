@@ -14,11 +14,11 @@ const op_dict = Dict{Symbol,Function}(
     :(>=) => (a,b) -> a>b-arith_tol,
     :(<=) => (a,b) -> a<b+arith_tol,
     :(==) => (a,b) -> abs(a-b)<arith_tol,
-    :(sin) => (a,) -> sin(a),
-    :(cos) => (a,) -> cos(a),
-    :(tan) => (a,) -> tan(a),
-    :(exp) => (a,) -> exp(a),
-    :(log) => (a,) -> log(a),
+    :sin => (a,) -> sin(a),
+    :cos => (a,) -> cos(a),
+    :tan => (a,) -> tan(a),
+    :exp => (a,) -> exp(a),
+    :log => (a,) -> log(a),
    )
 
 
@@ -42,7 +42,7 @@ function reduce_arith_expr!(expr::Expr; vars...)
         arg_idxs = UnitRange(2,length(expr.args))
     elseif expr.head == :comparison
         arg_idxs = StepRange(1,2,length(expr.args))
-    else
+    else # &&, ||, ?:, comparison
         arg_idxs = UnitRange(1,length(expr.args))
     end
 
@@ -66,6 +66,8 @@ function reduce_arith_expr!(expr::Expr; vars...)
             op(expr.args[i-1], expr.args[i+1]) || return false
         end
         return true
+    elseif expr.head == :if
+        return expr.args[1] ? expr.args[2] : expr.args[3]
     end
 
     return expr

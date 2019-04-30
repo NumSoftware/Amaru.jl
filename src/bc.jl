@@ -47,6 +47,7 @@ function compute_bc_vals!(bc::NodeBC, t::Float64, U::Array{Float64,1}, F::Array{
             if key==dof.name # essential bc (dof.prescribed should not be modified!)
                 U[dof.eq_id] = eval_arith_expr(cond, x=x, y=y, z=z, t=t)
             else # natural bc
+                aa= eval_arith_expr(cond, x=x, y=y, z=z, t=t)
                 F[dof.eq_id] += eval_arith_expr(cond, x=x, y=y, z=z, t=t)
             end
         end
