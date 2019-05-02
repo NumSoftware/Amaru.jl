@@ -2,10 +2,10 @@ using Amaru
 using Test
 
 coord = [ 0. 0.; 1. 0. ]
-conn  = [ 1 2 ]
+conn  = [ [1, 2] ]
 
-blt = BlockTruss(coord, conn, tag="bars")
-msh = Mesh(blt, verbose=false)
+msh = Mesh(coord, conn)
+tag!(msh.cells, "bars")
 
 mats = [ 
         "bars" =>  PPRod(E=210e6, A=0.01, sig_y=500e3),
