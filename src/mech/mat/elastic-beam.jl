@@ -13,16 +13,17 @@ mutable struct ElasticBeam<:Material
     E::Float64
     A::Float64
     I::Float64
+    ρ::Float64
 
     function ElasticBeam(prms::Dict{Symbol,Float64})
         return  ElasticBeam(;prms...)
     end
 
-    function ElasticBeam(;E=NaN, A=NaN, I=NaN, Ix=NaN, Iy=NaN, Iz=NaN)
+    function ElasticBeam(;E=NaN, A=NaN, I=NaN, Ix=NaN, Iy=NaN, Iz=NaN, rho=0.0)
         E>0.0 || error("Invalid value for E: $E")
         A>0.0 || error("Invalid value for A: $A")
         I>0.0 || error("Invalid value for I: $I")
-        this = new(E,A,I)
+        this = new(E, A, I, rho)
         return this
     end
 end

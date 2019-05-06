@@ -136,59 +136,92 @@ end
 
 
 """
-    solve!(D, bcs, options...) -> Bool
+    dynsolve!(dom, bcs, options...) :: Bool
 
-Performs one stage finite element analysis of a mechanical domain `D`
-subjected to an array of boundary conditions `bcs`.
+Performs one stage finite element dynamic analysis of a mechanical domain `dom`
+subjected to a set of boundary conditions `bcs` and a time span.
 
-Available options are:
 
-`verbose=true` : If true, provides information of the analysis steps
+# Arguments
 
-`tol=1e-2` : Tolerance for the absolute error in forces
+`dom` : A finite element domain
 
-`nincs=1` : Number of increments
+`bcs` : Array of boundary conditions given as an array of pairs ( location => condition)
 
-`autoinc=false` : Sets automatic increments size. The first increment size will be `1/nincs`
+# Keyword arguments
 
-`maxits=5` : The maximum number of Newton-Rapson iterations per increment
+`time_span` = 0.0 : Simulated time span
 
-`save_incs=false` : If true, saves output files according to `nouts` option
+`nincs   = 1` : Number of increments
 
-`nouts=0` : Number of output files per analysis
+`maxits  = 5` : Maximum number of Newton-Rapson iterations per increment
 
-`scheme= :FE` : Predictor-corrector scheme at iterations. Available schemes are `:FE` and `:ME`
+`autoinc = false` : Sets automatic increments size. The first increment size will be `1/nincs`
 
-`saveips=false` : If true, saves corresponding output files with ip information
+`maxincs = 1000000` : Maximum number of increments
+
+`scheme  = :FE` : Predictor-corrector scheme at each increment. Available schemes are `:FE` and `:ME`
+
+`tol     = 1e-2` : Tolerance for the maximum absolute error in forces vector
+
+`nouts   = 0` : Number of output files per analysis
+
+`outdir  = ""` : Output directory
+
+`filekey = ""` : File key for output files
+
+`verbose = true` : If true, provides information of the analysis steps
 
 """
-function dynsolve!(dom::Domain, bcs::Array; time_span::Real=0.0, sism=false, tds::Float64=0.0, tss::Float64=0.0, 
-                   nincs::Int=1, maxits::Int=5, autoinc::Bool=false, 
-                   nouts::Int=0, nmods::Int=10, alpha::Real=0.0, beta::Real=0.0,
-                   tol::Number=1e-2, verbose::Bool=true, save_incs::Bool=false, 
-                   scheme::Symbol = :FE, filekey="out")::Bool
+function dynsolve!(
+                   dom       :: Domain,
+                   bcs       :: Array;
+                   time_span :: Real    = 0.0,
+                   nincs     :: Int     = 1,
+                   maxits    :: Int     = 5,
+                   autoinc   :: Bool    = false,
+                   scheme    :: Symbol  = :FE,
+                   sism      :: Bool    = false,
+                   tds       :: Float64 = 0.0,
+                   tss       :: Float64 = 0.0,
+                   nmods     :: Int     = 10,
+                   alpha     :: Real    = 0.0,
+                   beta      :: Real    = 0.0,
+                   tol       :: Number  = 1e-2,
+                   nouts     :: Int     = 0,
+                   outdir    :: String  = "",
+                   filekey   :: String  = "out",
+                   verbose   :: Bool    = true,
+                  )
 
     if verbose
         printstyled("FEM dynamic analysis:\n", bold=true, color=:cyan)
         tic = time()
     end
     
-    (save_incs && nouts==0) && (nouts=min(nincs,10))  # default value for nouts
     save_incs = nouts>0
     if save_incs
         if nouts>nincs
             nincs = nouts
+            @info "  nincs changed to $nincs to match nouts"
         end
         if nincs%nouts != 0
             nincs = nincs - (nincs%nouts) + nouts
+            @info "  nincs changed to $nincs to be a multiple of nouts"
         end
-        #info("  updating nincs to $nincs")
+
+        strip(outdir) == "" && (outdir = ".")
+        isdir(outdir) || error("solve!: output directory <$outdir> not fount")
+        outdir[end] in ('/', '\\')  && (outdir = outdir[1:end-1])
     end
 
     # Dictionary of data keys related with a dof
     components_dict = Dict(:ux => (:ux, :fx, :vx, :ax), 
                            :uy => (:uy, :fy, :vy, :ay),
-                           :uz => (:uz, :fz, :vz, :az))
+                           :uz => (:uz, :fz, :vz, :az),
+                           :rx => (:rx, :mx, :vrx, :arx),
+                           :ry => (:ry, :my, :vry, :ary),
+                           :rz => (:rz, :mz, :vrz, :arz))
 
     # Set model environment as transient
     dom.env.transient = true

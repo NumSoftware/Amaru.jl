@@ -241,11 +241,11 @@ end
 
 # Function for setting loggers
 """
-    setlogger!(domain, logger)
+    setloggers!(domain, logger)
 
 Register a new `logger` in `domain`.
 
-    setlogger!(domain, loggers)
+    setloggers!(domain, loggers)
 
 Register each logger from the array `loggers` in `domain`.
 
@@ -709,26 +709,30 @@ function Base.convert(::Type{FemMesh.Mesh}, dom::AbstractDomain)
     necomps = length(elem_labels)
 
     # Write vectors
-    if :uy in node_labels
+    if :ux in node_labels
         ux_idx = findfirst(isequal(:ux), node_labels)
         uy_idx = findfirst(isequal(:uy), node_labels)
         uz_idx = findfirst(isequal(:uz), node_labels)
         if uz_idx!=nothing
             U = node_vals[:, [ux_idx, uy_idx, uz_idx]]
-        else
+        elseif uy_idx!=nothing
             U = hcat( node_vals[:, [ux_idx, uy_idx]], zeros(npoints) )
+        else
+            U = hcat( node_vals[:, [ux_idx]], zeros(npoints), zeros(npoints) )
         end
         point_vector_data["U"] = U
     end
 
-    if :vy in node_labels
+    if :vx in node_labels
         vx_idx = findfirst(isequal(:vx), node_labels)
         vy_idx = findfirst(isequal(:vy), node_labels)
         vz_idx = findfirst(isequal(:vz), node_labels)
         if vz_idx!=nothing
             V = node_vals[:, [vx_idx, vy_idx, vz_idx]]
-        else
+        elseif vy_idx!=nothing
             V = hcat( node_vals[:, [vx_idx, vy_idx]], zeros(npoints) )
+        else
+            V = hcat( node_vals[:, [vx_idx]], zeros(npoints), zeros(npoints) )
         end
         point_vector_data["V"] = V
     end

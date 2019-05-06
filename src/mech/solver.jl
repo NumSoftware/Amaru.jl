@@ -9,6 +9,8 @@ function mount_K(dom::Domain, ndofs::Int)
 
     for elem in dom.elems
         Ke, rmap, cmap = elem_stiffness(elem)
+        #@show "Ke"
+        #display(Ke)
         nr, nc = size(Ke)
         for i=1:nr
             for j=1:nc
@@ -93,10 +95,10 @@ end
 
 
 """
-    solve!(dom, bcs, options...) -> Bool
+    solve!(dom, bcs, options...) :: Bool
 
 Performs one stage static finite element analysis of a domain `dom`
-subjected to an array of boundary conditions `bcs`.
+subjected to a set of boundary conditions `bcs`.
 
 # Arguments
 
@@ -120,6 +122,10 @@ subjected to an array of boundary conditions `bcs`.
 
 `nouts   = 0` : Number of output files per analysis
 
+`outdir  = ""` : Output directory
+
+`filekey = ""` : File key for output files
+
 `verbose = true` : If true, provides information of the analysis steps
 """
 function solve!(
@@ -130,10 +136,11 @@ function solve!(
                 autoinc :: Bool    = false,
                 maxincs :: Int     = 1000000,
                 tol     :: Number  = 1e-2,
-                verbose :: Bool    = true,
+                scheme  :: Symbol  = :FE,
                 nouts   :: Int     = 0,
                 outdir  :: String  = "",
-                scheme  :: Symbol  = :FE
+                filekey :: String  = "out",
+                verbose :: Bool    = true,
                )
 
     tol>0 || error("solve! : tolerance should be greater than zero")
@@ -190,8 +197,8 @@ function solve!(
 
     # Save initial file
     if env.cstage==1 && save_incs
-        save(dom, "$outdir/$(dom.filekey)-0.vtk", verbose=false)
-        verbose && printstyled("  $outdir/$(dom.filekey)-0.vtk file written (Domain)\n", color=:green)
+        save(dom, "$outdir/$filekey-0.vtk", verbose=false)
+        verbose && printstyled("  $outdir/$filekey-0.vtk file written (Domain)\n", color=:green)
     end
 
     # Get the domain current state and backup
@@ -333,9 +340,9 @@ function solve!(
             if abs(t - T) < ttol
                 env.cout += 1
                 iout = env.cout
-                save(dom, "$outdir/$(dom.filekey)-$iout.vtk", verbose=false)
+                save(dom, "$outdir/$filekey-$iout.vtk", verbose=false)
                 T += dT # find the next output time
-                verbose && printstyled("  $outdir/$(dom.filekey)-$iout.vtk file written (Domain)\n", color=:green)
+                verbose && printstyled("  $outdir/$filekey-$iout.vtk file written (Domain)\n", color=:green)
             end
 
             if autoinc

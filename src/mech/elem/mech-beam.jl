@@ -46,14 +46,14 @@ end
 
 function elem_config_dofs(elem::MechBeam)
     ndim = elem.env.ndim
+    ndim == 1 && error("MechBeam: Beam elements do not work in 1d analyses")
     if ndim==2
         for node in elem.nodes
             add_dof(node, :ux, :fx)
             add_dof(node, :uy, :fy)
             add_dof(node, :rz, :mz)
         end
-    end
-    if ndim==3
+    else
         for node in elem.nodes
             add_dof(node, :ux, :fx)
             add_dof(node, :uy, :fy)
@@ -112,7 +112,38 @@ function elem_stiffness(elem::MechBeam)
 
     map = elem_map(elem)
     return T'*K0*T, map, map
-end           
+end
+
+function elem_mass(elem::MechBeam)
+    C  = elem_coords(elem)
+    L  = norm(C[2,:]-C[1,:])
+    L2 = L*L
+    mat = elem.mat
+    EA = mat.E*mat.A
+    EI = mat.E*mat.I
+
+
+    M0 = mat.ρ*L/420.0*[ 140   0      0      70    0      0   
+                         0     156    22*L   0     54    -13*L
+                         0     22*L   4*L2   0     13*L  -3*L2
+                         70    0      0      140   0      0   
+                         0     54     13*L   0     156   -22*L
+                         0    -13*L  -3*L2   0    -22*L   4*L2 ]
+    @show M0
+
+    # Rotation matrix
+    c = (C[2,1] - C[1,1])/L
+    s = (C[2,2] - C[1,1])/L
+    T = eye(6)*c
+    T[3,3] = T[6,6] = 1.0
+    T[1,1] = T[2,2] = T[4,4] = T[5,5] = c
+    T[1,2] = T[4,5] =  s
+    T[2,1] = T[5,4] = -s
+
+    map = elem_map(elem)
+    return T'*M0*T, map, map
+end
+
 
 function elem_update!(elem::MechBeam, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
