@@ -1,7 +1,7 @@
 using Amaru
 using Test
 
-bl  = Block3D( [0 0 0; 1. 1. 1.], nx=2, ny=2, nz=2, cellshape=HEX8, tag="solids")
+bl  = Block( [0 0 0; 1. 1. 1.], nx=2, ny=2, nz=2, cellshape=HEX8, tag="solids")
 
 # mesh generation
 msh = Mesh(bl, verbose=false)

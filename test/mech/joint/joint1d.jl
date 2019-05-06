@@ -2,7 +2,7 @@ using Amaru
 using Test
 
 # Mesh generation
-bl  = Block3D( [0 0 0; 1.0 6.0 1.0], nx=4, ny=6, nz=2, tag="solids")
+bl  = Block( [0 0 0; 1.0 6.0 1.0], nx=4, ny=6, nz=2, tag="solids")
 bl1 = BlockInset( [0.2 0.2 0.2; 0.2 5.8 0.2], curvetype="polyline", tag="bars", jointtag="joints")
 bl2 = move!( copy(bl1), dx=0.6)
 bl3 = move!( copy(bl1), dx=0.3)

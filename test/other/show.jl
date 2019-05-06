@@ -1,9 +1,8 @@
 using Amaru
 
 # Finite element entities
-bl  = Block2D( [0 0; 1 1], nx=4, ny=4, cellshape=QUAD9, tag="solids")
+bl  = Block( [0 0; 1 1], nx=4, ny=4, cellshape=QUAD9, tag="solids")
 msh = Mesh(bl, verbose=true)
-
 
 mats = [ "solids" =>  ElasticSolid(E=100.0, nu=0.2) ]
 dom = Domain(msh, mats)

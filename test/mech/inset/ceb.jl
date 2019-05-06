@@ -4,7 +4,7 @@ using Test
 # Mesh:
 
 bls = [
-       Block3D( [0 0 0; 1.0 6.0 1.0], nx=1, ny=5, nz=1, tag="solids"),
+       Block( [0 0 0; 1.0 6.0 1.0], nx=1, ny=5, nz=1, tag="solids"),
        BlockInset( [0.5 3 0.5; 0.5 6.0 0.5], curvetype="polyline", tag="bars", jointtag="joints"),
       ]
 

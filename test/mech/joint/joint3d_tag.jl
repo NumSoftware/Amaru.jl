@@ -3,9 +3,9 @@ using Test
 
 # mesh generation
 
-bl1  = Block3D( [0 0 0; 0.1 0.1 0.1] , nx=1, ny=1, cellshape=HEX8, tag="a")
-bl2  = Block3D( [0 0.1 0;0.1 0.2 0.1], nx=1, ny=1, cellshape=HEX8, tag="b")
-bl3  = Block3D( [0 0.2 0;0.1 0.3 0.1], nx=1, ny=1, cellshape=HEX8, tag="b")
+bl1  = Block( [0 0 0; 0.1 0.1 0.1] , nx=1, ny=1, cellshape=HEX8, tag="a")
+bl2  = Block( [0 0.1 0;0.1 0.2 0.1], nx=1, ny=1, cellshape=HEX8, tag="b")
+bl3  = Block( [0 0.2 0;0.1 0.3 0.1], nx=1, ny=1, cellshape=HEX8, tag="b")
 msh = Mesh(bl1,bl2,bl3, verbose=true)
 generate_joints_by_tag!(msh, tag="joints")
 

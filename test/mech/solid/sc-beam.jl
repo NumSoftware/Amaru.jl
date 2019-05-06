@@ -3,7 +3,7 @@ using Test
 
 # mesh generation
 
-bl  = Block3D( [0 0 0; 0.1 0.6 0.1], nx=1, ny=33, nz=6)
+bl  = Block( [0 0 0; 0.1 0.6 0.1], nx=1, ny=33, nz=6)
 msh = Mesh(bl, verbose=true)
 iptag!(msh.cells[2], 100)
 tag!(msh.cells[22], 100)

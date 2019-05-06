@@ -615,11 +615,14 @@ function nodal_local_recovery(dom::AbstractDomain)
 end
 
 
-function save(dom::AbstractDomain, filename::String; verbose=true)
-    filetype = split(filename, ".")[end]
-    if     filetype=="vtk" ; save_dom_vtk(dom, filename, verbose=verbose)
-    elseif filetype=="json"; save_dom_json(dom, filename, verbose=verbose)
-    else   error("save: Cannot save $(typeof(dom)) in $filetype format. Available formats are vtk and json")
+function save(dom::AbstractDomain, filename::String; format="", verbose=true)
+    if format==""
+        format = split(filename, ".")[end]
+    end
+
+    if     format=="vtk" ; save_dom_vtk(dom, filename, verbose=verbose)
+    elseif format=="json"; save_dom_json(dom, filename, verbose=verbose)
+    else   error("save: Cannot save $(typeof(dom)) in $format format. Available formats are vtk and json")
     end
 end
 
@@ -633,10 +636,11 @@ end
 
 function save_dom_vtk(dom::AbstractDomain, filename::String; verbose=true)
     # Convert domain to VTK data
-    ugrid = convert(UnstructuredGrid, dom)
+    #ugrid = convert(UnstructuredGrid, dom)
 
     # Save file
-    save_vtk(ugrid, filename)
+    mesh = convert(Mesh, dom)
+    save(mesh, filename)
 
     verbose && printstyled("  file $filename written (Domain)\n", color=:green)
 end
@@ -644,7 +648,7 @@ end
 
 function save_dom_json(dom::AbstractDomain, filename::String; verbose=true)
     data  = OrderedDict{String,Any}()
-    ugrid = convert(UnstructuredGrid, dom)
+    #ugrid = convert(UnstructuredGrid, dom)
 
     data["points"] = ugrid.points
     data["cells"]  = ugrid.cells
@@ -675,8 +679,9 @@ function save_dom_json(dom::AbstractDomain, filename::String; verbose=true)
     verbose && printstyled("  file $filename written (Domain)\n", color=green)
 end
 
-
-function Base.convert(::Type{UnstructuredGrid}, dom::AbstractDomain)
+#=
+function Base.convert(::Type{Mesh}, dom::AbstractDomain)
+    mesh = Mesh()
 
     # Saves the dom information in vtk format
     nnodes = length(dom.nodes)
@@ -689,9 +694,9 @@ function Base.convert(::Type{UnstructuredGrid}, dom::AbstractDomain)
     for (i,elem) in enumerate(dom.elems); elem.id = i end
 
     # points, cells and cell types
-    points  = [ node.X[i] for node in dom.nodes, i in 1:3]
-    cells   = [ [node.id for node in elem.nodes] for elem in dom.elems ]
-    cell_tys= [ Int(elem.shape.vtk_type) for elem in dom.elems ]
+    points  = Point[ Point(node.X) for node in dom.nodes ]
+    cells   = Cell[ Cell(elem.shape, [node.id for node in elem.nodes], tag=elem.tag) for elem in dom.elems ]
+    #cell_tys= [ Int(elem.shape.vtk_type) for elem in dom.elems ]
     
     # Node and element data
     point_scalar_data = Dict()
@@ -751,15 +756,16 @@ function Base.convert(::Type{UnstructuredGrid}, dom::AbstractDomain)
     for (i,node) in enumerate(dom.nodes); node.id = node_ids_bk[i] end
     for (i,elem) in enumerate(dom.elems); elem.id = elem_ids_bk[i] end
     
-    return UnstructuredGrid("Amaru - Finite Element Structures and Tools",
-                                 points, cells, cell_tys,
-                                 point_scalar_data=point_scalar_data,
-                                 point_vector_data=point_vector_data,
-                                 cell_scalar_data=cell_scalar_data)
+    #return UnstructuredGrid("Amaru - Finite Element Structures and Tools",
+                                 #points, cells, cell_tys,
+                                 #point_scalar_data=point_scalar_data,
+                                 #point_vector_data=point_vector_data,
+                                 #cell_scalar_data=cell_scalar_data)
 end
+=#
 
 
-
+#=
 """
     mplot(dom<:AbstractDomain, args...)
 
@@ -805,6 +811,7 @@ function mplot2(dom::AbstractDomain; args...)
     end
     mplot(ugrid; args...)
 end
+=#
 
 
 function Base.convert(::Type{FemMesh.Mesh}, dom::AbstractDomain)
@@ -824,7 +831,7 @@ function Base.convert(::Type{FemMesh.Mesh}, dom::AbstractDomain)
     for i=1:ncells
         elem = dom.elems[i]
         points = [ mesh.points[node.id] for node in elem.nodes ]
-        push!(mesh.cells, Cell(elem.shape, points ) )
+        push!(mesh.cells, Cell(elem.shape, points, tag=elem.tag ) )
     end
 
     update!(mesh)

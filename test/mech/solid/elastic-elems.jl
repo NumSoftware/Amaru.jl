@@ -5,7 +5,7 @@ dis = [ -0.012, -0.095 ]
 
 for shape in (TRI3, TRI6, QUAD4, QUAD8, QUAD9) 
     printstyled(shape.name, color=:cyan); println()
-    bl = Block2D( [0 0; 1 1], nx=2, ny=2, cellshape=shape, tag="solids")
+    bl = Block( [0 0; 1 1], nx=2, ny=2, cellshape=shape, tag="solids")
     mesh = Mesh(bl, verbose=false)
     tag!(mesh.faces[:(y==0)], "bottom") # bottom face
     tag!(mesh.faces[:(y==1)], "top") # top face
@@ -22,7 +22,7 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8, QUAD9)
         "top"    => FaceBC(ty=-10.)
     ]
 
-    solve!(dom, bcs, nincs=1)
+    solve!(dom, bcs, nincs=1, verbose=false)
 
     top_node = dom.nodes[:(y==1)][1]
     ux = top_node.dofdict[:ux].vals[:ux]
@@ -35,7 +35,7 @@ end
 
 for shape in (TET4, TET10, HEX8, HEX20)
     printstyled(shape.name, color=:cyan); println()
-    bl = Block3D( [0 0 0; 1 1 1], nx=2, ny=2, nz=2, cellshape=shape, tag="solids")
+    bl = Block( [0 0 0; 1 1 1], nx=2, ny=2, nz=2, cellshape=shape, tag="solids")
     mesh = Mesh(bl, verbose=false)
     tag!(mesh.faces[:(z==0)], "bottom") # bottom face
     tag!(mesh.faces[:(z==1)], "top") # top face
@@ -53,10 +53,12 @@ for shape in (TET4, TET10, HEX8, HEX20)
         "top"    => FaceBC(tz=-10.)
     ]
 
-    solve!(dom, bcs, nincs=1)
+    solve!(dom, bcs, nincs=1, verbose=false)
 
     top_node = dom.nodes[:(z==1)][1]
     uy = top_node.dofdict[:uy].vals[:uy]
     uz = top_node.dofdict[:uz].vals[:uz]
     @test [uy, uz] ≈ dis atol=1e-2
+
+    println( nodes_dof_vals(dom.nodes[:(z==1)][1]) )
 end

@@ -3,7 +3,7 @@ using Test
 
 # mesh 
 bls = [
-       Block3D( [0 0 -0.05; 0.05 1.0 0.05], nx=1, ny=50, nz=2, cellshape=HEX20),
+       Block( [0 0 -0.05; 0.05 1.0 0.05], nx=1, ny=50, nz=2, cellshape=HEX20),
       ]
 msh= Mesh(bls, verbose=true)
 iptag!(msh.cells[end], "ip")

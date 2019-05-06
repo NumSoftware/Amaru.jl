@@ -3,7 +3,7 @@ using Test
 
 # mesh 
 bls = [
-       Block3D( [0 0 0; 1 1 0.5], nx=2, ny=2, nz=2, tag="solids"),
+       Block( [0 0 0; 1 1 0.5], nx=2, ny=2, nz=2, tag="solids"),
       ]
 msh= Mesh(bls, verbose=true)
 
