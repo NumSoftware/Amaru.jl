@@ -129,7 +129,6 @@ function elem_mass(elem::MechBeam)
                          70    0      0      140   0      0   
                          0     54     13*L   0     156   -22*L
                          0    -13*L  -3*L2   0    -22*L   4*L2 ]
-    @show M0
 
     # Rotation matrix
     c = (C[2,1] - C[1,1])/L
