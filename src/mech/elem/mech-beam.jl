@@ -93,22 +93,24 @@ function elem_stiffness(elem::MechBeam)
     EA = mat.E*mat.A
     EI = mat.E*mat.I
 
-    K0 = [ EA/L     0         -EA/L      0      0          0
+    K0 = [ EA/L     0         0         -EA/L    0         0
            0       12*EI/L3   6*EI/L2    0     -12*EI/L3   6*EI/L2
            0        6*EI/L2   4*EI/L     0      -6*EI/L2   2*EI/L 
           -EA/L     0          0         EA/L     0        0
            0      -12*EI/L3  -6*EI/L2    0      12*EI/L3  -6*EI/L2
            0        6*EI/L2   2*EI/L     0      -6*EI/L2   4*EI/L  ]
-
+ 
 
     # Rotation matrix
     c = (C[2,1] - C[1,1])/L
-    s = (C[2,2] - C[1,1])/L
-    T = eye(6)*c
-    T[3,3] = T[6,6] = 1.0
-    T[1,1] = T[2,2] = T[4,4] = T[5,5] = c
-    T[1,2] = T[4,5] =  s
-    T[2,1] = T[5,4] = -s
+    s = (C[2,2] - C[1,2])/L
+
+    T = [  c s 0  0 0 0 
+          -s c 0  0 0 0
+           0 0 1  0 0 0 
+           0 0 0  c s 0 
+           0 0 0 -s c 0 
+           0 0 0  0 0 1 ]
 
     map = elem_map(elem)
     return T'*K0*T, map, map
@@ -132,12 +134,13 @@ function elem_mass(elem::MechBeam)
 
     # Rotation matrix
     c = (C[2,1] - C[1,1])/L
-    s = (C[2,2] - C[1,1])/L
-    T = eye(6)*c
-    T[3,3] = T[6,6] = 1.0
-    T[1,1] = T[2,2] = T[4,4] = T[5,5] = c
-    T[1,2] = T[4,5] =  s
-    T[2,1] = T[5,4] = -s
+    s = (C[2,2] - C[1,2])/L
+    T = [  c s 0  0 0 0 
+          -s c 0  0 0 0
+           0 0 1  0 0 0 
+           0 0 0  c s 0 
+           0 0 0 -s c 0 
+           0 0 0  0 0 1 ]
 
     map = elem_map(elem)
     return T'*M0*T, map, map
