@@ -401,6 +401,8 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
         println("  time spent: $(h)h $(m)m $(round(r,digits=3))s")
     end
 
+    update_output_data!(dom)
+
     # Update number of used increments at domain
     dom.nincs += inc
     dom.nouts = iout

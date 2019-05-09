@@ -95,7 +95,7 @@ export NodeLogger, IpLogger, FaceLogger, EdgeLogger, NodeGroupLogger, IpGroupLog
 export update_logger!
 
 include("domain.jl")
-export Domain, SubDomain, reset!, setloggers!
+export Domain, SubDomain, reset!, setloggers!, datafields
 
 
 # Mechanical module

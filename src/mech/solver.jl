@@ -384,6 +384,8 @@ function solve!(
     # time spent
     verbose && println("  time spent: ", see(sw, format=:hms))
 
+    update_output_data!(dom)
+
     # Update number of used increments at domain
     #dom.nincs += inc
     #dom.nouts = iout

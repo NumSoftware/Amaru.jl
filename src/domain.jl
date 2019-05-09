@@ -36,6 +36,11 @@ mutable struct Domain<:AbstractDomain
     stage::Integer
     env::ModelEnv
 
+    # Data
+    point_scalar_data::Dict{String,Array}
+    cell_scalar_data ::Dict{String,Array}
+    point_vector_data::Dict{String,Array}
+
     function Domain(;filekey::String="out")
         this = new()
 
@@ -46,6 +51,10 @@ mutable struct Domain<:AbstractDomain
         this.ndofs   = 0
         this.nouts   = 0
         this.stage   = 0
+
+        this.point_scalar_data = Dict()
+        this.cell_scalar_data  = Dict()
+        this.point_vector_data = Dict()
         return this
     end
 end
@@ -321,7 +330,104 @@ end
 =#
 
 
-function node_and_elem_vals(dom::AbstractDomain)
+
+function update_output_data!(dom::Domain)
+    # Updates data arrays in the domain
+    dom.point_scalar_data = Dict()
+    dom.cell_scalar_data  = Dict()
+    dom.point_vector_data = Dict()
+
+    # Nodal values
+    # ============
+    nnodes = length(dom.nodes)
+
+    # get node field symbols
+    node_fields_set = Set{Symbol}()
+    for node in dom.nodes
+        for dof in node.dofs
+            union!(node_fields_set, keys(dof.vals))
+        end
+    end
+    node_fields = collect(node_fields_set)
+
+    # Generate empty lists
+    for field in node_fields
+        dom.point_scalar_data[string(field)] = zeros(nnodes)
+    end
+
+    # Fill dof values
+    for node in dom.nodes
+        for dof in node.dofs
+            for (field,val) in dof.vals
+                dom.point_scalar_data[string(field)][node.id] = val
+            end
+        end
+    end
+
+    # add nodal values from patch recovery (solid elements) : regression + averaging
+    V_rec, fields_rec = nodal_patch_recovery(dom)
+    for (i,field) in enumerate(fields_rec)
+        dom.point_scalar_data[string(field)] = V_rec[:,i]
+    end
+    append!(node_fields, fields_rec)
+
+    # add nodal values from local recovery (joints) : extrapolation + averaging
+    V_rec, fields_rec = nodal_local_recovery(dom)
+    for (i,field) in enumerate(fields_rec)
+        dom.point_scalar_data[string(field)] = V_rec[:,i]
+    end
+    append!(node_fields, fields_rec)
+
+
+    # Nodal vector values
+    # ===================
+
+    if :ux in node_fields
+        if :uz in node_fields
+            dom.point_vector_data["U"] = [ dom.point_scalar_data["ux"] dom.point_scalar_data["uy"] dom.point_scalar_data["uz"] ]
+        elseif :uy in node_fields
+            dom.point_vector_data["U"] = [ dom.point_scalar_data["ux"] dom.point_scalar_data["uy"] zeros(nnodes) ]
+        else
+            dom.point_vector_data["U"] = [ dom.point_scalar_data["ux"] zeros(nnodes) zeros(nnodes) ]
+        end
+    end
+
+    if :vx in node_fields
+        if :vz in node_fields
+            dom.point_vector_data["V"] = [ dom.point_scalar_data["vx"] dom.point_scalar_data["vy"] dom.point_scalar_data["vz"] ]
+        elseif :vy in node_fields
+            dom.point_vector_data["V"] = [ dom.point_scalar_data["vx"] dom.point_scalar_data["vy"] zeros(nnodes) ]
+        else
+            dom.point_vector_data["V"] = [ dom.point_scalar_data["vx"] zeros(nnodes) zeros(nnodes) ]
+        end
+    end
+
+
+    # Element values
+    # ==============
+
+    nelems = length(dom.elems)
+    all_elem_vals   = [ elem_vals(elem) for elem in dom.elems ]
+    elem_fields_set = Set( key for elem in dom.elems for key in keys(all_elem_vals[elem.id]) )
+    elem_fields     = collect(elem_fields_set)
+
+    # generate empty lists
+    for field in elem_fields
+        dom.cell_scalar_data[string(field)] = zeros(nelems)
+    end
+
+    # fill elem values
+    for elem in dom.elems
+        for (field,val) in all_elem_vals[elem.id]
+            dom.cell_scalar_data[string(field)][elem.id] = val
+        end
+    end
+
+end
+
+
+
+function get_node_and_elem_vals(dom::AbstractDomain)
     # Return symbols and values for nodes and elements
     # Note: nodal ids must be numbered starting from 1
 
@@ -636,9 +742,9 @@ end
 
 function save_dom_vtk(dom::AbstractDomain, filename::String; verbose=true)
     mesh = convert(Mesh, dom)
-    save(mesh, filename)
+    save(mesh, filename, verbose=false)
 
-    verbose && printstyled("  file $filename written (Domain)\n", color=:green)
+    verbose && printstyled("  file $filename written (Domain)\n", color=:cyan)
 end
 
 
@@ -672,7 +778,7 @@ function save_dom_json(dom::AbstractDomain, filename::String; verbose=true)
     print(f, JSON.json(data,4))
     close(f)
 
-    verbose && printstyled("  file $filename written (Domain)\n", color=green)
+    verbose && printstyled("  file $filename written (Domain)\n", color=:cyan)
 end
 
 
@@ -696,15 +802,15 @@ function Base.convert(::Type{FemMesh.Mesh}, dom::AbstractDomain)
         push!(mesh.cells, Cell(elem.shape, points, tag=elem.tag ) )
     end
 
-    update!(mesh)
+    update!(mesh) # updates also point and cell numbering
 
-    # Node and element data
-    point_scalar_data = mesh.point_scalar_data
-    point_vector_data = mesh.point_vector_data
-    cell_scalar_data  = mesh.cell_scalar_data
- 
+    merge!(mesh.point_scalar_data, dom.point_scalar_data)
+    merge!(mesh.point_vector_data, dom.point_vector_data)
+    merge!(mesh.cell_scalar_data , dom.cell_scalar_data)
+
     # Get node and elem values
-    node_vals, node_labels, elem_vals, elem_labels = node_and_elem_vals(dom)
+    #=
+    node_vals, node_labels, elem_vals, elem_labels = get_node_and_elem_vals(dom)
     nncomps = length(node_labels)
     necomps = length(elem_labels)
 
@@ -720,7 +826,7 @@ function Base.convert(::Type{FemMesh.Mesh}, dom::AbstractDomain)
         else
             U = hcat( node_vals[:, [ux_idx]], zeros(npoints), zeros(npoints) )
         end
-        point_vector_data["U"] = U
+        mesh.point_vector_data["U"] = U
     end
 
     if :vx in node_labels
@@ -734,27 +840,22 @@ function Base.convert(::Type{FemMesh.Mesh}, dom::AbstractDomain)
         else
             V = hcat( node_vals[:, [vx_idx]], zeros(npoints), zeros(npoints) )
         end
-        point_vector_data["V"] = V
+        mesh.point_vector_data["V"] = V
     end
-
-    # Write scalars
-    point_scalar_data["point-id"] = collect(1:npoints)
 
     # Write nodal scalar data
     for i=1:nncomps
         field = string(node_labels[i])
-        point_scalar_data[field] = node_vals[:,i]
+        mesh.point_scalar_data[field] = node_vals[:,i]
     end
 
-    # Write cell data
-    cell_scalar_data["cell-id"] = collect(1:ncells)
-    cell_scalar_data["cell-type"] = [ Int(elem.shape.vtk_type) for elem in dom.elems ]
 
     # Write elem scalar data
     for i=1:necomps
         field = string(elem_labels[i])
-        cell_scalar_data[field] = elem_vals[:,i]
+        mesh.cell_scalar_data[field] = elem_vals[:,i]
     end
+    =#
 
     return mesh
 end
@@ -772,4 +873,10 @@ function FemMesh.mplot(dom::AbstractDomain, filename::String=""; args...)
     mesh = convert(Mesh, dom)
 
     FemMesh.mplot(mesh, filename; args...)
+end
+
+
+function datafields(dom::Domain)
+    mesh = convert(Mesh, dom)
+    return datafields(mesh)
 end

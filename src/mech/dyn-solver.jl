@@ -198,6 +198,10 @@ function dynsolve!(
         printstyled("FEM dynamic analysis:\n", bold=true, color=:cyan)
         tic = time()
     end
+
+    if time_span==0.0
+        @warn "  time_span not set"
+    end
     
     save_incs = nouts>0
     if save_incs
@@ -470,6 +474,8 @@ function dynsolve!(
 
     # time spent
     verbose && println("  time spent: ", see(sw, format=:hms))
+
+    update_output_data!(dom)
 
     # Update number of used increments at domain
     dom.nincs += inc
