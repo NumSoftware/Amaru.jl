@@ -49,15 +49,6 @@ function DTable(header::Array{<:HeaderType,1}, matrix::Array{Float64,2})
 end
 
 
-mutable struct DBook
-    tables::Array{DTable, 1}
-    function DBook()
-        this = new()
-        this.tables = DTable[]
-        return this
-    end
-end
-
 
 import Base.push!
 function push!(table::DTable, row::Array{Float64,1})
@@ -67,10 +58,6 @@ function push!(table::DTable, row::Array{Float64,1})
     end
 end
 
-
-function push!(book::DBook, table::DTable)
-    push!(book.tables, table)
-end
 
 function keys(table::DTable)
     return table.fields
@@ -110,31 +97,23 @@ function Base.getindex(table::DTable, key::HeaderType)
     return table.data[table.colindex[key]]
 end
 
+function Base.getproperty(table::DTable, key::Symbol)
+    fields = getfield(table, :fields) # use of getfield instead of dot operator to avoid stack overflow
+
+    if key in fields
+        idx = getfield(table, :colindex)[key]
+        return getfield(table, :data)[idx]
+    else
+        return getfield(table, key)
+    end
+end
+
 function Base.getindex(table::DTable, keys::Array{<:HeaderType,1})
     data = [ table[key] for key in keys ]
     subtable = DTable(keys, data)
     return subtable
 end
 
-function Base.getindex(book::DBook, index::Int)
-    return book.tables[index]
-end
-
-function Base.lastindex(book::DBook)
-    return length(book.tables)
-end
-
-#Base.start(book::DBook) = 1
-#Base.next(book::DBook, idx::Int) = book.tables[idx], idx+1
-#Base.done(book::DBook, idx::Int) = idx == length(book.tables)
-function Base.iterate(book::DBook, state=(nothing,1) )
-    table, idx = state
-    if idx<=length(book.tables)
-        return (book.tables[idx], (book.tables[i+1], idx+1))
-    else
-        return nothing
-    end
-end
 
 function save(table::DTable, filename::String; verbose::Bool=true)
     format = split(filename*".", ".")[2]
@@ -173,6 +152,58 @@ function save(table::DTable, filename::String; verbose::Bool=true)
     close(f)
     return nothing
 end
+
+
+function loadtable(filename::String, delim='\t')
+    format = split(filename*".", ".")[2]
+    format != "dat" && error("loadtable: filename should have \"dat\" extension")
+
+    if format=="dat"
+        data, headstr = readdlm(filename, delim, header=true, use_mmap=false)
+        fields = [ Symbol(strip(field)) for field in vec(headstr) ]
+
+        table = DTable(fields , data)
+        return table
+    end
+end
+
+
+
+mutable struct DBook
+    tables::Array{DTable, 1}
+    function DBook()
+        this = new()
+        this.tables = DTable[]
+        return this
+    end
+end
+
+
+function push!(book::DBook, table::DTable)
+    push!(book.tables, table)
+end
+
+
+function Base.getindex(book::DBook, index::Int)
+    return book.tables[index]
+end
+
+function Base.lastindex(book::DBook)
+    return length(book.tables)
+end
+
+#Base.start(book::DBook) = 1
+#Base.next(book::DBook, idx::Int) = book.tables[idx], idx+1
+#Base.done(book::DBook, idx::Int) = idx == length(book.tables)
+function Base.iterate(book::DBook, state=(nothing,1) )
+    table, idx = state
+    if idx<=length(book.tables)
+        return (book.tables[idx], (book.tables[i+1], idx+1))
+    else
+        return nothing
+    end
+end
+
 
 
 function save(book::DBook, filename::String; verbose::Bool=true)
@@ -221,20 +252,6 @@ function save(book::DBook, filename::String; verbose::Bool=true)
     close(f)
     return nothing
 
-end
-
-
-function loadtable(filename::String, delim='\t')
-    format = split(filename*".", ".")[2]
-    format != "dat" && error("loadtable: filename should have \"dat\" extension")
-
-    if format=="dat"
-        data, headstr = readdlm(filename, delim, header=true, use_mmap=false)
-        fields = [ Symbol(strip(field)) for field in vec(headstr) ]
-
-        table = DTable(fields , data)
-        return table
-    end
 end
 
 function loadbook(filename::String)
