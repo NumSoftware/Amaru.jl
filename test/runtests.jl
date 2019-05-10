@@ -10,8 +10,8 @@ Amaru.debug.makeplots = false
 printstyled("\x1b[1m", "\nRunning tests...\n", "\x1b[0m", color=:green)
 
 FILES = [
-    "other/show.jl",
-    "other/logger.jl",
+    "aux/show.jl",
+    "aux/logger.jl",
 
     # Static analysis: solid models
     "mech/solid/elastic-elems.jl",
