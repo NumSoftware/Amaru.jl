@@ -155,15 +155,20 @@ function Domain(mesh::Mesh, matbinds::Array{<:Pair,1}; modeltype::Symbol=:genera
         if isempty(cells)
             @warn "Domain: binding material model $(typeof(mat)) to an empty list of cells:" expr=filter
         end
-        etype = matching_elem_type(mat)
+
         for cell in cells
-            ty = cell.embedded ? embedded_elem_type(etype) : etype
-            if matching_shape_family(ty) != cell.shape.family
+            if cell.embedded
+                etype = matching_elem_type_if_embedded(mat)
+            else
+                etype = matching_elem_type(mat)
+            end
+
+            if matching_shape_family(etype) != cell.shape.family
                 error("Domain: material model $(typeof(mat)) cannot be used with shape $(cell.shape.name) (cell id: $(cell.id))\n")
             end
 
             conn = [ p.id for p in cell.points ]
-            elem = new_element(ty, cell, dom.nodes[conn], dom.env, cell.tag)
+            elem = new_element(etype, cell, dom.nodes[conn], dom.env, cell.tag)
 
             elem.id = cell.id
             elem.mat = mat
@@ -878,5 +883,5 @@ end
 
 function datafields(dom::Domain)
     mesh = convert(Mesh, dom)
-    return datafields(mesh)
+    return FemMesh.datafields(mesh)
 end

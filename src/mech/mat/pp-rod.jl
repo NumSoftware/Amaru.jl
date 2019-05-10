@@ -31,16 +31,17 @@ mutable struct PPRod<:Material
     end
 
     function PPRod(;E=NaN, A=NaN, sig_y=NaN, H=0.0, rho::Number=0.0)
-        E<=0.0 && error("Invalid value for E: $E")
-        A<=0.0 && error("Invalid value for A: $A")
-        sig_y<0.0 && error("Invalid value for sig_y: $sig_y")
-        rho<0.0 && error("Invalid value for rho: $rho")
+        E>0.0     || error("Invalid value for E: $E")
+        A>0.0     || error("Invalid value for A: $A")
+        sig_y>0.0 || error("Invalid value for sig_y: $sig_y")
+        rho>=0.0   || error("Invalid value for rho: $rho")
 
         return new(E, A, sig_y, H, rho)
     end
 end
 
 matching_elem_type(::PPRod) = MechRod
+matching_elem_type_if_embedded(::PPRod) = MechEmbRod
 
 # Create a new instance of Ip data
 new_ip_state(mat::PPRod, env::ModelEnv) = PPRodIpState(env)

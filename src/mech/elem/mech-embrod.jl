@@ -20,11 +20,6 @@ end
 
 matching_shape_family(::Type{MechEmbRod}) = LINE_SHAPE
 
-# Returns the corresponding embedded element type
-function embedded_elem_type(::Type{MechRod})
-    return MechEmbRod
-end
-
 function elem_config_dofs(elem::MechEmbRod)
     # No-op function.
     # The solid linked element will set the required dofs.
@@ -131,3 +126,12 @@ function elem_update!(elem::MechEmbRod, U::Array{Float64,1}, F::Array{Float64,1}
     F[map] += NN*dF
 end
 
+
+function elem_vals(elem::MechEmbRod)
+    # get area and average stress and axial force
+    vals = OrderedDict(:A => elem.mat.A )
+    mean_sa = mean( ip_state_vals(elem.mat, ip.data)[:sa] for ip in elem.ips )
+    vals[:sa] = mean_sa
+    vals[:fa] = elem.mat.A*mean_sa
+    return vals
+end

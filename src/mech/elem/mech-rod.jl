@@ -225,11 +225,10 @@ function elem_update!(elem::MechRod, U::Array{Float64,1}, F::Array{Float64,1}, Î
     end
 
     F[map] .+= dF
-    #return
 end
 
 function elem_vals(elem::MechRod)
-    #get area and average axial force
+    # get area and average stress and axial force
     vals = OrderedDict(:A => elem.mat.A )
     mean_sa = mean( ip_state_vals(elem.mat, ip.data)[:sa] for ip in elem.ips )
     vals[:sa] = mean_sa
