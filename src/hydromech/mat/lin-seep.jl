@@ -17,17 +17,17 @@ end
 
 mutable struct LinSeep<:Material
     k ::Float64
-    gw::Float64
+    γw::Float64
 
     function LinSeep(prms::Dict{Symbol,Float64})
         return  LinSeep(;prms...)
     end
 
-    function LinSeep(;k=NaN, gw=NaN)
+    function LinSeep(;k=NaN, gammaw=NaN)
         isnan(k)     && error("Missing value for k")
-        isnan(gw)    && error("Missing value for gw")
-        !(gw>0)      && error("Invalid value for gw: $gw")
-        this    = new(k, gw)
+        isnan(gammaw)    && error("Missing value for gammaw")
+        !(gammaw>0)      && error("Invalid value for gammaw: $gammaw")
+        this    = new(k, gammaw)
         return this
     end
 end
@@ -37,9 +37,6 @@ matching_elem_type(::LinSeep) = SeepSolid
 
 # Create a new instance of Ip data
 new_ip_state(mat::LinSeep, env::ModelEnv) = LinSeepIpState(env)
-
-function set_state(ipd::LinSeepIpState; uw=0.0)
-end
 
 function calcK(mat::LinSeep, ipd::LinSeepIpState) # Hydraulic conductivity matrix
     if ipd.env.ndim==2

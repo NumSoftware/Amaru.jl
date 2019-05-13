@@ -198,7 +198,7 @@ function elem_coupling_matrix(elem::HMSolid)
         setBu(elem.env, dNdX, detJ, Bu)
 
         # compute K
-        coef = detJ*ip.w
+        coef = detJ*ip.w*elem.mat.α 
         mNt  = m*N'
 
         @gemm Cup -= coef*Bu'*mNt
@@ -226,7 +226,6 @@ function elem_conductivity_matrix(elem::HMSolid)
 
     for ip in elem.ips
 
-        N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J  = dNdR*C
         @gemm Bp = inv(J)*dNdR
@@ -235,7 +234,7 @@ function elem_conductivity_matrix(elem::HMSolid)
 
         # compute H
         K = calcK(elem.mat, ip.data)
-        coef = detJ*ip.w/elem.mat.gw
+        coef = detJ*ip.w/elem.mat.γw
         @gemm KBp = K*Bp
         @gemm H -= coef*Bp'*KBp
     end
@@ -244,6 +243,38 @@ function elem_conductivity_matrix(elem::HMSolid)
     map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
 
     return H, map, map
+end
+
+function elem_compressibility_matrix(elem::HMSolid)
+    if elem.mat.S == 0.0
+        return zeros(0,0), zeros(Int64,0), zeros(Int64,0)
+    end
+
+    ndim   = elem.env.ndim
+    nnodes = length(elem.nodes)
+    C   = elem_coords(elem)
+    Cpp = zeros(nnodes, nnodes) 
+
+    J  = Array{Float64}(undef, ndim, ndim)
+
+
+    for ip in elem.ips
+
+        N    = elem.shape.func(ip.R)
+        dNdR = elem.shape.deriv(ip.R)
+        @gemm J = dNdR*C
+        detJ = det(J)
+        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+
+        # compute Cuu
+        coef = detJ*ip.w*elem.mat.S 
+        Cpp  -= coef*N*N'
+    end
+
+    # map
+    map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
+
+    return Cpp, map, map
 end
 
 function elem_RHS_vector(elem::HMSolid)
@@ -256,11 +287,11 @@ function elem_RHS_vector(elem::HMSolid)
 
     J    = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
-    Z    = [0.0, 0.0, 1.0] # hydrostatic gradient
+    Z      = zeros(ndim) 
+    Z[end] = 1.0 # hydrostatic gradient
 
     for ip in elem.ips
 
-        N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J  = dNdR*C
         @gemm Bp = inv(J)*dNdR
@@ -302,7 +333,6 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
     dFw = zeros(nnodes)
     Bp  = zeros(ndim, nnodes)
 
-    DB = Array{Float64}(undef, 6, nnodes*ndim)
     J  = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
     Δε = zeros(6)
@@ -317,25 +347,37 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
         @gemm dNdX = inv(J)*dNdR
         setBu(elem.env, dNdX, detJ, Bu)
+
+       	# Compute Δε 
         @gemv Δε = Bu*dU
 
-        Bp = dNdX
-        G   = Bp*Uw/elem.mat.gw # flow gradient
-        G[end] += 1.0; # gradient due to gravity
-
+        # Compute Δuw
         Δuw = N'*dUw # interpolation to the integ. point
 
+        # Compute flow gradient G 
+        Bp = dNdX
+        G  = Bp*Uw/elem.mat.γw
+        G[end] += 1.0; # gradient due to gravity
+
+        # internal force dF
         Δσ, V = stress_update(elem.mat, ip.data, Δε, Δuw, G)
-        Δσ -= Δuw*m # get total stress
+        Δσ -= elem.mat.α*Δuw*m # get total stress
 
         coef = detJ*ip.w
         @gemv dF += coef*Bu'*Δσ
 
+        # internal volumes dFw
+        Δεvol = dot(m, Δε)
+        coef  = elem.mat.α*Δεvol*detJ*ip.w
+        dFw  -= coef*N
+
+        if elem.mat.S != 0.0
+            coef = elem.mat.S*Δuw*detJ*ip.w 
+            dFw -= coef*N       
+        end
+
         coef = Δt*detJ*ip.w
         @gemv dFw += coef*Bp'*V
-        Δεvol = dot(m, Δε)
-        coef  = Δεvol*detJ*ip.w
-        dFw  -= coef*N
     end
 
     DF[map_u] += dF

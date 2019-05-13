@@ -3,6 +3,7 @@
 *.jl.mem
 *.vtk
 *.dat
+*.pdf
 .ipynb_checkpoints
 sandbox
 **/vault

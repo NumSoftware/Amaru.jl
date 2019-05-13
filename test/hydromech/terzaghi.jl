@@ -30,7 +30,7 @@ t1 = times[1]/10
 times .+= t1
 
 materials = [
-    "solids" => ElasticSolidLinSeep(E=E, nu=nu, k=k, gw=gw)
+    "solids" => ElasticSolidLinSeep(E=E, nu=nu, k=k, gammaw=gw)
 ]
 dom = Domain(msh, materials)
 

@@ -4,13 +4,13 @@ export solve!
 
 # Assemble the global stiffness matrix
 function mount_K(dom::Domain, ndofs::Int)
+    Threads.nthreads()>1 && return mount_K_threads(dom, ndofs)
 
     R, C, V = Int64[], Int64[], Float64[]
 
     for elem in dom.elems
         Ke, rmap, cmap = elem_stiffness(elem)
-        #@show "Ke"
-        #display(Ke)
+
         nr, nc = size(Ke)
         for i=1:nr
             for j=1:nc
@@ -28,6 +28,58 @@ function mount_K(dom::Domain, ndofs::Int)
         @show ndofs
         @show err
     end
+
+    return K
+end
+
+function mount_K_threads(dom::Domain, ndofs::Int)
+
+    nelems = length(dom.elems)
+    Rs = Array{Int64,1}[ [] for i=1:nelems  ]
+    Cs = Array{Int64,1}[ [] for i=1:nelems  ]
+    Vs = Array{Float64,1}[ [] for i=1:nelems  ]
+    #IDs = zeros(Int64, nelems)
+    
+    #GC.gc()
+
+    let Rs=Rs, Cs=Cs, Vs=Vs, dom=dom
+
+        Threads.@threads for elem in dom.elems
+            #id = elem.id
+            Ke, rmap, cmap = elem_stiffness(elem)
+            #IDs[elem.id] = Threads.threadid()
+            #Ke = rand(24,24)
+            #rmap=rand(1:ndofs, 24)
+            #cmap=rand(1:ndofs, 24)
+
+
+            nr, nc = size(Ke)
+            for i=1:nr
+                for j=1:nc
+                    push!(Rs[elem.id], rmap[i])
+                    push!(Cs[elem.id], cmap[j])
+                    push!(Vs[elem.id], Ke[i,j])
+                end
+            end
+        end
+
+    end
+    #@show IDs
+
+    R = reduce(vcat, Rs)
+    C = reduce(vcat, Cs)
+    V = reduce(vcat, Vs)
+
+    #local K
+    #try
+        K = sparse(R, C, V, ndofs, ndofs)
+    #catch err
+        #@show Rs
+        #@show R
+        #error("Error using sparse function")
+        #@show ndofs
+        #@show err
+    #end
 
     return K
 end
@@ -255,6 +307,7 @@ function solve!(
             verbose && print("    assembling... \r")
             #remountK && (K = mount_K(dom, ndofs))
             K = mount_K(dom, ndofs)
+            #K = mount_K_threads(dom, ndofs)
 
             # Solve
             verbose && print("    solving...   \r")

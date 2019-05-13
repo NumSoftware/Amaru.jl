@@ -124,7 +124,7 @@ function elem_conductivity_matrix(elem::SeepSolid)
 
         # compute H
         K = calcK(elem.mat, ip.data)
-        coef = detJ*ip.w/elem.mat.gw
+        coef = detJ*ip.w/elem.mat.γw
         @gemm KBp = K*Bp
         @gemm H -= coef*Bp'*KBp
     end
@@ -204,7 +204,7 @@ function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1
         setBu(elem.env, dNdX, detJ, Bu)
 
         Bp = dNdX
-        G  = Bp*Uw/elem.mat.gw # flow gradient
+        G  = Bp*Uw/elem.mat.γw # flow gradient
         G[end] += 1.0; # gradient due to gravity
 
         Δuw = N'*dUw # interpolation to the integ. point

@@ -4,12 +4,12 @@ using Amaru
 # ===============
 
 blocks = [
-    Block3D( [0 0 0; 1 1 1], nx=8, ny=8, nz=8, shape=HEX8, tag="solids"),
+    Block3D( [0 0 0; 1 1 1], nx=15, ny=15, nz=15, cellshape=HEX8, tag="solids"),
 ]
 
 msh = Mesh(blocks, verbose=true);
 
-mplot(msh, "mesh.pdf", field="cell-id")
+#mplot(msh, "mesh.pdf", field="cell-id")
 
 
 # Finite element modeling
@@ -36,7 +36,7 @@ bcs = [
 ]
 
 # Perform the finite element analysis
-solve!(domain, bcs, nincs=10)
+solve!(domain, bcs, nincs=4)
 
 save(domain, "domain.vtk")
-mplot(domain, "domain.pdf", field="uy")
+#mplot(domain, "domain.pdf", field="uy")

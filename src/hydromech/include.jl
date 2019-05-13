@@ -6,7 +6,7 @@ export set_state
 
 # Hydromechanical Elements
 include("elem/hydromech-solid.jl")
-#include("elem/hydromech-joint.jl")
+include("elem/hydromech-joint.jl")
 
 # Seep Elements
 include("elem/seep-solid.jl")
@@ -16,8 +16,10 @@ include("mat/elastic-solid-lin-seep.jl")
 include("mat/lin-seep.jl")
 
 # Models for joint elements
-#include("mat/elastic-joint-lin-seep.jl")
-#include("mat/mc-joint-seep.jl")
+include("mat/elastic-joint-seep.jl")
+include("mat/mc-joint-seep.jl")
 
 include("hydromech-solver.jl")
+#include("hydrofracmech-solver.jl")
+
 export hm_solve!

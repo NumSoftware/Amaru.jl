@@ -4,7 +4,7 @@ using Amaru
 # ===============
 
 blocks = [
-    Block2D( [0 0; 3 0.4], nx=30, ny=8, cellshape=QUAD8, tag="solids"),
+    Block( [0 0; 3 0.4], nx=30, ny=8, cellshape=QUAD8, tag="solids"),
 ]
 
 msh = Mesh(blocks, verbose=true);

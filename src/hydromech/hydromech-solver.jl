@@ -3,23 +3,6 @@
 export solve!
 
 
-#=
-mutable struct HMSolver<:Solver
-    nincs::Integer
-    nouts::Integer
-    filekey::String
-    #loggers::Array{AbstractLogger,1}
-    stage::Integer
-    env::SharedModelEnv
-
-    Fint::Array{Float64,1}
-end
-
-function run(solver::HMSolver, dom::Domain, bc::BC, ....)
-end
-=#
-
-
 # Assemble the global stiffness matrix
 function mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
 
@@ -180,8 +163,7 @@ Available options are:
 
 """
 function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Float64=NaN, nincs::Int=1, maxits::Int=5, autoinc::Bool=false, 
-    tol::Number=1e-2, verbose::Bool=true, silent::Bool=false, nouts::Int=0,
-    scheme::Symbol = :FE)
+    tol::Number=1e-2, verbose::Bool=true, silent::Bool=false, nouts::Int=0, scheme::Symbol = :FE)
 
     # Arguments checking
     saveincs = nouts>0
@@ -224,7 +206,6 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             silent || printstyled("  $(dom.filekey)-0.vtk file written (Domain)\n", color=:green)
         end
     end
-
 
     # Get the domain current state and backup
     State = [ ip.data for elem in dom.elems for ip in elem.ips ]

@@ -23,19 +23,23 @@ mutable struct ElasticSolidLinSeep<:Material
     E ::Float64
     nu::Float64
     k ::Float64
-    gw::Float64
+    γw::Float64
+    α ::Float64
+    S ::Float64
 
     function ElasticSolidLinSeep(prms::Dict{Symbol,Float64})
         return  ElasticSolidLinSeep(;prms...)
     end
 
-    function ElasticSolidLinSeep(;E=1.0, nu=0.0, k=NaN, gw=NaN)
+    function ElasticSolidLinSeep(;E=1.0, nu=0.0, k=NaN, gammaw=NaN, alpha=1.0, S=0.0)
         E<=0.0       && error("Invalid value for E: $E")
         !(0<=nu<0.5) && error("Invalid value for nu: $nu")
         isnan(k)     && error("Missing value for k")
-        isnan(gw)    && error("Missing value for gw")
-        !(gw>0)      && error("Invalid value for gw: $gw")
-        this    = new(E, nu, k, gw)
+        isnan(gammaw)&& error("Missing value for gammaw")
+        !(gammaw>0)  && error("Invalid value for gammaw: $gammaw")
+        0<=alpha<=1  || error("Invalid value for alpha: $alpha")
+        S>=0         || error("Invalid value for S: $S")
+        this = new(E, nu, k, gammaw, alpha)
         return this
     end
 end

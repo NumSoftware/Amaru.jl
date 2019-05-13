@@ -18,7 +18,7 @@ nu   = 0.25    # Poisson
 gw   = 10.0    # water specific weight
 
 materials = [
-    "solids" => LinSeep(k=k, gw=gw)
+    "solids" => LinSeep(k=k, gammaw=gw)
 ]
 dom = Domain(msh, materials)
 
