@@ -194,6 +194,11 @@ function dynsolve!(
                    verbose   :: Bool    = true,
                   )
 
+    tol>0 || error("solve! : tolerance should be greater than zero")
+    env = dom.env
+    env.cstage += 1
+    env.cinc    = 0
+
     if verbose
         printstyled("FEM dynamic analysis:\n", bold=true, color=:cyan)
         tic = time()
@@ -242,7 +247,7 @@ function dynsolve!(
     ips = [ ip for elem in dom.elems for ip in elem.ips ]
 
     # Setup quantities at dofs
-    if dom.nincs == 0
+    if env.cstage==1
         for (i,dof) in enumerate(dofs)
             us, fs, vs, as = components_dict[dof.name]
             dof.vals[us] = 0.0
@@ -292,7 +297,7 @@ function dynsolve!(
     update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
 
     # Save initial file
-    if save_incs
+    if env.cstage==1 && save_incs
         save(dom, "$(dom.filekey)-0.vtk", verbose=false)
         verbose && printstyled("  $(dom.filekey)-0.vtk file written (Domain)\n", color=:green)
     end
@@ -307,7 +312,7 @@ function dynsolve!(
     T  = t + dT         # output time for saving the next vtk file
 
     ttol = 1e-9    # time tolerance
-    inc  = 1       # increment counter
+    inc  = 0       # increment counter
     iout = dom.nouts     # file output counter
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
@@ -323,6 +328,10 @@ function dynsolve!(
     #remountK = true
 
     while t < tend - ttol
+        # Update counters
+        inc += 1
+        env.cinc += 1
+
         Uex, Fex = get_bc_vals(dom, bcs, t+dt) # get values at time t+dt
                     
         # If the problem has a sism, the force sismic is added
@@ -332,7 +341,7 @@ function dynsolve!(
         end
                     
 
-        verbose && printstyled("  increment $inc from t=$(round(t,digits=10)) to t=$(round(t+dt,digits=10)) (dt=$(round(dt,digits=10))):", bold=true, color=:blue) # color 111
+        verbose && printstyled("  stage $(env.cstage)  increment $inc from t=$(round(t,digits=10)) to t=$(round(t+dt,digits=10)) (dt=$(round(dt,digits=10))):", bold=true, color=:blue) # color 111
         verbose && println()
         #R   .= FexN - F    # residual
         Fex_Fin = Fex-Fina    # residual
@@ -432,7 +441,7 @@ function dynsolve!(
 
 
             # Update time t and dt
-            inc += 1
+            #inc += 1
             t   += dt
             dom.env.t = t
 
@@ -441,6 +450,7 @@ function dynsolve!(
             # Check for saving output file
             if abs(t - T) < ttol
                 iout += 1
+                update_output_data!(dom)
                 save(dom, "$(dom.filekey)-$iout.vtk", verbose=false)
                 T += dT # find the next output time
                 verbose && printstyled("  $(dom.filekey)-$iout.vtk file written (Domain)\n", color=:green)
@@ -457,6 +467,10 @@ function dynsolve!(
                 dt = T-t
             end
         else
+            # Restore counters
+            env.cinc -= 1
+            inc -= 1
+
             if autoinc
                 verbose && println("    increment failed.")
                 dt *= 0.5

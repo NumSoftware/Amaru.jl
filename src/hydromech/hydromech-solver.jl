@@ -202,6 +202,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
 
         # Save first output file
         if saveincs 
+            update_output_data!(dom)
             save(dom, "$(dom.filekey)-0.vtk", verbose=false)
             silent || printstyled("  $(dom.filekey)-0.vtk file written (Domain)\n", color=:green)
         end
@@ -342,6 +343,7 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             Tn = t + Δt
             if Tn+ttol>=T && saveincs
                 iout += 1
+                update_output_data!(dom)
                 save(dom, "$(dom.filekey)-$iout.vtk", verbose=false)
                 T = Tn - mod(Tn, dT) + dT
                 silent || verbose || print("                                             \r")
