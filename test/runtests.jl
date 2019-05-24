@@ -46,6 +46,7 @@ FILES = [
     # Hydromechanical analysis:
     "hydromech/seep.jl",
     "hydromech/terzaghi.jl",
+    "hydromech/terzaghi-joint.jl",
    ]
 
 

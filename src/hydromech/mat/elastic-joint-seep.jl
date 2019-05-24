@@ -31,7 +31,7 @@ mutable struct ElasticJointSeep<:Material
     α ::Float64        # Biot's coefficient
     S ::Float64        # Storativity coefficient
     β ::Float64        # compressibility of fluid
-    μ ::Float64        # viscosity
+    η ::Float64        # viscosity
     kt::Float64        # leak-off coefficient
     kl ::Float64       # longitudinal permeability coefficient
     permeability::Bool # joint permeability ("true" or "false")
@@ -40,12 +40,12 @@ mutable struct ElasticJointSeep<:Material
         return  ElasticJoint(;prms...)
     end
 
-    function ElasticJointSeep(;E=NaN, nu=NaN, zeta=NaN, k=NaN, kappa=NaN, gammaw=NaN, alpha=NaN, S=NaN, n=NaN, Ks=NaN, Kw=NaN, beta=0.0, mu=NaN, kt=NaN, kl=0.0, permeability=true)
+    function ElasticJointSeep(;E=NaN, nu=NaN, zeta=NaN, k=NaN, kappa=NaN, gammaw=NaN, alpha=NaN, S=NaN, n=NaN, Ks=NaN, Kw=NaN, beta=0.0, eta=NaN, kt=NaN, kl=0.0, permeability=true)
 
         !(isnan(kappa) || kappa>0) && error("Invalid value for kappa: $kappa")
 
         if isnan(k) 
-            k = (kappa*gammaw)/mu # specific permeability = (intrinsic permeability * fluid specific weight)/viscosity
+            k = (kappa*gammaw)/eta # specific permeability = (intrinsic permeability * fluid specific weight)/viscosity
         end
 
         if isnan(S) 
@@ -60,12 +60,12 @@ mutable struct ElasticJointSeep<:Material
         0<alpha<=1.0|| error("Invalid value for alpha: $alpha")
         S>=0.0      || error("Invalid value for S: $S")
         beta>=0     || error("Invalid value for beta: $beta")
-        mu>=0       || error("Invalid value for mu: $mu")
+        eta>=0       || error("Invalid value for eta: $eta")
         kt>=0       || error("Invalid value for kt: $kt")
         kl>=0       || error("Invalid value for kl: $kl")
         (permeability==true || permeability==false) || error("Invalid permeability: permeability must to be true or false")
 
-        this = new(E, nu, zeta, k, gammaw, alpha, S, beta, mu, kt, kl, permeability)
+        this = new(E, nu, zeta, k, gammaw, alpha, S, beta, eta, kt, kl, permeability)
         return this
     end
 end

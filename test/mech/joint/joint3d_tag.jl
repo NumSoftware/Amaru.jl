@@ -16,7 +16,7 @@ E = 27.e6
 mats = [
     "a"      => ElasticSolid(E=E, nu=0.2),
     "b"      => ElasticSolid(E=E, nu=0.2),
-    "joints" => ElasticJoint(E=E, nu=0.2, alpha=5),
+    "joints" => ElasticJoint(E=E, nu=0.2, zeta=5),
 ]
 
 

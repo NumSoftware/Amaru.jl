@@ -1,5 +1,4 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
-
 mutable struct HydroMechJoint<:Hydromechanical
     id    ::Int
     shape ::ShapeType
@@ -279,7 +278,7 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
         Htranb = Htranf
 
         if elem.mat.kl == 0.0
-            coef = detJ*ip.w*(w^3)/(12*elem.mat.μ) 
+            coef = detJ*ip.w*(w^3)/(12*elem.mat.η) 
         else
             coef = detJ*ip.w*elem.mat.kl
         end    
@@ -386,7 +385,7 @@ function elem_RHS_vector(elem::HydroMechJoint)
         
         # compute Q
         if elem.mat.kl == 0.0
-            coef = detJ*ip.w*(w^3)/(12*elem.mat.μ)
+            coef = detJ*ip.w*(w^3)/(12*elem.mat.η)
         else
             coef = detJ*ip.w*elem.mat.kl            
         end  
@@ -531,7 +530,7 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
 	    dFw[dnlnodes+1:end] .+= coef*Np'*(NpUwf-NpUwt)
 
         if elem.mat.kl == 0.0
-            coef = Δt*detJ*ip.w*(w^3)/(12*elem.mat.μ)
+            coef = Δt*detJ*ip.w*(w^3)/(12*elem.mat.η)
         else
             coef = Δt*detJ*ip.w*elem.mat.kl            
         end  

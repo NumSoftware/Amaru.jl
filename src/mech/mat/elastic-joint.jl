@@ -19,7 +19,7 @@ end
 mutable struct ElasticJoint<:Material
     E::Float64 # Young modulus from bulk material
     ν::Float64 # Poisson ration from bulk material
-    ζ::Float64 # elastic displacement scale factor
+    ζ::Float64 # elastic displacement scale factor (formerly α)
 
     function ElasticJoint(prms::Dict{Symbol,Float64})
         return  ElasticJoint(;prms...)

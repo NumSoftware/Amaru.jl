@@ -29,7 +29,7 @@ mutable struct MCJointSeep<:Material
     E  ::Float64       # Young's modulus
     nu ::Float64       # Poisson ratio
     σmax0::Float64     # tensile strength (internal variable)
-    θ  ::Float64       # tangent of friction angle
+    μ  ::Float64       # tangent of friction angle
     ζ  ::Float64       # factor ζ controls the elastic relative displacements 
     wc ::Float64       # critical crack opening
     ws ::Float64       # openning at inflection (where the curve slope changes)
@@ -39,7 +39,7 @@ mutable struct MCJointSeep<:Material
     α  ::Float64       # Biot's coefficient
     S  ::Float64       # Storativity coefficient
     β  ::Float64       # compressibility of fluid
-    μ  ::Float64       # viscosity
+    η  ::Float64       # viscosity
     kt ::Float64       # transverse leak-off coefficient
     kl ::Float64       # longitudinal permeability coefficient
     permeability::Bool # joint permeability ("true" or "false")
@@ -48,7 +48,7 @@ mutable struct MCJointSeep<:Material
         return  MCJointSeep(;prms...)
     end
 
-     function MCJointSeep(;E=NaN, nu=NaN, ft=NaN, theta=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", k=NaN, kappa=NaN, gammaw=NaN, alpha=NaN, S=NaN, n=NaN, Ks=NaN, Kw=NaN, beta=0.0, mu=NaN, kt=NaN, kl=0.0, permeability=true)  
+     function MCJointSeep(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", k=NaN, kappa=NaN, gammaw=NaN, alpha=1.0, S=0.0, n=NaN, Ks=NaN, Kw=NaN, beta=0.0, eta=NaN, kt=NaN, kl=0.0, permeability=true)  
 
         !(isnan(GF) || GF>0) && error("Invalid value for GF: $GF")
         !(isnan(Gf) || Gf>0) && error("Invalid value for Gf: $Gf")
@@ -72,7 +72,7 @@ mutable struct MCJointSeep<:Material
         !(isnan(kappa) || kappa>0) && error("Invalid value for kappa: $kappa")
 
         if isnan(k) 
-            k = (kappa*gammaw)/mu # specific permeability = (intrinsic permeability * fluid specific weight)/viscosity
+            k = (kappa*gammaw)/eta # specific permeability = (intrinsic permeability * fluid specific weight)/viscosity
         end
 
         if isnan(S) 
@@ -82,7 +82,7 @@ mutable struct MCJointSeep<:Material
         E>0.0       || error("Invalid value for E: $E")
         0<=nu<0.5   || error("Invalid value for nu: $nu")
         ft>=0       || error("Invalid value for ft: $ft")
-        theta>0     || error("Invalid value for theta: $theta")
+        mu>0     || error("Invalid value for mu: $mu")
         zeta>0      || error("Invalid value for zeta: $zeta")
         wc>0        || error("Invalid value for wc: $wc")
         (isnan(ws)  || ws>0) || error("Invalid value for ws: $ws")
@@ -92,12 +92,12 @@ mutable struct MCJointSeep<:Material
         0<alpha<=1.0|| error("Invalid value for alpha: $alpha")
         S>=0.0      || error("Invalid value for S: $S")
         beta>=0     || error("Invalid value for beta: $beta")
-        mu>=0       || error("Invalid value for mu: $mu")
+        eta>=0       || error("Invalid value for eta: $eta")
         kt>=0       || error("Invalid value for kt: $kt")
         kl>=0       || error("Invalid value for kl: $kl")
         (permeability==true || permeability==false) || error("Invalid permeability: permeability must to be true or false")
 
-        this = new(E, nu, ft, theta, zeta, wc, ws, softcurve, k, gammaw, alpha, S, beta, mu, kt, kl, permeability)
+        this = new(E, nu, ft, mu, zeta, wc, ws, softcurve, k, gammaw, alpha, S, beta, eta, kt, kl, permeability)
         return this
     end
 end
@@ -113,9 +113,9 @@ function yield_func(mat::MCJointSeep, ipd::MCJointSeepIpState, σ::Array{Float64
     ndim = ipd.env.ndim
     σmax = calc_σmax(mat, ipd, ipd.upa)
     if ndim == 3
-        return sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*mat.θ
+        return sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*mat.μ
     else
-        return abs(σ[2]) + (σ[1]-σmax)*mat.θ
+        return abs(σ[2]) + (σ[1]-σmax)*mat.μ
     end
 end
 
@@ -123,9 +123,9 @@ end
 function yield_deriv(mat::MCJointSeep, ipd::MCJointSeepIpState)
     ndim = ipd.env.ndim
     if ndim == 3
-        return [ mat.θ, ipd.σ[2]/sqrt(ipd.σ[2]^2 + ipd.σ[3]^2), ipd.σ[3]/sqrt(ipd.σ[2]^2 + ipd.σ[3]^2)]
+        return [ mat.μ, ipd.σ[2]/sqrt(ipd.σ[2]^2 + ipd.σ[3]^2), ipd.σ[3]/sqrt(ipd.σ[2]^2 + ipd.σ[3]^2)]
     else
-        return [ mat.θ, sign(ipd.σ[2]) ]
+        return [ mat.μ, sign(ipd.σ[2]) ]
     end
 end
 
@@ -135,7 +135,7 @@ function potential_derivs(mat::MCJointSeep, ipd::MCJointSeepIpState, σ::Array{F
     if ndim == 3
             if σ[1] >= 0.0 
                 # G1:
-                r = [ 2.0*σ[1]*mat.θ^2, 2.0*σ[2], 2.0*σ[3]]
+                r = [ 2.0*σ[1]*mat.μ^2, 2.0*σ[2], 2.0*σ[3]]
             else
                 # G2:
                 r = [ 0.0, 2.0*σ[2], 2.0*σ[3] ]
@@ -143,7 +143,7 @@ function potential_derivs(mat::MCJointSeep, ipd::MCJointSeepIpState, σ::Array{F
     else
             if σ[1] >= 0.0 
                 # G1:
-                r = [ 2*σ[1]*mat.θ^2, 2*σ[2]]
+                r = [ 2*σ[1]*mat.μ^2, 2*σ[2]]
             else
                 # G2:
                 r = [ 0.0, 2*σ[2] ]
@@ -247,15 +247,15 @@ function calc_Δλ(mat::MCJointSeep, ipd::MCJointSeepIpState, σtr::Array{Float6
     tol    = 1e-4      
 
     for i=1:maxits
-        θ      = mat.θ
+        μ      = mat.μ
     	kn, ks, De = calc_kn_ks_De(mat, ipd)
 
 		# quantities at n+1
 		if ndim == 3
 			if σtr[1]>0
-			     σ     = [ σtr[1]/(1+2*Δλ*kn*θ^2),  σtr[2]/(1+2*Δλ*ks),  σtr[3]/(1+2*Δλ*ks) ]
-			     dσdΔλ = [ -2*kn*θ^2*σtr[1]/(1+2*Δλ*kn*θ^2)^2,  -2*ks*σtr[2]/(1+2*Δλ*ks)^2,  -2*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
-			     drdΔλ = [ -4*kn*θ^4*σtr[1]/(1+2*Δλ*kn*θ^2)^2,  -4*ks*σtr[2]/(1+2*Δλ*ks)^2,  -4*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
+			     σ     = [ σtr[1]/(1+2*Δλ*kn*μ^2),  σtr[2]/(1+2*Δλ*ks),  σtr[3]/(1+2*Δλ*ks) ]
+			     dσdΔλ = [ -2*kn*μ^2*σtr[1]/(1+2*Δλ*kn*μ^2)^2,  -2*ks*σtr[2]/(1+2*Δλ*ks)^2,  -2*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
+			     drdΔλ = [ -4*kn*μ^4*σtr[1]/(1+2*Δλ*kn*μ^2)^2,  -4*ks*σtr[2]/(1+2*Δλ*ks)^2,  -4*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
 			else
 			     σ     = [ σtr[1],  σtr[2]/(1+2*Δλ*ks),  σtr[3]/(1+2*Δλ*ks) ]
 			     dσdΔλ = [ 0,  -2*ks*σtr[2]/(1+2*Δλ*ks)^2,  -2*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
@@ -263,9 +263,9 @@ function calc_Δλ(mat::MCJointSeep, ipd::MCJointSeepIpState, σtr::Array{Float6
 			end
 		else
 			if σtr[1]>0
-			     σ     = [ σtr[1]/(1+2*Δλ*kn*θ^2),  σtr[2]/(1+2*Δλ*ks) ]
-			     dσdΔλ = [ -2*kn*θ^2*σtr[1]/(1+2*Δλ*kn*θ^2)^2,  -2*ks*σtr[2]/(1+2*Δλ*ks)^2 ]
-			     drdΔλ = [ -4*kn*θ^4*σtr[1]/(1+2*Δλ*kn*θ^2)^2,  -4*ks*σtr[2]/(1+2*Δλ*ks)^2 ]
+			     σ     = [ σtr[1]/(1+2*Δλ*kn*μ^2),  σtr[2]/(1+2*Δλ*ks) ]
+			     dσdΔλ = [ -2*kn*μ^2*σtr[1]/(1+2*Δλ*kn*μ^2)^2,  -2*ks*σtr[2]/(1+2*Δλ*ks)^2 ]
+			     drdΔλ = [ -4*kn*μ^4*σtr[1]/(1+2*Δλ*kn*μ^2)^2,  -4*ks*σtr[2]/(1+2*Δλ*ks)^2 ]
 			else
 			     σ     = [ σtr[1],  σtr[2]/(1+2*Δλ*ks) ]
 			     dσdΔλ = [ 0,  -2*ks*σtr[2]/(1+2*Δλ*ks)^2 ]
@@ -281,15 +281,15 @@ function calc_Δλ(mat::MCJointSeep, ipd::MCJointSeepIpState, σtr::Array{Float6
 		 dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
 
 		if ndim == 3
-		    f = sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*θ
+		    f = sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*μ
 		    if (σ[2]==0 && σ[3]==0) 
-		        dfdΔλ = (dσdΔλ[1] - dσmaxdΔλ)*θ		      
+		        dfdΔλ = (dσdΔλ[1] - dσmaxdΔλ)*μ		      
 		    else
-		        dfdΔλ = 1/sqrt(σ[2]^2 + σ[3]^2) * (σ[2]*dσdΔλ[2] + σ[3]*dσdΔλ[3]) + (dσdΔλ[1] - dσmaxdΔλ)*θ
+		        dfdΔλ = 1/sqrt(σ[2]^2 + σ[3]^2) * (σ[2]*dσdΔλ[2] + σ[3]*dσdΔλ[3]) + (dσdΔλ[1] - dσmaxdΔλ)*μ
 		    end
 		else
-			f = abs(σ[2]) + (σ[1]-σmax)*mat.θ
-			dfdΔλ = sign(σ[2])*dσdΔλ[2] + (dσdΔλ[1] - dσmaxdΔλ)*θ
+			f = abs(σ[2]) + (σ[1]-σmax)*mat.μ
+			dfdΔλ = sign(σ[2])*dσdΔλ[2] + (dσdΔλ[1] - dσmaxdΔλ)*μ
 		end
         
         Δλ = Δλ - f/dfdΔλ
@@ -310,18 +310,18 @@ end
 
 function calc_σ_upa(mat::MCJointSeep, ipd::MCJointSeepIpState, σtr::Array{Float64,1})
     ndim = ipd.env.ndim
-    θ = mat.θ
+    μ = mat.μ
     kn, ks, De = calc_kn_ks_De(mat, ipd)
 
     if ndim == 3
         if σtr[1] > 0
-            σ = [σtr[1]/(1 + 2*ipd.Δλ*kn*(θ^2)), σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
+            σ = [σtr[1]/(1 + 2*ipd.Δλ*kn*(μ^2)), σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
         else
             σ = [σtr[1], σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
         end    
     else
         if σtr[1] > 0
-            σ = [σtr[1]/(1 + 2*ipd.Δλ*kn*(θ^2)), σtr[2]/(1 + 2*ipd.Δλ*ks)]
+            σ = [σtr[1]/(1 + 2*ipd.Δλ*kn*(μ^2)), σtr[2]/(1 + 2*ipd.Δλ*ks)]
         else
             σ = [σtr[1], σtr[2]/(1 + 2*ipd.Δλ*ks)]
         end    
@@ -346,7 +346,7 @@ function mountD(mat::MCJointSeep, ipd::MCJointSeepIpState)
     else
         v    = yield_deriv(mat, ipd)
         r    = potential_derivs(mat, ipd, ipd.σ)
-        y    = -mat.θ # ∂F/∂σmax
+        y    = -mat.μ # ∂F/∂σmax
         m    = σmax_deriv(mat, ipd, ipd.upa)  # ∂σmax/∂upa
 
         #Dep  = De - De*r*v'*De/(v'*De*r - y*m*norm(r))
@@ -373,7 +373,7 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
     ndim = ipd.env.ndim
     σini = copy(ipd.σ)
 
-    θ = mat.θ
+    μ = mat.μ
     kn, ks, De = calc_kn_ks_De(mat, ipd)
     σmax = calc_σmax(mat, ipd, ipd.upa) 
 

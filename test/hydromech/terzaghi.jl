@@ -56,6 +56,10 @@ hm_solve!(dom, bcs, end_time=tlong, nincs=2, tol=1e-2, nouts=1, verbose=true)
 
 dom.env.t = 0.0
 
+#for node in dom.nodes
+    #node.dofdict[:uz].vals[:uz] = 0
+#end
+
 
 # Stage 2: loading
 # ================

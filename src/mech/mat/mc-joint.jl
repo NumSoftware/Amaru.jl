@@ -25,8 +25,8 @@ mutable struct MCJoint<:Material
     E  ::Float64      # Young's modulus
     ν  ::Float64      # Poisson ratio
     σmax0::Float64    # tensile strength (internal variable)
-    θ  ::Float64      # tangent of friction angle
-    ζ  ::Float64      # factor ζ controls the elastic relative displacements 
+    μ  ::Float64      # tangent of friction angle
+    ζ  ::Float64      # factor ζ controls the elastic relative displacements (formerly α)
     wc ::Float64      # critical crack opening
     ws ::Float64      # openning at inflection (where the curve slope changes)
     softcurve::String # softening curve model ("linear" or bilinear" or "hordijk")
@@ -35,7 +35,7 @@ mutable struct MCJoint<:Material
         return  MCJoint(;prms...)
     end
 
-    function MCJoint(;E=NaN, nu=NaN, ft=NaN, theta=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear")
+    function MCJoint(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear")
 
         if isnan(wc)
         	if softcurve == "linear"
@@ -56,13 +56,13 @@ mutable struct MCJoint<:Material
         E>0.0       || error("Invalid value for E: $E")
         0<=nu<0.5   || error("Invalid value for nu: $nu")
         ft>=0       || error("Invalid value for ft: $ft")
-        theta>0     || error("Invalid value for theta: $theta")
+        mu>0     || error("Invalid value for mu: $mu")
         zeta>0      || error("Invalid value for zeta: $zeta")
         wc>0        || error("Invalid value for wc: $wc")
         (isnan(ws)  || ws>0) || error("Invalid value for ws: $ws")
         (softcurve=="linear" || softcurve=="bilinear" || softcurve=="hordijk") || error("Invalid softcurve: softcurve must to be linear or bilinear or hordijk")
 
-        this = new(E, nu, ft, theta, zeta, wc, ws, softcurve)
+        this = new(E, nu, ft, mu, zeta, wc, ws, softcurve)
         return this
     end
 end
@@ -80,9 +80,9 @@ function yield_func(mat::MCJoint, ipd::MCJointIpState, σ::Array{Float64,1})
     ndim = ipd.env.ndim
     σmax = calc_σmax(mat, ipd, ipd.upa)
     if ndim == 3
-        return sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*mat.θ
+        return sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*mat.μ
     else
-        return abs(σ[2]) + (σ[1]-σmax)*mat.θ
+        return abs(σ[2]) + (σ[1]-σmax)*mat.μ
     end
 end
 
@@ -90,9 +90,9 @@ end
 function yield_deriv(mat::MCJoint, ipd::MCJointIpState)
     ndim = ipd.env.ndim
     if ndim == 3
-        return [ mat.θ, ipd.σ[2]/sqrt(ipd.σ[2]^2 + ipd.σ[3]^2), ipd.σ[3]/sqrt(ipd.σ[2]^2 + ipd.σ[3]^2)]
+        return [ mat.μ, ipd.σ[2]/sqrt(ipd.σ[2]^2 + ipd.σ[3]^2), ipd.σ[3]/sqrt(ipd.σ[2]^2 + ipd.σ[3]^2)]
     else
-        return [ mat.θ, sign(ipd.σ[2]) ]
+        return [ mat.μ, sign(ipd.σ[2]) ]
     end
 end
 
@@ -102,7 +102,7 @@ function potential_derivs(mat::MCJoint, ipd::MCJointIpState, σ::Array{Float64,1
     if ndim == 3
             if σ[1] >= 0.0 
                 # G1:
-                r = [ 2.0*σ[1]*mat.θ^2, 2.0*σ[2], 2.0*σ[3]]
+                r = [ 2.0*σ[1]*mat.μ^2, 2.0*σ[2], 2.0*σ[3]]
             else
                 # G2:
                 r = [ 0.0, 2.0*σ[2], 2.0*σ[3] ]
@@ -110,7 +110,7 @@ function potential_derivs(mat::MCJoint, ipd::MCJointIpState, σ::Array{Float64,1
     else
             if σ[1] >= 0.0 
                 # G1:
-                r = [ 2*σ[1]*mat.θ^2, 2*σ[2]]
+                r = [ 2*σ[1]*mat.μ^2, 2*σ[2]]
             else
                 # G2:
                 r = [ 0.0, 2*σ[2] ]
@@ -216,15 +216,15 @@ function calc_Δλ(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
     tol    = 1e-4      
 
     for i=1:maxits
-        θ      = mat.θ
+        μ      = mat.μ
     	kn, ks, De = calc_kn_ks_De(mat, ipd)
 
 		# quantities at n+1
 		if ndim == 3
 			if σtr[1]>0
-			     σ     = [ σtr[1]/(1+2*Δλ*kn*θ^2),  σtr[2]/(1+2*Δλ*ks),  σtr[3]/(1+2*Δλ*ks) ]
-			     dσdΔλ = [ -2*kn*θ^2*σtr[1]/(1+2*Δλ*kn*θ^2)^2,  -2*ks*σtr[2]/(1+2*Δλ*ks)^2,  -2*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
-			     drdΔλ = [ -4*kn*θ^4*σtr[1]/(1+2*Δλ*kn*θ^2)^2,  -4*ks*σtr[2]/(1+2*Δλ*ks)^2,  -4*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
+			     σ     = [ σtr[1]/(1+2*Δλ*kn*μ^2),  σtr[2]/(1+2*Δλ*ks),  σtr[3]/(1+2*Δλ*ks) ]
+			     dσdΔλ = [ -2*kn*μ^2*σtr[1]/(1+2*Δλ*kn*μ^2)^2,  -2*ks*σtr[2]/(1+2*Δλ*ks)^2,  -2*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
+			     drdΔλ = [ -4*kn*μ^4*σtr[1]/(1+2*Δλ*kn*μ^2)^2,  -4*ks*σtr[2]/(1+2*Δλ*ks)^2,  -4*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
 			else
 			     σ     = [ σtr[1],  σtr[2]/(1+2*Δλ*ks),  σtr[3]/(1+2*Δλ*ks) ]
 			     dσdΔλ = [ 0,  -2*ks*σtr[2]/(1+2*Δλ*ks)^2,  -2*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
@@ -232,9 +232,9 @@ function calc_Δλ(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
 			end
 		else
 			if σtr[1]>0
-			     σ     = [ σtr[1]/(1+2*Δλ*kn*θ^2),  σtr[2]/(1+2*Δλ*ks) ]
-			     dσdΔλ = [ -2*kn*θ^2*σtr[1]/(1+2*Δλ*kn*θ^2)^2,  -2*ks*σtr[2]/(1+2*Δλ*ks)^2 ]
-			     drdΔλ = [ -4*kn*θ^4*σtr[1]/(1+2*Δλ*kn*θ^2)^2,  -4*ks*σtr[2]/(1+2*Δλ*ks)^2 ]
+			     σ     = [ σtr[1]/(1+2*Δλ*kn*μ^2),  σtr[2]/(1+2*Δλ*ks) ]
+			     dσdΔλ = [ -2*kn*μ^2*σtr[1]/(1+2*Δλ*kn*μ^2)^2,  -2*ks*σtr[2]/(1+2*Δλ*ks)^2 ]
+			     drdΔλ = [ -4*kn*μ^4*σtr[1]/(1+2*Δλ*kn*μ^2)^2,  -4*ks*σtr[2]/(1+2*Δλ*ks)^2 ]
 			else
 			     σ     = [ σtr[1],  σtr[2]/(1+2*Δλ*ks) ]
 			     dσdΔλ = [ 0,  -2*ks*σtr[2]/(1+2*Δλ*ks)^2 ]
@@ -250,15 +250,15 @@ function calc_Δλ(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
 		 dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
 
 		if ndim == 3
-		    f = sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*θ
+		    f = sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*μ
 		    if (σ[2]==0 && σ[3]==0) 
-		        dfdΔλ = (dσdΔλ[1] - dσmaxdΔλ)*θ		      
+		        dfdΔλ = (dσdΔλ[1] - dσmaxdΔλ)*μ		      
 		    else
-		        dfdΔλ = 1/sqrt(σ[2]^2 + σ[3]^2) * (σ[2]*dσdΔλ[2] + σ[3]*dσdΔλ[3]) + (dσdΔλ[1] - dσmaxdΔλ)*θ
+		        dfdΔλ = 1/sqrt(σ[2]^2 + σ[3]^2) * (σ[2]*dσdΔλ[2] + σ[3]*dσdΔλ[3]) + (dσdΔλ[1] - dσmaxdΔλ)*μ
 		    end
 		else
-			f = abs(σ[2]) + (σ[1]-σmax)*mat.θ
-			dfdΔλ = sign(σ[2])*dσdΔλ[2] + (dσdΔλ[1] - dσmaxdΔλ)*θ
+			f = abs(σ[2]) + (σ[1]-σmax)*mat.μ
+			dfdΔλ = sign(σ[2])*dσdΔλ[2] + (dσdΔλ[1] - dσmaxdΔλ)*μ
 		end
 
         Δλ = Δλ - f/dfdΔλ
@@ -279,18 +279,18 @@ end
 
 function calc_σ_upa(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
     ndim = ipd.env.ndim
-    θ = mat.θ
+    μ = mat.μ
     kn, ks, De = calc_kn_ks_De(mat, ipd)
 
     if ndim == 3
         if σtr[1] > 0
-            σ = [σtr[1]/(1 + 2*ipd.Δλ*kn*(θ^2)), σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
+            σ = [σtr[1]/(1 + 2*ipd.Δλ*kn*(μ^2)), σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
         else
             σ = [σtr[1], σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
         end    
     else
         if σtr[1] > 0
-            σ = [σtr[1]/(1 + 2*ipd.Δλ*kn*(θ^2)), σtr[2]/(1 + 2*ipd.Δλ*ks)]
+            σ = [σtr[1]/(1 + 2*ipd.Δλ*kn*(μ^2)), σtr[2]/(1 + 2*ipd.Δλ*ks)]
         else
             σ = [σtr[1], σtr[2]/(1 + 2*ipd.Δλ*ks)]
         end    
@@ -315,7 +315,7 @@ function mountD(mat::MCJoint, ipd::MCJointIpState)
     else
         v    = yield_deriv(mat, ipd)
         r    = potential_derivs(mat, ipd, ipd.σ)
-        y    = -mat.θ # ∂F/∂σmax
+        y    = -mat.μ # ∂F/∂σmax
         m    = σmax_deriv(mat, ipd, ipd.upa)  # ∂σmax/∂upa
 
         #Dep  = De - De*r*v'*De/(v'*De*r - y*m*norm(r))
