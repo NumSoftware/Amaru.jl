@@ -19,17 +19,18 @@ end
 mutable struct ElasticJoint<:Material
     E::Float64 # Young modulus from bulk material
     ν::Float64 # Poisson ration from bulk material
-    α::Float64 # elastic displacement scale factor
+    ζ::Float64 # elastic displacement scale factor
 
     function ElasticJoint(prms::Dict{Symbol,Float64})
         return  ElasticJoint(;prms...)
     end
 
-    function ElasticJoint(;E=NaN, nu=NaN, alpha=1.0)
-        @assert E>=0
-        @assert nu>=0
+    function ElasticJoint(;E=NaN, nu=NaN, zeta=1.0)
+        E>0.0       || error("Invalid value for E: $E")
+        0<=nu<0.5   || error("Invalid value for nu: $nu") 
+        zeta>0      || error("Invalid value for zeta: $zeta")
 
-        this = new(E, nu, alpha)
+        this = new(E, nu, zeta)
         return this
     end
 end
@@ -46,8 +47,8 @@ new_ip_state(mat::ElasticJoint, env::ModelEnv) = JointIpState(env)
 function mountD(mat::ElasticJoint, ipd::JointIpState)
     ndim = ipd.env.ndim
     G  = mat.E/(1.0+mat.ν)/2.0
-    kn = mat.E*mat.α/ipd.h
-    ks =     G*mat.α/ipd.h
+    kn = mat.E*mat.ζ/ipd.h
+    ks =     G*mat.ζ/ipd.h
     if ndim==2
         return [  kn  0.0 
                  0.0   ks ]

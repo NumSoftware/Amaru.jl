@@ -6,11 +6,11 @@ mutable struct MCJointSeepIpState<:IpState
     env::ModelEnv
     σ   ::Array{Float64,1} # stress
     w   ::Array{Float64,1} # relative displacements
-    uw  ::Float64  # fracture pore pressure
-    upa ::Float64  # effective plastic relative displacement
-    Δλ  ::Float64  # plastic multiplier
-    h   ::Float64  # characteristic length from bulk elements
-    time::Float64  # the time when the fracture opened
+    uw  ::Float64          # fracture pore pressure
+    upa ::Float64          # effective plastic relative displacement
+    Δλ  ::Float64          # plastic multiplier
+    h   ::Float64          # characteristic length from bulk elements
+    time0::Float64         # time when the fracture opened
     function MCJointSeepIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         ndim = env.ndim
@@ -20,77 +20,84 @@ mutable struct MCJointSeepIpState<:IpState
         this.upa = 0.0
         this.Δλ  = 0.0
         this.h  = 0.0
-        this.time = 0.0
+        this.time0 = 0.0
         return this
     end
 end
 
 mutable struct MCJointSeep<:Material
-    E  ::Float64  # Young's modulus
-    nu ::Float64  # Poisson ratio
-    σmax0::Float64  # tensile strength (internal variable)
-    θ  ::Float64  # tangent of friction angle
-    αi ::Float64  # factor αi controls the elastic relative displacements 
-    wc ::Float64  # critical crack opening
-    ws ::Float64  # openning at inflection (where the curve slope changes)
-    softcurve::String # softening curve model ("linear" or bilinear" or "hordijk")
-    k ::Float64 # specific permeability
-    γw::Float64 # water specific weight
-    α ::Float64 # Biot's coefficient
-    S ::Float64 # Storativity coefficient
-    β ::Float64  # coefficient of compressibility
-    μ ::Float64  # viscosity
-    permeability::String # joint permeability specific permeability ("permeable" or "impermeable")
+    E  ::Float64       # Young's modulus
+    nu ::Float64       # Poisson ratio
+    σmax0::Float64     # tensile strength (internal variable)
+    θ  ::Float64       # tangent of friction angle
+    ζ  ::Float64       # factor ζ controls the elastic relative displacements 
+    wc ::Float64       # critical crack opening
+    ws ::Float64       # openning at inflection (where the curve slope changes)
+    softcurve::String  # softening curve model ("linear" or bilinear" or "hordijk")
+    k  ::Float64       # specific permeability
+    γw ::Float64       # specific weight of the fluid
+    α  ::Float64       # Biot's coefficient
+    S  ::Float64       # Storativity coefficient
+    β  ::Float64       # compressibility of fluid
+    μ  ::Float64       # viscosity
+    kt ::Float64       # transverse leak-off coefficient
+    kl ::Float64       # longitudinal permeability coefficient
+    permeability::Bool # joint permeability ("true" or "false")
 
     function MCJointSeep(prms::Dict{Symbol,Float64})
         return  MCJointSeep(;prms...)
     end
 
-     function MCJointSeep(;E=NaN, nu=NaN, ft=NaN, theta=NaN, alphai=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", k=NaN, kappa=NaN, gammaw=NaN, alpha=NaN, S=NaN, beta=0.0, mu=NaN, permeability="permeable")
-         #TODO: permeable=true;  
+     function MCJointSeep(;E=NaN, nu=NaN, ft=NaN, theta=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", k=NaN, kappa=NaN, gammaw=NaN, alpha=NaN, S=NaN, n=NaN, Ks=NaN, Kw=NaN, beta=0.0, mu=NaN, kt=NaN, kl=0.0, permeability=true)  
 
         !(isnan(GF) || GF>0) && error("Invalid value for GF: $GF")
         !(isnan(Gf) || Gf>0) && error("Invalid value for Gf: $Gf")
 
         if isnan(wc)
             if softcurve == "linear"
-                 wc = round(2*GF/(1000*ft), digits=10)
+                 wc = round(2*GF/ft, digits=10)
             elseif softcurve == "bilinear"
                 if isnan(Gf)
-                    wc = round(5*GF/(1000*ft), digits=10)
+                    wc = round(5*GF/ft, digits=10)
                     ws = round(wc*0.15, digits=10)
                 else
-                    wc = round((8*GF- 6*Gf)/(1000*ft), digits=10)
-                    ws = round(1.5*Gf/(1000*ft), digits=10)
+                    wc = round((8*GF- 6*Gf)/ft, digits=10)
+                    ws = round(1.5*Gf/ft, digits=10)
                 end
             elseif softcurve == "hordijk"
-                wc = round(GF/(194.7019536*ft), digits=10)
+                wc = round(GF/(0.1947019536*ft), digits=10)
             end    
         end
 
+        !(isnan(kappa) || kappa>0) && error("Invalid value for kappa: $kappa")
+
         if isnan(k) 
-            k = (kappa*gammaw)/mu # specific permeability = (intrinsic permeability * water specific weight)/viscosity
+            k = (kappa*gammaw)/mu # specific permeability = (intrinsic permeability * fluid specific weight)/viscosity
+        end
+
+        if isnan(S) 
+            S = (alpha - n)/Ks + n/Kw # S = (alpha - porosity)/(bulk module of the solid) + (porosity)/(bulk module of the fluid) 
         end
 
         E>0.0       || error("Invalid value for E: $E")
         0<=nu<0.5   || error("Invalid value for nu: $nu")
+        ft>=0       || error("Invalid value for ft: $ft")
+        theta>0     || error("Invalid value for theta: $theta")
+        zeta>0      || error("Invalid value for zeta: $zeta")
+        wc>0        || error("Invalid value for wc: $wc")
+        (isnan(ws)  || ws>0) || error("Invalid value for ws: $ws")
+        (softcurve=="linear" || softcurve=="bilinear" || softcurve=="hordijk") || error("Invalid softcurve: softcurve must to be linear or bilinear or hordijk")
+        k>0         || error("Invalid value for k: $k")
+        gammaw>0    || error("Invalid value for gammaw: $gammaw")
+        0<alpha<=1.0|| error("Invalid value for alpha: $alpha")
+        S>=0.0      || error("Invalid value for S: $S")
+        beta>=0     || error("Invalid value for beta: $beta")
+        mu>=0       || error("Invalid value for mu: $mu")
+        kt>=0       || error("Invalid value for kt: $kt")
+        kl>=0       || error("Invalid value for kl: $kl")
+        (permeability==true || permeability==false) || error("Invalid permeability: permeability must to be true or false")
 
-        ft<0         && error("Invalid value for ft: $ft")
-        theta<0      && error("Invalid value for theta: $theta")
-        alphai<0     && error("Invalid value for alphai: $alphai")
-        !(isnan(ws) || ws>0) && error("Invalid value for ws: $ws")
-        wc<0         && error("Invalid value for wc: $wc")
-        !(softcurve=="linear" || softcurve=="bilinear" || softcurve=="hordijk") && error("Invalid softcurve: softcurve must to be linear or bilinear or hordijk")
-        isnan(k)     && error("Missing value for k")
-        isnan(gammaw) && error("Missing value for gammaw")
-        !(gammaw>0)   && error("Invalid value for gammaw: $gammaw")
-        !(alpha>0)   && error("Invalid value for alpha: $alpha")
-        S<0.0        && error("Invalid value for S: $S")
-        beta<0       && error("Invalid value for beta: $beta")
-        mu<=0        && error("Invalid value for mu: $mu")
-        !(permeability=="permeable" || permeability=="impermeable") && error("Invalid permeability: permeability must to be permeable or impermeable")
-
-        this = new(E, nu, ft, theta, alphai, wc, ws, softcurve, k, gammaw, alpha, S, beta, mu, permeability)
+        this = new(E, nu, ft, theta, zeta, wc, ws, softcurve, k, gammaw, alpha, S, beta, mu, kt, kl, permeability)
         return this
     end
 end
@@ -214,9 +221,9 @@ end
 
 function calc_kn_ks_De(mat::MCJointSeep, ipd::MCJointSeepIpState)
     ndim = ipd.env.ndim
-    kn = mat.E*mat.αi/ipd.h
+    kn = mat.E*mat.ζ/ipd.h
     G  = mat.E/(2.0*(1.0+mat.nu))
-    ks = G*mat.αi/ipd.h
+    ks = G*mat.ζ/ipd.h
 
     if ndim == 3
         De = [  kn  0.0  0.0
@@ -362,7 +369,7 @@ function mountD(mat::MCJointSeep, ipd::MCJointSeepIpState)
 end
 
 
-function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Float64,1}, Δuw::Float64, time::Float64)
+function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Float64,1}, Δuw::Float64)
     ndim = ipd.env.ndim
     σini = copy(ipd.σ)
 
@@ -372,9 +379,7 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
 
 
     if isnan(Δw[1]) || isnan(Δw[2])
-        @show Δw[1]
-        @show Δw[2]
-        exit()
+        error("Invalid value for joint displacement: Δw = $Δw")
     end
 
     # σ trial and F trial
@@ -413,14 +418,14 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
         end
     end
 
-    if  ipd.upa != 0.0 && ipd.time == 0.0
-        ipd.time = time 
+    if  ipd.upa != 0.0 && ipd.time0 == 0.0
+        ipd.time0 = ipd.env.t  
     end
 
-        ipd.w += Δw
-        Δσ = ipd.σ - σini
+    ipd.w += Δw
+    Δσ = ipd.σ - σini
 
-        ipd.uw += Δuw
+    ipd.uw += Δuw
 
     return Δσ
 end

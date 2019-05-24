@@ -20,26 +20,35 @@ end
 
 
 mutable struct ElasticSolidLinSeep<:Material
-    E ::Float64
-    nu::Float64
-    k ::Float64
-    γw::Float64
-    α ::Float64
-    S ::Float64
+    E ::Float64 # Young's modulus
+    nu::Float64 # Poisson ratio
+    k ::Float64 # specific permeability
+    γw::Float64 # specific weight of the fluid
+    α ::Float64 # Biot's coefficient
+    S ::Float64 # Storativity coefficient
 
     function ElasticSolidLinSeep(prms::Dict{Symbol,Float64})
         return  ElasticSolidLinSeep(;prms...)
     end
 
-    function ElasticSolidLinSeep(;E=1.0, nu=0.0, k=NaN, gammaw=NaN, alpha=1.0, S=0.0)
-        E<=0.0       && error("Invalid value for E: $E")
-        !(0<=nu<0.5) && error("Invalid value for nu: $nu")
-        isnan(k)     && error("Missing value for k")
-        isnan(gammaw)&& error("Missing value for gammaw")
-        !(gammaw>0)  && error("Invalid value for gammaw: $gammaw")
-        0<=alpha<=1  || error("Invalid value for alpha: $alpha")
-        S>=0         || error("Invalid value for S: $S")
-        this = new(E, nu, k, gammaw, alpha)
+    function ElasticSolidLinSeep(;E=NaN, nu=NaN, k=NaN, kappa=NaN, gammaw=NaN, alpha=NaN, S=NaN, n=NaN, Ks=NaN, Kw=NaN, mu=NaN)
+
+        if isnan(k) 
+            k = (kappa*gammaw)/mu # specific permeability = (intrinsic permeability * fluid specific weight)/viscosity
+        end
+
+        if isnan(S) 
+            S = (alpha - n)/Ks + n/Kw # S = (alpha - porosity)/(bulk module of the solid) + (porosity)/(bulk module of the fluid) 
+        end
+
+        E>0.0       || error("Invalid value for E: $E")
+        0<=nu<0.5   || error("Invalid value for nu: $nu")
+        k>0         || error("Invalid value for k: $k")
+        gammaw>0    || error("Invalid value for gammaw: $gammaw")
+        0<alpha<=1.0|| error("Invalid value for alpha: $alpha")
+        S>=0.0      || error("Invalid value for S: $S")
+
+        this = new(E, nu, k, gammaw, alpha, S)
         return this
     end
 end

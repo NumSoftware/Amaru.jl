@@ -246,10 +246,6 @@ function elem_conductivity_matrix(elem::HMSolid)
 end
 
 function elem_compressibility_matrix(elem::HMSolid)
-    if elem.mat.S == 0.0
-        return zeros(0,0), zeros(Int64,0), zeros(Int64,0)
-    end
-
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     C   = elem_coords(elem)
@@ -368,13 +364,11 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
 
         # internal volumes dFw
         Δεvol = dot(m, Δε)
-        coef  = elem.mat.α*Δεvol*detJ*ip.w
-        dFw  -= coef*N
+        coef  = elem.mat.α*detJ*ip.w
+        dFw  -= coef*N*Δεvol
 
-        if elem.mat.S != 0.0
-            coef = elem.mat.S*Δuw*detJ*ip.w 
-            dFw -= coef*N       
-        end
+        coef = detJ*ip.w*elem.mat.S 
+        dFw -= coef*N*Δuw     
 
         coef = Δt*detJ*ip.w
         @gemv dFw += coef*Bp'*V

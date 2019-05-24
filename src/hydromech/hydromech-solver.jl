@@ -19,6 +19,7 @@ function mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
         has_stiffness_matrix    = hasmethod(elem_stiffness, (ty,))
         has_coupling_matrix     = hasmethod(elem_coupling_matrix, (ty,))
         has_conductivity_matrix = hasmethod(elem_conductivity_matrix, (ty,))
+        has_compressibility_matrix = hasmethod(elem_compressibility_matrix, (ty,))
         has_RHS_vector          = hasmethod(elem_RHS_vector, (ty,))
 
 
@@ -70,6 +71,19 @@ function mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
             # Assembling RHS components
             Uw = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes ]
             RHS[rmap] -= Δt*(H*Uw)
+        end
+
+        # Assemble the conductivity matrix
+        if has_compressibility_matrix
+            Cpp, rmap, cmap =  elem_compressibility_matrix(elem)
+            nr, nc = size(Cpp)
+            for i=1:nr
+                for j=1:nc
+                    push!(R, rmap[i])
+                    push!(C, cmap[j])
+                    push!(V, Cpp[i,j])
+                end
+            end
         end
 
         # Assemble ramaining RHS vectors

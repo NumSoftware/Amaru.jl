@@ -3,13 +3,13 @@
 export ElasticJointSeep
 
 mutable struct JointSeepIpState<:IpState
-    env::ModelEnv
-    σ   ::Array{Float64,1}
-    w   ::Array{Float64,1}
-    uw  ::Float64  # fracture pore pressure
-    upa ::Float64  # effective plastic relative displacement
-    h   ::Float64
-    time::Float64  # the time when the fracture opened
+    env  ::ModelEnv
+    σ    ::Array{Float64,1} # stress
+    w    ::Array{Float64,1} # relative displacements
+    uw   ::Float64          # fracture pore pressure
+    upa  ::Float64          # effective plastic relative displacement
+    h    ::Float64          # characteristic length from bulk elements
+    time0::Float64          # time when the fracture opened
     function JointSeepIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(3)
@@ -17,35 +17,55 @@ mutable struct JointSeepIpState<:IpState
         this.uw = 0.0 
         this.upa = 0.0
         this.h = 0.0
-        this.time = 0.0
+        this.time0 = 0.0
         return this
     end
 end
 
 mutable struct ElasticJointSeep<:Material
-    E::Float64 # Young modulus from bulk material
-    nu::Float64 # Poisson ration from bulk material
-    αi::Float64 # elastic displacement scale factor
-    k ::Float64 # specific permeability
-    γw::Float64 # water specific weight
-    α ::Float64 # Biot's coefficient
-    S ::Float64 # Storativity coefficient
-    β  ::Float64  # coefficient of compressibility
-    μ  ::Float64  # viscosity
-    permeability::String # joint permeability specific permeability ("permeable" or "impermeable")
+    E ::Float64        # Young's modulus
+    nu::Float64        # Poisson ration 
+    ζ ::Float64        # factor ζ controls the elastic relative displacements 
+    k ::Float64        # specific permeability
+    γw::Float64        # specific weight of the fluid
+    α ::Float64        # Biot's coefficient
+    S ::Float64        # Storativity coefficient
+    β ::Float64        # compressibility of fluid
+    μ ::Float64        # viscosity
+    kt::Float64        # leak-off coefficient
+    kl ::Float64       # longitudinal permeability coefficient
+    permeability::Bool # joint permeability ("true" or "false")
 
     function ElasticJointSeep(prms::Dict{Symbol,Float64})
         return  ElasticJoint(;prms...)
     end
 
-    function ElasticJointSeep(;E=NaN, nu=NaN, alphai=NaN, k=NaN, gammaw=NaN, alpha=NaN, S=NaN, beta=0.0, mu=NaN, permeability="permeable")
-        
-        E<=0.0       && error("Invalid value for E: $E")
-        !(0<=nu<0.5) && error("Invalid value for nu: $nu")
-        mu<=0        && error("Invalid value for mu: $mu")
-        !(permeability=="permeable" || permeability=="impermeable") && error("Invalid permeability: permeability must to be permeable or impermeable")
+    function ElasticJointSeep(;E=NaN, nu=NaN, zeta=NaN, k=NaN, kappa=NaN, gammaw=NaN, alpha=NaN, S=NaN, n=NaN, Ks=NaN, Kw=NaN, beta=0.0, mu=NaN, kt=NaN, kl=0.0, permeability=true)
 
-        this = new(E, nu, alphai, k, gammaw, alpha, S, beta, mu, permeability)
+        !(isnan(kappa) || kappa>0) && error("Invalid value for kappa: $kappa")
+
+        if isnan(k) 
+            k = (kappa*gammaw)/mu # specific permeability = (intrinsic permeability * fluid specific weight)/viscosity
+        end
+
+        if isnan(S) 
+            S = (alpha - n)/Ks + n/Kw # S = (alpha - porosity)/(bulk module of the solid) + (porosity)/(bulk module of the fluid) 
+        end
+        
+        E>0.0       || error("Invalid value for E: $E")
+        0<=nu<0.5   || error("Invalid value for nu: $nu") 
+        zeta>0      || error("Invalid value for zeta: $zeta")
+        k>0         || error("Invalid value for k: $k")
+        gammaw>0    || error("Invalid value for gammaw: $gammaw")
+        0<alpha<=1.0|| error("Invalid value for alpha: $alpha")
+        S>=0.0      || error("Invalid value for S: $S")
+        beta>=0     || error("Invalid value for beta: $beta")
+        mu>=0       || error("Invalid value for mu: $mu")
+        kt>=0       || error("Invalid value for kt: $kt")
+        kl>=0       || error("Invalid value for kl: $kl")
+        (permeability==true || permeability==false) || error("Invalid permeability: permeability must to be true or false")
+
+        this = new(E, nu, zeta, k, gammaw, alpha, S, beta, mu, kt, kl, permeability)
         return this
     end
 end
@@ -59,8 +79,8 @@ new_ip_state(mat::ElasticJointSeep, env::ModelEnv) = JointSeepIpState(env)
 function mountD(mat::ElasticJointSeep, ipd::JointSeepIpState)
     ndim = ipd.env.ndim
     G  = mat.E/(1.0+mat.nu)/2.0
-    kn = mat.E*mat.α/ipd.h
-    ks =     G*mat.α/ipd.h
+    kn = mat.E*mat.ζ/ipd.h
+    ks =     G*mat.ζ/ipd.h
     if ndim==2
         return [  kn  0.0 
                  0.0   ks ]
@@ -71,7 +91,7 @@ function mountD(mat::ElasticJointSeep, ipd::JointSeepIpState)
     end
 end
 
-function stress_update(mat::ElasticJointSeep, ipd::JointSeepIpState, Δu::Array{Float64,1}, Δuw::Float64, time::Float64)
+function stress_update(mat::ElasticJointSeep, ipd::JointSeepIpState, Δu::Array{Float64,1}, Δuw::Float64)
     ndim = ipd.env.ndim
     D  = mountD(mat, ipd)
     Δσ = D*Δu
