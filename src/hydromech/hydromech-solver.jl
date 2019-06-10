@@ -202,6 +202,9 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     
     # Get array with all integration points
     ips = [ ip for elem in dom.elems for ip in elem.ips ]
+    # Get the domain current state and backup
+    State = [ ip.data for elem in dom.elems for ip in elem.ips ]
+    StateBk = copy.(State)
 
     # Setup for fisrt stage
     if dom.nincs == 0
@@ -222,10 +225,6 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
         end
     end
 
-    # Get the domain current state and backup
-    State = [ ip.data for elem in dom.elems for ip in elem.ips ]
-    StateBk = copy.(State)
-
     # Incremental analysis
     t    = dom.env.t # current time
     tend = t + time_span  # end time
@@ -243,9 +242,6 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     ΔFin = zeros(ndofs)  # vector of internal natural values for current increment
     ΔUa  = zeros(ndofs)  # vector of essential values (e.g. displacements) for this increment
     ΔUi  = zeros(ndofs)  # vector of essential values for current iteration
-
-    uw_map = [ dof.eq_id for dof in dofs if dof.name == :uw ]
-    uz_map = [ dof.eq_id for dof in dofs if dof.name == :uz ]
 
     Fex  = zeros(ndofs)  # vector of external loads
     Uex  = zeros(ndofs)  # vector of external essential values
@@ -370,15 +366,13 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
 
             # Get new Δt
             if autoinc
-                Δt = min(1.5*Δt, 1.0/nincs)
-                Δt = round(Δt, digits=-ceil(Int, log10(Δt))+3)  # round to 3 significant digits
-                Δt = min(Δt, 1.0-t)
+                Δt = min(1.5*Δt, tend/nincs)
+                Δt = round(Δt, sigdigits=3)
+                Δt = min(Δt, tend-t)
             end
         else
             if autoinc
                 silent || println("    increment failed.")
-                #Δt *= 0.5
-                #Δt = round(Δt, -ceil(Int, log10(Δt))+3)  # round to 3 significant digits
                 Δt = round(0.5*Δt, sigdigits=3)
                 if Δt < ttol
                     printstyled("solve!: solver did not converge\n", color=:red)
