@@ -276,6 +276,15 @@ function solve!(
     ΔUa  = zeros(ndofs)  # vector of essential values (e.g. displacements) for this increment
     ΔUi  = zeros(ndofs)  # vector of essential values for current iteration
 
+    # Get unbalanced forces
+    Fin = zeros(ndofs)
+    for elem in dom.elems
+        elem_internal_forces(elem, Fin)
+    end
+    Fex .-= Fin # add negative forces to external forces vector
+    #@show Fin
+    #@show Fex
+
     local K::SparseMatrixCSC{Float64,Int64}
 
     #remountK = true
@@ -327,7 +336,7 @@ function solve!(
                 elem_update!(elem, ΔUt, ΔFin, dt)
             end
 
-            residue = maximum(abs, (ΔFex-ΔFin)[umap] ) 
+            residue = maximum(abs, (ΔFex-ΔFin)[umap] )
 
             # use ME scheme
             if residue > tol && scheme == :ME
@@ -352,7 +361,7 @@ function solve!(
 
             # Residual vector for next iteration
             R = ΔFex - ΔFin  
-            R[pmap] .= 0.0  # Zero at prescribed positions
+            R[pmap] .= 0.0  # zero at prescribed positions
 
             if verbose
                 printstyled("    it $it  ", bold=true)

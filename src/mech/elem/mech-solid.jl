@@ -224,6 +224,40 @@ function elem_mass(elem::MechSolid)
 end
 
 
+function elem_internal_forces(elem::MechSolid, F::Array{Float64,1})
+    ndim   = elem.env.ndim
+    th     = elem.env.thickness
+    nnodes = length(elem.nodes)
+    keys   = (:ux, :uy, :uz)[1:ndim]
+    map    = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
+
+    dF = zeros(nnodes*ndim)
+    B  = zeros(6, nnodes*ndim)
+
+    J  = Array{Float64}(undef, ndim, ndim)
+    dNdX = Array{Float64}(undef, ndim, nnodes)
+
+    C = elem_coords(elem)
+    for ip in elem.ips
+
+        # compute B matrix
+        dNdR = elem.shape.deriv(ip.R)
+        @gemm J = dNdR*C
+        @gemm dNdX = inv(J)*dNdR
+        detJ = det(J)
+        detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
+        setB(elem.env, dNdX, detJ, B)
+
+        σ    = ip.data.σ
+        coef = detJ*ip.w*th
+        @gemv dF += coef*B'*σ
+    end
+
+    F[map] += dF
+end
+
+
+
 function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
