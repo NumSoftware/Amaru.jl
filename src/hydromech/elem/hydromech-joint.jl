@@ -227,9 +227,7 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
     for ip in elem.ips
         
         # compute kt and kb
-        t  = elem.env.t - ip.data.time0 # time spent since the opening fissure
-
-        if ip.data.upa == 0.0 ||  ip.data.w[1] <= 0.0 || t == 0.0 
+        if ip.data.t == 0.0 ||  ip.data.w[1] <= 0.0  
             kt = elem.mat.kt
             kb = kt
         elseif elem.mat.permeability==false
@@ -242,7 +240,7 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
             G  = elem.mat.E/(2*(1+2*elem.mat.nu)) # shear modulus
             Ku = K + (elem.mat.α^2)/elem.mat.S    # undrained bulk modulus
             cv = (kappa/elem.mat.S)*(K + (4/3)*G)/(Ku + (4/3)*G) # diffusion coefficient
-            kt = kappa/(2*sqrt(cv*t/π))
+            kt = kappa/(2*sqrt(cv*ip.data.t/π))
             kb = kt
         end
 
@@ -438,9 +436,7 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
     for ip in elem.ips
 
         # compute kt and kb
-        t  = elem.env.t - ip.data.time0 # time spent since the opening fissure
-       
-        if ip.data.upa == 0.0 ||  ip.data.w[1] <= 0.0 || t == 0.0 
+        if ip.data.t == 0.0 ||  ip.data.w[1] <= 0.0  
             kt = elem.mat.kt
             kb = kt
         elseif elem.mat.permeability==false
@@ -450,10 +446,10 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
             # compute kt and kb
             kappa = elem.mat.k/elem.mat.γw
             K  = elem.mat.E/(3*(1-2*elem.mat.nu)) # bulk modulus 
-            G =  elem.mat.E/(2*(1+2*elem.mat.nu)) # shear modulus
+            G  = elem.mat.E/(2*(1+2*elem.mat.nu)) # shear modulus
             Ku = K + (elem.mat.α^2)/elem.mat.S    # undrained bulk modulus
             cv = (kappa/elem.mat.S)*(K + (4/3)*G)/(Ku + (4/3)*G) # diffusion coefficient
-            kt = kappa/(2*sqrt(cv*t/π))
+            kt = kappa/(2*sqrt(cv*ip.data.t/π))
             kb = kt
         end
 

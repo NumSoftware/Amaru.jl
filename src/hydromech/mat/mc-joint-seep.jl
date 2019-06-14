@@ -11,6 +11,7 @@ mutable struct MCJointSeepIpState<:IpState
     Δλ  ::Float64          # plastic multiplier
     h   ::Float64          # characteristic length from bulk elements
     time0::Float64         # time when the fracture opened
+    t   ::Float64          # time spent since the opening fissure
     function MCJointSeepIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         ndim = env.ndim
@@ -21,6 +22,7 @@ mutable struct MCJointSeepIpState<:IpState
         this.Δλ  = 0.0
         this.h  = 0.0
         this.time0 = 0.0
+        this.t  = 0.0
         return this
     end
 end
@@ -82,7 +84,7 @@ mutable struct MCJointSeep<:Material
         E>0.0       || error("Invalid value for E: $E")
         0<=nu<0.5   || error("Invalid value for nu: $nu")
         ft>=0       || error("Invalid value for ft: $ft")
-        mu>0     || error("Invalid value for mu: $mu")
+        mu>0        || error("Invalid value for mu: $mu")
         zeta>0      || error("Invalid value for zeta: $zeta")
         wc>0        || error("Invalid value for wc: $wc")
         (isnan(ws)  || ws>0) || error("Invalid value for ws: $ws")
@@ -92,7 +94,7 @@ mutable struct MCJointSeep<:Material
         0<alpha<=1.0|| error("Invalid value for alpha: $alpha")
         S>=0.0      || error("Invalid value for S: $S")
         beta>=0     || error("Invalid value for beta: $beta")
-        eta>=0       || error("Invalid value for eta: $eta")
+        eta>=0      || error("Invalid value for eta: $eta")
         kt>=0       || error("Invalid value for kt: $kt")
         kl>=0       || error("Invalid value for kl: $kl")
         (permeability==true || permeability==false) || error("Invalid permeability: permeability must to be true or false")
@@ -379,7 +381,7 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
 
 
     if isnan(Δw[1]) || isnan(Δw[2])
-        error("Invalid value for joint displacement: Δw = $Δw")
+        @warn "mc_joint_seep!: Invalid value for joint displacement: Δw = $Δw"
     end
 
     # σ trial and F trial
@@ -414,12 +416,17 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
         # Return to surface:
         F  = yield_func(mat, ipd, ipd.σ)   
         if F > 1e-3
-            warn("stress_update: The value of the yield function is $F")
+            @warn "stress_update: The value of the yield function is $F"
         end
     end
 
     if  ipd.upa != 0.0 && ipd.time0 == 0.0
         ipd.time0 = ipd.env.t  
+    elseif ipd.time0 != 0.0
+        ipd.t = ipd.env.t  - ipd.time0  # time spent since the opening fissure
+        if ipd.t < 0.0
+            warn("stress_update: The time value is negative $ipd.t")
+        end
     end
 
     ipd.w += Δw
