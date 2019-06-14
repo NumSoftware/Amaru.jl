@@ -9,7 +9,7 @@ mutable struct JointSeepIpState<:IpState
     uw   ::Float64          # fracture pore pressure
     upa  ::Float64          # effective plastic relative displacement
     h    ::Float64          # characteristic length from bulk elements
-    time0::Float64          # time when the fracture opened
+    t    ::Float64          # time when the fracture opened
     function JointSeepIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(3)
@@ -17,7 +17,7 @@ mutable struct JointSeepIpState<:IpState
         this.uw = 0.0 
         this.upa = 0.0
         this.h = 0.0
-        this.time0 = 0.0
+        this.t = 0.0
         return this
     end
 end
@@ -54,13 +54,13 @@ mutable struct ElasticJointSeep<:Material
         
         E>0.0       || error("Invalid value for E: $E")
         0<=nu<0.5   || error("Invalid value for nu: $nu") 
-        zeta>0      || error("Invalid value for zeta: $zeta")
+        zeta>=0     || error("Invalid value for zeta: $zeta")
         k>0         || error("Invalid value for k: $k")
         gammaw>0    || error("Invalid value for gammaw: $gammaw")
         0<alpha<=1.0|| error("Invalid value for alpha: $alpha")
         S>=0.0      || error("Invalid value for S: $S")
         beta>=0     || error("Invalid value for beta: $beta")
-        eta>=0       || error("Invalid value for eta: $eta")
+        eta>=0      || error("Invalid value for eta: $eta")
         kt>=0       || error("Invalid value for kt: $kt")
         kl>=0       || error("Invalid value for kl: $kl")
         (permeability==true || permeability==false) || error("Invalid permeability: permeability must to be true or false")
@@ -82,8 +82,8 @@ function mountD(mat::ElasticJointSeep, ipd::JointSeepIpState)
     kn = mat.E*mat.ζ/ipd.h
     ks =     G*mat.ζ/ipd.h
     if ndim==2
-        return [  kn  0.0 
-                 0.0   ks ]
+        return  [  kn  0.0 
+                  0.0   ks ]
     else
         return  [  kn  0.0  0.0
                   0.0   ks  0.0

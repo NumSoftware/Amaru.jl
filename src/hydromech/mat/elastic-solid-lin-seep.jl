@@ -31,10 +31,10 @@ mutable struct ElasticSolidLinSeep<:Material
         return  ElasticSolidLinSeep(;prms...)
     end
 
-    function ElasticSolidLinSeep(;E=NaN, nu=NaN, k=NaN, kappa=NaN, gammaw=NaN, alpha=1.0, S=0.0, n=NaN, Ks=NaN, Kw=NaN, mu=NaN)
+    function ElasticSolidLinSeep(;E=NaN, nu=NaN, k=NaN, kappa=NaN, gammaw=NaN, alpha=1.0, S=0.0, n=NaN, Ks=NaN, Kw=NaN, eta=NaN)
 
         if isnan(k) 
-            k = (kappa*gammaw)/mu # specific permeability = (intrinsic permeability * fluid specific weight)/viscosity
+            k = (kappa*gammaw)/eta # specific permeability = (intrinsic permeability * fluid specific weight)/viscosity
         end
 
         if isnan(S) 
