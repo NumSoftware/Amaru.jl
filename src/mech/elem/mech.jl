@@ -44,6 +44,15 @@ function elem_mass(elem::Mechanical)
 end
 
 """
+`elem_internal_forces!(elem, F)`
+
+Gets internal nodal forces from current element state.
+This function must be defined by each concrete type.
+"""
+function elem_internal_forces(elem::Mechanical, F::Array{Float64,1})
+end
+
+"""
 `elem_update!(elem, U, F)`
 
 Updates the state of an element given the current global vectors for essential and
