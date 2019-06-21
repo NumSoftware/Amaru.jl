@@ -4,7 +4,7 @@ export solve!
 
 
 # Assemble the global stiffness matrix
-function mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
+function tm_mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
 
     # Assembling matrix G
 
@@ -16,7 +16,7 @@ function mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
     for elem in dom.elems
 
         # Assemble the stiffness matrix
-        K, rmap, cmap = elem_stiffness(elem)
+        K, rmap, cmap = elem_stiffness_matrix(elem)
         nr, nc = size(K)
         for i=1:nr
             for j=1:nc
@@ -45,7 +45,7 @@ function mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
 
 
         # Assemble the conductivity matrix
-        H, rmap, cmap =  elem_conductivity_matrix(elem)
+        H, rmap, cmap = elem_conductivity_matrix(elem)
         nr, nc = size(H)
         for i=1:nr
             for j=1:nc
@@ -54,14 +54,25 @@ function mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
                 push!(V, α*Δt*H[i,j])
             end
         end
+
+        # Assemble the mass matrix
+        M, rmap, cmap = elem_mass_matrix(elem)
+        nr, nc = size(M)
+        for i=1:nr
+            for j=1:nc
+                push!(R, rmap[i])
+                push!(C, cmap[j])
+                push!(V, M[i,j])
+            end
+        end
         
         # Assembling RHS components
-        Uw = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes ]
-        RHS[rmap] -= Δt*(H*Uw)
+        Ut = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes ]
+        RHS[rmap] -= Δt*(H*Ut)
 
         # Assemble ramaining RHS vectors
-        Q, map = elem_RHS_vector(elem)
-        RHS[map] += Δt*Q
+        #Q, map = elem_RHS_vector(elem)
+        #RHS[map] += Δt*Q
     end
 
     # generating sparse matrix G
@@ -215,9 +226,6 @@ function tm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     ΔUa  = zeros(ndofs)  # vector of essential values (e.g. displacements) for this increment
     ΔUi  = zeros(ndofs)  # vector of essential values for current iteration
 
-    uw_map = [ dof.eq_id for dof in dofs if dof.name == :uw ]
-    uz_map = [ dof.eq_id for dof in dofs if dof.name == :uz ]
-
     Fex  = zeros(ndofs)  # vector of external loads
     Uex  = zeros(ndofs)  # vector of external essential values
 
@@ -259,13 +267,13 @@ function tm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
 
             # Try FE step
             verbose && print("    assembling... \r")
-            G, RHS = mount_G_RHS(dom, ndofs, it==1 ? Δt : 0.0 ) # TODO: check for Δt after iter 1
+            G, RHS = tm_mount_G_RHS(dom, ndofs, it==1 ? Δt : 0.0 ) # TODO: check for Δt after iter 1
 
             R .+= RHS
 
             # Solve
             verbose && print("    solving...   \r")
-            hm_solve_step!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
+            tm_solve_step!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
 
             # Update
             verbose && print("    updating... \r")

@@ -1,7 +1,7 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 
-mutable struct SeepSolid<:Hydromechanical
+mutable struct ThermoSolid<:Thermomechanical
     id    ::Int
     shape ::ShapeType
     cell  ::Cell
@@ -13,31 +13,29 @@ mutable struct SeepSolid<:Hydromechanical
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function SeepSolid(); 
+    function ThermoSolid(); 
         return new() 
     end
 end
 
-matching_shape_family(::Type{SeepSolid}) = SOLID_SHAPE
+matching_shape_family(::Type{ThermoSolid}) = SOLID_SHAPE
 
-function elem_config_dofs(elem::SeepSolid)
+function elem_config_dofs(elem::ThermoSolid)
     for node in elem.nodes
-        add_dof(node, :uw, :fw)
+        add_dof(node, :ut, :ft)
     end
 end
 
-function elem_init(elem::SeepSolid)
+function elem_init(elem::ThermoSolid)
     nothing
 end
 
 
-function distributed_bc(elem::SeepSolid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::ThermoSolid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
 
     # Check bcs
-    (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
-    !(key in (:tx, :ty, :tz, :tn)) && error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
-    # TODO: add tq boundary condition (fluid volume per area)
+    (key == :qt) || error("distributed_bc: boundary condition $key is not applicable in a ThermoSolid element")
 
     target = facet!=nothing ? facet : elem
     nodes  = target.nodes
@@ -66,49 +64,26 @@ function distributed_bc(elem::SeepSolid, facet::Union{Facet,Nothing}, key::Symbo
         J = D*C
         nJ = norm2(J)
         X = C'*N
-        if ndim==2
-            x, y = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y)
-            if key == :tx
-                Q = [vip, 0.0]
-            elseif key == :ty
-                Q = [0.0, vip]
-            elseif key == :tn
-                n = [J[1,2], -J[1,1]]
-                Q = vip*n/norm(n)
-            end
-        else
-            x, y, z = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y)
-            if key == :tx
-                Q = [vip, 0.0, 0.0]
-            elseif key == :ty
-                Q = [0.0, vip, 0.0]
-            elseif key == :tz
-                Q = [0.0, 0.0, vip]
-            elseif key == :tn && ndim==3
-                n = cross(J[1,:], J[2,:])
-                Q = vip*n/norm(n)
-            end
-        end
-        F += N*Q'*(nJ*w) # F is a matrix
+        x, y, z = X
+        vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
+        F += N*(vip*nJ*w) # F is a vector
     end
 
     # generate a map
-    keys = (:ux, :uy, :uz)[1:ndim]
-    map  = [ node.dofdict[key].eq_id for node in target.nodes for key in keys ]
+    map  = [ node.dofdict[:ut].eq_id for node in target.nodes ]
 
-    return reshape(F', nnodes*ndim), map
+    return F, map
 end
 
 
-function elem_conductivity_matrix(elem::SeepSolid)
+function elem_conductivity_matrix(elem::ThermoSolid)
     ndim   = elem.env.ndim
+    θ0     = elem.env.T0 + 273.15
     nnodes = length(elem.nodes)
     C      = elem_coords(elem)
     H      = zeros(nnodes, nnodes)
-    Bp     = zeros(ndim, nnodes)
-    KBp    = zeros(ndim, nnodes)
+    Bt     = zeros(ndim, nnodes)
+    KBt    = zeros(ndim, nnodes)
 
     J    = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
@@ -118,29 +93,58 @@ function elem_conductivity_matrix(elem::SeepSolid)
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J  = dNdR*C
-        @gemm Bp = inv(J)*dNdR
+        @gemm Bt = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # compute H
         K = calcK(elem.mat, ip.data)
-        coef = detJ*ip.w/elem.mat.γw
-        @gemm KBp = K*Bp
-        @gemm H -= coef*Bp'*KBp
+        coef = detJ*ip.w/θ0
+        @gemm KBt = K*Bt
+        @gemm H -= coef*Bt'*KBt
     end
 
     # map
-    map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
+    map = [ node.dofdict[:ut].eq_id for node in elem.nodes ]
 
     return H, map, map
 end
 
-function elem_RHS_vector(elem::SeepSolid)
+
+function elem_mass_matrix(elem::ThermoSolid)
+    ndim   = elem.env.ndim
+    θ0     = elem.env.T0 + 273.15
+    nnodes = length(elem.nodes)
+    C = elem_coords(elem)
+    M = zeros(nnodes, nnodes) 
+    J  = Array{Float64}(undef, ndim, ndim)
+
+    for ip in elem.ips
+        N    = elem.shape.func(ip.R)
+        dNdR = elem.shape.deriv(ip.R)
+        @gemm J = dNdR*C
+        detJ = det(J)
+        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+
+        # compute Cuu
+        coef = elem.mat.ρ*elem.mat.cv*detJ*ip.w/θ0
+        M  -= coef*N*N'
+    end
+
+    # map
+    map = [  node.dofdict[:ut].eq_id for node in elem.nodes  ]
+
+    return M, map, map
+end
+
+
+#=
+function elem_RHS_vector(elem::ThermoSolid)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     C      = elem_coords(elem)
-    Q      = zeros(nnodes)
-    Bp     = zeros(ndim, nnodes)
+    Q      = zeros(nnodes) # energy flux
+    Bt     = zeros(ndim, nnodes)
     KZ     = zeros(ndim)
 
     J      = Array{Float64}(undef, ndim, ndim)
@@ -153,7 +157,7 @@ function elem_RHS_vector(elem::SeepSolid)
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J  = dNdR*C
-        @gemm Bp = inv(J)*dNdR
+        @gemm Bt = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -161,32 +165,33 @@ function elem_RHS_vector(elem::SeepSolid)
         K = calcK(elem.mat, ip.data)
         coef = detJ*ip.w
         @gemv KZ = K*Z
-        @gemm Q += coef*Bp'*KZ
+        @gemm Q += coef*Bt'*KZ
     end
 
     # map
-    map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
+    map = [  node.dofdict[:ut].eq_id for node in elem.nodes  ]
 
     return Q, map
 end
+=#
 
 
-function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
+    θ0     = elem.env.T0 + 273.15
     nnodes = length(elem.nodes)
 
-    map_p  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
+    map_t  = [ node.dofdict[:ut].eq_id for node in elem.nodes ]
 
     C   = elem_coords(elem)
 
-    dUw = DU[map_p] # nodal pore-pressure increments
-    Uw  = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes ]
-    Uw += dUw # nodal pore-pressure at step n+1
+    dUt = DU[map_t] # nodal temperature increments
+    Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes ]
+    Ut += dUt # nodal temperature at step n+1
 
     dF  = zeros(nnodes*ndim)
-    Bu  = zeros(6, nnodes*ndim)
-    dFw = zeros(nnodes)
-    Bp  = zeros(ndim, nnodes)
+    dFt = zeros(nnodes)
+    Bt  = zeros(ndim, nnodes)
 
     DB = Array{Float64}(undef, 6, nnodes*ndim)
     J  = Array{Float64}(undef, ndim, ndim)
@@ -200,21 +205,18 @@ function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1
         @gemm J = dNdR*C
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
-        @gemm dNdX = inv(J)*dNdR
-        setBu(elem.env, dNdX, detJ, Bu)
 
-        Bp = dNdX
-        G  = Bp*Uw/elem.mat.γw # flow gradient
-        G[end] += 1.0; # gradient due to gravity
+        Bt = dNdX
+        G  = Bt*Ut/θ0 # flow gradient
 
-        Δuw = N'*dUw # interpolation to the integ. point
+        Δut = N'*dUt # interpolation to the integ. point
 
-        V = update_state!(elem.mat, ip.data, Δuw, G)
+        Q = update_state!(elem.mat, ip.data, Δut, G)
 
         coef = Δt*detJ*ip.w
-        @gemv dFw += coef*Bp'*V
+        @gemv dFt += coef*Bt'*Q
     end
 
-    DF[map_p] += dFw
+    DF[map_t] += dFt
 end
 

@@ -95,7 +95,7 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
     return reshape(F', nnodes*ndim), map
 end
 
-
+#=
 function setBu(env::ModelEnv, dNdX::Matx, detJ::Float64, B::Matx)
     ndim, nnodes = size(dNdX)
     B .= 0.0
@@ -135,6 +135,7 @@ function setBu(env::ModelEnv, dNdX::Matx, detJ::Float64, B::Matx)
 
     return detJ
 end
+=#
 
 
 function elem_stiffness(elem::TMSolid)

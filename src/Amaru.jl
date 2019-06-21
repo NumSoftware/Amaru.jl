@@ -104,6 +104,9 @@ include("mech/include.jl")
 # Hydromechanical module
 include("hydromech/include.jl")
 
+# Thermomechanical module
+include("thermomech/include.jl")
+
 # show function for Amaru types
 for datatype in (:Dof, :Node, :Ip, :IpState, :Element, :Material, :BC, :Facet, :AbstractLogger, :Domain)
     eval( quote
