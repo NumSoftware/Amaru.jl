@@ -6,22 +6,24 @@ mutable struct MCJointSeepIpState<:IpState
     env::ModelEnv
     σ   ::Array{Float64,1} # stress
     w   ::Array{Float64,1} # relative displacements
-    uw  ::Float64          # fracture pore pressure
+    uw  ::Array{Float64,1} # interface pore pressure
+    G   ::Array{Float64,1} # longitudinal flow gradient 
     upa ::Float64          # effective plastic relative displacement
     Δλ  ::Float64          # plastic multiplier
     h   ::Float64          # characteristic length from bulk elements
-    time0::Float64         # time when the fracture opened
+    t0  ::Float64          # time when the fracture opened
     t   ::Float64          # time spent since the opening fissure
     function MCJointSeepIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         ndim = env.ndim
-        this.σ = zeros(ndim)
-        this.w = zeros(ndim)
-        this.uw = 0.0        
+        this.σ  = zeros(ndim)
+        this.w  = zeros(ndim)
+        this.uw = zeros(3) 
+        this.G  = zeros(ndim-1)
         this.upa = 0.0
         this.Δλ  = 0.0
         this.h  = 0.0
-        this.time0 = 0.0
+        this.t0 = 0.0
         this.t  = 0.0
         return this
     end
@@ -371,7 +373,7 @@ function mountD(mat::MCJointSeep, ipd::MCJointSeepIpState)
 end
 
 
-function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Float64,1}, Δuw::Float64)
+function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1})
     ndim = ipd.env.ndim
     σini = copy(ipd.σ)
 
@@ -420,10 +422,10 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
         end
     end
 
-    if  ipd.upa != 0.0 && ipd.time0 == 0.0
-        ipd.time0 = ipd.env.t  
-    elseif ipd.time0 != 0.0
-        ipd.t = ipd.env.t  - ipd.time0  # time spent since the opening fissure
+    if  ipd.upa != 0.0 && ipd.t0 == 0.0
+        ipd.t0 = ipd.env.t  
+    elseif ipd.t0 != 0.0
+        ipd.t = ipd.env.t  - ipd.t0  # time spent since the opening fissure
         if ipd.t < 0.0
             warn("stress_update: The time value is negative $ipd.t")
         end
@@ -433,6 +435,7 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
     Δσ = ipd.σ - σini
 
     ipd.uw += Δuw
+    ipd.G   = G
 
     return Δσ
 end

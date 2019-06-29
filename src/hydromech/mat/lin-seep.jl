@@ -4,30 +4,33 @@ export LinSeep
 
 mutable struct LinSeepIpState<:IpState
     env::ModelEnv
-    uw::Float64
-    V::Array{Float64,1}
+    V::Array{Float64,1} # fluid velocity
+    uw::Float64         # pore pressure
     function LinSeepIpState(env::ModelEnv=ModelEnv()) 
         this = new(env)
-        this.V  = zeros(env.ndim)
         this.uw = 0.0
+        this.V  = zeros(env.ndim) 
         return this
     end
 end
 
 
 mutable struct LinSeep<:Material
-    k ::Float64
-    γw::Float64
+    k ::Float64 # specific permeability
+    γw::Float64 # specific weight of the fluid
+    S ::Float64 # Storativity coefficient
 
     function LinSeep(prms::Dict{Symbol,Float64})
         return  LinSeep(;prms...)
     end
 
-    function LinSeep(;k=NaN, gammaw=NaN)
-        isnan(k)     && error("Missing value for k")
-        isnan(gammaw)    && error("Missing value for gammaw")
-        !(gammaw>0)      && error("Invalid value for gammaw: $gammaw")
-        this    = new(k, gammaw)
+    function LinSeep(;k=NaN, gammaw=NaN, S=0.0)
+
+        k>0         || error("Invalid value for k: $k")
+        gammaw>0    || error("Invalid value for gammaw: $gammaw")
+        S>=0.0      || error("Invalid value for S: $S")
+
+        this    = new(k, gammaw, S)
         return this
     end
 end

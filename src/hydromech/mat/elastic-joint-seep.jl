@@ -6,16 +6,17 @@ mutable struct JointSeepIpState<:IpState
     env  ::ModelEnv
     σ    ::Array{Float64,1} # stress
     w    ::Array{Float64,1} # relative displacements
-    uw   ::Float64          # fracture pore pressure
-    upa  ::Float64          # effective plastic relative displacement
+    uw   ::Array{Float64,1} # interface pore pressure
+    G    ::Array{Float64,1} # longitudinal flow gradient 
     h    ::Float64          # characteristic length from bulk elements
     t    ::Float64          # time when the fracture opened
     function JointSeepIpState(env::ModelEnv=ModelEnv())
         this = new(env)
+        ndim = env.ndim
         this.σ = zeros(3)
         this.w = zeros(3)
-        this.uw = 0.0 
-        this.upa = 0.0
+        this.uw = zeros(3) 
+        this.G  = zeros(ndim-1)
         this.h = 0.0
         this.t = 0.0
         return this
@@ -91,7 +92,7 @@ function mountD(mat::ElasticJointSeep, ipd::JointSeepIpState)
     end
 end
 
-function stress_update(mat::ElasticJointSeep, ipd::JointSeepIpState, Δu::Array{Float64,1}, Δuw::Float64)
+function stress_update(mat::ElasticJointSeep, ipd::JointSeepIpState, Δu::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1})
     ndim = ipd.env.ndim
     D  = mountD(mat, ipd)
     Δσ = D*Δu
@@ -100,6 +101,7 @@ function stress_update(mat::ElasticJointSeep, ipd::JointSeepIpState, Δu::Array{
     ipd.σ[1:ndim] += Δσ
 
     ipd.uw += Δuw
+    ipd.G   = G
 
     return Δσ
 end

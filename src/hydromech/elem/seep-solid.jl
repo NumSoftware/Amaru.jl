@@ -135,6 +135,34 @@ function elem_conductivity_matrix(elem::SeepSolid)
     return H, map, map
 end
 
+function elem_compressibility_matrix(elem::SeepSolid)
+    ndim   = elem.env.ndim
+    nnodes = length(elem.nodes)
+    C   = elem_coords(elem)
+    Cpp = zeros(nnodes, nnodes) 
+
+    J  = Array{Float64}(undef, ndim, ndim)
+
+
+    for ip in elem.ips
+
+        N    = elem.shape.func(ip.R)
+        dNdR = elem.shape.deriv(ip.R)
+        @gemm J = dNdR*C
+        detJ = det(J)
+        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+
+        # compute Cuu
+        coef = detJ*ip.w*elem.mat.S 
+        Cpp  -= coef*N*N'
+    end
+
+    # map
+    map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
+
+    return Cpp, map, map
+end
+
 function elem_RHS_vector(elem::SeepSolid)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
@@ -170,6 +198,45 @@ function elem_RHS_vector(elem::SeepSolid)
     return Q, map
 end
 
+function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
+    ndim   = elem.env.ndim
+    nnodes = length(elem.nodes)
+    C   = elem_coords(elem)
+
+    map_p  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
+
+    dFw = zeros(nnodes)
+    Bp  = zeros(ndim, nnodes)
+
+    J  = Array{Float64}(undef, ndim, ndim)
+    dNdX = Array{Float64}(undef, ndim, nnodes)
+
+    for ip in elem.ips
+
+        # compute Bp matrix 
+        dNdR = elem.shape.deriv(ip.R)
+        @gemm J = dNdR*C
+        detJ = det(J)
+        detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
+        @gemm dNdX = inv(J)*dNdR
+
+        Bp = dNdX
+
+        # compute N
+        N    = elem.shape.func(ip.R)
+
+        # internal volumes dFw
+        uw   = ip.data.uw
+        coef = detJ*ip.w*elem.mat.S 
+        dFw -= coef*N*uw  
+
+        V    = ip.data.V
+        coef = detJ*ip.w
+        @gemv dFw += coef*Bp'*V
+    end
+
+    F[map_p] += dFw
+end
 
 function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
@@ -210,6 +277,9 @@ function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1
         Δuw = N'*dUw # interpolation to the integ. point
 
         V = update_state!(elem.mat, ip.data, Δuw, G)
+
+        coef = detJ*ip.w*elem.mat.S 
+        dFw -= coef*N*Δuw  
 
         coef = Δt*detJ*ip.w
         @gemv dFw += coef*Bp'*V
