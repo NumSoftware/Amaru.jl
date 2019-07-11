@@ -4,10 +4,10 @@ export ElasticSolidLinSeep
 
 mutable struct ElasticSolidLinSeepIpState<:IpState
     env::ModelEnv
-    σ::Array{Float64,1}
-    ε::Array{Float64,1}
-    V::Array{Float64,1}
-    uw::Float64
+    σ::Array{Float64,1} # stress
+    ε::Array{Float64,1} # strain
+    V::Array{Float64,1} # fluid velocity
+    uw::Float64         # pore pressure
     function ElasticSolidLinSeepIpState(env::ModelEnv=ModelEnv()) 
         this = new(env)
         this.σ = zeros(6)

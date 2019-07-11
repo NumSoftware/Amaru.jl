@@ -247,6 +247,13 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     Uex  = zeros(ndofs)  # vector of external essential values
 
     Uex, Fex = get_bc_vals(dom, bcs, t) # get values at time t  #TODO pick internal forces and displacements instead!
+
+    # Get unbalanced forces
+    Fin = zeros(ndofs)
+    for elem in dom.elems
+        elem_internal_forces(elem, Fin)
+    end
+    Fex .-= Fin # add negative forces to external forces vector
     
     for (i,dof) in enumerate(dofs)
         U[i] = dof.vals[dof.name]
