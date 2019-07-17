@@ -6,7 +6,7 @@ mutable struct LinThermoIpState<:IpState
     env::ModelEnv
     ut::Float64
     Q::Array{Float64,1}
-    function LinThermoIpState(env::ModelEnv=ModelEnv()) 
+    function LinThermoIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.ut = 0.0
         this.Q  = zeros(env.ndim)
@@ -16,9 +16,12 @@ end
 
 
 mutable struct LinThermo<:Material
-    k ::Float64 # Thermal conductivity
-    ρ ::Float64 # density
-    cv::Float64 # Specific heat
+    k ::Float64 # Thermal conductivity w/m/k
+    ρ ::Float64 # density Ton/m3
+    cv::Float64 # Specific heat J/Ton/k
+    #E ::Float64 # Young's modulus kPa
+    #nu::Float64 # Poisson ratio
+    #α ::Float64 #  coefficient of thermal expansion 1/K or 1/°C
 
     function LinThermo(prms::Dict{Symbol,Float64})
         return  LinThermo(;prms...)
@@ -39,7 +42,7 @@ matching_elem_type(::LinThermo) = ThermoSolid
 # Create a new instance of Ip data
 new_ip_state(mat::LinThermo, env::ModelEnv) = LinThermoIpState(env)
 
-function calcK(mat::LinThermo, ipd::LinThermoIpState) # Hydraulic conductivity matrix
+function calcK(mat::LinThermo, ipd::LinThermoIpState) # Thermal conductivity matrix
     ndim = ipd.env.ndim
     return mat.k*eye(ndim)
 end

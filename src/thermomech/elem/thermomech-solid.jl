@@ -1,7 +1,7 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 
-mutable struct TMSolid<:Hydromechanical
+mutable struct TMSolid<:Thermomechanical
     id    ::Int
     shape ::ShapeType
     cell  ::Cell
@@ -13,8 +13,8 @@ mutable struct TMSolid<:Hydromechanical
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function TMSolid(); 
-        return new() 
+    function TMSolid();
+        return new()
     end
 end
 
@@ -161,7 +161,7 @@ function elem_stiffness(elem::TMSolid)
 
         # compute K
         coef = detJ*ip.w
-        D    = calcD(elem.mat, ip.data) 
+        D    = calcD(elem.mat, ip.data)
         @gemm DB = D*B
         @gemm K += coef*B'*DB
     end
@@ -175,14 +175,15 @@ end
 
 
 # matrix C
-function elem_coupling_matrix(elem::TMSolid) 
+function elem_coupling_matrix(elem::TMSolid)
     ndim   = elem.env.ndim
+    mat  = elem.mat
     nnodes = length(elem.nodes)
     C   = elem_coords(elem)
     Bu  = zeros(6, nnodes*ndim)
     Cup = zeros(nnodes*ndim, nnodes) # u-p coupling matrix
-
-    J  = Array{Float64}(undef, ndim, ndim)
+    β   = mat.E*mat.α/(1-2*mat.nu) #3*K*alpha, K é o coeficiente de compressibilidade
+    J   = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
 
     m = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
@@ -199,7 +200,7 @@ function elem_coupling_matrix(elem::TMSolid)
         setBu(elem.env, dNdX, detJ, Bu)
 
         # compute K
-        coef = detJ*ip.w*elem.mat.α 
+        coef = detJ*ip.w*β
         mNt  = m*N'
 
         @gemm Cup -= coef*Bu'*mNt
@@ -217,28 +218,30 @@ end
 # thremal conductivity
 function elem_conductivity_matrix(elem::TMSolid)
     ndim   = elem.env.ndim
+    θ0     = elem.env.T0 + 273.15
     nnodes = length(elem.nodes)
     C      = elem_coords(elem)
     H      = zeros(nnodes, nnodes)
-    Bp     = zeros(ndim, nnodes)
-    KBp    = zeros(ndim, nnodes)
+    Bt     = zeros(ndim, nnodes)
+    KBt    = zeros(ndim, nnodes)
 
     J    = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
 
     for ip in elem.ips
 
+        N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J  = dNdR*C
-        @gemm Bp = inv(J)*dNdR
+        @gemm Bt = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # compute H
         K = calcK(elem.mat, ip.data)
-        coef = detJ*ip.w/elem.mat.γw
-        @gemm KBp = K*Bp
-        @gemm H -= coef*Bp'*KBp
+        coef = detJ*ip.w/θ0
+        @gemm KBt = K*Bt
+        @gemm H -= coef*Bt'*KBt
     end
 
     # map
@@ -248,20 +251,18 @@ function elem_conductivity_matrix(elem::TMSolid)
 end
 
 function elem_mass_matrix(elem::TMSolid)
-    if elem.mat.S == 0.0
-        return zeros(0,0), zeros(Int64,0), zeros(Int64,0)
-    end
+    #if elem.mat.S == 0.0
+    #    return zeros(0,0), zeros(Int64,0), zeros(Int64,0)
+    #end
 
     ndim   = elem.env.ndim
+    θ0     = elem.env.T0 + 273.15
     nnodes = length(elem.nodes)
-    C   = elem_coords(elem)
-    Cpp = zeros(nnodes, nnodes) 
-
+    C = elem_coords(elem)
+    M = zeros(nnodes, nnodes)
     J  = Array{Float64}(undef, ndim, ndim)
 
-
     for ip in elem.ips
-
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = dNdR*C
@@ -269,16 +270,17 @@ function elem_mass_matrix(elem::TMSolid)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # compute Cuu
-        coef = detJ*ip.w*elem.mat.S 
-        Cpp  -= coef*N*N'
+        coef = elem.mat.ρ*elem.mat.cv*detJ*ip.w/θ0
+        M  -= coef*N*N'
     end
 
     # map
-    map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
+    map = [  node.dofdict[:ut].eq_id for node in elem.nodes  ]
 
-    return Cpp, map, map
+    return M, map, map
 end
 
+#=
 function elem_RHS_vector(elem::TMSolid)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
@@ -289,7 +291,7 @@ function elem_RHS_vector(elem::TMSolid)
 
     J    = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
-    Z      = zeros(ndim) 
+    Z      = zeros(ndim)
     Z[end] = 1.0 # hydrostatic gradient
 
     for ip in elem.ips
@@ -312,7 +314,7 @@ function elem_RHS_vector(elem::TMSolid)
 
     return Q, map
 end
-
+=#
 
 function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
@@ -326,7 +328,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
 
     dU  = DU[map_u] # nodal displacement increments
     dUw = DU[map_p] # nodal pore-pressure increments
-    Uw  = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes ] 
+    Uw  = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes ]
     Uw += dUw # nodal pore-pressure at step n+1
     m = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
 
@@ -350,13 +352,13 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         @gemm dNdX = inv(J)*dNdR
         setBu(elem.env, dNdX, detJ, Bu)
 
-       	# Compute Δε 
+       	# Compute Δε
         @gemv Δε = Bu*dU
 
         # Compute Δuw
         Δuw = N'*dUw # interpolation to the integ. point
 
-        # Compute flow gradient G 
+        # Compute flow gradient G
         Bp = dNdX
         G  = Bp*Uw/elem.mat.γw
         G[end] += 1.0; # gradient due to gravity
@@ -374,8 +376,8 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         dFw  -= coef*N
 
         if elem.mat.S != 0.0
-            coef = elem.mat.S*Δuw*detJ*ip.w 
-            dFw -= coef*N       
+            coef = elem.mat.S*Δuw*detJ*ip.w
+            dFw -= coef*N
         end
 
         coef = Δt*detJ*ip.w
@@ -385,4 +387,3 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
     DF[map_u] += dF
     DF[map_p] += dFw
 end
-

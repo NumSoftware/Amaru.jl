@@ -65,7 +65,7 @@ function tm_mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
                 push!(V, M[i,j])
             end
         end
-        
+
         # Assembling RHS components
         Ut = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes ]
         RHS[rmap] -= Δt*(H*Ut)
@@ -97,7 +97,7 @@ function tm_solve_step!(G::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu
     ndofs = length(DU)
     umap  = 1:nu
     pmap  = nu+1:ndofs
-    if nu == ndofs 
+    if nu == ndofs
         @warn "solve!: No essential boundary conditions."
     end
 
@@ -158,7 +158,7 @@ Available options are:
 `scheme= :FE` : Predictor-corrector scheme at iterations. Available schemes are `:FE` and `:ME`
 
 """
-function tm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Float64=NaN, nincs::Int=1, maxits::Int=5, autoinc::Bool=false, 
+function tm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Float64=NaN, nincs::Int=1, maxits::Int=5, autoinc::Bool=false,
     tol::Number=1e-2, verbose::Bool=true, silent::Bool=false, nouts::Int=0, scheme::Symbol = :FE)
 
     # Arguments checking
@@ -166,7 +166,7 @@ function tm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     silent && (verbose=false)
 
     if !silent
-        printstyled("Hydromechanical FE analysis: Stage $(dom.stage+1)\n", bold=true, color=:cyan)
+        printstyled("Thermomechanical FE analysis: Stage $(dom.stage+1)\n", bold=true, color=:cyan)
         tic = time()
     end
 
@@ -181,7 +181,7 @@ function tm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     pmap  = nu+1:ndofs   # map for prescribed displacements and pw
     dom.ndofs = length(dofs)
     silent || println("  unknown dofs: $nu")
-    
+
     # Get array with all integration points
     ips = [ ip for elem in dom.elems for ip in elem.ips ]
 
@@ -194,10 +194,10 @@ function tm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
         end
 
         # Tracking nodes, ips, elements, etc.
-        update_loggers!(dom)  
+        update_loggers!(dom)
 
         # Save first output file
-        if saveincs 
+        if saveincs
             update_output_data!(dom)
             save(dom, "$(dom.filekey)-0.vtk", verbose=false)
             silent || printstyled("  $(dom.filekey)-0.vtk file written (Domain)\n", color=:green)
@@ -230,7 +230,7 @@ function tm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     Uex  = zeros(ndofs)  # vector of external essential values
 
     Uex, Fex = get_bc_vals(dom, bcs, t) # get values at time t  #TODO pick internal forces and displacements instead!
-    
+
     for (i,dof) in enumerate(dofs)
         U[i] = dof.vals[dof.name]
         F[i] = dof.vals[dof.natname]
@@ -284,11 +284,11 @@ function tm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             # Get internal forces and update data at integration points (update ΔFin)
             ΔFin .= 0.0
             ΔUt   = ΔUa + ΔUi
-            for elem in dom.elems  
+            for elem in dom.elems
                 elem_update!(elem, ΔUt, ΔFin, Δt)
             end
 
-            residue = maximum(abs, (ΔFex-ΔFin)[umap] ) 
+            residue = maximum(abs, (ΔFex-ΔFin)[umap] )
 
             # Update accumulated displacement
             ΔUa .+= ΔUi
