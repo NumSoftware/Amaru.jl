@@ -7,34 +7,37 @@ mutable struct ElasticSolidLinCondIpState<:IpState
     σ::Array{Float64,1}
     ε::Array{Float64,1}
     V::Array{Float64,1}
-    uw::Float64
-    function ElasticSolidLinCondIpState(env::ModelEnv=ModelEnv()) 
+    function ElasticSolidLinCondIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
         this.V = zeros(env.ndim)
-        this.uw = 0.0
         return this
     end
 end
 
 
 mutable struct ElasticSolidLinCond<:Material
-    E ::Float64
+    E ::Float64 # Young's Modulus kN/m2
     nu::Float64
-    k ::Float64 # thermal conductivity
-    α ::Float64 # thermal expansion coefficient
+    k ::Float64 # thermal conductivity  w/m/k
+    ρ ::Float64 # density Ton/m3
+    cv::Float64 # Specific heat J/Ton/k
+    α ::Float64 # thermal expansion coefficient  1/K or 1/°C
+
 
     function ElasticSolidLinCond(prms::Dict{Symbol,Float64})
         return  ElasticSolidLinCond(;prms...)
     end
 
-    function ElasticSolidLinCond(;E=1.0, nu=0.0, k=NaN, gammaw=NaN, alpha=1.0)
+    function ElasticSolidLinCond(;E=1.0, nu=0.0, k=NaN, rho=NaN, cv=NaN, alpha=1.0)
         E<=0.0       && error("Invalid value for E: $E")
         !(0<=nu<0.5) && error("Invalid value for nu: $nu")
         isnan(k)     && error("Missing value for k")
+        E<=0.0       && error("Invalid value for E: $E")
+        cv<=0.0       && error("Invalid value for E: $E")
         0<=alpha<=1  || error("Invalid value for alpha: $alpha")
-        this = new(E, nu, k, gammaw, alpha)
+        this = new(E, nu, k, rho, cv, alpha)
         return this
     end
 end
@@ -64,7 +67,6 @@ function stress_update(mat::ElasticSolidLinCond, ipd::ElasticSolidLinCondIpState
     ipd.σ  += Δσ
     K = calcK(mat, ipd)
     ipd.V   = -K*G
-    ipd.uw += Δuw
     return Δσ, ipd.V
 end
 
