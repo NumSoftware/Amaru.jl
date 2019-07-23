@@ -245,7 +245,7 @@ function elem_internal_forces(elem::MechSolid, F::Array{Float64,1})
         @gemm J = dNdR*C
         @gemm dNdX = inv(J)*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
+        detJ > 0.0 || error("Negative jacobian determinant in element $(elem.id)")
         setB(elem.env, dNdX, detJ, B)
 
         σ    = ip.data.σ
