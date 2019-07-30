@@ -4,14 +4,17 @@ export ElasticSolidThermo
 
 mutable struct ElasticSolidThermoIpState<:IpState
     env::ModelEnv
-    σ::Array{Float64,1}
-    ε::Array{Float64,1}
-    V::Array{Float64,1}
+    σ::Array{Float64,1} # stress
+    ε::Array{Float64,1} # strain
+    Q::Array{Float64,1}
+    ut::Float64
+
     function ElasticSolidThermoIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
-        this.V = zeros(env.ndim)
+        this.Q = zeros(env.ndim)
+        this.ut = 0.0
         return this
     end
 end
@@ -19,7 +22,7 @@ end
 
 mutable struct ElasticSolidThermo<:Material
     E ::Float64 # Young's Modulus kN/m2
-    nu::Float64
+    nu::Float64 # Poisson coefficient
     k ::Float64 # thermal conductivity  w/m/k
     ρ ::Float64 # density Ton/m3
     cv::Float64 # Specific heat J/Ton/k
@@ -52,7 +55,7 @@ function calcD(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState)
     return calcDe(mat.E, mat.nu, ipd.env.modeltype) # function calcDe defined at elastic-solid.jl
 end
 
-function calcK(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState) # Hydraulic conductivity matrix
+function calcK(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState) # Thermal conductivity matrix
     if ipd.env.ndim==2
         return mat.k*eye(2)
     else
@@ -60,23 +63,24 @@ function calcK(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState) # Hydrau
     end
 end
 
-function stress_update(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState, Δε::Array{Float64,1}, Δuθ::Float64, G::Array{Float64,1})
+function stress_update(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1})
     De = calcD(mat, ipd)
     Δσ = De*Δε
     ipd.ε  += Δε
     ipd.σ  += Δσ
     K = calcK(mat, ipd)
-    ipd.V   = -K*G
-    return Δσ, ipd.V
+    ipd.Q = -K*G
+    ipd.ut += Δut
+    return Δσ, ipd.Q
 end
 
 function ip_state_vals(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState)
     D = stress_strain_dict(ipd.σ, ipd.ε, ipd.env.ndim)
 
-    D[:vx] = ipd.V[1]
-    D[:vy] = ipd.V[2]
+   D[:qx] = ipd.Q[1]
+    D[:qy] = ipd.Q[2]
     if ipd.env.ndim==3
-        D[:vz] = ipd.V[3]
+        D[:qz] = ipd.Q[3]
     end
 
     return D
