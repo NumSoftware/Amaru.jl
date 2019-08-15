@@ -1,9 +1,8 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export NIConcrete
+export DamageConcrete
 
-
-mutable struct NIConcrete<:Material
+mutable struct DamageConcrete<:Material
     E0::Float64  # initial Young modulus
     ν::Float64
     ft::Float64
@@ -12,11 +11,11 @@ mutable struct NIConcrete<:Material
     εc0::Float64
     ρ::Float64
 
-    function NIConcrete(prms::Dict{Symbol,Float64})
-        return  NIConcrete(;prms...)
+    function DamageConcrete(prms::Dict{Symbol,Float64})
+        return  DamageConcrete(;prms...)
     end
 
-    function NIConcrete(; E=NaN, nu=0.2, ft=NaN, GF=NaN, fc=NaN, epsc=NaN, rho=0.0)
+    function DamageConcrete(; E=NaN, nu=0.2, ft=NaN, GF=NaN, fc=NaN, epsc=NaN, rho=0.0)
         E >0.0 || error("Invalid value for rho: $E")
         ft>0.0 || error("Invalid value for ft: $ft")
         GF>0.0 || error("Invalid value for GF: $GF")
@@ -32,7 +31,7 @@ mutable struct NIConcrete<:Material
 end
 
 
-mutable struct NIConcreteIpState<:IpState
+mutable struct DamageConcreteIpState<:IpState
     env::ModelEnv
     σ::Array{Float64,1}  # current stress
     ε::Array{Float64,1}  # current strain
@@ -43,9 +42,9 @@ mutable struct NIConcreteIpState<:IpState
     damt::Float64
     damc::Float64
 
-    NIConcreteIpState() = new()
+    DamageConcreteIpState() = new()
 
-    function NIConcreteIpState(mat::NIConcrete, env::ModelEnv=ModelEnv()) 
+    function DamageConcreteIpState(mat::DamageConcrete, env::ModelEnv=ModelEnv()) 
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
@@ -61,74 +60,86 @@ mutable struct NIConcreteIpState<:IpState
 end
 
 
-
 # Returns the element type that works with this material model
-matching_elem_type(::NIConcrete) = MechSolid
+matching_elem_type(::DamageConcrete) = MechSolid
 
 # Create a new instance of Ip data
-new_ip_state(mat::NIConcrete, env::ModelEnv) = NIConcreteIpState(mat, env)
+new_ip_state(mat::DamageConcrete, env::ModelEnv) = DamageConcreteIpState(mat, env)
 
 
-function uniaxial_σ(mat::NIConcrete, ipd::NIConcreteIpState, εi::Float64)
+function uniaxial_σ(mat::DamageConcrete, ipd::DamageConcreteIpState, εi::Float64)
+    σ1c, σ2c, σ3c = neg.(eigvals(ipd.σ))
     if εi>=0  # tension: Nilsson and Oldenburg 1982; Beshara and Virdi 1991; Wu and Yao 1998
-        εt0 = mat.ft/mat.E0
+        αt = 2.05
+        #αt = 1.5 #*
+        γ = 1.0 - αt/mat.fc*( √(σ1c^2 + σ2c^2+ σ3c^2)) # suggested value for coef: 2.0
+        #γ = 1.0 - αt/mat.fc*( abs(σ1c + σ2c+ σ3c)) # suggested value for coef: 2.0
+        #γ = 1.0
+        ft = mat.ft*γ
+        εt0 = ft/mat.E0
         if εi<εt0
             return εi*mat.E0
         else
-            return mat.ft*exp(-mat.ft/(mat.GF/ipd.h)*(εi-εt0))
+            #γ = 1.0 - 0.5/mat.fc*( √(σ1c^2 + σ2c^2+ σ3c^2))
+            return ft*exp(-ft/(mat.GF/ipd.h)*(εi-εt0))
         end
     else # compression: Popovics 1973; Carreira and Chu 1985
-        #fc = mat.fc
-        #fcc = 1.5*fc
-        #σ1c, σ2c, σ3c = neg.(eigvals(ipd.σ))
-        #γ = 1.0 - (fcc-fc)/fc^2*( √(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c))
+        αc = 0.3
+        #αc = 0.2
+        #γ = 1.0 + αc*((σ2c*σ3c+ σ1c*σ3c+ σ1c*σ2c)/mat.fc^2)^0.25 # suggested values for coef: 0.2
+        #γ = 1.0 + αc*((σ2c*σ3c+ σ1c*σ3c+ σ1c*σ2c)/mat.fc^2) # suggested values for coef: 0.2
+        γ = 1.0 - αc/mat.fc*( √(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c)) # suggested values for coef: 0.2
+        fc = mat.fc*γ
 
-
-        β = 1/(1-mat.fc/(mat.εc0*mat.E0))
+        β = 1/(1-fc/(mat.εc0*mat.E0))
         β = max(min(β,10),2) # limit the value of β
-
         εr = εi/mat.εc0
-        return mat.fc*(β*εr)/(β - 1.0 + εr^β)
-        #return γ*mat.fc*(β*εr)/(β - 1.0 + εr^β)
+        return fc*(β*εr)/(β - 1.0 + εr^β)
     end
 end
 
 
-function uniaxial_E(mat::NIConcrete, ipd::NIConcreteIpState, εi::Float64)
+function uniaxial_E(mat::DamageConcrete, ipd::DamageConcreteIpState, εi::Float64)
+    σ1c, σ2c, σ3c = neg.(eigvals(ipd.σ))
     if εi>=0 # tension
-        εt0 = mat.ft/mat.E0
+        αt = 2.05
+        #αt = 1.5 #*
+        γ = 1.0 - αt/mat.fc*( √(σ1c^2 + σ2c^2+ σ3c^2)) # suggested value for coef: 2.0
+        #γ = 1.0 - αt/mat.fc*( abs(σ1c + σ2c+ σ3c)) # suggested value for coef: 2.0
+        #γ = 1.0 - 2.05/mat.fc*( abs(σ1c + σ2c+ σ3c)) # suggested value for coef: 2.0
+        #γ = 1.0
+        ft = mat.ft*γ
+        εt0 = ft/mat.E0
         if εi<εt0
             return mat.E0
         else
-            Et = mat.ft*exp(-mat.ft/(mat.GF/ipd.h)*(εi-εt0)) * (-mat.ft/(mat.GF/ipd.h))
+            Et = ft*exp(-ft/(mat.GF/ipd.h)*(εi-εt0)) * (-ft/(mat.GF/ipd.h))
             return Et
         end
     else # compression
+        αc = 0.3
+        #αc = 0.2
+        #αc = 0.25
+        #αc = 0.05 #*
+        γ = 1.0 - αc/mat.fc*( √(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c)) # suggested values for coef: 0.2
+        #γ = 1.0 - 0.15/mat.fc*( √(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c)) # suggested values for coef: 0.4
+        #γ = 1.0 + 0.2*((σ2c*σ3c+ σ1c*σ3c+ σ1c*σ2c)/mat.fc^2)^0.25 # suggested values for coef: 0.3
+        #γ = 1.0 + 0.45(√(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c))/abs(mat.fc) # suggested values for coef: 0.45
+        #γ = 1.0
+        fc = mat.fc*γ
 
-        fc = mat.fc
-        #fcc = 1.41*fc
-        σ1c, σ2c, σ3c = neg.(eigvals(ipd.σ))
-        #γ = 1.0 - (fcc-fc)/fc^2*( √(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c))
-        α = 0.37
-        #α = 0.00
-        γ = 1.0 - α/fc*( √(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c))
-        #@show γ
-
-
-        εc0 = mat.εc0
+        εc0 = mat.εc0*γ
         εr  = εi/εc0
 
-        #εr  = εi/εc0/γ
-
-        β = 1/(1-mat.fc/(εc0*mat.E0))
-        #β = max(min(β,10),2)
-        Ec = β*(mat.fc/εc0)/(β-1+εr^β) - β^2*(mat.fc/εc0)*εr^β/(β-1+εr^β)^2
+        β = 1/(1-fc/(εc0*mat.E0))
+        Ec = β*(fc/εc0)/(β-1+εr^β) - β^2*(fc/εc0)*εr^β/(β-1+εr^β)^2
+        #Ec *= γ
         return Ec
     end
 end
 
 
-function calcD(mat::NIConcrete, ipd::NIConcreteIpState)
+function calcD(mat::DamageConcrete, ipd::DamageConcreteIpState)
     # special functions
     pos(x) = (abs(x)+x)/2.0
     neg(x) = (-abs(x)+x)/2.0
@@ -148,59 +159,40 @@ function calcD(mat::NIConcrete, ipd::NIConcreteIpState)
     if σ̅c==0 
         in_tension = true
     else
-        in_tension = σ̅t/σ̅c > abs(mat.ft/mat.fc)
-        #in_tension = σ̅t/σ̅c > abs(mat.ft/mat.fc) || ε̅t>ε̅c
-        #in_tension = ε̅t>ε̅c
-        #in_tension = ε̅t/ε̅c>0.1
-        #in_tension = σ̅t/σ̅c > 0.01
+        in_tension = σ̅t/σ̅c > 0.01
     end
 
     # estimate tangent Young modulus
     if in_tension
         if ipd.in_linear_range
-            #@show "linear tension"
-            #E = σ̅t/ε̅t
-            #E = ε̅t==0 ? mat.E0 : σ̅t/ε̅t
             E = ε̅t==0 ? mat.E0 : min(mat.E0, σ̅t/ε̅t)
-            #if E>2e7
-                #@show "linear tension"
-                #@show E
-                #error()
-            #end
         else
-            #@show "tension"
             E = Efun(ε̅t)
-
-            #if σ̅c>σ̅t
-                #E = sign(E)*√abs(E*Efun(ε̅c))
-                #E = Efun(ε̅c)
-            #end
         end
+        ν = mat.ν*(1-ipd.damt)
     else
         if ipd.in_linear_range
-            #@show "linear compression"
-            #E = ε̅c==0 ? mat.E0 : σ̅c/ε̅c
             E = ε̅c==0 ? mat.E0 : min(mat.E0, σ̅c/ε̅c)
-            #if E>2e7
-                #@show "linear compression"
-                #@show E
-                #error()
-            #end
         else
-            #@show "compression"
             E = Efun(-ε̅c)
         end
+        #ν = mat.ν*(1-ipd.damc)
+        ν = mat.ν
     end
 
     Emin = mat.E0*1e-6
     abs(E)<Emin && (E=Emin)
 
-    return calcDe(E, mat.ν, :general)
+
+    #D  = calcDe(E, mat.ν, :general)
+    #ν = mat.ν
+    D  = calcDe(E, ν, :general)
+    return D
 end
 
 
-#function calcDsec(mat::NIConcrete, ipd::NIConcreteIpState, Δε::Array{Float64,1}, modeltype::Symbol)
-function stress_update(mat::NIConcrete, ipd::NIConcreteIpState, Δε::Array{Float64,1})
+#function calcDsec(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Array{Float64,1}, modeltype::Symbol)
+function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Array{Float64,1})
     # special functions
     pos(x) = (abs(x)+x)/2.0
     neg(x) = (-abs(x)+x)/2.0
@@ -209,8 +201,8 @@ function stress_update(mat::NIConcrete, ipd::NIConcreteIpState, Δε::Array{Floa
 
 
     εp = eigvals(ipd.ε)
-    ecc = norm(neg.(εp))
-    ett = norm(pos.(εp))
+    #ecc = norm(neg.(εp))
+    #ett = norm(pos.(εp))
 
 
     ipd.ε .+= Δε
@@ -229,22 +221,8 @@ function stress_update(mat::NIConcrete, ipd::NIConcreteIpState, Δε::Array{Floa
     if σ̅c==0 
         in_tension = true
     else
-        in_tension = σ̅t/σ̅c > abs(mat.ft/mat.fc)
-        #in_tension = σ̅t/σ̅c > abs(mat.ft/mat.fc) || ε̅t>ε̅c
-        #in_tension = ε̅t>ε̅c
-        #in_tension = ε̅t/ε̅c>0.1
-        #in_tension = σ̅t/σ̅c > 0.01
-        #@show σ̅t/σ̅c
-        #@show ε̅t/ε̅c
+        in_tension = σ̅t/σ̅c > 0.01
     end
-    #@show in_tension
-    #@show (mat.ft/mat.E0)
-    #@show abs(mat.εc0)
-    #@show ε̅t/ε̅c
-    #@show (mat.ft/mat.E0) / abs(mat.εc0)
-    #@show σp
-    #@show σ̅t/σ̅c
-    #@show ipd.ε̅cmax
 
     ipd.ε̅tmax = max(ε̅t, ipd.ε̅tmax)
     ipd.ε̅cmax = max(ε̅c, ipd.ε̅cmax)
@@ -252,43 +230,28 @@ function stress_update(mat::NIConcrete, ipd::NIConcreteIpState, Δε::Array{Floa
     # estimate tangent Young modulus
     if in_tension
         if ε̅t < ipd.ε̅tmax
-            #@show "int linear tension"
-            #E = σ̅t/ε̅t
-            #E = ε̅t==0 ? mat.E0 : σ̅t/ε̅t
             E = ε̅t==0 ? mat.E0 : min(mat.E0, σ̅t/ε̅t)
 
             ipd.in_linear_range = true
         else
-            #@show "int tension"
             E = Efun(ε̅t)
-            #E = abs(σfun(ε̅t)-σfun(ett))/Δε̅tmax
             ipd.in_linear_range = false
         end
+        ν = mat.ν*(1-ipd.damt)
     else
         if ε̅c < ipd.ε̅cmax
-            #@show "int linear compression"
-            #@show σp
-            #@show σ̅c
-            #@show ε̅c
-            #@show ipd.ε̅cmax
-            #E = σ̅c/ε̅c
-            #E = ε̅c==0 ? mat.E0 : σ̅c/ε̅c
             E = ε̅c==0 ? mat.E0 : min(mat.E0, σ̅c/ε̅c)
             ipd.in_linear_range = true
         else
-            #@show "int compression"
             E = Efun(-ε̅c)
-            #E = Efun(-ecc)
-            #E = abs(σfun(-ε̅c)-σfun(-ecc))/Δε̅cmax
             ipd.in_linear_range = false
         end
+        #ν = mat.ν*(1-ipd.damc)
+        ν = mat.ν
     end
 
     # Fix negative E values to avoid stress signal change in compression
     if E<0
-        #@show Δε̅cmax
-        #@show Δε̅tmax
-        #if σ̅c+E*Δε̅cmax < 0
         if σ̅c+E*Δε̅cmax < 0 && Δε̅cmax > Δε̅tmax
             E = -σ̅c/Δε̅cmax
         end
@@ -305,24 +268,30 @@ function stress_update(mat::NIConcrete, ipd::NIConcreteIpState, Δε::Array{Floa
     abs(E)<Emin && (E=Emin)
 
 
-    D  = calcDe(E, mat.ν, :general)
+    #ν = mat.ν
+    #D  = calcDe(E, mat.ν, :general)
+    D  = calcDe(E, ν, :general)
     Δσ = D*Δε
     ipd.σ .+= Δσ
 
-    #@show σfun(ipd.ε̅tmax)/ipd.ε̅tmax
-    #@show -σfun(-ipd.ε̅cmax)/ipd.ε̅cmax
-    #@show σfun(ipd.ε̅tmax)/ipd.ε̅tmax/mat.E0
-    #@show -σfun(-ipd.ε̅cmax)/ipd.ε̅cmax/mat.E0
+    ipd.damt = clamp(1.0 - σfun(ipd.ε̅tmax)/ipd.ε̅tmax/mat.E0, 0.0, 1.0)
+    ipd.damc = clamp(1.0 + σfun(-ipd.ε̅cmax)/ipd.ε̅cmax/mat.E0, 0.0, 1.0)
+    #ipd.damt = 1.0 - σfun(ipd.ε̅tmax)/ipd.ε̅tmax/mat.E0
+    #ipd.damc = 1.0 + σfun(-ipd.ε̅cmax)/ipd.ε̅cmax/mat.E0
 
-    ipd.damt = 1.0 - σfun(ipd.ε̅tmax)/ipd.ε̅tmax/mat.E0
-    ipd.damc = 1.0 + σfun(-ipd.ε̅cmax)/ipd.ε̅cmax/mat.E0
+    #if ipd.damt<0 || ipd.damt>1
+        #@show ipd.damt
+        #@show σfun(ipd.ε̅tmax)
+        #@show ipd.ε̅tmax
+        #error("damage error")
+    #end
 
     #ipd.env.cstage==1 && ipd.env.cinc==2 && error()
 
     return Δσ
 end
 
-function ip_state_vals(mat::NIConcrete, ipd::NIConcreteIpState)
+function ip_state_vals(mat::DamageConcrete, ipd::DamageConcreteIpState)
     dict = stress_strain_dict(ipd.σ, ipd.ε, ipd.env.ndim)
     dict[:damt] = ipd.damt
     dict[:damc] = ipd.damc
