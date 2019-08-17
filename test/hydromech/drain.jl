@@ -26,7 +26,17 @@ mats = [
 ]
 
 dom = Domain(mesh, mats)
+t0 = 1e8
 
+
+# Stage 1: pore-pressure stabilization
+bcs = [
+       :(z==1.0) => NodeBC(uw=0),
+      ]
+
+hm_solve!(dom, bcs, end_time=t0, nincs=1, tol=1e-2, nouts=1, verbose=true)
+
+# Stage 2: volume application
 bcs = [
        :(x==0.0 && y==0.0 && z==0.0) => NodeBC(uw=0),
        :(x==2.0 && y==2.0 && z==0.0) => NodeBC(uw=0),
@@ -34,6 +44,6 @@ bcs = [
       ]
 
 
-hm_solve!(dom, bcs, end_time=100.0, nincs=1, tol=1e-2, nouts=5, verbose=true)
+hm_solve!(dom, bcs, end_time=t0+100.0, nincs=1, tol=1e-2, nouts=1, verbose=true)
 
 save(dom, "dom1.vtk")
