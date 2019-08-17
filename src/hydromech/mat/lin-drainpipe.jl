@@ -1,12 +1,12 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export RodLinSeep
+export LinDrainPipe
 
-mutable struct RodLinSeepIpState<:IpState
+mutable struct LinDrainPipeIpState<:IpState
     env::ModelEnv
     V::Float64       # fluid velocity
     uw::Float64      # pore pressure
-    function RodLinSeepIpState(env::ModelEnv=ModelEnv())
+    function LinDrainPipeIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.V = 0.0
         this.uw = 0.0
@@ -14,17 +14,17 @@ mutable struct RodLinSeepIpState<:IpState
     end
 end
 
-mutable struct RodLinSeep<:Material
+mutable struct LinDrainPipe<:Material
     k ::Float64     # specific permeability
     γw::Float64     # specific weight of the fluid
     β ::Float64     # compressibility of fluid
     A ::Float64     # section area
 
-    function RodLinSeep(prms::Dict{Symbol,Float64})
-        return  RodLinSeep(;prms...)
+    function LinDrainPipe(prms::Dict{Symbol,Float64})
+        return  LinDrainPipe(;prms...)
     end
 
-    function RodLinSeep(;k=NaN, gammaw=NaN, beta=0.0, A=NaN)
+    function LinDrainPipe(;k=NaN, gammaw=NaN, beta=0.0, A=NaN)
         k<=0.0 && error("Invalid value for k: $k")
         gammaw<=0.0 && error("Invalid value for gammaw: $gammaw")
         beta<0.0 && error("Invalid value for beta: $beta")
@@ -33,20 +33,20 @@ mutable struct RodLinSeep<:Material
     end
 end
 
-matching_elem_type(::RodLinSeep) = SeepRod
-#matching_elem_type_if_embedded(::RodLinSeep) = SeepEmbRod
+matching_elem_type(::LinDrainPipe) = DrainPipe
+#matching_elem_type_if_embedded(::LinDrainPipe) = SeepEmbRod
 
 # Create a new instance of Ip data
-new_ip_state(mat::RodLinSeep, env::ModelEnv) = RodLinSeepIpState(env)
+new_ip_state(mat::LinDrainPipe, env::ModelEnv) = LinDrainPipeIpState(env)
 
-function update_state!(mat::RodLinSeep, ipd::RodLinSeepIpState, Δuw::Float64, G::Float64)
+function update_state!(mat::LinDrainPipe, ipd::LinDrainPipeIpState, Δuw::Float64, G::Float64)
     k = mat.k
     ipd.V  -= k*G 
     ipd.uw += Δuw
     return ipd.V
 end
 
-function ip_state_vals(mat::RodLinSeep, ipd::RodLinSeepIpState)
+function ip_state_vals(mat::LinDrainPipe, ipd::LinDrainPipeIpState)
     return OrderedDict(
       :va => ipd.V,
       :uwa => ipd.uw,

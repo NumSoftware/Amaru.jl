@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-mutable struct SeepRod<:Hydromechanical
+mutable struct DrainPipe<:Hydromechanical
     id    ::Int
     shape ::ShapeType
     cell  ::Cell
@@ -12,21 +12,21 @@ mutable struct SeepRod<:Hydromechanical
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function SeepRod()
+    function DrainPipe()
         return new() 
     end
 end
 
-matching_shape_family(::Type{SeepRod}) = LINE_SHAPE
+matching_shape_family(::Type{DrainPipe}) = LINE_SHAPE
 
-function elem_config_dofs(elem::SeepRod)
+function elem_config_dofs(elem::DrainPipe)
     nnodes = length(elem.nodes)
     for (i, node) in enumerate(elem.nodes)
         add_dof(node, :uw, :fw)
     end
 end
 
-function elem_conductivity_matrix(elem::SeepRod)
+function elem_conductivity_matrix(elem::DrainPipe)
 local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
@@ -61,7 +61,7 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
     return H, map, map
 end
 
-function elem_compressibility_matrix(elem::SeepRod)
+function elem_compressibility_matrix(elem::DrainPipe)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
 
@@ -92,7 +92,7 @@ function elem_compressibility_matrix(elem::SeepRod)
     return Cpp, map, map
 end
 
-function elem_RHS_vector(elem::SeepRod)
+function elem_RHS_vector(elem::DrainPipe)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
 
@@ -127,7 +127,7 @@ function elem_RHS_vector(elem::SeepRod)
     return Q, map
 end
 
-function elem_internal_forces(elem::SeepRod, F::Array{Float64,1})
+function elem_internal_forces(elem::DrainPipe, F::Array{Float64,1})
 local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
@@ -173,7 +173,7 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
     F[map_p] += dFw
 end
 
-function elem_update!(elem::SeepRod, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
     local A::Float64, coef::Float64, dNdR::Matrix{Float64}
 
     ndim   = elem.env.ndim
@@ -230,7 +230,7 @@ function elem_update!(elem::SeepRod, DU::Array{Float64,1}, DF::Array{Float64,1},
 end
 
 
-function elem_vals(elem::SeepRod)
+function elem_vals(elem::DrainPipe)
     # get area and average stress and axial force
     vals = OrderedDict(:A => elem.mat.A )
     mean_va = mean( ip_state_vals(elem.mat, ip.data)[:va] for ip in elem.ips )

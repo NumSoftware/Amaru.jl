@@ -10,13 +10,13 @@ include("elem/hydromech-joint.jl")
 
 # Seep Elements
 include("elem/seep-solid.jl")
-include("elem/seep-rod.jl")
+include("elem/drainpipe.jl")
 include("elem/seep-joint1d.jl")
 
 # Models for solid elements (1D, 2D and 3D)
 include("mat/elastic-solid-lin-seep.jl")
 include("mat/lin-seep.jl")
-include("mat/rod-lin-seep.jl")
+include("mat/lin-drainpipe.jl")
 
 # Models for joint elements
 include("mat/elastic-joint-seep.jl")
