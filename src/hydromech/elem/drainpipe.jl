@@ -211,11 +211,10 @@ function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1
         Np   = N'   
 
         # flow gradient
-        G  = Bp*Uw/elem.mat.γw # flow gradient
-        G[end] += J3; # gradient due to gravity
-        G = G[1,1]
+        G  = dot(Bp,Uw)/elem.mat.γw # flow gradient
+        G += J3; # gradient due to gravity
 
-        Δuw = Np*dUw # interpolation to the integ. point
+        Δuw = dot(Np,dUw) # interpolation to the integ. point
 
         V = update_state!(elem.mat, ip.data, Δuw, G)
 
@@ -231,10 +230,10 @@ end
 
 
 function elem_vals(elem::DrainPipe)
-    # get area and average stress and axial force
+    # get area and average fluid velocity and flow
     vals = OrderedDict(:A => elem.mat.A )
     mean_va = mean( ip_state_vals(elem.mat, ip.data)[:va] for ip in elem.ips )
     vals[:va] = mean_va
-    vals[:Qa]  = elem.mat.A*mean_va
+    vals[:Qa] = elem.mat.A*mean_va
     return vals
 end

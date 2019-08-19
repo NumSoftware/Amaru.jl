@@ -52,6 +52,9 @@ function mountB(elem::SeepJoint1D, R, Ch, Ct)
     nsnodes = length(hook.nodes)
     D = bar.shape.deriv(R)
     J = D*Ct
+    @show J 
+    @show D 
+    @show Ct
 
     # Mount NN matrix
     N = bar.shape.func(R)
@@ -72,6 +75,7 @@ function mountB(elem::SeepJoint1D, R, Ch, Ct)
     B = [ NN*MM  -NN ]
 
     detJ = norm(J)
+    @show detJ
     return B, detJ
 end
 
@@ -89,7 +93,7 @@ function elem_conductivity_matrix(elem::SeepJoint1D)
         detJ = elem.cache_detJ[i]
 
         coef = detJ*ip.w*(elem.mat.k/elem.mat.γw)*h
-        H -= coef*Bp'*Bp # verificar se é negativo ou positivo
+        H -= coef*Bp'*Bp 
     end
 
 	map_p = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
@@ -102,7 +106,7 @@ function elem_internal_forces(elem::SeepJoint1D, F::Array{Float64,1})
     nnodes = length(elem.nodes)
     hook = elem.linked_elems[1]
     bar  = elem.linked_elems[2]
-    dFw = zeros(nnodes)
+    dFw  = zeros(nnodes)
     h    = elem.mat.h
 
     map_p = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
@@ -141,11 +145,8 @@ function elem_update!(elem::SeepJoint1D, DU::Array{Float64,1}, DF::Array{Float64
         detJ = elem.cache_detJ[i]
 
         # flow gradient
-        G  = Bp*Uw/elem.mat.γw # flow gradient
-        G  = G[1,1]
-
-        Δuw = Bp*dUw # interpolation to the integ. point
-        Δuw = Δuw[1,1]
+        G  = dot(Bp,Uw)/elem.mat.γw # flow gradient
+        Δuw = dot(Bp,dUw)# interpolation to the integ. point
 
         V = update_state!(elem.mat, ip.data, Δuw, G)
 
