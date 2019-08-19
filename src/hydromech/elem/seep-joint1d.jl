@@ -52,9 +52,6 @@ function mountB(elem::SeepJoint1D, R, Ch, Ct)
     nsnodes = length(hook.nodes)
     D = bar.shape.deriv(R)
     J = D*Ct
-    @show J 
-    @show D 
-    @show Ct
 
     # Mount NN matrix
     N = bar.shape.func(R)
@@ -75,7 +72,7 @@ function mountB(elem::SeepJoint1D, R, Ch, Ct)
     B = [ NN*MM  -NN ]
 
     detJ = norm(J)
-    @show detJ
+
     return B, detJ
 end
 
