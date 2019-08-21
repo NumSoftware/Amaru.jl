@@ -169,24 +169,58 @@ Available options are:
 
 `maxits=5` : The maximum number of Newton-Rapson iterations per increment
 
-`saveincs=false` : If true, saves output files according to `nouts` option
-
 `nouts=0` : Number of output files per analysis
 
 `scheme= :FE` : Predictor-corrector scheme at iterations. Available schemes are `:FE` and `:ME`
 
 """
-function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Float64=NaN, nincs::Int=1, maxits::Int=5, autoinc::Bool=false, 
-    tol::Number=1e-2, verbose::Bool=true, silent::Bool=false, nouts::Int=0, scheme::Symbol = :FE)
-
-    # Arguments checking
-    saveincs = nouts>0
-    silent && (verbose=false)
+function hm_solve!(
+                   dom       :: Domain,
+                   bcs       :: Array;
+                   time_span :: Float64 = NaN,
+                   end_time  :: Float64 = NaN,
+                   nincs     :: Int     = 1,
+                   maxits    :: Int     = 5,
+                   autoinc   :: Bool    = false,
+                   maxincs   :: Int     = 1000000,
+                   tol       :: Number  = 1e-2,
+                   scheme    :: Symbol  = :FE,
+                   nouts     :: Int     = 0,
+                   outdir    :: String  = "",
+                   filekey   :: String  = "out",
+                   verbose   :: Bool    = false,
+                   silent    :: Bool    = false,
+                  )
 
     if !silent
         printstyled("Hydromechanical FE analysis: Stage $(dom.stage+1)\n", bold=true, color=:cyan)
-        tic = time()
+        sw = StopWatch() # timing
     end
+
+    # Arguments checking
+    silent && (verbose=false)
+
+    tol>0 || error("solve! : tolerance should be greater than zero")
+    env = dom.env
+    env.cstage += 1
+    env.cinc    = 0
+
+    save_incs = nouts>0
+    if save_incs
+        if nouts>nincs
+            nincs = nouts
+            @info "  nincs changed to $nincs to match nouts"
+        end
+        if nincs%nouts != 0
+            nincs = nincs - (nincs%nouts) + nouts
+            @info "  nincs changed to $nincs to be a multiple of nouts"
+        end
+
+        strip(outdir) == "" && (outdir = ".")
+        isdir(outdir) || error("solve!: output directory <$outdir> not fount")
+        outdir[end] in ('/', '\\')  && (outdir = outdir[1:end-1])
+    end
+
 
     if !isnan(end_time)
         time_span = end_time - dom.env.t
@@ -206,6 +240,25 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     State = [ ip.data for elem in dom.elems for ip in elem.ips ]
     StateBk = copy.(State)
 
+
+    # Save initial file and loggers
+    if env.cstage==1
+        # Setup initial quantities at dofs
+        for (i,dof) in enumerate(dofs)
+            dof.vals[dof.name]    = 0.0
+            dof.vals[dof.natname] = 0.0
+        end
+
+        update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
+        update_output_data!(dom) # Updates data arrays in domain
+
+        if save_incs
+            save(dom, "$outdir/$filekey-0.vtk", verbose=false)
+            verbose && printstyled("  $outdir/$filekey-0.vtk file written (Domain)\n", color=:green)
+        end
+    end
+
+    #=
     # Setup for fisrt stage
     if dom.nincs == 0
         # Setup initial quantities at dofs
@@ -218,12 +271,13 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
         update_loggers!(dom)  
 
         # Save first output file
-        if saveincs 
+        if save_incs 
             update_output_data!(dom)
             save(dom, "$(dom.filekey)-0.vtk", verbose=false)
             silent || printstyled("  $(dom.filekey)-0.vtk file written (Domain)\n", color=:green)
         end
     end
+    =#
 
     # Incremental analysis
     t    = dom.env.t # current time
@@ -234,8 +288,8 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     T  = t + dT        # output time for saving the next vtk file
 
     ttol = 1e-9    # time tolerance
-    inc  = 1       # increment counter
-    iout = dom.nouts     # file output counter
+    inc  = 0       # increment counter
+    iout = env.cout     # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
@@ -260,7 +314,18 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
         F[i] = dof.vals[dof.natname]
     end
 
+    local G::SparseMatrixCSC{Float64,Int64}
+    local RHS::Array{Float64,1}
+
     while t < tend - ttol
+        # Update counters
+        inc += 1
+        env.cinc += 1
+
+        if inc > maxincs
+            printstyled("  solver maxincs = $maxincs reached (try maxincs=0)\n", color=:red)
+            return false
+        end
 
         verbose && printstyled("  increment $inc from t=$(round(t,sigdigits=9)) to t=$(round(t+Δt,sigdigits=9)) (dt=$(round(Δt,sigdigits=9))):\n", bold=true, color=:blue) # color 111
 
@@ -283,8 +348,6 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
         converged = false
         maxfails  = 3    # maximum number of it. fails with residual change less than 90%
         nfails    = 0    # counter for iteration fails
-        local G::SparseMatrixCSC{Float64,Int64}
-        local RHS::Array{Float64,1}
         for it=1:maxits
             if it>1; ΔUi .= 0.0 end # essential values are applied only at first iteration
             lastres = residue # residue from last iteration
@@ -358,13 +421,14 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
 
             # Check for saving output file
             Tn = t + Δt
-            if Tn+ttol>=T && saveincs
-                iout += 1
+            if Tn+ttol>=T && save_incs
+                env.cout += 1
+                iout = env.cout
                 update_output_data!(dom)
-                save(dom, "$(dom.filekey)-$iout.vtk", verbose=false)
+                save(dom, "$outdir/$filekey-$iout.vtk", verbose=false)
                 T = Tn - mod(Tn, dT) + dT
                 silent || verbose || print("                                             \r")
-                silent || printstyled("  $(dom.filekey)-$iout.vtk file written (Domain)\n", color=:green)
+                silent || printstyled("  $outdir/$filekey-$iout.vtk file written (Domain)\n", color=:green)
             end
 
             # Update time t and Δt
@@ -393,18 +457,14 @@ function hm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     end
 
     # time spent
-    if !silent
-        h, r = divrem(time()-tic, 3600)
-        m, r = divrem(r, 60)
-        println("  time spent: $(h)h $(m)m $(round(r,digits=3))s")
-    end
+    silent || println("  time spent: ", see(sw, format=:hms), " "^20)
 
     update_output_data!(dom)
 
     # Update number of used increments at domain
-    dom.nincs += inc
-    dom.nouts = iout
-    dom.stage += 1
+    #dom.nincs += inc
+    #dom.nouts = iout
+    #dom.stage += 1
 
     return true
 

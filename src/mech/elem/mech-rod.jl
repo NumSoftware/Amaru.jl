@@ -188,9 +188,43 @@ function distributed_bc(elem::MechRod, facet::Union{Facet, Nothing}, key::Symbol
     return reshape(F', nnodes*ndim), map
 end
                         
+function elem_internal_forces(elem::MechRod)
+    ndim   = elem.env.ndim
+    nnodes = length(elem.nodes)
+    A      = elem.mat.A
+    keys   = [:ux, :uy, :uz][1:ndim]
+    map    = Int[ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
+
+    F = zeros(nnodes*ndim)
+    C = elem_coords(elem)
+    B = zeros(1, nnodes*ndim)
+    J = Array{Float64}(undef, 1, ndim)
+
+    for ip in elem.ips
+        dNdR = elem.shape.deriv(ip.R)
+        @gemm J = dNdR*C
+        detJ = norm(J)
+
+        # mount B
+        B .= 0.0
+        for i in 1:nnodes
+            for j=1:ndim
+                B[1,j+(i-1)*ndim] = dNdR[1,i]*J[j]/detJ^2.0
+            end
+        end
+
+        σ = ip.data.σ
+        coef = A*detJ*ip.w
+        F .+= coef*σ*vec(B')
+    end
+
+    return F, map
+#
+    #Fint[map] .+= F
+end
+
                         
 function elem_update!(elem::MechRod, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
-    local A::Float64, coef::Float64, dNdR::Matrix{Float64}
 
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)

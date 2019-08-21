@@ -35,6 +35,7 @@ mutable struct ElasticSolidIpState<:IpState
 end
 
 
+
 # Returns the element type that works with this material model
 matching_elem_type(::ElasticSolid) = MechSolid
 

@@ -81,7 +81,8 @@ function uniaxial_σ(mat::DamageConcrete, ipd::DamageConcreteIpState, εi::Float
             return εi*mat.E0
         else
             #γ = 1.0 - 0.5/mat.fc*( √(σ1c^2 + σ2c^2+ σ3c^2))
-            return ft*exp(-ft/(mat.GF/ipd.h)*(εi-εt0))
+            w = (εi-εt0)*ipd.h # crack openning
+            return ft*exp(-ft/mat.GF*w)
         end
     else # compression: Popovics 1973; Carreira and Chu 1985
         αc = 0.3

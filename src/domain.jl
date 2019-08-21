@@ -119,6 +119,25 @@ function SubDomain(elems::Array{<:Element,1})
 end
 
 
+"""
+    Domain(mesh, mats, options...)
+
+Uses a mesh and a list of meterial especifications to construct a finite element `Domain`.    
+
+# Arguments
+
+`mesh` : A finite element mesh
+
+`mats` : Material definitions given as an array of pairs ( tag or location => constitutive model instance )
+
+# Keyword arguments
+
+`modeltype`
+`thickness`
+`filekey = ""` : File key for output files
+`verbose = true` : If true, provides information of the domain construction
+
+"""
 function Domain(mesh::Mesh, matbinds::Array{<:Pair,1}; modeltype::Symbol=:general, thickness::Real=1.0, filekey::String="out", verbose::Bool=true)
 
     dom  = Domain(filekey=filekey)
@@ -255,10 +274,6 @@ end
 
 # Function for setting loggers
 """
-    setloggers!(domain, logger)
-
-Register a new `logger` in `domain`.
-
     setloggers!(domain, loggers)
 
 Register each logger from the array `loggers` in `domain`.

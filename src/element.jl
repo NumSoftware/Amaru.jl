@@ -134,28 +134,28 @@ function elem_config_ips(elem::Element, nips::Int=0)
 end
 
 
-"""
-`set_mat(elems, mat, [nips=0])`
-
-Especifies the material model `mat` to be used to represent the behavior of a set of `Element` objects `elems`.
-"""
-function set_mat(elems::Array{<:Element,1}, mat::Material; nips::Int64=0)
-    length(elems)==0 && @warn "Defining material model $(typeof(mat)) for an empty array of elements."
-
-    for elem in elems
-        set_mat(elem, mat, nips=nips)
-    end
-end
+#"""
+#`set_mat(elems, mat, [nips=0])`
+#
+#Especifies the material model `mat` to be used to represent the behavior of a set of `Element` objects `elems`.
+#"""
+#function set_mat(elems::Array{<:Element,1}, mat::Material; nips::Int64=0)
+    #length(elems)==0 && @warn "Defining material model $(typeof(mat)) for an empty array of elements."
+#
+    #for elem in elems
+        #set_mat(elem, mat, nips=nips)
+    #end
+#end
 
 
 # Define the state at all integration points in a collection of elements
-function set_state(elems::Array{<:Element,1}; args...)
-    for elem in elems
-        for ip in elem.ips
-            set_state(ip.data; args...)
-        end
-    end
-end
+#function set_state(elems::Array{<:Element,1}; args...)
+    #for elem in elems
+        #for ip in elem.ips
+            #set_state(ip.data; args...)
+        #end
+    #end
+#end
 
 
 # Get all nodes from a collection of elements
@@ -190,7 +190,7 @@ function getindex(elem::Element, s::Symbol)
     if s == :ips
         return elem.ips
     end
-    error("Element getindex: Invalid symbol $s")
+    throw(ArgumentError("Element getindex: Invalid index $s"))
 end
 
 # Index operator for a collection of elements
