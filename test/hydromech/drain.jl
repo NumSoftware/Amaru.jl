@@ -4,8 +4,8 @@ using Amaru
 # Mesh generation
 #bl  = Block( [0 0 0; 2.0 2.0 1.0], nx=2, ny=2, nz=1, cellshape=HEX8, tag="solids")
 bl  = Block( [0 0 0; 2.0 2.0 1.0], nx=4, ny=4, nz=2, cellshape=HEX20, tag="solids")
-bl1 = BlockInset( [0.0 0.0 0.0; 1.0 1.0 1.0], curvetype="polyline", tag="drains", jointtag="joints")
-bl2 = BlockInset( [1.0 1.0 1.0; 2.0 2.0 0.0], curvetype="polyline", tag="drains", jointtag="joints")
+bl1 = BlockInset( [1.0 1.0 0.999; 0.0 0.0 0.0], curvetype="polyline", tag="drains", jointtag="joints")
+bl2 = BlockInset( [1.0 1.0 0.999; 2.0 2.0 0.0], curvetype="polyline", tag="drains", jointtag="joints")
 bls = [bl, bl1, bl2]
 
 mesh = Mesh(bls, verbose=true)
@@ -14,7 +14,7 @@ gw = 9.8     # water specific weight
 A  = 0.01
 k  = 1e-10 
 kb = 1 
-kj = 10000 
+kj = 10 
 Q  = 1       # volume em metro cubico
 
 # FEM analysis
@@ -26,15 +26,15 @@ mats = [
 ]
 
 dom = Domain(mesh, mats)
-t0 = 1e8
-
 
 # Stage 1: pore-pressure stabilization
 bcs = [
        :(z==1.0) => NodeBC(uw=0),
       ]
 
-hm_solve!(dom, bcs, end_time=t0, nincs=1, tol=1e-2, nouts=1, verbose=true)
+hm_solve!(dom, bcs, end_time=100.0, nincs=1, tol=1e-2, nouts=1, verbose=true)
+
+dom.env.t = 0.0
 
 # Stage 2: volume application
 bcs = [
@@ -44,6 +44,6 @@ bcs = [
       ]
 
 
-hm_solve!(dom, bcs, end_time=t0+100.0, nincs=1, tol=1e-2, nouts=1, verbose=true)
+hm_solve!(dom, bcs, end_time=100.0, nincs=1, tol=1e-2, nouts=1, verbose=true)
 
 save(dom, "dom1.vtk")

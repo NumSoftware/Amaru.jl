@@ -5,19 +5,17 @@ export Joint1DLinSeep
 mutable struct Joint1DLinSeepIpState<:IpState
     env::ModelEnv
     ndim::Int
-    V::Float64       # fluid velocity
-    uw::Float64      # pore pressure
+    V::Float64     # fluid velocity
     function Joint1DLinSeepIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         ndim = env.ndim
         this.V = 0.0
-        this.uw = 0.0
         return this
     end
 end
 
 mutable struct Joint1DLinSeep<:Material
-    k ::Float64    # specific permeability
+    k ::Float64    # specific permeability per meter
     γw::Float64    # specific weight of the fluid
     h ::Float64    # section perimeter
 
@@ -54,15 +52,13 @@ matching_elem_type(::Joint1DLinSeep) = SeepJoint1D
 # Create a new instance of Ip data
 new_ip_state(mat::Joint1DLinSeep, env::ModelEnv) = Joint1DLinSeepIpState(env)
 
-function update_state!(mat::Joint1DLinSeep, ipd::Joint1DLinSeepIpState, Δuw::Float64, G::Float64)
+function update_state!(mat::Joint1DLinSeep, ipd::Joint1DLinSeepIpState, ΔFw::Float64)
     k = mat.k
-    ipd.V  -= k*G 
-    ipd.uw += Δuw
+    ipd.V  -= k*ΔFw 
     return ipd.V
 end
 
 function ip_state_vals(mat::Joint1DLinSeep, ipd::Joint1DLinSeepIpState)
     return OrderedDict(
-      :va => ipd.V,
-      :uwa => ipd.uw)
+      :vj => ipd.V)
 end
