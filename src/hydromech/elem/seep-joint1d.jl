@@ -141,11 +141,9 @@ function elem_update!(elem::SeepJoint1D, DU::Array{Float64,1}, DF::Array{Float64
         Bp   = elem.cache_B[i]
         detJ = elem.cache_detJ[i]
 
-        # flow gradient
-        G  = dot(Bp,Uw)/elem.mat.γw # flow gradient
-        Δuw = dot(Bp,dUw)# interpolation to the integ. point
-
-        V = update_state!(elem.mat, ip.data, Δuw, G)
+        # poropression difference between solid and drain
+        ΔFw = dot(Bp,Uw)/elem.mat.γw 
+        V = update_state!(elem.mat, ip.data, ΔFw)
 
         coef = Δt*detJ*ip.w*h
         dFw += coef*Bp'*V

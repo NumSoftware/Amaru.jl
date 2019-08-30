@@ -46,9 +46,7 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
 
         # mount Bp
         Bp .= 0.0
-        for i in 1:nnodes
-            Bp[1,i] = dNdR[1,i]*(1/detJ)
-        end
+		Bp = dNdR/detJ
 
         # compute H
         coef = detJ*ip.w*(elem.mat.k/elem.mat.γw)*A
@@ -102,21 +100,17 @@ function elem_RHS_vector(elem::DrainPipe)
     Bp = zeros(1, nnodes)
     dNdX = Array{Float64}(undef, 1, nnodes)
     J  = Array{Float64}(undef, 1, ndim)
-    Juni  = Array{Float64}(undef, 1, ndim)
 
     for ip in elem.ips
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = dNdR*C
         detJ = norm(J)
-        Juni = J/norm(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        Jvert = Juni[1,end]
+        Jvert = J[end]/detJ
 
         # mount Bp
         Bp .= 0.0
-        for i in 1:nnodes
-            Bp[1,i] = dNdR[1,i]*(1/detJ)
-        end
+		Bp = dNdR/detJ
 
         # compute Q
         coef = detJ*ip.w*elem.mat.k*Jvert*A
@@ -153,9 +147,7 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
         
         # mount Bp
         Bp .= 0.0
-        for i in 1:nnodes
-            Bp[1,i] = dNdR[1,i]*(1/detJ)
-        end
+		Bp = dNdR/detJ
 
         # compute Np vector
         N    = elem.shape.func(ip.R)
@@ -189,10 +181,8 @@ function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1
     Uw  = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes ]
     Uw += dUw # nodal pore-pressure at step n+1
 
-    Bp = zeros(1, nnodes)
     dNdX = Array{Float64}(undef, 1, nnodes)
     J  = Array{Float64}(undef, 1, ndim)
-    #Juni  = Array{Float64}(undef, 1, ndim)
     dFw = zeros(nnodes)
 
     for ip in elem.ips
@@ -200,36 +190,22 @@ function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = dNdR*C
         detJ = norm(J)
-        #Juni = J/norm(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        #Jvert = Juni[1,end]
         Jvert = J[end]/detJ
         
         # mount Bp
-        Bp = dNdR/detJ
-        #Bp .= 0.0
-        #for i in 1:nnodes
-            #Bp[1,i] = dNdR[1,i]*(1/detJ)
-        #end
+		Bp = dNdR/detJ
 
         # compute Np vector
-        N    = elem.shape.func(ip.R)
-        Np   = N'   
+        N  = elem.shape.func(ip.R)
+        Np = N'
 
         # flow gradient
         G  = dot(Bp,Uw)/elem.mat.γw # flow gradient
-        @show G 
         G += Jvert; # gradient due to gravity
-        @show Bp
-        @show Uw
-        @show Jvert
-
         Δuw = dot(Np,dUw) # interpolation to the integ. point
 
         V = update_state!(elem.mat, ip.data, Δuw, G)
-        @show Δuw 
-        @show V
-        println()
 
         coef = A*detJ*ip.w*elem.mat.β
         dFw -= coef*Np'*Δuw  
