@@ -34,7 +34,7 @@ mutable struct PPRod<:Material
         E>0.0     || error("Invalid value for E: $E")
         A>0.0     || error("Invalid value for A: $A")
         sig_y>0.0 || error("Invalid value for sig_y: $sig_y")
-        rho>=0.0   || error("Invalid value for rho: $rho")
+        rho>=0.0  || error("Invalid value for rho: $rho")
 
         return new(E, A, sig_y, H, rho)
     end

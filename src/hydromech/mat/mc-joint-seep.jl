@@ -444,7 +444,7 @@ end
 function ip_state_vals(mat::MCJointSeep, ipd::MCJointSeepIpState)
     ndim = ipd.env.ndim
     if ndim == 3
-       return Dict(
+       return OrderedDict(
           :w1  => ipd.w[1] ,
           :w2  => ipd.w[2] ,
           :w3  => ipd.w[3] ,
@@ -454,7 +454,7 @@ function ip_state_vals(mat::MCJointSeep, ipd::MCJointSeepIpState)
           :upa => ipd.upa
           )
     else
-        return Dict(
+        return OrderedDict(
           :w1  => ipd.w[1] ,
           :w2  => ipd.w[2] ,
           :s1  => ipd.σ[1] ,

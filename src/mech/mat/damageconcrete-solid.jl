@@ -11,10 +11,6 @@ mutable struct DamageConcrete<:Material
     εc0::Float64
     ρ::Float64
 
-    function DamageConcrete(prms::Dict{Symbol,Float64})
-        return  DamageConcrete(;prms...)
-    end
-
     function DamageConcrete(; E=NaN, nu=0.2, ft=NaN, GF=NaN, fc=NaN, epsc=NaN, rho=0.0)
         E >0.0 || error("Invalid value for rho: $E")
         ft>0.0 || error("Invalid value for ft: $ft")
@@ -42,8 +38,6 @@ mutable struct DamageConcreteIpState<:IpState
     damt::Float64
     damc::Float64
 
-    #DamageConcreteIpState() = new()
-
     function DamageConcreteIpState(env::ModelEnv=ModelEnv()) 
         this = new(env)
         this.σ = zeros(6)
@@ -64,7 +58,7 @@ end
 matching_elem_type(::DamageConcrete) = MechSolid
 
 # Type of corresponding state structure
-ip_state_type(mat::DamageConcrete) = DamageConcreteIpState(mat, env)
+ip_state_type(mat::DamageConcrete) = DamageConcreteIpState
 
 
 function uniaxial_σ(mat::DamageConcrete, ipd::DamageConcreteIpState, εi::Float64)

@@ -58,7 +58,7 @@ end
 
 
 function ip_state_vals(mat::LinSeep, ipd::LinSeepIpState)
-    D = Dict{Symbol, Float64}()
+    D = OrderedDict{Symbol, Float64}()
     D[:vx] = ipd.V[1]
     D[:vy] = ipd.V[2]
     if ipd.env.ndim==3
