@@ -43,8 +43,8 @@ end
 matching_elem_type(::PPRod) = MechRod
 matching_elem_type_if_embedded(::PPRod) = MechEmbRod
 
-# Create a new instance of Ip data
-new_ip_state(mat::PPRod, env::ModelEnv) = PPRodIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::PPRod) = PPRodIpState
 
 function yield_func(mat::PPRod, ipd::PPRodIpState, σ::Float64)
     σya = mat.σy0 + mat.H*ipd.εpa

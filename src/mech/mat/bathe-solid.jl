@@ -81,8 +81,8 @@ end
 
 matching_elem_type(::Orthotropic) = MechSolid
 
-# Create a new instance of Ip data
-new_ip_state(mat::Orthotropic, env::ModelEnv) = OrthotropicIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::Orthotropic) = OrthotropicIpState
 
 
 function loading_func(mat::Orthotropic, σ::Tensor2)

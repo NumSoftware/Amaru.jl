@@ -51,8 +51,8 @@ end
 # Returns the element type that works with this material
 matching_elem_type(::Joint1DLinSeep) = SeepJoint1D
 
-# Create a new instance of Ip data
-new_ip_state(mat::Joint1DLinSeep, env::ModelEnv) = Joint1DLinSeepIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::Joint1DLinSeep) = Joint1DLinSeepIpState
 
 function update_state!(mat::Joint1DLinSeep, ipd::Joint1DLinSeepIpState, Δuw::Float64, G::Float64)
     k = mat.k

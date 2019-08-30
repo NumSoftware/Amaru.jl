@@ -192,7 +192,7 @@ function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1
     Bp = zeros(1, nnodes)
     dNdX = Array{Float64}(undef, 1, nnodes)
     J  = Array{Float64}(undef, 1, ndim)
-    Juni  = Array{Float64}(undef, 1, ndim)
+    #Juni  = Array{Float64}(undef, 1, ndim)
     dFw = zeros(nnodes)
 
     for ip in elem.ips
@@ -200,15 +200,17 @@ function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = dNdR*C
         detJ = norm(J)
-        Juni = J/norm(J)
+        #Juni = J/norm(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        Jvert = Juni[1,end]
+        #Jvert = Juni[1,end]
+        Jvert = J[end]/detJ
         
         # mount Bp
-        Bp .= 0.0
-        for i in 1:nnodes
-            Bp[1,i] = dNdR[1,i]*(1/detJ)
-        end
+        Bp = dNdR/detJ
+        #Bp .= 0.0
+        #for i in 1:nnodes
+            #Bp[1,i] = dNdR[1,i]*(1/detJ)
+        #end
 
         # compute Np vector
         N    = elem.shape.func(ip.R)
@@ -216,10 +218,10 @@ function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1
 
         # flow gradient
         G  = dot(Bp,Uw)/elem.mat.γw # flow gradient
+        @show G 
         G += Jvert; # gradient due to gravity
         @show Bp
         @show Uw
-        @show G 
         @show Jvert
 
         Δuw = dot(Np,dUw) # interpolation to the integ. point
@@ -227,6 +229,7 @@ function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1
         V = update_state!(elem.mat, ip.data, Δuw, G)
         @show Δuw 
         @show V
+        println()
 
         coef = A*detJ*ip.w*elem.mat.β
         dFw -= coef*Np'*Δuw  

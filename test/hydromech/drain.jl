@@ -3,8 +3,8 @@ using Amaru
 
 # Mesh generation
 #bl  = Block( [0 0 0; 2.0 2.0 1.0], nx=2, ny=2, nz=1, cellshape=HEX8, tag="solids")
-bl  = Block( [0 0 0; 2.0 2.0 1.0], nx=4, ny=4, nz=2, cellshape=HEX20, tag="solids")
-bl1 = BlockInset( [0.0 0.0 0.0; 1.0 1.0 1.0], curvetype="polyline", tag="drains", jointtag="joints")
+bl  = Block( [0 0 0; 2.0 2.0 1.0], nx=2, ny=2, nz=1, cellshape=HEX20, tag="solids")
+bl1 = BlockInset( [1.0 1.0 1.0; 0.0 0.0 0.0], curvetype="polyline", tag="drains", jointtag="joints")
 bl2 = BlockInset( [1.0 1.0 1.0; 2.0 2.0 0.0], curvetype="polyline", tag="drains", jointtag="joints")
 bls = [bl, bl1, bl2]
 

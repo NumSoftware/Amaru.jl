@@ -72,8 +72,8 @@ end
     matching_elem_type(::MCJoint) = MechJoint
 end
 
-# Create a new instance of Ip data
-new_ip_state(mat::MCJoint, env::ModelEnv) = MCJointIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::MCJoint) = MCJointIpState
 
 
 function yield_func(mat::MCJoint, ipd::MCJointIpState, σ::Array{Float64,1})

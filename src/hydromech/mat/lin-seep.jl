@@ -38,8 +38,8 @@ end
 # Returns the element type that works with this material model
 matching_elem_type(::LinSeep) = SeepSolid
 
-# Create a new instance of Ip data
-new_ip_state(mat::LinSeep, env::ModelEnv) = LinSeepIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::LinSeep) = LinSeepIpState
 
 function calcK(mat::LinSeep, ipd::LinSeepIpState) # Hydraulic conductivity matrix
     if ipd.env.ndim==2

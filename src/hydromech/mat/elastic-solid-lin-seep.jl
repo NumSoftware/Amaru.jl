@@ -56,8 +56,8 @@ end
 # Returns the element type that works with this material model
 matching_elem_type(::ElasticSolidLinSeep) = HMSolid
 
-# Create a new instance of Ip data
-new_ip_state(mat::ElasticSolidLinSeep, env::ModelEnv) = ElasticSolidLinSeepIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::ElasticSolidLinSeep) = ElasticSolidLinSeepIpState
 
 function set_state(ipd::ElasticSolidLinSeepIpState; sig=zeros(0), eps=zeros(0))
     sq2 = √2.0

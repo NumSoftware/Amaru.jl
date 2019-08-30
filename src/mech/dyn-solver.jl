@@ -160,8 +160,6 @@ subjected to a set of boundary conditions `bcs` and a time span.
 
 `maxincs = 1000000` : Maximum number of increments
 
-`scheme  = :FE` : Predictor-corrector scheme at each increment. Available schemes are `:FE` and `:ME`
-
 `tol     = 1e-2` : Tolerance for the maximum absolute error in forces vector
 
 `nouts   = 0` : Number of output files per analysis
@@ -180,33 +178,36 @@ function dynsolve!(
                    nincs     :: Int     = 1,
                    maxits    :: Int     = 5,
                    autoinc   :: Bool    = false,
-                   scheme    :: Symbol  = :FE,
+                   tol       :: Number  = 1e-2,
+                   nouts     :: Int     = 0,
                    sism      :: Bool    = false,
                    tds       :: Float64 = 0.0,
                    tss       :: Float64 = 0.0,
                    nmods     :: Int     = 10,
                    alpha     :: Real    = 0.0,
                    beta      :: Real    = 0.0,
-                   tol       :: Number  = 1e-2,
-                   nouts     :: Int     = 0,
                    outdir    :: String  = "",
                    filekey   :: String  = "out",
                    verbose   :: Bool    = true,
+                   silent    :: Bool    = false,
                   )
 
-    tol>0 || error("solve! : tolerance should be greater than zero")
     env = dom.env
     env.cstage += 1
     env.cinc    = 0
 
-    if verbose
-        printstyled("FEM dynamic analysis:\n", bold=true, color=:cyan)
-        tic = time()
+    if !silent
+        printstyled("Dynamic FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
+        sw = StopWatch() # timing
     end
 
-    if time_span==0.0
-        @warn "  time_span not set"
-    end
+    # Arguments checking
+    silent && (verbose=false)
+
+    tol>0 || error("solve! : tolerance should be greater than zero")
+    silent || println("  model type: ", env.modeltype)
+
+    time_span==0.0 && @warn "  time_span not set"
     
     save_incs = nouts>0
     if save_incs
@@ -294,12 +295,13 @@ function dynsolve!(
         dof.vals[as] = A[i]
         dof.vals[fs] = Fex[i]
     end
-    update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
 
     # Save initial file
     if env.cstage==1 && save_incs
-        save(dom, "$(dom.filekey)-0.vtk", verbose=false)
-        verbose && printstyled("  $(dom.filekey)-0.vtk file written (Domain)\n", color=:green)
+        update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
+        update_output_data!(dom)
+        save(dom, "$outdir/$filekey-0.vtk", verbose=false)
+        silent || printstyled("  $outdir/$filekey-0.vtk file written (Domain)\n", color=:green)
     end
 
     # Incremental analysis
@@ -313,7 +315,7 @@ function dynsolve!(
 
     ttol = 1e-9    # time tolerance
     inc  = 0       # increment counter
-    iout = dom.nouts     # file output counter
+    iout = env.cout      # file output counter
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
     Fin  = zeros(ndofs)  # total internal force
@@ -340,8 +342,7 @@ function dynsolve!(
             Fex = sismic_force(dom, bcs, M,Fex,AS,keysis,t+dt,tds)
         end
                     
-
-        verbose && printstyled("  stage $(env.cstage)  increment $inc from t=$(round(t,digits=10)) to t=$(round(t+dt,digits=10)) (dt=$(round(dt,digits=10))):", bold=true, color=:blue) # color 111
+        silent || printstyled("  stage $(env.cstage)  increment $inc from t=$(round(t,digits=10)) to t=$(round(t+dt,digits=10)) (dt=$(round(dt,digits=10)))\033[K\r", bold=true, color=:blue) # color 111
         verbose && println()
         #R   .= FexN - F    # residual
         Fex_Fin = Fex-Fina    # residual
@@ -441,19 +442,20 @@ function dynsolve!(
 
 
             # Update time t and dt
-            #inc += 1
             t   += dt
             dom.env.t = t
 
             update_loggers!(dom) # Tracking nodes, ips, elements, etc.
 
             # Check for saving output file
-            if abs(t - T) < ttol
-                iout += 1
+            if abs(t - T) < ttol && save_incs
+                env.cout += 1
+                iout = env.cout
+                #iout += 1
                 update_output_data!(dom)
-                save(dom, "$(dom.filekey)-$iout.vtk", verbose=false)
+                save(dom, "$outdir/$filekey-$iout.vtk", verbose=false)
                 T += dT # find the next output time
-                verbose && printstyled("  $(dom.filekey)-$iout.vtk file written (Domain)\n", color=:green)
+                silent || printstyled("  $outdir/$filekey-$iout.vtk file written (Domain) \033[K \n",color=:green)
             end
 
 
@@ -490,11 +492,6 @@ function dynsolve!(
     verbose && println("  time spent: ", see(sw, format=:hms))
 
     update_output_data!(dom)
-
-    # Update number of used increments at domain
-    dom.nincs += inc
-    dom.nouts = iout
-
     return true
 
 end

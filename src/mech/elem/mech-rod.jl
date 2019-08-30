@@ -188,14 +188,14 @@ function distributed_bc(elem::MechRod, facet::Union{Facet, Nothing}, key::Symbol
     return reshape(F', nnodes*ndim), map
 end
                         
-function elem_internal_forces(elem::MechRod)
+function elem_internal_forces(elem::MechRod, F::Array{Float64,1})
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     A      = elem.mat.A
     keys   = [:ux, :uy, :uz][1:ndim]
     map    = Int[ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
 
-    F = zeros(nnodes*ndim)
+    dF = zeros(nnodes*ndim)
     C = elem_coords(elem)
     B = zeros(1, nnodes*ndim)
     J = Array{Float64}(undef, 1, ndim)
@@ -215,12 +215,10 @@ function elem_internal_forces(elem::MechRod)
 
         σ = ip.data.σ
         coef = A*detJ*ip.w
-        F .+= coef*σ*vec(B')
+        dF .+= coef*σ*vec(B')
     end
 
-    return F, map
-#
-    #Fint[map] .+= F
+    F[map] += dF
 end
 
                         

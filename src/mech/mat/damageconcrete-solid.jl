@@ -42,9 +42,9 @@ mutable struct DamageConcreteIpState<:IpState
     damt::Float64
     damc::Float64
 
-    DamageConcreteIpState() = new()
+    #DamageConcreteIpState() = new()
 
-    function DamageConcreteIpState(mat::DamageConcrete, env::ModelEnv=ModelEnv()) 
+    function DamageConcreteIpState(env::ModelEnv=ModelEnv()) 
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
@@ -63,12 +63,13 @@ end
 # Returns the element type that works with this material model
 matching_elem_type(::DamageConcrete) = MechSolid
 
-# Create a new instance of Ip data
-new_ip_state(mat::DamageConcrete, env::ModelEnv) = DamageConcreteIpState(mat, env)
+# Type of corresponding state structure
+ip_state_type(mat::DamageConcrete) = DamageConcreteIpState(mat, env)
 
 
 function uniaxial_σ(mat::DamageConcrete, ipd::DamageConcreteIpState, εi::Float64)
-    σ1c, σ2c, σ3c = neg.(eigvals(ipd.σ))
+    σp = eigvals(ipd.σ)
+    σ1c, σ2c, σ3c = neg.(σp)
     if εi>=0  # tension: Nilsson and Oldenburg 1982; Beshara and Virdi 1991; Wu and Yao 1998
         αt = 2.05
         #αt = 1.5 #*
@@ -81,7 +82,18 @@ function uniaxial_σ(mat::DamageConcrete, ipd::DamageConcreteIpState, εi::Float
             return εi*mat.E0
         else
             #γ = 1.0 - 0.5/mat.fc*( √(σ1c^2 + σ2c^2+ σ3c^2))
+            σ̅t = norm(pos.(σp))
             w = (εi-εt0)*ipd.h # crack openning
+            #w = (εi-εt0*σ̅t/ft)*ipd.h # crack openning
+
+            #GF = mat.GF - 0.5*ft*εt0*ipd.h
+            #@show ipd.h
+            #@show mat.GF
+            #@show GF
+            #@show 0.5*ft*εt0*ipd.h
+            #error()
+            #@assert GF>0
+            #return ft*exp(-ft/GF*w)
             return ft*exp(-ft/mat.GF*w)
         end
     else # compression: Popovics 1973; Carreira and Chu 1985
@@ -101,7 +113,8 @@ end
 
 
 function uniaxial_E(mat::DamageConcrete, ipd::DamageConcreteIpState, εi::Float64)
-    σ1c, σ2c, σ3c = neg.(eigvals(ipd.σ))
+    σp = eigvals(ipd.σ)
+    σ1c, σ2c, σ3c = neg.(σp)
     if εi>=0 # tension
         αt = 2.05
         #αt = 1.5 #*
@@ -114,6 +127,11 @@ function uniaxial_E(mat::DamageConcrete, ipd::DamageConcreteIpState, εi::Float6
         if εi<εt0
             return mat.E0
         else
+            #GF = mat.GF - 0.5*ft*εt0*ipd.h
+            #Et = ft*exp(-ft/(GF/ipd.h)*(εi-εt0)) * (-ft/(GF/ipd.h))
+            σ̅t = norm(pos.(σp))
+            #w = (εi-εt0*σ̅t/ft)*ipd.h # crack openning
+            #Et = ft*exp(-ft/mat.GF*w) * (-ft/mat.GF*ipd.h)
             Et = ft*exp(-ft/(mat.GF/ipd.h)*(εi-εt0)) * (-ft/(mat.GF/ipd.h))
             return Et
         end
@@ -161,7 +179,10 @@ function calcD(mat::DamageConcrete, ipd::DamageConcreteIpState)
         in_tension = true
     else
         in_tension = σ̅t/σ̅c > 0.01
+        #in_tension = σ̅t/σ̅c > 0.01 || ε̅t/ε̅c > 0.01
     end
+
+    #in_tension = true
 
     # estimate tangent Young modulus
     if in_tension
@@ -171,6 +192,7 @@ function calcD(mat::DamageConcrete, ipd::DamageConcreteIpState)
             E = Efun(ε̅t)
         end
         ν = mat.ν*(1-ipd.damt)
+        #ν = mat.ν
     else
         if ipd.in_linear_range
             E = ε̅c==0 ? mat.E0 : min(mat.E0, σ̅c/ε̅c)
@@ -179,7 +201,11 @@ function calcD(mat::DamageConcrete, ipd::DamageConcreteIpState)
         end
         #ν = mat.ν*(1-ipd.damc)
         ν = mat.ν
+        #@show E
     end
+
+    #@show in_tension
+    #@show ipd.in_linear_range
 
     Emin = mat.E0*1e-6
     abs(E)<Emin && (E=Emin)
@@ -223,7 +249,10 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
         in_tension = true
     else
         in_tension = σ̅t/σ̅c > 0.01
+        in_tension = σ̅t/σ̅c > 0.01 || ε̅t > ε̅c
+        #@show ε̅t/ε̅c
     end
+    #in_tension =  true
 
     ipd.ε̅tmax = max(ε̅t, ipd.ε̅tmax)
     ipd.ε̅cmax = max(ε̅c, ipd.ε̅cmax)
@@ -239,6 +268,7 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
             ipd.in_linear_range = false
         end
         ν = mat.ν*(1-ipd.damt)
+        #ν = mat.ν
     else
         if ε̅c < ipd.ε̅cmax
             E = ε̅c==0 ? mat.E0 : min(mat.E0, σ̅c/ε̅c)
@@ -256,7 +286,20 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
         if σ̅c+E*Δε̅cmax < 0 && Δε̅cmax > Δε̅tmax
             E = -σ̅c/Δε̅cmax
         end
+        if σ̅t+E*Δε̅tmax < 0 && Δε̅cmax < Δε̅tmax
+            E = -σ̅t/Δε̅tmax
+        end
     end
+
+    if E>0
+        #@show σ̅t
+        #@show σ̅c
+        #@show E
+        #@show mat.E0
+        #@show in_tension
+        #@show ipd.in_linear_range
+    end
+
 
     # update maximum strains
     #if in_tension
@@ -268,9 +311,6 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
     Emin = mat.E0*1e-6
     abs(E)<Emin && (E=Emin)
 
-
-    #ν = mat.ν
-    #D  = calcDe(E, mat.ν, :general)
     D  = calcDe(E, ν, :general)
     Δσ = D*Δε
     ipd.σ .+= Δσ
@@ -296,5 +336,11 @@ function ip_state_vals(mat::DamageConcrete, ipd::DamageConcreteIpState)
     dict = stress_strain_dict(ipd.σ, ipd.ε, ipd.env.ndim)
     dict[:damt] = ipd.damt
     dict[:damc] = ipd.damc
+
+    εp = eigvals(ipd.ε)
+    ε̅t = norm(pos.(εp))
+    Efun(εi) = uniaxial_E(mat, ipd, εi)
+    εt0 = mat.ft/mat.E0
+    dict[:w] = abs(ε̅t-εt0)*ipd.h # crack openning
     return dict
 end

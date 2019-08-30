@@ -36,8 +36,8 @@ end
 matching_elem_type(::LinDrainPipe) = DrainPipe
 #matching_elem_type_if_embedded(::LinDrainPipe) = SeepEmbRod
 
-# Create a new instance of Ip data
-new_ip_state(mat::LinDrainPipe, env::ModelEnv) = LinDrainPipeIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::LinDrainPipe) = LinDrainPipeIpState
 
 function update_state!(mat::LinDrainPipe, ipd::LinDrainPipeIpState, Δuw::Float64, G::Float64)
     k = mat.k

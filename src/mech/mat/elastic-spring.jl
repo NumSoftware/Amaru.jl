@@ -34,8 +34,8 @@ end
 
 matching_elem_type(::ElasticSpring) = MechSpring
 
-# Create a new instance of Ip data
-new_ip_state(mat::ElasticSpring, env::ModelEnv) = ElasticSpringIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::ElasticSpring) = ElasticSpringIpState
 
 function ip_state_vals(mat::ElasticSpring, ipd::ElasticSpringIpState)
     return OrderedDict{Symbol, Float64}()

@@ -52,8 +52,8 @@ end
 # Returns the element type that works with this material model
 matching_elem_type(::SmearedCrack) = MechSolid
 
-# Create a new instance of Ip data
-new_ip_state(mat::SmearedCrack, env::ModelEnv) = SmearedCrackIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::SmearedCrack) = SmearedCrackIpState
 
 
 function calc_σmax(mat::SmearedCrack, ipd::SmearedCrackIpState, upa::Float64)

@@ -74,8 +74,8 @@ end
 # Returns the element type that works with this material model
 matching_elem_type(::ElasticJointSeep) = HydroMechJoint
 
-# Create a new instance of Ip data
-new_ip_state(mat::ElasticJointSeep, env::ModelEnv) = JointSeepIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::ElasticJointSeep) = JointSeepIpState
 
 function mountD(mat::ElasticJointSeep, ipd::JointSeepIpState)
     ndim = ipd.env.ndim

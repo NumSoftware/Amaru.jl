@@ -83,7 +83,7 @@ end
 matching_elem_type(::CEBJoint1D) = MechJoint1D
 
 # Creates a new instance of Ip data
-new_ip_state(mat::CEBJoint1D, env::ModelEnv) = CEBJoint1DIpState(env)
+ip_state_type(mat::CEBJoint1D) = CEBJoint1DIpState
 
 
 function Tau(mat::CEBJoint1D, sy::Float64)

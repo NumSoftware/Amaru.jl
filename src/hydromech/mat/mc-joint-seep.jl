@@ -109,8 +109,8 @@ end
 # Returns the element type that works with this material model
 matching_elem_type(::MCJointSeep) = HydroMechJoint
 
-# Create a new instance of Ip data
-new_ip_state(mat::MCJointSeep, env::ModelEnv) = MCJointSeepIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::MCJointSeep) = MCJointSeepIpState
 
 
 function yield_func(mat::MCJointSeep, ipd::MCJointSeepIpState, σ::Array{Float64,1})

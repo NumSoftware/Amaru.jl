@@ -196,8 +196,12 @@ function solve!(
                 silent  :: Bool    = false,
                )
 
+    env = dom.env
+    env.cstage += 1
+    env.cinc    = 0
+
     if !silent
-        printstyled("FEM analysis:\n", bold=true, color=:cyan)
+        printstyled("Mechanical FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
         sw = StopWatch() # timing
     end
 
@@ -205,9 +209,6 @@ function solve!(
     silent && (verbose=false)
 
     tol>0 || error("solve! : tolerance should be greater than zero")
-    env = dom.env
-    env.cstage += 1
-    env.cinc    = 0
     silent || println("  model type: ", env.modeltype)
 
     save_incs = nouts>0
@@ -251,7 +252,7 @@ function solve!(
         update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
         update_output_data!(dom)
         save(dom, "$outdir/$filekey-0.vtk", verbose=false)
-        verbose && printstyled("  $outdir/$filekey-0.vtk file written (Domain)\n", color=:green)
+        silent || printstyled("  $outdir/$filekey-0.vtk file written (Domain)\n", color=:green)
     end
 
     # Get the domain current state and backup
@@ -299,8 +300,7 @@ function solve!(
             return false
         end
 
-        #verbose && printstyled("  stage $(env.cstage) increment $inc from t=$(round(t-dt,digits=10)) to t=$(round(t,digits=10)) (dt=$(round(dt,digits=10))):", bold=true, color=:blue) # color 111
-        verbose && printstyled("  stage $(env.cstage) increment $inc from t=$(round(t,digits=10)) to t=$(round(t+dt,digits=10)) (dt=$(round(dt,digits=10))):", bold=true, color=:blue) # color 111
+        silent || printstyled("  stage $(env.cstage) progress $(round(t*100,digits=3))% increment $inc dt=$(round(dt,sigdigits=4))\033[K\r", bold=true, color=:blue) # color 111
         verbose && println()
 
         ΔUex, ΔFex = dt*Uex, dt*Fex     # increment of external vectors
@@ -368,22 +368,10 @@ function solve!(
             R = ΔFex - ΔFin  
             R[pmap] .= 0.0  # zero at prescribed positions
 
-            #if verbose
-                #printstyled("    it $it  ", bold=true)
-                #@printf(" residue: %-10.4e\n", residue)
-            #end
-
             if verbose
                 printstyled("    it $it  ", bold=true)
                 @printf(" residue: %-10.4e\n", residue)
-            else
-                if !silent
-                    printstyled("  increment $inc: ", bold=true, color=:blue)
-                    printstyled("  it $it  ", bold=true)
-                    @printf("residue: %-10.4e  \r", residue)
-                end
             end
-
 
             if residue < tol;        converged = true ; remountK=false; break end
             if isnan(residue);       converged = false; break end
@@ -418,8 +406,7 @@ function solve!(
                 update_output_data!(dom)
                 save(dom, "$outdir/$filekey-$iout.vtk", verbose=false)
                 T += dT # find the next output time
-                silent || verbose || print("                                             \r")
-                silent || printstyled("  $outdir/$filekey-$iout.vtk file written (Domain)\n", color=:green)
+                silent || printstyled("  $outdir/$filekey-$iout.vtk file written (Domain) \033[K \n",color=:green)
             end
 
             if autoinc
@@ -444,7 +431,7 @@ function solve!(
 
             # Restore the state to last converged increment
             if autoinc
-                silent || println("    increment failed.")
+                verbose && println("    increment failed.")
                 dt *= 0.5
                 dt = round(dt, digits =-ceil(Int, log10(dt))+3)  # round to 3 significant digits
                 if dt < ttol
@@ -459,14 +446,9 @@ function solve!(
     end
 
     # time spent
-    silent || println("  time spent: ", see(sw, format=:hms), " "^20)
+    silent || println("  time spent: ", see(sw, format=:hms), "\033[K")
 
     update_output_data!(dom)
-
-    # Update number of used increments at domain
-    #dom.nincs += inc
-    #dom.nouts = iout
-
     return true
 
 end

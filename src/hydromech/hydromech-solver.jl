@@ -192,8 +192,12 @@ function hm_solve!(
                    silent    :: Bool    = false,
                   )
 
+    env = dom.env
+    env.cstage += 1
+    env.cinc    = 0
+
     if !silent
-        printstyled("Hydromechanical FE analysis: Stage $(dom.stage+1)\n", bold=true, color=:cyan)
+        printstyled("Hydromechanical FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
         sw = StopWatch() # timing
     end
 
@@ -201,9 +205,6 @@ function hm_solve!(
     silent && (verbose=false)
 
     tol>0 || error("solve! : tolerance should be greater than zero")
-    env = dom.env
-    env.cstage += 1
-    env.cinc    = 0
 
     save_incs = nouts>0
     if save_incs
@@ -258,27 +259,6 @@ function hm_solve!(
         end
     end
 
-    #=
-    # Setup for fisrt stage
-    if dom.nincs == 0
-        # Setup initial quantities at dofs
-        for (i,dof) in enumerate(dofs)
-            dof.vals[dof.name]    = 0.0
-            dof.vals[dof.natname] = 0.0
-        end
-
-        # Tracking nodes, ips, elements, etc.
-        update_loggers!(dom)  
-
-        # Save first output file
-        if save_incs 
-            update_output_data!(dom)
-            save(dom, "$(dom.filekey)-0.vtk", verbose=false)
-            silent || printstyled("  $(dom.filekey)-0.vtk file written (Domain)\n", color=:green)
-        end
-    end
-    =#
-
     # Incremental analysis
     t    = dom.env.t # current time
     tend = t + time_span  # end time
@@ -327,7 +307,9 @@ function hm_solve!(
             return false
         end
 
-        verbose && printstyled("  increment $inc from t=$(round(t,sigdigits=9)) to t=$(round(t+Δt,sigdigits=9)) (dt=$(round(Δt,sigdigits=9))):\n", bold=true, color=:blue) # color 111
+        silent || printstyled("  increment $inc from t=$(round(t,sigdigits=9)) to t=$(round(t+Δt,sigdigits=9)) (dt=$(round(Δt,sigdigits=9))):"," "^10,"\r", bold=true, color=:blue) # color 111
+        #silent || printstyled("  increment $inc  (progress=$(round), dt=$(round(Δt,sigdigits=9))):"," "^10,"\r", bold=true, color=:blue) # color 111
+        verbose && println()
 
         # Get forces and displacements from boundary conditions
         dom.env.t = t + Δt
@@ -387,12 +369,6 @@ function hm_solve!(
             if verbose
                 printstyled("    it $it  ", bold=true)
                 @printf(" residue: %-10.4e\n", residue)
-            else
-                if !silent
-                    printstyled("  increment $inc: ", bold=true, color=:blue)
-                    printstyled("  it $it  ", bold=true)
-                    @printf("residue: %-10.4e  \r", residue)
-                end
             end
 
             if residue < tol;        converged = true ; break end
@@ -427,7 +403,7 @@ function hm_solve!(
                 update_output_data!(dom)
                 save(dom, "$outdir/$filekey-$iout.vtk", verbose=false)
                 T = Tn - mod(Tn, dT) + dT
-                silent || verbose || print("                                             \r")
+                silent || verbose || print(" "^70, "\r")
                 silent || printstyled("  $outdir/$filekey-$iout.vtk file written (Domain)\n", color=:green)
             end
 
@@ -460,12 +436,6 @@ function hm_solve!(
     silent || println("  time spent: ", see(sw, format=:hms), " "^20)
 
     update_output_data!(dom)
-
-    # Update number of used increments at domain
-    #dom.nincs += inc
-    #dom.nouts = iout
-    #dom.stage += 1
-
     return true
 
 end

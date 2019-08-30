@@ -41,8 +41,8 @@ end
 
 matching_elem_type(::VonMises) = MechSolid
 
-# Create a new instance of Ip data
-new_ip_state(mat::VonMises, env::ModelEnv) = VonMisesIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::VonMises) = VonMisesIpState
 
 function yield_func(mat::VonMises, ipd::VonMisesIpState, σ::Tensor2)
     j1  = J1(σ)

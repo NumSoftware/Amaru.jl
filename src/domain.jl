@@ -18,22 +18,15 @@ Creates an `Domain` object based on a Mesh object `mesh` and represents the geom
 
 `edges`: An array of `Edge` objects containing all the boundary faces
 
-`filekey` : An string object that is used as part of the filename of resulting analyses files
-
 """
 mutable struct Domain<:AbstractDomain
     nodes::Array{Node,1}
     elems::Array{Element,1}
     faces::Array{Face,1}
     edges::Array{Edge,1}
-    filekey::String
-    #mesh::Mesh
 
     loggers::Array{AbstractLogger,1}
-    nincs::Integer
-    nouts::Integer
     ndofs::Integer
-    stage::Integer
     env::ModelEnv
 
     # Data
@@ -41,16 +34,11 @@ mutable struct Domain<:AbstractDomain
     cell_scalar_data ::Dict{String,Array}
     point_vector_data::Dict{String,Array}
 
-    function Domain(;filekey::String="out")
+    function Domain()
         this = new()
 
-        this.filekey  = filekey
-
         this.loggers = []
-        this.nincs   = 0
         this.ndofs   = 0
-        this.nouts   = 0
-        this.stage   = 0
 
         this.point_scalar_data = Dict()
         this.cell_scalar_data  = Dict()
@@ -76,7 +64,6 @@ function SubDomain(dom::Domain, expr::Expr)
 
     cells  = [ elem.cell for elem in elems ]
     scells = get_surface(cells)
-    #ecells = get_edges(scells)  
 
     # Setting faces
     faces = Array{Face}(0)
@@ -138,13 +125,12 @@ Uses a mesh and a list of meterial especifications to construct a finite element
 `verbose = true` : If true, provides information of the domain construction
 
 """
-function Domain(mesh::Mesh, matbinds::Array{<:Pair,1}; modeltype::Symbol=:general, thickness::Real=1.0, filekey::String="out", verbose::Bool=true)
+function Domain(mesh::Mesh, matbinds::Array{<:Pair,1}; modeltype::Symbol=:general, thickness::Real=1.0, verbose::Bool=true)
 
-    dom  = Domain(filekey=filekey)
+    dom  = Domain()
 
     # Shared analysis data
     ndim = mesh.ndim
-    #dom.env = Dict(:ndim=>ndim, :modeltype=>modeltype, :thickness=>thickness, :t=>0.0 )
     dom.env = ModelEnv()
     dom.env.ndim = ndim 
     dom.env.modeltype = modeltype

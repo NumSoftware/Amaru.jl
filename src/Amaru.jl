@@ -77,7 +77,7 @@ export Material, read_prms
 
 include("element.jl")
 export Element
-export get_nodes, get_ips, getcoords, getvals, get_map, elems_ip_vals
+export get_nodes, get_ips, getcoords, getvals, get_map, elems_ip_vals, setmat!, setstate!
 
 include("facet.jl")
 export Facet, Face, Edge

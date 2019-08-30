@@ -34,8 +34,8 @@ end
 matching_elem_type(::ElasticRod) = MechRod
 matching_elem_type_if_embedded(::ElasticRod) = MechEmbRod
 
-# Create a new instance of Ip data
-new_ip_state(mat::ElasticRod, env::ModelEnv) = ElasticRodIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::ElasticRod) = ElasticRodIpState
 
 function stress_update(mat::ElasticRod, ipd::ElasticRodIpState, Δε::Float64)
     E  = mat.E

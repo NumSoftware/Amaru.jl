@@ -40,8 +40,8 @@ end
     matching_elem_type(::ElasticJoint) = MechJoint
 end
 
-# Create a new instance of Ip data
-new_ip_state(mat::ElasticJoint, env::ModelEnv) = JointIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::ElasticJoint) = JointIpState
 
 
 function mountD(mat::ElasticJoint, ipd::JointIpState)
