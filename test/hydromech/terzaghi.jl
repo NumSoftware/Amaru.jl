@@ -32,7 +32,7 @@ times .+= t1
 materials = [
     "solids" => ElasticSolidLinSeep(E=E, nu=nu, k=k, gammaw=gw)
 ]
-dom = Domain(msh, materials)
+dom = Domain(msh, materials, gammaw=10)
 
 log1 = NodeGroupLogger()
 loggers = [

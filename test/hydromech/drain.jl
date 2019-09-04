@@ -25,7 +25,7 @@ mats = [
     "drains" => LinDrainPipe(k=kb, gammaw=gw, A=A),
 ]
 
-dom = Domain(mesh, mats)
+dom = Domain(mesh, mats, gammaw=10)
 
 # Stage 1: pore-pressure stabilization
 bcs = [

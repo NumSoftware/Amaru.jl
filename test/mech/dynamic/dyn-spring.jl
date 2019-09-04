@@ -30,7 +30,7 @@ bcs = [
       ]
 
 #solve!(dom, bcs)
-@test dynsolve!(dom, bcs, time_span=7, nincs=14)
+@test dynsolve!(dom, bcs, time_span=7, nincs=14, verbose=false)
 
 log1.table;
 

@@ -50,7 +50,7 @@ for i=1:2
         materials = materials[[1,3]]
     end
 
-    dom = Domain(msh, materials)
+    dom = Domain(msh, materials, gammaw=10)
 
     log1 = NodeGroupLogger()
     loggers = [

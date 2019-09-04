@@ -20,7 +20,7 @@ gw   = 10.0    # water specific weight
 materials = [
     "solids" => LinSeep(k=k, gammaw=gw)
 ]
-dom = Domain(msh, materials)
+dom = Domain(msh, materials, gammaw=10)
 
 log1 = NodeGroupLogger()
 loggers = [
