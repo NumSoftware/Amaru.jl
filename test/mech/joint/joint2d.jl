@@ -6,7 +6,6 @@ using Test
 bl  = Block( [0 0; 0.2 0.1], nx=2, ny=6, cellshape=QUAD4, tag="solids")
 msh = Mesh(bl, verbose=true)
 generate_joints!(msh, tag="joints")
-#iptag!(msh.cells[:joints], "jips")
 
 # finite element analysis
 

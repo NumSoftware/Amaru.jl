@@ -125,7 +125,15 @@ Uses a mesh and a list of meterial especifications to construct a finite element
 `verbose = true` : If true, provides information of the domain construction
 
 """
-function Domain(mesh::Mesh, matbinds::Array{<:Pair,1}; modeltype::Symbol=:general, thickness::Real=1.0, verbose::Bool=true)
+function Domain(
+                mesh      :: Mesh,
+                matbinds  :: Array{<:Pair,1};
+                modeltype :: Symbol = :general,
+                thickness :: Real   = 1.0,
+                verbose   :: Bool   = false,
+                silent    :: Bool   = false,
+                params... # extra parameters required for specific solvers
+               )
 
     dom  = Domain()
 
@@ -137,16 +145,19 @@ function Domain(mesh::Mesh, matbinds::Array{<:Pair,1}; modeltype::Symbol=:genera
     dom.env.thickness = thickness
     dom.env.t = 0.0
 
-    if verbose
-        printstyled("Domain setup:", bold=true, color=:cyan)
-        println()
+    # Saving extra parameters
+    for (k,v) in params
+        typeof(v) <: Number && ( dom.env.params[k] = v )
     end
+
+    silent && (verbose=false)
+    silent || printstyled("Domain setup:\n", bold=true, color=:cyan)
 
     # Setting nodes
     dom.nodes = [ Node([p.x, p.y, p.z], tag=p.tag, id=i) for (i,p) in enumerate(mesh.points)]
 
     # Setting new elements
-    verbose && print("  setting elements...\r")
+    silent || print("  setting elements...\r")
     ncells    = length(mesh.cells)
     dom.elems = Array{Element,1}(undef, ncells)
     Nips      = zeros(Int, ncells)       # list with number of ips per element
@@ -179,7 +190,6 @@ function Domain(mesh::Mesh, matbinds::Array{<:Pair,1}; modeltype::Symbol=:genera
             elem.mat = mat
             dom.elems[cell.id] = elem
             Nips[elem.id] = cell.nips
-            Tips[elem.id] = cell.iptag
         end
     end
 
@@ -234,24 +244,29 @@ function Domain(mesh::Mesh, matbinds::Array{<:Pair,1}; modeltype::Symbol=:genera
     end
 
     # Initializing elements
-    verbose && print("  initializing elements...\r")
+    silent || print("  initializing elements...\r")
     for elem in dom.elems
         elem_init(elem)
     end
 
-    if verbose
+    if !silent
         print("  ", ndim, "D domain $modeltype model      \n")
         @printf "  %5d nodes\n" length(dom.nodes)
         @printf "  %5d elements\n" length(dom.elems)
+    end
+
+    if verbose
         if ndim==2
             @printf "  %5d edges\n" length(dom.faces)
         else
             @printf "  %5d faces\n" length(dom.faces)
             @printf "  %5d edges\n" length(dom.edges)
         end
+    end
+
+    if !silent
         @printf "  %5d materials\n" length(matbinds)
         @printf "  %5d loggers\n" length(dom.loggers)
-        println("  done.")
     end
 
     return dom

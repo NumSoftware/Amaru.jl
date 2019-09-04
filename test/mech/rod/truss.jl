@@ -45,7 +45,7 @@ bcs = [
        :(x>=0) => ElemBC(tz=-10.0)
       ]
 
-@test solve!(dom, bcs, verbose=true)
+@test solve!(dom, bcs, verbose=false)
 
 save(dom, "dom.vtk")
 

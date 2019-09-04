@@ -65,6 +65,28 @@ function uniaxial_σ(mat::DamageConcrete, ipd::DamageConcreteIpState, εi::Float
     σp = eigvals(ipd.σ)
     σ1c, σ2c, σ3c = neg.(σp)
     if εi>=0  # tension: Nilsson and Oldenburg 1982; Beshara and Virdi 1991; Wu and Yao 1998
+
+        
+        #=
+        γ = 1.0 - αt/mat.fc*( √(σ1c^2 + σ2c^2+ σ3c^2)) # suggested value for coef: 2.0
+        ft = mat.ft*γ
+        εt0 = ft/mat.E0
+        if εi<εt0
+            return εi*mat.E0
+        else
+            σ̅t = norm(pos.(σp))
+            w = (εi-εt0)*ipd.h # crack openning
+            if w < ws
+            elseif ws<w<wc
+            else
+
+            end
+
+        end
+        =#
+
+        
+
         αt = 2.05
         #αt = 1.5 #*
         γ = 1.0 - αt/mat.fc*( √(σ1c^2 + σ2c^2+ σ3c^2)) # suggested value for coef: 2.0
@@ -90,6 +112,7 @@ function uniaxial_σ(mat::DamageConcrete, ipd::DamageConcreteIpState, εi::Float
             #return ft*exp(-ft/GF*w)
             return ft*exp(-ft/mat.GF*w)
         end
+
     else # compression: Popovics 1973; Carreira and Chu 1985
         αc = 0.3
         #αc = 0.2

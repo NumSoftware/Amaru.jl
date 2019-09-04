@@ -42,19 +42,19 @@ bcs = [
       ]
 
 
-@test solve!(dom, bcs, nincs=10, autoinc=true, verbose=true)
+@test solve!(dom, bcs, nincs=10, autoinc=true, verbose=false)
 
 bcs[2] = "tip" => NodeBC(uy=-0.0001)
-@test solve!(dom, bcs, nincs=10, autoinc=true, verbose=true)
+@test solve!(dom, bcs, nincs=10, autoinc=true, verbose=false)
 
 bcs[2] = "tip" => NodeBC(uy=+0.0006)
-@test solve!(dom, bcs, nincs=10, autoinc=true, verbose=true)
+@test solve!(dom, bcs, nincs=10, autoinc=true, verbose=false)
 
 bcs[2] = "tip" => NodeBC(uy=-0.0005)
-@test solve!(dom, bcs, nincs=10, autoinc=true, verbose=true)
+@test solve!(dom, bcs, nincs=10, autoinc=true, verbose=false)
 
 bcs[2] = "tip" => NodeBC(uy=+0.005)
-@test solve!(dom, bcs, nincs=20, autoinc=true, verbose=true)
+@test solve!(dom, bcs, nincs=20, autoinc=true, verbose=false)
 
 if Amaru.debug.makeplots
     using PyPlot

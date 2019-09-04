@@ -32,7 +32,7 @@ bcs = [
        :(z==1.0) => NodeBC(uw=0),
       ]
 
-hm_solve!(dom, bcs, end_time=100.0, nincs=1, tol=1e-2, nouts=1, verbose=true)
+hm_solve!(dom, bcs, end_time=100.0, nincs=1, tol=1e-2, nouts=1, verbose=false)
 
 dom.env.t = 0.0
 
@@ -46,6 +46,6 @@ bcs = [
       ]
 
 
-hm_solve!(dom, bcs, end_time=100.0, nincs=1, tol=1e-2, nouts=1, verbose=true)
+hm_solve!(dom, bcs, end_time=100.0, nincs=1, tol=1e-2, nouts=1, verbose=false)
 
 save(dom, "dom1.vtk")

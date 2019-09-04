@@ -151,6 +151,7 @@ function hm_solve_step!(G::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu
     DF[nu+1:end] .= F2
 end
 
+
 """
     solve!(D, bcs, options...) -> Bool
 
@@ -234,13 +235,25 @@ function hm_solve!(
     pmap  = nu+1:ndofs   # map for prescribed displacements and pw
     dom.ndofs = length(dofs)
     silent || println("  unknown dofs: $nu")
+
+    # get elevation Z for all Dofs 
+    Z = zeros(ndofs)
+    for node in dom.nodes
+        for dof in node.dofs
+            Z[dof.eq_id] = node.X[env.ndim]
+        end
+    end
     
+    # Get global parameters
+    gammaw = get(dom.env.params, :gammaw, NaN)
+    isnan(gammaw) && error("hm_solve!: gammaw parameter was not set in Domain")
+    gammaw > 0 || error("hm_solve: invalid value for gammaw: $gammaw")
+
     # Get array with all integration points
     ips = [ ip for elem in dom.elems for ip in elem.ips ]
     # Get the domain current state and backup
     State = [ ip.data for elem in dom.elems for ip in elem.ips ]
     StateBk = copy.(State)
-
 
     # Save initial file and loggers
     if env.cstage==1
@@ -248,6 +261,9 @@ function hm_solve!(
         for (i,dof) in enumerate(dofs)
             dof.vals[dof.name]    = 0.0
             dof.vals[dof.natname] = 0.0
+            if dof.name==:uw
+                dof.vals[:h] = 0.0 # water head
+            end
         end
 
         update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
@@ -391,6 +407,7 @@ function hm_solve!(
             for (i,dof) in enumerate(dofs)
                 dof.vals[dof.name]    += ΔUa[i]
                 dof.vals[dof.natname] += ΔFin[i]
+                dof.vals[:h] = Z[i] + U[i]/gammaw
             end
 
             update_loggers!(dom) # Tracking nodes, ips, elements, etc.

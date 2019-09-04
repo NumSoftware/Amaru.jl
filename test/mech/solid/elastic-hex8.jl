@@ -63,7 +63,7 @@ for (ana, bcs, dis) in zip(ana_list, bcs_list, dis_list)
     println("\nLoad case: $ana \n")
 
     dom = Domain(mesh, materials)
-    solve!(dom, bcs, nincs=1, nouts=1, verbose=true)
+    solve!(dom, bcs, nincs=1, nouts=1, verbose=false)
 
     println("Displacements:")
     D = nodes_dof_vals(dom.nodes)[[:ux, :uy, :uz]]

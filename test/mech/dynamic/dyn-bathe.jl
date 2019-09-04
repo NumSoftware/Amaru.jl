@@ -71,7 +71,7 @@ bcs = [
     ]
 
 
-dynsolve!(dom, bcs, time_span=0.05, nincs=1000, verbose=true, filekey="dyn", nouts=100, autoinc=true, alpha=0.0, beta=0.0)
+dynsolve!(dom, bcs, time_span=0.05, nincs=1000, verbose=false, filekey="dyn", nouts=100, autoinc=true, alpha=0.0, beta=0.0)
 #dynsolve!(dom, bcs, time_span=0.1, nincs=50, verbose=true, filekey="dyn", nouts=100, autoinc=true)
 #using Glob
 #rm.(glob("*.vtk"))

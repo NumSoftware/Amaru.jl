@@ -52,7 +52,7 @@ bcs = [
     :(z==10) => NodeBC(uw=0.),
 ]
 
-hm_solve!(dom, bcs, end_time=tlong, nincs=2, tol=1e-2, nouts=1, verbose=true)
+hm_solve!(dom, bcs, end_time=tlong, nincs=2, tol=1e-2, nouts=1, verbose=false)
 
 dom.env.t = 0.0
 
@@ -74,7 +74,7 @@ bcs = [
     :(z==10) => NodeBC(uw=0.),
 ]
 
-hm_solve!(dom, bcs, end_time=t1, nincs=4, tol=1e-2, nouts=1, verbose=true)
+hm_solve!(dom, bcs, end_time=t1, nincs=4, tol=1e-2, nouts=1, verbose=false)
 
 
 # Stage 3: draining

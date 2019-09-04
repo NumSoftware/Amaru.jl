@@ -34,7 +34,7 @@ bcs = [
       ]
 
 try
-    @test solve!(dom, bcs, autoinc=true, nincs=1000, maxits=4, tol=0.01, verbose=true, scheme=:FE, nouts=50, maxincs=0)
+    @test solve!(dom, bcs, autoinc=true, nincs=1000, maxits=4, tol=0.01, verbose=false, scheme=:FE, nouts=50, maxincs=0)
 catch
 end
 

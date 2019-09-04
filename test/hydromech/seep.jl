@@ -34,7 +34,7 @@ bcs = [
        :(y==2) => NodeBC(uw=0.),
 ]
 
-hm_solve!(dom, bcs, end_time=500.0, tol=0.1, verbose=true)
+hm_solve!(dom, bcs, end_time=500.0, tol=0.1, verbose=false)
 
 # Output
 
