@@ -7,7 +7,6 @@ mutable struct JointSeepIpState<:IpState
     σ    ::Array{Float64,1} # stress
     w    ::Array{Float64,1} # relative displacements
     uw   ::Array{Float64,1} # interface pore pressure
-    G    ::Array{Float64,1} # longitudinal flow gradient 
     h    ::Float64          # characteristic length from bulk elements
     t    ::Float64          # time when the fracture opened
     function JointSeepIpState(env::ModelEnv=ModelEnv())
@@ -16,7 +15,6 @@ mutable struct JointSeepIpState<:IpState
         this.σ = zeros(3)
         this.w = zeros(3)
         this.uw = zeros(3) 
-        this.G  = zeros(ndim-1)
         this.h = 0.0
         this.t = 0.0
         return this
@@ -35,13 +33,12 @@ mutable struct ElasticJointSeep<:Material
     η ::Float64        # viscosity
     kt::Float64        # leak-off coefficient
     kl ::Float64       # longitudinal permeability coefficient
-    permeability::Bool # joint permeability ("true" or "false")
 
     function ElasticJointSeep(prms::Dict{Symbol,Float64})
         return  ElasticJoint(;prms...)
     end
 
-    function ElasticJointSeep(;E=NaN, nu=NaN, zeta=NaN, k=NaN, kappa=NaN, gammaw=NaN, alpha=NaN, S=NaN, n=NaN, Ks=NaN, Kw=NaN, beta=0.0, eta=NaN, kt=NaN, kl=0.0, permeability=true)
+    function ElasticJointSeep(;E=NaN, nu=NaN, zeta=NaN, k=NaN, kappa=NaN, gammaw=NaN, alpha=NaN, S=NaN, n=NaN, Ks=NaN, Kw=NaN, beta=0.0, eta=NaN, kt=NaN, kl=0.0)
 
         !(isnan(kappa) || kappa>0) && error("Invalid value for kappa: $kappa")
 
@@ -64,9 +61,8 @@ mutable struct ElasticJointSeep<:Material
         eta>=0      || error("Invalid value for eta: $eta")
         kt>=0       || error("Invalid value for kt: $kt")
         kl>=0       || error("Invalid value for kl: $kl")
-        (permeability==true || permeability==false) || error("Invalid permeability: permeability must to be true or false")
 
-        this = new(E, nu, zeta, k, gammaw, alpha, S, beta, eta, kt, kl, permeability)
+        this = new(E, nu, zeta, k, gammaw, alpha, S, beta, eta, kt, kl)
         return this
     end
 end
@@ -92,7 +88,7 @@ function mountD(mat::ElasticJointSeep, ipd::JointSeepIpState)
     end
 end
 
-function stress_update(mat::ElasticJointSeep, ipd::JointSeepIpState, Δu::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1})
+function stress_update(mat::ElasticJointSeep, ipd::JointSeepIpState, Δu::Array{Float64,1}, Δuw::Array{Float64,1})
     ndim = ipd.env.ndim
     D  = mountD(mat, ipd)
     Δσ = D*Δu
@@ -101,7 +97,6 @@ function stress_update(mat::ElasticJointSeep, ipd::JointSeepIpState, Δu::Array{
     ipd.σ[1:ndim] += Δσ
 
     ipd.uw += Δuw
-    ipd.G   = G
 
     return Δσ
 end

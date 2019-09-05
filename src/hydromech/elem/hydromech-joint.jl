@@ -79,27 +79,6 @@ function elem_init(elem::HydroMechJoint)
     end
 end
 
-#=
-function matrixT(J::Matrix{Float64})
-    if size(J,1)==2
-        L2 = vec(J[1,:])
-        L3 = vec(J[2,:])
-        L1 = cross(L2, L3)  # L1 is normal to the first element face
-        L3 = cross(L1, L2)
-        normalize!(L1)
-        normalize!(L2)
-        normalize!(L3)
-        return collect([L1 L2 L3]') # collect is used to avoid Adjoint type
-    else
-        L2 = vec(J)
-        L1 = [ L2[2], -L2[1] ] # It follows the anti-clockwise numbering of 2D elements: L1 should be normal to the first element face
-        normalize!(L1)
-        normalize!(L2)
-        return collect([L1 L2]')
-    end
-end=#
-
-
 function elem_stiffness(elem::HydroMechJoint)
     ndim     = elem.env.ndim
     th       = elem.env.thickness
@@ -212,37 +191,17 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
     nlnodes  = div(nnodes, 3) 
     dnlnodes = 2*nlnodes
     fshape   = elem.shape.facet_shape
-    C        = elem_coords(elem)[1:nlnodes,:]
 
-    J        = Array{Float64}(undef, ndim-1, ndim)
+    C        = elem_coords(elem)[1:nlnodes,:]
     Cl       = zeros(nlnodes, ndim-1)
+    J        = Array{Float64}(undef, ndim-1, ndim)
     Jl       = zeros(ndim-1, ndim-1)
     Bp       = zeros(ndim-1, nlnodes)
+
     Hlong    = zeros(nlnodes, nlnodes)
-    Htranb   = zeros(nlnodes, nlnodes)
-    Htrant   = zeros(nlnodes, nlnodes)
-    Htranf   = zeros(nlnodes, nlnodes)
     H        = zeros(nnodes, nnodes)
 
     for ip in elem.ips
-        
-        # compute kt and kb
-        if ip.data.t == 0.0 ||  ip.data.w[1] <= 0.0  
-            kt = elem.mat.kt
-            kb = kt
-        elseif elem.mat.permeability==false
-            kt = 0.0
-            kb = kt
-        elseif elem.mat.permeability==true
-            # compute kt and kb
-            kappa = elem.mat.k/elem.mat.γw
-            K  = elem.mat.E/(3*(1-2*elem.mat.nu)) # bulk modulus 
-            G  = elem.mat.E/(2*(1+2*elem.mat.nu)) # shear modulus
-            Ku = K + (elem.mat.α^2)/elem.mat.S    # undrained bulk modulus
-            cv = (kappa/elem.mat.S)*(K + (4/3)*G)/(Ku + (4/3)*G) # diffusion coefficient
-            kt = kappa/(2*sqrt(cv*ip.data.t/π))
-            kb = kt
-        end
 
         # compute shape Jacobian
         N    = fshape.func(ip.R)
@@ -252,25 +211,31 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
-        # compute Np matrix  
-        Np = N'
-
         # compute Bp matrix  
         T    = matrixT(J) # rotation matrix
         Cl   = C*T[(2:end), (1:end)]'  # new coordinate nodes
 
         @gemm Jl = dNdR*Cl
         Bp = inv(Jl)*dNdR
+        B0 = 0*Bp
+
+        Bf = [B0 B0 Bp] 
+
+        # compute NN matrix  
+        Np = N'
+        N0 = 0*N'
+
+        Nb = [Np N0 -Np]
+        Nt = [N0 -Np Np]
 
         # compute H
-        coef   = detJ*ip.w*kb
-        Htranf = coef*Np'*Np
-        Htrant = Htranf
-        Htranb = Htranf
+        coef  = detJ*ip.w*elem.mat.kt/elem.mat.γw
+        H += coef*Nb'*Nb
+        H += coef*Nt'*Nt
 
         if elem.mat.kl == 0.0
             # compute W crack aperture
-            if ip.data.t == 0.0 ||  ip.data.w[1] <= 0.0
+            if ip.data.t == 0.0 || ip.data.w[1] <= 0.0
                 W = 0.0
             else
                 W = ip.data.w[1]
@@ -280,22 +245,7 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
             coef = detJ*ip.w*elem.mat.kl
         end    
 
-        Hlong = coef*Bp'*Bp
-
-        H[1:nlnodes, 1:nlnodes] .+= Htranb
-        H[1:nlnodes, dnlnodes+1:end] .-= Htranf
-
-        H[nlnodes+1:dnlnodes, nlnodes+1:dnlnodes] .+= Htrant
-        H[nlnodes+1:dnlnodes, dnlnodes+1:end] .-= Htranf
-
-        H[dnlnodes+1:end, 1:nlnodes] .-= Htranb
-        H[dnlnodes+1:end, dnlnodes+1:end] .+= Htranf
-            
-        H[dnlnodes+1:end, nlnodes+1:dnlnodes] .-= Htrant
-        H[dnlnodes+1:end, dnlnodes+1:end] .+= Htranf
-
-        H[dnlnodes+1:end, dnlnodes+1:end] .-= Hlong
-
+        H -= coef*Bf'*Bf
     end
     
     # map
@@ -448,6 +398,9 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
         
         # compute Bu matrix
         NN .= 0.0
+        N0 = 0*N'
+        Nb = [Np N0 -Np]
+        Nt = [N0 -Np Np]
 
         for i=1:nlnodes
             for dof=1:ndim
@@ -473,40 +426,7 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
         coef = detJ*ip.w*elem.mat.β
         dFw[dnlnodes+1:end] .-= coef*Np'*uwf
 
-        # compute kt and kb
-        if ip.data.t == 0.0 ||  ip.data.w[1] <= 0.0  
-            kt = elem.mat.kt
-            kb = kt
-        elseif elem.mat.permeability==false
-            kt = 0.0
-            kb = kt
-        elseif elem.mat.permeability==true
-            # compute kt and kb
-            kappa = elem.mat.k/elem.mat.γw
-            K  = elem.mat.E/(3*(1-2*elem.mat.nu)) # bulk modulus 
-            G  = elem.mat.E/(2*(1+2*elem.mat.nu)) # shear modulus
-            Ku = K + (elem.mat.α^2)/elem.mat.S    # undrained bulk modulus
-            cv = (kappa/elem.mat.S)*(K + (4/3)*G)/(Ku + (4/3)*G) # diffusion coefficient
-            kt = kappa/(2*sqrt(cv*ip.data.t/π))
-            kb = kt
-        end
-
-        uwb = ip.data.uw[1]
-        uwt = ip.data.uw[2]
-        uwf = ip.data.uw[3]
-
-        coef  = detJ*ip.w*kb
-        dFw[1:nlnodes] .+= coef*Np'*(uwb-uwf)
-
-        coef  = detJ*ip.w*kt
-        dFw[nlnodes+1:dnlnodes] .+= coef*Np'*(uwt-uwf)
-
-        coef  = detJ*ip.w*kb
-        dFw[dnlnodes+1:end] .+= coef*Np'*(uwf-uwb)
-
-        coef  = detJ*ip.w*kt
-        dFw[dnlnodes+1:end] .+= coef*Np'*(uwf-uwt)
-
+        # longitudinal flow
         if elem.mat.kl == 0.0
             # compute W crack aperture
             if ip.data.t == 0.0 || ip.data.w[1] <= 0.0
@@ -519,8 +439,20 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
             coef = detJ*ip.w*elem.mat.kl            
         end  
 
-        Bpuwf = ip.data.G
-        dFw[dnlnodes+1:end] .-= coef*Bp'*Bpuwf 
+        #= NÃO RESOLVIDO
+        # longitudinal flow
+        Bfuw = Bf*uw + b
+        dFw -= coef*Bf'*BfUw 
+        =# 
+
+        # transverse flow
+        coef  = detJ*ip.w*elem.mat.kt/elem.mat.γw
+
+        Nbuw = ip.data.uw[1] - ip.data.uw[3] 
+        dFw += coef*Nb'*Nbuw 
+
+        Ntuw = ip.data.uw[2] - ip.data.uw[3] 
+        dFw += coef*Nt'*Ntuw
     end
 
     F[map_u] += dF
@@ -574,6 +506,9 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
 
         # compute Np vector
         Np =  N'
+        N0 = 0*N'
+        Nb = [Np N0 -Np]
+        Nt = [N0 -Np Np]
 
         # compute Bp matrix
         T    = matrixT(J) # rotation matrix
@@ -581,6 +516,8 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
 
         @gemm Jl = dNdR*Cl
         Bp = inv(Jl)*dNdR #dNdX
+        B0 = 0*Bp
+        Bf = [B0 B0 Bp] 
 
         # compute bf vector
         bf = T[(2:end), (1:end)]*Z*elem.mat.γw
@@ -607,7 +544,7 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
 
         Δuwf = Np*dUw[dnlnodes+1:end] 
         @gemv Δω = Bu*dU
-        Δσ  = stress_update(elem.mat, ip.data, Δω, Δuw, BpUwf)
+        Δσ  = stress_update(elem.mat, ip.data, Δω, Δuw)
         Δσ -= mf*Δuwf' # get total stress
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*Δσ
@@ -621,39 +558,6 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
         dFw[dnlnodes+1:end] .-= coef*Np'*Δuwf
 
         # compute kt and kb
-        if ip.data.t == 0.0 ||  ip.data.w[1] <= 0.0  
-            kt = elem.mat.kt
-            kb = kt
-        elseif elem.mat.permeability==false
-            kt = 0.0
-            kb = kt
-        elseif elem.mat.permeability==true
-            # compute kt and kb
-            kappa = elem.mat.k/elem.mat.γw
-            K  = elem.mat.E/(3*(1-2*elem.mat.nu)) # bulk modulus 
-            G  = elem.mat.E/(2*(1+2*elem.mat.nu)) # shear modulus
-            Ku = K + (elem.mat.α^2)/elem.mat.S    # undrained bulk modulus
-            cv = (kappa/elem.mat.S)*(K + (4/3)*G)/(Ku + (4/3)*G) # diffusion coefficient
-            kt = kappa/(2*sqrt(cv*ip.data.t/π))
-            kb = kt
-        end
-
-        NpUwb = Np*Uw[1:nlnodes]
-        NpUwt = Np*Uw[nlnodes+1:dnlnodes]
-        NpUwf = Np*Uw[dnlnodes+1:end]
-
-        coef  = Δt*detJ*ip.w*kb
-	    dFw[1:nlnodes] .+= coef*Np'*(NpUwb-NpUwf)
-
-	    coef  = Δt*detJ*ip.w*kt
-	    dFw[nlnodes+1:dnlnodes] .+= coef*Np'*(NpUwt-NpUwf)
-
-        coef  = Δt*detJ*ip.w*kb
-	    dFw[dnlnodes+1:end] .+= coef*Np'*(NpUwf-NpUwb)
-
-	    coef  = Δt*detJ*ip.w*kt
-	    dFw[dnlnodes+1:end] .+= coef*Np'*(NpUwf-NpUwt)
-
         if elem.mat.kl == 0.0
             # compute W crack aperture
             if ip.data.t == 0.0 || ip.data.w[1] <= 0.0
@@ -666,8 +570,18 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
             coef = Δt*detJ*ip.w*elem.mat.kl            
         end  
 
-        BpUwf = Bp*Uw[dnlnodes+1:end] + bf
-        dFw[dnlnodes+1:end] .-= coef*Bp'*BpUwf 
+        # longitudinal flow
+        BfUw = Bf*Uw + bf
+        dFw -= coef*Bf'*BfUw
+
+        # transverse flow
+        coef  = Δt*detJ*ip.w*elem.mat.kt/elem.mat.γw
+
+        NbUw = Nb*Uw
+        dFw += coef*Nb'*NbUw 
+
+        NtUw = Nt*Uw
+        dFw += coef*Nt'*NtUw 
     end
 
     F[map_u] .+= dF
