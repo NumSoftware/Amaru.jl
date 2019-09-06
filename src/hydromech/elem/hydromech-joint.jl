@@ -143,8 +143,8 @@ function elem_coupling_matrix(elem::HydroMechJoint)
     NN       = zeros(ndim, dnlnodes*ndim)
     Bu       = zeros(ndim, dnlnodes*ndim)
     mf       = [1.0, 0.0, 0.0][1:ndim]
-    mfNp     = zeros(ndim,nlnodes)
-    Cup      = zeros(dnlnodes*ndim, nlnodes) # u-p coupling matrix
+    mfNp     = zeros(ndim,nnodes)
+    Cup      = zeros(dnlnodes*ndim, nnodes) # u-p coupling matrix
 
     for ip in elem.ips
         # compute shape Jacobian
@@ -157,6 +157,8 @@ function elem_coupling_matrix(elem::HydroMechJoint)
 
         # compute Np vector
         Np = N'
+        N0 = 0*N'
+        Nf = [N0 N0 Np]
         
         # compute Bu matrix
         T   = matrixT(J)
@@ -172,14 +174,14 @@ function elem_coupling_matrix(elem::HydroMechJoint)
         @gemm Bu = T*NN
         # compute Cup
         coef = detJ*ip.w*th  
-        mfNp = mf*Np
-        Cup -= coef*Bu'*mfNp
+        mfNf = mf*Nf
+        Cup -= coef*Bu'*mfNf
     end
 
     # map
     keys = (:ux, :uy, :uz)[1:ndim]
     map_u = [ node.dofdict[key].eq_id for node in elem.nodes[1:dnlnodes] for key in keys ]
-    map_p = [ node.dofdict[:uw].eq_id for node in elem.nodes[dnlnodes+1:end] ]
+    map_p = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
 
     return Cup, map_u, map_p
 end
@@ -198,7 +200,6 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
     Jl       = zeros(ndim-1, ndim-1)
     Bp       = zeros(ndim-1, nlnodes)
 
-    Hlong    = zeros(nlnodes, nlnodes)
     H        = zeros(nnodes, nnodes)
 
     for ip in elem.ips
@@ -218,15 +219,13 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
         @gemm Jl = dNdR*Cl
         Bp = inv(Jl)*dNdR
         B0 = 0*Bp
-
         Bf = [B0 B0 Bp] 
 
         # compute NN matrix  
         Np = N'
         N0 = 0*N'
-
         Nb = [Np N0 -Np]
-        Nt = [N0 -Np Np]
+        Nt = [N0 Np -Np]
 
         # compute H
         coef  = detJ*ip.w*elem.mat.kt/elem.mat.γw
@@ -264,7 +263,7 @@ function elem_compressibility_matrix(elem::HydroMechJoint)
     C        = elem_coords(elem)[1:nlnodes,:]
 
     J   = Array{Float64}(undef, ndim-1, ndim)
-    Cpp = zeros(nlnodes, nlnodes) 
+    Cpp = zeros(nnodes, nnodes) 
 
     for ip in elem.ips
         # compute shape Jacobian
@@ -277,14 +276,16 @@ function elem_compressibility_matrix(elem::HydroMechJoint)
 
         # compute Np matrix
         Np = N'
+        N0 = 0*N'
+        Nf = [N0 N0 Np]
 
         # compute Cpp
         coef = detJ*ip.w*elem.mat.β
-        Cpp -= coef*Np'*Np
+        Cpp -= coef*Nf'*Nf
     end
 
     # map
-    map = [  node.dofdict[:uw].eq_id for node in elem.nodes[dnlnodes+1:end]  ]
+    map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
 
     return Cpp, map, map
 end
@@ -305,7 +306,7 @@ function elem_RHS_vector(elem::HydroMechJoint)
     Z        = zeros(ndim) 
     Z[end]   = 1.0
     bf       = zeros(ndim-1) 
-    Q        = zeros(nlnodes)
+    Q        = zeros(nnodes)
  
     for ip in elem.ips
 
@@ -322,6 +323,8 @@ function elem_RHS_vector(elem::HydroMechJoint)
 
         @gemm Jl = dNdR*Cl
         Bp = inv(Jl)*dNdR
+        B0 = 0*Bp
+        Bf = [B0 B0 Bp] 
         
         # compute Q
         if elem.mat.kl == 0.0
@@ -337,11 +340,11 @@ function elem_RHS_vector(elem::HydroMechJoint)
         end  
         
         bf = T[(2:end), (1:end)]*Z*elem.mat.γw
-        @gemm Q += coef*Bp'*bf
+        @gemm Q += coef*Bf'*bf
     end
 
     # map
-    map = [  node.dofdict[:uw].eq_id for node in elem.nodes[dnlnodes+1:end]  ]
+    map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
 
     return Q, map
 end
@@ -400,7 +403,8 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
         NN .= 0.0
         N0 = 0*N'
         Nb = [Np N0 -Np]
-        Nt = [N0 -Np Np]
+        Nt = [N0 Np -Np]
+        Nf = [N0 N0 Np]
 
         for i=1:nlnodes
             for dof=1:ndim
@@ -421,10 +425,10 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
         w  = ip.data.w[1:ndim]
         coef = detJ*ip.w*th
         mfw = mf'*w
-        dFw[dnlnodes+1:end] .-= coef*Np'*mfw 
+        dFw-= coef*Nf'*mfw 
 
         coef = detJ*ip.w*elem.mat.β
-        dFw[dnlnodes+1:end] .-= coef*Np'*uwf
+        dFw -= coef*Nf'*uwf
 
         # longitudinal flow
         if elem.mat.kl == 0.0
@@ -441,7 +445,7 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
 
         #= NÃO RESOLVIDO
         # longitudinal flow
-        Bfuw = Bf*uw + b
+        Bfuw = Bf*uw + bf
         dFw -= coef*Bf'*BfUw 
         =# 
 
@@ -508,7 +512,8 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
         Np =  N'
         N0 = 0*N'
         Nb = [Np N0 -Np]
-        Nt = [N0 -Np Np]
+        Nt = [N0 Np -Np]
+        Nf = [N0 N0 Np]
 
         # compute Bp matrix
         T    = matrixT(J) # rotation matrix
@@ -540,9 +545,7 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
         Δuw  = [Np*dUw[1:nlnodes]; Np*dUw[nlnodes+1:dnlnodes]; Np*dUw[dnlnodes+1:end]] 
 
         # Compute longitudinal flow gradient  
-        BpUwf = Bp*Uw[dnlnodes+1:end] + bf
-
-        Δuwf = Np*dUw[dnlnodes+1:end] 
+        Δuwf = Nf*dUw
         @gemv Δω = Bu*dU
         Δσ  = stress_update(elem.mat, ip.data, Δω, Δuw)
         Δσ -= mf*Δuwf' # get total stress
@@ -552,10 +555,10 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
         # internal volumes dFw
         coef = detJ*ip.w*th
         mfΔω = mf'*Δω
-        dFw[dnlnodes+1:end] .-= coef*Np'*mfΔω 
+        dFw -= coef*Nf'*mfΔω 
 
         coef = detJ*ip.w*elem.mat.β
-        dFw[dnlnodes+1:end] .-= coef*Np'*Δuwf
+        dFw -= coef*Nf'*Δuwf
 
         # compute kt and kb
         if elem.mat.kl == 0.0
