@@ -387,9 +387,6 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
-        # compute Np vector
-        Np =  N'
-
         # compute Bp matrix
         T    = matrixT(J) # rotation matrix
         Cl   = C*T[(2:end), (1:end)]'  # coordinate of new nodes
@@ -399,13 +396,15 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
         # compute bf vector
         bf = T[(2:end), (1:end)]*Z*elem.mat.γw
         
-        # compute Bu matrix
-        NN .= 0.0
+        # compute Np vector
+        Np =  N'
         N0 = 0*N'
         Nb = [Np N0 -Np]
         Nt = [N0 Np -Np]
         Nf = [N0 N0 Np]
 
+        # compute NN matrix
+        NN .= 0.0
         for i=1:nlnodes
             for dof=1:ndim
                 NN[dof, (i-1)*ndim + dof               ] = -N[i]
@@ -509,11 +508,11 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # compute Np vector
-        Np =  N'
+        Np = N'
         N0 = 0*N'
         Nb = [Np N0 -Np]
         Nt = [N0 Np -Np]
-        Nf = [N0 N0 Np]
+        Nf = [N0 N0  Np]
 
         # compute Bp matrix
         T    = matrixT(J) # rotation matrix
@@ -527,7 +526,7 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
         # compute bf vector
         bf = T[(2:end), (1:end)]*Z*elem.mat.γw
         
-        # compute Bu matrix
+        # compute NN matrix
         NN .= 0.0
 
         for i=1:nlnodes
@@ -539,15 +538,18 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
 
         @gemm Bu = T*NN
 
-        # internal force dF
 
         # interpolation to the integ. point 
-        Δuw  = [Np*dUw[1:nlnodes]; Np*dUw[nlnodes+1:dnlnodes]; Np*dUw[dnlnodes+1:end]] 
-
-        # Compute longitudinal flow gradient  
-        Δuwf = Nf*dUw
+        Δuw  = [Np*dUw[1:nlnodes]; Np*dUw[nlnodes+1:dnlnodes]; Np*dUw[dnlnodes+1:end]]
         @gemv Δω = Bu*dU
-        Δσ  = stress_update(elem.mat, ip.data, Δω, Δuw)
+        Δuwf = Δuw[3]
+
+        # Compute longitudinal flow gradient 
+        Gt = dot(Nt,Uw)/(elem.mat.γw*1)
+        Gb = dot(Nb,Uw)/(elem.mat.γw*1) 
+    
+        # internal force dF
+        Δσ, Vt, Vb = stress_update(elem.mat, ip.data, Δω, Δuw, Gt, Gb)
         Δσ -= mf*Δuwf' # get total stress
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*Δσ
@@ -578,13 +580,9 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
         dFw -= coef*Bf'*BfUw
 
         # transverse flow
-        coef  = Δt*detJ*ip.w*elem.mat.kt/elem.mat.γw
-
-        NbUw = Nb*Uw
-        dFw += coef*Nb'*NbUw 
-
-        NtUw = Nt*Uw
-        dFw += coef*Nt'*NtUw 
+        coef = Δt*detJ*ip.w
+        dFw -= coef*Nt'*Vt 
+        dFw -= coef*Nb'*Vb 
     end
 
     F[map_u] .+= dF
