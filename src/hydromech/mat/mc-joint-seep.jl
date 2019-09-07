@@ -6,6 +6,8 @@ mutable struct MCJointSeepIpState<:IpState
     env::ModelEnv
     σ   ::Array{Float64,1} # stress
     w   ::Array{Float64,1} # relative displacements
+    Vt   ::Float64         # fluid velocity
+    Vb   ::Float64         # fluid velocity
     uw  ::Array{Float64,1} # interface pore pressure
     upa ::Float64          # effective plastic relative displacement
     Δλ  ::Float64          # plastic multiplier
@@ -17,6 +19,8 @@ mutable struct MCJointSeepIpState<:IpState
         ndim = env.ndim
         this.σ  = zeros(ndim)
         this.w  = zeros(ndim)
+        this.Vt = 0.0
+        this.Vb = 0.0
         this.uw = zeros(3) 
         this.upa = 0.0
         this.Δλ  = 0.0
@@ -369,7 +373,7 @@ function mountD(mat::MCJointSeep, ipd::MCJointSeepIpState)
 end
 
 
-function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Float64,1}, Δuw::Array{Float64,1})
+function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Float64,1}, Δuw::Array{Float64,1}, Gt::Float64, Gb::Float64)
     ndim = ipd.env.ndim
     σini = copy(ipd.σ)
 
@@ -430,9 +434,11 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
     ipd.w += Δw
     Δσ = ipd.σ - σini
 
+    ipd.Vt  = -mat.kt*Gt
+    ipd.Vb  = -mat.kt*Gb
     ipd.uw += Δuw
 
-    return Δσ
+    return Δσ, ipd.Vt, ipd.Vb
 end
 
 

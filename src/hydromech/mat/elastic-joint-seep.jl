@@ -6,6 +6,8 @@ mutable struct JointSeepIpState<:IpState
     env  ::ModelEnv
     σ    ::Array{Float64,1} # stress
     w    ::Array{Float64,1} # relative displacements
+    Vt   ::Float64          # fluid velocity
+    Vb   ::Float64          # fluid velocity
     uw   ::Array{Float64,1} # interface pore pressure
     h    ::Float64          # characteristic length from bulk elements
     t    ::Float64          # time when the fracture opened
@@ -14,6 +16,8 @@ mutable struct JointSeepIpState<:IpState
         ndim = env.ndim
         this.σ = zeros(3)
         this.w = zeros(3)
+        this.Vt = 0.0
+        this.Vb = 0.0
         this.uw = zeros(3) 
         this.h = 0.0
         this.t = 0.0
@@ -88,7 +92,7 @@ function mountD(mat::ElasticJointSeep, ipd::JointSeepIpState)
     end
 end
 
-function stress_update(mat::ElasticJointSeep, ipd::JointSeepIpState, Δu::Array{Float64,1}, Δuw::Array{Float64,1})
+function stress_update(mat::ElasticJointSeep, ipd::JointSeepIpState, Δu::Array{Float64,1}, Δuw::Array{Float64,1}, Gt::Float64, Gb::Float64)
     ndim = ipd.env.ndim
     D  = mountD(mat, ipd)
     Δσ = D*Δu
@@ -96,9 +100,11 @@ function stress_update(mat::ElasticJointSeep, ipd::JointSeepIpState, Δu::Array{
     ipd.w[1:ndim] += Δu
     ipd.σ[1:ndim] += Δσ
 
+    ipd.Vt  = -mat.kt*Gt
+    ipd.Vb  = -mat.kt*Gb
     ipd.uw += Δuw
 
-    return Δσ
+    return Δσ, ipd.Vt, ipd.Vb
 end
 
 function ip_state_vals(mat::ElasticJointSeep, ipd::JointSeepIpState)
