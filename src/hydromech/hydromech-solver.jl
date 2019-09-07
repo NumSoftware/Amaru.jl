@@ -406,7 +406,9 @@ function hm_solve!(
             for (i,dof) in enumerate(dofs)
                 dof.vals[dof.name]    += ΔUa[i]
                 dof.vals[dof.natname] += ΔFin[i]
-                dof.vals[:h] = Z[i] + U[i]/gammaw
+                if dof.name==:uw
+                    dof.vals[:h] = Z[i] + U[i]/gammaw
+                end
             end
 
             update_loggers!(dom) # Tracking nodes, ips, elements, etc.
