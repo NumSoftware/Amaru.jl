@@ -18,7 +18,7 @@ function copy!(target::Material, source::Material)
     # source and target must be of the same type
     T = typeof(source)
     for fld in fieldnames(source)
-        if filedtype(T, fld) <: Array
+        if fieldtype(T, fld) <: Array
             if isdefined(target,fld)
                 getfield(target, fld) .= getfield(source, fld)
             else

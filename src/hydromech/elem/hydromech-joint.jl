@@ -31,7 +31,6 @@ function elem_config_dofs(elem::HydroMechJoint)
     end
 end
 
-
 function elem_init(elem::HydroMechJoint)
     # Get linked elements
     e1 = elem.linked_elems[1]
@@ -40,6 +39,7 @@ function elem_init(elem::HydroMechJoint)
     # Volume from first linked element
     V1 = 0.0
     C1 = elem_coords(e1)
+
     for ip in e1.ips
         dNdR = e1.shape.deriv(ip.R)
         J    = dNdR*C1

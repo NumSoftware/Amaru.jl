@@ -34,7 +34,7 @@ bcs = [
 
 log1.table;
 
-if Amaru.debug.makeplots
+if Amaru.config.makeplots
     using PyPlot
     t = log1.table
     plot(t[:t], t[:ux], "-o")

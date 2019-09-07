@@ -37,8 +37,7 @@ bcs = [
 hm_solve!(dom, bcs, end_time=500.0, tol=0.1, verbose=false)
 
 # Output
-
-if Amaru.debug.makeplots
+if Amaru.config.makeplots
     using PyPlot
     save(log1, "book.dat")
 

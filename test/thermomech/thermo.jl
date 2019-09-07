@@ -37,7 +37,7 @@ tm_solve!(dom, bcs, end_time=10000.0, tol=0.1, nincs=5, verbose=false)
 
 # Output
 
-if Amaru.debug.makeplots
+if Amaru.config.makeplots
     using PyPlot
     save(log1, "book.dat")
 

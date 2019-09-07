@@ -12,7 +12,7 @@ blocks = [
     Block( [(Lrocha/2+Lgap/2) 0; Lrocha Hrocha], nx=14, ny=15, cellshape=QUAD8, tag="solids"),
 ]
 
-mesh  = Mesh(blocks, verbose=true) 
+mesh  = Mesh(blocks, silent=true) 
 
 # Analysis data
 k    = 1.0e-8  # permeability
@@ -27,29 +27,11 @@ mats = [
 
 dom = Domain(mesh, mats, gammaw=10.0)
 
-# Stage 1: pore-pressure stabilization
-bcs = [
-       :(y==$Hrocha) => NodeBC(uw=0),
-      ]
-
-hm_solve!(dom, bcs, end_time=1.0e2, nincs=1, tol=1e-2, nouts=1, verbose=true)
-
-dom.env.t = 0.0
-
-#tag!(dom.elems[:solids][:nodes][:(x==1.0 && y==1.0 && z==1.0)], "input")
-
-#times = [ 0.002, 0.005, 0.01, 0.02, 0.03, 0.04, 0.06, 0.1 ]
-
-
-# Stage 2: volume application
+# Boundary conditions
 bcs = [
        :(x<=$Lrocha/2 && y==$Hrocha) => FaceBC(uw=10*gw),
        :(x>=$Lrocha/2 && y==$Hrocha) => FaceBC(uw=0),
       ]
 
-#for t in times[1:end]
-    t = 1e-5
-    hm_solve!(dom, bcs, end_time=t, nincs=2, tol=1e-2, nouts=1, verbose=true)
-#end
-
-save(dom, "dom1.vtk")
+# Solving
+hm_solve!(dom, bcs, end_time=1, nincs=2, tol=1e-2, nouts=1, verbose=false)

@@ -22,7 +22,6 @@ function mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
         has_compressibility_matrix = hasmethod(elem_compressibility_matrix, (ty,))
         has_RHS_vector          = hasmethod(elem_RHS_vector, (ty,))
 
-
         # Assemble the stiffness matrix
         if has_stiffness_matrix
             K, rmap, cmap = elem_stiffness(elem)
@@ -178,8 +177,8 @@ Available options are:
 function hm_solve!(
                    dom       :: Domain,
                    bcs       :: Array;
-                   time_span :: Float64 = NaN,
-                   end_time  :: Float64 = NaN,
+                   time_span :: Real    = NaN,
+                   end_time  :: Real    = NaN,
                    nincs     :: Int     = 1,
                    maxits    :: Int     = 5,
                    autoinc   :: Bool    = false,

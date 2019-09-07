@@ -40,11 +40,11 @@ import FemMesh.tag!
 
 
 # Debug
-mutable struct DebugFlags
-    enabled::Bool
+mutable struct ConfigFlags
+    debug::Bool
     makeplots::Bool
 end
-const debug = DebugFlags(false, true)
+const config = ConfigFlags(false, true)
 
 # eye function
 eye(n::Int64) = Array{Float64}(I,n,n)

@@ -4,7 +4,7 @@ using Test
 
 path  = dirname(@__FILE__)
 tests = readdir(path)
-Amaru.debug.makeplots = false
+Amaru.config.makeplots = false
 
 
 printstyled("\x1b[1m", "\nRunning tests...\n", "\x1b[0m", color=:green)
@@ -44,7 +44,9 @@ FILES = [
     "mech/dynamic/dyn-solid.jl",
 
     # Hydromechanical analysis:
+    "hydromech/drain.jl",
     "hydromech/seep.jl",
+    "hydromech/cutoff.jl",
     "hydromech/terzaghi.jl",
     "hydromech/terzaghi-joint.jl",
    ]
