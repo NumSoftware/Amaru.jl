@@ -45,6 +45,7 @@ FILES = [
 
     # Hydromechanical analysis:
     "hydromech/drain.jl",
+    "hydromech/drain-solid.jl",
     "hydromech/seep.jl",
     "hydromech/cutoff.jl",
     "hydromech/terzaghi.jl",

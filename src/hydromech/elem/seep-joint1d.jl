@@ -95,7 +95,7 @@ function elem_conductivity_matrix(elem::SeepJoint1D)
 
 	map_p = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
 
-    return H, map_p, map_p
+    return H, map_p, map_p, elem.nodes
 end
 
 function elem_internal_forces(elem::SeepJoint1D, F::Array{Float64,1})
@@ -113,9 +113,9 @@ function elem_internal_forces(elem::SeepJoint1D, F::Array{Float64,1})
         detJ = elem.cache_detJ[i]
 
         # internal volumes dFw    
-        V    = ip.data.V
+        D    = ip.data.D
         coef = detJ*ip.w*h
-        dFw += coef*Bp'*V
+        dFw += coef*Bp'*D
     end
 
     F[map_p] += dFw
@@ -143,7 +143,7 @@ function elem_update!(elem::SeepJoint1D, DU::Array{Float64,1}, DF::Array{Float64
 
         # poropression difference between solid and drain
         ΔFw = dot(Bp,Uw)/elem.mat.γw 
-        V = update_state!(elem.mat, ip.data, ΔFw)
+        V = update_state!(elem.mat, ip.data, ΔFw, Δt)
 
         coef = Δt*detJ*ip.w*h
         dFw += coef*Bp'*V

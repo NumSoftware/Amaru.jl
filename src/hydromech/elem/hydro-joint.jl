@@ -119,25 +119,14 @@ function elem_conductivity_matrix(elem::HydroJoint)
         H += coef*Nb'*Nb
         H += coef*Nt'*Nt
 
-        if elem.mat.kl == 0.0
-            # compute W crack aperture
-            if ip.data.t == 0.0 || ip.data.w[1] <= 0.0
-                W = 0.0
-            else
-                W = ip.data.w[1]
-            end
-            coef = detJ*ip.w*(W^3)/(12*elem.mat.η) 
-        else
-            coef = detJ*ip.w*elem.mat.kl
-        end    
-
+        coef = detJ*ip.w*(elem.mat.kl^3)/(12*elem.mat.η)
         H -= coef*Bf'*Bf
     end
     
     # map
     map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
 
-    return H, map, map
+    return H, map, map, elem.nodes
 end
 
 
@@ -214,17 +203,7 @@ function elem_RHS_vector(elem::HydroJoint)
         Bf = [B0 B0 Bp] 
         
         # compute Q
-        if elem.mat.kl == 0.0
-            # compute W crack aperture
-            if ip.data.t == 0.0 ||  ip.data.w[1] <= 0.0
-                W = 0.0
-            else
-                W = ip.data.w[1]
-            end
-            coef = detJ*ip.w*(W^3)/(12*elem.mat.η)
-        else
-            coef = detJ*ip.w*elem.mat.kl            
-        end  
+        coef = detJ*ip.w*(elem.mat.kl^3)/(12*elem.mat.η)            
         
         bf = T[(2:end), (1:end)]*Z*elem.mat.γw
         @gemm Q += coef*Bf'*bf
@@ -277,6 +256,8 @@ function elem_internal_forces(elem::HydroJoint, F::Array{Float64,1})
         Cl   = C*T[(2:end), (1:end)]'  # coordinate of new nodes
         @gemm Jl = dNdR*Cl
         Bp = inv(Jl)*dNdR #dNdX
+        B0 = 0*Bp
+        Bf = [B0 B0 Bp] 
 
         # compute bf vector
         bf = T[(2:end), (1:end)]*Z*elem.mat.γw
@@ -288,37 +269,19 @@ function elem_internal_forces(elem::HydroJoint, F::Array{Float64,1})
         Nf = [N0 N0 Np]
 
         # internal volumes dFw
-
         coef = detJ*ip.w*elem.mat.β
         dFw -= coef*Nf'*ip.data.uw[3] 
-
+   
         # longitudinal flow
-        if elem.mat.kl == 0.0
-            # compute W crack aperture
-            if ip.data.t == 0.0 || ip.data.w[1] <= 0.0
-                W = 0.0
-            else
-                W = ip.data.w[1]
-            end
-            coef = detJ*ip.w*(W^3)/(12*elem.mat.η)
-        else
-            coef = detJ*ip.w*elem.mat.kl            
-        end  
-
-        #= NÃO RESOLVIDO
-        # longitudinal flow
-        Bfuw = Bf*uw + bf
-        dFw -= coef*Bf'*BfUw 
-        =# 
-
+        coef = detJ*ip.w  
+        S = ip.data.S
+        dFw -= coef*Bf'*S
+         
         # transverse flow
-        coef  = detJ*ip.w*elem.mat.kt/elem.mat.γw
-
-        Nbuw = ip.data.uw[1] - ip.data.uw[3] 
-        dFw += coef*Nb'*Nbuw 
-
-        Ntuw = ip.data.uw[2] - ip.data.uw[3] 
-        dFw += coef*Nt'*Ntuw
+        coef  = detJ*ip.w
+        D = ip.data.D
+        dFw += coef*Nt'*D[1]
+        dFw += coef*Nb'*D[2] 
     end
 
     F[map_p] += dFw
@@ -387,39 +350,23 @@ function elem_update!(elem::HydroJoint, U::Array{Float64,1}, F::Array{Float64,1}
         
         # interpolation to the integ. point 
         Δuw  = [Np*dUw[1:nlnodes]; Np*dUw[nlnodes+1:dnlnodes]; Np*dUw[dnlnodes+1:end]] 
-        Gt = dot(Nt,Uw)/(elem.mat.γw*1)
-        Gb = dot(Nb,Uw)/(elem.mat.γw*1)
+        G    = [dot(Nt,Uw)/(elem.mat.γw*1); dot(Nb,Uw)/(elem.mat.γw*1)]
+        BfUw = Bf*Uw + bf
 
-        Vt, Vb  = update_state!(elem.mat, ip.data, Δuw, Gt, Gb)
+        V, L = update_state!(elem.mat, ip.data, Δuw, G, BfUw, Δt)
 
         # internal volumes dFw
-        Δuwf = Nf*dUw
         coef = detJ*ip.w*elem.mat.β
-        dFw -= coef*Nf'*Δuwf
-
-        # compute kt and kb
-        if elem.mat.kl == 0.0
-            # compute W crack aperture
-            if ip.data.t == 0.0 || ip.data.w[1] <= 0.0
-                W = 0.0
-            else
-                W = ip.data.w[1]
-            end
-            coef = Δt*detJ*ip.w*(W^3)/(12*elem.mat.η)
-        else
-            coef = Δt*detJ*ip.w*elem.mat.kl            
-        end  
+        dFw -= coef*Nf'*Δuw[3]
 
         # longitudinal flow
-        BfUw = Bf*Uw + bf
-        dFw -= coef*Bf'*BfUw
+        coef = Δt*detJ*ip.w
+        dFw -= coef*Bf'*L
 
         # transverse flow
-        coef = Δt*detJ*ip.w
-        dFw -= coef*Nt'*Vt 
-        dFw -= coef*Nb'*Vb 
+        dFw -= coef*Nt'*V[1] 
+        dFw -= coef*Nb'*V[2] 
     end
-       
 
     F[map_p] .+= dFw
 end

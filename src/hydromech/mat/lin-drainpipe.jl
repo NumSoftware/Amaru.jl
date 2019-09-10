@@ -5,10 +5,12 @@ export LinDrainPipe
 mutable struct LinDrainPipeIpState<:IpState
     env::ModelEnv
     V::Float64       # fluid velocity
+    D::Float64       # distance traveled by the fluid
     uw::Float64      # pore pressure
     function LinDrainPipeIpState(env::ModelEnv=ModelEnv())
         this = new(env)
-        this.V = 0.0
+        this.V  = 0.0
+        this.D  = 0.0
         this.uw = 0.0
         return this
     end
@@ -39,9 +41,10 @@ matching_elem_type(::LinDrainPipe) = DrainPipe
 # Type of corresponding state structure
 ip_state_type(mat::LinDrainPipe) = LinDrainPipeIpState
 
-function update_state!(mat::LinDrainPipe, ipd::LinDrainPipeIpState, Δuw::Float64, G::Float64)
+function update_state!(mat::LinDrainPipe, ipd::LinDrainPipeIpState, Δuw::Float64, G::Float64, Δt::Float64)
     k = mat.k
     ipd.V  -= k*G 
+    ipd.D  += ipd.V*Δt
     ipd.uw += Δuw
     return ipd.V
 end

@@ -56,7 +56,7 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
     # map
     map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
 
-    return H, map, map
+    return H, map, map, elem.nodes
 end
 
 function elem_compressibility_matrix(elem::DrainPipe)
@@ -158,9 +158,9 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
         coef = detJ*ip.w*elem.mat.β*A
         dFw -= coef*Np'*uw
         
-        V    = ip.data.V
+        D    = ip.data.D
         coef = detJ*ip.w*A
-        dFw += coef*Bp'*V
+        dFw += coef*Bp'*D
 
     end
 
@@ -201,11 +201,11 @@ function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1
         Np = N'
 
         # flow gradient
-        G  = dot(Bp,Uw)/elem.mat.γw # flow gradient
+        G  = dot(Bp,Uw)/(elem.mat.γw*1) # flow gradient
         G += Jvert; # gradient due to gravity
         Δuw = dot(Np,dUw) # interpolation to the integ. point
 
-        V = update_state!(elem.mat, ip.data, Δuw, G)
+        V = update_state!(elem.mat, ip.data, Δuw, G, Δt)
 
         coef = A*detJ*ip.w*elem.mat.β
         dFw -= coef*Np'*Δuw  

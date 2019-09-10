@@ -257,18 +257,22 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
         H += coef*Nb'*Nb
         H += coef*Nt'*Nt
 
+         # compute crack aperture
         if elem.mat.kl == 0.0
-            # compute W crack aperture
-            if ip.data.t == 0.0 || ip.data.w[1] <= 0.0
-                W = 0.0
+            if ip.data.upa == 0.0 || ip.data.w[1] <= 0.0
+                kl = 0.0
             else
-                W = ip.data.w[1]
+                kl = ip.data.w[1]
             end
-            coef = detJ*ip.w*(W^3)/(12*elem.mat.η) 
         else
-            coef = detJ*ip.w*elem.mat.kl
+            if elem.mat.kl >= ip.data.w[1]
+                kl = elem.mat.kl
+            else 
+                kl = ip.data.w[1]
+            end
         end    
 
+        coef = detJ*ip.w*(kl^3)/(12*elem.mat.η) 
         H -= coef*Bf'*Bf
     end
     
@@ -368,19 +372,25 @@ function elem_RHS_vector(elem::HydroMechJoint)
         Bf = [B0 B0 Bp] 
         
         # compute Q
+
+        # compute crack aperture
         if elem.mat.kl == 0.0
-            # compute W crack aperture
-            if ip.data.t == 0.0 ||  ip.data.w[1] <= 0.0
-                W = 0.0
+            if ip.data.upa == 0.0 || ip.data.w[1] <= 0.0
+                kl = 0.0
             else
-                W = ip.data.w[1]
-            end
-            coef = detJ*ip.w*(W^3)/(12*elem.mat.η)
+                kl = ip.data.w[1]
+            end 
         else
-            coef = detJ*ip.w*elem.mat.kl            
-        end  
-        
+            if elem.mat.kl >= ip.data.w[1]
+                kl = elem.mat.kl
+            else 
+                kl = ip.data.w[1]
+            end
+        end    
+
+        coef = detJ*ip.w*(kl^3)/(12*elem.mat.η)   
         bf = T[(2:end), (1:end)]*Z*elem.mat.γw
+        
         @gemm Q += coef*Bf'*bf
     end
 
@@ -441,6 +451,8 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
         Cl   = C*T[(2:end), (1:end)]'  # coordinate of new nodes
         @gemm Jl = dNpdR*Cl
         Bp = inv(Jl)*dNpdR #dNdX
+        B0 = 0*Bp
+        Bf = [B0 B0 Bp] 
 
         # compute bf vector
         bf = T[(2:end), (1:end)]*Z*elem.mat.γw
@@ -480,32 +492,14 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
         dFw -= coef*Nf'*uwf
 
         # longitudinal flow
-        if elem.mat.kl == 0.0
-            # compute W crack aperture
-            if ip.data.t == 0.0 || ip.data.w[1] <= 0.0
-                W = 0.0
-            else
-                W = ip.data.w[1]
-            end
-            coef = detJ*ip.w*(W^3)/(12*elem.mat.η)
-        else
-            coef = detJ*ip.w*elem.mat.kl            
-        end  
-
-        #= NÃO RESOLVIDO
-        # longitudinal flow
-        Bfuw = Bf*uw + bf
-        dFw -= coef*Bf'*BfUw 
-        =# 
-
+        coef = detJ*ip.w  
+        S = ip.data.S
+        dFw -= coef*Bf'*S
+         
         # transverse flow
-        coef  = detJ*ip.w*elem.mat.kt/elem.mat.γw
-
-        Nbuw = ip.data.uw[1] - ip.data.uw[3] 
-        dFw += coef*Nb'*Nbuw 
-
-        Ntuw = ip.data.uw[2] - ip.data.uw[3] 
-        dFw += coef*Nt'*Ntuw
+        D = ip.data.D
+        dFw += coef*Nt'*D[1]
+        dFw += coef*Nb'*D[2]
     end
 
     F[map_u] += dF
@@ -599,16 +593,14 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
 
         # interpolation to the integ. point 
         Δuw  = [Np'*dUw[1:nbsnodes]; Np'*dUw[nbsnodes+1:2*nbsnodes]; Np'*dUw[2*nbsnodes+1:end]]
-        @gemv Δω = Bu*dU
-        Δuwf = Δuw[3]
+        G    = [ dot(Nt,Uw)/(elem.mat.γw*1); dot(Nb,Uw)/(elem.mat.γw*1)]
+        BfUw = Bf*Uw + bf
 
-        # Compute longitudinal flow gradient 
-        Gt = dot(Nt,Uw)/(elem.mat.γw*1)
-        Gb = dot(Nb,Uw)/(elem.mat.γw*1) 
-    
+        @gemv Δω = Bu*dU
+          
         # internal force dF
-        Δσ, Vt, Vb = stress_update(elem.mat, ip.data, Δω, Δuw, Gt, Gb)
-        Δσ -= mf*Δuwf' # get total stress
+        Δσ, V, L = stress_update(elem.mat, ip.data, Δω, Δuw, G, BfUw, Δt)
+        Δσ -= mf*Δuw[3] # get total stress
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*Δσ
 
@@ -618,29 +610,15 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
         dFw -= coef*Nf'*mfΔω 
 
         coef = detJ*ip.w*elem.mat.β
-        dFw -= coef*Nf'*Δuwf
-
-        # compute kt and kb
-        if elem.mat.kl == 0.0
-            # compute W crack aperture
-            if ip.data.t == 0.0 || ip.data.w[1] <= 0.0
-                W = 0.0
-            else
-                W = ip.data.w[1]
-            end
-            coef = Δt*detJ*ip.w*(W^3)/(12*elem.mat.η)
-        else
-            coef = Δt*detJ*ip.w*elem.mat.kl            
-        end  
+        dFw -= coef*Nf'*Δuw[3]
 
         # longitudinal flow
-        BfUw = Bf*Uw + bf
-        dFw -= coef*Bf'*BfUw
+        coef = Δt*detJ*ip.w
+        dFw -= coef*Bf'*L
 
         # transverse flow
-        coef = Δt*detJ*ip.w
-        dFw -= coef*Nt'*Vt 
-        dFw -= coef*Nb'*Vb 
+        dFw -= coef*Nt'*V[1]  
+        dFw -= coef*Nb'*V[2] 
     end
 
     F[map_u] .+= dF

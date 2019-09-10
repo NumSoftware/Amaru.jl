@@ -380,9 +380,9 @@ function elem_internal_forces(elem::HMSolid, F::Array{Float64,1})
         coef = detJ*ip.w*elem.mat.S 
         dFw -= coef*Np*uw  
 
-        V    = ip.data.V
+        D    = ip.data.D
         coef = detJ*ip.w
-        @gemv dFw += coef*Bp'*V
+        @gemv dFw += coef*Bp'*D
     end
 
     F[map_u] += dF
@@ -447,7 +447,7 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         G[end] += 1.0; # gradient due to gravity
 
         # internal force dF
-        Δσ, V = stress_update(elem.mat, ip.data, Δε, Δuw, G)
+        Δσ, V = stress_update(elem.mat, ip.data, Δε, Δuw, G, Δt)
         Δσ -= elem.mat.α*Δuw*m # get total stress
 
         coef = detJ*ip.w*th

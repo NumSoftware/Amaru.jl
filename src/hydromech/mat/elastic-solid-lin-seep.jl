@@ -7,12 +7,14 @@ mutable struct ElasticSolidLinSeepIpState<:IpState
     σ::Array{Float64,1} # stress
     ε::Array{Float64,1} # strain
     V::Array{Float64,1} # fluid velocity
+    D::Array{Float64,1} # distance traveled by the fluid
     uw::Float64         # pore pressure
     function ElasticSolidLinSeepIpState(env::ModelEnv=ModelEnv()) 
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
         this.V = zeros(env.ndim)
+        this.D = zeros(env.ndim)
         this.uw = 0.0
         return this
     end
@@ -86,13 +88,14 @@ function calcK(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState) # Hydr
     end
 end
 
-function stress_update(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState, Δε::Array{Float64,1}, Δuw::Float64, G::Array{Float64,1})
+function stress_update(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState, Δε::Array{Float64,1}, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
     De = calcD(mat, ipd)
     Δσ = De*Δε
     ipd.ε  += Δε
     ipd.σ  += Δσ
     K = calcK(mat, ipd)
     ipd.V   = -K*G
+    ipd.D  += ipd.V*Δt
     ipd.uw += Δuw
     return Δσ, ipd.V
 end

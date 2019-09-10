@@ -5,11 +5,13 @@ export LinSeep
 mutable struct LinSeepIpState<:IpState
     env::ModelEnv
     V::Array{Float64,1} # fluid velocity
+    D::Array{Float64,1} # distance traveled by the fluid
     uw::Float64         # pore pressure
     function LinSeepIpState(env::ModelEnv=ModelEnv()) 
         this = new(env)
-        this.uw = 0.0
         this.V  = zeros(env.ndim) 
+        this.D  = zeros(env.ndim)
+        this.uw = 0.0
         return this
     end
 end
@@ -49,9 +51,10 @@ function calcK(mat::LinSeep, ipd::LinSeepIpState) # Hydraulic conductivity matri
     end
 end
 
-function update_state!(mat::LinSeep, ipd::LinSeepIpState, Δuw::Float64, G::Array{Float64,1})
+function update_state!(mat::LinSeep, ipd::LinSeepIpState, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
     K = calcK(mat, ipd)
     ipd.V   = -K*G
+    ipd.D  += ipd.V*Δt
     ipd.uw += Δuw
     return ipd.V
 end
