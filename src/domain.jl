@@ -728,6 +728,7 @@ function nodal_local_recovery(dom::AbstractDomain)
         row_idxs  = [ node.id for node in elem.nodes ]
 
         for (field, vals) in node_vals
+
             idx = all_fields_idx[field]
             V_vals[row_idxs, idx] .+= vals
             V_reps[row_idxs, idx] .+= 1
