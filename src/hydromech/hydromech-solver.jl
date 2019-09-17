@@ -202,9 +202,9 @@ function hm_solve!(
         sw = StopWatch() # timing
     end
 
-    function complete_uw_fw_h(dom::Domain)
+    function complete_uw_h(dom::Domain)
+    	haskey(dom.point_scalar_data, "uw") || return
 	    U = dom.point_scalar_data["uw"]
-	    F =	dom.point_scalar_data["fw"]
 	    H = dom.point_scalar_data["h"]
 	    for ele in dom.elems
 	        ele.shape.family==SOLID_SHAPE || continue
@@ -213,7 +213,6 @@ function hm_solve!(
 	        nbpoints = ele.shape.basic_shape.npoints
 	        map = [ ele.nodes[i].id for i=1:nbpoints ]
 	        Ue = U[map]
-	        Fe = F[map]
 	        He = H[map]
 	        C = ele.shape.nat_coords
 	        for i=nbpoints+1:npoints
@@ -221,7 +220,6 @@ function hm_solve!(
 	            R = C[i,:]
 	            N = ele.shape.basic_shape.func(R)
 	            U[id] = dot(N,Ue)
-	            F[id] = dot(N,Fe)
 	            H[id] = dot(N,He)
 	        end
 	    end
@@ -293,7 +291,7 @@ function hm_solve!(
 
         update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
         update_output_data!(dom) # Updates data arrays in domain
-        complete_uw_fw_h(dom)
+        complete_uw_h(dom)
 
         if save_incs
             save(dom, "$outdir/$filekey-0.vtk", verbose=false)
@@ -446,7 +444,7 @@ function hm_solve!(
                 env.cout += 1
                 iout = env.cout
                 update_output_data!(dom)
-                complete_uw_fw_h(dom)
+                complete_uw_h(dom)
                 save(dom, "$outdir/$filekey-$iout.vtk", verbose=false)
                 T = Tn - mod(Tn, dT) + dT
                 silent || verbose || print(" "^70, "\r")
@@ -482,7 +480,7 @@ function hm_solve!(
     silent || println("  time spent: ", see(sw, format=:hms), " "^20)
 
     update_output_data!(dom)
-    complete_uw_fw_h(dom)
+    complete_uw_h(dom)
 
     return true
 
