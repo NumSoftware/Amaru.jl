@@ -77,7 +77,7 @@ export Material, read_prms
 
 include("element.jl")
 export Element
-export get_nodes, get_ips, getcoords, getvals, get_map, elems_ip_vals, setmat!, setstate!
+export get_nodes, get_ips, getcoords, elems_ip_vals, setmat!, setstate!
 
 include("facet.jl")
 export Facet, Face, Edge
@@ -87,10 +87,9 @@ export tag!
 
 include("bc.jl")
 #export NodeBC, FaceBC, EdgeBC, apply_bc
-export NodeBC, FaceBC, EdgeBC, ElemBC, apply_bc
+export NodeBC, FaceBC, EdgeBC, ElemBC
 
 include("logger.jl")
-export Logger, GroupLogger
 export NodeLogger, IpLogger, FaceLogger, EdgeLogger, NodeGroupLogger, IpGroupLogger
 export update_logger!
 

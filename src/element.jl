@@ -94,7 +94,7 @@ end
 
 
 function elem_config_ips(elem::Element, nips::Int=0)
-    ipc =  get_ip_coords(elem.shape, nips)
+    ipc = get_ip_coords(elem.shape, nips)
     nips = size(ipc,1)
 
     resize!(elem.ips, nips)
