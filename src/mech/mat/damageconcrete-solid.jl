@@ -272,8 +272,18 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
     ipd._E = E
     ipd._ν = ν
 
-    ipd.damt = clamp(1.0 - σfun(ipd.ε̅tmax)/ipd.ε̅tmax/mat.E0, 0.0, 1.0)
-    ipd.damc = clamp(1.0 + σfun(-ipd.ε̅cmax)/ipd.ε̅cmax/mat.E0, 0.0, 1.0)
+    if ipd.ε̅tmax>0
+        ipd.damt = clamp(1.0 - σfun(ipd.ε̅tmax)/ipd.ε̅tmax/mat.E0, 0.0, 1.0)
+    else
+        ipd.damt = 0.0
+    end
+
+    if ipd.ε̅cmax>0
+        ipd.damc = clamp(1.0 + σfun(-ipd.ε̅cmax)/ipd.ε̅cmax/mat.E0, 0.0, 1.0)
+    else
+        ipd.damc = 0.0
+    end
+
     #ipd.damt = 1.0 - σfun(ipd.ε̅tmax)/ipd.ε̅tmax/mat.E0
     #ipd.damc = 1.0 + σfun(-ipd.ε̅cmax)/ipd.ε̅cmax/mat.E0
 

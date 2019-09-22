@@ -304,6 +304,7 @@ function elem_vals(elem::MechSolid)
     if haskey(ip_state_vals(elem.mat, elem.ips[1].data), :damt)
 
         mean_dt = mean( ip_state_vals(elem.mat, ip.data)[:damt] for ip in elem.ips )
+
         vals[:damt] = mean_dt
         mean_dc = mean( ip_state_vals(elem.mat, ip.data)[:damc] for ip in elem.ips )
         vals[:damc] = mean_dc

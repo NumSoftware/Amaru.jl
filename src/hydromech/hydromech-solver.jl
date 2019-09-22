@@ -1,7 +1,5 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export solve!
-
 
 # Assemble the global stiffness matrix
 function mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)

@@ -121,7 +121,6 @@ function stress_update(mat::ElasticJointSeep, ipd::JointSeepIpState, Δu::Array{
 
     ipd.L  =  ((kl^3)/(12*mat.η))*BfUw
     ipd.S +=  ipd.L*Δt
-    
 
     return Δσ, ipd.V, ipd.L
 end
