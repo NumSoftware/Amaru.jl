@@ -30,9 +30,9 @@ mutable struct Domain<:AbstractDomain
     env::ModelEnv
 
     # Data
-    point_scalar_data::Dict{String,Array}
-    cell_scalar_data ::Dict{String,Array}
-    point_vector_data::Dict{String,Array}
+    point_scalar_data::OrderedDict{String,Array}
+    cell_scalar_data ::OrderedDict{String,Array}
+    point_vector_data::OrderedDict{String,Array}
 
     function Domain()
         this = new()
@@ -40,9 +40,9 @@ mutable struct Domain<:AbstractDomain
         this.loggers = []
         this.ndofs   = 0
 
-        this.point_scalar_data = Dict()
-        this.cell_scalar_data  = Dict()
-        this.point_vector_data = Dict()
+        this.point_scalar_data = OrderedDict()
+        this.cell_scalar_data  = OrderedDict()
+        this.point_vector_data = OrderedDict()
         return this
     end
 end
@@ -294,6 +294,11 @@ end
 # Function for updating loggers
 update_loggers!(domain::Domain) = update_logger!.(domain.loggers, Ref(domain.env))
 
+function FemMesh.get_segment_data(dom::Domain, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=200)
+    mesh = convert(Mesh, dom)
+    return get_segment_data(mesh, X1, X2, filename, npoints=npoints)
+end
+
 
 # Function to reset a domain
 #= This is error prone specially with ips in loggers
@@ -354,16 +359,16 @@ end
 
 function update_output_data!(dom::Domain)
     # Updates data arrays in the domain
-    dom.point_scalar_data = Dict()
-    dom.cell_scalar_data  = Dict()
-    dom.point_vector_data = Dict()
+    dom.point_scalar_data = OrderedDict()
+    dom.cell_scalar_data  = OrderedDict()
+    dom.point_vector_data = OrderedDict()
 
     # Nodal values
     # ============
     nnodes = length(dom.nodes)
 
     # get node field symbols
-    node_fields_set = Set{Symbol}()
+    node_fields_set = OrderedSet{Symbol}()
     for node in dom.nodes
         for dof in node.dofs
             union!(node_fields_set, keys(dof.vals))
@@ -585,7 +590,7 @@ function nodal_patch_recovery(dom::AbstractDomain)
 
     # all data from ips per element and field names
     all_ips_vals   = Array{Array{OrderedDict{Symbol,Float64}},1}()
-    all_fields_set = Set{Symbol}()
+    all_fields_set = OrderedSet{Symbol}()
     for elem in dom.elems
         if elem.shape.family==SOLID_SHAPE
             ips_vals = [ ip_state_vals(elem.mat, ip.data) for ip in elem.ips ]
@@ -898,7 +903,7 @@ function FemMesh.mplot(dom::AbstractDomain, filename::String=""; args...)
 end
 
 
-function datafields(dom::Domain)
+function FemMesh.datafields(dom::Domain)
     mesh = convert(Mesh, dom)
     return FemMesh.datafields(mesh)
 end

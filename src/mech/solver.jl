@@ -234,6 +234,7 @@ function solve!(
     umap  = 1:nu         # map for unknown displacements
     pmap  = nu+1:ndofs   # map for prescribed displacements
     dom.ndofs = length(dofs)
+    silent || println("  elements: $(length(dom.elems))")
     silent || println("  unknown dofs: $nu")
     
     # Get forces and displacements from boundary conditions
