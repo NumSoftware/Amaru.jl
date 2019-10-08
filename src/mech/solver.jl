@@ -249,8 +249,8 @@ function solve!(
     end
 
     # Save initial file and loggers
+    update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
     if env.cstage==1 && save_incs
-        update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
         update_output_data!(dom)
         save(dom, "$outdir/$filekey-0.vtk", verbose=false)
         silent || printstyled("  $outdir/$filekey-0.vtk file written (Domain)\n", color=:green)
