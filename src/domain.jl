@@ -829,7 +829,7 @@ function Base.convert(::Type{FemMesh.Mesh}, dom::AbstractDomain)
         push!(mesh.cells, Cell(elem.shape, points, tag=elem.tag ) )
     end
 
-    update!(mesh) # updates also point and cell numbering
+    fixup!(mesh, reorder=false) # updates also point and cell numbering
 
     merge!(mesh.point_scalar_data, dom.point_scalar_data)
     merge!(mesh.point_vector_data, dom.point_vector_data)

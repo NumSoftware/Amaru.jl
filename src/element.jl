@@ -231,17 +231,9 @@ function Base.getproperty(elems::Array{<:Element,1}, s::Symbol)
     error("type Array{Element,1} has no property $s")
 end
 
-# Index operator for an element
-#function getindex(elem::Element, s::Symbol)
-    #s == :nodes && return elem.nodes
-    #s == :ips && return elem.ips
-    #throw(ArgumentError("Element getindex: Invalid index $s"))
-#end
 
 # Index operator for a collection of elements
 function getindex(elems::Array{<:Element,1}, s::Symbol)
-    length(elems)==0 && return Element[]
-
     s == :all && return elems
     s == :solids && return filter(elem -> elem.shape.family==SOLID_SHAPE, elems)
     s == :lines && return filter(elem -> elem.shape.family==LINE_SHAPE, elems)
