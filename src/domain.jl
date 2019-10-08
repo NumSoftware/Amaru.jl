@@ -128,7 +128,7 @@ Uses a mesh and a list of meterial especifications to construct a finite element
 function Domain(
                 mesh      :: Mesh,
                 matbinds  :: Array{<:Pair,1};
-                modeltype :: Symbol = :general,
+                modeltype :: Symbol = :general, # :plane_stress, plane_strain
                 thickness :: Real   = 1.0,
                 verbose   :: Bool   = false,
                 silent    :: Bool   = false,
