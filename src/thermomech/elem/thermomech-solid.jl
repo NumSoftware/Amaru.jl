@@ -95,7 +95,7 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
     return reshape(F', nnodes*ndim), map
 end
 
-#=
+
 function setBu(env::ModelEnv, dNdX::Matx, detJ::Float64, B::Matx)
     ndim, nnodes = size(dNdX)
     B .= 0.0
@@ -135,11 +135,12 @@ function setBu(env::ModelEnv, dNdX::Matx, detJ::Float64, B::Matx)
 
     return detJ
 end
-=#
+
 
 
 function elem_stiffness(elem::TMSolid)
     ndim   = elem.env.ndim
+    th     = elem.env.thickness
     nnodes = length(elem.nodes)
     C = elem_coords(elem)
     K = zeros(nnodes*ndim, nnodes*ndim)
@@ -209,13 +210,13 @@ function elem_coupling_matrix(elem::TMSolid)
     # map
     keys = (:ux, :uy, :uz)[1:ndim]
     map_u = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-    map_p = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
+    map_p = [ node.dofdict[:ut].eq_id for node in elem.nodes ]
 
     return Cup, map_u, map_p
 end
 
 
-# thremal conductivity
+# thermal conductivity
 function elem_conductivity_matrix(elem::TMSolid)
     ndim   = elem.env.ndim
     θ0     = elem.env.T0 + 273.15
@@ -245,7 +246,7 @@ function elem_conductivity_matrix(elem::TMSolid)
     end
 
     # map
-    map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
+    map = [  node.dofdict[:ut].eq_id for node in elem.nodes  ]
 
     return H, map, map
 end
@@ -322,14 +323,14 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
 
     keys   = (:ux, :uy, :uz)[1:ndim]
     map_u  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-    map_p  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
+    map_p  = [ node.dofdict[:ut].eq_id for node in elem.nodes ]
 
     C   = elem_coords(elem)
 
     dU  = DU[map_u] # nodal displacement increments
-    dUw = DU[map_p] # nodal pore-pressure increments
-    Uw  = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes ]
-    Uw += dUw # nodal pore-pressure at step n+1
+    dUt = DU[map_p] # nodal pore-pressure increments
+    Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes ]
+    Ut += dUt # nodal pore-pressure at step n+1
     m = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
 
     dF  = zeros(nnodes*ndim)
@@ -356,16 +357,16 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         @gemv Δε = Bu*dU
 
         # Compute Δuw
-        Δuw = N'*dUw # interpolation to the integ. point
+        Δut = N'*dUt # interpolation to the integ. point
 
         # Compute flow gradient G
-        Bp = dNdX
-        G  = Bp*Uw/elem.mat.γw
-        G[end] += 1.0; # gradient due to gravity
+#        Bp = dNdX
+    #    G  = Bp*Uw/elem.mat.γw
+    #    G[end] += 1.0; # gradient due to gravity
 
         # internal force dF
-        Δσ, V = stress_update(elem.mat, ip.data, Δε, Δuw, G)
-        Δσ -= elem.mat.α*Δuw*m # get total stress
+        Δσ = stress_update(elem.mat, ip.data, Δε, Δut)
+        Δσ -= elem.mat.cv*Δut*m # get total stress
 
         coef = detJ*ip.w
         @gemv dF += coef*Bu'*Δσ
@@ -375,11 +376,11 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         coef  = elem.mat.α*Δεvol*detJ*ip.w
         dFw  -= coef*N
 
-        if elem.mat.S != 0.0
+#=        if elem.mat.S != 0.0
             coef = elem.mat.S*Δuw*detJ*ip.w
             dFw -= coef*N
         end
-
+=#
         coef = Δt*detJ*ip.w
         @gemv dFw += coef*Bp'*V
     end
