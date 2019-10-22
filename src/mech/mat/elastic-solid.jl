@@ -35,11 +35,12 @@ mutable struct ElasticSolidIpState<:IpState
 end
 
 
+
 # Returns the element type that works with this material model
 matching_elem_type(::ElasticSolid) = MechSolid
 
-# Create a new instance of Ip data
-new_ip_state(mat::ElasticSolid, env::ModelEnv) = ElasticSolidIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::ElasticSolid) = ElasticSolidIpState
 
 
 function calcDe(E::Number, ν::Number, modeltype::Symbol)

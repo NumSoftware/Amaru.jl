@@ -52,7 +52,6 @@ function Base.copyto!(dst::IpState, src::IpState)
 end
 
 
-
 """
 `Ip(R, w)`
 
@@ -67,7 +66,6 @@ mutable struct Ip
     tag  ::String
     owner::Any    # Element
     data ::IpState  # Ip current state
-    #data0::IpState  # Ip state for the last converged increment
 
     function Ip(R::Array, w::Float64)
         this     = new(vec(R), w)

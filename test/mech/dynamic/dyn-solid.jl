@@ -25,5 +25,5 @@ bcs = [
 ]
 
 
-dynsolve!(dom, bcs, time_span=0.1, nincs=50, verbose=true, filekey="dyn", nouts=50, autoinc=true, alpha=4.2038, beta=174.2803e-6)
+dynsolve!(dom, bcs, time_span=0.1, nincs=50, verbose=false, filekey="dyn", nouts=50, autoinc=true, alpha=4.2038, beta=174.2803e-6)
 #dynsolve!(dom, bcs, time_span=0.1, nincs=50, verbose=true, filekey="dyn", nouts=100, autoinc=true)

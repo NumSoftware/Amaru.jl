@@ -64,7 +64,7 @@ function eigvals(T::Tensor2)::Vect
 
     i3 = t11*(t22*t33 - t23*t23) - t12*(t12*t33 - t23*t13) + t13*(t12*t23 - t22*t13)
     val = round( (2*i1^3 - 9*i1*i2 + 27*i3 )/( 2*(i1^2 - 3*i2)^(3/2) ), digits=14 )
-    val = round(val, digits=11) # to avoid 1.000000000000001
+    val = clamp(val, -1.0, 1.0) # to avoid 1.000000000000001
 
     θ = 1/3*acos( val )
 

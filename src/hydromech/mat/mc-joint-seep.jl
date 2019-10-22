@@ -4,27 +4,29 @@ export MCJointSeep
 
 mutable struct MCJointSeepIpState<:IpState
     env::ModelEnv
-    σ   ::Array{Float64,1} # stress
-    w   ::Array{Float64,1} # relative displacements
-    uw  ::Array{Float64,1} # interface pore pressure
-    G   ::Array{Float64,1} # longitudinal flow gradient 
-    upa ::Float64          # effective plastic relative displacement
-    Δλ  ::Float64          # plastic multiplier
-    h   ::Float64          # characteristic length from bulk elements
-    t0  ::Float64          # time when the fracture opened
-    t   ::Float64          # time spent since the opening fissure
+    σ   ::Array{Float64,1}  # stress
+    w   ::Array{Float64,1}  # relative displacements
+    V   ::Array{Float64,1}  # fluid velocity
+    D   ::Array{Float64,1}  # distance traveled by the fluid
+    L   ::Array{Float64,1} 
+    S   ::Array{Float64,1}
+    uw  ::Array{Float64,1}  # interface pore pressure
+    upa ::Float64           # effective plastic relative displacement
+    Δλ  ::Float64           # plastic multiplier
+    h   ::Float64           # characteristic length from bulk elements
     function MCJointSeepIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         ndim = env.ndim
-        this.σ  = zeros(ndim)
-        this.w  = zeros(ndim)
-        this.uw = zeros(3) 
-        this.G  = zeros(ndim-1)
+        this.σ   = zeros(ndim)
+        this.w   = zeros(ndim)
+        this.V   = zeros(2) 
+        this.D   = zeros(2) 
+        this.L   = zeros(ndim-1)
+        this.S   = zeros(ndim-1)
+        this.uw  = zeros(3) 
         this.upa = 0.0
         this.Δλ  = 0.0
-        this.h  = 0.0
-        this.t0 = 0.0
-        this.t  = 0.0
+        this.h   = 0.0
         return this
     end
 end
@@ -38,6 +40,7 @@ mutable struct MCJointSeep<:Material
     wc ::Float64       # critical crack opening
     ws ::Float64       # openning at inflection (where the curve slope changes)
     softcurve::String  # softening curve model ("linear" or bilinear" or "hordijk")
+    flaw::Bool         # interface element break (true or false)
     k  ::Float64       # specific permeability
     γw ::Float64       # specific weight of the fluid
     α  ::Float64       # Biot's coefficient
@@ -45,14 +48,13 @@ mutable struct MCJointSeep<:Material
     β  ::Float64       # compressibility of fluid
     η  ::Float64       # viscosity
     kt ::Float64       # transverse leak-off coefficient
-    kl ::Float64       # longitudinal permeability coefficient
-    permeability::Bool # joint permeability ("true" or "false")
+    kl ::Float64       # initial fracture opening (longitudinal flow)
 
     function MCJointSeep(prms::Dict{Symbol,Float64})
         return  MCJointSeep(;prms...)
     end
 
-     function MCJointSeep(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", k=NaN, kappa=NaN, gammaw=NaN, alpha=1.0, S=0.0, n=NaN, Ks=NaN, Kw=NaN, beta=0.0, eta=NaN, kt=NaN, kl=0.0, permeability=true)  
+     function MCJointSeep(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", flaw=false, k=NaN, kappa=NaN, gammaw=NaN, alpha=1.0, S=0.0, n=NaN, Ks=NaN, Kw=NaN, beta=0.0, eta=NaN, kt=NaN, kl=0.0)  
 
         !(isnan(GF) || GF>0) && error("Invalid value for GF: $GF")
         !(isnan(Gf) || Gf>0) && error("Invalid value for Gf: $Gf")
@@ -99,9 +101,8 @@ mutable struct MCJointSeep<:Material
         eta>=0      || error("Invalid value for eta: $eta")
         kt>=0       || error("Invalid value for kt: $kt")
         kl>=0       || error("Invalid value for kl: $kl")
-        (permeability==true || permeability==false) || error("Invalid permeability: permeability must to be true or false")
 
-        this = new(E, nu, ft, mu, zeta, wc, ws, softcurve, k, gammaw, alpha, S, beta, eta, kt, kl, permeability)
+        this = new(E, nu, ft, mu, zeta, wc, ws, softcurve, flaw, k, gammaw, alpha, S, beta, eta, kt, kl)
         return this
     end
 end
@@ -109,8 +110,8 @@ end
 # Returns the element type that works with this material model
 matching_elem_type(::MCJointSeep) = HydroMechJoint
 
-# Create a new instance of Ip data
-new_ip_state(mat::MCJointSeep, env::ModelEnv) = MCJointSeepIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::MCJointSeep) = MCJointSeepIpState
 
 
 function yield_func(mat::MCJointSeep, ipd::MCJointSeepIpState, σ::Array{Float64,1})
@@ -305,7 +306,7 @@ function calc_Δλ(mat::MCJointSeep, ipd::MCJointSeepIpState, σtr::Array{Float6
             becomes hypostatic and thus the global stiffness matrix is near syngular.
             Increasing the mesh refinement may result in a nonsingular matrix.
             """ iterations=i Δλ
-            error()
+            #error()
         end
     end
     return Δλ
@@ -338,6 +339,10 @@ end
 
 
 function mountD(mat::MCJointSeep, ipd::MCJointSeepIpState)
+    if mat.flaw==true && ipd.upa < mat.wc
+        ipd.upa = mat.wc
+    end
+
     ndim = ipd.env.ndim
     kn, ks, De = calc_kn_ks_De(mat, ipd)
     σmax = calc_σmax(mat, ipd, ipd.upa)
@@ -373,14 +378,13 @@ function mountD(mat::MCJointSeep, ipd::MCJointSeepIpState)
 end
 
 
-function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1})
+function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Float64,1}, Δuw::Array{Float64,1},  G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
     ndim = ipd.env.ndim
     σini = copy(ipd.σ)
 
     μ = mat.μ
     kn, ks, De = calc_kn_ks_De(mat, ipd)
     σmax = calc_σmax(mat, ipd, ipd.upa) 
-
 
     if isnan(Δw[1]) || isnan(Δw[2])
         @warn "mc_joint_seep!: Invalid value for joint displacement: Δw = $Δw"
@@ -422,29 +426,39 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
         end
     end
 
-    if  ipd.upa != 0.0 && ipd.t0 == 0.0
-        ipd.t0 = ipd.env.t  
-    elseif ipd.t0 != 0.0
-        ipd.t = ipd.env.t  - ipd.t0  # time spent since the opening fissure
-        if ipd.t < 0.0
-            warn("stress_update: The time value is negative $ipd.t")
-        end
-    end
-
     ipd.w += Δw
     Δσ = ipd.σ - σini
 
     ipd.uw += Δuw
-    ipd.G   = G
+    ipd.V  = -mat.kt*G
+    ipd.D +=  ipd.V*Δt
 
-    return Δσ
+    # compute crack aperture
+    if mat.kl == 0.0
+        if ipd.upa == 0.0 || ipd.w[1] <= 0.0
+            kl = 0.0
+        else
+            kl = ipd.w[1]
+        end
+    else
+        if mat.kl >= ipd.w[1]
+            kl = mat.kl
+        else 
+            kl = ipd.w[1]
+        end
+    end 
+
+    ipd.L  =  ((kl^3)/(12*mat.η))*BfUw
+    ipd.S +=  ipd.L*Δt
+
+    return Δσ, ipd.V, ipd.L
 end
 
 
 function ip_state_vals(mat::MCJointSeep, ipd::MCJointSeepIpState)
     ndim = ipd.env.ndim
     if ndim == 3
-       return Dict(
+       return OrderedDict(
           :w1  => ipd.w[1] ,
           :w2  => ipd.w[2] ,
           :w3  => ipd.w[3] ,
@@ -454,7 +468,7 @@ function ip_state_vals(mat::MCJointSeep, ipd::MCJointSeepIpState)
           :upa => ipd.upa
           )
     else
-        return Dict(
+        return OrderedDict(
           :w1  => ipd.w[1] ,
           :w2  => ipd.w[2] ,
           :s1  => ipd.σ[1] ,

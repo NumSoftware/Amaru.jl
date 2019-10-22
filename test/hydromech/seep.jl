@@ -20,7 +20,7 @@ gw   = 10.0    # water specific weight
 materials = [
     "solids" => LinSeep(k=k, gammaw=gw)
 ]
-dom = Domain(msh, materials)
+dom = Domain(msh, materials, gammaw=10)
 
 log1 = NodeGroupLogger()
 loggers = [
@@ -34,11 +34,10 @@ bcs = [
        :(y==2) => NodeBC(uw=0.),
 ]
 
-hm_solve!(dom, bcs, end_time=500.0, tol=0.1, verbose=true)
+hm_solve!(dom, bcs, end_time=500.0, tol=0.1, verbose=false)
 
 # Output
-
-if Amaru.debug.makeplots
+if Amaru.config.makeplots
     using PyPlot
     save(log1, "book.dat")
 

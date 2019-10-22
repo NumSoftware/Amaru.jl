@@ -50,7 +50,7 @@ for i=1:2
         materials = materials[[1,3]]
     end
 
-    dom = Domain(msh, materials)
+    dom = Domain(msh, materials, gammaw=10)
 
     log1 = NodeGroupLogger()
     loggers = [
@@ -70,7 +70,7 @@ for i=1:2
         :(y==10) => NodeBC(uw=0.),
     ]
 
-    hm_solve!(dom, bcs, end_time=tlong, nincs=2, tol=1e-2, nouts=1, verbose=true)
+    hm_solve!(dom, bcs, end_time=tlong, nincs=2, tol=1e-2, nouts=1, verbose=false)
 
     dom.env.t = 0.0
 
@@ -88,7 +88,7 @@ for i=1:2
         :(y==10) => NodeBC(uw=0.),
     ]
 
-    hm_solve!(dom, bcs, end_time=t1, nincs=4, tol=1e-2, nouts=1, verbose=true)
+    hm_solve!(dom, bcs, end_time=t1, nincs=4, tol=1e-2, nouts=1, verbose=false)
 
 
     # Stage 3: draining
@@ -111,7 +111,7 @@ for i=1:2
     # Output
     # ======
 
-    if Amaru.debug.makeplots
+    if Amaru.config.makeplots
         # Terzaghi's 1-d consolidation
         function calc_Ue(Z, T)
             sum = 0.0

@@ -44,5 +44,5 @@ bcs = [
        :(z==1)         => FaceBC(tz=-10.0),
       ]
 
-@test solve!(dom, bcs, nincs=4, verbose=true)
+@test solve!(dom, bcs, nincs=4, verbose=false)
 println("  uz = ", dom.nodes[:(z==1)][1].dofdict[:uz].vals)

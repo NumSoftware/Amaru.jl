@@ -30,11 +30,11 @@ bcs = [
       ]
 
 #solve!(dom, bcs)
-@test dynsolve!(dom, bcs, time_span=7, nincs=14)
+@test dynsolve!(dom, bcs, time_span=7, nincs=14, verbose=false)
 
 log1.table;
 
-if Amaru.debug.makeplots
+if Amaru.config.makeplots
     using PyPlot
     t = log1.table
     plot(t[:t], t[:ux], "-o")

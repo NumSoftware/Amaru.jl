@@ -18,7 +18,7 @@ function copy!(target::Material, source::Material)
     # source and target must be of the same type
     T = typeof(source)
     for fld in fieldnames(source)
-        if filedtype(T, fld) <: Array
+        if fieldtype(T, fld) <: Array
             if isdefined(target,fld)
                 getfield(target, fld) .= getfield(source, fld)
             else
@@ -28,6 +28,16 @@ function copy!(target::Material, source::Material)
             setfield!(target, fld, getfield(source, fld))
         end
     end
+end
+
+"""
+`elem_vals_keys(mat)`
+
+Returns a list of keys from an specified material 
+for output at element level as constant values.
+"""
+function mat_elem_keys(mat::Material)
+    return String[]
 end
 
 

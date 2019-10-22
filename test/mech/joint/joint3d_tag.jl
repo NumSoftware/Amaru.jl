@@ -29,6 +29,6 @@ bcs = [
        :(y==0.3) => FaceBC(ty=100)
       ]
 
-@test solve!(dom, bcs, autoinc=true, nincs=20, maxits=3, tol=0.01, verbose=true, scheme=:FE, nouts=10)
+@test solve!(dom, bcs, autoinc=true, nincs=20, maxits=3, tol=0.01, verbose=false, scheme=:FE, nouts=10)
 
 

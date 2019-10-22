@@ -94,7 +94,7 @@ end
 
 
 function elem_config_ips(elem::Element, nips::Int=0)
-    ipc =  get_ip_coords(elem.shape, nips)
+    ipc = get_ip_coords(elem.shape, nips)
     nips = size(ipc,1)
 
     resize!(elem.ips, nips)
@@ -103,7 +103,8 @@ function elem_config_ips(elem::Element, nips::Int=0)
         w = ipc[i,4]
         elem.ips[i] = Ip(R, w)
         elem.ips[i].id = i
-        elem.ips[i].data = new_ip_state(elem.mat, elem.env)
+        #elem.ips[i].data = new_ip_state(elem.mat, elem.env)
+        elem.ips[i].data = ip_state_type(elem.mat)(elem.env)
         elem.ips[i].owner = elem
     end
 
@@ -133,26 +134,69 @@ function elem_config_ips(elem::Element, nips::Int=0)
     end
 end
 
+function setmat!(elem::Element, mat::Material)
+    typeof(elem.mat) == typeof(mat) || error("setmat!: The same material type should be used.")
+    elem.mat = mat
+end
 
 """
-`set_mat(elems, mat, [nips=0])`
+`setmat(elems, mat)`
 
 Especifies the material model `mat` to be used to represent the behavior of a set of `Element` objects `elems`.
 """
-function set_mat(elems::Array{<:Element,1}, mat::Material; nips::Int64=0)
+function setmat!(elems::Array{<:Element,1}, mat::Material)
     length(elems)==0 && @warn "Defining material model $(typeof(mat)) for an empty array of elements."
 
     for elem in elems
-        set_mat(elem, mat, nips=nips)
+        setmat!(elem, mat)
     end
 end
 
 
 # Define the state at all integration points in a collection of elements
-function set_state(elems::Array{<:Element,1}; args...)
+function setstate!(elems::Array{<:Element,1}; args...)
+    greek = Dict(
+                 :sigma => :σ,
+                 :epsilon => :ε,
+                 :eps => :ε,
+                 :gamma => :γ,
+                 :theta => :θ,
+                 :beta => :β,
+                )
+
+    found = Set{Symbol}()
+    notfound = Set{Symbol}()
+
     for elem in elems
+        fields = fieldnames(ip_state_type(elem.mat))
         for ip in elem.ips
-            set_state(ip.data; args...)
+            for (k,v) in args
+                if k in fields
+                    setfield!(ip.data, k, v)
+                    push!(found, k)
+                else
+                    gk = get(greek, k, :none)
+                    if gk == :none
+                        push!(notfound, k)
+                    else
+                        if gk in fields
+                            setfield!(ip.data, gk, v)
+                            push!(found, k)
+                        else
+                            push!(notfound, k)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    for k in notfound
+        if k in found
+            msg1 = k in keys(greek) ? " ($(greek[k])) " : "" 
+            @warn "Symbol '$k$msg1' was not found at some elements while setting state values"
+        else
+            error("setstate!: Symbol '$k$msg1' was not found at selected elements while setting state values")
         end
     end
 end
@@ -177,21 +221,16 @@ end
 
 
 function Base.getproperty(elems::Array{<:Element,1}, s::Symbol)
-    s == :ips   && return get_ips(elems)
+    s == :solids && return filter(elem -> elem.shape.family==SOLID_SHAPE, elems)
+    s == :lines && return filter(elem -> elem.shape.family==LINE_SHAPE, elems)
+    s == :embedded && return filter(elem -> elem.shape.family==LINE_SHAPE && length(elem.linked_elems)>0, elems)
+    s in (:joints1d, :joints1D) && return filter(elem -> elem.shape.family==JOINT1D_SHAPE, elems)
+    s == :joints && return filter(elem -> elem.shape.family==JOINT_SHAPE, elems)
     s == :nodes && return get_nodes(elems)
+    s == :ips   && return get_ips(elems)
     error("type Array{Element,1} has no property $s")
 end
 
-# Index operator for an element
-function getindex(elem::Element, s::Symbol)
-    if s == :nodes
-        return elem.nodes
-    end
-    if s == :ips
-        return elem.ips
-    end
-    error("Element getindex: Invalid symbol $s")
-end
 
 # Index operator for a collection of elements
 function getindex(elems::Array{<:Element,1}, s::Symbol)
@@ -215,6 +254,8 @@ end
 
 # Index operator for a collection of elements using an expression
 function getindex(elems::Array{<:Element,1}, filter_ex::Expr)
+    length(elems)==0 && return Element[]
+
     nodes = elems[:nodes]
     nodemap = zeros(Int, maximum(node.id for node in nodes) )
     T = Bool[]
@@ -272,4 +313,5 @@ function elems_ip_vals(elem::Element)
 
     return table
 end
+
 

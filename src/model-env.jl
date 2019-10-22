@@ -10,6 +10,7 @@ mutable struct ModelEnv
     cstage::Int            # Current stage
     cinc::Int              # Current increment
     cout::Int              # Current output file number
+    params::Dict{Symbol,Float64} # Global parameters (e.g. gammaw, T0, etc.)
     function ModelEnv()
         this = new()
         this.ndim = 3
@@ -22,6 +23,8 @@ mutable struct ModelEnv
         this.cstage = 0 # current stage
         this.cinc   = 0 # current increment
         this.cout   = 0 # output files counter
+
+        this.params = Dict()
         return this
     end
 end

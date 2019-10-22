@@ -18,43 +18,31 @@ Creates an `Domain` object based on a Mesh object `mesh` and represents the geom
 
 `edges`: An array of `Edge` objects containing all the boundary faces
 
-`filekey` : An string object that is used as part of the filename of resulting analyses files
-
 """
 mutable struct Domain<:AbstractDomain
     nodes::Array{Node,1}
     elems::Array{Element,1}
     faces::Array{Face,1}
     edges::Array{Edge,1}
-    filekey::String
-    #mesh::Mesh
 
     loggers::Array{AbstractLogger,1}
-    nincs::Integer
-    nouts::Integer
     ndofs::Integer
-    stage::Integer
     env::ModelEnv
 
     # Data
-    point_scalar_data::Dict{String,Array}
-    cell_scalar_data ::Dict{String,Array}
-    point_vector_data::Dict{String,Array}
+    point_scalar_data::OrderedDict{String,Array}
+    cell_scalar_data ::OrderedDict{String,Array}
+    point_vector_data::OrderedDict{String,Array}
 
-    function Domain(;filekey::String="out")
+    function Domain()
         this = new()
 
-        this.filekey  = filekey
-
         this.loggers = []
-        this.nincs   = 0
         this.ndofs   = 0
-        this.nouts   = 0
-        this.stage   = 0
 
-        this.point_scalar_data = Dict()
-        this.cell_scalar_data  = Dict()
-        this.point_vector_data = Dict()
+        this.point_scalar_data = OrderedDict()
+        this.cell_scalar_data  = OrderedDict()
+        this.point_vector_data = OrderedDict()
         return this
     end
 end
@@ -76,7 +64,6 @@ function SubDomain(dom::Domain, expr::Expr)
 
     cells  = [ elem.cell for elem in elems ]
     scells = get_surface(cells)
-    #ecells = get_edges(scells)  
 
     # Setting faces
     faces = Array{Face}(0)
@@ -119,29 +106,58 @@ function SubDomain(elems::Array{<:Element,1})
 end
 
 
-function Domain(mesh::Mesh, matbinds::Array{<:Pair,1}; modeltype::Symbol=:general, thickness::Real=1.0, filekey::String="out", verbose::Bool=true)
+"""
+    Domain(mesh, mats, options...)
 
-    dom  = Domain(filekey=filekey)
+Uses a mesh and a list of meterial especifications to construct a finite element `Domain`.    
+
+# Arguments
+
+`mesh` : A finite element mesh
+
+`mats` : Material definitions given as an array of pairs ( tag or location => constitutive model instance )
+
+# Keyword arguments
+
+`modeltype`
+`thickness`
+`filekey = ""` : File key for output files
+`verbose = true` : If true, provides information of the domain construction
+
+"""
+function Domain(
+                mesh      :: Mesh,
+                matbinds  :: Array{<:Pair,1};
+                modeltype :: Symbol = :general, # :plane_stress, plane_strain
+                thickness :: Real   = 1.0,
+                verbose   :: Bool   = false,
+                silent    :: Bool   = false,
+                params... # extra parameters required for specific solvers
+               )
+
+    dom  = Domain()
 
     # Shared analysis data
     ndim = mesh.ndim
-    #dom.env = Dict(:ndim=>ndim, :modeltype=>modeltype, :thickness=>thickness, :t=>0.0 )
     dom.env = ModelEnv()
     dom.env.ndim = ndim 
     dom.env.modeltype = modeltype
     dom.env.thickness = thickness
     dom.env.t = 0.0
 
-    if verbose
-        printstyled("Domain setup:", bold=true, color=:cyan)
-        println()
+    # Saving extra parameters
+    for (k,v) in params
+        typeof(v) <: Number && ( dom.env.params[k] = v )
     end
+
+    silent && (verbose=false)
+    silent || printstyled("Domain setup:\n", bold=true, color=:cyan)
 
     # Setting nodes
     dom.nodes = [ Node([p.x, p.y, p.z], tag=p.tag, id=i) for (i,p) in enumerate(mesh.points)]
 
     # Setting new elements
-    verbose && print("  setting elements...\r")
+    silent || print("  setting elements...\r")
     ncells    = length(mesh.cells)
     dom.elems = Array{Element,1}(undef, ncells)
     Nips      = zeros(Int, ncells)       # list with number of ips per element
@@ -174,7 +190,6 @@ function Domain(mesh::Mesh, matbinds::Array{<:Pair,1}; modeltype::Symbol=:genera
             elem.mat = mat
             dom.elems[cell.id] = elem
             Nips[elem.id] = cell.nips
-            Tips[elem.id] = cell.iptag
         end
     end
 
@@ -229,24 +244,29 @@ function Domain(mesh::Mesh, matbinds::Array{<:Pair,1}; modeltype::Symbol=:genera
     end
 
     # Initializing elements
-    verbose && print("  initializing elements...\r")
+    silent || print("  initializing elements...\r")
     for elem in dom.elems
         elem_init(elem)
     end
 
-    if verbose
+    if !silent
         print("  ", ndim, "D domain $modeltype model      \n")
         @printf "  %5d nodes\n" length(dom.nodes)
         @printf "  %5d elements\n" length(dom.elems)
+    end
+
+    if verbose
         if ndim==2
             @printf "  %5d edges\n" length(dom.faces)
         else
             @printf "  %5d faces\n" length(dom.faces)
             @printf "  %5d edges\n" length(dom.edges)
         end
+    end
+
+    if !silent
         @printf "  %5d materials\n" length(matbinds)
         @printf "  %5d loggers\n" length(dom.loggers)
-        println("  done.")
     end
 
     return dom
@@ -255,10 +275,6 @@ end
 
 # Function for setting loggers
 """
-    setloggers!(domain, logger)
-
-Register a new `logger` in `domain`.
-
     setloggers!(domain, loggers)
 
 Register each logger from the array `loggers` in `domain`.
@@ -277,6 +293,11 @@ end
 
 # Function for updating loggers
 update_loggers!(domain::Domain) = update_logger!.(domain.loggers, Ref(domain.env))
+
+function FemMesh.get_segment_data(dom::Domain, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=200)
+    mesh = convert(Mesh, dom)
+    return get_segment_data(mesh, X1, X2, filename, npoints=npoints)
+end
 
 
 # Function to reset a domain
@@ -338,16 +359,16 @@ end
 
 function update_output_data!(dom::Domain)
     # Updates data arrays in the domain
-    dom.point_scalar_data = Dict()
-    dom.cell_scalar_data  = Dict()
-    dom.point_vector_data = Dict()
+    dom.point_scalar_data = OrderedDict()
+    dom.cell_scalar_data  = OrderedDict()
+    dom.point_vector_data = OrderedDict()
 
     # Nodal values
     # ============
     nnodes = length(dom.nodes)
 
     # get node field symbols
-    node_fields_set = Set{Symbol}()
+    node_fields_set = OrderedSet{Symbol}()
     for node in dom.nodes
         for dof in node.dofs
             union!(node_fields_set, keys(dof.vals))
@@ -569,7 +590,7 @@ function nodal_patch_recovery(dom::AbstractDomain)
 
     # all data from ips per element and field names
     all_ips_vals   = Array{Array{OrderedDict{Symbol,Float64}},1}()
-    all_fields_set = Set{Symbol}()
+    all_fields_set = OrderedSet{Symbol}()
     for elem in dom.elems
         if elem.shape.family==SOLID_SHAPE
             ips_vals = [ ip_state_vals(elem.mat, ip.data) for ip in elem.ips ]
@@ -712,6 +733,7 @@ function nodal_local_recovery(dom::AbstractDomain)
         row_idxs  = [ node.id for node in elem.nodes ]
 
         for (field, vals) in node_vals
+
             idx = all_fields_idx[field]
             V_vals[row_idxs, idx] .+= vals
             V_reps[row_idxs, idx] .+= 1
@@ -807,7 +829,7 @@ function Base.convert(::Type{FemMesh.Mesh}, dom::AbstractDomain)
         push!(mesh.cells, Cell(elem.shape, points, tag=elem.tag ) )
     end
 
-    update!(mesh) # updates also point and cell numbering
+    fixup!(mesh, reorder=false) # updates also point and cell numbering
 
     merge!(mesh.point_scalar_data, dom.point_scalar_data)
     merge!(mesh.point_vector_data, dom.point_vector_data)
@@ -881,7 +903,7 @@ function FemMesh.mplot(dom::AbstractDomain, filename::String=""; args...)
 end
 
 
-function datafields(dom::Domain)
+function FemMesh.datafields(dom::Domain)
     mesh = convert(Mesh, dom)
     return FemMesh.datafields(mesh)
 end

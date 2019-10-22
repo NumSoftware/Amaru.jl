@@ -36,6 +36,10 @@ function elem_init(elem::MechSolid)
         nips = length(elem.ips)
         ndim = elem.env.ndim
         h = (V/nips)^(1/ndim)
+        #h = V^(1/ndim)
+        #@show h
+        #@show nips
+        #error()
 
         for ip in elem.ips
             ip.data.h = h
@@ -293,4 +297,34 @@ function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1},
 
     F[map] += dF
 end
+
+function elem_vals(elem::MechSolid)
+    vals = OrderedDict{Symbol,Float64}()
+
+    if haskey(ip_state_vals(elem.mat, elem.ips[1].data), :damt)
+
+        mean_dt = mean( ip_state_vals(elem.mat, ip.data)[:damt] for ip in elem.ips )
+
+        vals[:damt] = mean_dt
+        mean_dc = mean( ip_state_vals(elem.mat, ip.data)[:damc] for ip in elem.ips )
+        vals[:damc] = mean_dc
+    end
+
+    #vals = OrderedDict{String, Float64}()
+    #keys = elem_vals_keys(elem)
+#
+    #dicts = [ ip_state_vals(elem.mat, ip.data) for ip in elem.ips ]
+    #nips = length(elem.ips)
+#
+    #for key in keys
+        #s = 0.0
+        #for dict in dicts
+            #s += dict[key]
+        #end
+        #vals[key] = s/nips
+    #end
+
+    return vals
+end
+
 

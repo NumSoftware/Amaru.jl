@@ -6,42 +6,47 @@ mutable struct JointSeepIpState<:IpState
     env  ::ModelEnv
     σ    ::Array{Float64,1} # stress
     w    ::Array{Float64,1} # relative displacements
+    V    ::Array{Float64,1}  # fluid velocity
+    D    ::Array{Float64,1}  # distance traveled by the fluid
+    L    ::Array{Float64,1} 
+    S    ::Array{Float64,1}
     uw   ::Array{Float64,1} # interface pore pressure
-    G    ::Array{Float64,1} # longitudinal flow gradient 
     h    ::Float64          # characteristic length from bulk elements
-    t    ::Float64          # time when the fracture opened
+    upa  ::Float64          # effective plastic relative displacement
     function JointSeepIpState(env::ModelEnv=ModelEnv())
-        this = new(env)
-        ndim = env.ndim
-        this.σ = zeros(3)
-        this.w = zeros(3)
-        this.uw = zeros(3) 
-        this.G  = zeros(ndim-1)
-        this.h = 0.0
-        this.t = 0.0
+        this     = new(env)
+        ndim     = env.ndim
+        this.σ   = zeros(3)
+        this.w   = zeros(3)
+        this.V   = zeros(2) 
+        this.D   = zeros(2) 
+        this.L   = zeros(ndim-1)
+        this.S   = zeros(ndim-1)
+        this.uw  = zeros(3) 
+        this.h   = 0.0
+        this.upa = 0.0
         return this
     end
 end
 
 mutable struct ElasticJointSeep<:Material
-    E ::Float64        # Young's modulus
-    nu::Float64        # Poisson ration 
-    ζ ::Float64        # factor ζ controls the elastic relative displacements 
-    k ::Float64        # specific permeability
-    γw::Float64        # specific weight of the fluid
-    α ::Float64        # Biot's coefficient
-    S ::Float64        # Storativity coefficient
-    β ::Float64        # compressibility of fluid
-    η ::Float64        # viscosity
-    kt::Float64        # leak-off coefficient
-    kl ::Float64       # longitudinal permeability coefficient
-    permeability::Bool # joint permeability ("true" or "false")
+    E  ::Float64        # Young's modulus
+    nu ::Float64        # Poisson ration 
+    ζ  ::Float64        # factor ζ controls the elastic relative displacements 
+    k  ::Float64        # specific permeability
+    γw ::Float64        # specific weight of the fluid
+    α  ::Float64        # Biot's coefficient
+    S  ::Float64        # Storativity coefficient
+    β  ::Float64        # compressibility of fluid
+    η  ::Float64        # viscosity
+    kt ::Float64        # leak-off coefficient
+    kl ::Float64        # initial fracture opening (longitudinal flow)
 
     function ElasticJointSeep(prms::Dict{Symbol,Float64})
         return  ElasticJoint(;prms...)
     end
 
-    function ElasticJointSeep(;E=NaN, nu=NaN, zeta=NaN, k=NaN, kappa=NaN, gammaw=NaN, alpha=NaN, S=NaN, n=NaN, Ks=NaN, Kw=NaN, beta=0.0, eta=NaN, kt=NaN, kl=0.0, permeability=true)
+    function ElasticJointSeep(;E=NaN, nu=NaN, zeta=NaN, k=NaN, kappa=NaN, gammaw=NaN, alpha=NaN, S=NaN, n=NaN, Ks=NaN, Kw=NaN, beta=0.0, eta=NaN, kt=NaN, kl=0.0)
 
         !(isnan(kappa) || kappa>0) && error("Invalid value for kappa: $kappa")
 
@@ -64,9 +69,8 @@ mutable struct ElasticJointSeep<:Material
         eta>=0      || error("Invalid value for eta: $eta")
         kt>=0       || error("Invalid value for kt: $kt")
         kl>=0       || error("Invalid value for kl: $kl")
-        (permeability==true || permeability==false) || error("Invalid permeability: permeability must to be true or false")
 
-        this = new(E, nu, zeta, k, gammaw, alpha, S, beta, eta, kt, kl, permeability)
+        this = new(E, nu, zeta, k, gammaw, alpha, S, beta, eta, kt, kl)
         return this
     end
 end
@@ -74,8 +78,8 @@ end
 # Returns the element type that works with this material model
 matching_elem_type(::ElasticJointSeep) = HydroMechJoint
 
-# Create a new instance of Ip data
-new_ip_state(mat::ElasticJointSeep, env::ModelEnv) = JointSeepIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::ElasticJointSeep) = JointSeepIpState
 
 function mountD(mat::ElasticJointSeep, ipd::JointSeepIpState)
     ndim = ipd.env.ndim
@@ -92,7 +96,7 @@ function mountD(mat::ElasticJointSeep, ipd::JointSeepIpState)
     end
 end
 
-function stress_update(mat::ElasticJointSeep, ipd::JointSeepIpState, Δu::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1})
+function stress_update(mat::ElasticJointSeep, ipd::JointSeepIpState, Δu::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
     ndim = ipd.env.ndim
     D  = mountD(mat, ipd)
     Δσ = D*Δu
@@ -101,9 +105,24 @@ function stress_update(mat::ElasticJointSeep, ipd::JointSeepIpState, Δu::Array{
     ipd.σ[1:ndim] += Δσ
 
     ipd.uw += Δuw
-    ipd.G   = G
+    ipd.V  = -mat.kt*G
+    ipd.D +=  ipd.V*Δt
 
-    return Δσ
+    # compute crack aperture
+    if mat.kl == 0.0
+        kl = 0.0
+    else
+        if mat.kl >= ipd.w[1]
+            kl = mat.kl
+        else 
+            kl = ipd.w[1]
+        end
+    end 
+
+    ipd.L  =  ((kl^3)/(12*mat.η))*BfUw
+    ipd.S +=  ipd.L*Δt
+
+    return Δσ, ipd.V, ipd.L
 end
 
 function ip_state_vals(mat::ElasticJointSeep, ipd::JointSeepIpState)

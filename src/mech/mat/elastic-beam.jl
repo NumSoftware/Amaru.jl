@@ -30,8 +30,8 @@ end
 
 matching_elem_type(::ElasticBeam) = MechBeam
 
-# Create a new instance of Ip data
-new_ip_state(mat::ElasticBeam, env::ModelEnv) = BeamIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::ElasticBeam) = BeamIpState
 
 function ip_state_vals(mat::ElasticBeam, ipd::BeamIpState)
     return OrderedDict{Symbol, Float64}()

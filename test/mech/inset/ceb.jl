@@ -42,21 +42,21 @@ bcs = [
       ]
 
 
-@test solve!(dom, bcs, nincs=10, autoinc=true, verbose=true)
+@test solve!(dom, bcs, nincs=10, autoinc=true, verbose=false)
 
 bcs[2] = "tip" => NodeBC(uy=-0.0001)
-@test solve!(dom, bcs, nincs=10, autoinc=true, verbose=true)
+@test solve!(dom, bcs, nincs=10, autoinc=true, verbose=false)
 
 bcs[2] = "tip" => NodeBC(uy=+0.0006)
-@test solve!(dom, bcs, nincs=10, autoinc=true, verbose=true)
+@test solve!(dom, bcs, nincs=10, autoinc=true, verbose=false)
 
 bcs[2] = "tip" => NodeBC(uy=-0.0005)
-@test solve!(dom, bcs, nincs=10, autoinc=true, verbose=true)
+@test solve!(dom, bcs, nincs=10, autoinc=true, verbose=false)
 
 bcs[2] = "tip" => NodeBC(uy=+0.005)
-@test solve!(dom, bcs, nincs=20, autoinc=true, verbose=true)
+@test solve!(dom, bcs, nincs=20, autoinc=true, verbose=false)
 
-if Amaru.debug.makeplots
+if Amaru.config.makeplots
     using PyPlot
     log_jnt_ip = loggers[2].second
     tab = log_jnt_ip.table

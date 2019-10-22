@@ -24,8 +24,8 @@ end
 
 matching_elem_type(::LumpedMass) = MechLumpedMass
 
-# Create a new instance of Ip data
-new_ip_state(mat::LumpedMass, env::ModelEnv) = LumpedMassIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::LumpedMass) = LumpedMassIpState
 
 function ip_state_vals(mat::LumpedMass, ipd::LumpedMassIpState)
     return OrderedDict{Symbol, Float64}()

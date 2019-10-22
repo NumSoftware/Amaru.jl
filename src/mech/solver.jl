@@ -192,19 +192,25 @@ function solve!(
                 nouts   :: Int     = 0,
                 outdir  :: String  = "",
                 filekey :: String  = "out",
-                verbose :: Bool    = true,
+                verbose :: Bool    = false,
+                silent  :: Bool    = false,
                )
 
-    tol>0 || error("solve! : tolerance should be greater than zero")
     env = dom.env
     env.cstage += 1
     env.cinc    = 0
 
-    if verbose
-        printstyled("FEM analysis:\n", bold=true, color=:cyan)
-        println("  model type: ", env.modeltype)
+    if !silent
+        printstyled("Mechanical FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
+        sw = StopWatch() # timing
     end
-    
+
+    # Arguments checking
+    silent && (verbose=false)
+
+    tol>0 || error("solve! : tolerance should be greater than zero")
+    silent || println("  model type: ", env.modeltype)
+
     save_incs = nouts>0
     if save_incs
         if nouts>nincs
@@ -228,7 +234,8 @@ function solve!(
     umap  = 1:nu         # map for unknown displacements
     pmap  = nu+1:ndofs   # map for prescribed displacements
     dom.ndofs = length(dofs)
-    verbose && println("  unknown dofs: $nu")
+    silent || println("  elements: $(length(dom.elems))")
+    silent || println("  unknown dofs: $nu")
     
     # Get forces and displacements from boundary conditions
     Uex, Fex = get_bc_vals(dom, bcs)
@@ -241,17 +248,12 @@ function solve!(
         end
     end
 
-    # Timing
-    sw = StopWatch()
-
-    # Initial logging
+    # Save initial file and loggers
     update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
-
-    # Save initial file
     if env.cstage==1 && save_incs
         update_output_data!(dom)
         save(dom, "$outdir/$filekey-0.vtk", verbose=false)
-        verbose && printstyled("  $outdir/$filekey-0.vtk file written (Domain)\n", color=:green)
+        silent || printstyled("  $outdir/$filekey-0.vtk file written (Domain)\n", color=:green)
     end
 
     # Get the domain current state and backup
@@ -268,7 +270,7 @@ function solve!(
 
     ttol = 1e-9    # time tolerance
     inc  = 0       # increment counter
-    iout = dom.nouts     # file output counter
+    iout = env.cout     # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
@@ -294,8 +296,12 @@ function solve!(
         inc += 1
         env.cinc += 1
 
-        #verbose && printstyled("  stage $(env.cstage) increment $inc from t=$(round(t-dt,digits=10)) to t=$(round(t,digits=10)) (dt=$(round(dt,digits=10))):", bold=true, color=:blue) # color 111
-        verbose && printstyled("  stage $(env.cstage) increment $inc from t=$(round(t,digits=10)) to t=$(round(t+dt,digits=10)) (dt=$(round(dt,digits=10))):", bold=true, color=:blue) # color 111
+        if inc > maxincs
+            printstyled("  solver maxincs = $maxincs reached (try maxincs=0)\n", color=:red)
+            return false
+        end
+
+        silent || printstyled("  stage $(env.cstage) progress $(round(t*100,digits=3))% increment $inc dt=$(round(dt,sigdigits=4))\033[K\r", bold=true, color=:blue) # color 111
         verbose && println()
 
         ΔUex, ΔFex = dt*Uex, dt*Fex     # increment of external vectors
@@ -394,19 +400,14 @@ function solve!(
             # Update time t and dt
             t += dt
 
-            if inc > maxincs
-                printstyled("  solver maxincs = $maxincs reached (try maxincs=0)\n", color=:red)
-                return false
-            end
-
             # Check for saving output file
-            if abs(t - T) < ttol
+            if abs(t - T) < ttol && save_incs
                 env.cout += 1
                 iout = env.cout
                 update_output_data!(dom)
                 save(dom, "$outdir/$filekey-$iout.vtk", verbose=false)
                 T += dT # find the next output time
-                verbose && printstyled("  $outdir/$filekey-$iout.vtk file written (Domain)\n", color=:green)
+                silent || printstyled("  $outdir/$filekey-$iout.vtk file written (Domain) \033[K \n",color=:green)
             end
 
             if autoinc
@@ -446,14 +447,9 @@ function solve!(
     end
 
     # time spent
-    verbose && println("  time spent: ", see(sw, format=:hms))
+    silent || println("  time spent: ", see(sw, format=:hms), "\033[K")
 
     update_output_data!(dom)
-
-    # Update number of used increments at domain
-    #dom.nincs += inc
-    #dom.nouts = iout
-
     return true
 
 end

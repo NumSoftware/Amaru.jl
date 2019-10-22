@@ -183,7 +183,7 @@ end
 function elem_extrapolated_node_vals(elem::MechJoint)
     nips = length(elem.ips) 
 
-    E  = extrapolator(elem.shape.basic_shape, nips)
+    E  = extrapolator(elem.shape.facet_shape, nips)
     Sn = E*[ ip.data.σ[1] for ip in elem.ips ]
     Wn = E*[ ip.data.w[1] for ip in elem.ips ]
     N  = [ Sn Wn; Sn Wn ]

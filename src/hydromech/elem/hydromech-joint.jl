@@ -21,16 +21,20 @@ matching_shape_family(::Type{HydroMechJoint}) = JOINT_SHAPE
 
 function elem_config_dofs(elem::HydroMechJoint)
     nnodes = length(elem.nodes)
+    nbsnodes = elem.shape.basic_shape.npoints
+    nlnodes = Int((nnodes-nbsnodes)/2) 
+    dnlnodes = nnodes-nbsnodes
     for (i, node) in enumerate(elem.nodes)
-            add_dof(node, :uw, :fw)
-        if  i<=(2*nnodes/3)
+        if  i<=(nbsnodes) || (nlnodes+nbsnodes)>=i>(nlnodes) || i>(dnlnodes)
+            add_dof(node, :uw, :fw)  
+        end
+        if  i<=(dnlnodes)
             add_dof(node, :ux, :fx)
             add_dof(node, :uy, :fy)
             elem.env.ndim==3 && add_dof(node, :uz, :fz)         
         end
     end
 end
-
 
 function elem_init(elem::HydroMechJoint)
     # Get linked elements
@@ -40,6 +44,7 @@ function elem_init(elem::HydroMechJoint)
     # Volume from first linked element
     V1 = 0.0
     C1 = elem_coords(e1)
+
     for ip in e1.ips
         dNdR = e1.shape.deriv(ip.R)
         J    = dNdR*C1
@@ -60,8 +65,10 @@ function elem_init(elem::HydroMechJoint)
     # Area of joint element
     A = 0.0
     C = elem_coords(elem)
-    n = div(length(elem.nodes), 3)
-    C = C[1:n, :]
+    nnodes   = length(elem.nodes)
+    nbsnodes = elem.shape.basic_shape.npoints 
+    nlnodes  = Int((nnodes-nbsnodes)/2) 
+    C = C[1:nlnodes, :]
     fshape = elem.shape.facet_shape
 
     for ip in elem.ips
@@ -79,33 +86,13 @@ function elem_init(elem::HydroMechJoint)
     end
 end
 
-#=
-function matrixT(J::Matrix{Float64})
-    if size(J,1)==2
-        L2 = vec(J[1,:])
-        L3 = vec(J[2,:])
-        L1 = cross(L2, L3)  # L1 is normal to the first element face
-        L3 = cross(L1, L2)
-        normalize!(L1)
-        normalize!(L2)
-        normalize!(L3)
-        return collect([L1 L2 L3]') # collect is used to avoid Adjoint type
-    else
-        L2 = vec(J)
-        L1 = [ L2[2], -L2[1] ] # It follows the anti-clockwise numbering of 2D elements: L1 should be normal to the first element face
-        normalize!(L1)
-        normalize!(L2)
-        return collect([L1 L2]')
-    end
-end=#
-
-
 function elem_stiffness(elem::HydroMechJoint)
     ndim     = elem.env.ndim
     th       = elem.env.thickness
     nnodes   = length(elem.nodes)
-    nlnodes  = div(nnodes, 3) 
-    dnlnodes = 2*nlnodes
+    nbsnodes = elem.shape.basic_shape.npoints 
+    nlnodes  = Int((nnodes-nbsnodes)/2) 
+    dnlnodes = nnodes-nbsnodes
     fshape   = elem.shape.facet_shape
     C        = elem_coords(elem)[1:nlnodes,:]
 
@@ -155,8 +142,9 @@ function elem_coupling_matrix(elem::HydroMechJoint)
     ndim     = elem.env.ndim
     th       = elem.env.thickness
     nnodes   = length(elem.nodes)
-    nlnodes  = div(nnodes, 3) 
-    dnlnodes = 2*nlnodes
+    nbsnodes = elem.shape.basic_shape.npoints
+    nlnodes  = Int((nnodes-nbsnodes)/2) 
+    dnlnodes = nnodes-nbsnodes
     fshape   = elem.shape.facet_shape
 	C        = elem_coords(elem)[1:nlnodes,:]
 
@@ -164,12 +152,19 @@ function elem_coupling_matrix(elem::HydroMechJoint)
     NN       = zeros(ndim, dnlnodes*ndim)
     Bu       = zeros(ndim, dnlnodes*ndim)
     mf       = [1.0, 0.0, 0.0][1:ndim]
-    mfNp     = zeros(ndim,nlnodes)
-    Cup      = zeros(dnlnodes*ndim, nlnodes) # u-p coupling matrix
+    mfNf     = zeros(ndim, 3*nbsnodes)
+    Cup      = zeros(dnlnodes*ndim, 3*nbsnodes) # u-p coupling matrix
+
+    nodes_p  = []
+
+    for (i, node) in enumerate(elem.nodes)
+        if  i<=(nbsnodes) || (nlnodes+nbsnodes)>=i>(nlnodes) || i>(dnlnodes)
+            push!(nodes_p, elem.nodes[i])
+        end
+    end
 
     for ip in elem.ips
         # compute shape Jacobian
-        N    = fshape.func(ip.R)
         dNdR = fshape.deriv(ip.R)
 
         @gemm J = dNdR*C
@@ -177,9 +172,12 @@ function elem_coupling_matrix(elem::HydroMechJoint)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # compute Np vector
-        Np = N'
+        Np = elem.shape.basic_shape.func(ip.R)
+        N0 = 0*Np
+        Nf = [N0' N0' Np']
         
         # compute Bu matrix
+        N  = fshape.func(ip.R)
         T   = matrixT(J)
         NN .= 0.0
 
@@ -193,14 +191,14 @@ function elem_coupling_matrix(elem::HydroMechJoint)
         @gemm Bu = T*NN
         # compute Cup
         coef = detJ*ip.w*th  
-        mfNp = mf*Np
-        Cup -= coef*Bu'*mfNp
+        mfNf = mf*Nf
+        Cup -= coef*Bu'*mfNf
     end
 
     # map
     keys = (:ux, :uy, :uz)[1:ndim]
     map_u = [ node.dofdict[key].eq_id for node in elem.nodes[1:dnlnodes] for key in keys ]
-    map_p = [ node.dofdict[:uw].eq_id for node in elem.nodes[dnlnodes+1:end] ]
+    map_p = [ node.dofdict[:uw].eq_id for node in nodes_p ]
 
     return Cup, map_u, map_p
 end
@@ -209,132 +207,121 @@ end
 function elem_conductivity_matrix(elem::HydroMechJoint)
     ndim     = elem.env.ndim
     nnodes   = length(elem.nodes)
-    nlnodes  = div(nnodes, 3) 
-    dnlnodes = 2*nlnodes
+    nbsnodes = elem.shape.basic_shape.npoints
+    nlnodes  = Int((nnodes-nbsnodes)/2) 
+    dnlnodes = nnodes-nbsnodes
     fshape   = elem.shape.facet_shape
-    C        = elem_coords(elem)[1:nlnodes,:]
 
+    C        = elem_coords(elem)[1:nbsnodes,:]
+    Cl       = zeros(nbsnodes, ndim-1)
     J        = Array{Float64}(undef, ndim-1, ndim)
-    Cl       = zeros(nlnodes, ndim-1)
     Jl       = zeros(ndim-1, ndim-1)
-    Bp       = zeros(ndim-1, nlnodes)
-    Hlong    = zeros(nlnodes, nlnodes)
-    Htranb   = zeros(nlnodes, nlnodes)
-    Htrant   = zeros(nlnodes, nlnodes)
-    Htranf   = zeros(nlnodes, nlnodes)
-    H        = zeros(nnodes, nnodes)
+    Bp       = zeros(ndim-1, nbsnodes)
+
+    H        = zeros(3*nbsnodes, 3*nbsnodes)
+
+    nodes_p  = []
+    
+    for (i, node) in enumerate(elem.nodes)
+        if  i<=(nbsnodes) || (nlnodes+nbsnodes)>=i>(nlnodes) || i>(dnlnodes)
+            push!(nodes_p, elem.nodes[i])
+        end
+    end
 
     for ip in elem.ips
-        
-        # compute kt and kb
-        if ip.data.t == 0.0 ||  ip.data.w[1] <= 0.0  
-            kt = elem.mat.kt
-            kb = kt
-        elseif elem.mat.permeability==false
-            kt = 0.0
-            kb = kt
-        elseif elem.mat.permeability==true
-            # compute kt and kb
-            kappa = elem.mat.k/elem.mat.γw
-            K  = elem.mat.E/(3*(1-2*elem.mat.nu)) # bulk modulus 
-            G  = elem.mat.E/(2*(1+2*elem.mat.nu)) # shear modulus
-            Ku = K + (elem.mat.α^2)/elem.mat.S    # undrained bulk modulus
-            cv = (kappa/elem.mat.S)*(K + (4/3)*G)/(Ku + (4/3)*G) # diffusion coefficient
-            kt = kappa/(2*sqrt(cv*ip.data.t/π))
-            kb = kt
-        end
 
         # compute shape Jacobian
-        N    = fshape.func(ip.R)
-        dNdR = fshape.deriv(ip.R)
+        dNpdR = elem.shape.basic_shape.deriv(ip.R)
 
-        @gemm J = dNdR*C 
+        @gemm J = dNpdR*C 
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-
-        # compute Np matrix  
-        Np = N'
 
         # compute Bp matrix  
         T    = matrixT(J) # rotation matrix
         Cl   = C*T[(2:end), (1:end)]'  # new coordinate nodes
 
-        @gemm Jl = dNdR*Cl
-        Bp = inv(Jl)*dNdR
+        @gemm Jl = dNpdR*Cl
+        Bp = inv(Jl)*dNpdR
+        B0 = 0*Bp
+        Bf = [B0 B0 Bp] 
+
+        # compute NN matrix
+        Np = elem.shape.basic_shape.func(ip.R)  
+        N0 = 0*Np
+        Nb = [Np' N0' -Np']
+        Nt = [N0' Np' -Np']
 
         # compute H
-        coef   = detJ*ip.w*kb
-        Htranf = coef*Np'*Np
-        Htrant = Htranf
-        Htranb = Htranf
+        coef  = detJ*ip.w*elem.mat.kt/elem.mat.γw
+        H += coef*Nb'*Nb
+        H += coef*Nt'*Nt
 
+         # compute crack aperture
         if elem.mat.kl == 0.0
-            # compute W crack aperture
-            if ip.data.t == 0.0 ||  ip.data.w[1] <= 0.0
-                W = 0.0
+            if ip.data.upa == 0.0 || ip.data.w[1] <= 0.0
+                kl = 0.0
             else
-                W = ip.data.w[1]
+                kl = ip.data.w[1]
             end
-            coef = detJ*ip.w*(W^3)/(12*elem.mat.η) 
         else
-            coef = detJ*ip.w*elem.mat.kl
+            if elem.mat.kl >= ip.data.w[1]
+                kl = elem.mat.kl
+            else 
+                kl = ip.data.w[1]
+            end
         end    
 
-        Hlong = coef*Bp'*Bp
-
-        H[1:nlnodes, 1:nlnodes] .+= Htranb
-        H[1:nlnodes, dnlnodes+1:end] .-= Htranf
-
-        H[nlnodes+1:dnlnodes, nlnodes+1:dnlnodes] .+= Htrant
-        H[nlnodes+1:dnlnodes, dnlnodes+1:end] .-= Htranf
-
-        H[dnlnodes+1:end, 1:nlnodes] .-= Htranb
-        H[dnlnodes+1:end, dnlnodes+1:end] .+= Htranf
-            
-        H[dnlnodes+1:end, nlnodes+1:dnlnodes] .-= Htrant
-        H[dnlnodes+1:end, dnlnodes+1:end] .+= Htranf
-
-        H[dnlnodes+1:end, dnlnodes+1:end] .-= Hlong
-
+        coef = detJ*ip.w*(kl^3)/(12*elem.mat.η) 
+        H -= coef*Bf'*Bf
     end
     
     # map
-    map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
+    map = [  node.dofdict[:uw].eq_id for node in nodes_p  ]
 
-    return H, map, map
+    return H, map, map, nodes_p
 end
 
 
 function elem_compressibility_matrix(elem::HydroMechJoint)
     ndim     = elem.env.ndim
     nnodes   = length(elem.nodes)
-    nlnodes  = div(nnodes, 3) 
-    dnlnodes = 2*nlnodes
+    nbsnodes = elem.shape.basic_shape.npoints
+    nlnodes  = Int((nnodes-nbsnodes)/2) 
+    dnlnodes = nnodes-nbsnodes
     fshape   = elem.shape.facet_shape
-    C        = elem_coords(elem)[1:nlnodes,:]
+    C        = elem_coords(elem)[1:nbsnodes,:]
 
     J   = Array{Float64}(undef, ndim-1, ndim)
-    Cpp = zeros(nlnodes, nlnodes) 
+    Cpp = zeros(3*nbsnodes, 3*nbsnodes)
+
+    nodes_p  = []
+    
+    for (i, node) in enumerate(elem.nodes)
+        if  i<=(nbsnodes) || (nlnodes+nbsnodes)>=i>(nlnodes) || i>(dnlnodes)
+            push!(nodes_p, elem.nodes[i])
+        end
+    end 
 
     for ip in elem.ips
         # compute shape Jacobian
-        N    = fshape.func(ip.R)
-        dNdR = fshape.deriv(ip.R)
-        
-        @gemm J = dNdR*C
+        dNpdR = elem.shape.basic_shape.deriv(ip.R)
+        @gemm J = dNpdR*C
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # compute Np matrix
-        Np = N'
+        Np = elem.shape.basic_shape.func(ip.R)  
+        N0 = 0*Np
+        Nf = [N0' N0' Np']
 
         # compute Cpp
         coef = detJ*ip.w*elem.mat.β
-        Cpp -= coef*Np'*Np
+        Cpp -= coef*Nf'*Nf
     end
 
     # map
-    map = [  node.dofdict[:uw].eq_id for node in elem.nodes[dnlnodes+1:end]  ]
+    map = [  node.dofdict[:uw].eq_id for node in nodes_p  ]
 
     return Cpp, map, map
 end
@@ -343,26 +330,35 @@ end
 function elem_RHS_vector(elem::HydroMechJoint)
     ndim     = elem.env.ndim
     nnodes   = length(elem.nodes)
-    nlnodes  = div(nnodes, 3) 
-    dnlnodes = 2*nlnodes
+    nbsnodes = elem.shape.basic_shape.npoints
+    nlnodes  = Int((nnodes-nbsnodes)/2) 
+    dnlnodes = nnodes-nbsnodes
     fshape   = elem.shape.facet_shape
-    C        = elem_coords(elem)[1:nlnodes,:]
+    C        = elem_coords(elem)[1:nbsnodes,:]
 
     J        = Array{Float64}(undef, ndim-1, ndim)
-    Cl       = zeros(nlnodes, ndim-1)
+    Cl       = zeros(nbsnodes, ndim-1)
     Jl       = zeros(ndim-1, ndim-1)
-    Bp       = zeros(ndim-1, nlnodes)
+    Bp       = zeros(ndim-1, nbsnodes)
     Z        = zeros(ndim) 
     Z[end]   = 1.0
     bf       = zeros(ndim-1) 
-    Q        = zeros(nlnodes)
+    Q        = zeros(3*nbsnodes)
+
+    nodes_p  = []
+
+    for (i, node) in enumerate(elem.nodes)
+        if  i<=(nbsnodes) || (nlnodes+nbsnodes)>=i>(nlnodes) || i>(dnlnodes)
+            push!(nodes_p, elem.nodes[i])
+        end
+    end 
  
     for ip in elem.ips
 
         # compute shape Jacobian
-        dNdR = fshape.deriv(ip.R)
+        dNpdR = elem.shape.basic_shape.deriv(ip.R)
 
-        @gemm J = dNdR*C 
+        @gemm J = dNpdR*C 
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -370,28 +366,36 @@ function elem_RHS_vector(elem::HydroMechJoint)
         T    = matrixT(J) #rotation matrix
         Cl   = C*T[(2:end), (1:end)]'  #coordinate of new nodes
 
-        @gemm Jl = dNdR*Cl
-        Bp = inv(Jl)*dNdR
+        @gemm Jl = dNpdR*Cl
+        Bp = inv(Jl)*dNpdR
+        B0 = 0*Bp
+        Bf = [B0 B0 Bp] 
         
         # compute Q
+
+        # compute crack aperture
         if elem.mat.kl == 0.0
-            # compute W crack aperture
-            if ip.data.t == 0.0 ||  ip.data.w[1] <= 0.0
-                W = 0.0
+            if ip.data.upa == 0.0 || ip.data.w[1] <= 0.0
+                kl = 0.0
             else
-                W = ip.data.w[1]
-            end
-            coef = detJ*ip.w*(W^3)/(12*elem.mat.η)
+                kl = ip.data.w[1]
+            end 
         else
-            coef = detJ*ip.w*elem.mat.kl            
-        end  
-        
+            if elem.mat.kl >= ip.data.w[1]
+                kl = elem.mat.kl
+            else 
+                kl = ip.data.w[1]
+            end
+        end    
+
+        coef = detJ*ip.w*(kl^3)/(12*elem.mat.η)   
         bf = T[(2:end), (1:end)]*Z*elem.mat.γw
-        @gemm Q += coef*Bp'*bf
+        
+        @gemm Q += coef*Bf'*bf
     end
 
     # map
-    map = [  node.dofdict[:uw].eq_id for node in elem.nodes[dnlnodes+1:end]  ]
+    map = [  node.dofdict[:uw].eq_id for node in nodes_p  ]
 
     return Q, map
 end
@@ -400,24 +404,33 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
     ndim     = elem.env.ndim
     th       = elem.env.thickness
     nnodes   = length(elem.nodes)
-    nlnodes  = div(nnodes, 3) 
-    dnlnodes = 2*nlnodes
+    nbsnodes = elem.shape.basic_shape.npoints
+    nlnodes  = Int((nnodes-nbsnodes)/2) 
+    dnlnodes = nnodes-nbsnodes
     fshape   = elem.shape.facet_shape
+
+    nodes_p  = []
+
+    for (i, node) in enumerate(elem.nodes)
+        if  i<=(nbsnodes) || (nlnodes+nbsnodes)>=i>(nlnodes) || i>(dnlnodes)
+            push!(nodes_p, elem.nodes[i])
+        end
+    end 
 
     keys   = (:ux, :uy, :uz)[1:ndim]
     map_u  = [ node.dofdict[key].eq_id for node in elem.nodes[1:dnlnodes] for key in keys ]
-    map_p  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
+    map_p  = [ node.dofdict[:uw].eq_id for node in nodes_p ]
 
     dF     = zeros(dnlnodes*ndim)
     Bu     = zeros(ndim, dnlnodes*ndim)
-    dFw    = zeros(nnodes)
-    Bp     = zeros(ndim-1, nlnodes)     
+    dFw    = zeros(3*nbsnodes)
+    Bp     = zeros(ndim-1, nbsnodes)     
 
     J      = Array{Float64}(undef, ndim-1, ndim)
     NN     = zeros(ndim, dnlnodes*ndim)
 
-    C      = elem_coords(elem)[1:nlnodes,:]
-    Cl     = zeros(nlnodes, ndim-1)
+    C      = elem_coords(elem)[1:nbsnodes,:]
+    Cl     = zeros(nbsnodes, ndim-1)
     Jl     = zeros(ndim-1, ndim-1)
     mf     = [1.0, 0.0, 0.0][1:ndim]    
     Bpuwf  = zeros(ndim-1)
@@ -427,28 +440,33 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
 
     for ip in elem.ips
         # compute shape Jacobian
-        N    = fshape.func(ip.R)
-        dNdR = fshape.deriv(ip.R)
+        dNpdR = elem.shape.basic_shape.deriv(ip.R)
 
-        @gemm J = dNdR*C 
+        @gemm J = dNpdR*C 
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-
-        # compute Np vector
-        Np =  N'
 
         # compute Bp matrix
         T    = matrixT(J) # rotation matrix
         Cl   = C*T[(2:end), (1:end)]'  # coordinate of new nodes
-        @gemm Jl = dNdR*Cl
-        Bp = inv(Jl)*dNdR #dNdX
+        @gemm Jl = dNpdR*Cl
+        Bp = inv(Jl)*dNpdR #dNdX
+        B0 = 0*Bp
+        Bf = [B0 B0 Bp] 
 
         # compute bf vector
         bf = T[(2:end), (1:end)]*Z*elem.mat.γw
         
-        # compute Bu matrix
-        NN .= 0.0
+        # compute Np vector
+        Np = elem.shape.basic_shape.func(ip.R)
+        N0 = 0*Np
+        Nb = [Np' N0' -Np']
+        Nt = [N0' Np' -Np']
+        Nf = [N0' N0'  Np']
 
+        # compute NN matrix
+        N    = fshape.func(ip.R)
+        NN .= 0.0
         for i=1:nlnodes
             for dof=1:ndim
                 NN[dof, (i-1)*ndim + dof               ] = -N[i]
@@ -468,59 +486,20 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
         w  = ip.data.w[1:ndim]
         coef = detJ*ip.w*th
         mfw = mf'*w
-        dFw[dnlnodes+1:end] .-= coef*Np'*mfw 
+        dFw-= coef*Nf'*mfw 
 
         coef = detJ*ip.w*elem.mat.β
-        dFw[dnlnodes+1:end] .-= coef*Np'*uwf
+        dFw -= coef*Nf'*uwf
 
-        # compute kt and kb
-        if ip.data.t == 0.0 ||  ip.data.w[1] <= 0.0  
-            kt = elem.mat.kt
-            kb = kt
-        elseif elem.mat.permeability==false
-            kt = 0.0
-            kb = kt
-        elseif elem.mat.permeability==true
-            # compute kt and kb
-            kappa = elem.mat.k/elem.mat.γw
-            K  = elem.mat.E/(3*(1-2*elem.mat.nu)) # bulk modulus 
-            G  = elem.mat.E/(2*(1+2*elem.mat.nu)) # shear modulus
-            Ku = K + (elem.mat.α^2)/elem.mat.S    # undrained bulk modulus
-            cv = (kappa/elem.mat.S)*(K + (4/3)*G)/(Ku + (4/3)*G) # diffusion coefficient
-            kt = kappa/(2*sqrt(cv*ip.data.t/π))
-            kb = kt
-        end
-
-        uwb = ip.data.uw[1]
-        uwt = ip.data.uw[2]
-        uwf = ip.data.uw[3]
-
-        coef  = detJ*ip.w*kb
-        dFw[1:nlnodes] .+= coef*Np'*(uwb-uwf)
-
-        coef  = detJ*ip.w*kt
-        dFw[nlnodes+1:dnlnodes] .+= coef*Np'*(uwt-uwf)
-
-        coef  = detJ*ip.w*kb
-        dFw[dnlnodes+1:end] .+= coef*Np'*(uwf-uwb)
-
-        coef  = detJ*ip.w*kt
-        dFw[dnlnodes+1:end] .+= coef*Np'*(uwf-uwt)
-
-        if elem.mat.kl == 0.0
-            # compute W crack aperture
-            if ip.data.t == 0.0 || ip.data.w[1] <= 0.0
-                W = 0.0
-            else
-                W = ip.data.w[1]
-            end
-            coef = detJ*ip.w*(W^3)/(12*elem.mat.η)
-        else
-            coef = detJ*ip.w*elem.mat.kl            
-        end  
-
-        Bpuwf = ip.data.G
-        dFw[dnlnodes+1:end] .-= coef*Bp'*Bpuwf 
+        # longitudinal flow
+        coef = detJ*ip.w  
+        S = ip.data.S
+        dFw -= coef*Bf'*S
+         
+        # transverse flow
+        D = ip.data.D
+        dFw += coef*Nt'*D[1]
+        dFw += coef*Nb'*D[2]
     end
 
     F[map_u] += dF
@@ -532,31 +511,40 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
     ndim     = elem.env.ndim
     th       = elem.env.thickness
     nnodes   = length(elem.nodes)
-    nlnodes  = div(nnodes, 3) 
-    dnlnodes = 2*nlnodes
+    nbsnodes = elem.shape.basic_shape.npoints
+    nlnodes  = Int((nnodes-nbsnodes)/2) 
+    dnlnodes = nnodes-nbsnodes
     fshape   = elem.shape.facet_shape
+
+    nodes_p  = []
+
+    for (i, node) in enumerate(elem.nodes)
+        if  i<=(nbsnodes) || (nlnodes+nbsnodes)>=i>(nlnodes) || i>(dnlnodes)
+            push!(nodes_p, elem.nodes[i])
+        end
+    end 
 
     keys   = (:ux, :uy, :uz)[1:ndim]
     map_u  = [ node.dofdict[key].eq_id for node in elem.nodes[1:dnlnodes] for key in keys ]
-    map_p  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
+    map_p  = [ node.dofdict[:uw].eq_id for node in nodes_p ]
 
     dU     = U[map_u] # nodal displacement increments
     dUw    = U[map_p] # nodal pore-pressure increments
-    Uw     = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes ] # nodal pore-pressure at step n
+    Uw     = [ node.dofdict[:uw].vals[:uw] for node in nodes_p ] # nodal pore-pressure at step n
     Uw    += dUw # nodal pore-pressure at step n+1
 
     dF     = zeros(dnlnodes*ndim)
-    dFw    = zeros(nnodes)     
+    dFw    = zeros(3*nbsnodes)     
 
     J      = Array{Float64}(undef, ndim-1, ndim)
     NN     = zeros(ndim, dnlnodes*ndim)
     Δω     = zeros(ndim)
     Δuw    = zeros(3)
     Bu     = zeros(ndim, dnlnodes*ndim)
-    C      = elem_coords(elem)[1:nlnodes,:]
-    Cl     = zeros(nlnodes, ndim-1)
+    C      = elem_coords(elem)[1:nbsnodes,:]
+    Cl     = zeros(nbsnodes, ndim-1)
     Jl     = zeros(ndim-1, ndim-1)
-    Bp     = zeros(ndim-1, nlnodes)
+    Bp     = zeros(ndim-1, nbsnodes)
     mf     = [1.0, 0.0, 0.0][1:ndim]
     BpUwf  = zeros(ndim-1)
     Z      = zeros(ndim) 
@@ -565,27 +553,33 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
     for ip in elem.ips
 
         # compute shape Jacobian
-        N    = fshape.func(ip.R)
-        dNdR = fshape.deriv(ip.R)
+        dNpdR = elem.shape.basic_shape.deriv(ip.R)
 
-        @gemm J = dNdR*C 
+        @gemm J = dNpdR*C 
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # compute Np vector
-        Np =  N'
+        Np = elem.shape.basic_shape.func(ip.R)
+        N0 = 0*Np
+        Nb = [Np' N0' -Np']
+        Nt = [N0' Np' -Np']
+        Nf = [N0' N0'  Np']
 
         # compute Bp matrix
         T    = matrixT(J) # rotation matrix
         Cl   = C*T[(2:end), (1:end)]'  # coordinate of new nodes
 
-        @gemm Jl = dNdR*Cl
-        Bp = inv(Jl)*dNdR #dNdX
+        @gemm Jl = dNpdR*Cl
+        Bp = inv(Jl)*dNpdR #dNdX
+        B0 = 0*Bp
+        Bf = [B0 B0 Bp] 
 
         # compute bf vector
         bf = T[(2:end), (1:end)]*Z*elem.mat.γw
         
-        # compute Bu matrix
+        # compute NN matrix
+        N    = fshape.func(ip.R)
         NN .= 0.0
 
         for i=1:nlnodes
@@ -597,77 +591,34 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
 
         @gemm Bu = T*NN
 
-        # internal force dF
-
         # interpolation to the integ. point 
-        Δuw  = [Np*dUw[1:nlnodes]; Np*dUw[nlnodes+1:dnlnodes]; Np*dUw[dnlnodes+1:end]] 
+        Δuw  = [Np'*dUw[1:nbsnodes]; Np'*dUw[nbsnodes+1:2*nbsnodes]; Np'*dUw[2*nbsnodes+1:end]]
+        G    = [ dot(Nt,Uw)/(elem.mat.γw*1); dot(Nb,Uw)/(elem.mat.γw*1)]
+        BfUw = Bf*Uw + bf
 
-        # Compute longitudinal flow gradient  
-        BpUwf = Bp*Uw[dnlnodes+1:end] + bf
-
-        Δuwf = Np*dUw[dnlnodes+1:end] 
         @gemv Δω = Bu*dU
-        Δσ  = stress_update(elem.mat, ip.data, Δω, Δuw, BpUwf)
-        Δσ -= mf*Δuwf' # get total stress
+          
+        # internal force dF
+        Δσ, V, L = stress_update(elem.mat, ip.data, Δω, Δuw, G, BfUw, Δt)
+        Δσ -= mf*Δuw[3] # get total stress
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*Δσ
 
         # internal volumes dFw
         coef = detJ*ip.w*th
         mfΔω = mf'*Δω
-        dFw[dnlnodes+1:end] .-= coef*Np'*mfΔω 
+        dFw -= coef*Nf'*mfΔω 
 
         coef = detJ*ip.w*elem.mat.β
-        dFw[dnlnodes+1:end] .-= coef*Np'*Δuwf
+        dFw -= coef*Nf'*Δuw[3]
 
-        # compute kt and kb
-        if ip.data.t == 0.0 ||  ip.data.w[1] <= 0.0  
-            kt = elem.mat.kt
-            kb = kt
-        elseif elem.mat.permeability==false
-            kt = 0.0
-            kb = kt
-        elseif elem.mat.permeability==true
-            # compute kt and kb
-            kappa = elem.mat.k/elem.mat.γw
-            K  = elem.mat.E/(3*(1-2*elem.mat.nu)) # bulk modulus 
-            G  = elem.mat.E/(2*(1+2*elem.mat.nu)) # shear modulus
-            Ku = K + (elem.mat.α^2)/elem.mat.S    # undrained bulk modulus
-            cv = (kappa/elem.mat.S)*(K + (4/3)*G)/(Ku + (4/3)*G) # diffusion coefficient
-            kt = kappa/(2*sqrt(cv*ip.data.t/π))
-            kb = kt
-        end
+        # longitudinal flow
+        coef = Δt*detJ*ip.w
+        dFw -= coef*Bf'*L
 
-        NpUwb = Np*Uw[1:nlnodes]
-        NpUwt = Np*Uw[nlnodes+1:dnlnodes]
-        NpUwf = Np*Uw[dnlnodes+1:end]
-
-        coef  = Δt*detJ*ip.w*kb
-	    dFw[1:nlnodes] .+= coef*Np'*(NpUwb-NpUwf)
-
-	    coef  = Δt*detJ*ip.w*kt
-	    dFw[nlnodes+1:dnlnodes] .+= coef*Np'*(NpUwt-NpUwf)
-
-        coef  = Δt*detJ*ip.w*kb
-	    dFw[dnlnodes+1:end] .+= coef*Np'*(NpUwf-NpUwb)
-
-	    coef  = Δt*detJ*ip.w*kt
-	    dFw[dnlnodes+1:end] .+= coef*Np'*(NpUwf-NpUwt)
-
-        if elem.mat.kl == 0.0
-            # compute W crack aperture
-            if ip.data.t == 0.0 || ip.data.w[1] <= 0.0
-                W = 0.0
-            else
-                W = ip.data.w[1]
-            end
-            coef = Δt*detJ*ip.w*(W^3)/(12*elem.mat.η)
-        else
-            coef = Δt*detJ*ip.w*elem.mat.kl            
-        end  
-
-        BpUwf = Bp*Uw[dnlnodes+1:end] + bf
-        dFw[dnlnodes+1:end] .-= coef*Bp'*BpUwf 
+        # transverse flow
+        dFw -= coef*Nt'*V[1]  
+        dFw -= coef*Nb'*V[2] 
     end
 
     F[map_u] .+= dF

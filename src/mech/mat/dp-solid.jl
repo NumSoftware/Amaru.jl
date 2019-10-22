@@ -45,8 +45,8 @@ end
 
 matching_elem_type(::DruckerPrager) = MechSolid
 
-# Create a new instance of Ip data
-new_ip_state(mat::DruckerPrager, env::ModelEnv) = DruckerPragerIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::DruckerPrager) = DruckerPragerIpState
 
 
 function nlE(fc::Float64, εc::Float64, ε::Array{Float64,1})

@@ -132,7 +132,7 @@ function elem_conductivity_matrix(elem::SeepSolid)
     # map
     map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
 
-    return H, map, map
+    return H, map, map, elem.nodes
 end
 
 function elem_compressibility_matrix(elem::SeepSolid)
@@ -230,9 +230,9 @@ function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
         coef = detJ*ip.w*elem.mat.S 
         dFw -= coef*N*uw  
 
-        V    = ip.data.V
+        D    = ip.data.D
         coef = detJ*ip.w
-        @gemv dFw += coef*Bp'*V
+        @gemv dFw += coef*Bp'*D
     end
 
     F[map_p] += dFw
@@ -276,7 +276,7 @@ function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1
 
         Δuw = N'*dUw # interpolation to the integ. point
 
-        V = update_state!(elem.mat, ip.data, Δuw, G)
+        V = update_state!(elem.mat, ip.data, Δuw, G, Δt)
 
         coef = detJ*ip.w*elem.mat.S 
         dFw -= coef*N*Δuw  

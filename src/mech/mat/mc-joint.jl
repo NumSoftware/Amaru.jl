@@ -72,8 +72,8 @@ end
     matching_elem_type(::MCJoint) = MechJoint
 end
 
-# Create a new instance of Ip data
-new_ip_state(mat::MCJoint, env::ModelEnv) = MCJointIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::MCJoint) = MCJointIpState
 
 
 function yield_func(mat::MCJoint, ipd::MCJointIpState, σ::Array{Float64,1})
@@ -344,6 +344,10 @@ function stress_update(mat::MCJoint, ipd::MCJointIpState, Δw::Array{Float64,1})
 
     kn, ks, De = calc_kn_ks_De(mat, ipd)
     σmax = calc_σmax(mat, ipd, ipd.upa)  
+
+    if isnan(Δw[1]) || isnan(Δw[2])
+        @warn "mc_joint!: Invalid value for joint displacement: Δw = $Δw"
+    end
 
     # σ trial and F trial
     σtr  = ipd.σ + De*Δw

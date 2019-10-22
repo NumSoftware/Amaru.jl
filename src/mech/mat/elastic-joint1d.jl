@@ -52,8 +52,8 @@ end
 # Returns the element type that works with this material
 matching_elem_type(::ElasticJoint1D) = MechJoint1D
 
-# Create a new instance of Ip data
-new_ip_state(mat::ElasticJoint1D, env::ModelEnv) = Joint1DIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::ElasticJoint1D) = Joint1DIpState
 
 function calcD(mat::ElasticJoint1D, ipd::Joint1DIpState)
     ks = mat.ks

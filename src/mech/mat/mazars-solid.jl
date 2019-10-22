@@ -58,8 +58,8 @@ end
 # Returns the element type that works with this material model
 matching_elem_type(::Mazars) = MechSolid
 
-# Create a new instance of Ip data
-new_ip_state(mat::Mazars, env::ModelEnv) = MazarsIpState(env)
+# Type of corresponding state structure
+ip_state_type(mat::Mazars) = MazarsIpState
 
 
 function calcD(mat::Mazars, ipd::MazarsIpState)

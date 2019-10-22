@@ -6,7 +6,6 @@ using Test
 bl  = Block( [0 0; 0.2 0.1], nx=2, ny=6, cellshape=QUAD4, tag="solids")
 msh = Mesh(bl, verbose=true)
 generate_joints!(msh, tag="joints")
-#iptag!(msh.cells[:joints], "jips")
 
 # finite element analysis
 
@@ -42,9 +41,9 @@ for i=1:2
            :(x==0.2) => FaceBC(ux=2.0*1.7e-4),
           ]
 
-    @test solve!(dom, bcs, autoinc=true, nincs=20, maxits=3, tol=0.01, verbose=true, scheme=:ME, nouts=10)
+    @test solve!(dom, bcs, autoinc=true, nincs=20, maxits=3, tol=0.01, verbose=false, scheme=:ME, nouts=10)
 
-    if Amaru.debug.makeplots
+    if Amaru.config.makeplots
         using PyPlot
         table = log1.table
         #plot(table[:upa], table[:s1])
