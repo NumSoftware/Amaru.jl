@@ -71,7 +71,6 @@ function push!(table::DTable, row::Array{T,1} where T)
         table.columns = [ typeof(v)[v] for v in row  ]
     else
         for (i,val) in enumerate(row)
-            @show typeof(table.columns[i])
             push!(table.columns[i], val)
         end
     end
