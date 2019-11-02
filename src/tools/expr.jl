@@ -14,6 +14,7 @@ const op_dict = Dict{Symbol,Function}(
     :(>=) => (a,b) -> a>b-arith_tol,
     :(<=) => (a,b) -> a<b+arith_tol,
     :(==) => (a,b) -> abs(a-b)<arith_tol,
+    :abs => (a,) -> abs(a),
     :sin => (a,) -> sin(a),
     :cos => (a,) -> cos(a),
     :tan => (a,) -> tan(a),
