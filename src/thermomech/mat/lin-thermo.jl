@@ -15,6 +15,7 @@ mutable struct LinThermoIpState<:IpState
 end
 
 
+
 mutable struct LinThermo<:Material
     k ::Float64 # Thermal conductivity w/m/k
     ρ ::Float64 # density Ton/m3
@@ -26,6 +27,7 @@ mutable struct LinThermo<:Material
     function LinThermo(prms::Dict{Symbol,Float64})
         return  LinThermo(;prms...)
     end
+
 
     function LinThermo(;k=NaN, rho=NaN, cv=NaN)
         k  >= 0.0 || error("Invalid value for k")
@@ -39,7 +41,7 @@ end
 # Returns the element type that works with this material model
 matching_elem_type(::LinThermo) = ThermoSolid
 
-# Create a new instance of Ip data
+# Type of corresponding state structure
 ip_state_type(mat::LinThermo) = LinThermoIpState
 
 function calcK(mat::LinThermo, ipd::LinThermoIpState) # Thermal conductivity matrix
