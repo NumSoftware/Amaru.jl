@@ -151,9 +151,9 @@ end
 
 
 """
-    solve!(D, bcs, options...) -> Bool
+    hm_solve!(D, bcs, options...) -> Bool
 
-Performs one stage finite element analysis of a mechanical domain `D`
+Performs one stage finite element analysis of a domain `D`
 subjected to an array of boundary conditions `bcs`.
 
 Available options are:
@@ -464,11 +464,11 @@ function hm_solve!(
                 silent || println("    increment failed.")
                 Δt = round(0.5*Δt, sigdigits=3)
                 if Δt < ttol
-                    printstyled("solve!: solver did not converge\n", color=:red)
+                    printstyled("solve!: solver did not converge \033[K \n", color=:red)
                     return false
                 end
             else
-                printstyled("solve!: solver did not converge\n", color=:red)
+                printstyled("solve!: solver did not converge \033[K \n", color=:red)
                 return false
             end
         end

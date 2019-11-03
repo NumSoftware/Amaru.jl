@@ -168,9 +168,9 @@ subjected to a set of boundary conditions `bcs`.
 
 `maxincs = 1000000` : Maximum number of increments
 
-`scheme  = :FE` : Predictor-corrector scheme at each increment. Available schemes are `:FE` and `:ME`
-
 `tol     = 1e-2` : Tolerance for the maximum absolute error in forces vector
+
+`scheme  = :FE` : Predictor-corrector scheme at each increment. Available schemes are `:FE` and `:ME`
 
 `nouts   = 0` : Number of output files per analysis
 
@@ -312,8 +312,8 @@ function solve!(
         # Newton Rapshon iterations
         residue   = 0.0
         converged = false
-        maxfails  = 3    # maximum number of it. fails with residual change less than 90%
-        nfails    = 0    # counter for iteration fails
+        maxfails  = 3  # maximum number of it. fails with residual change less than 90%
+        nfails    = 0  # counter for iteration fails
         for it=1:maxits
             if it>1; ΔUi .= 0.0 end # essential values are applied only at first iteration
             #if it>1; remountK=true end 
@@ -434,13 +434,13 @@ function solve!(
             if autoinc
                 verbose && println("    increment failed.")
                 dt *= 0.5
-                dt = round(dt, digits =-ceil(Int, log10(dt))+3)  # round to 3 significant digits
+                dt = round(dt, sigdigits=3)  # round to 3 significant digits
                 if dt < ttol
-                    printstyled("solve!: solver did not converge\n", color=:red)
+                    printstyled("solve!: solver did not converge \033[K \n", color=:red)
                     return false
                 end
             else
-                printstyled("solve!: solver did not converge\n", color=:red)
+                printstyled("solve!: solver did not converge \033[K \n", color=:red)
                 return false
             end
         end
