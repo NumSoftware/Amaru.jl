@@ -40,7 +40,7 @@ end
 matching_elem_type(::LinThermo) = ThermoSolid
 
 # Create a new instance of Ip data
-new_ip_state(mat::LinThermo, env::ModelEnv) = LinThermoIpState(env)
+ip_state_type(mat::LinThermo) = LinThermoIpState
 
 function calcK(mat::LinThermo, ipd::LinThermoIpState) # Thermal conductivity matrix
     ndim = ipd.env.ndim

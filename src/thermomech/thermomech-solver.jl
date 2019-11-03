@@ -134,41 +134,92 @@ function tm_solve_step!(G::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu
 end
 
 """
-    solve!(D, bcs, options...) -> Bool
+    tm_solve!(D, bcs, options...) -> Bool
 
-Performs one stage finite element analysis of a mechanical domain `D`
+Performs one stage finite element analysis of a domain `D`
 subjected to an array of boundary conditions `bcs`.
 
-Available options are:
+# Arguments
 
-`verbose=true` : If true, provides information of the analysis steps
+`dom` : A finite element domain
 
-`tol=1e-2` : Tolerance for the absolute error in forces
+`bcs` : Array of boundary conditions given as an array of pairs ( location => condition)
 
-`nincs=1` : Number of increments
 
-`autoinc=false` : Sets automatic increments size. The first increment size will be `1/nincs`
+# Keyword arguments
 
-`maxits=5` : The maximum number of Newton-Rapson iterations per increment
+`time_span` : The simulated time
 
-`saveincs=false` : If true, saves output files according to `nouts` option
+`end_time` : The end time of the simulation
 
-`nouts=0` : Number of output files per analysis
+`nincs   = 1` : Number of increments
 
-`scheme= :FE` : Predictor-corrector scheme at iterations. Available schemes are `:FE` and `:ME`
+`maxits  = 5` : Maximum number of Newton-Rapson iterations per increment
 
+`autoinc = false` : Sets automatic increments size. The first increment size will be `1/nincs`
+
+`maxincs = 1000000` : Maximum number of increments
+
+`tol     = 1e-2` : Tolerance for the maximum absolute error in forces vector
+
+`scheme  = :FE` : Predictor-corrector scheme at each increment. Available schemes are `:FE` and `:ME`
+
+`nouts   = 0` : Number of output files per analysis
+
+`outdir  = ""` : Output directory
+
+`filekey = ""` : File key for output files
+
+`verbose = true` : If true, provides information of the analysis steps
 """
-function tm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Float64=NaN, nincs::Int=1, maxits::Int=5, autoinc::Bool=false,
-    tol::Number=1e-2, verbose::Bool=true, silent::Bool=false, nouts::Int=0, scheme::Symbol = :FE)
-
-    # Arguments checking
-    saveincs = nouts>0
-    silent && (verbose=false)
+function tm_solve!(
+                   dom       :: Domain,
+                   bcs       :: Array;
+                   time_span :: Float64 = NaN,
+                   end_time  :: Float64 = NaN,
+                   nincs     :: Int     = 1,
+                   maxits    :: Int     = 5,
+                   autoinc   :: Bool    = false,
+                   maxincs   :: Int     = 1000000,
+                   tol       :: Number  = 1e-2,
+                   scheme    :: Symbol  = :FE,
+                   nouts     :: Int     = 0,
+                   outdir    :: String  = "",
+                   filekey   :: String  = "out",
+                   verbose   :: Bool    = false,
+                   silent    :: Bool    = false
+                  )
+    env = dom.env
+    env.cstage += 1
+    env.cinc    = 0
 
     if !silent
-        printstyled("Thermomechanical FE analysis: Stage $(dom.stage+1)\n", bold=true, color=:cyan)
-        tic = time()
+        printstyled("Hydromechanical FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
+        sw = StopWatch() # timing
     end
+
+
+    # Arguments checking
+    silent && (verbose=false)
+
+    tol>0 || error("solve! : tolerance should be greater than zero")
+
+    save_incs = nouts>0
+    if save_incs
+        if nouts>nincs
+            nincs = nouts
+            @info "  nincs changed to $nincs to match nouts"
+        end
+        if nincs%nouts != 0
+            nincs = nincs - (nincs%nouts) + nouts
+            @info "  nincs changed to $nincs to be a multiple of nouts"
+        end
+
+        strip(outdir) == "" && (outdir = ".")
+        isdir(outdir) || error("solve!: output directory <$outdir> not fount")
+        outdir[end] in ('/', '\\')  && (outdir = outdir[1:end-1])
+    end
+
 
     if !isnan(end_time)
         time_span = end_time - dom.env.t
@@ -182,34 +233,34 @@ function tm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
     dom.ndofs = length(dofs)
     silent || println("  unknown dofs: $nu")
 
+
     # Get array with all integration points
     ips = [ ip for elem in dom.elems for ip in elem.ips ]
+    # Get the domain current state and backup
+    State = [ ip.data for elem in dom.elems for ip in elem.ips ]
+    StateBk = copy.(State)
 
-    # Setup for fisrt stage
-    if dom.nincs == 0
+    # Save initial file and loggers
+    if env.cstage==1
         # Setup initial quantities at dofs
         for (i,dof) in enumerate(dofs)
             dof.vals[dof.name]    = 0.0
             dof.vals[dof.natname] = 0.0
         end
 
-        # Tracking nodes, ips, elements, etc.
-        update_loggers!(dom)
+        update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
+        update_output_data!(dom) # Updates data arrays in domain
 
-        # Save first output file
-        if saveincs
-            update_output_data!(dom)
-            save(dom, "$(dom.filekey)-0.vtk", verbose=false)
-            silent || printstyled("  $(dom.filekey)-0.vtk file written (Domain)\n", color=:green)
+        if save_incs
+            save(dom, "$outdir/$filekey-0.vtk", verbose=false)
+            verbose && printstyled("  $outdir/$filekey-0.vtk file written (Domain)\n", color=:green)
         end
     end
 
-    # Get the domain current state and backup
-    State = [ ip.data for elem in dom.elems for ip in elem.ips ]
-    StateBk = copy.(State)
 
     # Incremental analysis
     t    = dom.env.t # current time
+    tini = t # initial time
     tend = t + time_span  # end time
     Δt = time_span/nincs # initial Δt value
 
@@ -218,7 +269,7 @@ function tm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
 
     ttol = 1e-9    # time tolerance
     inc  = 1       # increment counter
-    iout = dom.nouts     # file output counter
+    iout = env.cout     # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
@@ -238,7 +289,9 @@ function tm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
 
     while t < tend - ttol
 
-        verbose && printstyled("  increment $inc from t=$(round(t,sigdigits=9)) to t=$(round(t+Δt,sigdigits=9)) (dt=$(round(Δt,sigdigits=9))):\n", bold=true, color=:blue) # color 111
+        #verbose && printstyled("  increment $inc from t=$(round(t,sigdigits=9)) to t=$(round(t+Δt,sigdigits=9)) (dt=$(round(Δt,sigdigits=9))):\n", bold=true, color=:blue) # color 111
+        progress = round((t-tini)/time_span*100, digits=3)
+        silent || printstyled("  stage $(env.cstage) progress $progress% increment $inc dt=$(round(Δt,sigdigits=2))\033[K\r", bold=true, color=:blue) # color 111
 
         # Get forces and displacements from boundary conditions
         dom.env.t = t + Δt
@@ -316,6 +369,7 @@ function tm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
         end
 
         if converged
+            # Update forces and displacement for the current stage
             U .+= ΔUa
             F .+= ΔFin
             Uex .= UexN
@@ -335,12 +389,12 @@ function tm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             # Check for saving output file
             Tn = t + Δt
             if Tn+ttol>=T && saveincs
-                iout += 1
+                env.cout += 1
+                iout = env.cout
                 update_output_data!(dom)
-                save(dom, "$(dom.filekey)-$iout.vtk", verbose=false)
+                save(dom, "$outdir/$filekey-$iout.vtk", verbose=false)
                 T = Tn - mod(Tn, dT) + dT
-                silent || verbose || print("                                             \r")
-                silent || printstyled("  $(dom.filekey)-$iout.vtk file written (Domain)\n", color=:green)
+                silent || printstyled("  $outdir/$filekey-$iout.vtk file written (Domain) \033[K \n",color=:green)
             end
 
             # Update time t and Δt
@@ -350,39 +404,32 @@ function tm_solve!(dom::Domain, bcs::Array; time_span::Float64=NaN, end_time::Fl
             # Get new Δt
             if autoinc
                 Δt = min(1.5*Δt, 1.0/nincs)
-                Δt = round(Δt, digits=-ceil(Int, log10(Δt))+3)  # round to 3 significant digits
+                Δt = round(Δt, sigdigits=3)
                 Δt = min(Δt, 1.0-t)
             end
         else
+            # Restore counters
+            env.cinc -= 1
+            inc -= 1
+
             if autoinc
-                silent || println("    increment failed.")
-                #Δt *= 0.5
-                #Δt = round(Δt, -ceil(Int, log10(Δt))+3)  # round to 3 significant digits
+                verbose && println("    increment failed.")
                 Δt = round(0.5*Δt, sigdigits=3)
                 if Δt < ttol
-                    printstyled("solve!: solver did not converge\n", color=:red)
+                    printstyled("solve!: solver did not converge \033[K \n", color=:red)
                     return false
                 end
             else
-                printstyled("solve!: solver did not converge\n", color=:red)
+                printstyled("solve!: solver did not converge \033[K \n", color=:red)
                 return false
             end
         end
     end
 
     # time spent
-    if !silent
-        h, r = divrem(time()-tic, 3600)
-        m, r = divrem(r, 60)
-        println("  time spent: $(h)h $(m)m $(round(r,digits=3))s")
-    end
+    silent || println("  time spent: ", see(sw, format=:hms), "\033[K")
 
     update_output_data!(dom)
-
-    # Update number of used increments at domain
-    dom.nincs += inc
-    dom.nouts = iout
-    dom.stage += 1
 
     return true
 
