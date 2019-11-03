@@ -45,6 +45,8 @@ matching_elem_type(::LinThermo) = ThermoSolid
 #new_ip_state(mat::LinThermo, env::ModelEnv) = LinThermoIpState(env)
 
 # Type of corresponding state structure
+#ip_state_type(mat::LinThermo) = LinThermoIpState
+
 ip_state_type(mat::LinThermo) = LinThermoIpState
 
 function calcK(mat::LinThermo, ipd::LinThermoIpState) # Thermal conductivity matrix
@@ -62,7 +64,7 @@ end
 
 
 function ip_state_vals(mat::LinThermo, ipd::LinThermoIpState)
-    D = OrderedDict{Symbol, Float64}()
+    D = Dict{Symbol, Float64}()
     D[:qx] = ipd.Q[1]
     D[:qy] = ipd.Q[2]
     if ipd.env.ndim==3
