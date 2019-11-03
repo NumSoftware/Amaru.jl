@@ -15,6 +15,7 @@ mutable struct LinThermoIpState<:IpState
 end
 
 
+
 mutable struct LinThermo<:Material
     k ::Float64 # Thermal conductivity w/m/k
     ρ ::Float64 # density Ton/m3
@@ -26,6 +27,7 @@ mutable struct LinThermo<:Material
     function LinThermo(prms::Dict{Symbol,Float64})
         return  LinThermo(;prms...)
     end
+
 
     function LinThermo(;k=NaN, rho=NaN, cv=NaN)
         k  >= 0.0 || error("Invalid value for k")
