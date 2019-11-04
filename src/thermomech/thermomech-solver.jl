@@ -194,7 +194,7 @@ function tm_solve!(
     env.cinc    = 0
 
     if !silent
-        printstyled("Hydromechanical FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
+        printstyled("Thermomechanical FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
         sw = StopWatch() # timing
     end
 
