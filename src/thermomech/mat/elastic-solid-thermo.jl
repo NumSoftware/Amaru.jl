@@ -49,7 +49,11 @@ end
 matching_elem_type(::ElasticSolidThermo) = TMSolid
 
 # Create a new instance of Ip data
-new_ip_state(mat::ElasticSolidThermo, env::ModelEnv) = ElasticSolidThermoIpState(env)
+#new_ip_state(mat::ElasticSolidThermo, env::ModelEnv) = ElasticSolidThermoIpState(env)
+
+# Type of corresponding state structure
+ip_state_type(mat::ElasticSolidThermo) = ElasticSolidThermoIpState
+
 
 function calcD(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState)
     return calcDe(mat.E, mat.nu, ipd.env.modeltype) # function calcDe defined at elastic-solid.jl
