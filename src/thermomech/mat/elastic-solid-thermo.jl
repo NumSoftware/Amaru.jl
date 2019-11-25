@@ -33,14 +33,15 @@ mutable struct ElasticSolidThermo<:Material
         return  ElasticSolidThermo(;prms...)
     end
 
-    function ElasticSolidThermo(;E=1.0, nu=0.0, k=NaN, rho=NaN, cv=NaN, alpha=1.0)
-        E<=0.0       && error("Invalid value for E: $E")
+    function ElasticSolidThermo(;E=NaN, nu=0.0, k=NaN, rho=NaN, cv=NaN, alpha=1.0)
+        E>0.0       || error("Invalid value for E: $E")
         !(0<=nu<0.5) && error("Invalid value for nu: $nu")
         isnan(k)     && error("Missing value for k")
-        E<=0.0       && error("Invalid value for E: $E")
         cv<=0.0       && error("Invalid value for E: $E")
         0<=alpha<=1  || error("Invalid value for alpha: $alpha")
+
         this = new(E, nu, k, rho, cv, alpha)
+
         return this
     end
 end
@@ -53,6 +54,23 @@ matching_elem_type(::ElasticSolidThermo) = TMSolid
 
 # Type of corresponding state structure
 ip_state_type(mat::ElasticSolidThermo) = ElasticSolidThermoIpState
+
+
+#function set_state(ipd::ElasticSolidLinSeepIpState; sig=zeros(0), eps=zeros(0))
+#    sq2 = √2.0
+#    mdl = [1, 1, 1, sq2, sq2, sq2]
+#    if length(sig)==6
+#        ipd.σ .= sig.*mdl
+#    else
+#        if length(sig)!=0; error("ElasticSolidLinSeep: Wrong size for stress array: $sig") end
+#    end
+#    if length(eps)==6
+#        ipd.ε .= eps.*mdl
+#    else
+#        if length(eps)!=0; error("ElasticSolidLinSeep: Wrong size for strain array: $eps") end
+#    end
+#end
+
 
 
 function calcD(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState)
