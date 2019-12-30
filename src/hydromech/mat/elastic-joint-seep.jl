@@ -133,7 +133,7 @@ function ip_state_vals(mat::ElasticJointSeep, ipd::JointSeepIpState)
           :w2  => ipd.w[2]  ,
           :s1  => ipd.σ[1]  ,
           :s2  => ipd.σ[2]  ,
-          :uw  => ipd.uw    ,
+          :uwf => ipd.uw[3] ,
           :vb  => ipd.Vt[1] ,
           :vt  => ipd.Vt[2] )
     else
@@ -144,7 +144,7 @@ function ip_state_vals(mat::ElasticJointSeep, ipd::JointSeepIpState)
           :s1  => ipd.σ[1]  ,
           :s2  => ipd.σ[2]  ,
           :s3  => ipd.σ[3]  ,
-          :uw  => ipd.uw    ,
+          :uwf => ipd.uw[3] ,
           :vb  => ipd.Vt[1] ,
           :vt  => ipd.Vt[2] )
     end

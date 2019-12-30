@@ -6,7 +6,7 @@ mutable struct MCJointSeepIpState<:IpState
     env::ModelEnv
     σ   ::Array{Float64,1}  # stress
     w   ::Array{Float64,1}  # relative displacements
-    V   ::Array{Float64,1}  # fluid velocity
+    Vt  ::Array{Float64,1}  # transverse fluid velocity
     D   ::Array{Float64,1}  # distance traveled by the fluid
     L   ::Array{Float64,1} 
     S   ::Array{Float64,1}
@@ -19,7 +19,7 @@ mutable struct MCJointSeepIpState<:IpState
         ndim = env.ndim
         this.σ   = zeros(ndim)
         this.w   = zeros(ndim)
-        this.V   = zeros(2) 
+        this.Vt  = zeros(2) 
         this.D   = zeros(2) 
         this.L   = zeros(ndim-1)
         this.S   = zeros(ndim-1)
@@ -301,7 +301,7 @@ function calc_Δλ(mat::MCJointSeep, ipd::MCJointSeepIpState, σtr::Array{Float6
 
         abs(f) < tol && break
 
-        if i == maxits || isnan(Δλ)
+        if i == maxits 
             @error """MCJointSeep: Could not find Δλ. This may happen when the system
             becomes hypostatic and thus the global stiffness matrix is near syngular.
             Increasing the mesh refinement may result in a nonsingular matrix.
@@ -387,7 +387,7 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
     σmax = calc_σmax(mat, ipd, ipd.upa) 
 
     if isnan(Δw[1]) || isnan(Δw[2])
-        @warn "mc_joint_seep!: Invalid value for joint displacement: Δw = $Δw"
+        @warn "MCJointSeep: Invalid value for joint displacement: Δw = $Δw"
     end
 
     # σ trial and F trial
@@ -422,7 +422,7 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
         # Return to surface:
         F  = yield_func(mat, ipd, ipd.σ)   
         if F > 1e-3
-            @warn "stress_update: The value of the yield function is $F"
+            @warn "MCJointSeep: Yield function value outside tolerance: $F"
         end
     end
 
@@ -430,8 +430,8 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
     Δσ = ipd.σ - σini
 
     ipd.uw += Δuw
-    ipd.V  = -mat.kt*G
-    ipd.D +=  ipd.V*Δt
+    ipd.Vt  = -mat.kt*G
+    ipd.D  +=  ipd.Vt*Δt
 
     # compute crack aperture
     if mat.kl == 0.0
@@ -451,7 +451,7 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
     ipd.L  =  ((kl^3)/(12*mat.η))*BfUw
     ipd.S +=  ipd.L*Δt
 
-    return Δσ, ipd.V, ipd.L
+    return Δσ, ipd.Vt, ipd.L
 end
 
 
@@ -459,23 +459,25 @@ function ip_state_vals(mat::MCJointSeep, ipd::MCJointSeepIpState)
     ndim = ipd.env.ndim
     if ndim == 3
        return OrderedDict(
-          :w1  => ipd.w[1] ,
-          :w2  => ipd.w[2] ,
-          :w3  => ipd.w[3] ,
-          :s1  => ipd.σ[1] ,
-          :s2  => ipd.σ[2] ,
-          :s3  => ipd.σ[3] ,
-          :upa => ipd.upa  ,
-          :uwi  => ipd.uw   ,
-          :vi   => ipd.V)
+          :w1   => ipd.w[1] ,
+          :w2   => ipd.w[2] ,
+          :w3   => ipd.w[3] ,
+          :s1   => ipd.σ[1] ,
+          :s2   => ipd.σ[2] ,
+          :s3   => ipd.σ[3] ,
+          :upa  => ipd.upa  ,
+          :uwf  => ipd.uw[3],
+          :vb   => ipd.Vt[1],
+          :vt   => ipd.Vt[2])
     else
         return OrderedDict(
-          :w1  => ipd.w[1] ,
-          :w2  => ipd.w[2] ,
-          :s1  => ipd.σ[1] ,
-          :s2  => ipd.σ[2] ,
-          :upa => ipd.upa  ,
-          :uwi  => ipd.uw   ,
-          :vi   => ipd.V)
+          :w1   => ipd.w[1] ,
+          :w2   => ipd.w[2] ,
+          :s1   => ipd.σ[1] ,
+          :s2   => ipd.σ[2] ,
+          :upa  => ipd.upa  ,
+          :uwf  => ipd.uw[3],
+          :vb   => ipd.Vt[1],
+          :vt   => ipd.Vt[2])
     end
 end

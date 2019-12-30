@@ -228,7 +228,7 @@ function calc_Δλ(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
 			else
 			     σ     = [ σtr[1],  σtr[2]/(1+2*Δλ*ks),  σtr[3]/(1+2*Δλ*ks) ]
 			     dσdΔλ = [ 0,  -2*ks*σtr[2]/(1+2*Δλ*ks)^2,  -2*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
-			     drdΔλ = [ 0,  -4*ks*σtr[2]/(1+2*Δλ*ks)^2,  -4*ks*σtr[3]/(1+2*Δλ*ks+1)^2 ]
+			     drdΔλ = [ 0,  -4*ks*σtr[2]/(1+2*Δλ*ks)^2,  -4*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
 			end
 		else
 			if σtr[1]>0
@@ -346,7 +346,7 @@ function stress_update(mat::MCJoint, ipd::MCJointIpState, Δw::Array{Float64,1})
     σmax = calc_σmax(mat, ipd, ipd.upa)  
 
     if isnan(Δw[1]) || isnan(Δw[2])
-        @warn "mc_joint!: Invalid value for joint displacement: Δw = $Δw"
+        @warn "MCJoint: Invalid value for joint displacement: Δw = $Δw"
     end
 
     # σ trial and F trial
