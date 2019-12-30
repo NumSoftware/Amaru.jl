@@ -188,6 +188,7 @@ end
 # matrix C
 function elem_coupling_matrix(elem::HMSolid) 
     ndim   = elem.env.ndim
+    th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     C   = elem_coords(elem)
@@ -211,7 +212,7 @@ function elem_coupling_matrix(elem::HMSolid)
 
         # compute Cup
         Np   = elem.shape.basic_shape.func(ip.R)
-        coef = detJ*ip.w*elem.mat.α 
+        coef = detJ*ip.w*elem.mat.α*th 
         mNp  = m*Np'
         @gemm Cup -= coef*Bu'*mNp
     end
@@ -227,6 +228,7 @@ end
 
 function elem_conductivity_matrix(elem::HMSolid)
     ndim   = elem.env.ndim
+    th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     Cp     = elem_coords(elem)[1:nbsnodes,:]
@@ -248,7 +250,7 @@ function elem_conductivity_matrix(elem::HMSolid)
 
         # compute H
         K = calcK(elem.mat, ip.data)
-        coef = detJ*ip.w/elem.mat.γw
+        coef = detJ*ip.w*th/elem.mat.γw
         @gemm KBp = K*Bp
         @gemm H -= coef*Bp'*KBp
     end
@@ -261,6 +263,7 @@ end
 
 function elem_compressibility_matrix(elem::HMSolid)
     ndim   = elem.env.ndim
+    th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     Cp  = elem_coords(elem)[1:nbsnodes,:]
@@ -278,7 +281,7 @@ function elem_compressibility_matrix(elem::HMSolid)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # compute Cuu
-        coef = detJ*ip.w*elem.mat.S 
+        coef = detJ*ip.w*elem.mat.S*th 
         Cpp  -= coef*Np*Np'
     end
 
@@ -290,6 +293,7 @@ end
 
 function elem_RHS_vector(elem::HMSolid)
     ndim   = elem.env.ndim
+    th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     Cp     = elem_coords(elem)[1:nbsnodes,:]
@@ -312,7 +316,7 @@ function elem_RHS_vector(elem::HMSolid)
 
         # compute Q
         K = calcK(elem.mat, ip.data)
-        coef = detJ*ip.w
+        coef = detJ*ip.w*th
         @gemv KZ = K*Z
         @gemm Q += coef*Bp'*KZ
     end
@@ -374,14 +378,14 @@ function elem_internal_forces(elem::HMSolid, F::Array{Float64,1})
         # internal volumes dFw
         ε    = ip.data.ε
         εvol = dot(m, ε)
-        coef = elem.mat.α*detJ*ip.w
+        coef = elem.mat.α*detJ*ip.w*th
         dFw  -= coef*Np*εvol
         
-        coef = detJ*ip.w*elem.mat.S 
+        coef = detJ*ip.w*elem.mat.S*th 
         dFw -= coef*Np*uw  
 
         D    = ip.data.D
-        coef = detJ*ip.w
+        coef = detJ*ip.w*th
         @gemv dFw += coef*Bp'*D
     end
 
@@ -455,13 +459,13 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
 
         # internal volumes dFw
         Δεvol = dot(m, Δε)
-        coef  = elem.mat.α*detJ*ip.w
+        coef  = elem.mat.α*detJ*ip.w*th
         dFw  -= coef*Np*Δεvol
 
-        coef = detJ*ip.w*elem.mat.S 
+        coef = detJ*ip.w*elem.mat.S*th 
         dFw -= coef*Np*Δuw     
 
-        coef = Δt*detJ*ip.w
+        coef = Δt*detJ*ip.w*th
         @gemv dFw += coef*Bp'*V
     end
 

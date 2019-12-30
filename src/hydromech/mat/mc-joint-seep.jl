@@ -465,15 +465,17 @@ function ip_state_vals(mat::MCJointSeep, ipd::MCJointSeepIpState)
           :s1  => ipd.σ[1] ,
           :s2  => ipd.σ[2] ,
           :s3  => ipd.σ[3] ,
-          :upa => ipd.upa
-          )
+          :upa => ipd.upa  ,
+          :uwi  => ipd.uw   ,
+          :vi   => ipd.V)
     else
         return OrderedDict(
           :w1  => ipd.w[1] ,
           :w2  => ipd.w[2] ,
           :s1  => ipd.σ[1] ,
           :s2  => ipd.σ[2] ,
-          :upa => ipd.upa
-          )
+          :upa => ipd.upa  ,
+          :uwi  => ipd.uw   ,
+          :vi   => ipd.V)
     end
 end
