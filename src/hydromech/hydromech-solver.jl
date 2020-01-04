@@ -202,22 +202,22 @@ function hm_solve!(
 
     function complete_uw_h(dom::Domain)
     	haskey(dom.point_scalar_data, "uw") || return
-	    U = dom.point_scalar_data["uw"]
-	    H = dom.point_scalar_data["h"]
+	    Uw = dom.point_scalar_data["uw"]
+	    H  = dom.point_scalar_data["h"]
 	    for ele in dom.elems
 	        ele.shape.family==SOLID_SHAPE || continue
 	        ele.shape==ele.shape.basic_shape && continue
 	        npoints = ele.shape.npoints
 	        nbpoints = ele.shape.basic_shape.npoints
 	        map = [ ele.nodes[i].id for i=1:nbpoints ]
-	        Ue = U[map]
+	        Ue = Uw[map]
 	        He = H[map]
 	        C = ele.shape.nat_coords
 	        for i=nbpoints+1:npoints
 	            id = ele.nodes[i].id
 	            R = C[i,:]
 	            N = ele.shape.basic_shape.func(R)
-	            U[id] = dot(N,Ue)
+	            Uw[id] = dot(N,Ue)
 	            H[id] = dot(N,He)
 	        end
 	    end
@@ -438,6 +438,7 @@ function hm_solve!(
 
             # Check for saving output file
             Tn = t + Δt
+            
             if Tn+ttol>=T && save_incs
                 env.cout += 1
                 iout = env.cout
@@ -448,18 +449,22 @@ function hm_solve!(
                 silent || verbose || print(" "^70, "\r")
                 silent || printstyled("  $outdir/$filekey-$iout.vtk file written (Domain)\n", color=:green)
             end
-
-            # Update time t and Δt
-            inc += 1
+			
+            # Update time t 
             t   += Δt
 
             # Get new Δt
             if autoinc
-                Δt = min(1.5*Δt, tend/nincs)
+                Δt = min(1.5*Δt, time_span/nincs)
                 Δt = round(Δt, sigdigits=3)
                 Δt = min(Δt, tend-t)
             end
         else
+        	# Restore counters
+        	inc -= 1
+            env.cinc -= 1
+
+            # Restore the state to last converged increment
             if autoinc
                 silent || println("    increment failed.")
                 Δt = round(0.5*Δt, sigdigits=3)
