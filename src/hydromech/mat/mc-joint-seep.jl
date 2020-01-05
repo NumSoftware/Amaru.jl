@@ -33,14 +33,13 @@ end
 
 mutable struct MCJointSeep<:Material
     E  ::Float64       # Young's modulus
-    nu ::Float64       # Poisson ratio
+    ν  ::Float64       # Poisson ratio
     σmax0::Float64     # tensile strength (internal variable)
     μ  ::Float64       # tangent of friction angle
-    ζ  ::Float64       # factor ζ controls the elastic relative displacements 
+    ζ  ::Float64       # factor ζ controls the elastic relative displacements (formerly α)
     wc ::Float64       # critical crack opening
     ws ::Float64       # openning at inflection (where the curve slope changes)
     softcurve::String  # softening curve model ("linear" or bilinear" or "hordijk")
-    flaw::Bool         # interface element break (true or false)
     k  ::Float64       # specific permeability
     γw ::Float64       # specific weight of the fluid
     α  ::Float64       # Biot's coefficient
@@ -54,7 +53,7 @@ mutable struct MCJointSeep<:Material
         return  MCJointSeep(;prms...)
     end
 
-     function MCJointSeep(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", flaw=false, k=NaN, kappa=NaN, gammaw=NaN, alpha=1.0, S=0.0, n=NaN, Ks=NaN, Kw=NaN, beta=0.0, eta=NaN, kt=NaN, kl=0.0)  
+     function MCJointSeep(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", k=NaN, kappa=NaN, gammaw=NaN, alpha=1.0, S=0.0, n=NaN, Ks=NaN, Kw=NaN, beta=0.0, eta=NaN, kt=NaN, kl=0.0)  
 
         !(isnan(GF) || GF>0) && error("Invalid value for GF: $GF")
         !(isnan(Gf) || Gf>0) && error("Invalid value for Gf: $Gf")
@@ -102,7 +101,7 @@ mutable struct MCJointSeep<:Material
         kt>=0       || error("Invalid value for kt: $kt")
         kl>=0       || error("Invalid value for kl: $kl")
 
-        this = new(E, nu, ft, mu, zeta, wc, ws, softcurve, flaw, k, gammaw, alpha, S, beta, eta, kt, kl)
+        this = new(E, nu, ft, mu, zeta, wc, ws, softcurve, k, gammaw, alpha, S, beta, eta, kt, kl)
         return this
     end
 end
@@ -183,7 +182,8 @@ function calc_σmax(mat::MCJointSeep, ipd::MCJointSeepIpState, upa::Float64)
         σmax = a - b*upa
     elseif mat.softcurve == "hordijk"
         if upa < mat.wc
-            z = (1 + 27*(upa/mat.wc)^3)*exp(-6.93*upa/mat.wc) - 28*(upa/mat.wc)*exp(-6.93)
+            e = exp(1.0)
+            z = (1 + 27*(upa/mat.wc)^3)*e^(-6.93*upa/mat.wc) - 28*(upa/mat.wc)*e^(-6.93)
         else
             z = 0.0
         end
@@ -214,7 +214,8 @@ function σmax_deriv(mat::MCJointSeep, ipd::MCJointSeepIpState, upa::Float64)
         dσmax = -b
     elseif mat.softcurve == "hordijk"
         if upa < mat.wc
-            dz = ((81*upa^2*exp(-6.93*upa/mat.wc)/mat.wc^3) - (6.93*(1 + 27*upa^3/mat.wc^3)*exp(-6.93*upa/mat.wc)/mat.wc) - 0.02738402432/mat.wc)
+            e = exp(1.0)
+            dz = ((81*upa^2*e^(-6.93*upa/mat.wc)/mat.wc^3) - (6.93*(1 + 27*upa^3/mat.wc^3)*e^(-6.93*upa/mat.wc)/mat.wc) - 0.02738402432/mat.wc)
         else
             dz = 0.0
         end
@@ -227,7 +228,7 @@ end
 function calc_kn_ks_De(mat::MCJointSeep, ipd::MCJointSeepIpState)
     ndim = ipd.env.ndim
     kn = mat.E*mat.ζ/ipd.h
-    G  = mat.E/(2.0*(1.0+mat.nu))
+    G  = mat.E/(2.0*(1.0+mat.ν))
     ks = G*mat.ζ/ipd.h
 
     if ndim == 3
@@ -245,7 +246,7 @@ end
 
 function calc_Δλ(mat::MCJointSeep, ipd::MCJointSeepIpState, σtr::Array{Float64,1})
     ndim = ipd.env.ndim
-    maxits = 50
+    maxits = 100
     Δλ     = 0.0
     f      = 0.0
     upa    = 0.0
@@ -339,9 +340,6 @@ end
 
 
 function mountD(mat::MCJointSeep, ipd::MCJointSeepIpState)
-    if mat.flaw==true && ipd.upa < mat.wc
-        ipd.upa = mat.wc
-    end
 
     ndim = ipd.env.ndim
     kn, ks, De = calc_kn_ks_De(mat, ipd)
@@ -382,7 +380,6 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
     ndim = ipd.env.ndim
     σini = copy(ipd.σ)
 
-    μ = mat.μ
     kn, ks, De = calc_kn_ks_De(mat, ipd)
     σmax = calc_σmax(mat, ipd, ipd.upa) 
 
