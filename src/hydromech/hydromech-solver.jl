@@ -298,16 +298,16 @@ function hm_solve!(
     end
 
     # Incremental analysis
-    t    = dom.env.t # current time
-    tend = t + time_span  # end time
+    t    = dom.env.t     # current time
+    tend = t + time_span # end time
     Δt = time_span/nincs # initial Δt value
 
-    dT = time_span/nouts  # output time increment for saving vtk file
-    T  = t + dT        # output time for saving the next vtk file
+    dT = time_span/nouts # output time increment for saving vtk file
+    T  = t + dT          # output time for saving the next vtk file
 
-    ttol = 1e-9    # time tolerance
-    inc  = 0       # increment counter
-    iout = env.cout     # file output counter
+    ttol = 1e-9          # time tolerance
+    inc  = 0             # increment counter
+    iout = env.cout      # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
@@ -439,7 +439,7 @@ function hm_solve!(
             # Check for saving output file
             Tn = t + Δt
             
-            if Tn+ttol>=T && save_incs
+            if Tn>=T && save_incs
                 env.cout += 1
                 iout = env.cout
                 update_output_data!(dom)
