@@ -439,7 +439,7 @@ function hm_solve!(
             # Check for saving output file
             Tn = t + Δt
             
-            if Tn>=T && save_incs
+            if Tn + ttol>=T && save_incs
                 env.cout += 1
                 iout = env.cout
                 update_output_data!(dom)
