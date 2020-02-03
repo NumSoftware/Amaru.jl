@@ -45,10 +45,12 @@ matching_elem_type(::LinThermo) = ThermoSolid
 ip_state_type(mat::LinThermo) = LinThermoIpState
 
 function calcK(mat::LinThermo, ipd::LinThermoIpState) # Thermal conductivity matrix
-    ndim = ipd.env.ndim
-    return mat.k*eye(ndim)
+    if ipd.env.ndim==2
+        return mat.k*eye(2)
+    else
+        return mat.k*eye(3)
+    end
 end
-
 
 function update_state!(mat::LinThermo, ipd::LinThermoIpState, Δut::Float64, G::Array{Float64,1})
     K = calcK(mat, ipd)

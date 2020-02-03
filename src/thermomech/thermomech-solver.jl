@@ -1,8 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export solve!
-
-
+#export solve!
 # Assemble the global stiffness matrix
 function tm_mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
 
@@ -14,6 +12,14 @@ function tm_mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
     α = 1.0 # time integration factor
 
     for elem in dom.elems
+
+
+
+
+
+
+
+
 
         # Assemble the stiffness matrix
         K, rmap, cmap = elem_stiffness_matrix(elem)
