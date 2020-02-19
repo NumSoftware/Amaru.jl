@@ -2,7 +2,7 @@
 
 
 # Assemble the global stiffness matrix
-f    unction mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
+function mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
 
     # Assembling matrix G
 
