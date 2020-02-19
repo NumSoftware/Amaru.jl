@@ -158,11 +158,11 @@ end
 
 
 function calc_σmax(mat::MCJointSeep2, ipd::MCJointSeepIpState2, upa::Float64)
-	if mat.softcurve == "linear"
-		if upa < mat.wc
+    if mat.softcurve == "linear"
+        if upa < mat.wc
             a = mat.σmax0
             b = mat.σmax0/mat.wc
-		else
+        else
             a = 0.0
             b = 0.0
         end
@@ -196,9 +196,9 @@ end
 function σmax_deriv(mat::MCJointSeep2, ipd::MCJointSeepIpState2, upa::Float64)
    # ∂σmax/∂upa = dσmax
     if mat.softcurve == "linear"
-		if upa < mat.wc
+        if upa < mat.wc
             b = mat.σmax0/mat.wc
-		else
+        else
             b = 0.0
         end
         dσmax = -b
@@ -254,49 +254,49 @@ function calc_Δλ(mat::MCJointSeep2, ipd::MCJointSeepIpState2, σtr::Array{Floa
 
     for i=1:maxits
         μ      = mat.μ
-    	kn, ks, De = calc_kn_ks_De(mat, ipd)
+        kn, ks, De = calc_kn_ks_De(mat, ipd)
 
-		# quantities at n+1
-		if ndim == 3
-			if σtr[1]>0
-			     σ     = [ σtr[1]/(1+2*Δλ*kn*μ^2),  σtr[2]/(1+2*Δλ*ks),  σtr[3]/(1+2*Δλ*ks) ]
-			     dσdΔλ = [ -2*kn*μ^2*σtr[1]/(1+2*Δλ*kn*μ^2)^2,  -2*ks*σtr[2]/(1+2*Δλ*ks)^2,  -2*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
-			     drdΔλ = [ -4*kn*μ^4*σtr[1]/(1+2*Δλ*kn*μ^2)^2,  -4*ks*σtr[2]/(1+2*Δλ*ks)^2,  -4*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
-			else
-			     σ     = [ σtr[1],  σtr[2]/(1+2*Δλ*ks),  σtr[3]/(1+2*Δλ*ks) ]
-			     dσdΔλ = [ 0,  -2*ks*σtr[2]/(1+2*Δλ*ks)^2,  -2*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
-			     drdΔλ = [ 0,  -4*ks*σtr[2]/(1+2*Δλ*ks)^2,  -4*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
-			end
-		else
-			if σtr[1]>0
-			     σ     = [ σtr[1]/(1+2*Δλ*kn*μ^2),  σtr[2]/(1+2*Δλ*ks) ]
-			     dσdΔλ = [ -2*kn*μ^2*σtr[1]/(1+2*Δλ*kn*μ^2)^2,  -2*ks*σtr[2]/(1+2*Δλ*ks)^2 ]
-			     drdΔλ = [ -4*kn*μ^4*σtr[1]/(1+2*Δλ*kn*μ^2)^2,  -4*ks*σtr[2]/(1+2*Δλ*ks)^2 ]
-			else
-			     σ     = [ σtr[1],  σtr[2]/(1+2*Δλ*ks) ]
-			     dσdΔλ = [ 0,  -2*ks*σtr[2]/(1+2*Δλ*ks)^2 ]
-			     drdΔλ = [ 0,  -4*ks*σtr[2]/(1+2*Δλ*ks)^2 ]
-			 end
-		end
-			 	
-		 r      = potential_derivs(mat, ipd, σ)
-		 norm_r = norm(r)
-		 upa    = ipd.upa + Δλ*norm_r
-		 σmax   = calc_σmax(mat, ipd, upa)
-		 m      = σmax_deriv(mat, ipd, upa)
-		 dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
+        # quantities at n+1
+        if ndim == 3
+            if σtr[1]>0
+                 σ     = [ σtr[1]/(1+2*Δλ*kn*μ^2),  σtr[2]/(1+2*Δλ*ks),  σtr[3]/(1+2*Δλ*ks) ]
+                 dσdΔλ = [ -2*kn*μ^2*σtr[1]/(1+2*Δλ*kn*μ^2)^2,  -2*ks*σtr[2]/(1+2*Δλ*ks)^2,  -2*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
+                 drdΔλ = [ -4*kn*μ^4*σtr[1]/(1+2*Δλ*kn*μ^2)^2,  -4*ks*σtr[2]/(1+2*Δλ*ks)^2,  -4*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
+            else
+                 σ     = [ σtr[1],  σtr[2]/(1+2*Δλ*ks),  σtr[3]/(1+2*Δλ*ks) ]
+                 dσdΔλ = [ 0,  -2*ks*σtr[2]/(1+2*Δλ*ks)^2,  -2*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
+                 drdΔλ = [ 0,  -4*ks*σtr[2]/(1+2*Δλ*ks)^2,  -4*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
+            end
+        else
+            if σtr[1]>0
+                 σ     = [ σtr[1]/(1+2*Δλ*kn*μ^2),  σtr[2]/(1+2*Δλ*ks) ]
+                 dσdΔλ = [ -2*kn*μ^2*σtr[1]/(1+2*Δλ*kn*μ^2)^2,  -2*ks*σtr[2]/(1+2*Δλ*ks)^2 ]
+                 drdΔλ = [ -4*kn*μ^4*σtr[1]/(1+2*Δλ*kn*μ^2)^2,  -4*ks*σtr[2]/(1+2*Δλ*ks)^2 ]
+            else
+                 σ     = [ σtr[1],  σtr[2]/(1+2*Δλ*ks) ]
+                 dσdΔλ = [ 0,  -2*ks*σtr[2]/(1+2*Δλ*ks)^2 ]
+                 drdΔλ = [ 0,  -4*ks*σtr[2]/(1+2*Δλ*ks)^2 ]
+             end
+        end
+                 
+         r      = potential_derivs(mat, ipd, σ)
+         norm_r = norm(r)
+         upa    = ipd.upa + Δλ*norm_r
+         σmax   = calc_σmax(mat, ipd, upa)
+         m      = σmax_deriv(mat, ipd, upa)
+         dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
 
-		if ndim == 3
-		    f = sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*μ
-		    if (σ[2]==0 && σ[3]==0) 
-		        dfdΔλ = (dσdΔλ[1] - dσmaxdΔλ)*μ		      
-		    else
-		        dfdΔλ = 1/sqrt(σ[2]^2 + σ[3]^2) * (σ[2]*dσdΔλ[2] + σ[3]*dσdΔλ[3]) + (dσdΔλ[1] - dσmaxdΔλ)*μ
-		    end
-		else
-			f = abs(σ[2]) + (σ[1]-σmax)*mat.μ
-			dfdΔλ = sign(σ[2])*dσdΔλ[2] + (dσdΔλ[1] - dσmaxdΔλ)*μ
-		end
+        if ndim == 3
+            f = sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*μ
+            if (σ[2]==0 && σ[3]==0) 
+                dfdΔλ = (dσdΔλ[1] - dσmaxdΔλ)*μ              
+            else
+                dfdΔλ = 1/sqrt(σ[2]^2 + σ[3]^2) * (σ[2]*dσdΔλ[2] + σ[3]*dσdΔλ[3]) + (dσdΔλ[1] - dσmaxdΔλ)*μ
+            end
+        else
+            f = abs(σ[2]) + (σ[1]-σmax)*mat.μ
+            dfdΔλ = sign(σ[2])*dσdΔλ[2] + (dσdΔλ[1] - dσmaxdΔλ)*μ
+        end
         
         Δλ = Δλ - f/dfdΔλ
 
@@ -371,7 +371,7 @@ function mountD(mat::MCJointSeep2, ipd::MCJointSeepIpState2)
                      -kn*ks*r[2]*v[1]/den         ks - ks^2*r[2]*v[2]/den  ]
         end
 
-    	return Dep
+        return Dep
     end
 end
 
