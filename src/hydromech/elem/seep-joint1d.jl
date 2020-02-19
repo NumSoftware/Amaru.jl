@@ -90,7 +90,7 @@ function elem_conductivity_matrix(elem::SeepJoint1D)
         detJ = elem.cache_detJ[i]
 
         coef = detJ*ip.w*(elem.mat.k/elem.mat.γw)*h
-        H -= coef*Bp'*Bp 
+        H -= coef*Bp'*Bp
     end
 
     map_p = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
@@ -112,7 +112,7 @@ function elem_internal_forces(elem::SeepJoint1D, F::Array{Float64,1})
         Bp   = elem.cache_B[i]
         detJ = elem.cache_detJ[i]
 
-        # internal volumes dFw    
+        # internal volumes dFw
         D    = ip.data.D
         coef = detJ*ip.w*h
         dFw += coef*Bp'*D
@@ -129,7 +129,7 @@ function elem_update!(elem::SeepJoint1D, DU::Array{Float64,1}, DF::Array{Float64
     h    = elem.mat.h
 
     map_p  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
-    
+
     dUw = DU[map_p] # nodal pore-pressure increments
     Uw  = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes ]
     Uw += dUw # nodal pore-pressure at step n+1
@@ -142,7 +142,7 @@ function elem_update!(elem::SeepJoint1D, DU::Array{Float64,1}, DF::Array{Float64
         detJ = elem.cache_detJ[i]
 
         # poropression difference between solid and drain
-        ΔFw = dot(Bp,Uw)/elem.mat.γw 
+        ΔFw = dot(Bp,Uw)/elem.mat.γw
         V = update_state!(elem.mat, ip.data, ΔFw, Δt)
 
         coef = Δt*detJ*ip.w*h
@@ -154,7 +154,7 @@ end
 
 function elem_extrapolated_node_vals(elem::SeepJoint1D)
     all_ip_vals = [ ip_state_vals(elem.mat, ip.data) for ip in elem.ips ]
-    nips        = length(elem.ips) 
+    nips        = length(elem.ips)
     fields      = keys(all_ip_vals[1])
     nfields     = length(fields)
 

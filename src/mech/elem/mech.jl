@@ -35,12 +35,12 @@ Returns the mass matrix for `elem`.
 This function must be defined by each concrete type.
 """
 function elem_mass(elem::Mechanical)
-   ndim=elem.env.ndim 
-   ndofs = length(elem.nodes)*ndim 
+   ndim=elem.env.ndim
+   ndofs = length(elem.nodes)*ndim
    M = zeros(ndofs, ndofs)
    keys = (:ux, :uy, :uz)[1:ndim]
    map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-   return M, map, map  
+   return M, map, map
 end
 
 """

@@ -10,7 +10,7 @@ mutable struct MazarsIpState<:IpState
     φc::Float64
     φ::Float64  # damage
     ε̅max::Float64
-    function MazarsIpState(env::ModelEnv=ModelEnv()) 
+    function MazarsIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
@@ -51,7 +51,7 @@ mutable struct Mazars<:Material
         this     = new(E, nu, eps0, At, Bt, Ac, Bc, rho)
         this.De  = calcDe(E, nu, :general)
         this.invDe  = inv(this.De)
-        return this 
+        return this
     end
 end
 
@@ -169,7 +169,7 @@ function stress_update(mat::Mazars, ipd::MazarsIpState, Δε::Array{Float64,1})
     end
 
     Δσ    = ipd.σ - σini
-    return Δσ 
+    return Δσ
 end
 
 function ip_state_vals(mat::Mazars, ipd::MazarsIpState)

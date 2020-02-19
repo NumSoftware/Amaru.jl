@@ -6,18 +6,18 @@ mutable struct JointLinSeepIpState<:IpState
     env  ::ModelEnv
     V    ::Array{Float64,1} # fluid velocity
     D    ::Array{Float64,1} # distance traveled by the fluid
-    L    ::Array{Float64,1} 
-    S    ::Array{Float64,1} 
+    L    ::Array{Float64,1}
+    S    ::Array{Float64,1}
     uw   ::Array{Float64,1} # interface pore pressure
     h    ::Float64          # characteristic length from bulk elements
     function JointLinSeepIpState(env::ModelEnv=ModelEnv())
         this     = new(env)
         ndim     = env.ndim
-        this.V   = zeros(2) 
-        this.D   = zeros(2) 
+        this.V   = zeros(2)
+        this.D   = zeros(2)
         this.L   = zeros(ndim-1)
         this.S   = zeros(ndim-1)
-        this.uw  = zeros(3) 
+        this.uw  = zeros(3)
         this.h   = 0.0
         return this
     end
@@ -41,14 +41,14 @@ mutable struct JointLinSeep<:Material
 
         !(isnan(kappa) || kappa>0) && error("Invalid value for kappa: $kappa")
 
-        if isnan(k) 
+        if isnan(k)
             k = (kappa*gammaw)/eta # specific permeability = (intrinsic permeability * fluid specific weight)/viscosity
         end
 
-        if isnan(S) 
-            S = (alpha - n)/Ks + n/Kw # S = (alpha - porosity)/(bulk module of the solid) + (porosity)/(bulk module of the fluid) 
+        if isnan(S)
+            S = (alpha - n)/Ks + n/Kw # S = (alpha - porosity)/(bulk module of the solid) + (porosity)/(bulk module of the fluid)
         end
-        
+
         k>0         || error("Invalid value for k: $k")
         gammaw>0    || error("Invalid value for gammaw: $gammaw")
         0<alpha<=1.0|| error("Invalid value for alpha: $alpha")
@@ -75,10 +75,10 @@ function update_state!(mat::JointLinSeep, ipd::JointLinSeepIpState, Δuw::Array{
     ipd.D  +=  ipd.V*Δt
     ipd.L   =  ((mat.kl^3)/(12*mat.η))*BfUw
     ipd.S  +=  ipd.L*Δt
-    
+
     return ipd.V, ipd.L
 end
 
 function ip_state_vals(mat::JointLinSeep, ipd::JointLinSeepIpState)
-    
+
 end

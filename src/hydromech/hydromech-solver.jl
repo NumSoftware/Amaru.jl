@@ -64,7 +64,7 @@ f    unction mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
                     push!(V, α*Δt*H[i,j])
                 end
             end
-            
+
             # Assembling RHS components
             Uw = [ node.dofdict[:uw].vals[:uw] for node in nodes_p ]
             RHS[rmap] -= Δt*(H*Uw)
@@ -112,7 +112,7 @@ function hm_solve_step!(G::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu
     ndofs = length(DU)
     umap  = 1:nu
     pmap  = nu+1:ndofs
-    if nu == ndofs 
+    if nu == ndofs
         @warn "solve!: No essential boundary conditions."
     end
 
@@ -257,14 +257,14 @@ function hm_solve!(
     dom.ndofs = length(dofs)
     silent || println("  unknown dofs: $nu")
 
-    # get elevation Z for all Dofs 
+    # get elevation Z for all Dofs
     Z = zeros(ndofs)
     for node in dom.nodes
         for dof in node.dofs
             Z[dof.eq_id] = node.X[env.ndim]
         end
     end
-    
+
     # Get global parameters
     gammaw = get(dom.env.params, :gammaw, NaN)
     isnan(gammaw) && error("hm_solve!: gammaw parameter was not set in Domain")
@@ -326,7 +326,7 @@ function hm_solve!(
         elem_internal_forces(elem, Fin)
     end
     Fex .-= Fin # add negative forces to external forces vector
-    
+
     for (i,dof) in enumerate(dofs)
         U[i] = dof.vals[dof.name]
         F[i] = dof.vals[dof.natname]
@@ -391,11 +391,11 @@ function hm_solve!(
             # Get internal forces and update data at integration points (update ΔFin)
             ΔFin .= 0.0
             ΔUt   = ΔUa + ΔUi
-            for elem in dom.elems  
+            for elem in dom.elems
                 elem_update!(elem, ΔUt, ΔFin, Δt)
             end
 
-            residue = maximum(abs, (ΔFex-ΔFin)[umap] ) 
+            residue = maximum(abs, (ΔFex-ΔFin)[umap] )
 
             # Update accumulated displacement
             ΔUa .+= ΔUi
@@ -438,7 +438,7 @@ function hm_solve!(
 
             # Check for saving output file
             Tn = t + Δt
-            
+
             if Tn + ttol>=T && save_incs
                 env.cout += 1
                 iout = env.cout
@@ -449,8 +449,8 @@ function hm_solve!(
                 silent || verbose || print(" "^70, "\r")
                 silent || printstyled("  $outdir/$filekey-$iout.vtk file written (Domain)\n", color=:green)
             end
-            
-            # Update time t 
+
+            # Update time t
             t   += Δt
 
             # Get new Δt

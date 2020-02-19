@@ -12,8 +12,8 @@ mutable struct HMSolid<:Hydromechanical
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function HMSolid(); 
-        return new() 
+    function HMSolid();
+        return new()
     end
 end
 
@@ -21,12 +21,12 @@ matching_shape_family(::Type{HMSolid}) = SOLID_SHAPE
 
 function elem_config_dofs(elem::HMSolid)
     nbsnodes = elem.shape.basic_shape.npoints
-    for (i, node) in enumerate(elem.nodes)     
+    for (i, node) in enumerate(elem.nodes)
             add_dof(node, :ux, :fx)
             add_dof(node, :uy, :fy)
-            elem.env.ndim==3 && add_dof(node, :uz, :fz)    
+            elem.env.ndim==3 && add_dof(node, :uz, :fz)
         if  i<=(nbsnodes)
-            add_dof(node, :uw, :fw)    
+            add_dof(node, :uw, :fw)
         end
     end
 end
@@ -172,7 +172,7 @@ function elem_stiffness(elem::HMSolid)
 
         # compute K
         coef = detJ*ip.w*th
-        D    = calcD(elem.mat, ip.data) 
+        D    = calcD(elem.mat, ip.data)
         @gemm DBu = D*Bu
         @gemm K += coef*Bu'*DBu
     end
@@ -186,7 +186,7 @@ end
 
 
 # matrix C
-function elem_coupling_matrix(elem::HMSolid) 
+function elem_coupling_matrix(elem::HMSolid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
@@ -212,7 +212,7 @@ function elem_coupling_matrix(elem::HMSolid)
 
         # compute Cup
         Np   = elem.shape.basic_shape.func(ip.R)
-        coef = detJ*ip.w*elem.mat.α*th 
+        coef = detJ*ip.w*elem.mat.α*th
         mNp  = m*Np'
         @gemm Cup -= coef*Bu'*mNp
     end
@@ -267,7 +267,7 @@ function elem_compressibility_matrix(elem::HMSolid)
     nnodes = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     Cp  = elem_coords(elem)[1:nbsnodes,:]
-    Cpp = zeros(nbsnodes, nbsnodes) 
+    Cpp = zeros(nbsnodes, nbsnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
 
@@ -281,7 +281,7 @@ function elem_compressibility_matrix(elem::HMSolid)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # compute Cuu
-        coef = detJ*ip.w*elem.mat.S*th 
+        coef = detJ*ip.w*elem.mat.S*th
         Cpp  -= coef*Np*Np'
     end
 
@@ -303,7 +303,7 @@ function elem_RHS_vector(elem::HMSolid)
 
     J    = Array{Float64}(undef, ndim, ndim)
     dNpdX = Array{Float64}(undef, ndim, nbsnodes)
-    Z      = zeros(ndim) 
+    Z      = zeros(ndim)
     Z[end] = 1.0 # hydrostatic gradient
 
     for ip in elem.ips
@@ -369,7 +369,7 @@ function elem_internal_forces(elem::HMSolid, F::Array{Float64,1})
         # compute N
         Np   = elem.shape.basic_shape.func(ip.R)
 
-        # internal force 
+        # internal force
         uw   = ip.data.uw
         σ    = ip.data.σ - elem.mat.α*uw*m # get total stress
         coef = detJ*ip.w*th
@@ -380,9 +380,9 @@ function elem_internal_forces(elem::HMSolid, F::Array{Float64,1})
         εvol = dot(m, ε)
         coef = elem.mat.α*detJ*ip.w*th
         dFw  -= coef*Np*εvol
-        
-        coef = detJ*ip.w*elem.mat.S*th 
-        dFw -= coef*Np*uw  
+
+        coef = detJ*ip.w*elem.mat.S*th
+        dFw -= coef*Np*uw
 
         D    = ip.data.D
         coef = detJ*ip.w*th
@@ -407,7 +407,7 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
 
     dU  = DU[map_u] # nodal displacement increments
     dUw = DU[map_p] # nodal pore-pressure increments
-    Uw  = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes[1:nbsnodes] ] 
+    Uw  = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes[1:nbsnodes] ]
     Uw += dUw # nodal pore-pressure at step n+1
     m = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
 
@@ -440,13 +440,13 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         # compute Np
         Np   = elem.shape.basic_shape.func(ip.R)
 
-           # Compute Δε 
+           # Compute Δε
         @gemv Δε = Bu*dU
 
         # Compute Δuw
         Δuw = Np'*dUw # interpolation to the integ. point
 
-        # Compute flow gradient G 
+        # Compute flow gradient G
         G  = Bp*Uw/elem.mat.γw
         G[end] += 1.0; # gradient due to gravity
 
@@ -462,8 +462,8 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         coef  = elem.mat.α*detJ*ip.w*th
         dFw  -= coef*Np*Δεvol
 
-        coef = detJ*ip.w*elem.mat.S*th 
-        dFw -= coef*Np*Δuw     
+        coef = detJ*ip.w*elem.mat.S*th
+        dFw -= coef*Np*Δuw
 
         coef = Δt*detJ*ip.w*th
         @gemv dFw += coef*Bp'*V

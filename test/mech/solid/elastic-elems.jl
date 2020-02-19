@@ -3,7 +3,7 @@ using Test
 
 dis = [ -0.012, -0.095 ]
 
-for shape in (TRI3, TRI6, QUAD4, QUAD8, QUAD9) 
+for shape in (TRI3, TRI6, QUAD4, QUAD8, QUAD9)
     printstyled(shape.name, color=:cyan); println()
     bl = Block( [0 0; 1 1], nx=2, ny=2, cellshape=shape, tag="solids")
     mesh = Mesh(bl, verbose=false)

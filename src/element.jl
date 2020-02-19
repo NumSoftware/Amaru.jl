@@ -3,7 +3,7 @@
 # Abstract Element type
 # =====================
 
-abstract type Element 
+abstract type Element
     #Element subtypes must have the following fields:
     #id    ::Int
     #shape ::ShapeType
@@ -123,7 +123,7 @@ function elem_config_ips(elem::Element, nips::Int=0)
     if shape.family==JOINT_SHAPE
         C     = C[1:shape.facet_shape.npoints, : ]
         shape = shape.facet_shape
-    end 
+    end
 
     # interpolation
     for ip in elem.ips
@@ -193,7 +193,7 @@ function setstate!(elems::Array{<:Element,1}; args...)
 
     for k in notfound
         if k in found
-            msg1 = k in keys(greek) ? " ($(greek[k])) " : "" 
+            msg1 = k in keys(greek) ? " ($(greek[k])) " : ""
             @warn "Symbol '$k$msg1' was not found at some elements while setting state values"
         else
             error("setstate!: Symbol '$k$msg1' was not found at selected elements while setting state values")

@@ -12,8 +12,8 @@ mutable struct MechSolid<:Mechanical
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function MechSolid(); 
-        return new() 
+    function MechSolid();
+        return new()
     end
 end
 
@@ -182,7 +182,7 @@ function elem_stiffness(elem::MechSolid)
 
         # compute K
         coef = detJ*ip.w*th
-        D    = calcD(elem.mat, ip.data) 
+        D    = calcD(elem.mat, ip.data)
         @gemm DB = D*B
         @gemm K += coef*B'*DB
     end

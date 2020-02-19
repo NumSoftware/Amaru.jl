@@ -33,7 +33,7 @@ mutable struct Joint1DLinSeep<:Material
         gammaw>=0.0 || error("Invalid value for gammaw: $gammaw")
         (h>0 || A>0 || dm>0) || error("perimeter h, section area A or diameter dm should be provided")
 
-        if isnan(h) 
+        if isnan(h)
             if A>0
                 h = 2.0*(A*pi)^0.5
             else
@@ -56,7 +56,7 @@ ip_state_type(mat::Joint1DLinSeep) = Joint1DLinSeepIpState
 
 function update_state!(mat::Joint1DLinSeep, ipd::Joint1DLinSeepIpState, ΔFw::Float64, Δt::Float64)
     k = mat.k
-    ipd.V  -= k*ΔFw 
+    ipd.V  -= k*ΔFw
     ipd.D  += ipd.V*Δt
     return ipd.V
 end

@@ -26,7 +26,7 @@ mutable struct ElasticSolidIpState<:IpState
     env::ModelEnv
     σ::Array{Float64,1}
     ε::Array{Float64,1}
-    function ElasticSolidIpState(env::ModelEnv=ModelEnv()) 
+    function ElasticSolidIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
@@ -51,7 +51,7 @@ function calcDe(E::Number, ν::Number, modeltype::Symbol)
             c*ν  c     0.0  0.0  0.0  0.0
             0.0  0.0   0.0  0.0  0.0  0.0
             0.0  0.0   0.0  0.0  0.0  0.0
-            0.0  0.0   0.0  0.0  0.0  0.0 
+            0.0  0.0   0.0  0.0  0.0  0.0
             0.0  0.0   0.0  0.0  0.0  c*(1.0-ν) ]
         # ezz = -ν/E*(sxx+syy)
     else

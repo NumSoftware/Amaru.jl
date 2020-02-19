@@ -34,7 +34,7 @@ mutable struct ElasticJoint1D<:Material
         kn>=0 || error("kn should be greater than zero")
         (h>0 || A>0 || dm>0) || error("perimeter h, section area A or diameter dm should be provided")
 
-        if isnan(h) 
+        if isnan(h)
             if A>0
                 h = 2.0*(A*pi)^0.5
             else
@@ -59,7 +59,7 @@ function calcD(mat::ElasticJoint1D, ipd::Joint1DIpState)
     ks = mat.ks
     kn = mat.kn
     if ipd.env.ndim==2
-        return [  ks  0.0 
+        return [  ks  0.0
                  0.0   kn ]
     else
         return  [  ks  0.0  0.0

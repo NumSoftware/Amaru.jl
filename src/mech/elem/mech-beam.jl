@@ -15,7 +15,7 @@ mutable struct MechBeam<:Mechanical
     env::ModelEnv
 
     function MechBeam()
-        return new() 
+        return new()
     end
 end
 
@@ -80,7 +80,7 @@ end
 function calcT(elem::MechBeam, C)
     c = (C[2,1] - C[1,1])/L
     s = (C[2,2] - C[1,1])/L
-    return 
+    return
 
 end
 
@@ -95,21 +95,21 @@ function elem_stiffness(elem::MechBeam)
 
     K0 = [ EA/L     0         0         -EA/L    0         0
            0       12*EI/L3   6*EI/L2    0     -12*EI/L3   6*EI/L2
-           0        6*EI/L2   4*EI/L     0      -6*EI/L2   2*EI/L 
+           0        6*EI/L2   4*EI/L     0      -6*EI/L2   2*EI/L
           -EA/L     0          0         EA/L     0        0
            0      -12*EI/L3  -6*EI/L2    0      12*EI/L3  -6*EI/L2
            0        6*EI/L2   2*EI/L     0      -6*EI/L2   4*EI/L  ]
- 
+
 
     # Rotation matrix
     c = (C[2,1] - C[1,1])/L
     s = (C[2,2] - C[1,2])/L
 
-    T = [  c s 0  0 0 0 
+    T = [  c s 0  0 0 0
           -s c 0  0 0 0
-           0 0 1  0 0 0 
-           0 0 0  c s 0 
-           0 0 0 -s c 0 
+           0 0 1  0 0 0
+           0 0 0  c s 0
+           0 0 0 -s c 0
            0 0 0  0 0 1 ]
 
     map = elem_map(elem)
@@ -125,21 +125,21 @@ function elem_mass(elem::MechBeam)
     EI = mat.E*mat.I
 
 
-    M0 = mat.ρ*L/420.0*[ 140   0      0      70    0      0   
+    M0 = mat.ρ*L/420.0*[ 140   0      0      70    0      0
                          0     156    22*L   0     54    -13*L
                          0     22*L   4*L2   0     13*L  -3*L2
-                         70    0      0      140   0      0   
+                         70    0      0      140   0      0
                          0     54     13*L   0     156   -22*L
                          0    -13*L  -3*L2   0    -22*L   4*L2 ]
 
     # Rotation matrix
     c = (C[2,1] - C[1,1])/L
     s = (C[2,2] - C[1,2])/L
-    T = [  c s 0  0 0 0 
+    T = [  c s 0  0 0 0
           -s c 0  0 0 0
-           0 0 1  0 0 0 
-           0 0 0  c s 0 
-           0 0 0 -s c 0 
+           0 0 1  0 0 0
+           0 0 0  c s 0
+           0 0 0 -s c 0
            0 0 0  0 0 1 ]
 
     map = elem_map(elem)

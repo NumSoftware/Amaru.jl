@@ -1,14 +1,14 @@
 using Amaru
 using Test
 
-# mesh 
+# mesh
 bls = [
        Block( [0 0 0; 1 1 0.5], nx=2, ny=2, nz=2, tag="solids"),
       ]
 msh= Mesh(bls, verbose=true)
 
 # fem domain
-mats = [ 
+mats = [
        "solids" => DruckerPrager(E=100., nu=0.25, alpha=0.05, kappa=0.1)
       ]
 

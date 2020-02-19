@@ -109,7 +109,7 @@ end
 """
     Domain(mesh, mats, options...)
 
-Uses a mesh and a list of meterial especifications to construct a finite element `Domain`.    
+Uses a mesh and a list of meterial especifications to construct a finite element `Domain`.
 
 # Arguments
 
@@ -140,7 +140,7 @@ function Domain(
     # Shared analysis data
     ndim = mesh.ndim
     dom.env = ModelEnv()
-    dom.env.ndim = ndim 
+    dom.env.ndim = ndim
     dom.env.modeltype = modeltype
     dom.env.thickness = thickness
     dom.env.t = 0.0
@@ -303,7 +303,7 @@ end
 # Function to reset a domain
 #= This is error prone specially with ips in loggers
 A new Domain is preferable
-function reset!(dom::Domain) 
+function reset!(dom::Domain)
     dom.nincs = 0
     dom.stage = 0
 
@@ -502,7 +502,7 @@ function get_node_and_elem_vals(dom::AbstractDomain)
             EV[ elem.id, elem_fields_idx[field] ] = val
         end
     end
-    
+
     elem_fields = collect(elem_fields_set)
     return NV, node_fields, EV, elem_fields
 
@@ -545,7 +545,7 @@ function nodal_patch_recovery(dom::AbstractDomain)
     for elem in dom.elems
         elem.shape.family != SOLID_SHAPE && continue
         for node in elem.nodes[1:elem.shape.basic_shape.npoints] # only at corners
-            if at_bound[node.id] 
+            if at_bound[node.id]
                 push!(bry_patches[node.id], elem)
             else
                 push!(patches[node.id], elem)
@@ -574,7 +574,7 @@ function nodal_patch_recovery(dom::AbstractDomain)
                 length(patch)>=n && ( patches[node.id] = patch )
             end
 
-            # check for orphan nodes 
+            # check for orphan nodes
             for node in orphan_nodes
                 patch = patches[node.id]
                 for elem in patch
@@ -789,7 +789,7 @@ function save_dom_json(dom::AbstractDomain, filename::String; verbose=true)
     Y = [ ip.X[2] for elem in dom.elems for ip in elem.ips ]
     Z = [ ip.X[3] for elem in dom.elems for ip in elem.ips ]
     data["state_points"] = [ X, Y, Z ]
-    
+
     cell_state_points = []
     k = 0
     for elem in dom.elems

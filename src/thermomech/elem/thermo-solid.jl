@@ -13,8 +13,8 @@ mutable struct ThermoSolid<:Thermomechanical
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function ThermoSolid(); 
-        return new() 
+    function ThermoSolid();
+        return new()
     end
 end
 
@@ -116,7 +116,7 @@ function elem_mass_matrix(elem::ThermoSolid)
     θ0     = elem.env.T0 + 273.15
     nnodes = length(elem.nodes)
     C = elem_coords(elem)
-    M = zeros(nnodes, nnodes) 
+    M = zeros(nnodes, nnodes)
     J  = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips

@@ -4,7 +4,7 @@
 # ===
 
 """
-`Dof()` 
+`Dof()`
 
 Creates an object that represents a Degree of Freedom in a finite element analysis.
 `Node` objects include a field called `dofs` which is an array of `Dof` objects.
@@ -15,7 +15,7 @@ mutable struct Dof
     eq_id ::Int64     # number of equation in global system
     prescribed::Bool  # flag for prescribed dof
     vals::OrderedDict{Symbol,Float64}
-    function Dof(name::Symbol, natname::Symbol) 
+    function Dof(name::Symbol, natname::Symbol)
         new(name, natname, 0, false, OrderedDict{Symbol,Float64}())
     end
 end
@@ -26,9 +26,9 @@ const NULL_DOF = Dof(:null, :null)
 # ====
 
 """
-`Node(X)` 
+`Node(X)`
 
-Creates an object that represents a Node in a finite element analysis. The `X` parameter is a 
+Creates an object that represents a Node in a finite element analysis. The `X` parameter is a
 vector that represents the node coordinates.
 
 **Important fields are**
@@ -42,7 +42,7 @@ mutable struct Node
     tag     ::String
     dofs    ::Array{Dof,1}
     dofdict ::OrderedDict{Symbol,Dof}
- 
+
     function Node(X::Array{Float64,1}; tag::String=0, id::Int=-1)
         this = new(id, X, tag)
         this.dofs = []
@@ -93,19 +93,19 @@ end
 # ===============
 
 # Index operator for an collection of nodes
-function Base.getindex(nodes::Array{Node,1}, s::Symbol) 
+function Base.getindex(nodes::Array{Node,1}, s::Symbol)
     s==:all && return nodes
     error("Element getindex: Invalid symbol $s")
 end
 
 # Index operator for an collection of nodes
-function Base.getindex(nodes::Array{Node,1}, s::String) 
+function Base.getindex(nodes::Array{Node,1}, s::String)
     R = [ node for node in nodes if node.tag==s ]
     sort!(R, by=node->sum(node.X))
 end
 
 # Index operator for an collection of nodes
-function Base.getindex(nodes::Array{Node,1}, filter_ex::Expr) 
+function Base.getindex(nodes::Array{Node,1}, filter_ex::Expr)
     R = Node[]
     for node in nodes
         x, y, z = node.X

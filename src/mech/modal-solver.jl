@@ -18,7 +18,7 @@ function mount_Kf(dom::Domain, ndofs::Int)
         end
     end
 
-    
+
     return sparse(R, C, V, ndofs, ndofs)
 
 end
@@ -30,7 +30,7 @@ function mount_Mf(dom::Domain, ndofs::Int)
 
     R, C, V = Int64[], Int64[], Float64[]
     elems=dom.elems[:solids]
- 
+
     for elem in elems
         Me, rmap, cmap = elem_mass(elem)
         nr, nc = size(Me)
@@ -42,7 +42,7 @@ function mount_Mf(dom::Domain, ndofs::Int)
             end
         end
     end
-    
+
     return sparse(R, C, V, ndofs, ndofs)
 end
 
@@ -51,7 +51,7 @@ function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemo
 :FE)
 
     if verbose
-        printstyled("FEM modal analysis:\n", bold=true, color=:cyan) 
+        printstyled("FEM modal analysis:\n", bold=true, color=:cyan)
     end
 
     # Get dofs organized according to boundary conditions
@@ -91,27 +91,27 @@ function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemo
        M11=M11[:,1:size(M11,2) .!= idsd[nidsd+1-i,1]];
        K11=K11[1:size(K11,1)     .!= idsd[nidsd+1-i,1],:];
        K11=K11[:,1:size(K11,2) .!= idsd[nidsd+1-i,1]];
-    end 
+    end
 
-    m11 = zeros(size(M11,2)) #Vetor of inverse matrix mass 
+    m11 = zeros(size(M11,2)) #Vetor of inverse matrix mass
 
     for i=1:size(M11,2)
         m11[i] = 1/M11[i,i]
     end
 
     # Inverse of the lumped matrix in vector form
-    #m11 = inv.(sum(M11, 2)) 
+    #m11 = inv.(sum(M11, 2))
     P = m11.*K11
 
 
     #Eingenvalues and Eingenvectors
 
     nevn=size(P,2)-2 #eigvals number
-        
+
     #using Arpack
 
     Eig=eigs(P, nev=20, which=:SM)
-    
+
     #using LinearAlgebra
     w0 = Eig[1]
     #w0 = eigvals(P)
@@ -123,13 +123,13 @@ function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemo
     wi=unique(wi) #all vals diferents
     wi=wi[wi[1:size(wi)[1]] .>0] # delete zero and negative vals
     wi=sort!(wi) # sort the vector
-    
+
     w = Array{Float64,1}()
 
     for i=1:nmods
         push!(w,wi[i])
     end
-   
+
     v = Array{Float64,2}(undef,size(P,2),nmods)
 
     for i=1:nmods
@@ -138,7 +138,7 @@ function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemo
         #v[:,i] = eigvecs(P)[:,col]
         v[:,i] = Eig[2][:,col]
     end
-     
+
     w = w.^0.5
 
     if savemods
@@ -146,7 +146,7 @@ function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemo
         #Modals Deformed
 
         nodessolids = get_nodes(dom.elems[:solids]) #nodes of solids
-    
+
         idss = Array{Int64,1}() #idss ids of dof solids
 
         for node in nodessolids
@@ -157,7 +157,7 @@ function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemo
         idss = unique(idss)
         sort!(idss)
         nidss = length(idss)
-        idefmod = 1    
+        idefmod = 1
 
         for j=1:nmods
 
@@ -168,7 +168,7 @@ function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemo
             end
 
             for (k,dof) in enumerate(dofs)
-                dof.vals[dof.name] = Umod[k] 
+                dof.vals[dof.name] = Umod[k]
             end
 
             save(dom, dom.filekey * "-defmod$idefmod.vtk", verbose=false) # saves current domain state for modal deformated
@@ -185,12 +185,12 @@ function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemo
     end
 
     show("Modal Frequencies rad/s")
-    
-	@show w
- 
+
+    @show w
+
     #show("Modal Shapes rad/s")
 
-	#@show v
+    #@show v
 
 
     if rayleigh
@@ -214,13 +214,13 @@ function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemo
 
         alpha = 2 * ((w1 ^ 2) * w2 * xi2 - w1 * (w2 ^ 2) * xi1) / ((w1 ^ 2)-(w2 ^ 2))
         beta  = 2 * (w1 * xi1 - w2 * xi2)/((w1 ^ 2) - (w2 ^ 2))
-    
+
         show("The Rayleigh Alpha Value is:")
-    
+
         @show alpha
- 
+
         show("The Rayleigh Betha Value is:")
-	    
+
         @show beta
 
     end

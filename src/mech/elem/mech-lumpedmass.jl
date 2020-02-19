@@ -13,7 +13,7 @@ mutable struct MechLumpedMass<:Mechanical
     env::ModelEnv
 
     function MechLumpedMass()
-        return new() 
+        return new()
     end
 end
 
@@ -22,7 +22,7 @@ matching_shape_family(::Type{MechLumpedMass}) = VERTEX_SHAPE
 
 function elem_stiffness(elem::MechLumpedMass)
     ndim = elem.env.ndim
-    mat  = elem.mat 
+    mat  = elem.mat
     K = zeros(ndim, ndim)
 
     keys = [:ux, :uy, :uz][1:ndim]
@@ -33,7 +33,7 @@ end
 
 function elem_mass(elem::MechLumpedMass)
     ndim = elem.env.ndim
-    mat  = elem.mat 
+    mat  = elem.mat
 
     M = mat.m*Matrix{Float64}(I, ndim, ndim)
 
@@ -42,7 +42,7 @@ function elem_mass(elem::MechLumpedMass)
 
     return M, map, map
 end
-            
+
 
 function elem_update!(elem::MechLumpedMass, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
     return

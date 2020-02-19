@@ -40,7 +40,7 @@ function mountNN(elem::MechEmbRod)
     NN = zeros(ndim*n, ndim*m)
     Cs = elem_coords(solid)
 
-    for j=1:m 
+    for j=1:m
         R = inverse_map(solid.shape, Cs, elem.nodes[j].X)
         N = solid.shape.func(R)
         for i=1:n

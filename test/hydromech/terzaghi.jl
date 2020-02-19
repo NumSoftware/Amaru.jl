@@ -16,7 +16,7 @@ msh = Mesh(blocks, verbose=true)
 # =======================
 
 # Analysis data
-load = 10.0   
+load = 10.0
 k    = 1.0E-5  # permeability
 E    = 5000.0  # Young modulus
 nu   = 0.25    # Poisson

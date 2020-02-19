@@ -41,7 +41,7 @@ function solve_system!(K::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu:
     ndofs = length(DU)
     umap  = 1:nu
     pmap  = nu+1:ndofs
-    if nu == ndofs 
+    if nu == ndofs
         @warn "solve!: No essential boundary conditions."
     end
 
@@ -94,11 +94,11 @@ function sismic_force(dom::Domain, bcs, M::SparseMatrixCSC{Float64, Int}, F::Vec
     end
 
     vts = zeros(ndat+1) # time vetor correspond to acelerations
-    
+
     for i=1:ndat+1
         vts[i] = (i-1)*tds/ndat
     end
-    
+
     FAS = hcat(vts,AS2) # Function of aceleration
 
     # Interpolation of the aceleration value
@@ -117,15 +117,15 @@ function sismic_force(dom::Domain, bcs, M::SparseMatrixCSC{Float64, Int}, F::Vec
     m = (FAS[fin,2]-FAS[inic,2])/(FAS[fin,1]-FAS[inic,1])
     acel = FAS[inic,2] + m*(tfia - FAS[inic,1])
 
-    #Dof sismic aceleration    
+    #Dof sismic aceleration
 
     VAS  = zeros(ndofs) #Sismic aceleration vector accord dof
-    
+
     for node in dom.nodes
         dof = node.dofdict[keysis]
         VAS[dof.eq_id] += acel
-    end    
-    
+    end
+
     #Dof sismic force
     FS = M*VAS
     F += FS
@@ -208,7 +208,7 @@ function dynsolve!(
     silent || println("  model type: ", env.modeltype)
 
     time_span==0.0 && @warn "  time_span not set"
-    
+
     save_incs = nouts>0
     if save_incs
         if nouts>nincs
@@ -226,7 +226,7 @@ function dynsolve!(
     end
 
     # Dictionary of data keys related with a dof
-    components_dict = Dict(:ux => (:ux, :fx, :vx, :ax), 
+    components_dict = Dict(:ux => (:ux, :fx, :vx, :ax),
                            :uy => (:uy, :fy, :vy, :ay),
                            :uz => (:uz, :fz, :vz, :az),
                            :rx => (:rx, :mx, :vrx, :arx),
@@ -243,7 +243,7 @@ function dynsolve!(
     pmap  = nu+1:ndofs   # map for prescribed displacements
     dom.ndofs = length(dofs)
     verbose && println("  unknown dofs: $nu")
-    
+
     # Get array with all integration points
     ips = [ ip for elem in dom.elems for ip in elem.ips ]
 
@@ -269,7 +269,7 @@ function dynsolve!(
          AS= 9.81*AS
          print("What is the key correspond to sismic direction (fx, fy, fz)?")
          keysis = Symbol(readline())
-    end 
+    end
 
     # Timing
     sw = StopWatch()
@@ -277,15 +277,15 @@ function dynsolve!(
     # Initial accelerations
     K = mount_K(dom, ndofs)
     M = mount_M(dom, ndofs)
-    A = zeros(ndofs) 
-    V = zeros(ndofs) 
+    A = zeros(ndofs)
+    V = zeros(ndofs)
     Uex, Fex = get_bc_vals(dom, bcs) # get values at time t
-                
+
     #If the problem has a sism, the force sismic is add
     if sism && tss<=0 #tss:time when seismic activity starts tds: time of seismic duration 0:current time =0s
         #M = mount_M(dom,ndofs)
         Fex = sismic_force(dom, bcs, M, Fex, AS, keysis, 0.0, tds)
-    end                
+    end
     solve_system!(M, A, Fex, nu)
 
     # Initial values at nodes
@@ -323,7 +323,7 @@ function dynsolve!(
     ΔUa  = zeros(ndofs)  # essential values (e.g. displacements) for this increment
     ΔUi  = zeros(ndofs)  # essential values for current iteration obtained from NR algorithm
     Fina = zeros(ndofs)  # current internal forces
-    TFin = zeros(ndofs)  
+    TFin = zeros(ndofs)
     Aa   = zeros(ndofs)
     Va   = zeros(ndofs)
 
@@ -335,13 +335,13 @@ function dynsolve!(
         env.cinc += 1
 
         Uex, Fex = get_bc_vals(dom, bcs, t+dt) # get values at time t+dt
-                    
+
         # If the problem has a sism, the force sismic is added
         if sism && tss<=t+dt && tds+tss>=t+dt
             M = mount_M(dom,ndofs)
             Fex = sismic_force(dom, bcs, M,Fex,AS,keysis,t+dt,tds)
         end
-                    
+
         silent || printstyled("  stage $(env.cstage)  increment $inc from t=$(round(t,digits=10)) to t=$(round(t+dt,digits=10)) (dt=$(round(dt,digits=10)))\033[K\r", bold=true, color=:blue) # color 111
         verbose && println()
         #R   .= FexN - F    # residual
@@ -358,7 +358,7 @@ function dynsolve!(
 
         for it=1:maxits
             if it>1; ΔUi .= 0.0 end # essential values are applied only at first iteration
-            #if it>1; remountK=true end 
+            #if it>1; remountK=true end
             lastres = residue # residue from last iteration
 
             # Try FE step
@@ -383,7 +383,7 @@ function dynsolve!(
             # Get internal forces and update data at integration points (update ΔFin)
             ΔFin .= 0.0
             ΔUt   = ΔUa + ΔUi
-            for elem in dom.elems  
+            for elem in dom.elems
                 elem_update!(elem, ΔUt, ΔFin, dt)
             end
 
@@ -392,12 +392,12 @@ function dynsolve!(
             # Update V and A
             # Optional (V and A may be used from the interval beginning)
             Va = -V + 2*(ΔUa + ΔUi)/dt;
-            Aa = -A + 4*((ΔUa + ΔUi) - V*dt)/(dt^2);               
+            Aa = -A + 4*((ΔUa + ΔUi) - V*dt)/(dt^2);
 
 
-            TFin = Fina + C*Va + M*Aa  # Internal force including dynamic effects 
+            TFin = Fina + C*Va + M*Aa  # Internal force including dynamic effects
 
-            residue = maximum(abs, (Fex-TFin)[umap] ) 
+            residue = maximum(abs, (Fex-TFin)[umap] )
 
             # Update accumulated displacement
             ΔUa .+= ΔUi

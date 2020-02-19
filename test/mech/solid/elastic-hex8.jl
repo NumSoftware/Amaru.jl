@@ -1,4 +1,4 @@
-# From the book: 
+# From the book:
 # Finite Elements for Structural Analysis. pg 168
 # William Weaver & Paul Johnston
 
@@ -7,7 +7,7 @@ using Test
 
 # Mesh generation
 
-block = Block( [0 0 0; 1 1 1], nx=1, ny=1, nz=1, cellshape=HEX8, tag="solid") 
+block = Block( [0 0 0; 1 1 1], nx=1, ny=1, nz=1, cellshape=HEX8, tag="solid")
 mesh = Mesh(block, verbose=true, reorder=false)
 
 # Domain definition

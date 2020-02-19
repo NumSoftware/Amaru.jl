@@ -36,7 +36,7 @@ loggers = [
 
 setloggers!(dom, loggers)
 
-bcs = [ 
+bcs = [
        "fixed_points" => NodeBC(ux=0, uy=0, uz=0),
        "tip"          => NodeBC(uy=0.0003),
       ]

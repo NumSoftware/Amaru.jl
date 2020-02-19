@@ -10,7 +10,7 @@ mats = [
         "solids" => Mazars(E=30000, nu=0.2, eps0=1.e-4, At=0.9, Bt=5000., Ac=1.0, Bc=1500.0)
        ]
 
-dom = Domain(msh, mats) 
+dom = Domain(msh, mats)
 
 
 tag!(dom.elems.ips[1], "ip")

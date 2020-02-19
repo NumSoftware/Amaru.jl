@@ -43,7 +43,7 @@ ip_state_type(mat::LinDrainPipe) = LinDrainPipeIpState
 
 function update_state!(mat::LinDrainPipe, ipd::LinDrainPipeIpState, Δuw::Float64, G::Float64, Δt::Float64)
     k = mat.k
-    ipd.V  -= k*G 
+    ipd.V  -= k*G
     ipd.D  += ipd.V*Δt
     ipd.uw += Δuw
     return ipd.V

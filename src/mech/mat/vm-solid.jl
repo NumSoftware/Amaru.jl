@@ -6,7 +6,7 @@ mutable struct VonMisesIpState<:IpState
     ε::Tensor2
     εpa::Float64
     Δγ::Float64
-    function VonMisesIpState(env::ModelEnv=ModelEnv()) 
+    function VonMisesIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ   = zeros(6)
         this.ε   = zeros(6)
@@ -35,7 +35,7 @@ mutable struct VonMises<:Material
 
         this    = new(E, nu, σy, H)
         #this.De = calcDe(E, nu)
-        return this 
+        return this
     end
 end
 
@@ -47,14 +47,14 @@ ip_state_type(mat::VonMises) = VonMisesIpState
 function yield_func(mat::VonMises, ipd::VonMisesIpState, σ::Tensor2)
     j1  = J1(σ)
     j2d = J2D(σ)
-    σy  = mat.σy 
+    σy  = mat.σy
     H   = mat.H
     εpa = ipd.εpa
     return √(3*j2d) - σy - H*εpa
 end
 
 function calcD(mat::VonMises, ipd::VonMisesIpState)
-    σy = mat.σy 
+    σy = mat.σy
     H  = mat.H
     #De = mat.De
     De  = calcDe(mat.E, mat.ν, ipd.env.modeltype)
@@ -65,7 +65,7 @@ function calcD(mat::VonMises, ipd::VonMisesIpState)
 
     j2d = J2D(ipd.σ)
     @assert j2d>0
-    s  = dev(ipd.σ) 
+    s  = dev(ipd.σ)
     su = s/norm(s)
     V  = √(3/2)*su # df/dσ
     Nu = su
@@ -84,7 +84,7 @@ function stress_update(mat::VonMises, ipd::VonMisesIpState, Δε::Array{Float64,
         ipd.Δγ = 0.0
         ipd.σ  = σtr
     else
-        # plastic 
+        # plastic
         K, G  = mat.E/(3.0*(1.0-2.0*mat.ν)), mat.E/(2.0*(1.0+mat.ν))
         H     = mat.H
         j1tr  = J1(σtr)

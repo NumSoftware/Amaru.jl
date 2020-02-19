@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-__precompile__() 
+__precompile__()
 
 """
 **Amaru.jl**
@@ -11,7 +11,7 @@ Amaru module implements functions and types to perform finite element analyses.
 
 Node, Element, Domain, Dof, Ip, NodeBC, FaceBC
 
-**Important functions** 
+**Important functions**
 
 set_mat, set_bc, clear_bc, solve!, save
 

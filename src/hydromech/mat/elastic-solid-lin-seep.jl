@@ -9,7 +9,7 @@ mutable struct ElasticSolidLinSeepIpState<:IpState
     V::Array{Float64,1} # fluid velocity
     D::Array{Float64,1} # distance traveled by the fluid
     uw::Float64         # pore pressure
-    function ElasticSolidLinSeepIpState(env::ModelEnv=ModelEnv()) 
+    function ElasticSolidLinSeepIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
@@ -35,12 +35,12 @@ mutable struct ElasticSolidLinSeep<:Material
 
     function ElasticSolidLinSeep(;E=NaN, nu=NaN, k=NaN, kappa=NaN, gammaw=NaN, alpha=1.0, S=0.0, n=NaN, Ks=NaN, Kw=NaN, eta=NaN)
 
-        if isnan(k) 
+        if isnan(k)
             k = (kappa*gammaw)/eta # specific permeability = (intrinsic permeability * fluid specific weight)/viscosity
         end
 
-        if isnan(S) 
-            S = (alpha - n)/Ks + n/Kw # S = (alpha - porosity)/(bulk module of the solid) + (porosity)/(bulk module of the fluid) 
+        if isnan(S)
+            S = (alpha - n)/Ks + n/Kw # S = (alpha - porosity)/(bulk module of the solid) + (porosity)/(bulk module of the fluid)
         end
 
         E>0.0       || error("Invalid value for E: $E")

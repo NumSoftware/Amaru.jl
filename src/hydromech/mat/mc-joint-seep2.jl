@@ -8,7 +8,7 @@ mutable struct MCJointSeepIpState2<:IpState
     w   ::Array{Float64,1}  # relative displacements
     Vt  ::Array{Float64,1}  # transverse fluid velocity
     D   ::Array{Float64,1}  # distance traveled by the fluid
-    L   ::Array{Float64,1} 
+    L   ::Array{Float64,1}
     S   ::Array{Float64,1}
     uw  ::Array{Float64,1}  # interface pore pressure
     upa ::Float64           # effective plastic relative displacement
@@ -19,11 +19,11 @@ mutable struct MCJointSeepIpState2<:IpState
         ndim = env.ndim
         this.σ   = zeros(ndim)
         this.w   = zeros(ndim)
-        this.Vt  = zeros(2) 
-        this.D   = zeros(2) 
+        this.Vt  = zeros(2)
+        this.D   = zeros(2)
         this.L   = zeros(ndim-1)
         this.S   = zeros(ndim-1)
-        this.uw  = zeros(3) 
+        this.uw  = zeros(3)
         this.upa = 0.0
         this.Δλ  = 0.0
         this.h   = 0.0
@@ -53,7 +53,7 @@ mutable struct MCJointSeep2<:Material
         return  MCJointSeep2(;prms...)
     end
 
-     function MCJointSeep2(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", k=NaN, kappa=NaN, gammaw=NaN, alpha=1.0, S=0.0, n=NaN, Ks=NaN, Kw=NaN, beta=0.0, eta=NaN, kt=NaN, kl=0.0)  
+     function MCJointSeep2(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", k=NaN, kappa=NaN, gammaw=NaN, alpha=1.0, S=0.0, n=NaN, Ks=NaN, Kw=NaN, beta=0.0, eta=NaN, kt=NaN, kl=0.0)
 
         !(isnan(GF) || GF>0) && error("Invalid value for GF: $GF")
         !(isnan(Gf) || Gf>0) && error("Invalid value for Gf: $Gf")
@@ -71,17 +71,17 @@ mutable struct MCJointSeep2<:Material
                 end
             elseif softcurve == "hordijk"
                 wc = round(GF/(0.1947019536*ft), digits=10)
-            end    
+            end
         end
 
         !(isnan(kappa) || kappa>0) && error("Invalid value for kappa: $kappa")
 
-        if isnan(k) 
+        if isnan(k)
             k = (kappa*gammaw)/eta # specific permeability = (intrinsic permeability * fluid specific weight)/viscosity
         end
 
-        if isnan(S) 
-            S = (alpha - n)/Ks + n/Kw # S = (alpha - porosity)/(bulk module of the solid) + (porosity)/(bulk module of the fluid) 
+        if isnan(S)
+            S = (alpha - n)/Ks + n/Kw # S = (alpha - porosity)/(bulk module of the solid) + (porosity)/(bulk module of the fluid)
         end
 
         E>0.0       || error("Invalid value for E: $E")
@@ -137,7 +137,7 @@ end
 function potential_derivs(mat::MCJointSeep2, ipd::MCJointSeepIpState2, σ::Array{Float64,1})
     ndim = ipd.env.ndim
     if ndim == 3
-            if σ[1] >= 0.0 
+            if σ[1] >= 0.0
                 # G1:
                 r = [ 2.0*σ[1]*mat.μ^2, 2.0*σ[2], 2.0*σ[3]]
             else
@@ -145,7 +145,7 @@ function potential_derivs(mat::MCJointSeep2, ipd::MCJointSeepIpState2, σ::Array
                 r = [ 0.0, 2.0*σ[2], 2.0*σ[3] ]
             end
     else
-            if σ[1] >= 0.0 
+            if σ[1] >= 0.0
                 # G1:
                 r = [ 2*σ[1]*mat.μ^2, 2*σ[2]]
             else
@@ -170,7 +170,7 @@ function calc_σmax(mat::MCJointSeep2, ipd::MCJointSeepIpState2, upa::Float64)
     elseif mat.softcurve == "bilinear"
         σs = 0.25*mat.σmax0
         if upa < mat.ws
-            a  = mat.σmax0 
+            a  = mat.σmax0
             b  = (mat.σmax0 - σs)/mat.ws
         elseif upa < mat.wc
             a  = mat.wc*σs/(mat.wc-mat.ws)
@@ -250,7 +250,7 @@ function calc_Δλ(mat::MCJointSeep2, ipd::MCJointSeepIpState2, σtr::Array{Floa
     Δλ     = 0.0
     f      = 0.0
     upa    = 0.0
-    tol    = 1e-4      
+    tol    = 1e-4
 
     for i=1:maxits
         μ      = mat.μ
@@ -278,7 +278,7 @@ function calc_Δλ(mat::MCJointSeep2, ipd::MCJointSeepIpState2, σtr::Array{Floa
                  drdΔλ = [ 0,  -4*ks*σtr[2]/(1+2*Δλ*ks)^2 ]
              end
         end
-                 
+
          r      = potential_derivs(mat, ipd, σ)
          norm_r = norm(r)
          upa    = ipd.upa + Δλ*norm_r
@@ -288,8 +288,8 @@ function calc_Δλ(mat::MCJointSeep2, ipd::MCJointSeepIpState2, σtr::Array{Floa
 
         if ndim == 3
             f = sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*μ
-            if (σ[2]==0 && σ[3]==0) 
-                dfdΔλ = (dσdΔλ[1] - dσmaxdΔλ)*μ              
+            if (σ[2]==0 && σ[3]==0)
+                dfdΔλ = (dσdΔλ[1] - dσmaxdΔλ)*μ
             else
                 dfdΔλ = 1/sqrt(σ[2]^2 + σ[3]^2) * (σ[2]*dσdΔλ[2] + σ[3]*dσdΔλ[3]) + (dσdΔλ[1] - dσmaxdΔλ)*μ
             end
@@ -297,12 +297,12 @@ function calc_Δλ(mat::MCJointSeep2, ipd::MCJointSeepIpState2, σtr::Array{Floa
             f = abs(σ[2]) + (σ[1]-σmax)*mat.μ
             dfdΔλ = sign(σ[2])*dσdΔλ[2] + (dσdΔλ[1] - dσmaxdΔλ)*μ
         end
-        
+
         Δλ = Δλ - f/dfdΔλ
 
         abs(f) < tol && break
 
-        if i == maxits 
+        if i == maxits
             @error """MCJointSeep: Could not find Δλ. This may happen when the system
             becomes hypostatic and thus the global stiffness matrix is near syngular.
             Increasing the mesh refinement may result in a nonsingular matrix.
@@ -324,13 +324,13 @@ function calc_σ_upa(mat::MCJointSeep2, ipd::MCJointSeepIpState2, σtr::Array{Fl
             σ = [σtr[1]/(1 + 2*ipd.Δλ*kn*(μ^2)), σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
         else
             σ = [σtr[1], σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
-        end    
+        end
     else
         if σtr[1] > 0
             σ = [σtr[1]/(1 + 2*ipd.Δλ*kn*(μ^2)), σtr[2]/(1 + 2*ipd.Δλ*ks)]
         else
             σ = [σtr[1], σtr[2]/(1 + 2*ipd.Δλ*ks)]
-        end    
+        end
     end
     ipd.σ = σ
     r = potential_derivs(mat, ipd, ipd.σ)
@@ -345,10 +345,10 @@ function mountD(mat::MCJointSeep2, ipd::MCJointSeepIpState2)
     kn, ks, De = calc_kn_ks_De(mat, ipd)
     σmax = calc_σmax(mat, ipd, ipd.upa)
 
-    if ipd.Δλ == 0.0  # Elastic 
+    if ipd.Δλ == 0.0  # Elastic
         return De
-    elseif σmax == 0.0 
-        Dep  = De*1e-10 
+    elseif σmax == 0.0
+        Dep  = De*1e-10
         return Dep
     else
         v    = yield_deriv(mat, ipd)
@@ -367,7 +367,7 @@ function mountD(mat::MCJointSeep2, ipd::MCJointSeepIpState2)
         else
             den = kn*r[1]*v[1] + ks*r[2]*v[2] - y*m*norm(r)
 
-            Dep = [   kn - kn^2*r[1]*v[1]/den    -kn*ks*r[1]*v[2]/den      
+            Dep = [   kn - kn^2*r[1]*v[1]/den    -kn*ks*r[1]*v[2]/den
                      -kn*ks*r[2]*v[1]/den         ks - ks^2*r[2]*v[2]/den  ]
         end
 
@@ -381,7 +381,7 @@ function stress_update(mat::MCJointSeep2, ipd::MCJointSeepIpState2, Δw::Array{F
     σini = copy(ipd.σ)
 
     kn, ks, De = calc_kn_ks_De(mat, ipd)
-    σmax = calc_σmax(mat, ipd, ipd.upa) 
+    σmax = calc_σmax(mat, ipd, ipd.upa)
 
     if isnan(Δw[1]) || isnan(Δw[2])
         @warn "MCJointSeep: Invalid value for joint displacement: Δw = $Δw"
@@ -390,7 +390,7 @@ function stress_update(mat::MCJointSeep2, ipd::MCJointSeepIpState2, Δw::Array{F
     # σ trial and F trial
     σtr  = ipd.σ + De*Δw
 
-    Ftr  = yield_func(mat, ipd, σtr) 
+    Ftr  = yield_func(mat, ipd, σtr)
 
     # Elastic and EP integration
     if σmax == 0.0 && ipd.w[1] >= 0.0
@@ -401,23 +401,23 @@ function stress_update(mat::MCJointSeep2, ipd::MCJointSeepIpState2, Δw::Array{F
         else
             r1 = [ σtr[1]/kn, σtr[2]/ks ]
             r = r1/norm(r1)
-            ipd.Δλ = norm(r1)  
+            ipd.Δλ = norm(r1)
         end
 
         ipd.upa += ipd.Δλ
-        ipd.σ = σtr - ipd.Δλ*De*r     
+        ipd.σ = σtr - ipd.Δλ*De*r
 
     elseif Ftr <= 0.0
         # Pure elastic increment
         ipd.Δλ = 0.0
-        ipd.σ  = copy(σtr) 
+        ipd.σ  = copy(σtr)
 
-    else    
-        ipd.Δλ = calc_Δλ(mat, ipd, σtr) 
+    else
+        ipd.Δλ = calc_Δλ(mat, ipd, σtr)
         ipd.σ, ipd.upa = calc_σ_upa(mat, ipd, σtr)
-                      
+
         # Return to surface:
-        F  = yield_func(mat, ipd, ipd.σ)   
+        F  = yield_func(mat, ipd, ipd.σ)
         if F > 1e-3
             @warn "MCJointSeep: Yield function value outside tolerance: $F"
         end
@@ -440,10 +440,10 @@ function stress_update(mat::MCJointSeep2, ipd::MCJointSeepIpState2, Δw::Array{F
     else
         if mat.kl >= ipd.w[1]
             kl = mat.kl
-        else 
+        else
             kl = ipd.w[1]
         end
-    end 
+    end
 
     ipd.L  =  ((kl^3)/(12*mat.η))*BfUw
     ipd.S +=  ipd.L*Δt
