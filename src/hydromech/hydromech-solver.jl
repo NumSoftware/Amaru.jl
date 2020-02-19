@@ -2,7 +2,7 @@
 
 
 # Assemble the global stiffness matrix
-function mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
+f    unction mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
 
     # Assembling matrix G
 
@@ -201,27 +201,27 @@ function hm_solve!(
     end
 
     function complete_uw_h(dom::Domain)
-    	haskey(dom.point_scalar_data, "uw") || return
-	    Uw = dom.point_scalar_data["uw"]
-	    H  = dom.point_scalar_data["h"]
-	    for ele in dom.elems
-	        ele.shape.family==SOLID_SHAPE || continue
-	        ele.shape==ele.shape.basic_shape && continue
-	        npoints = ele.shape.npoints
-	        nbpoints = ele.shape.basic_shape.npoints
-	        map = [ ele.nodes[i].id for i=1:nbpoints ]
-	        Ue = Uw[map]
-	        He = H[map]
-	        C = ele.shape.nat_coords
-	        for i=nbpoints+1:npoints
-	            id = ele.nodes[i].id
-	            R = C[i,:]
-	            N = ele.shape.basic_shape.func(R)
-	            Uw[id] = dot(N,Ue)
-	            H[id] = dot(N,He)
-	        end
-	    end
-	end
+        haskey(dom.point_scalar_data, "uw") || return
+        Uw = dom.point_scalar_data["uw"]
+        H  = dom.point_scalar_data["h"]
+        for ele in dom.elems
+            ele.shape.family==SOLID_SHAPE || continue
+            ele.shape==ele.shape.basic_shape && continue
+            npoints = ele.shape.npoints
+            nbpoints = ele.shape.basic_shape.npoints
+            map = [ ele.nodes[i].id for i=1:nbpoints ]
+            Ue = Uw[map]
+            He = H[map]
+            C = ele.shape.nat_coords
+            for i=nbpoints+1:npoints
+                id = ele.nodes[i].id
+                R = C[i,:]
+                N = ele.shape.basic_shape.func(R)
+                Uw[id] = dot(N,Ue)
+                H[id] = dot(N,He)
+            end
+        end
+    end
 
     # Arguments checking
     silent && (verbose=false)
@@ -449,7 +449,7 @@ function hm_solve!(
                 silent || verbose || print(" "^70, "\r")
                 silent || printstyled("  $outdir/$filekey-$iout.vtk file written (Domain)\n", color=:green)
             end
-			
+            
             # Update time t 
             t   += Δt
 
@@ -460,8 +460,8 @@ function hm_solve!(
                 Δt = min(Δt, tend-t)
             end
         else
-        	# Restore counters
-        	inc -= 1
+            # Restore counters
+            inc -= 1
             env.cinc -= 1
 
             # Restore the state to last converged increment
@@ -480,7 +480,7 @@ function hm_solve!(
     end
 
     # time spent
-    silent || println("  time spent: ", see(sw, format=:hms), " "^20)
+    silent || println("  time spent: ", see(sw, format=:hms), "\033[K")
 
     update_output_data!(dom)
     complete_uw_h(dom)
