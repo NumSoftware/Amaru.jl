@@ -93,7 +93,7 @@ function elem_conductivity_matrix(elem::SeepJoint1D)
         H -= coef*Bp'*Bp 
     end
 
-	map_p = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
+    map_p = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
 
     return H, map_p, map_p, elem.nodes
 end

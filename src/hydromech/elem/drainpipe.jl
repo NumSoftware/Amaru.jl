@@ -46,7 +46,7 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
 
         # mount Bp
         Bp .= 0.0
-		Bp = dNdR/detJ
+        Bp = dNdR/detJ
 
         # compute H
         coef = detJ*ip.w*(elem.mat.k/elem.mat.γw)*A
@@ -110,7 +110,7 @@ function elem_RHS_vector(elem::DrainPipe)
 
         # mount Bp
         Bp .= 0.0
-		Bp = dNdR/detJ
+        Bp = dNdR/detJ
 
         # compute Q
         coef = detJ*ip.w*elem.mat.k*Jvert*A
@@ -147,7 +147,7 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
         
         # mount Bp
         Bp .= 0.0
-		Bp = dNdR/detJ
+        Bp = dNdR/detJ
 
         # compute Np vector
         N    = elem.shape.func(ip.R)
@@ -194,7 +194,7 @@ function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1
         Jvert = J[end]/detJ
         
         # mount Bp
-		Bp = dNdR/detJ
+        Bp = dNdR/detJ
 
         # compute Np vector
         N  = elem.shape.func(ip.R)

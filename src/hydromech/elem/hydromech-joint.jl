@@ -146,7 +146,7 @@ function elem_coupling_matrix(elem::HydroMechJoint)
     nlnodes  = Int((nnodes-nbsnodes)/2) 
     dnlnodes = nnodes-nbsnodes
     fshape   = elem.shape.facet_shape
-	C        = elem_coords(elem)[1:nlnodes,:]
+    C        = elem_coords(elem)[1:nlnodes,:]
 
     J        = Array{Float64}(undef, ndim-1, ndim)
     NN       = zeros(ndim, dnlnodes*ndim)

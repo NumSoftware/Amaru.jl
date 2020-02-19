@@ -212,7 +212,7 @@ function elem_conductivity_matrix(elem::HydroMechJoint2)
 
     H        = zeros(2*nbsnodes, 2*nbsnodes)
 
-	nodes_p  = []
+    nodes_p  = []
 
     for (i, node) in enumerate(elem.nodes)
         if  i<=(nbsnodes) || (nlnodes+nbsnodes)>=i>(nlnodes)
