@@ -17,27 +17,9 @@ set_mat, set_bc, clear_bc, solve!, save
 
 """
 module Amaru
-using Printf, Statistics, LinearAlgebra, SparseArrays, DelimitedFiles, Arpack
-using JSON, DataStructures, Reexport
+using Printf, StatsBase, Statistics, LinearAlgebra, SparseArrays, DelimitedFiles, Arpack
+using JSON, DataStructures
 import DataStructures.OrderedDict, DataStructures.OrderedSet
-
-#Using non-registered (jet) package FemMesh
-#try
-    #eval(:(using FemMesh))
-#catch err
-    #if isa(err, ArgumentError)
-        #contains(err.msg, "FemMesh not found") && pkg.clone("https://github.com/NumSoftware/FemMesh")
-    #else
-        #error("Amaru: Error loading FemMesh package.")
-    #end
-#end
-
-@reexport using FemMesh
-import FemMesh.save # to be extended
-import FemMesh.update! # to be extended
-import FemMesh.get_x, FemMesh.get_y, FemMesh.get_z # to be extended
-import FemMesh.tag!
-
 
 # Debug
 mutable struct ConfigFlags
@@ -58,9 +40,21 @@ include("tools/table.jl")
 include("tools/tensors.jl")
 include("tools/show.jl")
 include("tools/stopwatch.jl")
+include("tools/iteration.jl")
+export unfold
 
 # generic exports
 export max, min, sort, reset, getindex, sort, copy!, show
+
+# Mesh
+include("mesh/include.jl")
+
+include("plot/mplot.jl")
+export mplot
+
+include("plot/cplot.jl")
+export cplot, newfig
+
 
 # Fem module
 include("model-env.jl")

@@ -37,7 +37,7 @@ mutable struct Cell<:AbstractCell
     end
 end
 
-const Face=Cell
+const CellFace=Cell
 
 
 ### Cell methods

@@ -10,6 +10,13 @@ Amaru.config.makeplots = false
 printstyled("\x1b[1m", "\nRunning tests...\n", "\x1b[0m", color=:green)
 
 FILES = [
+    "mesh/shape_deriv.jl",
+    "mesh/generation.jl",
+    "mesh/operations.jl",
+    "mesh/extrapolation.jl",
+    "mesh/smoothing.jl",
+    "mesh/plotting.jl",
+
     "tools/show.jl",
     "tools/logger.jl",
 

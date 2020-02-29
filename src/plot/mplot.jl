@@ -642,7 +642,7 @@ function mplot(
         if has_field
             cltn.set_array(fvals)
             cltn.set_clim(fieldlims)
-            h = orientation=="vertical" ? figsize[2] : figsize[1]
+            h = colorbarorientation=="vertical" ? figsize[2] : figsize[1]
             h = norm(figsize)
             #cbar = plt.colorbar(cltn, label=colorbarlabel, shrink=colorbarscale, aspect=0.9*20*colorbarscale, format="%.1f", pad=colorbarpad, orientation=colorbarorientation)
             #cbar = plt.colorbar(cltn, label=colorbarlabel, shrink=colorbarscale, aspect=15, format="%.1f", pad=colorbarpad, orientation=colorbarorientation)

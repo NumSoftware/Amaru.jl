@@ -294,7 +294,7 @@ end
 # Function for updating loggers
 update_loggers!(domain::Domain) = update_logger!.(domain.loggers, Ref(domain.env))
 
-function FemMesh.get_segment_data(dom::Domain, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=200)
+function get_segment_data(dom::Domain, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=200)
     mesh = convert(Mesh, dom)
     return get_segment_data(mesh, X1, X2, filename, npoints=npoints)
 end
@@ -809,7 +809,7 @@ function save_dom_json(dom::AbstractDomain, filename::String; verbose=true)
 end
 
 
-function Base.convert(::Type{FemMesh.Mesh}, dom::AbstractDomain)
+function Base.convert(::Type{Mesh}, dom::AbstractDomain)
     mesh = Mesh()
     mesh.ndim = dom.env.ndim
 
@@ -893,17 +893,17 @@ end
 
     Plots `dom` using the PyPlot package.
 """
-function FemMesh.mplot(dom::AbstractDomain, filename::String=""; args...)
+function mplot(dom::AbstractDomain, filename::String=""; args...)
 
     any(node.id==0 for node in dom.nodes) && error("mplot: all nodes must have a valid id")
 
     mesh = convert(Mesh, dom)
 
-    FemMesh.mplot(mesh, filename; args...)
+    mplot(mesh, filename; args...)
 end
 
 
-function FemMesh.datafields(dom::Domain)
+function datafields(dom::Domain)
     mesh = convert(Mesh, dom)
-    return FemMesh.datafields(mesh)
+    return datafields(mesh)
 end

@@ -540,10 +540,13 @@ end
 
 Constructs a `Mesh` object based on a file in VTK legacy format or JSON format.
 """
-function Mesh(filename::String; verbose::Bool=true, format::String="", reorder::Bool=false)
-    if verbose
-        printstyled("Mesh loading: filename $filename\n", bold=true, color=:cyan)
-    end
+function Mesh(filename::String; verbose::Bool=true, silent::Bool=false, format::String="", reorder::Bool=false)
+
+    verbosity = 1
+    verbose && (verbosity=2)
+    silent && (verbosity=0)
+
+    verbosity>0 && printstyled("Mesh loading: filename $filename\n", bold=true, color=:cyan)
 
     if format==""
         basename, format = splitext(filename)
@@ -551,13 +554,13 @@ function Mesh(filename::String; verbose::Bool=true, format::String="", reorder::
     end
 
     if format=="vtk"
-        verbose && print("  Reading VTK legacy format...\n")
+        verbosity>0 && print("  Reading VTK legacy format...\n")
         mesh = read_vtk(filename)
     elseif format=="json"
-        verbose && print("  Reading JSON format...\n")
+        verbosity>0 && print("  Reading JSON format...\n")
         mesh = read_json(filename)
     elseif format=="tetgen"
-        verbose && print("  Reading tetgen output files...\n")
+        verbosity>0 && print("  Reading tetgen output files...\n")
         mesh = read_tetgen(filename)
     else
         error("Could not read $format format file")
@@ -565,11 +568,11 @@ function Mesh(filename::String; verbose::Bool=true, format::String="", reorder::
 
     # Reorder nodal numbering
     if reorder
-        verbose && print("  reordering points...\r")
+        verbosity>0 && print("  reordering points...\r")
         reorder!(mesh)
     end
 
-    if verbose
+    if verbosity>1
         npoints = length(mesh.points)
         ncells  = length(mesh.cells)
         nfaces  = length(mesh.faces)

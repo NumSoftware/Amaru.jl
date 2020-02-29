@@ -156,8 +156,8 @@ function split!(mesh::Mesh)
 end
 
 mutable struct FacePair
-    face1::Face
-    face2::Face
+    face1::CellFace
+    face2::CellFace
     idxs1::Array{Int,1}
     idxs2::Array{Int,1}
     FacePair() = new()
