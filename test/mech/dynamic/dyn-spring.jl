@@ -9,7 +9,7 @@ conns  = [ [ 1, 2 ], [2] ]
 msh = Mesh(coords, conns)
 
 
-mat = [ 
+mat = [
        1 => ElasticSpring(kx=100.0) ,
        2 => LumpedMass(m=100.0) ,
       ]
@@ -17,7 +17,7 @@ mat = [
 dom = Domain(msh, mat)
 
 log1 = NodeLogger()
-logs = [ 
+logs = [
         :(x==1) => log1
        ]
 setloggers!(dom, logs)

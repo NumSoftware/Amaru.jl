@@ -105,7 +105,7 @@ function elem_stiffness(elem::MechJoint)
         # compute shape Jacobian
         N    = fshape.func(ip.R)
         dNdR = fshape.deriv(ip.R)
-        
+
         @gemm J = dNdR*C
         detJ = norm2(J)
 
@@ -181,7 +181,7 @@ function elem_update!(elem::MechJoint, U::Array{Float64,1}, F::Array{Float64,1},
 end
 
 function elem_extrapolated_node_vals(elem::MechJoint)
-    nips = length(elem.ips) 
+    nips = length(elem.ips)
 
     E  = extrapolator(elem.shape.facet_shape, nips)
     Sn = E*[ ip.data.σ[1] for ip in elem.ips ]

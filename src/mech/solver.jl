@@ -39,7 +39,7 @@ function mount_K_threads(dom::Domain, ndofs::Int)
     Cs = Array{Int64,1}[ [] for i=1:nelems  ]
     Vs = Array{Float64,1}[ [] for i=1:nelems  ]
     #IDs = zeros(Int64, nelems)
-    
+
     #GC.gc()
 
     let Rs=Rs, Cs=Cs, Vs=Vs, dom=dom
@@ -109,7 +109,7 @@ function solve_step(
     ndofs = length(DU)
     umap  = 1:nu
     pmap  = nu+1:ndofs
-    if nu == ndofs 
+    if nu == ndofs
         @warn "solve!: No essential boundary conditions."
     end
 
@@ -236,7 +236,7 @@ function solve!(
     dom.ndofs = length(dofs)
     silent || println("  elements: $(length(dom.elems))")
     silent || println("  unknown dofs: $nu")
-    
+
     # Get forces and displacements from boundary conditions
     Uex, Fex = get_bc_vals(dom, bcs)
 
@@ -316,7 +316,7 @@ function solve!(
         nfails    = 0  # counter for iteration fails
         for it=1:maxits
             if it>1; ΔUi .= 0.0 end # essential values are applied only at first iteration
-            #if it>1; remountK=true end 
+            #if it>1; remountK=true end
             lastres = residue # residue from last iteration
 
             # Try FE step
@@ -338,7 +338,7 @@ function solve!(
             # Get internal forces and update data at integration points (update ΔFin)
             ΔFin .= 0.0
             ΔUt   = ΔUa + ΔUi
-            for elem in dom.elems  
+            for elem in dom.elems
                 elem_update!(elem, ΔUt, ΔFin, dt)
             end
 
@@ -366,7 +366,7 @@ function solve!(
             ΔUa .+= ΔUi
 
             # Residual vector for next iteration
-            R = ΔFex - ΔFin  
+            R = ΔFex - ΔFin
             R[pmap] .= 0.0  # zero at prescribed positions
 
             if verbose

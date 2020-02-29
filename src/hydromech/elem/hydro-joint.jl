@@ -78,7 +78,7 @@ end
 function elem_conductivity_matrix(elem::HydroJoint)
     ndim     = elem.env.ndim
     nnodes   = length(elem.nodes)
-    nlnodes  = div(nnodes, 3) 
+    nlnodes  = div(nnodes, 3)
     dnlnodes = 2*nlnodes
     fshape   = elem.shape.facet_shape
 
@@ -96,19 +96,19 @@ function elem_conductivity_matrix(elem::HydroJoint)
         N    = fshape.func(ip.R)
         dNdR = fshape.deriv(ip.R)
 
-        @gemm J = dNdR*C 
+        @gemm J = dNdR*C
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
-        # compute Bp matrix  
+        # compute Bp matrix
         T    = matrixT(J) # rotation matrix
         Cl   = C*T[(2:end), (1:end)]'  # new coordinate nodes
 
         @gemm Jl = dNdR*Cl
         Bp = inv(Jl)*dNdR
         B0 = 0*Bp
-        Bf = [B0 B0 Bp] 
- 
+        Bf = [B0 B0 Bp]
+
         Np = N'
         N0 = 0*N'
         Nb = [Np N0 -Np]
@@ -122,7 +122,7 @@ function elem_conductivity_matrix(elem::HydroJoint)
         coef = detJ*ip.w*(elem.mat.kl^3)/(12*elem.mat.η)
         H -= coef*Bf'*Bf
     end
-    
+
     # map
     map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
 
@@ -133,19 +133,19 @@ end
 function elem_compressibility_matrix(elem::HydroJoint)
     ndim     = elem.env.ndim
     nnodes   = length(elem.nodes)
-    nlnodes  = div(nnodes, 3) 
+    nlnodes  = div(nnodes, 3)
     dnlnodes = 2*nlnodes
     fshape   = elem.shape.facet_shape
     C        = elem_coords(elem)[1:nlnodes,:]
 
     J   = Array{Float64}(undef, ndim-1, ndim)
-    Cpp = zeros(nnodes, nnodes) 
+    Cpp = zeros(nnodes, nnodes)
 
     for ip in elem.ips
         # compute shape Jacobian
         N    = fshape.func(ip.R)
         dNdR = fshape.deriv(ip.R)
-        
+
         @gemm J = dNdR*C
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
@@ -170,7 +170,7 @@ end
 function elem_RHS_vector(elem::HydroJoint)
     ndim     = elem.env.ndim
     nnodes   = length(elem.nodes)
-    nlnodes  = div(nnodes, 3) 
+    nlnodes  = div(nnodes, 3)
     dnlnodes = 2*nlnodes
     fshape   = elem.shape.facet_shape
     C        = elem_coords(elem)[1:nlnodes,:]
@@ -179,17 +179,17 @@ function elem_RHS_vector(elem::HydroJoint)
     Cl       = zeros(nlnodes, ndim-1)
     Jl       = zeros(ndim-1, ndim-1)
     Bp       = zeros(ndim-1, nlnodes)
-    Z        = zeros(ndim) 
+    Z        = zeros(ndim)
     Z[end]   = 1.0
-    bf       = zeros(ndim-1) 
+    bf       = zeros(ndim-1)
     Q        = zeros(nnodes)
- 
+
     for ip in elem.ips
 
         # compute shape Jacobian
         dNdR = fshape.deriv(ip.R)
 
-        @gemm J = dNdR*C 
+        @gemm J = dNdR*C
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -200,11 +200,11 @@ function elem_RHS_vector(elem::HydroJoint)
         @gemm Jl = dNdR*Cl
         Bp = inv(Jl)*dNdR
         B0 = 0*Bp
-        Bf = [B0 B0 Bp] 
-        
+        Bf = [B0 B0 Bp]
+
         # compute Q
-        coef = detJ*ip.w*(elem.mat.kl^3)/(12*elem.mat.η)            
-        
+        coef = detJ*ip.w*(elem.mat.kl^3)/(12*elem.mat.η)
+
         bf = T[(2:end), (1:end)]*Z*elem.mat.γw
         @gemm Q += coef*Bf'*bf
     end
@@ -219,23 +219,23 @@ function elem_internal_forces(elem::HydroJoint, F::Array{Float64,1})
     ndim     = elem.env.ndim
     th       = elem.env.thickness
     nnodes   = length(elem.nodes)
-    nlnodes  = div(nnodes, 3) 
+    nlnodes  = div(nnodes, 3)
     dnlnodes = 2*nlnodes
     fshape   = elem.shape.facet_shape
 
     map_p  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
 
     dFw    = zeros(nnodes)
-    Bp     = zeros(ndim-1, nlnodes)     
+    Bp     = zeros(ndim-1, nlnodes)
 
     J      = Array{Float64}(undef, ndim-1, ndim)
 
     C      = elem_coords(elem)[1:nlnodes,:]
     Cl     = zeros(nlnodes, ndim-1)
     Jl     = zeros(ndim-1, ndim-1)
-    mf     = [1.0, 0.0, 0.0][1:ndim]    
+    mf     = [1.0, 0.0, 0.0][1:ndim]
     Bpuwf  = zeros(ndim-1)
-    Z      = zeros(ndim) 
+    Z      = zeros(ndim)
     Z[end] = 1.0
 
 
@@ -244,7 +244,7 @@ function elem_internal_forces(elem::HydroJoint, F::Array{Float64,1})
         N    = fshape.func(ip.R)
         dNdR = fshape.deriv(ip.R)
 
-        @gemm J = dNdR*C 
+        @gemm J = dNdR*C
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -257,11 +257,11 @@ function elem_internal_forces(elem::HydroJoint, F::Array{Float64,1})
         @gemm Jl = dNdR*Cl
         Bp = inv(Jl)*dNdR #dNdX
         B0 = 0*Bp
-        Bf = [B0 B0 Bp] 
+        Bf = [B0 B0 Bp]
 
         # compute bf vector
         bf = T[(2:end), (1:end)]*Z*elem.mat.γw
-        
+
         # compute Bu matrix
         N0 = 0*N'
         Nb = [Np N0 -Np]
@@ -270,18 +270,18 @@ function elem_internal_forces(elem::HydroJoint, F::Array{Float64,1})
 
         # internal volumes dFw
         coef = detJ*ip.w*elem.mat.β
-        dFw -= coef*Nf'*ip.data.uw[3] 
-   
+        dFw -= coef*Nf'*ip.data.uw[3]
+
         # longitudinal flow
-        coef = detJ*ip.w  
+        coef = detJ*ip.w
         S = ip.data.S
         dFw -= coef*Bf'*S
-         
+
         # transverse flow
         coef  = detJ*ip.w
         D = ip.data.D
         dFw += coef*Nt'*D[1]
-        dFw += coef*Nb'*D[2] 
+        dFw += coef*Nb'*D[2]
     end
 
     F[map_p] += dFw
@@ -292,7 +292,7 @@ function elem_update!(elem::HydroJoint, U::Array{Float64,1}, F::Array{Float64,1}
     ndim     = elem.env.ndim
     th       = elem.env.thickness
     nnodes   = length(elem.nodes)
-    nlnodes  = div(nnodes, 3) 
+    nlnodes  = div(nnodes, 3)
     dnlnodes = 2*nlnodes
     fshape   = elem.shape.facet_shape
 
@@ -303,8 +303,8 @@ function elem_update!(elem::HydroJoint, U::Array{Float64,1}, F::Array{Float64,1}
     Uw     = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes ] # nodal pore-pressure at step n
     Uw    += dUw # nodal pore-pressure at step n+1
 
-    dFw    = zeros(nnodes)  
-    dFw2    = zeros(nnodes)    
+    dFw    = zeros(nnodes)
+    dFw2    = zeros(nnodes)
 
     J      = Array{Float64}(undef, ndim-1, ndim)
     Δω     = zeros(ndim)
@@ -316,7 +316,7 @@ function elem_update!(elem::HydroJoint, U::Array{Float64,1}, F::Array{Float64,1}
     Bp     = zeros(ndim-1, nlnodes)
     mf     = [1.0, 0.0, 0.0][1:ndim]
     BpUwf  = zeros(ndim-1)
-    Z      = zeros(ndim) 
+    Z      = zeros(ndim)
     Z[end] = 1.0
 
     for ip in elem.ips
@@ -325,7 +325,7 @@ function elem_update!(elem::HydroJoint, U::Array{Float64,1}, F::Array{Float64,1}
         N    = fshape.func(ip.R)
         dNdR = fshape.deriv(ip.R)
 
-        @gemm J = dNdR*C 
+        @gemm J = dNdR*C
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -343,13 +343,13 @@ function elem_update!(elem::HydroJoint, U::Array{Float64,1}, F::Array{Float64,1}
         @gemm Jl = dNdR*Cl
         Bp = inv(Jl)*dNdR #dNdX
         B0 = 0*Bp
-        Bf = [B0 B0 Bp] 
+        Bf = [B0 B0 Bp]
 
         # compute bf vector
         bf = T[(2:end), (1:end)]*Z*elem.mat.γw
-        
-        # interpolation to the integ. point 
-        Δuw  = [Np*dUw[1:nlnodes]; Np*dUw[nlnodes+1:dnlnodes]; Np*dUw[dnlnodes+1:end]] 
+
+        # interpolation to the integ. point
+        Δuw  = [Np*dUw[1:nlnodes]; Np*dUw[nlnodes+1:dnlnodes]; Np*dUw[dnlnodes+1:end]]
         G    = [dot(Nt,Uw)/(elem.mat.γw*1); dot(Nb,Uw)/(elem.mat.γw*1)]
         BfUw = Bf*Uw + bf
 
@@ -364,8 +364,8 @@ function elem_update!(elem::HydroJoint, U::Array{Float64,1}, F::Array{Float64,1}
         dFw -= coef*Bf'*L
 
         # transverse flow
-        dFw -= coef*Nt'*V[1] 
-        dFw -= coef*Nb'*V[2] 
+        dFw -= coef*Nt'*V[1]
+        dFw -= coef*Nb'*V[2]
     end
 
     F[map_p] .+= dFw

@@ -13,7 +13,7 @@ mutable struct MechRod<:Mechanical
     env::ModelEnv
 
     function MechRod()
-        return new() 
+        return new()
     end
 end
 
@@ -53,26 +53,26 @@ function elem_stiffness(elem::MechRod)
     map  = Int[ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
     return K, map, map
 end
-            
 
-function elem_mass(elem::MechRod) 
-                
+
+function elem_mass(elem::MechRod)
+
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     ρ = elem.mat.ρ
     A = elem.mat.A
-    
+
     C = elem_coords(elem)
     M = zeros(nnodes*ndim, nnodes*ndim)
     J  = Array{Float64}(undef, 1, ndim)
     N = zeros(ndim, ndim*nnodes)
     #N = Array{Float64}(undef, ndim, ndim*nnodes)
-    
+
     for ip in elem.ips
 
         dNdR = elem.shape.deriv(ip.R)
         Ni = elem.shape.func(ip.R) #encontrei em shape.jl FemMesh
-        setNt(ndim,Ni,N)    
+        setNt(ndim,Ni,N)
 
         @gemm J = dNdR*C
         detJ = norm(J)
@@ -80,7 +80,7 @@ function elem_mass(elem::MechRod)
 
         # compute M
         coef = ρ*A*detJ*ip.w
-        @gemm M += coef*N'*N 
+        @gemm M += coef*N'*N
 
     end
 
@@ -88,9 +88,9 @@ function elem_mass(elem::MechRod)
     map  = Int[ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
     return M, map, map
 end
-                        
+
 function setNt(ndim::Int,Ni::Vect, N::Matx)
-    nnodes = length(Ni) 
+    nnodes = length(Ni)
     N .= 0.0
 
     if ndim==2
@@ -110,9 +110,9 @@ function setNt(ndim::Int,Ni::Vect, N::Matx)
         for i in 1:nodes
             j = i-1
             N[1,1+j*ndim] = Ni[i]
-        end    
+        end
     end
-    
+
 end
 
 #function distributed_bc(elem::MechRod, facet::Union{Facet, Nothing}, key::Symbol, fun::Functor)
@@ -187,7 +187,7 @@ function distributed_bc(elem::MechRod, facet::Union{Facet, Nothing}, key::Symbol
 
     return reshape(F', nnodes*ndim), map
 end
-                        
+
 function elem_internal_forces(elem::MechRod, F::Array{Float64,1})
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
@@ -221,7 +221,7 @@ function elem_internal_forces(elem::MechRod, F::Array{Float64,1})
     F[map] += dF
 end
 
-                        
+
 function elem_update!(elem::MechRod, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
 
     ndim   = elem.env.ndim

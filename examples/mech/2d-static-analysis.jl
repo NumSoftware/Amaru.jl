@@ -13,7 +13,7 @@ mplot(msh, "mesh.pdf", field="cell-id")
 
 # Finite element modeling
 
-materials = [ 
+materials = [
              "solids" => ElasticSolid(E=100.0, nu=0.2),
             ]
 

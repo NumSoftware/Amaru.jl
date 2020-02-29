@@ -127,7 +127,7 @@ function calcD(mat::CEBJoint1D, ipd::CEBJoint1DIpState)
 
     kn = mat.kn
     if ipd.env.ndim==2
-        return [  ks  0.0 
+        return [  ks  0.0
                  0.0   kn ]
     else
         return  [  ks  0.0  0.0
@@ -150,7 +150,7 @@ function stress_update(mat::CEBJoint1D, ipd::CEBJoint1DIpState, Δu::Vect)
     ftr  = yield_func(mat, ipd, τtr)
 
     if ftr<0.0
-        τ = τtr 
+        τ = τtr
         ipd.elastic = true
     else
         Δsy     = (abs(τtr)-ipd.τy)/mat.ks

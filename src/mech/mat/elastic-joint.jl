@@ -27,7 +27,7 @@ mutable struct ElasticJoint<:Material
 
     function ElasticJoint(;E=NaN, nu=NaN, zeta=1.0)
         E>0.0       || error("Invalid value for E: $E")
-        0<=nu<0.5   || error("Invalid value for nu: $nu") 
+        0<=nu<0.5   || error("Invalid value for nu: $nu")
         zeta>0      || error("Invalid value for zeta: $zeta")
 
         this = new(E, nu, zeta)
@@ -50,7 +50,7 @@ function mountD(mat::ElasticJoint, ipd::JointIpState)
     kn = mat.E*mat.ζ/ipd.h
     ks =     G*mat.ζ/ipd.h
     if ndim==2
-        return [  kn  0.0 
+        return [  kn  0.0
                  0.0   ks ]
     else
         return  [  kn  0.0  0.0

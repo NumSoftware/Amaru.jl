@@ -64,7 +64,7 @@ function mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
                     push!(V, α*Δt*H[i,j])
                 end
             end
-            
+
             # Assembling RHS components
             Uw = [ node.dofdict[:uw].vals[:uw] for node in nodes_p ]
             RHS[rmap] -= Δt*(H*Uw)
@@ -112,7 +112,7 @@ function hm_solve_step!(G::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu
     ndofs = length(DU)
     umap  = 1:nu
     pmap  = nu+1:ndofs
-    if nu == ndofs 
+    if nu == ndofs
         @warn "solve!: No essential boundary conditions."
     end
 
@@ -201,27 +201,27 @@ function hm_solve!(
     end
 
     function complete_uw_h(dom::Domain)
-    	haskey(dom.point_scalar_data, "uw") || return
-	    U = dom.point_scalar_data["uw"]
-	    H = dom.point_scalar_data["h"]
-	    for ele in dom.elems
-	        ele.shape.family==SOLID_SHAPE || continue
-	        ele.shape==ele.shape.basic_shape && continue
-	        npoints = ele.shape.npoints
-	        nbpoints = ele.shape.basic_shape.npoints
-	        map = [ ele.nodes[i].id for i=1:nbpoints ]
-	        Ue = U[map]
-	        He = H[map]
-	        C = ele.shape.nat_coords
-	        for i=nbpoints+1:npoints
-	            id = ele.nodes[i].id
-	            R = C[i,:]
-	            N = ele.shape.basic_shape.func(R)
-	            U[id] = dot(N,Ue)
-	            H[id] = dot(N,He)
-	        end
-	    end
-	end
+        haskey(dom.point_scalar_data, "uw") || return
+        Uw = dom.point_scalar_data["uw"]
+        H  = dom.point_scalar_data["h"]
+        for ele in dom.elems
+            ele.shape.family==SOLID_SHAPE || continue
+            ele.shape==ele.shape.basic_shape && continue
+            npoints = ele.shape.npoints
+            nbpoints = ele.shape.basic_shape.npoints
+            map = [ ele.nodes[i].id for i=1:nbpoints ]
+            Ue = Uw[map]
+            He = H[map]
+            C = ele.shape.nat_coords
+            for i=nbpoints+1:npoints
+                id = ele.nodes[i].id
+                R = C[i,:]
+                N = ele.shape.basic_shape.func(R)
+                Uw[id] = dot(N,Ue)
+                H[id] = dot(N,He)
+            end
+        end
+    end
 
     # Arguments checking
     silent && (verbose=false)
@@ -257,14 +257,14 @@ function hm_solve!(
     dom.ndofs = length(dofs)
     silent || println("  unknown dofs: $nu")
 
-    # get elevation Z for all Dofs 
+    # get elevation Z for all Dofs
     Z = zeros(ndofs)
     for node in dom.nodes
         for dof in node.dofs
             Z[dof.eq_id] = node.X[env.ndim]
         end
     end
-    
+
     # Get global parameters
     gammaw = get(dom.env.params, :gammaw, NaN)
     isnan(gammaw) && error("hm_solve!: gammaw parameter was not set in Domain")
@@ -298,16 +298,16 @@ function hm_solve!(
     end
 
     # Incremental analysis
-    t    = dom.env.t # current time
-    tend = t + time_span  # end time
+    t    = dom.env.t     # current time
+    tend = t + time_span # end time
     Δt = time_span/nincs # initial Δt value
 
-    dT = time_span/nouts  # output time increment for saving vtk file
-    T  = t + dT        # output time for saving the next vtk file
+    dT = time_span/nouts # output time increment for saving vtk file
+    T  = t + dT          # output time for saving the next vtk file
 
-    ttol = 1e-9    # time tolerance
-    inc  = 0       # increment counter
-    iout = env.cout     # file output counter
+    ttol = 1e-9          # time tolerance
+    inc  = 0             # increment counter
+    iout = env.cout      # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
@@ -326,7 +326,7 @@ function hm_solve!(
         elem_internal_forces(elem, Fin)
     end
     Fex .-= Fin # add negative forces to external forces vector
-    
+
     for (i,dof) in enumerate(dofs)
         U[i] = dof.vals[dof.name]
         F[i] = dof.vals[dof.natname]
@@ -391,11 +391,11 @@ function hm_solve!(
             # Get internal forces and update data at integration points (update ΔFin)
             ΔFin .= 0.0
             ΔUt   = ΔUa + ΔUi
-            for elem in dom.elems  
+            for elem in dom.elems
                 elem_update!(elem, ΔUt, ΔFin, Δt)
             end
 
-            residue = maximum(abs, (ΔFex-ΔFin)[umap] ) 
+            residue = maximum(abs, (ΔFex-ΔFin)[umap] )
 
             # Update accumulated displacement
             ΔUa .+= ΔUi
@@ -438,7 +438,8 @@ function hm_solve!(
 
             # Check for saving output file
             Tn = t + Δt
-            if Tn+ttol>=T && save_incs
+
+            if Tn + ttol>=T && save_incs
                 env.cout += 1
                 iout = env.cout
                 update_output_data!(dom)
@@ -449,17 +450,21 @@ function hm_solve!(
                 silent || printstyled("  $outdir/$filekey-$iout.vtk file written (Domain)\n", color=:green)
             end
 
-            # Update time t and Δt
-            inc += 1
+            # Update time t
             t   += Δt
 
             # Get new Δt
             if autoinc
-                Δt = min(1.5*Δt, tend/nincs)
+                Δt = min(1.5*Δt, time_span/nincs)
                 Δt = round(Δt, sigdigits=3)
                 Δt = min(Δt, tend-t)
             end
         else
+            # Restore counters
+            inc -= 1
+            env.cinc -= 1
+
+            # Restore the state to last converged increment
             if autoinc
                 silent || println("    increment failed.")
                 Δt = round(0.5*Δt, sigdigits=3)
@@ -475,7 +480,7 @@ function hm_solve!(
     end
 
     # time spent
-    silent || println("  time spent: ", see(sw, format=:hms), " "^20)
+    silent || println("  time spent: ", see(sw, format=:hms), "\033[K")
 
     update_output_data!(dom)
     complete_uw_h(dom)

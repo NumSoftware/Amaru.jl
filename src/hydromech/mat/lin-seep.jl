@@ -7,9 +7,9 @@ mutable struct LinSeepIpState<:IpState
     V::Array{Float64,1} # fluid velocity
     D::Array{Float64,1} # distance traveled by the fluid
     uw::Float64         # pore pressure
-    function LinSeepIpState(env::ModelEnv=ModelEnv()) 
+    function LinSeepIpState(env::ModelEnv=ModelEnv())
         this = new(env)
-        this.V  = zeros(env.ndim) 
+        this.V  = zeros(env.ndim)
         this.D  = zeros(env.ndim)
         this.uw = 0.0
         return this

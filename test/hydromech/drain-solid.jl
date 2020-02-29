@@ -14,8 +14,8 @@ mesh = Mesh(bls, verbose=true)
 gw = 10.0     # water specific weight
 A  = 0.01     # drain area
 k  = 1e-10    # specific permeability
-kb = 100 
-kj = 100 
+kb = 100
+kj = 100
 Q  = 4        # volume em metro cubico
 
 # FEM analysis

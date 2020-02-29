@@ -7,7 +7,7 @@ conn  = [ [1, 2] ]
 msh = Mesh(coord, conn)
 tag!(msh.cells, "bars")
 
-mats = [ 
+mats = [
         "bars" =>  PPRod(E=210e6, A=0.01, sig_y=500e3),
         #"bars" => PPRod(E=210e6, A=0.01, sig_y=500e3, H=1000),
        ]

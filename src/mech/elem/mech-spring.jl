@@ -13,7 +13,7 @@ mutable struct MechSpring<:Mechanical
     env::ModelEnv
 
     function MechSpring()
-        return new() 
+        return new()
     end
 end
 
@@ -33,7 +33,7 @@ function elem_stiffness(elem::MechSpring)
                0   ky    0  -ky
              -kx    0   kx    0
                0  -ky    0   ky ]
-    else 
+    else
         kx, ky, kz = mat.kx, mat.ky, mat.kz
 
         K = [ kx    0    0  -kx    0    0
@@ -64,7 +64,7 @@ function elem_damping(elem::MechSpring)
                0   cy    0  -cy
              -cx    0   cx    0
                0  -cy    0   cy ]
-    else 
+    else
         cx, cy, cz = mat.cx, mat.cy, mat.cz
 
         K = [ cx    0    0  -cx    0    0
@@ -79,7 +79,7 @@ function elem_damping(elem::MechSpring)
     map  = Int[ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
     return K, map, map
 end
-            
+
 
 function elem_update!(elem::MechSpring, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
     ndim = elem.env.ndim

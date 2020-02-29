@@ -107,7 +107,7 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
 end
 
 
-function setBu(env::ModelEnv, dNdX::Matx, detJ::Float64, B::Matx)
+function setBut(env::ModelEnv, dNdX::Matx, detJ::Float64, B::Matx)
     ndim, nnodes = size(dNdX)
     B .= 0.0
 
@@ -168,7 +168,7 @@ function elem_stiffness(elem::TMSolid)
         @gemm dNdX = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        setBu(elem.env, dNdX, detJ, Bu)
+        setBut(elem.env, dNdX, detJ, Bu)
 
         # compute K
         coef = detJ*ip.w
@@ -211,7 +211,7 @@ function elem_coupling_matrix(elem::TMSolid)
         @gemm dNdX = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        setBu(elem.env, dNdX, detJ, Bu)
+        setBut(elem.env, dNdX, detJ, Bu)
 
         # compute Cup
         Np   = elem.shape.basic_shape.func(ip.R)
@@ -365,7 +365,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1})
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
         @gemm dNdX = inv(J)*dNdR
-        setBu(elem.env, dNdX, detJ, Bu)
+        setBut(elem.env, dNdX, detJ, Bu)
 
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
         Jp = dNpdR*Cp
@@ -438,7 +438,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
         @gemm dNdX = inv(J)*dNdR
-        setBu(elem.env, dNdX, detJ, Bu)
+        setBut(elem.env, dNdX, detJ, Bu)
 
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
         @gemm Jp = dNpdR*Cp
@@ -448,7 +448,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         # compute Np
         Np   = elem.shape.basic_shape.func(ip.R)
 
-       	# Compute Δε
+           # Compute Δε
         @gemv Δε = Bu*dU
 
         # Compute Δuw

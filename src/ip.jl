@@ -9,7 +9,7 @@ import Base.sort
 
 Abstract type for objects to store the state at integration points.
 """
-abstract type IpState 
+abstract type IpState
     #env::ModelEnv
     #other data
 end
@@ -95,7 +95,7 @@ end
 
 
 # Index operator for a ip collection using expression
-function Base.getindex(ips::Array{Ip,1}, filter_ex::Expr) 
+function Base.getindex(ips::Array{Ip,1}, filter_ex::Expr)
     R = Ip[]
     for ip in ips
         x, y, z = ip.X
@@ -105,18 +105,18 @@ function Base.getindex(ips::Array{Ip,1}, filter_ex::Expr)
 end
 
 
-function getindex(ips::Array{Ip,1}, s::String) 
+function getindex(ips::Array{Ip,1}, s::String)
     return [ ip for ip in ips if ip.tag==s ]
 end
 
 
 # Get the maximum value of a given coordinate for the whole collection of ips
-function maximum(ips::Array{Ip,1}, dir::Symbol) 
+function maximum(ips::Array{Ip,1}, dir::Symbol)
     idx = findfisrt((:x, :y, :z), dir)
     maximum([ip.X[idx] for ip in ips])
 end
 
-function minimum(ips::Array{Ip,1}, dir::Symbol) 
+function minimum(ips::Array{Ip,1}, dir::Symbol)
     idx = findfisrt((:x, :y, :z), dir)
     minimum([ip.X[idx] for ip in ips])
 end

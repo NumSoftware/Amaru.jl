@@ -3,11 +3,11 @@
 const arith_tol=1e-6
 
 const op_dict = Dict{Symbol,Function}(
-    :+ => +, 
-    :- => -, 
-    :* => *, 
-    :/ => /, 
-    :^ => ^, 
+    :+ => +,
+    :- => -,
+    :* => *,
+    :/ => /,
+    :^ => ^,
     :div => div,
     :(>)  => (a,b) -> a>b+arith_tol,
     :(<)  => (a,b) -> a<b-arith_tol,
@@ -39,7 +39,7 @@ end
 function reduce_arith_expr!(expr::Expr; vars...)
 
     # get operation arguments
-    if expr.head == :call 
+    if expr.head == :call
         arg_idxs = UnitRange(2,length(expr.args))
     elseif expr.head == :comparison
         arg_idxs = StepRange(1,2,length(expr.args))

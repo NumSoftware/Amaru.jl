@@ -8,7 +8,7 @@ mutable struct DruckerPragerIpState<:IpState
     ε::Tensor2
     εpa::Float64
     Δγ::Float64
-    function DruckerPragerIpState(env::ModelEnv=ModelEnv()) 
+    function DruckerPragerIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ   = zeros(6)
         this.ε   = zeros(6)
@@ -37,9 +37,9 @@ mutable struct DruckerPrager<:Material
         @assert kappa>0.0
         @assert H>=0.0
         @assert rho>=0.0
-        
+
         this    = new(E, nu, alpha, kappa, H, rho)
-        return this 
+        return this
     end
 end
 
@@ -74,7 +74,7 @@ function calcD(mat::DruckerPrager, ipd::DruckerPragerIpState)
 
     j2d = J2D(ipd.σ)
     if j2d != 0.0
-        s  = dev(ipd.σ) 
+        s  = dev(ipd.σ)
         su = s/norm(s)
         V  = α*tI + su/√2 # df/dσ
         N  = V
@@ -98,7 +98,7 @@ function stress_update(mat::DruckerPrager, ipd::DruckerPragerIpState, Δε::Arra
         ipd.Δγ = 0.0
         ipd.σ  = σtr
     else
-        # plastic 
+        # plastic
         K, G  = mat.E/(3.0*(1.0-2.0*mat.ν)), mat.E/(2.0*(1.0+mat.ν))
         α, H  = mat.α, mat.H
         n     = 1.0/√(3.0*α*α+0.5)

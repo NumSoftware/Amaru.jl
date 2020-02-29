@@ -13,7 +13,7 @@ mutable struct SmearedCrackIpState<:IpState
     Δλ ::Float64  # plastic multiplier
     h  ::Float64  # element size fraction for a integration point
     hascrack::Bool
-    function SmearedCrackIpState(env::ModelEnv=ModelEnv()) 
+    function SmearedCrackIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
@@ -45,7 +45,7 @@ mutable struct SmearedCrack<:Material
         this = new(E, nu, ft, mu, alpha, wc, ws, softcurve)
         this.α = 1.0
         this.α = 0.5
-        return this 
+        return this
     end
 end
 
@@ -59,18 +59,18 @@ ip_state_type(mat::SmearedCrack) = SmearedCrackIpState
 function calc_σmax(mat::SmearedCrack, ipd::SmearedCrackIpState, upa::Float64)
     wc  = mat.wc
     ws  = mat.ws
-	if mat.softcurve == "linear"
-		if upa < wc
+    if mat.softcurve == "linear"
+        if upa < wc
             a = mat.ft
             b = mat.ft/wc
-		else
+        else
             a = b = 0.0
         end
         σmax = a - b*upa
     elseif mat.softcurve == "bilinear"
         σs = 0.25*mat.ft
         if upa < ws
-            a  = mat.ft 
+            a  = mat.ft
             b  = (mat.ft - σs)/ws
         elseif upa < wc
             a  = wc*σs/(wc-ws)
@@ -96,9 +96,9 @@ function σmax_deriv(mat::SmearedCrack, ipd::SmearedCrackIpState, upa::Float64)
     wc  = mat.wc
     ws  = mat.ws
     if mat.softcurve == "linear"
-		if upa < wc
+        if upa < wc
             b = mat.ft/wc
-		else
+        else
             b = 0.0
         end
         dσmax = -b
@@ -144,7 +144,7 @@ function potential_derivs(mat::SmearedCrack, ipd::SmearedCrackIpState, ς::Array
         else # G2:
             r = [ 0.0, 2.0*ς[2], 2.0*ς[3] ]
         end
-    else # σmax==0.0    
+    else # σmax==0.0
         r = [ 0.0, 2.0*ς[2], 2.0*ς[3] ]
     end
     return r
@@ -165,7 +165,7 @@ function calcD(mat::SmearedCrack, ipd::SmearedCrackIpState)
     T = ipd.T
     h = ipd.h
 
-    if ipd.Δλ == 0.0  # Elastic 
+    if ipd.Δλ == 0.0  # Elastic
         D = De
         D[1,:] .= ( kn*h, 0.0, 0.0, 0.0, 0.0, 0.0 )
         D[5,:] .= (    0.0, 0.0, 0.0, 0.0, ks*h, 0.0 )
@@ -334,8 +334,8 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
     if !ipd.hascrack
         P = eigenvals(σtr)
         if P[1]>mat.ft
-            P, V = eigen(σtr) 
-            ipd.T = tensor_rot(V) 
+            P, V = eigen(σtr)
+            ipd.T = tensor_rot(V)
             ipd.hascrack = true
 
             #mand = (1.0, SR2, SR2)
@@ -399,7 +399,7 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
         #@show ipd.w[1]
         #@show ςtr
 
-        if ipd.upa/mat.wc >= 0.99 && ipd.w[1] >= 0.0 && ςtr[1]>=0.0 
+        if ipd.upa/mat.wc >= 0.99 && ipd.w[1] >= 0.0 && ςtr[1]>=0.0
             #println("111111111111111111111111111111111111")
             r1 = [ ςtr[1]/kn, ςtr[2]/ks, ςtr[3]/ks ]
             ipd.Δλ   = norm(r1)
@@ -446,7 +446,7 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
                 end
             end
 
-            if Δλ<0 
+            if Δλ<0
                 σmax = calc_σmax(mat, ipd, ipd.upa)
                 @warn "Δλ calculation failed using NR"
                 @show σmax
@@ -470,8 +470,8 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
             ipd.Δλ  = Δλ
             #@show ς
             #@show ipd.upa
-            
-        
+
+
 
             # Return to surface:
             Fend  = yield_func(mat, ipd, ς)
@@ -483,7 +483,7 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
             #@show ς
 
 
-            #if false 
+            #if false
             if abs(Fend) > 1e-2
                 @show Fend
             end
@@ -507,7 +507,7 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
     Δσ = ipd.σ - σini
     #@show Δσ
 
-    return Δσ 
+    return Δσ
 end
 
 function ip_state_vals(mat::SmearedCrack, ipd::SmearedCrackIpState)

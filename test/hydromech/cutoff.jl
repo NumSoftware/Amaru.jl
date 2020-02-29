@@ -1,6 +1,6 @@
 using Amaru
 
-# Geometria 
+# Geometria
 Lrocha    = 30.00;
 Hrocha    = 15.00;
 Lgap      = 0.50;
@@ -12,7 +12,7 @@ blocks = [
     Block( [(Lrocha/2+Lgap/2) 0; Lrocha Hrocha], nx=14, ny=15, cellshape=QUAD8, tag="solids"),
 ]
 
-mesh  = Mesh(blocks, silent=true) 
+mesh  = Mesh(blocks, silent=true)
 
 # Analysis data
 k    = 1.0e-8  # permeability

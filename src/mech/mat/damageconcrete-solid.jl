@@ -31,16 +31,17 @@ mutable struct DamageConcreteIpState<:IpState
     env::ModelEnv
     σ::Array{Float64,1}  # current stress
     ε::Array{Float64,1}  # current strain
-    ε̅cmax::Float64 
-    ε̅tmax::Float64 
+    ε̅cmax::Float64
+    ε̅tmax::Float64
     h::Float64        # characteristic length
     in_linear_range::Bool
     damt::Float64
     damc::Float64
     _E::Float64
     _ν::Float64
+    in_tension::Bool
 
-    function DamageConcreteIpState(env::ModelEnv=ModelEnv()) 
+    function DamageConcreteIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
@@ -90,6 +91,7 @@ function uniaxial_σ(mat::DamageConcrete, ipd::DamageConcreteIpState, εi::Float
         αt = 2.05
         #αt = 1.5 #*
         γ = 1.0 - αt/mat.fc*( √(σ1c^2 + σ2c^2+ σ3c^2)) # suggested value for coef: 2.0
+        #@show γ
         #γ = 1.0 - αt/mat.fc*( abs(σ1c + σ2c+ σ3c)) # suggested value for coef: 2.0
         #γ = 1.0
         ft = mat.ft*γ
@@ -109,7 +111,7 @@ function uniaxial_σ(mat::DamageConcrete, ipd::DamageConcreteIpState, εi::Float
             #@show 0.5*ft*εt0*ipd.h
             #error()
             #@assert GF>0
-            #return ft*exp(-ft/GF*w)
+            #@show ft*exp(-ft/mat.GF*w)
             return ft*exp(-ft/mat.GF*w)
         end
 
@@ -119,6 +121,7 @@ function uniaxial_σ(mat::DamageConcrete, ipd::DamageConcreteIpState, εi::Float
         #γ = 1.0 + αc*((σ2c*σ3c+ σ1c*σ3c+ σ1c*σ2c)/mat.fc^2)^0.25 # suggested values for coef: 0.2
         #γ = 1.0 + αc*((σ2c*σ3c+ σ1c*σ3c+ σ1c*σ2c)/mat.fc^2) # suggested values for coef: 0.2
         γ = 1.0 - αc/mat.fc*( √(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c)) # suggested values for coef: 0.2
+        # γ = 1.0
         fc = mat.fc*γ
 
         β = 1/(1-fc/(mat.εc0*mat.E0))
@@ -140,6 +143,7 @@ function uniaxial_E(mat::DamageConcrete, ipd::DamageConcreteIpState, εi::Float6
         #γ = 1.0 - 2.05/mat.fc*( abs(σ1c + σ2c+ σ3c)) # suggested value for coef: 2.0
         #γ = 1.0
         ft = mat.ft*γ
+        #@show ft
         εt0 = ft/mat.E0
         if εi<εt0
             return mat.E0
@@ -161,13 +165,14 @@ function uniaxial_E(mat::DamageConcrete, ipd::DamageConcreteIpState, εi::Float6
         #γ = 1.0 - 0.15/mat.fc*( √(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c)) # suggested values for coef: 0.4
         #γ = 1.0 + 0.2*((σ2c*σ3c+ σ1c*σ3c+ σ1c*σ2c)/mat.fc^2)^0.25 # suggested values for coef: 0.3
         #γ = 1.0 + 0.45(√(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c))/abs(mat.fc) # suggested values for coef: 0.45
-        #γ = 1.0
+        # γ = 1.0
         fc = mat.fc*γ
 
         εc0 = mat.εc0*γ
         εr  = εi/εc0
 
         β = 1/(1-fc/(εc0*mat.E0))
+        β = max(min(β,10),2) # limit the value of β
         Ec = β*(fc/εc0)/(β-1+εr^β) - β^2*(fc/εc0)*εr^β/(β-1+εr^β)^2
         #Ec *= γ
         return Ec
@@ -177,6 +182,7 @@ end
 
 function calcD(mat::DamageConcrete, ipd::DamageConcreteIpState)
 
+    #@show ipd._E
     if ipd._E==0.0
         E = mat.E0
         ν = mat.ν
@@ -185,7 +191,7 @@ function calcD(mat::DamageConcrete, ipd::DamageConcreteIpState)
         ν = ipd._ν
     end
 
-    D  = calcDe(E, ν, :general)
+    D  = calcDe(E, ν, ipd.env.modeltype)
     return D
 end
 
@@ -203,19 +209,19 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
 
     # principal strains
     εp = eigvals(ipd.ε)
-    ε̅t = norm(pos.(εp))
-    ε̅c = norm(neg.(εp))
+    ε̅c = norm(neg.(εp), 2)
+    ε̅t = norm(pos.(εp), 2)
     # principal stresses
     σp = eigvals(ipd.σ)
-    σ̅c = norm(neg.(σp))
-    σ̅t = norm(pos.(σp))
+    σ̅c = norm(neg.(σp), 2)
+    σ̅t = norm(pos.(σp), 2)
     Δε̅tmax = max(ε̅t-ipd.ε̅tmax, 0.0)
     Δε̅cmax = max(ε̅c-ipd.ε̅cmax, 0.0)
 
-    if σ̅c==0 
+    if σ̅c==0
         in_tension = true
     else
-        in_tension = σ̅t/σ̅c > 0.01
+        #in_tension = σ̅t/σ̅c > 0.01
         in_tension = σ̅t/σ̅c > 0.01 || ε̅t > ε̅c
         #@show ε̅t/ε̅c
     end
@@ -224,16 +230,20 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
     ipd.ε̅tmax = max(ε̅t, ipd.ε̅tmax)
     ipd.ε̅cmax = max(ε̅c, ipd.ε̅cmax)
 
+     #@show in_tension
+
     # estimate tangent Young modulus
     if in_tension
+            #@show ε̅t
         if ε̅t < ipd.ε̅tmax
             E = ε̅t==0 ? mat.E0 : min(mat.E0, σ̅t/ε̅t)
-
+            #E = ε̅t==0 ? mat.E0 : min(ipd._E, σ̅t/ε̅t)
             ipd.in_linear_range = true
         else
             E = Efun(ε̅t)
             ipd.in_linear_range = false
         end
+        E = Efun(ε̅t)
         ν = mat.ν*(1-ipd.damt)
         #ν = mat.ν
     else
@@ -244,6 +254,7 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
             E = Efun(-ε̅c)
             ipd.in_linear_range = false
         end
+        E = Efun(-ε̅c)
         #ν = mat.ν*(1-ipd.damc)
         ν = mat.ν
     end
@@ -261,11 +272,13 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
         end
     end
 
+    #@show E*1
     Emin = mat.E0*1e-6
     abs(E)<Emin && (E=Emin)
-    # @show E
+    #@show Emin
+    #@show E
 
-    D  = calcDe(E, ν, :general)
+    D  = calcDe(E, ν, ipd.env.modeltype)
     Δσ = D*Δε
     ipd.σ .+= Δσ
 
@@ -284,6 +297,8 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
         ipd.damc = 0.0
     end
 
+    ipd.in_tension = in_tension
+
     #ipd.damt = 1.0 - σfun(ipd.ε̅tmax)/ipd.ε̅tmax/mat.E0
     #ipd.damc = 1.0 + σfun(-ipd.ε̅cmax)/ipd.ε̅cmax/mat.E0
 
@@ -296,6 +311,9 @@ function ip_state_vals(mat::DamageConcrete, ipd::DamageConcreteIpState)
     dict = stress_strain_dict(ipd.σ, ipd.ε, ipd.env.ndim)
     dict[:damt] = ipd.damt
     dict[:damc] = ipd.damc
+    dict[:E] = ipd._E
+    dict[:nu] = ipd._ν
+    dict[:T] = ipd.in_tension
 
     εp = eigvals(ipd.ε)
     ε̅t = norm(pos.(εp))

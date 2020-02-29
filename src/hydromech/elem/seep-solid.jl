@@ -13,8 +13,8 @@ mutable struct SeepSolid<:Hydromechanical
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function SeepSolid(); 
-        return new() 
+    function SeepSolid();
+        return new()
     end
 end
 
@@ -139,7 +139,7 @@ function elem_compressibility_matrix(elem::SeepSolid)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     C   = elem_coords(elem)
-    Cpp = zeros(nnodes, nnodes) 
+    Cpp = zeros(nnodes, nnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
 
@@ -153,7 +153,7 @@ function elem_compressibility_matrix(elem::SeepSolid)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # compute Cuu
-        coef = detJ*ip.w*elem.mat.S 
+        coef = detJ*ip.w*elem.mat.S
         Cpp  -= coef*N*N'
     end
 
@@ -213,7 +213,7 @@ function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
 
     for ip in elem.ips
 
-        # compute Bp matrix 
+        # compute Bp matrix
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = dNdR*C
         detJ = det(J)
@@ -227,8 +227,8 @@ function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
 
         # internal volumes dFw
         uw   = ip.data.uw
-        coef = detJ*ip.w*elem.mat.S 
-        dFw -= coef*N*uw  
+        coef = detJ*ip.w*elem.mat.S
+        dFw -= coef*N*uw
 
         D    = ip.data.D
         coef = detJ*ip.w
@@ -278,8 +278,8 @@ function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1
 
         V = update_state!(elem.mat, ip.data, Δuw, G, Δt)
 
-        coef = detJ*ip.w*elem.mat.S 
-        dFw -= coef*N*Δuw  
+        coef = detJ*ip.w*elem.mat.S
+        dFw -= coef*N*Δuw
 
         coef = Δt*detJ*ip.w
         @gemv dFw += coef*Bp'*V

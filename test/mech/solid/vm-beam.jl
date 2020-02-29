@@ -1,7 +1,7 @@
 using Amaru
 using Test
 
-# mesh 
+# mesh
 bls = [
        Block( [0 0 -0.05; 0.05 1.0 0.05], nx=1, ny=50, nz=2, cellshape=HEX20),
       ]

@@ -9,11 +9,11 @@ mats = [ "solids" => ElasticSolid(E=100.0, nu=0.2) ]
 dom = Domain(mesh, mats)
 
 # Loggers
-node_log1 = NodeLogger()
+node_log1 = NodeLogger("node_log1.dat")
 node_log2 = NodeLogger()
-nodes_log1 = NodeGroupLogger()
+nodes_log1 = NodeGroupLogger("nodes_log1.dat")
 
-faces_log1 = FaceLogger()
+faces_log1 = FaceLogger("faces_log1.dat")
 faces_log2 = FaceLogger()
 edges_log1 = EdgeLogger()
 edges_log2 = EdgeLogger()
@@ -31,7 +31,7 @@ loggers = [
            :(z==1) => edges_log1,
            :(z==1) => edges_log2,
            #"barra1" => GroupElemLogger(), # TODO
-           
+
            :(x>0.5 && y>0.5 && z>0.5) => ip_log1,
            :(x>0.5 && y>0.5) => ips_log1,
           ]

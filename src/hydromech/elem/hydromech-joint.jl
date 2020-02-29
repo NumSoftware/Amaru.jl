@@ -146,7 +146,7 @@ function elem_coupling_matrix(elem::HydroMechJoint)
     nlnodes  = Int((nnodes-nbsnodes)/2) 
     dnlnodes = nnodes-nbsnodes
     fshape   = elem.shape.facet_shape
-	C        = elem_coords(elem)[1:nlnodes,:]
+    C        = elem_coords(elem)[1:nlnodes,:]
 
     J        = Array{Float64}(undef, ndim-1, ndim)
     NN       = zeros(ndim, dnlnodes*ndim)
@@ -206,6 +206,7 @@ end
 
 function elem_conductivity_matrix(elem::HydroMechJoint)
     ndim     = elem.env.ndim
+    th       = elem.env.thickness
     nnodes   = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     nlnodes  = Int((nnodes-nbsnodes)/2) 
@@ -253,13 +254,13 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
         Nt = [N0' Np' -Np']
 
         # compute H
-        coef  = detJ*ip.w*elem.mat.kt/elem.mat.γw
+        coef  = detJ*ip.w*th*elem.mat.kt/elem.mat.γw
         H += coef*Nb'*Nb
         H += coef*Nt'*Nt
 
          # compute crack aperture
         if elem.mat.kl == 0.0
-            if ip.data.upa == 0.0 || ip.data.w[1] <= 0.0
+            if ip.data.upa == 0.0 || ip.data.w[1] <= 0.0 || isnan(ip.data.upa) 
                 kl = 0.0
             else
                 kl = ip.data.w[1]
@@ -272,7 +273,7 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
             end
         end    
 
-        coef = detJ*ip.w*(kl^3)/(12*elem.mat.η) 
+        coef = detJ*ip.w*th*(kl^3)/(12*elem.mat.η) 
         H -= coef*Bf'*Bf
     end
     
@@ -285,6 +286,7 @@ end
 
 function elem_compressibility_matrix(elem::HydroMechJoint)
     ndim     = elem.env.ndim
+    th       = elem.env.thickness
     nnodes   = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     nlnodes  = Int((nnodes-nbsnodes)/2) 
@@ -316,7 +318,7 @@ function elem_compressibility_matrix(elem::HydroMechJoint)
         Nf = [N0' N0' Np']
 
         # compute Cpp
-        coef = detJ*ip.w*elem.mat.β
+        coef = detJ*ip.w*elem.mat.β*th
         Cpp -= coef*Nf'*Nf
     end
 
@@ -329,6 +331,7 @@ end
 
 function elem_RHS_vector(elem::HydroMechJoint)
     ndim     = elem.env.ndim
+    th       = elem.env.thickness
     nnodes   = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     nlnodes  = Int((nnodes-nbsnodes)/2) 
@@ -375,7 +378,7 @@ function elem_RHS_vector(elem::HydroMechJoint)
 
         # compute crack aperture
         if elem.mat.kl == 0.0
-            if ip.data.upa == 0.0 || ip.data.w[1] <= 0.0
+            if ip.data.upa == 0.0 || ip.data.w[1] <= 0.0 || isnan(ip.data.upa)
                 kl = 0.0
             else
                 kl = ip.data.w[1]
@@ -388,7 +391,7 @@ function elem_RHS_vector(elem::HydroMechJoint)
             end
         end    
 
-        coef = detJ*ip.w*(kl^3)/(12*elem.mat.η)   
+        coef = detJ*ip.w*th*(kl^3)/(12*elem.mat.η)   
         bf = T[(2:end), (1:end)]*Z*elem.mat.γw
         
         @gemm Q += coef*Bf'*bf
@@ -488,11 +491,11 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
         mfw = mf'*w
         dFw-= coef*Nf'*mfw 
 
-        coef = detJ*ip.w*elem.mat.β
+        coef = detJ*ip.w*elem.mat.β*th
         dFw -= coef*Nf'*uwf
 
         # longitudinal flow
-        coef = detJ*ip.w  
+        coef = detJ*ip.w*th  
         S = ip.data.S
         dFw -= coef*Bf'*S
          
@@ -599,7 +602,7 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
         @gemv Δω = Bu*dU
           
         # internal force dF
-        Δσ, V, L = stress_update(elem.mat, ip.data, Δω, Δuw, G, BfUw, Δt)
+        Δσ, Vt, L = stress_update(elem.mat, ip.data, Δω, Δuw, G, BfUw, Δt)
         Δσ -= mf*Δuw[3] # get total stress
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*Δσ
@@ -609,16 +612,16 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
         mfΔω = mf'*Δω
         dFw -= coef*Nf'*mfΔω 
 
-        coef = detJ*ip.w*elem.mat.β
+        coef = detJ*ip.w*elem.mat.β*th
         dFw -= coef*Nf'*Δuw[3]
 
         # longitudinal flow
-        coef = Δt*detJ*ip.w
+        coef = Δt*detJ*ip.w*th
         dFw -= coef*Bf'*L
 
         # transverse flow
-        dFw -= coef*Nt'*V[1]  
-        dFw -= coef*Nb'*V[2] 
+        dFw -= coef*Nt'*Vt[1]  
+        dFw -= coef*Nb'*Vt[2] 
     end
 
     F[map_u] .+= dF

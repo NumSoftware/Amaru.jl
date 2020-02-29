@@ -17,7 +17,7 @@ mutable struct DTable
     function DTable()
         this = new()
         this.columns  = []
-        this.colindex = OrderedDict() 
+        this.colindex = OrderedDict()
         this.header   = []
         return this
     end
@@ -66,7 +66,7 @@ end
 import Base.push!
 function push!(table::DTable, row::Array{T,1} where T)
     @assert length(table.colindex)==length(row)
-    
+
     if length(table.columns[1])==0
         table.columns = [ typeof(v)[v] for v in row  ]
     else
@@ -168,7 +168,7 @@ function save(table::DTable, filename::String; verbose::Bool=true, digits::Array
 
     local f::IOStream
     try
-        f  = open(filename, "w") 
+        f  = open(filename, "w")
     catch err
         @warn "DTable: File $filename could not be opened for writing."
         return
@@ -191,7 +191,7 @@ function save(table::DTable, filename::String; verbose::Bool=true, digits::Array
                 if typeof(item)<:AbstractFloat
                     @printf(f, "%12.5e", item)
                 elseif typeof(item)<:Integer
-                    @printf(f, "%12d", item) 
+                    @printf(f, "%12d", item)
                 else
                     @printf(f, "%12s", item)
                 end
@@ -209,11 +209,11 @@ function save(table::DTable, filename::String; verbose::Bool=true, digits::Array
 
         verbose && printstyled("  file $filename written (DTable)\n", color=:cyan)
     end
-    
+
     if format=="tex"
         # widths calculation
         header = keys(table.colindex)
-        widths = length.(header) 
+        widths = length.(header)
         types  = eltype.(table.columns)
 
         if length(digits)==0
@@ -268,7 +268,7 @@ function save(table::DTable, filename::String; verbose::Bool=true, digits::Array
                     end
                     print(f, lpad(string(item), width))
                 elseif etype<:Integer
-                    item = @sprintf("%6d", item) 
+                    item = @sprintf("%6d", item)
                     print(f, lpad(item, width))
                 elseif etype<:AbstractString
                     print(f, rpad(item, width))
@@ -297,7 +297,7 @@ function save(book::DBook, filename::String; verbose::Bool=true)
 
     local f::IOStream
     try
-        f  = open(filename, "w") 
+        f  = open(filename, "w")
     catch err
         @warn "DBook: File $filename could not be opened for writing."
         return
@@ -418,7 +418,7 @@ function Base.show(io::IO, table::DTable)
     end
 
     header = keys(table.colindex)
-    widths = length.(header) 
+    widths = length.(header)
     types  = eltype.(table.columns)
     for (i,col) in enumerate(table.columns)
         etype = types[i]
@@ -464,7 +464,7 @@ function Base.show(io::IO, table::DTable)
                 item = @sprintf("%12.5e", item)
                 print(lpad(item, widths[j]))
             elseif etype<:Integer
-                item = @sprintf("%6d", item) 
+                item = @sprintf("%6d", item)
                 print(lpad(item, widths[j]))
             elseif etype<:AbstractString
                 str = item

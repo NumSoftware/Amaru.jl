@@ -13,8 +13,8 @@ msh = Mesh(blt, verbose=false)
 
 mats = [ "beam" => ElasticBeam(E=10, A=1, I=1) ]
 
-bcs = 
-    [ 
+bcs =
+    [
      :(x==0 && y==0) => NodeBC(ux=0, uy=0, rz=0),
      :(x==1 && y==0) => NodeBC(fy=-10.),
     ]

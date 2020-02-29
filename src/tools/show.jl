@@ -7,7 +7,7 @@ macro showm(M)
         #Base.showarray(STDOUT, $(esc(M)), false)
         Base.print_matrix(stdout, $(esc(M)))
         #filename != nothing && printstyled(" : ", basename($filename), color=:blue)
-        println() 
+        println()
     end
 end
 
@@ -28,13 +28,13 @@ function print_field_values(io::IO, obj::Any)
 
         if isbitstype(ty) || ty in (String, Symbol, Expr)
             print(io, repr(item))
-        elseif :name in fieldnames(ty) 
+        elseif :name in fieldnames(ty)
             if isdefined(item, :name)
                 print(io, ty, " name=", getfield(item, :name))
             else
                 print(io, ty, " undef")
             end
-        elseif :id in fieldnames(ty) 
+        elseif :id in fieldnames(ty)
             if isdefined(item, :id )
                 print(io, ty, " id=", getfield(item, :id ))
             else

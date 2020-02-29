@@ -172,7 +172,7 @@ mutable struct NodeGroupLogger<:AbstractLogger
     book     ::DBook
     nodes    ::Array{Node,1}
 
-    function NodeGroupLogger(filename::String="") 
+    function NodeGroupLogger(filename::String="")
         return new(filename, :(), DBook(), [])
     end
 end

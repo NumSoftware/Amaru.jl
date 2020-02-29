@@ -177,7 +177,7 @@ end
 
 function elem_extrapolated_node_vals(elem::MechJoint1D)
     all_ip_vals = [ ip_state_vals(elem.mat, ip.data) for ip in elem.ips ]
-    nips        = length(elem.ips) 
+    nips        = length(elem.ips)
     fields      = keys(all_ip_vals[1])
     nfields     = length(fields)
 
