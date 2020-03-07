@@ -243,7 +243,7 @@ function elem_conductivity_matrix(elem::HydroMechJoint2)
         Nt = [-Np'  Np']
 
         # compute H
-        coef  = detJ*ip.w*th*elem.mat.kt/elem.mat.γw
+        coef  = detJ*ip.w*th*elem.mat.kt
         H += coef*Nb'*Nb
         H += coef*Nt'*Nt
 
@@ -272,7 +272,7 @@ function elem_conductivity_matrix(elem::HydroMechJoint2)
     return H, map, map, nodes_p
 end
 
-
+#=
 function elem_compressibility_matrix(elem::HydroMechJoint2)
     ndim     = elem.env.ndim
     th       = elem.env.thickness
@@ -314,7 +314,7 @@ function elem_compressibility_matrix(elem::HydroMechJoint2)
 
     return Cpp, map, map
 end
-
+=#
 
 function elem_RHS_vector(elem::HydroMechJoint2)
     ndim     = elem.env.ndim
@@ -472,10 +472,10 @@ function elem_internal_forces(elem::HydroMechJoint2, F::Array{Float64,1})
         coef = detJ*ip.w*th
         mfw = mf'*w
         dFw-= coef*Nf'*mfw
-
+#=
         coef = detJ*ip.w*elem.mat.β*th
         dFw -= coef*Nf'*uwf
-
+=#
         # longitudinal flow
         coef = detJ*ip.w*th
         S = ip.data.S
@@ -578,7 +578,7 @@ function elem_update!(elem::HydroMechJoint2, U::Array{Float64,1}, F::Array{Float
         uwt  = Np'*dUw[nbsnodes+1:2*nbsnodes]
         uwf  = (uwb + uwt)/2
         Δuw  = [uwb; uwt; uwf]
-        G    = [ dot(Nt,Uw)/(elem.mat.γw*1); dot(Nb,Uw)/(elem.mat.γw*1)]
+        G    = [ dot(Nt,Uw); dot(Nb,Uw)]
         BfUw = Bf*Uw + bf
 
         @gemv Δω = Bu*dU
@@ -593,10 +593,10 @@ function elem_update!(elem::HydroMechJoint2, U::Array{Float64,1}, F::Array{Float
         coef = detJ*ip.w*th
         mfΔω = mf'*Δω
         dFw -= coef*Nf'*mfΔω
-
+#=
         coef = detJ*ip.w*elem.mat.β*th
         dFw -= coef*Nf'*uwf
-
+=#
         # longitudinal flow
         coef = Δt*detJ*ip.w*th
         dFw -= coef*Bf'*L

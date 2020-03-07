@@ -37,7 +37,6 @@ mutable struct ElasticJointSeep2<:Material
     γw ::Float64        # specific weight of the fluid
     α  ::Float64        # Biot's coefficient
     S  ::Float64        # Storativity coefficient
-    β  ::Float64        # compressibility of fluid
     η  ::Float64        # viscosity
     kt ::Float64        # leak-off coefficient
     kl ::Float64        # initial fracture opening (longitudinal flow)
@@ -46,7 +45,7 @@ mutable struct ElasticJointSeep2<:Material
         return  ElasticJoint2(;prms...)
     end
 
-    function ElasticJointSeep2(;E=NaN, nu=NaN, zeta=NaN, k=NaN, kappa=NaN, gammaw=NaN, alpha=NaN, S=NaN, n=NaN, Ks=NaN, Kw=NaN, beta=0.0, eta=NaN, kt=NaN, kl=0.0)
+    function ElasticJointSeep2(;E=NaN, nu=NaN, zeta=NaN, k=NaN, kappa=NaN, gammaw=NaN, alpha=NaN, S=NaN, n=NaN, Ks=NaN, Kw=NaN, eta=NaN, kt=NaN, kl=0.0)
 
         !(isnan(kappa) || kappa>0) && error("Invalid value for kappa: $kappa")
 
@@ -65,12 +64,11 @@ mutable struct ElasticJointSeep2<:Material
         gammaw>0    || error("Invalid value for gammaw: $gammaw")
         0<alpha<=1.0|| error("Invalid value for alpha: $alpha")
         S>=0.0      || error("Invalid value for S: $S")
-        beta>=0     || error("Invalid value for beta: $beta")
         eta>=0      || error("Invalid value for eta: $eta")
         kt>=0       || error("Invalid value for kt: $kt")
         kl>=0       || error("Invalid value for kl: $kl")
 
-        this = new(E, nu, zeta, k, gammaw, alpha, S, beta, eta, kt, kl)
+        this = new(E, nu, zeta, k, gammaw, alpha, S, eta, kt, kl)
         return this
     end
 end
