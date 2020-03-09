@@ -6,9 +6,8 @@ mutable struct ElasticSolidThermoIpState<:IpState
     env::ModelEnv
     σ::Array{Float64,1} # stress
     ε::Array{Float64,1} # strain
-    Q::Array{Float64,1}
+    Q::Array{Float64,1} # heat flux
     ut::Float64
-
     function ElasticSolidThermoIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(6)
@@ -35,9 +34,9 @@ mutable struct ElasticSolidThermo<:Material
 
     function ElasticSolidThermo(;E=NaN, nu=0.0, k=NaN, rho=NaN, cv=NaN, alpha=1.0)
         E>0.0       || error("Invalid value for E: $E")
-        !(0<=nu<0.5) && error("Invalid value for nu: $nu")
+        (0<=nu<0.5) && error("Invalid value for nu: $nu")
         isnan(k)     && error("Missing value for k")
-        cv<=0.0       && error("Invalid value for E: $E")
+        cv<=0.0       && error("Invalid value for cv: $cv")
         0<=alpha<=1  || error("Invalid value for alpha: $alpha")
 
         this = new(E, nu, k, rho, cv, alpha)
@@ -48,9 +47,6 @@ end
 
 # Returns the element type that works with this material model
 matching_elem_type(::ElasticSolidThermo) = TMSolid
-
-# Create a new instance of Ip data
-#new_ip_state(mat::ElasticSolidThermo, env::ModelEnv) = ElasticSolidThermoIpState(env)
 
 # Type of corresponding state structure
 ip_state_type(mat::ElasticSolidThermo) = ElasticSolidThermoIpState
@@ -85,7 +81,7 @@ function calcK(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState) # Therma
     end
 end
 
-function stress_update(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1})
+function stress_update(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
     De = calcD(mat, ipd)
     Δσ = De*Δε
     ipd.ε  += Δε
