@@ -73,3 +73,13 @@ end
 function elem_RHS_vector(elem::Thermomechanical)
     return zeros(0), zeros(Int64,0)
 end
+
+
+"""
+`elem_internal_forces!(elem, F)`
+
+Gets internal nodal forces from current element state.
+This function must be defined by each concrete type.
+"""
+function elem_internal_forces(elem::Thermomechanical, F::Array{Float64,1})
+end

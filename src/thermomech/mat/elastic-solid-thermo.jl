@@ -6,13 +6,13 @@ mutable struct ElasticSolidThermoIpState<:IpState
     env::ModelEnv
     σ::Array{Float64,1} # stress
     ε::Array{Float64,1} # strain
-    Q::Array{Float64,1} # heat flux
+    QQ::Array{Float64,1} # heat flux
     ut::Float64
     function ElasticSolidThermoIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
-        this.Q = zeros(env.ndim)
+        this.QQ = zeros(env.ndim)
         this.ut = 0.0
         return this
     end
@@ -34,7 +34,7 @@ mutable struct ElasticSolidThermo<:Material
 
     function ElasticSolidThermo(;E=NaN, nu=NaN, k=NaN, rho=NaN, cv=NaN, alpha=1.0)
         E>0.0       || error("Invalid value for E: $E")
-        (0<=nu<0.5) && error("Invalid value for nu: $nu")
+        (0<=nu<0.5) || error("Invalid value for nu: $nu")
         isnan(k)     && error("Missing value for k")
         cv<=0.0       && error("Invalid value for cv: $cv")
         0<=alpha<=1  || error("Invalid value for alpha: $alpha")
@@ -81,24 +81,24 @@ function calcK(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState) # Therma
     end
 end
 
-function stress_update!(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
+function stress_update(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
     De = calcD(mat, ipd)
     Δσ = De*Δε
     ipd.ε  += Δε
     ipd.σ  += Δσ
     K = calcK(mat, ipd)
-    ipd.Q = -K*G
+    ipd.QQ = -K*G
     ipd.ut += Δut
-    return Δσ, ipd.Q
+    return Δσ, ipd.QQ
 end
 
 function ip_state_vals(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState)
     D = stress_strain_dict(ipd.σ, ipd.ε, ipd.env.ndim)
 
-   D[:qx] = ipd.Q[1]
-    D[:qy] = ipd.Q[2]
+   D[:qx] = ipd.QQ[1]
+    D[:qy] = ipd.QQ[2]
     if ipd.env.ndim==3
-        D[:qz] = ipd.Q[3]
+        D[:qz] = ipd.QQ[3]
     end
 
     return D

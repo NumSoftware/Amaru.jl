@@ -107,7 +107,7 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
 end
 
 
-function setBut(env::ModelEnv, dNdX::Matx, detJ::Float64, B::Matx)
+function setBu(env::ModelEnv, dNdX::Matx, detJ::Float64, B::Matx)
     ndim, nnodes = size(dNdX)
     B .= 0.0
 
@@ -156,7 +156,7 @@ function elem_stiffness(elem::TMSolid)
     K = zeros(nnodes*ndim, nnodes*ndim)
     Bu = zeros(6, nnodes*ndim)
 
-    DB = Array{Float64}(undef, 6, nnodes*ndim)
+    DBu = Array{Float64}(undef, 6, nnodes*ndim)
     J  = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
 
@@ -168,7 +168,7 @@ function elem_stiffness(elem::TMSolid)
         @gemm dNdX = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        setBut(elem.env, dNdX, detJ, Bu)
+        setBu(elem.env, dNdX, detJ, Bu)
 
         # compute K
         coef = detJ*ip.w
@@ -188,14 +188,14 @@ end
 # matrix C
 function elem_coupling_matrix(elem::TMSolid)
     ndim   = elem.env.ndim
-    mat  = elem.mat
+    #th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     C   = elem_coords(elem)
     Bu  = zeros(6, nnodes*ndim)
     Cup = zeros(nnodes*ndim, nbsnodes) # u-p coupling matrix
 
-    β   = mat.E*mat.α/(1-2*mat.nu) #3*K*alpha, K é o coeficiente de compressibilidade
+    β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) #
 
     J   = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
@@ -211,7 +211,7 @@ function elem_coupling_matrix(elem::TMSolid)
         @gemm dNdX = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        setBut(elem.env, dNdX, detJ, Bu)
+        setBu(elem.env, dNdX, detJ, Bu)
 
         # compute Cup
         Np   = elem.shape.basic_shape.func(ip.R)
@@ -235,10 +235,10 @@ function elem_conductivity_matrix(elem::TMSolid)
     θ0     = elem.env.T0 + 273.15
     nnodes = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
-    C      = elem_coords(elem)
+    C      = elem_coords(elem)[1:nbsnodes,:]
     H      = zeros(nnodes, nnodes)
-    Bt     = zeros(ndim, nnodes)
-    KBt    = zeros(ndim, nnodes)
+    Bp     = zeros(ndim, nnodes)
+    KBp    = zeros(ndim, nnodes)
 
     J    = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
@@ -246,18 +246,18 @@ function elem_conductivity_matrix(elem::TMSolid)
 
     for ip in elem.ips
 
-        N    = elem.shape.func(ip.R)
+        #N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J  = dNdR*C
-        @gemm Bt = inv(J)*dNdR
+        @gemm Bp = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # compute H
         K = calcK(elem.mat, ip.data)
         coef = detJ*ip.w/θ0
-        @gemm KBt = K*Bt
-        @gemm H -= coef*Bt'*KBt
+        @gemm KBp = K*Bp
+        @gemm H -= coef*Bp'*KBp
     end
 
     # map
@@ -343,7 +343,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1})
 
     keys   = (:ux, :uy, :uz)[1:ndim]
     map_u  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-    map_p  = [ node.dofdict[:uw].eq_id for node in elem.nodes[1:nbsnodes] ]
+    map_p  = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nbsnodes] ]
 
     dF  = zeros(nnodes*ndim)
     Bu  = zeros(6, nnodes*ndim)
@@ -365,7 +365,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1})
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
         @gemm dNdX = inv(J)*dNdR
-        setBut(elem.env, dNdX, detJ, Bu)
+        setBu(elem.env, dNdX, detJ, Bu)
 
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
         Jp = dNpdR*Cp
@@ -378,20 +378,20 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1})
         # internal force
         ut   = ip.data.ut
         σ    = ip.data.σ - elem.mat.α*ut*m # get total stress
-        coef = detJ*ip.w*th
+        coef = detJ*ip.w*th #VERIFICAAAAAAAAAAAAR
         @gemv dF += coef*Bu'*σ
 
         # internal volumes dFt
         ε    = ip.data.ε
         εvol = dot(m, ε)
-        coef = elem.mat.α*detJ*ip.w
+        coef = elem.mat.α*detJ*ip.w # VEEEERIFICAR
         dFt  -= coef*Np*εvol
 
-        coef = detJ*ip.w*elem.mat.S
+        coef = detJ*ip.w*elem.mat.S  # VEEEERIFICAR
         dFt -= coef*Np*ut
 
         D    = ip.data.D
-        coef = detJ*ip.w
+        coef = detJ*ip.w # VEEEERIFICAR
         @gemv dFt += coef*Bp'*D
     end
 
@@ -438,7 +438,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
         @gemm dNdX = inv(J)*dNdR
-        setBut(elem.env, dNdX, detJ, Bu)
+        setBu(elem.env, dNdX, detJ, Bu)
 
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
         @gemm Jp = dNpdR*Cp
@@ -454,30 +454,29 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         # Compute Δuw
         Δut = Np'*dUt # interpolation to the integ. point
 
-        # Compute flow gradient G
-#        Bp = dNdX
-    #    G  = Bp*Uw/elem.mat.γw
-    #    G[end] += 1.0; # gradient due to gravity
+        # Compute thermal gradient G (REEEEEVER)
+        G  = Bp*Ut/elem.mat.k
+        G[end] += 1.0; # gradient due to gravity
 
         # internal force dF
-        Δσ = stress_update(elem.mat, ip.data, Δε, Δut)
+        Δσ = stress_update(elem.mat, ip.data, Δε, Δut, G, Δt)
         Δσ -= elem.mat.cv*Δut*m # get total stress
 
-        coef = detJ*ip.w
+        coef = detJ*ip.w  # VEEEERIFICAR
         @gemv dF += coef*Bu'*Δσ
 
         # internal volumes dFt
         Δεvol = dot(m, Δε)
-        coef  = elem.mat.α*Δεvol*detJ*ip.w
-        dFt  -= coef*N
+        coef  = elem.mat.α*Δεvol*detJ*ip.w # VEEEERIFICAR
+        dFt  -= coef*Np*Δεvol
 
 #=        if elem.mat.S != 0.0
             coef = elem.mat.S*Δuw*detJ*ip.w
             dFt -= coef*N
         end
 =#
-        coef = Δt*detJ*ip.w
-        @gemv dFt += coef*Bp'*V
+        coef = Δt*detJ*ip.w # VEEEERIFICAR
+        @gemv dFt += coef*Bp'*QQ
     end
 
     DF[map_u] += dF
