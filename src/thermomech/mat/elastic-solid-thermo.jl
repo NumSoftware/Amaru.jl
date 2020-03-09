@@ -32,7 +32,7 @@ mutable struct ElasticSolidThermo<:Material
         return  ElasticSolidThermo(;prms...)
     end
 
-    function ElasticSolidThermo(;E=NaN, nu=0.0, k=NaN, rho=NaN, cv=NaN, alpha=1.0)
+    function ElasticSolidThermo(;E=NaN, nu=NaN, k=NaN, rho=NaN, cv=NaN, alpha=1.0)
         E>0.0       || error("Invalid value for E: $E")
         (0<=nu<0.5) && error("Invalid value for nu: $nu")
         isnan(k)     && error("Missing value for k")
@@ -81,7 +81,7 @@ function calcK(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState) # Therma
     end
 end
 
-function stress_update(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
+function stress_update!(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
     De = calcD(mat, ipd)
     Δσ = De*Δε
     ipd.ε  += Δε
