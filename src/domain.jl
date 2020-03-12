@@ -30,9 +30,8 @@ mutable struct Domain<:AbstractDomain
     env::ModelEnv
 
     # Data
-    point_scalar_data::OrderedDict{String,Array}
-    cell_scalar_data ::OrderedDict{String,Array}
-    point_vector_data::OrderedDict{String,Array}
+    point_data::OrderedDict{String,Array}
+    cell_data ::OrderedDict{String,Array}
 
     function Domain()
         this = new()
@@ -40,9 +39,8 @@ mutable struct Domain<:AbstractDomain
         this.loggers = []
         this.ndofs   = 0
 
-        this.point_scalar_data = OrderedDict()
-        this.cell_scalar_data  = OrderedDict()
-        this.point_vector_data = OrderedDict()
+        this.point_data = OrderedDict()
+        this.cell_data  = OrderedDict()
         return this
     end
 end
@@ -359,9 +357,8 @@ end
 
 function update_output_data!(dom::Domain)
     # Updates data arrays in the domain
-    dom.point_scalar_data = OrderedDict()
-    dom.cell_scalar_data  = OrderedDict()
-    dom.point_vector_data = OrderedDict()
+    dom.point_data = OrderedDict()
+    dom.cell_data  = OrderedDict()
 
     # Nodal values
     # ============
@@ -378,14 +375,14 @@ function update_output_data!(dom::Domain)
 
     # Generate empty lists
     for field in node_fields
-        dom.point_scalar_data[string(field)] = zeros(nnodes)
+        dom.point_data[string(field)] = zeros(nnodes)
     end
 
     # Fill dof values
     for node in dom.nodes
         for dof in node.dofs
             for (field,val) in dof.vals
-                dom.point_scalar_data[string(field)][node.id] = val
+                dom.point_data[string(field)][node.id] = val
             end
         end
     end
@@ -393,14 +390,14 @@ function update_output_data!(dom::Domain)
     # add nodal values from patch recovery (solid elements) : regression + averaging
     V_rec, fields_rec = nodal_patch_recovery(dom)
     for (i,field) in enumerate(fields_rec)
-        dom.point_scalar_data[string(field)] = V_rec[:,i]
+        dom.point_data[string(field)] = V_rec[:,i]
     end
     append!(node_fields, fields_rec)
 
     # add nodal values from local recovery (joints) : extrapolation + averaging
     V_rec, fields_rec = nodal_local_recovery(dom)
     for (i,field) in enumerate(fields_rec)
-        dom.point_scalar_data[string(field)] = V_rec[:,i]
+        dom.point_data[string(field)] = V_rec[:,i]
     end
     append!(node_fields, fields_rec)
 
@@ -410,21 +407,21 @@ function update_output_data!(dom::Domain)
 
     if :ux in node_fields
         if :uz in node_fields
-            dom.point_vector_data["U"] = [ dom.point_scalar_data["ux"] dom.point_scalar_data["uy"] dom.point_scalar_data["uz"] ]
+            dom.point_data["U"] = [ dom.point_data["ux"] dom.point_data["uy"] dom.point_data["uz"] ]
         elseif :uy in node_fields
-            dom.point_vector_data["U"] = [ dom.point_scalar_data["ux"] dom.point_scalar_data["uy"] zeros(nnodes) ]
+            dom.point_data["U"] = [ dom.point_data["ux"] dom.point_data["uy"] zeros(nnodes) ]
         else
-            dom.point_vector_data["U"] = [ dom.point_scalar_data["ux"] zeros(nnodes) zeros(nnodes) ]
+            dom.point_data["U"] = [ dom.point_data["ux"] zeros(nnodes) zeros(nnodes) ]
         end
     end
 
     if :vx in node_fields
         if :vz in node_fields
-            dom.point_vector_data["V"] = [ dom.point_scalar_data["vx"] dom.point_scalar_data["vy"] dom.point_scalar_data["vz"] ]
+            dom.point_data["V"] = [ dom.point_data["vx"] dom.point_data["vy"] dom.point_data["vz"] ]
         elseif :vy in node_fields
-            dom.point_vector_data["V"] = [ dom.point_scalar_data["vx"] dom.point_scalar_data["vy"] zeros(nnodes) ]
+            dom.point_data["V"] = [ dom.point_data["vx"] dom.point_data["vy"] zeros(nnodes) ]
         else
-            dom.point_vector_data["V"] = [ dom.point_scalar_data["vx"] zeros(nnodes) zeros(nnodes) ]
+            dom.point_data["V"] = [ dom.point_data["vx"] zeros(nnodes) zeros(nnodes) ]
         end
     end
 
@@ -439,13 +436,13 @@ function update_output_data!(dom::Domain)
 
     # generate empty lists
     for field in elem_fields
-        dom.cell_scalar_data[string(field)] = zeros(nelems)
+        dom.cell_data[string(field)] = zeros(nelems)
     end
 
     # fill elem values
     for elem in dom.elems
         for (field,val) in all_elem_vals[elem.id]
-            dom.cell_scalar_data[string(field)][elem.id] = val
+            dom.cell_data[string(field)][elem.id] = val
         end
     end
 
@@ -782,8 +779,8 @@ function save_dom_json(dom::AbstractDomain, filename::String; verbose=true)
     data["points"] = ugrid.points
     data["cells"]  = ugrid.cells
     data["types"]  = [ split(string(typeof(elem)),".")[end] for elem in dom.elems]
-    data["point_scalar_data"] = ugrid.point_scalar_data
-    data["cell_scalar_data"]  = ugrid.cell_scalar_data
+    data["point_data"] = ugrid.point_data
+    data["cell_data"]  = ugrid.cell_data
 
     X = [ ip.X[1] for elem in dom.elems for ip in elem.ips ]
     Y = [ ip.X[2] for elem in dom.elems for ip in elem.ips ]
@@ -799,7 +796,7 @@ function save_dom_json(dom::AbstractDomain, filename::String; verbose=true)
     end
     data["cell_state_points"] = cell_state_points
 
-    data["state_point_scalar_data"] = [ ip_state_vals(elem.mat, ip.data) for elem in dom.elems for ip in elem.ips ]
+    data["state_point_data"] = [ ip_state_vals(elem.mat, ip.data) for elem in dom.elems for ip in elem.ips ]
 
     f = open(filename, "w")
     print(f, JSON.json(data,4))
@@ -831,9 +828,8 @@ function Base.convert(::Type{Mesh}, dom::AbstractDomain)
 
     fixup!(mesh, reorder=false) # updates also point and cell numbering
 
-    merge!(mesh.point_scalar_data, dom.point_scalar_data)
-    merge!(mesh.point_vector_data, dom.point_vector_data)
-    merge!(mesh.cell_scalar_data , dom.cell_scalar_data)
+    merge!(mesh.point_data, dom.point_data)
+    merge!(mesh.cell_data , dom.cell_data)
 
     # Get node and elem values
     #=
@@ -853,7 +849,7 @@ function Base.convert(::Type{Mesh}, dom::AbstractDomain)
         else
             U = hcat( node_vals[:, [ux_idx]], zeros(npoints), zeros(npoints) )
         end
-        mesh.point_vector_data["U"] = U
+        mesh.point_data["U"] = U
     end
 
     if :vx in node_labels
@@ -867,20 +863,20 @@ function Base.convert(::Type{Mesh}, dom::AbstractDomain)
         else
             V = hcat( node_vals[:, [vx_idx]], zeros(npoints), zeros(npoints) )
         end
-        mesh.point_vector_data["V"] = V
+        mesh.point_data["V"] = V
     end
 
     # Write nodal scalar data
     for i=1:nncomps
         field = string(node_labels[i])
-        mesh.point_scalar_data[field] = node_vals[:,i]
+        mesh.point_data[field] = node_vals[:,i]
     end
 
 
     # Write elem scalar data
     for i=1:necomps
         field = string(elem_labels[i])
-        mesh.cell_scalar_data[field] = elem_vals[:,i]
+        mesh.cell_data[field] = elem_vals[:,i]
     end
     =#
 

@@ -183,26 +183,36 @@ end
 function get_surface_based_on_displacements(mesh::Mesh)
 
     surf_dict = Dict{UInt64, Cell}()
-    W = mesh.point_scalar_data["wn"]
-    U = mesh.point_vector_data["U"]
+    W = mesh.point_data["wn"]
+    #U = mesh.point_data["U"]
     maxW = maximum(W)
 
     disp(face) = begin
         map = [p.id for p in face.points]
-        mean(W[map])
+        #d=mean(W[map])
+        d=max(maximum(W[map]), 0)
+        #@show d
+        return d
     end
     #disp(face) = mean( W[p.id] for p in face.points )
+    #disp(face) = begin
+        #map = [p.id for p in face.points]
+        #mean(U[map,:])
+    #end
 
     # Get only unique faces. If dup, original and dup are deleted
     for cell in mesh.cells
         for face in get_faces(cell)
             hs = hash(face)
             dface = disp(face)
+            #dface < 0.0000000*maxW && continue
             if haskey(surf_dict, hs)
-                #d = norm(dface-disp(surf_dict[hs]))
-                d = disp(face)
+                d = norm(dface-disp(surf_dict[hs]))
+                #d = disp(face)
                 #d = abs(disp(face)-disp(surf_dict[hs]))
-                if d<0.0001*maxW
+                #if d<0.1*maxW
+                #if d<0.0000
+                if false
                     delete!(surf_dict, hs)
                 else
                     surf_dict[hs] = face
@@ -212,6 +222,9 @@ function get_surface_based_on_displacements(mesh::Mesh)
             end
         end
     end
+
+    #@show maxW
+    #@show W
 
     return [ face for face in values(surf_dict) ]
 
@@ -317,21 +330,19 @@ function mplot(
     # Get initial info from mesh
     ndim = mesh.ndim
     if ndim==2
-        point_scalar_data = mesh.point_scalar_data
-        cell_scalar_data  = mesh.cell_scalar_data
-        point_vector_data = mesh.point_vector_data
+        point_data = mesh.point_data
+        cell_data  = mesh.cell_data
         points  = mesh.points
         cells   = mesh.cells
         connect = []
         connect = [ [ p.id for p in c.points ] for c in cells ] # Do not use type specifier inside comprehension to avoid problem with Revise
         id_dict = Dict{Int, Int}( p.id => i for (i,p) in enumerate(points) )
     else
-        point_scalar_data = OrderedDict{String,Array}()
-        cell_scalar_data  = OrderedDict{String,Array}()
-        point_vector_data = OrderedDict{String,Array}()
+        point_data = OrderedDict{String,Array}()
+        cell_data  = OrderedDict{String,Array}()
 
         # get surface cells and update
-        if haskey(mesh.point_vector_data, "U") && haskey(mesh.point_scalar_data, "wn")
+        if haskey(mesh.point_data, "U") && haskey(mesh.point_data, "wn")
             # special case when using cohesive elements
             scells = get_surface_based_on_displacements(mesh)
         else
@@ -345,14 +356,11 @@ function mplot(
         pt_ids = [ p.id for p in newpoints ]
 
         # update data
-        for (field, data) in mesh.point_scalar_data
-            point_scalar_data[field] = data[pt_ids]
+        for (field, data) in mesh.point_data
+            point_data[field] = data[pt_ids]
         end
-        for (field, data) in mesh.cell_scalar_data
-            cell_scalar_data[field] = data[oc_ids]
-        end
-        for (field, data) in mesh.point_vector_data
-            point_vector_data[field] = data[pt_ids, :]
+        for (field, data) in mesh.cell_data
+            cell_data[field] = data[oc_ids]
         end
 
         # points and cells
@@ -381,16 +389,17 @@ function mplot(
 
     plt.close("all")
 
-    plt.rc("font", family="serif", size=7)
+    plt.rc("font", family="serif", size=6)
     plt.rc("lines", lw=0.5)
-    plt.rc("legend", fontsize=7)
+    plt.rc("legend", fontsize=6)
     plt.rc("figure", figsize=figsize) # suggested size (4.5,3)
+
 
     # All points coordinates
     if warpscale>0
-        found = haskey(point_vector_data, "U")
+        found = haskey(point_data, "U")
         found || error("mplot: vector field U not found for warp")
-        XYZ .+= warpscale.*point_vector_data["U"]
+        XYZ .+= warpscale.*point_data["U"]
     end
     X = XYZ[:,1]
     Y = XYZ[:,2]
@@ -409,6 +418,8 @@ function mplot(
         ax = @eval Axes3D(figure())
         try
             ax.set_aspect("equal")
+            #ax.set_proj_type("ortho") # do not ortho
+            #ax.set_proj_type("3d") # not necessary
         catch err
             @warn "mplot: Could not set aspect ratio to equal"
             #@show err
@@ -477,13 +488,13 @@ function mplot(
     if has_field
         colorbarlabel = colorbarlabel=="" ? field : colorbarlabel
         field = string(field)
-        found = haskey(cell_scalar_data, field)
+        found = haskey(cell_data, field)
         if found
-            fvals = cell_scalar_data[field]
+            fvals = cell_data[field]
         else
-            found = haskey(point_scalar_data, field)
+            found = haskey(point_data, field)
             found || error("mplot: field $field not found")
-            data  = point_scalar_data[field]
+            data  = point_data[field]
             fvals = [ mean(data[connect[i]]) for i=1:ncells ]
         end
         fvals *= fieldscale
@@ -580,7 +591,7 @@ function mplot(
         # plot colorbar
         if has_field
             cbar = plt.colorbar(cltn, label=colorbarlabel, shrink=colorbarscale, aspect=10*colorbarscale*figsize[2], format="%.1f", pad=colorbarpad, location=colorbarlocation)
-            cbar.ax.tick_params(labelsize=7)
+            cbar.ax.tick_params(labelsize=6)
             cbar.outline.set_linewidth(0.0)
             cbar.locator = matplotlib.ticker.MaxNLocator(nbins=8)
             cbar.update_ticks()
@@ -647,7 +658,7 @@ function mplot(
             #cbar = plt.colorbar(cltn, label=colorbarlabel, shrink=colorbarscale, aspect=0.9*20*colorbarscale, format="%.1f", pad=colorbarpad, orientation=colorbarorientation)
             #cbar = plt.colorbar(cltn, label=colorbarlabel, shrink=colorbarscale, aspect=15, format="%.1f", pad=colorbarpad, orientation=colorbarorientation)
             cbar = plt.colorbar(cltn, label=colorbarlabel, shrink=colorbarscale, aspect=4*colorbarscale*h, format="%.1f", pad=colorbarpad, orientation=colorbarorientation)
-            cbar.ax.tick_params(labelsize=7)
+            cbar.ax.tick_params(labelsize=6)
             cbar.outline.set_linewidth(0.0)
             cbar.locator = matplotlib.ticker.MaxNLocator(nbins=8)
             cbar.update_ticks()
@@ -666,7 +677,7 @@ function mplot(
 
     # Draw arrows
     if vectorfield!=nothing && ndim==2
-        data = point_vector_data[vectorfield]
+        data = point_data[vectorfield]
         color = "blue"
         if arrowscale==0
             plt.quiver(X, Y, data[:,1], data[:,2], color=color)

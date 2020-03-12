@@ -236,8 +236,8 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
     if in_tension
             #@show ε̅t
         if ε̅t < ipd.ε̅tmax
-            E = ε̅t==0 ? mat.E0 : min(mat.E0, σ̅t/ε̅t)
-            #E = ε̅t==0 ? mat.E0 : min(ipd._E, σ̅t/ε̅t)
+            #E = ε̅t==0 ? mat.E0 : min(mat.E0, σ̅t/ε̅t)
+            E = ε̅t==0 ? mat.E0 : min(ipd._E, σ̅t/ε̅t)
             ipd.in_linear_range = true
         else
             E = Efun(ε̅t)

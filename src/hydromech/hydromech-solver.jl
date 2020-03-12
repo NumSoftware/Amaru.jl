@@ -201,9 +201,9 @@ function hm_solve!(
     end
 
     function complete_uw_h(dom::Domain)
-        haskey(dom.point_scalar_data, "uw") || return
-        Uw = dom.point_scalar_data["uw"]
-        H  = dom.point_scalar_data["h"]
+        haskey(dom.point_data, "uw") || return
+        Uw = dom.point_data["uw"]
+        H  = dom.point_data["h"]
         for ele in dom.elems
             ele.shape.family==SOLID_SHAPE || continue
             ele.shape==ele.shape.basic_shape && continue

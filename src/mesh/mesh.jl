@@ -20,13 +20,9 @@ mutable struct Mesh
     pointdict::Dict{UInt64,Point}
     cellpartition::CellPartition
 
-    #quality::Float64
-    #qmin   ::Float64
-
     # Data
-    point_scalar_data::OrderedDict{String,Array}
-    cell_scalar_data ::OrderedDict{String,Array}
-    point_vector_data::OrderedDict{String,Array}
+    point_data::OrderedDict{String,Array}
+    cell_data ::OrderedDict{String,Array}
 
     function Mesh()
         this = new()
@@ -37,12 +33,8 @@ mutable struct Mesh
         this.edges  = []
         this.ndim   = 0
         this.cellpartition = CellPartition()
-        #this.quality = 0.0
-        #this.qmin    = 0.0
-
-        this.point_scalar_data = OrderedDict()
-        this.cell_scalar_data  = OrderedDict()
-        this.point_vector_data = OrderedDict()
+        this.point_data = OrderedDict()
+        this.cell_data = OrderedDict()
         return this
     end
 end
@@ -65,9 +57,8 @@ end
 
 function datafields(mesh::Mesh)
     return [
-            collect(keys(mesh.point_scalar_data));
-            collect(keys(mesh.point_vector_data));
-            collect(keys(mesh.cell_scalar_data));
+            collect(keys(mesh.point_data));
+            collect(keys(mesh.cell_data));
            ]
 end
 
@@ -284,9 +275,9 @@ function renumber!(mesh::Mesh)
         c.ndim=ndim;
     end
 
-    mesh.point_scalar_data["point-id"] = collect(1:length(mesh.points))
-    mesh.cell_scalar_data["cell-id"]   = collect(1:length(mesh.cells))
-    mesh.cell_scalar_data["cell-type"] = [ Int(cell.shape.vtk_type) for cell in mesh.cells ]
+    mesh.point_data["point-id"] = collect(1:length(mesh.points))
+    mesh.cell_data["cell-id"]   = collect(1:length(mesh.cells))
+    mesh.cell_data["cell-type"] = [ Int(cell.shape.vtk_type) for cell in mesh.cells ]
 end
 
 function set_faces_edges!(mesh::Mesh)
@@ -311,7 +302,7 @@ function update_quality!(mesh::Mesh)
         c.quality = cell_quality(c)
         push!(Q, c.quality)
     end
-    mesh.cell_scalar_data["quality"]   = Q
+    mesh.cell_data["quality"]   = Q
 end
 
 # Updates numbering, faces and edges in a Mesh object
@@ -358,13 +349,10 @@ function fixup!(mesh::Mesh; verbose::Bool=false, genfacets::Bool=true, genedges:
     reorder && reorder!(mesh)
 
     # Reset data
-    #mesh.point_scalar_data = OrderedDict()
-    #mesh.cell_scalar_data  = OrderedDict()
-    #mesh.point_vector_data = OrderedDict()
-    mesh.point_scalar_data["point-id"] = collect(1:length(mesh.points))
-    mesh.cell_scalar_data["quality"]   = Q
-    mesh.cell_scalar_data["cell-id"]   = collect(1:length(mesh.cells))
-    mesh.cell_scalar_data["cell-type"] = [ Int(cell.shape.vtk_type) for cell in mesh.cells ]
+    mesh.point_data["point-id"] = collect(1:length(mesh.points))
+    mesh.cell_data["quality"]   = Q
+    mesh.cell_data["cell-id"]   = collect(1:length(mesh.cells))
+    mesh.cell_data["cell-type"] = [ Int(cell.shape.vtk_type) for cell in mesh.cells ]
 
     return nothing
 end
@@ -375,9 +363,7 @@ function quality!(mesh::Mesh)
         c.quality = cell_quality(c)
     end
     Q = Float64[ c.quality for c in mesh.cells]
-    #mesh.quality = sum(Q)/length(mesh.cells)
-    #mesh.qmin    = minimum(Q)
-    mesh.cell_scalar_data["quality"] = Q
+    mesh.cell_data["quality"] = Q
     return nothing
 end
 
@@ -640,16 +626,12 @@ function Base.getindex(mesh::Mesh, filter_ex::Expr)
     new_mesh.cells = cells
 
     # select relevant data
-    for (key,vals) in mesh.point_scalar_data
-        new_mesh.point_scalar_data[key] = vals[pids]
+    for (key,vals) in mesh.point_data
+        new_mesh.point_data[key] = vals[pids]
     end
 
-    for (key,vals) in mesh.cell_scalar_data
-        new_mesh.cell_scalar_data[key] = vals[cids]
-    end
-
-    for (key,vals) in mesh.point_vector_data
-        new_mesh.point_vector_data[key] = vals[pids,:]
+    for (key,vals) in mesh.cell_data
+        new_mesh.cell_data[key] = vals[cids]
     end
 
     # update node numbering, facets and edges
@@ -664,13 +646,13 @@ function threshold(mesh::Mesh, field::Union{Symbol,String}, minval::Float64, max
     field = string(field)
 
     # check if field exists
-    found = haskey(mesh.cell_scalar_data, field)
+    found = haskey(mesh.cell_data, field)
     if found
-        vals = mesh.cell_scalar_data[field]
+        vals = mesh.cell_data[field]
     else
-        found = haskey(mesh.point_scalar_data, field)
+        found = haskey(mesh.point_data, field)
         found || error("threshold: field $field not found")
-        data  = mesh.point_scalar_data[field]
+        data  = mesh.point_data[field]
         vals = [ mean(data[i]) for i=1:ncells ]
     end
 
@@ -695,16 +677,12 @@ function threshold(mesh::Mesh, field::Union{Symbol,String}, minval::Float64, max
     new_mesh.cells = cells
 
     # select relevant data
-    for (key,vals) in mesh.point_scalar_data
-        new_mesh.point_scalar_data[key] = vals[pids]
+    for (key,vals) in mesh.point_data
+        new_mesh.point_data[key] = vals[pids,:]
     end
 
-    for (key,vals) in mesh.cell_scalar_data
-        new_mesh.cell_scalar_data[key] = vals[cids]
-    end
-
-    for (key,vals) in mesh.point_vector_data
-        new_mesh.point_vector_data[key] = vals[pids,:]
+    for (key,vals) in mesh.cell_data
+        new_mesh.cell_data[key] = vals[cids]
     end
 
     # update node numbering, facets and edges
@@ -717,7 +695,7 @@ end
 
 export get_segment_data
 function get_segment_data(msh::Mesh, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=200)
-    data = msh.point_scalar_data
+    data = msh.point_data
     table = DTable(["s"; collect(keys(data))])
     X1 = [X1; 0.0][1:3]
     X2 = [X2; 0.0][1:3]

@@ -36,4 +36,4 @@ mesh = Mesh(bls)
 #save(mesh, "out.vtk")
 @test length(mesh.cells) == 64
 
-rm("out.vtk")
+#rm("out.vtk")

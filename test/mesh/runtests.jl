@@ -11,6 +11,7 @@ FILES = [
     "extrapolation.jl"
     "smoothing.jl"
     "plotting.jl"
+    "filters.jl"
 ]
 
 @testset begin
