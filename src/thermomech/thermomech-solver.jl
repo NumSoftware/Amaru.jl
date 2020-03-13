@@ -13,72 +13,81 @@ function tm_mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
 
     for elem in dom.elems
 
-
-
-
-
-
-
-
+        ty = typeof(elem)
+        has_stiffness_matrix    = hasmethod(elem_stiffness, (ty,))
+        has_coupling_matrix     = hasmethod(elem_coupling_matrix, (ty,))
+        has_mass_matrix = hasmethod(elem_mass_matrix, (ty,))
+        has_conductivity_matrix = hasmethod(elem_conductivity_matrix, (ty,))
+        has_RHS_vector          = hasmethod(elem_RHS_vector, (ty,))
 
         # Assemble the stiffness matrix
-        K, rmap, cmap = elem_stiffness_matrix(elem)
-        nr, nc = size(K)
-        for i=1:nr
-            for j=1:nc
-                push!(R, rmap[i])
-                push!(C, cmap[j])
-                push!(V, K[i,j])
+        if has_stiffness_matrix
+            K, rmap, cmap = elem_stiffness_matrix(elem)
+            nr, nc = size(K)
+            for i=1:nr
+                for j=1:nc
+                    push!(R, rmap[i])
+                    push!(C, cmap[j])
+                    push!(V, K[i,j])
+                end
             end
         end
 
         # Assemble the coupling matrices
-        Cup, rmap, cmap = elem_coupling_matrix(elem)
-        nr, nc = size(Cup)
-        for i=1:nr
-            for j=1:nc
-                # matrix Cup
-                push!(R, rmap[i])
-                push!(C, cmap[j])
-                push!(V, Cup[i,j])
+        if has_coupling_matrix
+            Cup, rmap, cmap = elem_coupling_matrix(elem)
+            nr, nc = size(Cup)
+            for i=1:nr
+                for j=1:nc
+                    # matrix Cup
+                    push!(R, rmap[i])
+                    push!(C, cmap[j])
+                    push!(V, Cup[i,j])
 
-                # matrix Cup'
-                push!(R, cmap[j])
-                push!(C, rmap[i])
-                push!(V, Cup[i,j])
+                    # matrix Cup'
+                    push!(R, cmap[j])
+                    push!(C, rmap[i])
+                    push!(V, Cup[i,j])
+                end
             end
         end
 
 
         # Assemble the conductivity matrix
-        H, rmap, cmap = elem_conductivity_matrix(elem)
-        nr, nc = size(H)
-        for i=1:nr
-            for j=1:nc
-                push!(R, rmap[i])
-                push!(C, cmap[j])
-                push!(V, α*Δt*H[i,j])
+        if has_conductivity_matrix
+            H, rmap, cmap = elem_conductivity_matrix(elem)
+            nr, nc = size(H)
+            for i=1:nr
+                for j=1:nc
+                    push!(R, rmap[i])
+                    push!(C, cmap[j])
+                    push!(V, α*Δt*H[i,j])
+                end
             end
+
+            # Assembling RHS components
+            Ut = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes ]
+            RHS[rmap] -= Δt*(H*Ut)
         end
 
-        # Assemble the mass matrix
-        M, rmap, cmap = elem_mass_matrix(elem)
-        nr, nc = size(M)
-        for i=1:nr
-            for j=1:nc
-                push!(R, rmap[i])
-                push!(C, cmap[j])
-                push!(V, M[i,j])
+        # Assemble the conductivity matrix
+        if has_mass_matrix
+            M, rmap, cmap = elem_mass_matrix(elem)
+            nr, nc = size(M)
+            for i=1:nr
+                for j=1:nc
+                    push!(R, rmap[i])
+                    push!(C, cmap[j])
+                    push!(V, M[i,j])
+                end
             end
         end
 
         # Assembling RHS components
-        Ut = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes ]
-        RHS[rmap] -= Δt*(H*Ut)
-
-        # Assemble ramaining RHS vectors
-        #Q, map = elem_RHS_vector(elem)
-        #RHS[map] += Δt*Q
+        if has_RHS_vector
+            Q, map = elem_RHS_vector(elem)
+            RHS[map] += Δt*Q
+        end
     end
 
     # generating sparse matrix G
@@ -139,44 +148,30 @@ function tm_solve_step!(G::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu
     DF[nu+1:end] .= F2
 end
 
+
+
 """
     tm_solve!(D, bcs, options...) -> Bool
 
-Performs one stage finite element analysis of a domain `D`
-subjected to an array of boundary conditions `bcs`.
+    Performs one stage finite element analysis of a domain `D`
+    subjected to an array of boundary conditions `bcs`.
 
-# Arguments
+    Available options are:
 
-`dom` : A finite element domain
+    `verbose=true` : If true, provides information of the analysis steps
 
-`bcs` : Array of boundary conditions given as an array of pairs ( location => condition)
+    `tol=1e-2` : Tolerance for the absolute error in forces
 
+    `nincs=1` : Number of increments
 
-# Keyword arguments
+    `autoinc=false` : Sets automatic increments size. The first increment size will be `1/nincs`
 
-`time_span` : The simulated time
+    `maxits=5` : The maximum number of Newton-Rapson iterations per increment
 
-`end_time` : The end time of the simulation
+    `nouts=0` : Number of output files per analysis
 
-`nincs   = 1` : Number of increments
+    `scheme= :FE` : Predictor-corrector scheme at iterations. Available schemes are `:FE` and `:ME`
 
-`maxits  = 5` : Maximum number of Newton-Rapson iterations per increment
-
-`autoinc = false` : Sets automatic increments size. The first increment size will be `1/nincs`
-
-`maxincs = 1000000` : Maximum number of increments
-
-`tol     = 1e-2` : Tolerance for the maximum absolute error in forces vector
-
-`scheme  = :FE` : Predictor-corrector scheme at each increment. Available schemes are `:FE` and `:ME`
-
-`nouts   = 0` : Number of output files per analysis
-
-`outdir  = ""` : Output directory
-
-`filekey = ""` : File key for output files
-
-`verbose = true` : If true, provides information of the analysis steps
 """
 function tm_solve!(
                    dom       :: Domain,
