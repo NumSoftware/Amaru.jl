@@ -713,7 +713,7 @@ function fast_smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Floa
     verbose && println("  ", str_histogram(hist))
 
     #nits = 0
-    mesh.cell_scalar_data["quality"] = Q
+    mesh.cell_data["quality"] = Q
     savesteps && save(mesh, "$filekey-0.vtk", verbose=false)
 
     for i=1:maxit
@@ -791,7 +791,7 @@ function fast_smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Floa
         new_qmin = minimum(Q)
         new_qmin <= 0.0 && error("smooth!: got negative quality value (qmin=$new_qmin).")
 
-        mesh.cell_scalar_data["quality"] = Q
+        mesh.cell_data["quality"] = Q
         savesteps && save(mesh, "$filekey-$i.vtk", verbose=false)
 
         Δq    = abs(q - new_q)
@@ -818,7 +818,7 @@ function fast_smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Floa
         #nits = i
     end
     # Set forces to zero for the last step
-    #mesh.point_vector_data["forces"] = zeros(length(mesh.points), 3)
+    #mesh.point_data["forces"] = zeros(length(mesh.points), 3)
     #savesteps && save(mesh, "$filekey-$nits.vtk", verbose=false)
 
     savedata && save(stats, "$filekey-stats.dat")
@@ -891,9 +891,9 @@ function smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Float64=0
         F   = force_bc(mesh, E, nu, alpha, extended)
 
         if ndim==2
-            mesh.point_vector_data["forces"] = [ reshape(F, ndim, npoints)' zeros(npoints)]
+            mesh.point_data["forces"] = [ reshape(F, ndim, npoints)' zeros(npoints)]
         else
-            mesh.point_vector_data["forces"] = reshape(F, ndim, npoints)'
+            mesh.point_data["forces"] = reshape(F, ndim, npoints)'
         end
 
         # Save last step file with current forces
@@ -965,7 +965,7 @@ function smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Float64=0
         Q = Float64[ c.quality for c in mesh.cells]
         new_q = mean(Q)
         new_qmin = minimum(Q)
-        mesh.cell_scalar_data["quality"] = Q
+        mesh.cell_data["quality"] = Q
 
         Δq    = abs(q - new_q)
         Δqmin = new_qmin - qmin
@@ -996,14 +996,14 @@ function smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Float64=0
     n_bad_cells>0 && @warn "Invalid cells found: " n=n_bad_cells
 
     # Set forces to zero for the last step
-    mesh.point_vector_data["forces"] = zeros(length(mesh.points), 3)
+    mesh.point_data["forces"] = zeros(length(mesh.points), 3)
     savesteps && save(mesh, "$filekey-$nits.vtk", verbose=false)
 
     savedata && save(stats, "$filekey-stats.dat")
     savedata && save(hists, "$filekey-hists.dat")
 
     # update data at current mesh structure
-    #mesh.cell_scalar_data["quality"] = Q
+    #mesh.cell_data["quality"] = Q
 
     verbose && println("  done.")
 
@@ -1167,7 +1167,7 @@ function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, verbose::Bool=true, fixe
         new_quality = mean(Q)
         new_qmin    = minimum(Q)
 
-        mesh.cell_scalar_data["quality"] = Q
+        mesh.cell_data["quality"] = Q
         savesteps && save(mesh, "$filekey-$i.vtk", verbose=false)
 
         #if any(Q .== 0.0)
@@ -1206,7 +1206,7 @@ function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, verbose::Bool=true, fixe
     savedata && save(hists, "$filekey-hists.dat")
 
     # update data at current mesh structure
-    mesh.cell_scalar_data["quality"] = Q
+    mesh.cell_data["quality"] = Q
 
     verbose && println("  done.")
 

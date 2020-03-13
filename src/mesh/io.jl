@@ -45,61 +45,58 @@ function save_vtk(mesh::Mesh, filename::String; desc::String="")
     end
     println(f)
 
-    has_point_scalar_data = !isempty(mesh.point_scalar_data)
-    has_point_vector_data = !isempty(mesh.point_vector_data)
-    has_point_data = has_point_scalar_data || has_point_vector_data
-    has_cell_data  = !isempty(mesh.cell_scalar_data)
+    has_point_data = !isempty(mesh.point_data)
+    has_cell_data  = !isempty(mesh.cell_data)
 
     # Write point data
     if has_point_data
         println(f, "POINT_DATA ", npoints)
-        # Write scalar data
-        if has_point_vector_data
-            for (field,D) in mesh.point_vector_data
-                isempty(D) && continue
-                dtype = eltype(D)<:Integer ? "int" : "float64"
-                println(f, "VECTORS ", "$field $dtype")
-                for i=1:npoints
-                    @printf f "%23.15e %23.15e %23.15e \n" Float32(D[i,1]) Float32(D[i,2]) Float32(D[i,3])
-                end
-            end
-        end
-        # Write vector data
-        if has_point_scalar_data
-            for (field,D) in mesh.point_scalar_data
-                isempty(D) && continue
-                dtype = eltype(D)<:Integer ? "int" : "float64"
+        for (field,D) in mesh.point_data
+            isempty(D) && continue
+            isfloat = eltype(D)<:AbstractFloat
+            dtype = isfloat ? "float64" : "int"
+            ncomps = size(D,2)
+            if ncomps==1
                 println(f, "SCALARS $field $dtype 1")
                 println(f, "LOOKUP_TABLE default")
-                if dtype=="float64"
-                    for i=1:npoints
-                        @printf f "%23.10e" Float32(D[i])
-                    end
-                else
-                    for i=1:npoints
-                        @printf f "%10d" D[i]
+            else
+                println(f, "VECTORS ", "$field $dtype")
+            end
+            for i=1:npoints
+                for j=1:ncomps
+                    if isfloat
+                        @printf f "%23.10e" Float32(D[i,j])
+                    else
+                        @printf f "%10d" D[i,j]
                     end
                 end
-                println(f)
             end
+            println(f)
         end
     end
 
     # Write cell data
     if has_cell_data
         println(f, "CELL_DATA ", ncells)
-        for (field,D) in mesh.cell_scalar_data
+        for (field,D) in mesh.cell_data
             isempty(D) && continue
-            dtype = eltype(D)<:Integer ? "int" : "float64"
-            println(f, "SCALARS $field $dtype 1")
-            println(f, "LOOKUP_TABLE default")
-            if dtype=="float64"
-                for i=1:ncells
-                    @printf f "%23.10e" Float32(D[i])
-                end
+            isfloat = eltype(D)<:AbstractFloat
+
+            dtype = isfloat ? "float64" : "int"
+            ncomps = size(D,2)
+            if ncomps==1
+                println(f, "SCALARS $field $dtype 1")
+                println(f, "LOOKUP_TABLE default")
             else
-                for i=1:ncells
-                    @printf f "%10d" D[i]
+                println(f, "VECTORS ", "$field $dtype")
+            end
+            for i=1:ncells
+                for j=1:ncomps
+                    if isfloat
+                        @printf f "%23.10e" Float32(D[i,j])
+                    else
+                        @printf f "%10d" D[i,j]
+                    end
                 end
             end
             println(f)
@@ -111,6 +108,135 @@ function save_vtk(mesh::Mesh, filename::String; desc::String="")
     return nothing
 end
 
+function save_vtu(mesh::Mesh, filename::String; desc::String="")
+    # Saves a UnstructuredGrid
+    npoints = length(mesh.points)
+    ncells  = length(mesh.cells)
+
+    tab1 = "  "
+    tab2 = tab1^2
+    tab3 = tab1^3
+    tab4 = tab1^4
+    tab5 = tab1^5
+
+    # Open filename
+    f = open(filename, "w")
+
+    println(f, """<?xml version="1.0"?>""")
+    println(f, """<VTKFile type="UnstructuredGrid" version="0.1" byte_order="LittleEndian">""")
+    println(f, """<UnstructuredGrid>""")
+    print(f, tab1)
+    println(f, """<Piece NumberOfPoints="$npoints" NumberOfCells="$ncells">""")
+
+    # Write points
+    print(f, tab2)
+    println(f, """<Points>""")
+    print(f, tab3)
+    println(f, """<DataArray type="Float64" NumberOfComponents="3" format="ascii">""")
+    for (i,point) in enumerate(mesh.points)
+        print(f, tab4)
+       @printf f "%23.15e %23.15e %23.15e \n" point.x point.y point.z
+    end
+    print(f, tab3)
+    println(f, """<\\DataArray>""")
+    print(f, tab2)
+    println(f, """<\\Points>""")
+
+    # Write cells
+    print(f, tab2)
+    println(f, """<Cells>""")
+    print(f, tab3)
+    println(f, """<DataArray type="Int32" Name="connectivity" format="ascii">""")
+
+    # Write connectivities
+    for cell in mesh.cells
+        for point in cell.points
+            print(f, tab4)
+            print(f, point.id-1, " ")
+        end
+        println(f)
+    end
+    print(f, tab3)
+    println(f, """<\\DataArray>""")
+
+    # Offsets
+    print(f, tab3)
+    println(f, """<DataArray type="Int32" Name="offsets" format="ascii">""")
+    offset = 0
+    for cell in mesh.cells
+        offset += length(cell.points)
+        print(f, tab4)
+        println(f, "        ", offset)
+    end
+    print(f, tab3)
+    println(f, """<\\DataArray>""")
+
+    # Offsets
+    print(f, tab3)
+    println(f, """      <DataArray type="Int32" Name="types" format="ascii">""")
+    for cell in mesh.cells
+        print(f, tab4)
+        println(f, Int(cell.shape.vtk_type))
+    end
+    print(f, tab3)
+    println(f, """<\\DataArray>""")
+    print(f, tab2)
+    println(f, """    <\\Cells>""")
+
+    # Point data
+    has_point_data = !isempty(mesh.point_data)
+    has_cell_data  = !isempty(mesh.cell_data)
+
+    println(f, """      <DataArray type="Float64" NumberOfComponents="3" format="ascii">""")
+
+    # Write point data
+    if has_point_data
+        println(f, tab2, """<PointData>""")
+        if has_point_data
+            for (field,D) in mesh.point_data
+                isempty(D) && continue
+                isfloat = eltype(D)<:AbstractFloat
+                dtype = isfloat ? "Float64" : "Int32"
+                ncomps = size(D,2)
+                println(f, tab3, """<DataArray type="$dtype" Name="$field" NumberOfComponents="$ncomps" format="ascii">""")
+                for i=1:npoints
+                    print(f, tab4)
+                    for j=1:ncomps
+                        @printf f "%23.10e" isfloat ? Float32(D[i,j]) : D[i,j]
+                    end
+                end
+                println(f, tab3, """<\\DataArray>""")
+            end
+        end
+    end
+    println(f, tab2, """<\\PointData>""")
+
+    # Write cell data
+    if has_point_data
+        println(f, tab2, """<CellData>""")
+        if has_cell_data
+            for (field,D) in mesh.cell_data
+                isempty(D) && continue
+                isfloat = eltype(D)<:AbstractFloat
+                dtype = isfloat ? "Float64" : "Int32"
+                ncomps = size(D,2)
+                println(f, tab3, """<DataArray type="$dtype" Name="$field" NumberOfComponents="$ncomps" format="ascii">""")
+                for i=1:npoints
+                    print(f, tab4)
+                    for j=1:ncomps
+                        @printf f "%23.10e" isfloat ? Float32(D[i,j]) : D[i,j]
+                    end
+                end
+                println(f, tab3, """<\\DataArray>""")
+            end
+        end
+    end
+    println(f, tab2, """<\\PointData>""")
+
+    println(f, """<\\UnstructuredGrid>""")
+    println(f, """<\\VTKFile""")
+
+end
 
 function read_vtk(filename::String)
     # Reading file
@@ -121,9 +247,8 @@ function read_vtk(filename::String)
     data    = split(alltext)
 
     local coords, connects, cell_types, npoints, ncells
-    point_scalar_data = OrderedDict{String,Array}()
-    point_vector_data = OrderedDict{String,Array}()
-    cell_scalar_data  = OrderedDict{String,Array}()
+    point_data = OrderedDict{String,Array}()
+    cell_data  = OrderedDict{String,Array}()
     reading_point_data = false
     reading_cell_data  = false
 
@@ -202,7 +327,7 @@ function read_vtk(filename::String)
                 vectors[i,3] = parse(Float64, data[idx+3])
                 idx += 3
             end
-            point_vector_data[label] = vectors
+            point_data[label] = vectors
         end
 
         if data[idx] == "SCALARS" && reading_point_data
@@ -214,7 +339,7 @@ function read_vtk(filename::String)
                 idx += 1
                 scalars[i] = parse(TYPES[ty], data[idx])
             end
-            point_scalar_data[label] = scalars
+            point_data[label] = scalars
         end
 
         if data[idx] == "SCALARS" && reading_cell_data
@@ -226,7 +351,7 @@ function read_vtk(filename::String)
                 idx += 1
                 scalars[i] = parse(TYPES[ty], data[idx])
             end
-            cell_scalar_data[label] = scalars
+            cell_data[label] = scalars
         end
 
         idx += 1
@@ -274,9 +399,8 @@ function read_vtk(filename::String)
     fixup!(mesh, reorder=false)
 
     # Setting data
-    mesh.point_scalar_data = merge(mesh.point_scalar_data, point_scalar_data)
-    mesh.point_vector_data = merge(mesh.point_vector_data, point_vector_data)
-    mesh.cell_scalar_data  = merge(mesh.cell_scalar_data, cell_scalar_data)
+    mesh.point_data = merge(mesh.point_data, point_data)
+    mesh.cell_data  = merge(mesh.cell_data, cell_data)
 
     # Fix shape for polyvertex cells
     if has_polyvertex
@@ -402,9 +526,9 @@ function read_tetgen(filekey::String)
     # reads files .node and .ele
 
     local points, cells, cell_types, npoints, ncells
-    point_scalar_data = Dict{String,Array}()
-    point_vector_data = Dict{String,Array}()
-    cell_scalar_data  = Dict{String,Array}()
+    point_data = Dict{String,Array}()
+    #point_vector_data = Dict{String,Array}()
+    cell_data  = Dict{String,Array}()
 
     # read nodal information
 
