@@ -190,6 +190,7 @@ function tm_solve!(
                    verbose   :: Bool    = false,
                    silent    :: Bool    = false
                   )
+
     env = dom.env
     env.cstage += 1
     env.cinc    = 0
@@ -199,6 +200,28 @@ function tm_solve!(
         sw = StopWatch() # timing
     end
 
+        function complete_ut_h(dom::Domain)
+            haskey(dom.point_data, "ut") || return
+            Ut = dom.point_data["ut"]
+            H  = dom.point_data["h"]
+            for ele in dom.elems
+                ele.shape.family==SOLID_SHAPE || continue
+                ele.shape==ele.shape.basic_shape && continue
+                npoints = ele.shape.npoints
+                nbpoints = ele.shape.basic_shape.npoints
+                map = [ ele.nodes[i].id for i=1:nbpoints ]
+                Ue = Ut[map]
+                He = H[map]
+                C = ele.shape.nat_coords
+                for i=nbpoints+1:npoints
+                    id = ele.nodes[i].id
+                    R = C[i,:]
+                    N = ele.shape.basic_shape.func(R)
+                    Ut[id] = dot(N,Ue)
+                    H[id] = dot(N,He)
+                end
+            end
+        end
 
     # Arguments checking
     silent && (verbose=false)
@@ -234,6 +257,18 @@ function tm_solve!(
     dom.ndofs = length(dofs)
     silent || println("  unknown dofs: $nu")
 
+    # get elevation Z for all Dofs
+    #Z = zeros(ndofs)
+    #for node in dom.nodes
+    #    for dof in node.dofs
+    #        Z[dof.eq_id] = node.X[env.ndim]
+    #    end
+#    end
+
+# Get global parameters
+#gammaw = get(dom.env.params, :gammaw, NaN)
+#isnan(gammaw) && error("hm_solve!: gammaw parameter was not set in Domain")
+#gammaw > 0 || error("hm_solve: invalid value for gammaw: $gammaw")
 
     # Get array with all integration points
     ips = [ ip for elem in dom.elems for ip in elem.ips ]
@@ -247,10 +282,14 @@ function tm_solve!(
         for (i,dof) in enumerate(dofs)
             dof.vals[dof.name]    = 0.0
             dof.vals[dof.natname] = 0.0
+            #if dof.name==:uw
+        #    dof.vals[:h] = 0.0 # water head
+            #end
         end
 
         update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
         update_output_data!(dom) # Updates data arrays in domain
+        #complete_uw_h(dom)
 
         if save_incs
             save(dom, "$outdir/$filekey-0.vtk", verbose=false)
@@ -258,10 +297,8 @@ function tm_solve!(
         end
     end
 
-
     # Incremental analysis
     t    = dom.env.t # current time
-    tini = t # initial time
     tend = t + time_span  # end time
     Δt = time_span/nincs # initial Δt value
 
@@ -269,7 +306,7 @@ function tm_solve!(
     T  = t + dT        # output time for saving the next vtk file
 
     ttol = 1e-9    # time tolerance
-    inc  = 1       # increment counter
+    inc  = 0       # increment counter
     iout = env.cout     # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
@@ -283,16 +320,34 @@ function tm_solve!(
 
     Uex, Fex = get_bc_vals(dom, bcs, t) # get values at time t  #TODO pick internal forces and displacements instead!
 
+    # Get unbalanced forces
+    Fin = zeros(ndofs)
+    for elem in dom.elems
+        elem_internal_forces(elem, Fin)
+    end
+    Fex .-= Fin # add negative forces to external forces vecto
+
     for (i,dof) in enumerate(dofs)
         U[i] = dof.vals[dof.name]
         F[i] = dof.vals[dof.natname]
     end
 
-    while t < tend - ttol
+    local G::SparseMatrixCSC{Float64,Int64}
+    local RHS::Array{Float64,1}
 
-        #verbose && printstyled("  increment $inc from t=$(round(t,sigdigits=9)) to t=$(round(t+Δt,sigdigits=9)) (dt=$(round(Δt,sigdigits=9))):\n", bold=true, color=:blue) # color 111
-        progress = round((t-tini)/time_span*100, digits=3)
-        silent || printstyled("  stage $(env.cstage) progress $progress% increment $inc dt=$(round(Δt,sigdigits=2))\033[K\r", bold=true, color=:blue) # color 111
+    while t < tend - ttol
+        # Update counters
+        inc += 1
+        env.cinc += 1
+
+        if inc > maxincs
+            printstyled("  solver maxincs = $maxincs reached (try maxincs=0)\n", color=:red)
+            return false
+        end
+
+        silent || printstyled("  increment $inc from t=$(round(t,sigdigits=9)) to t=$(round(t+Δt,sigdigits=9)) (dt=$(round(Δt,sigdigits=9))):"," "^10,"\r", bold=true, color=:blue) # color 111
+        #silent || printstyled("  increment $inc  (progress=$(round), dt=$(round(Δt,sigdigits=9))):"," "^10,"\r", bold=true, color=:blue) # color 111
+        verbose && println()
 
         # Get forces and displacements from boundary conditions
         dom.env.t = t + Δt
@@ -313,8 +368,6 @@ function tm_solve!(
         converged = false
         maxfails  = 3    # maximum number of it. fails with residual change less than 90%
         nfails    = 0    # counter for iteration fails
-        local G::SparseMatrixCSC{Float64,Int64}
-        local RHS::Array{Float64,1}
         for it=1:maxits
             if it>1; ΔUi .= 0.0 end # essential values are applied only at first iteration
             lastres = residue # residue from last iteration
@@ -354,12 +407,6 @@ function tm_solve!(
             if verbose
                 printstyled("    it $it  ", bold=true)
                 @printf(" residue: %-10.4e\n", residue)
-            else
-                if !silent
-                    printstyled("  increment $inc: ", bold=true, color=:blue)
-                    printstyled("  it $it  ", bold=true)
-                    @printf("residue: %-10.4e  \r", residue)
-                end
             end
 
             if residue < tol;        converged = true ; break end
@@ -370,7 +417,6 @@ function tm_solve!(
         end
 
         if converged
-            # Update forces and displacement for the current stage
             U .+= ΔUa
             F .+= ΔFin
             Uex .= UexN
@@ -383,36 +429,42 @@ function tm_solve!(
             for (i,dof) in enumerate(dofs)
                 dof.vals[dof.name]    += ΔUa[i]
                 dof.vals[dof.natname] += ΔFin[i]
+        #        if dof.name==:uw
+            #        dof.vals[:h] = Z[i] + U[i]/gammaw
+    #            end
             end
 
             update_loggers!(dom) # Tracking nodes, ips, elements, etc.
 
             # Check for saving output file
             Tn = t + Δt
+
             if Tn+ttol>=T && saveincs
                 env.cout += 1
                 iout = env.cout
                 update_output_data!(dom)
+        #       complete_uw_h(dom)
                 save(dom, "$outdir/$filekey-$iout.vtk", verbose=false)
                 T = Tn - mod(Tn, dT) + dT
+                silent || verbose || print(" "^70, "\r")
                 silent || printstyled("  $outdir/$filekey-$iout.vtk file written (Domain) \033[K \n",color=:green)
             end
 
-            # Update time t and Δt
-            inc += 1
+            # Update time t
             t   += Δt
 
             # Get new Δt
             if autoinc
                 Δt = min(1.5*Δt, 1.0/nincs)
                 Δt = round(Δt, sigdigits=3)
-                Δt = min(Δt, 1.0-t)
+                Δt = min(Δt, tend-t)
             end
         else
             # Restore counters
-            env.cinc -= 1
             inc -= 1
+            env.cinc -= 1
 
+            # Restore the state to last converged increment
             if autoinc
                 verbose && println("    increment failed.")
                 Δt = round(0.5*Δt, sigdigits=3)
@@ -431,6 +483,7 @@ function tm_solve!(
     silent || println("  time spent: ", see(sw, format=:hms), "\033[K")
 
     update_output_data!(dom)
+    #complete_uw_h(dom)
 
     return true
 
