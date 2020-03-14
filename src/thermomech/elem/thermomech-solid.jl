@@ -387,12 +387,12 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1})
         coef = elem.mat.α*detJ*ip.w # VEEEERIFICAR
         dFt  -= coef*Np*εvol
 
-        coef = detJ*ip.w*elem.mat.S  # VEEEERIFICAR
+        coef = detJ*ip.w*elem.mat.α  # VEEEERIFICAR
         dFt -= coef*Np*ut
 
-        D    = ip.data.D
+        QQ    = ip.data.QQ
         coef = detJ*ip.w # VEEEERIFICAR
-        @gemv dFt += coef*Bp'*D
+        @gemv dFt += coef*Bp'*QQ
     end
 
     F[map_u] += dF
@@ -415,8 +415,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
     dUt = DU[map_p] # nodal pore-pressure increments
     Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes[1:nbsnodes]]
     Ut += dUt # nodal pore-pressure at step n+1
-
-    m = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
+    m = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  #
 
     dF  = zeros(nnodes*ndim)
     Bu  = zeros(6, nnodes*ndim)
@@ -456,7 +455,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
 
         # Compute thermal gradient G (REEEEEVER)
         G  = Bp*Ut/elem.mat.k
-        G[end] += 1.0; # gradient due to gravity
+        G[end] += 1.0; # gradient
 
         # internal force dF
         Δσ = stress_update(elem.mat, ip.data, Δε, Δut, G, Δt)
