@@ -5,11 +5,13 @@ export LinThermo
 mutable struct LinThermoIpState<:IpState
     env::ModelEnv
     ut::Float64
-    Q::Array{Float64,1}
+    QQ::Array{Float64,1}
+    D::Array{Float64,1} #
     function LinThermoIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.ut = 0.0
-        this.Q  = zeros(env.ndim)
+        this.QQ  = zeros(env.ndim)
+        this.D  = zeros(env.ndim)
         return this
     end
 end
@@ -52,20 +54,21 @@ function calcK(mat::LinThermo, ipd::LinThermoIpState) # Thermal conductivity mat
     end
 end
 
-function update_state!(mat::LinThermo, ipd::LinThermoIpState, Δut::Float64, G::Array{Float64,1})
+function update_state!(mat::LinThermo, ipd::LinThermoIpState, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
     K = calcK(mat, ipd)
-    ipd.Q   = -K*G
+    ipd.QQ   = -K*G
+    ipd.D  += ipd.QQ*Δt
     ipd.ut += Δut
-    return ipd.Q
+    return ipd.QQ
 end
 
 
 function ip_state_vals(mat::LinThermo, ipd::LinThermoIpState)
     D = Dict{Symbol, Float64}()
-    D[:qx] = ipd.Q[1]
-    D[:qy] = ipd.Q[2]
+    D[:qx] = ipd.QQ[1]
+    D[:qy] = ipd.QQ[2]
     if ipd.env.ndim==3
-        D[:qz] = ipd.Q[3]
+        D[:qz] = ipd.QQ[3]
     end
     return D
 end

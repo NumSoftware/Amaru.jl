@@ -335,7 +335,7 @@ end
 
 function elem_internal_forces(elem::TMSolid, F::Array{Float64,1})
     ndim   = elem.env.ndim
-    th     = elem.env.thickness
+    #th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     C   = elem_coords(elem)
@@ -350,7 +350,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1})
     dFt = zeros(nbsnodes)
     Bp  = zeros(ndim, nbsnodes)
 
-    m = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
+    m = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ] # = tI
 
     J  = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
@@ -378,7 +378,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1})
         # internal force
         ut   = ip.data.ut
         σ    = ip.data.σ - elem.mat.α*ut*m # get total stress
-        coef = detJ*ip.w*th #VERIFICAAAAAAAAAAAAR
+        coef = detJ*ip.w #VERIFICAAAAAAAAAAAAR
         @gemv dF += coef*Bu'*σ
 
         # internal volumes dFt
@@ -401,7 +401,7 @@ end
 
 function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
-    th     = elem.env.thickness
+    #th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     C   = elem_coords(elem)
@@ -458,11 +458,11 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         G[end] += 1.0; # gradient
 
         # internal force dF
-        Δσ = stress_update(elem.mat, ip.data, Δε, Δut, G, Δt)
+        Δσ, QQ = stress_update(elem.mat, ip.data, Δε, Δut, G, Δt)
         Δσ -= elem.mat.cv*Δut*m # get total stress
 
-        coef = detJ*ip.w  # VEEEERIFICAR
-        @gemv dF += coef*Bu'*Δσ
+        #coef = detJ*ip.w  # VEEEERIFICAR
+        @gemv dF += Bu'*Δσ # dF += coef*Bu'*Δσ
 
         # internal volumes dFt
         Δεvol = dot(m, Δε)

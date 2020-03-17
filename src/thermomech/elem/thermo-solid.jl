@@ -49,7 +49,7 @@ function distributed_bc(elem::ThermoSolid, facet::Union{Facet,Nothing}, key::Sym
     C = nodes_coords(nodes, ndim)
 
     # Vector with values to apply
-    Q = zeros(ndim)
+    QQ = zeros(ndim)
 
     # Calculate the nodal values
     F     = zeros(nnodes, ndim)
@@ -211,12 +211,11 @@ function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64
 
         Δut = N'*dUt # interpolation to the integ. point
 
-        Q = update_state!(elem.mat, ip.data, Δut, G)
+        QQ = update_state!(elem.mat, ip.data, Δut, G, Δt)
 
         coef = Δt*detJ*ip.w
-        @gemv dFt += coef*Bt'*Q
+        @gemv dFt += coef*Bt'*QQ
     end
 
     DF[map_t] += dFt
 end
-
