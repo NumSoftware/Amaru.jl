@@ -255,7 +255,7 @@ function elem_conductivity_matrix(elem::TMSolid)
 
         # compute H
         K = calcK(elem.mat, ip.data)
-        coef = detJ*ip.w/θ0
+        coef = elem.mat.k*detJ*ip.w/θ0 # Pra que serve: detJ*ip.w?
         @gemm KBp = K*Bp
         @gemm H -= coef*Bp'*KBp
     end
@@ -287,7 +287,7 @@ function elem_mass_matrix(elem::TMSolid)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # compute Cuu
-        coef = elem.mat.ρ*elem.mat.cv*detJ*ip.w/θ0
+        coef = elem.mat.ρ*elem.mat.cv*detJ*ip.w/θ0 # Pra que serve: detJ*ip.w?
         M  -= coef*N*N'
     end
 
