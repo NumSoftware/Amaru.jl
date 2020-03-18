@@ -200,28 +200,28 @@ function tm_solve!(
         sw = StopWatch() # timing
     end
 
-        function complete_ut_h(dom::Domain)
-            haskey(dom.point_data, "ut") || return
-            Ut = dom.point_data["ut"]
-            H  = dom.point_data["h"]
-            for ele in dom.elems
-                ele.shape.family==SOLID_SHAPE || continue
-                ele.shape==ele.shape.basic_shape && continue
-                npoints = ele.shape.npoints
-                nbpoints = ele.shape.basic_shape.npoints
-                map = [ ele.nodes[i].id for i=1:nbpoints ]
-                Ue = Ut[map]
-                He = H[map]
-                C = ele.shape.nat_coords
-                for i=nbpoints+1:npoints
-                    id = ele.nodes[i].id
-                    R = C[i,:]
-                    N = ele.shape.basic_shape.func(R)
-                    Ut[id] = dot(N,Ue)
-                    H[id] = dot(N,He)
-                end
-            end
-        end
+    #    function complete_ut_h(dom::Domain)
+    #        haskey(dom.point_data, "ut") || return
+    #        Ut = dom.point_data["ut"]
+    #        H  = dom.point_data["h"]
+    #        for ele in dom.elems
+    #            ele.shape.family==SOLID_SHAPE || continue
+    #            ele.shape==ele.shape.basic_shape && continue
+    #            npoints = ele.shape.npoints
+        #        nbpoints = ele.shape.basic_shape.npoints
+        #        map = [ ele.nodes[i].id for i=1:nbpoints ]
+        #        Ue = Ut[map]
+    #            He = H[map]
+    #            C = ele.shape.nat_coords
+        #        for i=nbpoints+1:npoints
+        #            id = ele.nodes[i].id
+        #            R = C[i,:]
+        #            N = ele.shape.basic_shape.func(R)
+        #            Ut[id] = dot(N,Ue)
+        #            H[id] = dot(N,He)
+        #        end
+            #end
+        #end
 
     # Arguments checking
     silent && (verbose=false)
@@ -265,10 +265,10 @@ function tm_solve!(
     #    end
 #    end
 
-# Get global parameters
-#gammaw = get(dom.env.params, :gammaw, NaN)
-#isnan(gammaw) && error("hm_solve!: gammaw parameter was not set in Domain")
-#gammaw > 0 || error("hm_solve: invalid value for gammaw: $gammaw")
+    # Get global parameters
+    #k = get(dom.env.params, :k, NaN)
+    #isnan(k) && error("tm_solve!: k parameter was not set in Domain")
+    #k > 0 || error("hm_solve: invalid value for k: $k")
 
     # Get array with all integration points
     ips = [ ip for elem in dom.elems for ip in elem.ips ]
@@ -289,7 +289,7 @@ function tm_solve!(
 
         update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
         update_output_data!(dom) # Updates data arrays in domain
-        #complete_uw_h(dom)
+        #complete_ut_h(dom)
 
         if save_incs
             save(dom, "$outdir/$filekey-0.vtk", verbose=false)
