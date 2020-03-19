@@ -7,7 +7,7 @@ bl1 = BlockInset( [1.0 1.0 1.0; 0.0 0.0 0.0], curvetype="polyline", tag="drains"
 bl2 = BlockInset( [1.0 1.0 1.0; 2.0 2.0 0.0], curvetype="polyline", tag="drains", jointtag="joints")
 bls = [bl, bl1, bl2]
 
-mesh = Mesh(bls, verbose=true)
+mesh = Mesh(bls, silent=true)
 
 gw = 9.8     # water specific weight
 A  = 0.01

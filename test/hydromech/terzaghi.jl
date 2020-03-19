@@ -9,7 +9,7 @@ blocks = [
     Block( [0 0 0; 1 1 10], nx=1, ny=1, nz=10, cellshape=HEX8, tag="solids"),
 ]
 
-msh = Mesh(blocks, verbose=true)
+msh = Mesh(blocks, silent=true)
 
 
 # Finite element analysis

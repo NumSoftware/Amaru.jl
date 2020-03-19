@@ -4,7 +4,7 @@ using Test
 coord = [ 0. 0.; 1. 0. ]
 conn  = [ [1, 2] ]
 
-msh = Mesh(coord, conn)
+msh = Mesh(coord, conn, silent=true)
 tag!(msh.cells, "bars")
 
 mats = [

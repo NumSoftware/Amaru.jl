@@ -6,7 +6,7 @@ dis = [ -0.012, -0.095 ]
 for shape in (TRI3, TRI6, QUAD4, QUAD8, QUAD9)
     printstyled(shape.name, color=:cyan); println()
     bl = Block( [0 0; 1 1], nx=2, ny=2, cellshape=shape, tag="solids")
-    mesh = Mesh(bl, verbose=false)
+    mesh = Mesh(bl, silent=true)
     tag!(mesh.faces[:(y==0)], "bottom") # bottom face
     tag!(mesh.faces[:(y==1)], "top") # top face
 
@@ -14,7 +14,7 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8, QUAD9)
         "solids" => ElasticSolid(E=100.0, nu=0.2)
     ]
 
-    dom = Domain(mesh, materials, verbose=false)
+    dom = Domain(mesh, materials, silent=true)
 
 
     bcs = [
@@ -36,7 +36,7 @@ end
 for shape in (TET4, TET10, HEX8, HEX20)
     printstyled(shape.name, color=:cyan); println()
     bl = Block( [0 0 0; 1 1 1], nx=2, ny=2, nz=2, cellshape=shape, tag="solids")
-    mesh = Mesh(bl, verbose=false)
+    mesh = Mesh(bl, silent=true)
     tag!(mesh.faces[:(z==0)], "bottom") # bottom face
     tag!(mesh.faces[:(z==1)], "top") # top face
     tag!(mesh.faces[:(x==0 || x==1)], "sides") # lateral face
@@ -45,7 +45,7 @@ for shape in (TET4, TET10, HEX8, HEX20)
         "solids" => ElasticSolid(E=100.0, nu=0.2)
     ]
 
-    dom = Domain(mesh, materials, verbose=false)
+    dom = Domain(mesh, materials, silent=true)
 
     bcs = [
         "bottom" => FaceBC(ux=0, uy=0, uz=0),

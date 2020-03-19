@@ -6,6 +6,8 @@ path  = dirname(@__FILE__)
 tests = readdir(path)
 Amaru.config.makeplots = false
 
+Base.show(io::IO, t::Test.Pass) = printstyled("\t[ ok ]", color=:green)
+Base.show(io::IO, t::Test.Fail) = printstyled("\t[ fail ]", color=:red)
 
 printstyled("\x1b[1m", "\nRunning tests...\n", "\x1b[0m", color=:green)
 
@@ -62,8 +64,9 @@ FILES = [
 
 @testset begin
     for file in FILES
-        printstyled("Running test file ", file,"...\n", bold=true, color=:white)
-        @show file
+        printstyled( "\nRunning file ", file,"...\n", color=:yellow, bold=true)
+        #printstyled("Running test file ", file,"...\n", bold=true, color=:white)
+        #@show file
         include(file)
         println()
     end

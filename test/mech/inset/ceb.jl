@@ -8,7 +8,8 @@ bls = [
        BlockInset( [0.5 3 0.5; 0.5 6.0 0.5], curvetype="polyline", tag="bars", jointtag="joints"),
       ]
 
-msh = Mesh(bls, verbose=true)
+msh = Mesh(bls, silent=true)
+save(msh, "mesh.vtk")
 
 bar_points  = sort(msh.cells["bars"].points, by=get_y)
 

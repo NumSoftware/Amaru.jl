@@ -11,7 +11,7 @@ nz = 3
 bls = [
        Block3D( [0 0 0; lx 0.1 0.1], nx=nx, ny=ny, nz=nz, tag="solids"),
       ]
-msh= Mesh(bls, verbose=true)
+msh= Mesh(bls, silent=true)
 
 mats = [
         "solids" => DamageConcrete(E=27e6, nu=0.2, ft=2.4e3, GF=73e-3, fc=-30e3, epsc=-0.002),
@@ -40,7 +40,7 @@ bcs = [
        #:(x==0.1 && y==0.1 && z==0.1) => NodeBC(ux=0.0001),
       ]
 
-solve!(dom, bcs, autoinc=true, scheme=:ME, nincs=nincs, nouts=5, tol=tol, maxits=2)
+solve!(dom, bcs, autoinc=true, scheme=:ME, nincs=nincs, nouts=5, tol=tol, maxits=2, verbose=false)
 
 t = get_segment_data(dom, [0,0,0], [0.1,0.0,0.0], "data.dat")
 using PyPlot

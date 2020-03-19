@@ -4,7 +4,7 @@ using Test
 # mesh generation
 
 bl  = Block( [0 0; 0.2 0.1], nx=3, ny=1, cellshape=QUAD4)
-msh = Mesh(bl, verbose=true)
+msh = Mesh(bl, silent=true
 iptag!(msh.cells[2], 100)
 tag!(msh.cells[2], 100)
 #tag!(msh.cells[5], 100)

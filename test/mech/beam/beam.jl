@@ -7,7 +7,7 @@ coord = [ 0 0; 1 0 ]
 conn  = [ 1 2 ]
 
 blt = BlockTruss(coord, conn, tag="beam")
-msh = Mesh(blt, verbose=false)
+msh = Mesh(blt, silent=true)
 
 # Finite element model
 

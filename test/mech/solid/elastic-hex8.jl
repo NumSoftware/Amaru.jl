@@ -8,7 +8,7 @@ using Test
 # Mesh generation
 
 block = Block( [0 0 0; 1 1 1], nx=1, ny=1, nz=1, cellshape=HEX8, tag="solid")
-mesh = Mesh(block, verbose=true, reorder=false)
+mesh = Mesh(block, silent=true, reorder=false)
 
 # Domain definition
 
@@ -62,7 +62,7 @@ for (ana, bcs, dis) in zip(ana_list, bcs_list, dis_list)
 
     println("\nLoad case: $ana \n")
 
-    dom = Domain(mesh, materials)
+    dom = Domain(mesh, materials, silent=true)
     solve!(dom, bcs, nincs=1, nouts=1, verbose=false)
 
     println("Displacements:")

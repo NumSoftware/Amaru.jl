@@ -8,7 +8,7 @@ blocks = [
     Block( [0 0; 1 10], nx=1, ny=10, cellshape=QUAD4, tag="solids"),
 ]
 
-msh = Mesh(blocks, verbose=true)
+msh = Mesh(blocks, silent=true)
 generate_joints!(msh, layers=3, tag="joints")
 
 

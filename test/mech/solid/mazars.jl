@@ -4,13 +4,13 @@ using Test
 bl  = Block( [0 0 0; 1. 1. 1.], nx=2, ny=2, nz=2, cellshape=HEX8, tag="solids")
 
 # mesh generation
-msh = Mesh(bl, verbose=false)
+msh = Mesh(bl, silent=true)
 
 mats = [
         "solids" => Mazars(E=30000, nu=0.2, eps0=1.e-4, At=0.9, Bt=5000., Ac=1.0, Bc=1500.0)
        ]
 
-dom = Domain(msh, mats)
+dom = Domain(msh, mats, silent=true)
 
 
 tag!(dom.elems.ips[1], "ip")

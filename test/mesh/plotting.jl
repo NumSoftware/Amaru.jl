@@ -16,7 +16,7 @@ mplot(blocks, "out.pdf")
 println( @test isfile("out.pdf") )
 rm("out.pdf")
 
-msh = Mesh(blocks, verbose=false);
+msh = Mesh(blocks, silent=true)
 
 print("Mesh 2D ")
 mplot(msh, "out.pdf", field="quality")
@@ -33,7 +33,7 @@ mplot(blocks, "out.pdf")
 println( @test isfile("out.pdf") )
 rm("out.pdf")
 
-msh = Mesh(blocks, verbose=false);
+msh = Mesh(blocks, silent=true)
 
 print("Mesh 3D ")
 mplot(msh, "out.pdf", field="quality")

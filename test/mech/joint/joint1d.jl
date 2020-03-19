@@ -8,7 +8,7 @@ bl2 = move!( copy(bl1), dx=0.6)
 bl3 = move!( copy(bl1), dx=0.3)
 bls = [bl, bl1, bl2, bl3 ]
 
-mesh = Mesh(bls, verbose=true)
+mesh = Mesh(bls, silent=true)
 
 # FEM analysis
 

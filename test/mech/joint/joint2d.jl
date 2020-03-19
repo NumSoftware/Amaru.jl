@@ -4,7 +4,7 @@ using Test
 # mesh generation
 
 bl  = Block( [0 0; 0.2 0.1], nx=2, ny=6, cellshape=QUAD4, tag="solids")
-msh = Mesh(bl, verbose=true)
+msh = Mesh(bl, silent=true)
 generate_joints!(msh, tag="joints")
 
 # finite element analysis

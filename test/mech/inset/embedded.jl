@@ -8,8 +8,8 @@ bl2 = copy(bl1)
 move!(bl2, dx=0.6)
 bls = [ bl, bl1, bl2 ]
 
-msh = Mesh(bls, verbose=true)
-#msh = Mesh(bl, verbose=true)
+msh = Mesh(bls, silent=true)
+#msh = Mesh(bl, silent=true)
 
 #save(msh, "msh.vtk")
 
