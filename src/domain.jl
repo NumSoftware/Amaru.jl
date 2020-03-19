@@ -745,30 +745,29 @@ function nodal_local_recovery(dom::AbstractDomain)
 end
 
 
-function save(dom::AbstractDomain, filename::String; format="", verbose=true)
-    if format==""
-        format = split(filename, ".")[end]
-    end
+function save(dom::AbstractDomain, filename::String; verbose=true, silent=false)
+    format = split(filename, ".")[end]
+    mesh = convert(Mesh, dom)
+    save(mesh, filename, silent=silent)
 
-    if     format=="vtk" ; save_dom_vtk(dom, filename, verbose=verbose)
-    elseif format=="json"; save_dom_json(dom, filename, verbose=verbose)
-    else   error("save: Cannot save $(typeof(dom)) in $format format. Available formats are vtk and json")
-    end
+    #if     format=="vtk" ; save_dom_vtk(dom, filename, silent=silent)
+    #elseif format=="json"; save_dom_json(dom, filename, silent=silent)
+    #else   error("save: Cannot save $(typeof(dom)) in $format format. Available formats are vtk and json")
+    #end
 end
 
 
 function save(elems::Array{<:Element,1}, filename::String; verbose=true)
     # Save a group of elements as a subdomain
     subdom = SubDomain(elems)
-    save(subdom, filename, verbose=verbose)
+    save(subdom, filename, silent=silent)
 end
 
 
-function save_dom_vtk(dom::AbstractDomain, filename::String; verbose=true)
+function save_dom_vtk(dom::AbstractDomain, filename::String; verbose=true, silent=false)
     mesh = convert(Mesh, dom)
-    save(mesh, filename, verbose=false)
-
-    verbose && printstyled("  file $filename written (Domain)\n", color=:cyan)
+    save(mesh, filename, silent=silent)
+    #verbose && printstyled("  file $filename written (Domain)\n", color=:cyan)
 end
 
 

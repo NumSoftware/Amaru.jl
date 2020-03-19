@@ -252,8 +252,7 @@ function solve!(
     update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
     if env.cstage==1 && save_incs
         update_output_data!(dom)
-        save(dom, "$outdir/$filekey-0.vtk", verbose=false)
-        silent || printstyled("  $outdir/$filekey-0.vtk file written (Domain)\n", color=:green)
+        save(dom, "$outdir/$filekey-0.vtk", silent=silent)
     end
 
     # Get the domain current state and backup
@@ -405,9 +404,8 @@ function solve!(
                 env.cout += 1
                 iout = env.cout
                 update_output_data!(dom)
-                save(dom, "$outdir/$filekey-$iout.vtk", verbose=false)
+                save(dom, "$outdir/$filekey-$iout.vtk", silent=silent)
                 T += dT # find the next output time
-                silent || printstyled("  $outdir/$filekey-$iout.vtk file written (Domain) \033[K \n",color=:green)
             end
 
             if autoinc
