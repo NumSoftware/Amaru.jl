@@ -293,7 +293,6 @@ function hm_solve!(
 
         if save_incs
             save(dom, "$outdir/$filekey-0.vtk", verbose=false)
-            verbose && printstyled("  $outdir/$filekey-0.vtk file written (Domain)\n", color=:green)
         end
     end
 
@@ -447,7 +446,6 @@ function hm_solve!(
                 save(dom, "$outdir/$filekey-$iout.vtk", verbose=false)
                 T = Tn - mod(Tn, dT) + dT
                 silent || verbose || print(" "^70, "\r")
-                silent || printstyled("  $outdir/$filekey-$iout.vtk file written (Domain)\n", color=:green)
             end
 
             # Update time t

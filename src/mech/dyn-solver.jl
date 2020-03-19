@@ -301,7 +301,6 @@ function dynsolve!(
         update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
         update_output_data!(dom)
         save(dom, "$outdir/$filekey-0.vtk", verbose=false)
-        silent || printstyled("  $outdir/$filekey-0.vtk file written (Domain)\n", color=:green)
     end
 
     # Incremental analysis
@@ -455,7 +454,6 @@ function dynsolve!(
                 update_output_data!(dom)
                 save(dom, "$outdir/$filekey-$iout.vtk", verbose=false)
                 T += dT # find the next output time
-                silent || printstyled("  $outdir/$filekey-$iout.vtk file written (Domain) \033[K \n",color=:green)
             end
 
 
