@@ -1,3 +1,4 @@
+include("xml.jl")
 
 include("vtk.jl")
 include("quadrature.jl")
@@ -41,7 +42,7 @@ include("split.jl")
 include("embedded.jl")
 export generate_embedded_cells!
 
-# show function for FemMesh types
+# show function for Amaru types
 #for datatype in (:ShapeType, :Point, :Cell, :Block, :Mesh, :UnstructuredGrid )
 for datatype in (:ShapeType, :Point, :Cell, :Block, :Mesh)
     eval( quote

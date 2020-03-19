@@ -1,4 +1,4 @@
-# This file is part of FemMesh package. See copyright license in https://github.com/NumSoftware/FemMesh
+# This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 # This file contains the code for smoothing meshes
 
@@ -823,7 +823,6 @@ function fast_smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Floa
 
     savedata && save(stats, "$filekey-stats.dat")
     savedata && save(hists, "$filekey-hists.dat")
-    verbose && println("  done.")
 
     return nothing
 end
@@ -1004,8 +1003,6 @@ function smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Float64=0
 
     # update data at current mesh structure
     #mesh.cell_data["quality"] = Q
-
-    verbose && println("  done.")
 
     return nothing
 end
@@ -1207,8 +1204,6 @@ function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, verbose::Bool=true, fixe
 
     # update data at current mesh structure
     mesh.cell_data["quality"] = Q
-
-    verbose && println("  done.")
 
     return nothing
 

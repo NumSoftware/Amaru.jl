@@ -1,4 +1,4 @@
-# This file is part of FemMesh package. See copyright license in https://github.com/NumSoftware/FemMesh
+# This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 
 export triangulate
@@ -254,7 +254,7 @@ if true
     V = [ rand() for i=1:100, j=1:2]
     E = triangulate(V, getedges=true)
 
-    using FemMesh
+    using Amaru
     bl = BlockTruss(V, E)
     mesh = Mesh(bl)
     save(mesh, "tri1.vtk")

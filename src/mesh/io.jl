@@ -1,4 +1,4 @@
-# This file is part of FemMesh package. See copyright license in https://github.com/NumSoftware/FemMesh
+# This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 function save_vtk(mesh::Mesh, filename::String; desc::String="")
     # Saves a UnstructuredGrid
@@ -109,134 +109,116 @@ function save_vtk(mesh::Mesh, filename::String; desc::String="")
 end
 
 function save_vtu(mesh::Mesh, filename::String; desc::String="")
-    # Saves a UnstructuredGrid
     npoints = length(mesh.points)
     ncells  = length(mesh.cells)
+    root = Xnode("VTKFile", Dict("type"=>"UnstructuredGrid", "version"=>"0.1", "byte_order"=>"LittleEndian"))
+    ugrid = Xnode("UnstructuredGrid")
+    piece = Xnode("Piece", Dict("NumberOfPoints"=>"$npoints", "NumberOfCells"=>"$ncells"))
+    push!(ugrid.children, piece)
+    push!(root.children, ugrid)
 
-    tab1 = "  "
-    tab2 = tab1^2
-    tab3 = tab1^3
-    tab4 = tab1^4
-    tab5 = tab1^5
+    io = IOBuffer()
 
-    # Open filename
-    f = open(filename, "w")
-
-    println(f, """<?xml version="1.0"?>""")
-    println(f, """<VTKFile type="UnstructuredGrid" version="0.1" byte_order="LittleEndian">""")
-    println(f, """<UnstructuredGrid>""")
-    print(f, tab1)
-    println(f, """<Piece NumberOfPoints="$npoints" NumberOfCells="$ncells">""")
-
-    # Write points
-    print(f, tab2)
-    println(f, """<Points>""")
-    print(f, tab3)
-    println(f, """<DataArray type="Float64" NumberOfComponents="3" format="ascii">""")
+    # Write coordinates
+    xpoints = Xnode("Points")
+    xcoords  = Xnode("DataArray", Dict("type"=>"Float64", "NumberOfComponents"=>"3", "format"=>"ascii"))
     for (i,point) in enumerate(mesh.points)
-        print(f, tab4)
-       @printf f "%23.15e %23.15e %23.15e \n" point.x point.y point.z
+        @printf io "%20.10e %20.10e %20.10e \n" point.x point.y point.z
     end
-    print(f, tab3)
-    println(f, """<\\DataArray>""")
-    print(f, tab2)
-    println(f, """<\\Points>""")
+    xcoords.content = String(take!(io))
+    push!(xpoints.children, xcoords)
+    push!(piece.children, xpoints)
 
-    # Write cells
-    print(f, tab2)
-    println(f, """<Cells>""")
-    print(f, tab3)
-    println(f, """<DataArray type="Int32" Name="connectivity" format="ascii">""")
+    xcells = Xnode("Cells")
 
     # Write connectivities
+    xconn  = Xnode("DataArray", Dict("type"=>"Int32", "Name"=>"connectivity", "format"=>"ascii"))
     for cell in mesh.cells
         for point in cell.points
-            print(f, tab4)
-            print(f, point.id-1, " ")
+            print(io, point.id-1, "  ")
         end
-        println(f)
     end
-    print(f, tab3)
-    println(f, """<\\DataArray>""")
+    xconn.content = String(take!(io))
 
-    # Offsets
-    print(f, tab3)
-    println(f, """<DataArray type="Int32" Name="offsets" format="ascii">""")
+    # Write offset
+    xoffset = Xnode("DataArray", Dict("type"=>"Int32", "Name"=>"offsets", "format"=>"ascii"))
     offset = 0
     for cell in mesh.cells
         offset += length(cell.points)
-        print(f, tab4)
-        println(f, "        ", offset)
+        print(io, offset, "  ")
     end
-    print(f, tab3)
-    println(f, """<\\DataArray>""")
+    xoffset.content = String(take!(io))
 
-    # Offsets
-    print(f, tab3)
-    println(f, """      <DataArray type="Int32" Name="types" format="ascii">""")
+    # Write cell types
+    xtypes = Xnode("DataArray", Dict("type"=>"Int32", "Name"=>"types", "format"=>"ascii"))
     for cell in mesh.cells
-        print(f, tab4)
-        println(f, Int(cell.shape.vtk_type))
+        print(io, Int(cell.shape.vtk_type), "  ")
     end
-    print(f, tab3)
-    println(f, """<\\DataArray>""")
-    print(f, tab2)
-    println(f, """    <\\Cells>""")
+    xtypes.content = String(take!(io))
 
-    # Point data
+    push!(xcells.children, xconn)
+    push!(xcells.children, xoffset)
+    push!(xcells.children, xtypes)
+
+    push!(piece.children, xcells)
+
+    # Point and Cell data
     has_point_data = !isempty(mesh.point_data)
     has_cell_data  = !isempty(mesh.cell_data)
 
-    println(f, """      <DataArray type="Float64" NumberOfComponents="3" format="ascii">""")
-
     # Write point data
     if has_point_data
-        println(f, tab2, """<PointData>""")
-        if has_point_data
-            for (field,D) in mesh.point_data
-                isempty(D) && continue
-                isfloat = eltype(D)<:AbstractFloat
-                dtype = isfloat ? "Float64" : "Int32"
-                ncomps = size(D,2)
-                println(f, tab3, """<DataArray type="$dtype" Name="$field" NumberOfComponents="$ncomps" format="ascii">""")
-                for i=1:npoints
-                    print(f, tab4)
-                    for j=1:ncomps
-                        @printf f "%23.10e" isfloat ? Float32(D[i,j]) : D[i,j]
+        xpointdata = Xnode("PointData")
+        for (field,D) in mesh.point_data
+            isempty(D) && continue
+            isfloat = eltype(D)<:AbstractFloat
+            dtype = isfloat ? "Float64" : "Int32"
+            ncomps = size(D,2)
+            xdata = Xnode("DataArray", Dict("type"=>dtype, "Name"=>"$field", "NumberOfComponents"=>"$ncomps", "format"=>"ascii"))
+            for i=1:npoints
+                for j=1:ncomps
+                    if isfloat
+                        @printf io "%20.10e" Float32(D[i,j])
+                    else
+                        print(io, D[i,j], "  ")
                     end
                 end
-                println(f, tab3, """<\\DataArray>""")
             end
+            xdata.content = String(take!(io))
+            push!(xpointdata.children, xdata)
         end
+        push!(piece.children, xpointdata)
     end
-    println(f, tab2, """<\\PointData>""")
 
     # Write cell data
-    if has_point_data
-        println(f, tab2, """<CellData>""")
-        if has_cell_data
-            for (field,D) in mesh.cell_data
-                isempty(D) && continue
-                isfloat = eltype(D)<:AbstractFloat
-                dtype = isfloat ? "Float64" : "Int32"
-                ncomps = size(D,2)
-                println(f, tab3, """<DataArray type="$dtype" Name="$field" NumberOfComponents="$ncomps" format="ascii">""")
-                for i=1:npoints
-                    print(f, tab4)
-                    for j=1:ncomps
-                        @printf f "%23.10e" isfloat ? Float32(D[i,j]) : D[i,j]
+    if has_cell_data
+        xcelldata = Xnode("CellData")
+        for (field,D) in mesh.cell_data
+            isempty(D) && continue
+            isfloat = eltype(D)<:AbstractFloat
+            dtype = isfloat ? "Float64" : "Int32"
+            ncomps = size(D,2)
+            xdata = Xnode("DataArray", Dict("type"=>dtype, "Name"=>"$field", "NumberOfComponents"=>"$ncomps", "format"=>"ascii"))
+            for i=1:ncells
+                for j=1:ncomps
+                    if isfloat
+                        @printf io "%20.10e" Float32(D[i,j])
+                    else
+                        print(io, D[i,j], "  ")
                     end
                 end
-                println(f, tab3, """<\\DataArray>""")
             end
+            xdata.content = String(take!(io))
+            push!(xcelldata.children, xdata)
         end
+        push!(piece.children, xcelldata)
     end
-    println(f, tab2, """<\\PointData>""")
 
-    println(f, """<\\UnstructuredGrid>""")
-    println(f, """<\\VTKFile""")
-
+    fileatts = OrderedDict("version"=>"1.0")
+    doc = Xdoc(fileatts, root)
+    save(doc, filename)
 end
+
 
 function read_vtk(filename::String)
     # Reading file
@@ -246,9 +228,18 @@ function read_vtk(filename::String)
     alltext = read(filename, String)
     data    = split(alltext)
 
-    local coords, connects, cell_types, npoints, ncells
+    #local npoints, ncells
+    #local coords, connects, cell_types
+
+    npoints = 0
+    ncells  = 0
+    coords  = zeros(0,0)
+    connects = Array{Int,1}[]
+    cell_types = Int[]
+
     point_data = OrderedDict{String,Array}()
     cell_data  = OrderedDict{String,Array}()
+
     reading_point_data = false
     reading_cell_data  = false
 
@@ -319,15 +310,32 @@ function read_vtk(filename::String)
 
         if data[idx] == "VECTORS" && reading_point_data
             label = data[idx+1]
+            ty = data[idx+2]
+            dtype = TYPES[ty]
             idx += 2
-            vectors = zeros(npoints,3)
+            vectors = zeros(dtype, npoints,3)
             for i=1:npoints
-                vectors[i,1] = parse(Float64, data[idx+1])
-                vectors[i,2] = parse(Float64, data[idx+2])
-                vectors[i,3] = parse(Float64, data[idx+3])
+                vectors[i,1] = parse(dtype, data[idx+1])
+                vectors[i,2] = parse(dtype, data[idx+2])
+                vectors[i,3] = parse(dtype, data[idx+3])
                 idx += 3
             end
             point_data[label] = vectors
+        end
+
+        if data[idx] == "VECTORS" && reading_cell_data
+            label = data[idx+1]
+            ty = data[idx+2]
+            dtype = TYPES[ty]
+            idx += 2
+            vectors = zeros(dtype, ncells,3)
+            for i=1:ncells
+                vectors[i,1] = parse(dtype, data[idx+1])
+                vectors[i,2] = parse(dtype, data[idx+2])
+                vectors[i,3] = parse(dtype, data[idx+3])
+                idx += 3
+            end
+            cell_data[label] = vectors
         end
 
         if data[idx] == "SCALARS" && reading_point_data
@@ -358,10 +366,78 @@ function read_vtk(filename::String)
 
     end
 
-    # Setting a Mesh object
-    # =====================
+    return Mesh(coords, connects, cell_types, point_data, cell_data)
+end
+
+
+function read_vtu(filename::String)
+    # Reading file
+    # ============
+
+    TYPES = Dict("Float32"=>Float32, "Float64"=>Float64, "Int32"=>Int32, "Int64"=>Int64)
+
+    doc = Xdoc(filename)
+    piece = doc.root["UnstructuredGrid"]["Piece"]
+    npoints = piece.attributes["NumberOfPoints"]
+    ncells  = piece.attributes["NumberOfCells"]
+    strcoords = piece["Points"]["DataArray"].content
+    coords = transpose(reshape(parse.(Float64, split(strcoords)), 3, :))
+
+    xmlcells = piece["Cells"]
+    conn     = parse.(Int, split(xmlcells["Name"=>"connectivity"][1].content)) .+ 1
+    offsets  = parse.(Int, split(xmlcells["Name"=>"offsets"][1].content))
+    cell_types = parse.(Int, split(xmlcells["Name"=>"types"][1].content))
+
+    connects = Array{Int,1}[]
+    pos = 1
+    for off in offsets
+        push!(connects, conn[pos:off])
+        pos = off+1
+    end
+
+    point_data = OrderedDict{String,Array}()
+    cell_data  = OrderedDict{String,Array}()
+
+    xpointdata = piece["PointData"]
+    if xpointdata!=nothing
+        for arr in xpointdata.children
+            ncomps = parse(Int, arr.attributes["NumberOfComponents"])
+            dtype = TYPES[arr.attributes["type"]]
+            label = arr.attributes["Name"]
+            if ncomps==1
+                point_data[label] = parse.(dtype, split(arr.content))
+            else
+                point_data[label] = transpose(reshape(parse.(dtype, split(arr.content)), ncomps, npoints))
+            end
+        end
+    end
+
+    xcelldata = piece["CellData"]
+    if xcelldata!=nothing
+        for arr in xcelldata.children
+            ncomps = parse(Int, arr.attributes["NumberOfComponents"])
+            dtype = TYPES[arr.attributes["type"]]
+            label = arr.attributes["Name"]
+            if ncomps==1
+                cell_data[label] = parse.(dtype, split(arr.content))
+            else
+                cell_data[label] = transpose(reshape(parse.(dtype, split(arr.content)), ncomps, ncells))
+            end
+        end
+    end
+
+    return Mesh(coords, connects, cell_types, point_data, cell_data)
+end
+
+
+
+# Setting a Mesh object
+# =====================
+function Mesh(coords, connects, vtk_types, point_data, cell_data)
 
     mesh = Mesh()
+    npoints = size(coords,1)
+    ncells  = length(connects)
 
     # Setting points
     for i=1:npoints
@@ -384,7 +460,7 @@ function read_vtk(filename::String)
 
     for i=1:ncells
         conn = mesh.points[ connects[i] ]
-        vtk_shape = VTKCellType(cell_types[i])
+        vtk_shape = VTKCellType(vtk_types[i])
         if vtk_shape == VTK_POLY_VERTEX
             shape = POLYV
             has_polyvertex = true
@@ -402,6 +478,36 @@ function read_vtk(filename::String)
     mesh.point_data = merge(mesh.point_data, point_data)
     mesh.cell_data  = merge(mesh.cell_data, cell_data)
 
+    # Fix information for 1D joints
+    if haskey(mesh.cell_data, "inset-data")
+        inset_data = mesh.cell_data["inset-data"]
+        for (i,cell) in enumerate(mesh.cells)
+            if cell.shape.family==JOINT1D_SHAPE
+                linked_ids = inset_data[i,2:3]
+                cell.linked_cells = mesh.cells[linked_ids]
+                cells.linked_cells[1].crossed = true # host cell is crossed
+            end
+        end
+    end
+
+    # Fix information for joints
+    if haskey(mesh.cell_data, "joint-data")
+        joint_data = mesh.cell_data["joint-data"]
+        for (i,cell) in enumerate(mesh.cells)
+            if cell.shape.family==JOINT_SHAPE
+                nlayers    = joint_data[i,1]
+                linked_ids = joint_data[i,2:3]
+                cell.linked_cells = mesh.cells[linked_ids]
+                n = length(cell.points)
+                cell.shape = get_shape_from_vtk(VTK_POLY_VERTEX, n, ndim, nlayers)
+            end
+        end
+    end
+
+    # remaining polyvertex cells
+    #cell.shape = get_shape_from_vtk(VTK_POLY_VERTEX, n, ndim)
+
+    #=
     # Fix shape for polyvertex cells
     if has_polyvertex
         # mount dictionary of cells
@@ -461,6 +567,7 @@ function read_vtk(filename::String)
 
                 # look for joint elements with 3 layers and fix shape
                 if n%3==0 && n>=6
+                    isjoint = true
                     stride= div(n,3)
                     delta = 0.0
                     for i=1:stride
@@ -493,7 +600,7 @@ function read_vtk(filename::String)
             for cell in mesh.cells
                 for face in get_faces(cell)
                     hs = hash(face)
-                    f  = get(facedict, hs, nothing)
+                    #f  = get(facedict, hs, nothing)
                     facedict[hs] = face
                 end
             end
@@ -516,6 +623,7 @@ function read_vtk(filename::String)
     if has_line
         # TODO: find the owner of orphan line cells OR use parent id information
     end
+    =#
 
     return mesh
 
@@ -653,9 +761,18 @@ end
 
 Saves a mesh object into a file in VTK legacy format
 """
-function save(mesh::Mesh, filename::String; verbose::Bool=true)
-    save_vtk(mesh, filename, desc="File generated by FemMesh")
-    verbose && printstyled( "  file $filename written (Mesh)\n", color=:cyan)
+function save(mesh::Mesh, filename::String; verbose::Bool=true, silent::Bool=false)
+    verbosity = 1
+    verbose && (verbosity=2)
+    silent && (verbosity=0)
+
+    format = split(filename, ".")[end]
+
+    if     format=="vtk" ; save_vtk(mesh, filename, desc="File generated by Amaru")
+    elseif format=="vtu"; save_vtu(mesh, filename, desc="File generated by Amaru")
+    else   error("save: Cannot save $filename. Available formats are vtk and vtu.")
+    end
+    verbosity>0 && printstyled( "  file $filename written \033[K \n", color=:cyan)
 end
 
 

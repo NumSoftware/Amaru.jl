@@ -1,4 +1,4 @@
-# This file is part of FemMesh package. See copyright license in https://github.com/NumSoftware/FemMesh
+# This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 
 #Base.copy(p::Point) = Point(p.x, p.y, p.z, p.tag)

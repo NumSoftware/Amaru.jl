@@ -1,4 +1,4 @@
-# This file is part of FemMesh package. See copyright license in https://github.com/NumSoftware/FemMesh
+# This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 # This file includes the code for adding joints between cells
 
@@ -114,7 +114,7 @@ function generate_joints!(mesh::Mesh; layers::Int64=2, verbose::Bool=true, tag="
     end
 
 
-    # Get points from non-separated cells
+    # Get points from non-separated cells, e.g. lines, beams, etc.
     points_dict = Dict{UInt64, Point}()
     for c in mesh.cells
         c.shape.family == SOLID_SHAPE && continue # skip because they have points with same coordinates
@@ -133,6 +133,20 @@ function generate_joints!(mesh::Mesh; layers::Int64=2, verbose::Bool=true, tag="
     # update and reorder mesh
     fixup!(mesh, reorder=true)
 
+    # Add field for joints (1 or 0 values)
+    #mesh.cell_data["joint-layers"] = [ c.shape.family==JOINT_SHAPE ? layer : 0 for c in mesh.cells ]
+    ncells = length(mesh.cells)
+    joint_data = zeros(Int, ncells, 3) # nlayers, first link, second link
+    for i=1:ncells
+        cell = mesh.cells[i]
+        if cell.shape.family==JOINT_SHAPE
+            joint_data[i,1] = layers
+            joint_data[i,2] = cell.linked_cells[1].id
+            joint_data[i,3] = cell.linked_cells[2].id
+        end
+    end
+    mesh.cell_data["joint-data"] = joint_data
+
     if verbose
         @printf "  %4dd mesh                             \n" mesh.ndim
         @printf "  %5d points\n" length(mesh.points)
@@ -142,7 +156,6 @@ function generate_joints!(mesh::Mesh; layers::Int64=2, verbose::Bool=true, tag="
         nfaces>0 && @printf("  %5d faces\n", nfaces)
         nedges = length(mesh.edges)
         nedges>0 && @printf("  %5d edges\n", nedges)
-        println("  done.")
     end
 
     return mesh
@@ -519,7 +532,6 @@ function generate_joints_by_tag!(mesh::Mesh; layers::Int64=2, verbose::Bool=true
         nfaces>0 && @printf("  %5d faces\n", nfaces)
         nedges = length(mesh.edges)
         nedges>0 && @printf("  %5d edges\n", nedges)
-        println("  done.")
     end
 
     return mesh

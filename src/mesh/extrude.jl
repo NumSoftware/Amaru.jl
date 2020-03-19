@@ -1,4 +1,4 @@
-# This file is part of FemMesh package. See copyright license in https://github.com/NumSoftware/FemMesh
+# This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 """
 `extrude(block, [axis=[0,0,1],] [len=1.0,] [n=1])`
@@ -131,7 +131,6 @@ function extrude(mesh::Mesh; len::Number=1.0, n::Int=1, verbose::Bool=true)
         @printf "  %5d cells obtained\n" length(newmesh.cells)
         @printf "  %5d faces obtained\n" length(newmesh.faces)
         @printf "  %5d surface edges obtained\n" length(newmesh.edges)
-        println("  done.")
     end
 
     return newmesh
@@ -276,7 +275,6 @@ function extrude2(mesh::Mesh; axis=[0.0,0.0,1.], len::Number=1.0, n::Int=1, verb
         if genedges
             @printf "  %5d surface edges obtained\n" length(newmesh.edges)
         end
-        println("  done.")
     end
 
     return newmesh
@@ -450,7 +448,6 @@ function extrude1(mesh::Mesh; axis=[0.0,0.0,1.], len::Number=1.0, n::Int=1, verb
         if genedges
             @printf "  %5d surface edges obtained\n" length(newmesh.edges)
         end
-        println("  done.")
     end
 
     return newmesh

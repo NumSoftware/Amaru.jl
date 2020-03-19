@@ -1,4 +1,4 @@
-# This file is part of FemMesh package. See copyright license in https://github.com/NumSoftware/FemMesh
+# This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 #include("delaunay.jl")
 
@@ -341,6 +341,8 @@ function fixup!(mesh::Mesh; verbose::Bool=false, genfacets::Bool=true, genedges:
     # Quality
     Q = Float64[]
     for c in mesh.cells
+        #@show getcoords(c)
+        #@show c.id
         c.quality = cell_quality(c)
         push!(Q, c.quality)
     end
@@ -438,7 +440,9 @@ function Mesh(
               coords     :: Array{<:Real},
               conns      :: Array{Array{Int64,1},1},
               cellshapes :: Array{ShapeType,1}=ShapeType[];
-              tag        :: String=""
+              tag        :: String="",
+              verbose    :: Bool=true,
+              silent     :: Bool=false
              )
     n = size(coords, 1) # number of points
     m = size(conns , 1) # number of cells
@@ -543,8 +547,8 @@ function Mesh(
 
     nmeshes = length(meshes)
     nblocks = length(blocks)
-    if verbose
-        verbosity>0 && printstyled("Mesh generation:\n", bold=true, color=:cyan)
+    if verbosity>0
+        printstyled("Mesh generation:\n", bold=true, color=:cyan)
         nmeshes>0 && @printf "  %5d meshes\n" nmeshes
         @printf "  %5d blocks\n" nblocks
     end
@@ -566,6 +570,26 @@ function Mesh(
 
     # Updates numbering, quality, facets and edges
     fixup!(mesh, verbose=verbose, genfacets=genfacets, genedges=genedges, reorder=reorder)
+
+    # Add field for embedded points
+    if any( c.shape.family==JOINT1D_SHAPE for c in mesh.cells )
+        #mesh.cell_data["linked-host"] = [ c.shape.family==JOINT1D_SHAPE ? c.linked_cells[1].id : 0 for c in mesh.cells ]
+        #mesh.cell_data["linked-line"] = [ c.shape.family==JOINT1D_SHAPE ? c.linked_cells[2].id : 0 for c in mesh.cells ]
+        ncells = length(mesh.cells)
+        inset_data = zeros(Int, ncells, 3) # npoints, first link id, second link id
+        for i=1:ncells
+            cell = mesh.cells[i]
+            if cell.shape.family==JOINT1D_SHAPE
+                inset_data[i,1] = cell.shape.npoints
+                inset_data[i,2] = cell.linked_cells[1].id
+                inset_data[i,3] = cell.linked_cells[2].id
+            end
+        end
+        mesh.cell_data["inset-data"] = inset_data
+    end
+
+    #emb_points = [ c.shape.family==JOINT1D_SHAPE ? c.shape.npoints : 0 for c in mesh.cells ]
+    #sum(emb_points) > 0 && (mesh.cell_data["emb-points"]=emb_points)
 
     if verbosity>0
         npoints = length(mesh.points)
