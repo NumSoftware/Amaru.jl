@@ -5,10 +5,10 @@ mutable struct Xnode
     content::String
 
     function Xnode(name::AbstractString, attributes::AbstractDict=Dict{String,String}())
-        return new(name, attributes, Xnode[], "")
+        return new(name, OrderedDict(attributes), Xnode[], "")
     end
     function Xnode(name::AbstractString, attributes::AbstractDict, children::Array, content::AbstractString)
-        return new(name, attributes, children, content)
+        return new(name, OrderedDict(attributes), children, content)
     end
 end
 

@@ -113,6 +113,10 @@ function generate_joints!(mesh::Mesh; layers::Int64=2, verbose::Bool=true, tag="
         c.points[1:nspts] .= scell.points
     end
 
+    if haskey(mesh.cell_data, "inset-data")
+        idata = mesh.cell_data["inset-data"]
+        mesh.cell_data["inset-data"] = [ idata; zeros(length(jcells), 3) ]
+    end
 
     # Get points from non-separated cells, e.g. lines, beams, etc.
     points_dict = Dict{UInt64, Point}()

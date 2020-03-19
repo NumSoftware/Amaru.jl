@@ -787,7 +787,7 @@ function Mesh(filename::String; verbose::Bool=true, silent::Bool=false, format::
     verbose && (verbosity=2)
     silent && (verbosity=0)
 
-    verbosity>0 && printstyled("Mesh loading: filename $filename\n", bold=true, color=:cyan)
+    verbosity>1 && printstyled("Mesh loading: filename $filename\n", bold=true, color=:cyan)
 
     if format==""
         basename, format = splitext(filename)
@@ -795,17 +795,22 @@ function Mesh(filename::String; verbose::Bool=true, silent::Bool=false, format::
     end
 
     if format=="vtk"
-        verbosity>0 && print("  Reading VTK legacy format...\n")
+        verbosity>1 && print("  Reading VTK legacy format...\n")
         mesh = read_vtk(filename)
+    elseif format=="vtu"
+        verbosity>1 && print("  Reading VTU format...\n")
+        mesh = read_vtu(filename)
     elseif format=="json"
-        verbosity>0 && print("  Reading JSON format...\n")
+        verbosity>1 && print("  Reading JSON format...\n")
         mesh = read_json(filename)
     elseif format=="tetgen"
-        verbosity>0 && print("  Reading tetgen output files...\n")
+        verbosity>1 && print("  Reading tetgen output files...\n")
         mesh = read_tetgen(filename)
     else
-        error("Could not read $format format file")
+        error("Mesh: Reading $format format is not available (file=$filename)")
     end
+
+    verbosity>0 && printstyled( "  file $filename loaded \033[K \n", color=:cyan)
 
     # Reorder nodal numbering
     if reorder
