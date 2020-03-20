@@ -12,8 +12,10 @@ Base.show(io::IO, t::Test.Fail) = printstyled("\t[ fail ]", color=:red)
 printstyled("\x1b[1m", "\nRunning tests...\n", "\x1b[0m", color=:green)
 
 FILES = [
+    # Meshing
     "mesh/shape_deriv.jl",
     "mesh/generation.jl",
+    "mesh/io.jl",
     "mesh/operations.jl",
     "mesh/extrapolation.jl",
     "mesh/smoothing.jl",
