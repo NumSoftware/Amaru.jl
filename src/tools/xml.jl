@@ -130,7 +130,7 @@ function Xdoc(filename::String)
     return Xdoc(attributes, root)
 end
 
-function printnode(f::IOStream, node::Xnode, level::Int)
+function writenode(f::IOStream, node::Xnode, level::Int)
     tab = "   "
     # Print header
     print(f, tab^level, "<", node.name)
@@ -139,12 +139,17 @@ function printnode(f::IOStream, node::Xnode, level::Int)
     end
     println(f, ">")
 
-    # Print children or content
+    # Print content or children
     if length(node.children)==0
-        println(f, tab^(level+1), node.content)
+        # print content
+        if node.name=="DataArray"
+            println(f, replace(node.content, r"^ *"m=>tab^(level+1)))
+        else
+            println(f, tab^(level+1), node.content)
+        end
     else
         for child in node.children
-            printnode(f, child, level+1)
+            writenode(f, child, level+1)
         end
     end
 
@@ -164,7 +169,7 @@ function save(doc::Xdoc, filename::String)
     println(f, "?>")
 
     # Print nodes
-    printnode(f, doc.root, 0)
+    writenode(f, doc.root, 0)
 
     close(f)
 end

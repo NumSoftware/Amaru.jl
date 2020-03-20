@@ -123,7 +123,8 @@ function save_vtu(mesh::Mesh, filename::String; desc::String="")
     xpoints = Xnode("Points")
     xcoords  = Xnode("DataArray", Dict("type"=>"Float64", "NumberOfComponents"=>"3", "format"=>"ascii"))
     for (i,point) in enumerate(mesh.points)
-        @printf io "%20.10e %20.10e %20.10e \n" point.x point.y point.z
+        @printf io "%17.7e %17.7e %17.7e" point.x point.y point.z
+        i<npoints && print(io, "\n")
     end
     xcoords.content = String(take!(io))
     push!(xpoints.children, xcoords)
@@ -178,7 +179,7 @@ function save_vtu(mesh::Mesh, filename::String; desc::String="")
             for i=1:npoints
                 for j=1:ncomps
                     if isfloat
-                        @printf io "%20.10e" Float32(D[i,j])
+                        @printf io "%17.7e" Float32(D[i,j])
                     else
                         print(io, D[i,j], "  ")
                     end
