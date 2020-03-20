@@ -161,5 +161,3 @@ mesh = generate_joints!(mesh)
 #mesh = Mesh("out.vtk", silent=true)
 TR = @test length(mesh.cells) == 264
 println(TR)
-
-rm("out.vtk")
