@@ -28,8 +28,8 @@ function getlapse(sw::StopWatch)
     return sw.lapse + time() - sw.lasttime
 end
 
-function formatlapse(lapse::Float64; format::Symbol=:hms)
-    # format may be :hms, :ms, :s
+function formatlapse(lapse::Float64; format::Symbol=:short)
+    # format may be :hms, :ms, :s or :short
     if format==:s
         return @sprintf("%5.3fs", lapse)
     elseif format==:ms
@@ -38,11 +38,16 @@ function formatlapse(lapse::Float64; format::Symbol=:hms)
     else
         h, r = divrem(lapse, 3600)
         m, s = divrem(r, 60)
-        return @sprintf("%1dh %1dm %5.3fs", h, m, s)
+        #@show format
+        if format==:hms
+            return @sprintf("%1dh %1dm %5.3fs", h, m, s)
+        else
+            return @sprintf("%1d:%1d:%3.1f", h, m, s)
+        end
     end
 end
 
-function see(sw::StopWatch; format::Symbol=:hms)
+function see(sw::StopWatch; format::Symbol=:short)
     return formatlapse(getlapse(sw), format=format)
 end
 

@@ -252,7 +252,7 @@ function solve!(
     update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
     if env.cstage==1 && save_incs
         update_output_data!(dom)
-        save(dom, "$outdir/$filekey-0.vtk", silent=silent)
+        save(dom, "$outdir/$filekey-0.vtu", silent=silent)
     end
 
     # Get the domain current state and backup
@@ -264,8 +264,8 @@ function solve!(
     dt = 1.0/nincs # initial dt value
     dt_bk = 0.0
 
-    dT = 1.0/nouts  # output time increment for saving vtk file
-    T  = dT        # output time for saving the next vtk file
+    dT = 1.0/nouts  # output time increment for saving output file
+    T  = dT        # output time for saving the next output file
 
     ttol = 1e-9    # time tolerance
     inc  = 0       # increment counter
@@ -300,7 +300,8 @@ function solve!(
             return false
         end
 
-        silent || printstyled("  stage $(env.cstage) progress $(round(t*100,digits=3))% increment $inc dt=$(round(dt,sigdigits=4))\033[K\r", bold=true, color=:blue) # color 111
+        progress = @sprintf("%4.2f", t*100)
+        silent || printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)% increment $inc dT=$(round(dt,sigdigits=4))\033[K\r", bold=true, color=:blue) # color 111
         verbose && println()
 
         ΔUex, ΔFex = dt*Uex, dt*Fex     # increment of external vectors
@@ -404,7 +405,7 @@ function solve!(
                 env.cout += 1
                 iout = env.cout
                 update_output_data!(dom)
-                save(dom, "$outdir/$filekey-$iout.vtk", silent=silent)
+                save(dom, "$outdir/$filekey-$iout.vtu", silent=silent)
                 T += dT # find the next output time
             end
 
