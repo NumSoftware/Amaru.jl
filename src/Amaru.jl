@@ -40,6 +40,10 @@ include("tools/table.jl")
 include("tools/tensors.jl")
 include("tools/show.jl")
 include("tools/stopwatch.jl")
+
+include("tools/xml.jl")
+export Xdoc, Xnode
+
 include("tools/iteration.jl")
 export unfold
 
