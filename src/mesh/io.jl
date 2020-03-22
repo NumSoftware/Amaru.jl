@@ -379,8 +379,8 @@ function read_vtu(filename::String)
 
     doc = Xdoc(filename)
     piece = doc.root["UnstructuredGrid"]["Piece"]
-    npoints = piece.attributes["NumberOfPoints"]
-    ncells  = piece.attributes["NumberOfCells"]
+    npoints = parse(Int, piece.attributes["NumberOfPoints"])
+    ncells  = parse(Int, piece.attributes["NumberOfCells"])
     strcoords = piece["Points"]["DataArray"].content
     coords = transpose(reshape(parse.(Float64, split(strcoords)), 3, :))
 
