@@ -14,10 +14,10 @@ function tm_mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
     for elem in dom.elems
 
         ty = typeof(elem)
-        has_stiffness_matrix    = hasmethod(elem_stiffness, (ty,))
-        has_coupling_matrix     = hasmethod(elem_coupling_matrix, (ty,))
-        has_mass_matrix = hasmethod(elem_mass_matrix, (ty,))
-        has_conductivity_matrix = hasmethod(elem_conductivity_matrix, (ty,))
+        has_stiffness_matrix    = hasmethod(elem_stiffness, (ty,)) #K
+        has_coupling_matrix     = hasmethod(elem_coupling_matrix, (ty,)) # L
+        has_mass_matrix = hasmethod(elem_mass_matrix, (ty,)) # M
+        has_conductivity_matrix = hasmethod(elem_conductivity_matrix, (ty,)) # theta
         has_RHS_vector          = hasmethod(elem_RHS_vector, (ty,))
 
         # Assemble the stiffness matrix
@@ -124,19 +124,23 @@ function tm_solve_step!(G::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu
         G21 = G[nu1:end, 1:nu]
     end
     G22 = G[nu+1:end, nu+1:end]
-
+    #println(G22)
     F1  = DF[1:nu]
     U2  = DU[nu+1:end]
-
+    #println(U2)
     # Solve linear system
     F2 = G22*U2
+    #println(F2)
     U1 = zeros(nu)
     if nu>0
         RHS = F1 - G12*U2
+        #println(RHS)
         try
             LUfact = lu(G11)
             U1  = LUfact\RHS
             F2 += G21*U1
+            #println(U1)
+            #println(F2)
         catch err
             @warn "solve!: $err"
             U1 .= NaN
