@@ -107,7 +107,7 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
 end
 
 
-function setBu(env::ModelEnv, dNdX::Matx, detJ::Float64, B::Matx)
+function set_Bu(env::ModelEnv, dNdX::Matx, detJ::Float64, B::Matx)
     ndim, nnodes = size(dNdX)
     B .= 0.0
 
@@ -150,7 +150,7 @@ end
 
 function elem_stiffness(elem::TMSolid)
     ndim   = elem.env.ndim
-    th     = elem.env.thickness
+    #th     = elem.env.thickness
     nnodes = length(elem.nodes)
     C = elem_coords(elem)
     K = zeros(nnodes*ndim, nnodes*ndim)
@@ -168,7 +168,7 @@ function elem_stiffness(elem::TMSolid)
         @gemm dNdX = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        setBu(elem.env, dNdX, detJ, Bu)
+        set_Bu(elem.env, dNdX, detJ, Bu)
 
         # compute K
         coef = detJ*ip.w
@@ -211,7 +211,7 @@ function elem_coupling_matrix(elem::TMSolid)
         @gemm dNdX = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        setBu(elem.env, dNdX, detJ, Bu)
+        set_Bu(elem.env, dNdX, detJ, Bu)
 
         # compute Cup
         Np   = elem.shape.basic_shape.func(ip.R)
@@ -229,7 +229,7 @@ function elem_coupling_matrix(elem::TMSolid)
 end
 
 
-# thermal conductivity
+# thermal conductivity # matriz theta
 function elem_conductivity_matrix(elem::TMSolid)
     ndim   = elem.env.ndim
     θ0     = elem.env.T0 + 273.15
@@ -335,7 +335,7 @@ end
 
 function elem_internal_forces(elem::TMSolid, F::Array{Float64,1})
     ndim   = elem.env.ndim
-    #th     = elem.env.thickness
+    th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     C   = elem_coords(elem)
@@ -365,7 +365,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1})
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
         @gemm dNdX = inv(J)*dNdR
-        setBu(elem.env, dNdX, detJ, Bu)
+        set_Bu(elem.env, dNdX, detJ, Bu)
 
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
         Jp = dNpdR*Cp
@@ -377,7 +377,8 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1})
 
         # internal force
         ut   = ip.data.ut
-        σ    = ip.data.σ - elem.mat.α*ut*m # get total stress
+        β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) # thermal stress
+        σ    = ip.data.σ - β*ut*m # get total stress
         coef = detJ*ip.w #VERIFICAAAAAAAAAAAAR
         @gemv dF += coef*Bu'*σ
 
@@ -412,7 +413,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
     map_p  = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nbsnodes] ]
 
     dU  = DU[map_u] # nodal displacement increments
-    dUt = DU[map_p] # nodal pore-pressure increments
+    dUt = DU[map_p] # nodal temperature increments
     Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes[1:nbsnodes]]
     Ut += dUt # nodal pore-pressure at step n+1
     m = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  #
@@ -437,7 +438,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
         @gemm dNdX = inv(J)*dNdR
-        setBu(elem.env, dNdX, detJ, Bu)
+        set_Bu(elem.env, dNdX, detJ, Bu)
 
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
         @gemm Jp = dNpdR*Cp
@@ -454,7 +455,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         Δut = Np'*dUt # interpolation to the integ. point
 
         # Compute thermal gradient G (REEEEEVER)
-        G  = Bp*Ut/elem.mat.k
+        G  = Bp*Ut    #/elem.mat.k
         G[end] += 1.0; # gradient
 
         # internal force dF
@@ -462,7 +463,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         Δσ -= elem.mat.cv*Δut*m # get total stress
 
         #coef = detJ*ip.w  # VEEEERIFICAR
-        @gemv dF += Bu'*Δσ # dF += coef*Bu'*Δσ
+        @gemv dF += Bu'*Δσ     # dF += coef*Bu'*Δσ
 
         # internal volumes dFt
         Δεvol = dot(m, Δε)
