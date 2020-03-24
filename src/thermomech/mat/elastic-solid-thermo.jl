@@ -7,12 +7,14 @@ mutable struct ElasticSolidThermoIpState<:IpState
     σ::Array{Float64,1} # stress
     ε::Array{Float64,1} # strain
     QQ::Array{Float64,1} # heat flux
+    D::Array{Float64,1} # VERIFICAR NECESSIDADE
     ut::Float64
     function ElasticSolidThermoIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
         this.QQ = zeros(env.ndim)
+        this.D = zeros(env.ndim) # VERIFICAR NECESSIDADE
         this.ut = 0.0
         return this
     end
@@ -88,6 +90,7 @@ function stress_update(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState, 
     ipd.σ  += Δσ
     K = calcK(mat, ipd)
     ipd.QQ = -K*G
+    ipd.D  += ipd.QQ*Δt
     ipd.ut += Δut
     return Δσ, ipd.QQ
 end
@@ -95,11 +98,11 @@ end
 function ip_state_vals(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState)
     D = stress_strain_dict(ipd.σ, ipd.ε, ipd.env.ndim)
 
-   D[:qx] = ipd.QQ[1]
-    D[:qy] = ipd.QQ[2]
-    if ipd.env.ndim==3
-        D[:qz] = ipd.QQ[3]
-    end
+   D[:qx] = ipd.QQ[1] # VERIFICAR NECESSIDADE
+    D[:qy] = ipd.QQ[2] # VERIFICAR NECESSIDADE
+    if ipd.env.ndim==3 # VERIFICAR NECESSIDADE
+        D[:qz] = ipd.QQ[3] # VERIFICAR NECESSIDADE
+    end # VERIFICAR NECESSIDADE
 
-    return D
-end
+    return D # VERIFICAR NECESSIDADE
+end # VERIFICAR NECESSIDADE

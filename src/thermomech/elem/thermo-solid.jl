@@ -175,6 +175,47 @@ function elem_RHS_vector(elem::ThermoSolid)
 end
 =#
 
+function elem_internal_forces1(elem::SeepSolid, F::Array{Float64,1})
+    ndim   = elem.env.ndim
+    nnodes = length(elem.nodes)
+    C   = elem_coords(elem)
+
+    map_p  = [ node.dofdicstiffnest[:ut].eq_id for node in elem.nodes ]
+
+    dFw = zeros(nnodes)
+    Bp  = zeros(ndim, nnodes)
+
+    J  = Array{Float64}(undef, ndim, ndim)
+    dNdX = Array{Float64}(undef, ndim, nnodes)
+
+    for ip in elem.ips
+
+        # compute Bp matrix
+        dNdR = elem.shape.deriv(ip.R)
+        @gemm J = dNdR*C
+        detJ = det(J)
+        detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
+        @gemm dNdX = inv(J)*dNdR
+
+        Bp = dNdX
+
+        # compute N
+        N    = elem.shape.func(ip.R)
+
+        # internal volumes dFw
+        ut   = ip.data.ut
+        coef = detJ*ip.w*elem.mat.cv # VERIFICAR
+        dFw -= coef*N*ut
+
+        D    = ip.data.D
+        coef = detJ*ip.w
+        @gemv dFt += coef*Bp'*D
+    end
+
+    F[map_p] += dFt
+end
+
+
 
 function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
