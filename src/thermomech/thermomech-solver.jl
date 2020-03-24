@@ -130,17 +130,13 @@ function tm_solve_step!(G::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu
     #println(U2)
     # Solve linear system
     F2 = G22*U2
-    #println(F2)
     U1 = zeros(nu)
     if nu>0
         RHS = F1 - G12*U2
-        #println(RHS)
         try
             LUfact = lu(G11)
             U1  = LUfact\RHS
             F2 += G21*U1
-            #println(U1)
-            #println(F2)
         catch err
             @warn "solve!: $err"
             U1 .= NaN
@@ -204,28 +200,28 @@ function tm_solve!(
         sw = StopWatch() # timing
     end
 
-    #    function complete_ut_h(dom::Domain)
-    #        haskey(dom.point_data, "ut") || return
-    #        Ut = dom.point_data["ut"]
-    #        H  = dom.point_data["h"]
-    #        for ele in dom.elems
-    #            ele.shape.family==SOLID_SHAPE || continue
-    #            ele.shape==ele.shape.basic_shape && continue
-    #            npoints = ele.shape.npoints
-        #        nbpoints = ele.shape.basic_shape.npoints
-        #        map = [ ele.nodes[i].id for i=1:nbpoints ]
-        #        Ue = Ut[map]
-    #            He = H[map]
-    #            C = ele.shape.nat_coords
-        #        for i=nbpoints+1:npoints
-        #            id = ele.nodes[i].id
-        #            R = C[i,:]
-        #            N = ele.shape.basic_shape.func(R)
-        #            Ut[id] = dot(N,Ue)
-        #            H[id] = dot(N,He)
-        #        end
-            #end
-        #end
+        function complete_ut_h(dom::Domain)
+            haskey(dom.point_data, "ut") || return
+            Ut = dom.point_data["ut"]
+            H  = dom.point_data["h"]
+            for ele in dom.elems
+                ele.shape.family==SOLID_SHAPE || continue
+                ele.shape==ele.shape.basic_shape && continue
+                npoints = ele.shape.npoints
+                nbpoints = ele.shape.basic_shape.npoints
+                map = [ ele.nodes[i].id for i=1:nbpoints ]
+                Ue = Ut[map]
+                He = H[map]
+                C = ele.shape.nat_coords
+                for i=nbpoints+1:npoints
+                    id = ele.nodes[i].id
+                    R = C[i,:]
+                    N = ele.shape.basic_shape.func(R)
+                    Ut[id] = dot(N,Ue)
+                    H[id] = dot(N,He)
+                end
+            end
+        end
 
     # Arguments checking
     silent && (verbose=false)
@@ -286,14 +282,14 @@ function tm_solve!(
         for (i,dof) in enumerate(dofs)
             dof.vals[dof.name]    = 0.0
             dof.vals[dof.natname] = 0.0
-            #if dof.name==:uw
-        #    dof.vals[:h] = 0.0 # water head
-            #end
+            if dof.name==:ut
+            dof.vals[:h] = 0.0 # water head
+            end
         end
 
         update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
         update_output_data!(dom) # Updates data arrays in domain
-        #complete_ut_h(dom)
+        complete_ut_h(dom)
 
         if save_incs
             save(dom, "$outdir/$filekey-0.vtk", verbose=false)
@@ -446,7 +442,7 @@ function tm_solve!(
                 env.cout += 1
                 iout = env.cout
                 update_output_data!(dom)
-        #       complete_uw_h(dom)
+    #            complete_uw_h(dom)
                 save(dom, "$outdir/$filekey-$iout.vtk", verbose=false)
                 T = Tn - mod(Tn, dT) + dT
                 silent || verbose || print(" "^70, "\r")
@@ -485,7 +481,7 @@ function tm_solve!(
     silent || println("  time spent: ", see(sw, format=:hms), "\033[K")
 
     update_output_data!(dom)
-    #complete_uw_h(dom)
+#    complete_uw_h(dom)
 
     return true
 

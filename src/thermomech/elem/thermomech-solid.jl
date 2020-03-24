@@ -452,15 +452,15 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
 
         # internal force dF
         Δσ, QQ = stress_update(elem.mat, ip.data, Δε, Δut, G, Δt)
-        Δσ -= elem.mat.cv*elem.mat.E*Δut*m # get total stress
+        Δσ -= elem.mat.α*elem.mat.E*Δut*m # get total stress
 
-        #coef = detJ*ip.w  # VEEEERIFICAR
-        @gemv dF += Bu'*Δσ     # dF += coef*Bu'*Δσ
+        coef = detJ*ip.w  # VEEEERIFICAR
+        @gemv dF += coef*Bu'*Δσ
 
         # internal volumes dFt
-        Δεvol = dot(m, Δε)
-        coef  = elem.mat.α*Δεvol*detJ*ip.w # VEEEERIFICAR
-        dFt  -= coef*Np*Δεvol
+#        Δεvol = dot(m, Δε)
+#        coef  = elem.mat.α*Δεvol*detJ*ip.w # VEEEERIFICAR
+#        dFt  -= coef*Np*Δεvol # VEEEERIFICAR
 
 #=        if elem.mat.S != 0.0
             coef = elem.mat.S*Δuw*detJ*ip.w
