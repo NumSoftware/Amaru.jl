@@ -55,10 +55,9 @@ function elem_vals(elem::Thermomechanical)
 end
 
 
-function elem_stiffness_matrix(elem::Thermomechanical)
+function elem_stiffness(elem::Thermomechanical)
     return zeros(0,0), zeros(Int64,0), zeros(Int64,0)
 end
-
 
 function elem_coupling_matrix(elem::Thermomechanical)
     return zeros(0,0), zeros(Int64,0), zeros(Int64,0)
@@ -69,6 +68,10 @@ function elem_conductivity_matrix(elem::Thermomechanical)
     return zeros(0,0), zeros(Int64,0), zeros(Int64,0)
 end
 
+function elem_mass_matrix(elem::Thermomechanical)
+    return zeros(0,0), zeros(Int64,0), zeros(Int64,0)
+end
+
 
 function elem_RHS_vector(elem::Thermomechanical)
     return zeros(0), zeros(Int64,0)
@@ -76,10 +79,10 @@ end
 
 
 """
-`elem_internal_forces!(elem, F)`
+`elem_internal_forces1!(elem, F)`
 
 Gets internal nodal forces from current element state.
 This function must be defined by each concrete type.
 """
-function elem_internal_forces(elem::Thermomechanical, F::Array{Float64,1})
+function elem_internal_forces1(elem::Thermomechanical, F::Array{Float64,1})
 end
