@@ -14,15 +14,15 @@ function tm_mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
     for elem in dom.elems
 
         ty = typeof(elem)
-        has_stiffness_matrix    = hasmethod(elem_stiffness, (ty,)) #K
+        has_stiffness    = hasmethod(elem_stiffness, (ty,)) #K
         has_coupling_matrix     = hasmethod(elem_coupling_matrix, (ty,)) # L
         has_mass_matrix = hasmethod(elem_mass_matrix, (ty,)) # M
         has_conductivity_matrix = hasmethod(elem_conductivity_matrix, (ty,)) # theta
         has_RHS_vector          = hasmethod(elem_RHS_vector, (ty,))
 
         # Assemble the stiffness matrix
-        if has_stiffness_matrix
-            K, rmap, cmap = elem_stiffness_matrix(elem)
+        if has_stiffness
+            K, rmap, cmap = elem_stiffness(elem)
             nr, nc = size(K)
             for i=1:nr
                 for j=1:nc
@@ -326,7 +326,7 @@ function tm_solve!(
     # Get unbalanced forces
     Fin = zeros(ndofs)
     for elem in dom.elems
-        elem_internal_forces(elem, Fin)
+        elem_internal_forces1(elem, Fin)
     end
     Fex .-= Fin # add negative forces to external forces vecto
 

@@ -150,7 +150,7 @@ end
 
 function elem_stiffness(elem::TMSolid)
     ndim   = elem.env.ndim
-    #th     = elem.env.thickness
+    th     = elem.env.thickness # VERIFICAR ESPESSURA
     nnodes = length(elem.nodes)
     C = elem_coords(elem)
     K = zeros(nnodes*ndim, nnodes*ndim)
@@ -171,7 +171,7 @@ function elem_stiffness(elem::TMSolid)
         set_Bu(elem.env, dNdX, detJ, Bu)
 
         # compute K
-        coef = detJ*ip.w
+        coef = detJ*ip.w  # VERIFICAR ESPESSURA
         D    = calcD(elem.mat, ip.data)
         @gemm DBu = D*Bu
         @gemm K += coef*Bu'*DBu
@@ -188,7 +188,7 @@ end
 # matrix C
 function elem_coupling_matrix(elem::TMSolid)
     ndim   = elem.env.ndim
-    #th     = elem.env.thickness
+    th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     C   = elem_coords(elem)
@@ -196,7 +196,6 @@ function elem_coupling_matrix(elem::TMSolid)
     Cup = zeros(nnodes*ndim, nbsnodes) # u-p coupling matrix
 
     β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) #
-
     J   = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
 
@@ -212,14 +211,12 @@ function elem_coupling_matrix(elem::TMSolid)
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
         set_Bu(elem.env, dNdX, detJ, Bu)
-
         # compute Cup
         Np   = elem.shape.basic_shape.func(ip.R)
-        coef = detJ*ip.w*β
+        coef = detJ*ip.w*β  # VERIFICAR ESPESSURA
         mNt  = m*Np'
         @gemm Cup -= coef*Bu'*mNt
     end
-
     # map
     keys = (:ux, :uy, :uz)[1:ndim]
     map_u = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
@@ -228,27 +225,25 @@ function elem_coupling_matrix(elem::TMSolid)
     return Cup, map_u, map_p
 end
 
-
 # thermal conductivity # matriz theta
 function elem_conductivity_matrix(elem::TMSolid)
     ndim   = elem.env.ndim
+    th     = elem.env.thickness # VERIFICAR ESPESSURA
     θ0     = elem.env.T0 + 273.15
     nnodes = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
-    C      = elem_coords(elem)[1:nbsnodes,:]
+    Cp      = elem_coords(elem)[1:nbsnodes,:]
     H      = zeros(nnodes, nnodes)
     Bp     = zeros(ndim, nnodes)
     KBp    = zeros(ndim, nnodes)
-
     J    = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
     nodes_p = elem.nodes[1:nbsnodes]
 
     for ip in elem.ips
 
-        #N    = elem.shape.func(ip.R)
-        dNdR = elem.shape.deriv(ip.R)
-        @gemm J  = dNdR*C
+        dNdR = elem.shape.basic_shape.deriv(ip.R)
+        @gemm J  = dNdR*Cp
         @gemm Bp = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
@@ -267,30 +262,27 @@ function elem_conductivity_matrix(elem::TMSolid)
 end
 
 function elem_mass_matrix(elem::TMSolid)
-    #if elem.mat.S == 0.0
-    #    return zeros(0,0), zeros(Int64,0), zeros(Int64,0)
-    #end
-
     ndim   = elem.env.ndim
+    th     = elem.env.thickness
     θ0     = elem.env.T0 + 273.15
     nnodes = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
-    C = elem_coords(elem)
+    Cp  = elem_coords(elem)[1:nbsnodes,:]
     M = zeros(nnodes, nnodes)
+
     J  = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        N    = elem.shape.func(ip.R)
-        dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        Np    = elem.shape.basic_shape.func(ip.R)
+        dNpdR = elem.shape.basic_shape.deriv(ip.R)
+        @gemm J = dNpdR*Cp
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # compute Cuu
         coef = elem.mat.ρ*elem.mat.cv*detJ*ip.w/θ0 # Pra que serve: detJ*ip.w?
-        M  -= coef*N*N'
+        M  -= coef*Np*Np'
     end
-
     # map
     map = [  node.dofdict[:ut].eq_id for node in elem.nodes[1:nbsnodes]  ]
 
@@ -333,9 +325,11 @@ function elem_RHS_vector(elem::TMSolid)
 end
 =#
 
-function elem_internal_forces(elem::TMSolid, F::Array{Float64,1})
+
+
+function elem_internal_forces1(elem::TMSolid, F::Array{Float64,1})
     ndim   = elem.env.ndim
-    th     = elem.env.thickness
+    th     = elem.env.thickness # VERIFICAR ESPESSURA
     nnodes = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     C   = elem_coords(elem)
@@ -371,14 +365,13 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1})
         Jp = dNpdR*Cp
         @gemm dNpdX = inv(Jp)*dNpdR
         Bp = dNpdX
-
         # compute N
         Np   = elem.shape.basic_shape.func(ip.R)
-
         # internal force
         ut   = ip.data.ut
-        β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) # thermal stress
-        σ    = ip.data.σ - β*ut*m # get total stress
+
+        #β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) # thermal stress
+        σ    = ip.data.σ - elem.mat.α*elem.mat.E*ut*m # get total stress
         coef = detJ*ip.w #VERIFICAAAAAAAAAAAAR
         @gemv dF += coef*Bu'*σ
 
@@ -431,7 +424,6 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
 
     for ip in elem.ips
 
-        # compute Bu matrix
         # compute Bu matrix and Bp
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = dNdR*C
@@ -451,7 +443,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
            # Compute Δε
         @gemv Δε = Bu*dU
 
-        # Compute Δuw
+        # Compute Δut
         Δut = Np'*dUt # interpolation to the integ. point
 
         # Compute thermal gradient G (REEEEEVER)
@@ -460,7 +452,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
 
         # internal force dF
         Δσ, QQ = stress_update(elem.mat, ip.data, Δε, Δut, G, Δt)
-        Δσ -= elem.mat.cv*Δut*m # get total stress
+        Δσ -= elem.mat.cv*elem.mat.E*Δut*m # get total stress
 
         #coef = detJ*ip.w  # VEEEERIFICAR
         @gemv dF += Bu'*Δσ     # dF += coef*Bu'*Δσ
