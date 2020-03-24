@@ -171,7 +171,7 @@ function elem_stiffness(elem::TMSolid)
         set_Bu(elem.env, dNdX, detJ, Bu)
 
         # compute K
-        coef = detJ*ip.w  # VERIFICAR ESPESSURA
+        coef = detJ*ip.w*th  # VERIFICAR ESPESSURA
         D    = calcD(elem.mat, ip.data)
         @gemm DBu = D*Bu
         @gemm K += coef*Bu'*DBu
@@ -213,7 +213,7 @@ function elem_coupling_matrix(elem::TMSolid)
         set_Bu(elem.env, dNdX, detJ, Bu)
         # compute Cup
         Np   = elem.shape.basic_shape.func(ip.R)
-        coef = detJ*ip.w*β  # VERIFICAR ESPESSURA
+        coef = detJ*ip.w*β*th  # VERIFICAR ESPESSURA
         mNt  = m*Np'
         @gemm Cup -= coef*Bu'*mNt
     end
@@ -250,7 +250,7 @@ function elem_conductivity_matrix(elem::TMSolid)
 
         # compute H
         K = calcK(elem.mat, ip.data)
-        coef = elem.mat.k*detJ*ip.w/θ0 # Pra que serve: detJ*ip.w?
+        coef = elem.mat.k*detJ*detJ*ip.w*th/θ0 # Pra que serve: detJ*ip.w?
         @gemm KBp = K*Bp
         @gemm H -= coef*Bp'*KBp
     end
@@ -280,7 +280,7 @@ function elem_mass_matrix(elem::TMSolid)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # compute Cuu
-        coef = elem.mat.ρ*elem.mat.cv*detJ*ip.w/θ0 # Pra que serve: detJ*ip.w?
+        coef = elem.mat.ρ*elem.mat.cv*detJ*ip.w*th/θ0 # Pra que serve: detJ*ip.w?
         M  -= coef*Np*Np'
     end
     # map
@@ -367,22 +367,22 @@ function elem_internal_forces1(elem::TMSolid, F::Array{Float64,1})
         Bp = dNpdX
         # compute N
         Np   = elem.shape.basic_shape.func(ip.R)
+
         # internal force
         ut   = ip.data.ut
-
         #β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) # thermal stress
         σ    = ip.data.σ - elem.mat.α*elem.mat.E*ut*m # get total stress
-        coef = detJ*ip.w #VERIFICAAAAAAAAAAAAR
+        coef = detJ*ip.w*th #VERIFICAAAAAAAAAAAAR
         @gemv dF += coef*Bu'*σ
 
         # internal volumes dFt
         ε    = ip.data.ε
         εvol = dot(m, ε)
-        coef = elem.mat.α*detJ*ip.w # VEEEERIFICAR
+        coef = elem.mat.α*ut*detJ*ip.w*th # VEEEERIFICAR
         dFt  -= coef*Np*εvol
 
-        coef = detJ*ip.w*elem.mat.α  # VEEEERIFICAR
-        dFt -= coef*Np*ut
+        #coef = detJ*ip.w*elem.mat.α  # VEEEERIFICAR
+        #dFt -= coef*Np*ut
 
         QQ    = ip.data.QQ
         coef = detJ*ip.w # VEEEERIFICAR
@@ -395,7 +395,8 @@ end
 
 function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
-    #th     = elem.env.thickness
+    th     = elem.env.thickness
+    θ0     = elem.env.T0 + 273.15
     nnodes = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     C   = elem_coords(elem)
@@ -447,27 +448,28 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         Δut = Np'*dUt # interpolation to the integ. point
 
         # Compute thermal gradient G (REEEEEVER)
-        G  = Bp*Ut    #/elem.mat.k
-        G[end] += 1.0; # gradient
+        Bt = dNdX
+        G  = Bt*Ut/θ0 # flow gradient
 
+        ut   = ip.data.ut
         # internal force dF
         Δσ, QQ = stress_update(elem.mat, ip.data, Δε, Δut, G, Δt)
         Δσ -= elem.mat.α*elem.mat.E*Δut*m # get total stress
 
-        coef = detJ*ip.w  # VEEEERIFICAR
+        coef = detJ*ip.w*th  # VEEEERIFICAR
         @gemv dF += coef*Bu'*Δσ
 
         # internal volumes dFt
-#        Δεvol = dot(m, Δε)
-#        coef  = elem.mat.α*Δεvol*detJ*ip.w # VEEEERIFICAR
-#        dFt  -= coef*Np*Δεvol # VEEEERIFICAR
+        Δεvol = dot(m, Δε)
+        coef  = elem.mat.α*ut*Δεvol*detJ*ip.w # VEEEERIFICAR
+        dFt  -= coef*Np*Δεvol # VEEEERIFICAR
 
 #=        if elem.mat.S != 0.0
             coef = elem.mat.S*Δuw*detJ*ip.w
             dFt -= coef*N
         end
 =#
-        coef = Δt*detJ*ip.w # VEEEERIFICAR
+        coef = Δt*detJ*ip.w*th # VEEEERIFICAR
         @gemv dFt += coef*Bp'*QQ
     end
 
