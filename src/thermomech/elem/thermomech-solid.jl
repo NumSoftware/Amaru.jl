@@ -327,7 +327,7 @@ end
 
 
 
-function elem_internal_forces1(elem::TMSolid, F::Array{Float64,1})
+function elem_internal_forces1(elem::TMSolid, F::Array{Float64,1}, DU::Array{Float64,1})
     ndim   = elem.env.ndim
     th     = elem.env.thickness # VERIFICAR ESPESSURA
     nnodes = length(elem.nodes)
@@ -350,7 +350,7 @@ function elem_internal_forces1(elem::TMSolid, F::Array{Float64,1})
     dNdX = Array{Float64}(undef, ndim, nnodes)
     Jp  = Array{Float64}(undef, ndim, nbsnodes)
     dNpdX = Array{Float64}(undef, ndim, nbsnodes)
-
+    dUt = DU[map_p] # nodal temperature increments
     for ip in elem.ips
 
         # compute Bu matrix and Bp
@@ -367,18 +367,18 @@ function elem_internal_forces1(elem::TMSolid, F::Array{Float64,1})
         Bp = dNpdX
         # compute N
         Np   = elem.shape.basic_shape.func(ip.R)
-
+        Δut = Np'*dUt # interpolation to the integ. point
         # internal force
-        ut   = ip.data.ut
+        #ut   = ip.data.ut
         #β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) # thermal stress
-        σ    = ip.data.σ - elem.mat.α*elem.mat.E*ut*m # get total stress
+        σ    = ip.data.σ - ((elem.mat.α*elem.mat.E*Δut)/(1-2*elem.mat.nu))*m # get total stress
         coef = detJ*ip.w*th #VERIFICAAAAAAAAAAAAR
         @gemv dF += coef*Bu'*σ
 
         # internal volumes dFt
         ε    = ip.data.ε
         εvol = dot(m, ε)
-        coef = elem.mat.α*ut*detJ*ip.w*th # VEEEERIFICAR
+        coef = elem.mat.α*Δut*detJ*ip.w*th # VEEEERIFICAR
         dFt  -= coef*Np*εvol
 
         #coef = detJ*ip.w*elem.mat.α  # VEEEERIFICAR
@@ -451,17 +451,17 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         Bt = dNdX
         G  = Bt*Ut/θ0 # flow gradient
 
-        ut   = ip.data.ut
+        #ut   = ip.data.ut
         # internal force dF
         Δσ, QQ = stress_update(elem.mat, ip.data, Δε, Δut, G, Δt)
-        Δσ -= elem.mat.α*elem.mat.E*Δut*m # get total stress
+        Δσ -= ((elem.mat.α*elem.mat.E*Δut)/(1-2*elem.mat.nu))*m # get total stress
 
         coef = detJ*ip.w*th  # VEEEERIFICAR
         @gemv dF += coef*Bu'*Δσ
 
         # internal volumes dFt
         Δεvol = dot(m, Δε)
-        coef  = elem.mat.α*ut*Δεvol*detJ*ip.w # VEEEERIFICAR
+        coef  = elem.mat.α*Δut*Δεvol*detJ*ip.w # VEEEERIFICAR
         dFt  -= coef*Np*Δεvol # VEEEERIFICAR
 
 #=        if elem.mat.S != 0.0
