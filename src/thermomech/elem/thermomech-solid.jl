@@ -250,9 +250,9 @@ function elem_conductivity_matrix(elem::TMSolid)
 
         # compute H
         K = calcK(elem.mat, ip.data)
-        coef = elem.mat.k*detJ*detJ*ip.w*th/θ0 # Pra que serve: detJ*ip.w?
+        coef = detJ*ip.w*th*elem.mat.k/θ0 # Pra que serve: detJ*ip.w?
         @gemm KBp = K*Bp
-        @gemm H -= coef*Bp'*KBp
+        @gemm H += coef*Bp'*KBp # VERIFICAR O SINAL (-) ou (+)
     end
 
     # map
@@ -334,6 +334,7 @@ function elem_internal_forces1(elem::TMSolid, F::Array{Float64,1}, DU::Array{Flo
     nbsnodes = elem.shape.basic_shape.npoints
     C   = elem_coords(elem)
     Cp  = elem_coords(elem)[1:nbsnodes,:]
+    θ0     = elem.env.T0 + 273.15
 
     keys   = (:ux, :uy, :uz)[1:ndim]
     map_u  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
@@ -377,15 +378,15 @@ function elem_internal_forces1(elem::TMSolid, F::Array{Float64,1}, DU::Array{Flo
         # internal volumes dFt
         ε    = ip.data.ε
         εvol = dot(m, ε)
-        coef = elem.mat.α*ut*detJ*ip.w*th # VEEEERIFICAR
+        coef = β*detJ*ip.w*th # VEEEERIFICAR
         dFt  -= coef*Np*εvol
 
-        #coef = detJ*ip.w*elem.mat.α  # VEEEERIFICAR
-        #dFt -= coef*Np*ut
+        coef = detJ*ip.w*elem.mat.ρ*elem.mat.cv*th/θ0  # VEEEERIFICAR
+        dFt -= coef*Np*ut
 
-        QQ    = ip.data.QQ
-        coef = detJ*ip.w # VEEEERIFICAR
-        @gemv dFt += coef*Bp'*QQ
+        D   = ip.data.D
+        coef = detJ*ip.w*th/θ0 # VEEEERIFICAR
+        @gemv dFt += coef*Bp'*D
     end
 
     F[map_u] += dF
@@ -461,15 +462,13 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
 
         # internal volumes dFt
         Δεvol = dot(m, Δε)
-        coef  = elem.mat.α*Δut*Δεvol*detJ*ip.w # VEEEERIFICAR
+        coef  = β*detJ*ip.w # VEEEERIFICAR
         dFt  -= coef*Np*Δεvol # VEEEERIFICAR
 
-#=        if elem.mat.S != 0.0
-            coef = elem.mat.S*Δuw*detJ*ip.w
-            dFt -= coef*N
-        end
-=#
-        coef = Δt*detJ*ip.w*th # VEEEERIFICAR
+        coef = detJ*ip.w*elem.mat.ρ*elem.mat.cv*th/θ0
+        dFt -= coef*Np*Δut
+
+        coef = Δt*detJ*ip.w*th/θ0 # VEEEERIFICAR
         @gemv dFt += coef*Bp'*QQ
     end
 

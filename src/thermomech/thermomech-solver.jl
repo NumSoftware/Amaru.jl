@@ -55,7 +55,7 @@ function tm_mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
 
         # Assemble the conductivity matrix
         if has_conductivity_matrix
-            H, rmap, cmap = elem_conductivity_matrix(elem)
+            H, rmap, cmap, nodes_p = elem_conductivity_matrix(elem)
             nr, nc = size(H)
             for i=1:nr
                 for j=1:nc
@@ -66,7 +66,7 @@ function tm_mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
             end
 
             # Assembling RHS components
-            Ut = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes ]
+            Ut = [ node.dofdict[:ut].vals[:ut] for node in nodes_p ]
             RHS[rmap] -= Δt*(H*Ut)
         end
 
