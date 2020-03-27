@@ -250,9 +250,9 @@ function elem_conductivity_matrix(elem::TMSolid)
 
         # compute H
         K = calcK(elem.mat, ip.data)
-        coef = elem.mat.k*detJ*detJ*ip.w*th/θ0 # Pra que serve: detJ*ip.w?
+        coef = detJ*ip.w*th*elem.mat.k/θ0 # Pra que serve: detJ*ip.w?
         @gemm KBp = K*Bp
-        @gemm H -= coef*Bp'*KBp
+        @gemm H += coef*Bp'*KBp # VERIFICAR O SINAL (-) ou (+)
     end
 
     # map
@@ -289,7 +289,7 @@ function elem_mass_matrix(elem::TMSolid)
     return M, map, map
 end
 
-#=
+
 function elem_RHS_vector(elem::TMSolid)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
@@ -319,21 +319,22 @@ function elem_RHS_vector(elem::TMSolid)
     end
 
     # map
-    map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
+    map = [  node.dofdict[:ut].eq_id for node in elem.nodes  ]
 
     return Q, map
 end
-=#
 
 
 
-function elem_internal_forces1(elem::TMSolid, F::Array{Float64,1})
+
+function elem_internal_forces1(elem::TMSolid, F::Array{Float64,1}, DU::Array{Float64,1})
     ndim   = elem.env.ndim
     th     = elem.env.thickness # VERIFICAR ESPESSURA
     nnodes = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     C   = elem_coords(elem)
     Cp  = elem_coords(elem)[1:nbsnodes,:]
+    θ0     = elem.env.T0 + 273.15
 
     keys   = (:ux, :uy, :uz)[1:ndim]
     map_u  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
@@ -350,7 +351,7 @@ function elem_internal_forces1(elem::TMSolid, F::Array{Float64,1})
     dNdX = Array{Float64}(undef, ndim, nnodes)
     Jp  = Array{Float64}(undef, ndim, nbsnodes)
     dNpdX = Array{Float64}(undef, ndim, nbsnodes)
-
+    dUt = DU[map_p] # nodal temperature increments
     for ip in elem.ips
 
         # compute Bu matrix and Bp
@@ -366,27 +367,26 @@ function elem_internal_forces1(elem::TMSolid, F::Array{Float64,1})
         @gemm dNpdX = inv(Jp)*dNpdR
         Bp = dNpdX
         # compute N
-        Np   = elem.shape.basic_shape.func(ip.R)
 
         # internal force
         ut   = ip.data.ut
-        #β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) # thermal stress
-        σ    = ip.data.σ - elem.mat.α*elem.mat.E*ut*m # get total stress
+        β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu)
+        σ    = ip.data.σ - β*ut*m # get total stress
         coef = detJ*ip.w*th #VERIFICAAAAAAAAAAAAR
         @gemv dF += coef*Bu'*σ
 
         # internal volumes dFt
         ε    = ip.data.ε
         εvol = dot(m, ε)
-        coef = elem.mat.α*ut*detJ*ip.w*th # VEEEERIFICAR
+        coef = β*detJ*ip.w*th # VEEEERIFICAR
         dFt  -= coef*Np*εvol
 
-        #coef = detJ*ip.w*elem.mat.α  # VEEEERIFICAR
-        #dFt -= coef*Np*ut
+        coef = detJ*ip.w*elem.mat.ρ*elem.mat.cv*th/θ0  # VEEEERIFICAR
+        dFt -= coef*Np*ut
 
-        QQ    = ip.data.QQ
-        coef = detJ*ip.w # VEEEERIFICAR
-        @gemv dFt += coef*Bp'*QQ
+        D   = ip.data.D
+        coef = detJ*ip.w*th/θ0 # VEEEERIFICAR
+        @gemv dFt += coef*Bp'*D
     end
 
     F[map_u] += dF
@@ -451,25 +451,24 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         Bt = dNdX
         G  = Bt*Ut/θ0 # flow gradient
 
-        ut   = ip.data.ut
+        #ut   = ip.data.ut
         # internal force dF
         Δσ, QQ = stress_update(elem.mat, ip.data, Δε, Δut, G, Δt)
-        Δσ -= elem.mat.α*elem.mat.E*Δut*m # get total stress
+        β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu)
+        Δσ -= β*Δut*m # get total stress
 
         coef = detJ*ip.w*th  # VEEEERIFICAR
         @gemv dF += coef*Bu'*Δσ
 
         # internal volumes dFt
         Δεvol = dot(m, Δε)
-        coef  = elem.mat.α*ut*Δεvol*detJ*ip.w # VEEEERIFICAR
+        coef  = β*detJ*ip.w # VEEEERIFICAR
         dFt  -= coef*Np*Δεvol # VEEEERIFICAR
 
-#=        if elem.mat.S != 0.0
-            coef = elem.mat.S*Δuw*detJ*ip.w
-            dFt -= coef*N
-        end
-=#
-        coef = Δt*detJ*ip.w*th # VEEEERIFICAR
+        coef = detJ*ip.w*elem.mat.ρ*elem.mat.cv*th/θ0
+        dFt -= coef*Np*Δut
+
+        coef = Δt*detJ*ip.w*th/θ0 # VEEEERIFICAR
         @gemv dFt += coef*Bp'*QQ
     end
 
