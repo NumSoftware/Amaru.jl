@@ -292,7 +292,7 @@ function hm_solve!(
         complete_uw_h(dom)
 
         if save_incs
-            save(dom, "$outdir/$filekey-0.vtk", verbose=false)
+            save(dom, "$outdir/$filekey-0.vtu", verbose=false)
         end
     end
 
@@ -301,8 +301,8 @@ function hm_solve!(
     tend = t + time_span # end time
     Δt = time_span/nincs # initial Δt value
 
-    dT = time_span/nouts # output time increment for saving vtk file
-    T  = t + dT          # output time for saving the next vtk file
+    dT = time_span/nouts # output time increment for saving output file
+    T  = t + dT          # output time for saving the next output file
 
     ttol = 1e-9          # time tolerance
     inc  = 0             # increment counter
@@ -443,7 +443,7 @@ function hm_solve!(
                 iout = env.cout
                 update_output_data!(dom)
                 complete_uw_h(dom)
-                save(dom, "$outdir/$filekey-$iout.vtk", verbose=false)
+                save(dom, "$outdir/$filekey-$iout.vtu", verbose=false)
                 T = Tn - mod(Tn, dT) + dT
                 silent || verbose || print(" "^70, "\r")
             end
