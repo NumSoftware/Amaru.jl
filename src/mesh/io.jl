@@ -378,13 +378,13 @@ function read_vtu(filename::String)
     TYPES = Dict("Float32"=>Float32, "Float64"=>Float64, "Int32"=>Int32, "Int64"=>Int64)
 
     doc = Xdoc(filename)
-    piece = doc.root["UnstructuredGrid"]["Piece"]
+    piece = doc.root("UnstructuredGrid", "Piece")
     npoints = parse(Int, piece.attributes["NumberOfPoints"])
     ncells  = parse(Int, piece.attributes["NumberOfCells"])
-    strcoords = piece["Points"]["DataArray"].content
+    strcoords = piece("Points", "DataArray").content
     coords = transpose(reshape(parse.(Float64, split(strcoords)), 3, :))
 
-    xmlcells = piece["Cells"]
+    xmlcells = piece("Cells")
     conn     = parse.(Int, split(xmlcells["Name"=>"connectivity"][1].content)) .+ 1
     offsets  = parse.(Int, split(xmlcells["Name"=>"offsets"][1].content))
     cell_types = parse.(Int, split(xmlcells["Name"=>"types"][1].content))
@@ -399,7 +399,7 @@ function read_vtu(filename::String)
     point_data = OrderedDict{String,Array}()
     cell_data  = OrderedDict{String,Array}()
 
-    xpointdata = piece["PointData"]
+    xpointdata = piece("PointData")
     if xpointdata!=nothing
         for arr in xpointdata.children
             ncomps = parse(Int, arr.attributes["NumberOfComponents"])
@@ -413,7 +413,7 @@ function read_vtu(filename::String)
         end
     end
 
-    xcelldata = piece["CellData"]
+    xcelldata = piece("CellData")
     if xcelldata!=nothing
         for arr in xcelldata.children
             ncomps = parse(Int, arr.attributes["NumberOfComponents"])
@@ -429,7 +429,6 @@ function read_vtu(filename::String)
 
     return Mesh(coords, connects, cell_types, point_data, cell_data)
 end
-
 
 
 # Setting a Mesh object
@@ -782,7 +781,7 @@ end
 
 Constructs a `Mesh` object based on a file in VTK legacy format or JSON format.
 """
-function Mesh(filename::String; verbose::Bool=true, silent::Bool=false, format::String="", reorder::Bool=false)
+function Mesh(filename::String; verbose::Bool=false, silent::Bool=false, format::String="", reorder::Bool=false)
 
     verbosity = 1
     verbose && (verbosity=2)

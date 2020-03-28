@@ -1,3 +1,7 @@
+# This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
+#
+export Xdoc, Xnode
+
 mutable struct Xnode
     name::String
     attributes::OrderedDict{String,String}
@@ -10,19 +14,39 @@ mutable struct Xnode
     function Xnode(name::AbstractString, attributes::AbstractDict, children::Array, content::AbstractString)
         return new(name, OrderedDict(attributes), children, content)
     end
+    function Xnode(name::AbstractString, content::AbstractString)
+        return new(name, OrderedDict{String,String}(), Xnode[], content)
+    end
 end
 
 haschildren(node::Xnode) = length(node.children)>0
 
-# Get node by name
+# Get the last node with a given by name
+function (node::Xnode)(args::String...)
+    n = node
+    for s in args
+        found = false
+        for child in n.children[end:-1:1]
+            if child.name==s
+                found = true
+                n = child
+                break
+            end
+        end
+        found || return nothing
+    end
+    return n
+end
+
+# Get a list of all nodes with a given name
 function Base.getindex(node::Xnode, s::String)
-    for i=length(node.children):-1:1
-        if node.children[i].name==s
-            return node.children[i]
+    nodes = Xnode[]
+    for child in node.children
+        if child.name==s
+            push!(nodes, child)
         end
     end
-    error("child $s not found")
-    return node
+    return nodes
 end
 
 
@@ -35,7 +59,7 @@ function Base.getindex(node::Xnode, p::Pair{String,String})
     get(node.attributes, att, nothing) == val && push!(nodes, node)
 
     for child in node.children
-        append!(nodes, getindex(child, p))
+        append!(nodes, Base.getindex(child, p))
     end
 
     return nodes
@@ -93,6 +117,12 @@ end
 mutable struct Xdoc
     attributes::OrderedDict{String,String}
     root::Xnode
+    function Xdoc(attributes::AbstractDict, root::Xnode)
+        return new(OrderedDict(attributes), root)
+    end
+    #function Xdoc(root::Xnode)
+        #return new(attributes, root)
+    #end
 end
 
 # Get a list of all nodes with a given attribute
