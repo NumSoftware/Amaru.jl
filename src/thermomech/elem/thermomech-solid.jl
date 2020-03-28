@@ -171,7 +171,7 @@ function elem_stiffness(elem::TMSolid)
         set_Bu(elem.env, dNdX, detJ, Bu)
 
         # compute K
-        coef = detJ*ip.w*th  # VERIFICAR ESPESSURA
+        coef = detJ*ip.w*th
         D    = calcD(elem.mat, ip.data)
         @gemm DBu = D*Bu
         @gemm K += coef*Bu'*DBu
@@ -213,7 +213,7 @@ function elem_coupling_matrix(elem::TMSolid)
         set_Bu(elem.env, dNdX, detJ, Bu)
         # compute Cup
         Np   = elem.shape.basic_shape.func(ip.R)
-        coef = detJ*ip.w*β*th  # VERIFICAR ESPESSURA
+        coef = detJ*ip.w*β*th
         mNt  = m*Np'
         @gemm Cup -= coef*Bu'*mNt
     end
@@ -280,7 +280,7 @@ function elem_mass_matrix(elem::TMSolid)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # compute Cuu
-        coef = elem.mat.ρ*elem.mat.cv*detJ*ip.w*th/θ0 # Pra que serve: detJ*ip.w?
+        coef = elem.mat.ρ*elem.mat.cv*detJ*ip.w*th/θ0
         M  -= coef*Np*Np'
     end
     # map
@@ -300,8 +300,8 @@ function elem_RHS_vector(elem::TMSolid)
 
     J    = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
-    Z      = zeros(ndim)
-    Z[end] = 1.0 # hydrostatic gradient
+    Z      = zeros(ndim) # ??????????????
+    Z[end] = 1.0 # hydrostatic gradient ???????????????
 
     for ip in elem.ips
 
@@ -369,7 +369,7 @@ function elem_internal_forces1(elem::TMSolid, F::Array{Float64,1}, DU::Array{Flo
         # compute N
 
         # internal force
-        ut   = ip.data.ut
+        ut   = ip.data.ut   # + 273
         β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu)
         σ    = ip.data.σ - β*ut*m # get total stress
         coef = detJ*ip.w*th #VERIFICAAAAAAAAAAAAR
@@ -386,7 +386,7 @@ function elem_internal_forces1(elem::TMSolid, F::Array{Float64,1}, DU::Array{Flo
 
         D   = ip.data.D
         coef = detJ*ip.w*th/θ0 # VEEEERIFICAR
-        @gemv dFt += coef*Bp'*D
+        @gemv dFt -= coef*Bp'*D
     end
 
     F[map_u] += dF
@@ -408,8 +408,8 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
 
     dU  = DU[map_u] # nodal displacement increments
     dUt = DU[map_p] # nodal temperature increments
-    Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes[1:nbsnodes]]
-    Ut += dUt # nodal pore-pressure at step n+1
+    Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes]
+    Ut += dUt # nodal tempeture at step n+1
     m = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  #
 
     dF  = zeros(nnodes*ndim)
@@ -469,7 +469,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         dFt -= coef*Np*Δut
 
         coef = Δt*detJ*ip.w*th/θ0 # VEEEERIFICAR
-        @gemv dFt += coef*Bp'*QQ
+        @gemv dFt -= coef*Bp'*QQ
     end
 
     DF[map_u] += dF
