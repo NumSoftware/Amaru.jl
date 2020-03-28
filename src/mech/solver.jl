@@ -48,10 +48,6 @@ function mount_K_threads(dom::Domain, ndofs::Int)
             #id = elem.id
             Ke, rmap, cmap = elem_stiffness(elem)
             #IDs[elem.id] = Threads.threadid()
-            #Ke = rand(24,24)
-            #rmap=rand(1:ndofs, 24)
-            #cmap=rand(1:ndofs, 24)
-
 
             nr, nc = size(Ke)
             for i=1:nr
@@ -74,10 +70,7 @@ function mount_K_threads(dom::Domain, ndofs::Int)
     #try
         K = sparse(R, C, V, ndofs, ndofs)
     #catch err
-        #@show Rs
-        #@show R
         #error("Error using sparse function")
-        #@show ndofs
         #@show err
     #end
 
@@ -419,7 +412,7 @@ function solve!(
             end
             dt_bk = 0.0
 
-            # Fix dt in case d+dt>T
+            # Fix dt in case t+dt>T
             if t+dt>T
                 dt_bk = dt
                 dt = T-t
