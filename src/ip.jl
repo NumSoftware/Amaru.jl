@@ -105,7 +105,7 @@ function Base.getindex(ips::Array{Ip,1}, filter_ex::Expr)
 end
 
 
-function getindex(ips::Array{Ip,1}, s::String)
+function Base.getindex(ips::Array{Ip,1}, s::String)
     return [ ip for ip in ips if ip.tag==s ]
 end
 

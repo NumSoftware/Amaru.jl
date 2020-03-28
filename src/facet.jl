@@ -36,7 +36,7 @@ mutable struct Edge<:Facet
 end
 
 
-function getindex(facets::Array{T,1}, filter_ex::Expr) where T<:Facet
+function Base.getindex(facets::Array{T,1}, filter_ex::Expr) where T<:Facet
     nodes = facets[:nodes]
     nodemap = zeros(Int, maximum(node.id for node in nodes) )
     B = Bool[]
@@ -54,7 +54,7 @@ function getindex(facets::Array{T,1}, filter_ex::Expr) where T<:Facet
 end
 
 # Index operator for a collection of elements using a string
-function getindex(facets::Array{<:Facet,1}, tag::String)
+function Base.getindex(facets::Array{<:Facet,1}, tag::String)
     return [ facet for facet in facets if facet.tag==tag ]
 end
 
@@ -65,7 +65,7 @@ function get_nodes(facets::Array{<:Facet,1})
 end
 
 # Index operator for a collection of facets
-function getindex(facets::Array{T,1}, s::Symbol) where T<:Facet
+function Base.getindex(facets::Array{T,1}, s::Symbol) where T<:Facet
     s == :all && return facets
     s == :nodes && return get_nodes(facets)
     error("Facet getindex: Invalid symbol $s")

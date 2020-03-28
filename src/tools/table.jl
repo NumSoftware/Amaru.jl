@@ -1,8 +1,6 @@
-# This file is part of FemMesh package. See copyright license in https://github.com/NumSoftware/FemMesh
+# This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-import Base.getindex
-import Base.keys
-export DTable, DBook, push!, keys, getindex, save, loadtable, loadbook
+export DTable, DBook, push!, save, loadtable, loadbook
 
 
 # DTable object
@@ -81,7 +79,7 @@ function push!(book::DBook, table::DTable)
     push!(book.tables, table)
 end
 
-function keys(table::DTable)
+function Base.keys(table::DTable)
     return keys(table.colindex)
 end
 

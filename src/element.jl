@@ -233,7 +233,7 @@ end
 
 
 # Index operator for a collection of elements
-function getindex(elems::Array{<:Element,1}, s::Symbol)
+function Base.getindex(elems::Array{<:Element,1}, s::Symbol)
     s == :all && return elems
     s == :solids && return filter(elem -> elem.shape.family==SOLID_SHAPE, elems)
     s == :lines && return filter(elem -> elem.shape.family==LINE_SHAPE, elems)
@@ -247,13 +247,13 @@ end
 
 
 # Index operator for a collection of elements using a string
-function getindex(elems::Array{<:Element,1}, tag::String)
+function Base.getindex(elems::Array{<:Element,1}, tag::String)
     return [ elem for elem in elems if elem.tag==tag ]
 end
 
 
 # Index operator for a collection of elements using an expression
-function getindex(elems::Array{<:Element,1}, filter_ex::Expr)
+function Base.getindex(elems::Array{<:Element,1}, filter_ex::Expr)
     length(elems)==0 && return Element[]
 
     nodes = elems[:nodes]
