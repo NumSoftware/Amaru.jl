@@ -3,6 +3,12 @@ function newfig(; xlabel="\$x\$", ylabel="\$y\$", lw=0.7, ms=2, legendloc="best"
                xbins=6, ybins=6, grid=false, figsize=(3,2), legendexpand=false, ncol=0,
                xmin=NaN, xmax=NaN, ymin=NaN, ymax=NaN,
                fontsize=7, legendfontsize=0, labelspacing=0.5)
+    # for ploting use:
+    # using PyPlot
+    # plot(X, Y, "k", label="label")
+    #
+    # later, for saving use:
+    # savefig("file.pdf", bbox_inches="tight", pad_inches=0.01, format="pdf")
 
     @eval import PyPlot:plt
 
@@ -38,6 +44,7 @@ function newfig(; xlabel="\$x\$", ylabel="\$y\$", lw=0.7, ms=2, legendloc="best"
 
     return nothing
 end
+
 
 
 function cplot(X, Y, filename=""; xlabel="\$x\$", ylabel="\$y\$", lw=0.7, ls="-", ms=2, marker=nothing, color="", legend=[], legendloc="best",
