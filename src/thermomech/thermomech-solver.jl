@@ -1,8 +1,8 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-#export solve!
+
 # Assemble the global stiffness matrix
-function tm_mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
+function mount_G_RHS_(dom::Domain, ndofs::Int, Δt::Float64)
 
     # Assembling matrix G
 
@@ -14,14 +14,14 @@ function tm_mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
     for elem in dom.elems
 
         ty = typeof(elem)
-        has_stiffness    = hasmethod(elem_stiffness, (ty,)) #K
-        has_coupling_matrix     = hasmethod(elem_coupling_matrix, (ty,)) # L
+        has_stiffness_matrix    = hasmethod(elem_stiffness, (ty,))
+        has_coupling_matrix     = hasmethod(elem_coupling_matrix, (ty,))
+        has_conductivity_matrix = hasmethod(elem_conductivity_matrix, (ty,))
         has_mass_matrix = hasmethod(elem_mass_matrix, (ty,)) # M
-        has_conductivity_matrix = hasmethod(elem_conductivity_matrix, (ty,)) # theta
         has_RHS_vector          = hasmethod(elem_RHS_vector, (ty,))
 
         # Assemble the stiffness matrix
-        if has_stiffness
+        if has_stiffness_matrix
             K, rmap, cmap = elem_stiffness(elem)
             nr, nc = size(K)
             for i=1:nr
@@ -55,7 +55,7 @@ function tm_mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
 
         # Assemble the conductivity matrix
         if has_conductivity_matrix
-            H, rmap, cmap, nodes_p = elem_conductivity_matrix(elem)
+            H, rmap, cmap, nodes_p =  elem_conductivity_matrix(elem)
             nr, nc = size(H)
             for i=1:nr
                 for j=1:nc
@@ -65,14 +65,14 @@ function tm_mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
                 end
             end
 
-            # Assembling RHS components
+            # Assembling RHS componentsz
             Ut = [ node.dofdict[:ut].vals[:ut] for node in nodes_p ]
             RHS[rmap] -= Δt*(H*Ut)
         end
 
         # Assemble the conductivity matrix
         if has_mass_matrix
-            M, rmap, cmap = elem_mass_matrix(elem)
+            M, rmap, cmap =  elem_mass_matrix(elem)
             nr, nc = size(M)
             for i=1:nr
                 for j=1:nc
@@ -83,7 +83,7 @@ function tm_mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
             end
         end
 
-        # Assembling RHS components
+        # Assemble ramaining RHS vectors
         if has_RHS_vector
             Q, map = elem_RHS_vector(elem)
             RHS[map] += Δt*Q
@@ -124,10 +124,10 @@ function tm_solve_step!(G::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu
         G21 = G[nu1:end, 1:nu]
     end
     G22 = G[nu+1:end, nu+1:end]
-    #println(G22)
+
     F1  = DF[1:nu]
     U2  = DU[nu+1:end]
-    #println(U2)
+
     # Solve linear system
     F2 = G22*U2
     U1 = zeros(nu)
@@ -153,31 +153,31 @@ end
 """
     tm_solve!(D, bcs, options...) -> Bool
 
-    Performs one stage finite element analysis of a domain `D`
-    subjected to an array of boundary conditions `bcs`.
+Performs one stage finite element analysis of a domain `D`
+subjected to an array of boundary conditions `bcs`.
 
-    Available options are:
+Available options are:
 
-    `verbose=true` : If true, provides information of the analysis steps
+`verbose=true` : If true, provides information of the analysis steps
 
-    `tol=1e-2` : Tolerance for the absolute error in forces
+`tol=1e-2` : Tolerance for the absolute error in forces
 
-    `nincs=1` : Number of increments
+`nincs=1` : Number of increments
 
-    `autoinc=false` : Sets automatic increments size. The first increment size will be `1/nincs`
+`autoinc=false` : Sets automatic increments size. The first increment size will be `1/nincs`
 
-    `maxits=5` : The maximum number of Newton-Rapson iterations per increment
+`maxits=5` : The maximum number of Newton-Rapson iterations per increment
 
-    `nouts=0` : Number of output files per analysis
+`nouts=0` : Number of output files per analysis
 
-    `scheme= :FE` : Predictor-corrector scheme at iterations. Available schemes are `:FE` and `:ME`
+`scheme= :FE` : Predictor-corrector scheme at iterations. Available schemes are `:FE` and `:ME`
 
 """
 function tm_solve!(
                    dom       :: Domain,
                    bcs       :: Array;
-                   time_span :: Float64 = NaN,
-                   end_time  :: Float64 = NaN,
+                   time_span :: Real    = NaN,
+                   end_time  :: Real    = NaN,
                    nincs     :: Int     = 1,
                    maxits    :: Int     = 5,
                    autoinc   :: Bool    = false,
@@ -188,7 +188,7 @@ function tm_solve!(
                    outdir    :: String  = "",
                    filekey   :: String  = "out",
                    verbose   :: Bool    = false,
-                   silent    :: Bool    = false
+                   silent    :: Bool    = false,
                   )
 
     env = dom.env
@@ -200,28 +200,28 @@ function tm_solve!(
         sw = StopWatch() # timing
     end
 
-        function complete_ut_h(dom::Domain)
-            haskey(dom.point_data, "ut") || return
-            Ut = dom.point_data["ut"]
-            H  = dom.point_data["h"]
-            for ele in dom.elems
-                ele.shape.family==SOLID_SHAPE || continue
-                ele.shape==ele.shape.basic_shape && continue
-                npoints = ele.shape.npoints
-                nbpoints = ele.shape.basic_shape.npoints
-                map = [ ele.nodes[i].id for i=1:nbpoints ]
-                Ue = Ut[map]
-                He = H[map]
-                C = ele.shape.nat_coords
-                for i=nbpoints+1:npoints
-                    id = ele.nodes[i].id
-                    R = C[i,:]
-                    N = ele.shape.basic_shape.func(R)
-                    Ut[id] = dot(N,Ue)
-                    H[id] = dot(N,He)
-                end
+    function complete_ut_h(dom::Domain)
+        haskey(dom.point_data, "ut") || return
+        Ut = dom.point_data["ut"]
+        H  = dom.point_data["h"]
+        for ele in dom.elems
+            ele.shape.family==SOLID_SHAPE || continue
+            ele.shape==ele.shape.basic_shape && continue
+            npoints = ele.shape.npoints
+            nbpoints = ele.shape.basic_shape.npoints
+            map = [ ele.nodes[i].id for i=1:nbpoints ]
+            Ue = Ut[map]
+            He = H[map]
+            C = ele.shape.nat_coords
+            for i=nbpoints+1:npoints
+                id = ele.nodes[i].id
+                R = C[i,:]
+                N = ele.shape.basic_shape.func(R)
+                Ut[id] = dot(N,Ue)
+                H[id] = dot(N,He)
             end
         end
+    end
 
     # Arguments checking
     silent && (verbose=false)
@@ -258,17 +258,18 @@ function tm_solve!(
     silent || println("  unknown dofs: $nu")
 
     # get elevation Z for all Dofs
-    #Z = zeros(ndofs)
-    #for node in dom.nodes
-    #    for dof in node.dofs
-    #        Z[dof.eq_id] = node.X[env.ndim]
-    #    end
-#    end
+    #=Z = zeros(ndofs)
+    for node in dom.nodes
+        for dof in node.dofs
+            Z[dof.eq_id] = node.X[env.ndim]
+        end
+    end
 
     # Get global parameters
-    #k = get(dom.env.params, :k, NaN)
-    #isnan(k) && error("tm_solve!: k parameter was not set in Domain")
-    #k > 0 || error("hm_solve: invalid value for k: $k")
+    gammaw = get(dom.env.params, :gammaw, NaN)
+    isnan(gammaw) && error("hm_solve!: gammaw parameter was not set in Domain")
+    gammaw > 0 || error("hm_solve: invalid value for gammaw: $gammaw")
+    =#
 
     # Get array with all integration points
     ips = [ ip for elem in dom.elems for ip in elem.ips ]
@@ -283,7 +284,7 @@ function tm_solve!(
             dof.vals[dof.name]    = 0.0
             dof.vals[dof.natname] = 0.0
             if dof.name==:ut
-            dof.vals[:h] = 0.0 # water head
+                dof.vals[:h] = 0.0 # water head
             end
         end
 
@@ -297,16 +298,16 @@ function tm_solve!(
     end
 
     # Incremental analysis
-    t    = dom.env.t # current time
-    tend = t + time_span  # end time
+    t    = dom.env.t     # current time
+    tend = t + time_span # end time
     Δt = time_span/nincs # initial Δt value
 
-    dT = time_span/nouts  # output time increment for saving vtk file
-    T  = t + dT        # output time for saving the next vtk file
+    dT = time_span/nouts # output time increment for saving vtk file
+    T  = t + dT          # output time for saving the next vtk file
 
-    ttol = 1e-9    # time tolerance
-    inc  = 0       # increment counter
-    iout = env.cout     # file output counter
+    ttol = 1e-9          # time tolerance
+    inc  = 0             # increment counter
+    iout = env.cout      # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
@@ -324,7 +325,7 @@ function tm_solve!(
     for elem in dom.elems
         elem_internal_forces1(elem, Fin)
     end
-    Fex .-= Fin # add negative forces to external forces vecto
+    Fex .-= Fin # add negative forces to external forces vector
 
     for (i,dof) in enumerate(dofs)
         U[i] = dof.vals[dof.name]
@@ -373,7 +374,7 @@ function tm_solve!(
 
             # Try FE step
             verbose && print("    assembling... \r")
-            G, RHS = tm_mount_G_RHS(dom, ndofs, it==1 ? Δt : 0.0 ) # TODO: check for Δt after iter 1
+            G, RHS = mount_G_RHS_(dom, ndofs, it==1 ? Δt : 0.0 ) # TODO: check for Δt after iter 1
 
             R .+= RHS
 
@@ -389,9 +390,9 @@ function tm_solve!(
 
             # Get internal forces and update data at integration points (update ΔFin)
             ΔFin .= 0.0
-            ΔUt   = ΔUa + ΔUi
+            ΔUtt   = ΔUa + ΔUi
             for elem in dom.elems
-                elem_update!(elem, ΔUt, ΔFin, Δt)
+                elem_update!(elem, ΔUtt, ΔFin, Δt)
             end
 
             residue = maximum(abs, (ΔFex-ΔFin)[umap] )
@@ -428,9 +429,9 @@ function tm_solve!(
             for (i,dof) in enumerate(dofs)
                 dof.vals[dof.name]    += ΔUa[i]
                 dof.vals[dof.natname] += ΔFin[i]
-        #        if dof.name==:uw
-            #        dof.vals[:h] = Z[i] + U[i]/gammaw
-    #            end
+#=                if dof.name==:ut
+                    dof.vals[:h] = Z[i] + U[i]/gammaw
+                end=#
             end
 
             update_loggers!(dom) # Tracking nodes, ips, elements, etc.
@@ -438,11 +439,11 @@ function tm_solve!(
             # Check for saving output file
             Tn = t + Δt
 
-            if Tn+ttol>=T && saveincs
+            if Tn + ttol>=T && save_incs
                 env.cout += 1
                 iout = env.cout
                 update_output_data!(dom)
-    #            complete_uw_h(dom)
+                complete_ut_h(dom)
                 save(dom, "$outdir/$filekey-$iout.vtk", verbose=false)
                 T = Tn - mod(Tn, dT) + dT
                 silent || verbose || print(" "^70, "\r")
@@ -453,7 +454,7 @@ function tm_solve!(
 
             # Get new Δt
             if autoinc
-                Δt = min(1.5*Δt, 1.0/nincs)
+                Δt = min(1.5*Δt, time_span/nincs)
                 Δt = round(Δt, sigdigits=3)
                 Δt = min(Δt, tend-t)
             end
@@ -464,7 +465,7 @@ function tm_solve!(
 
             # Restore the state to last converged increment
             if autoinc
-                verbose && println("    increment failed.")
+                silent || println("    increment failed.")
                 Δt = round(0.5*Δt, sigdigits=3)
                 if Δt < ttol
                     printstyled("solve!: solver did not converge \033[K \n", color=:red)
@@ -481,7 +482,7 @@ function tm_solve!(
     silent || println("  time spent: ", see(sw, format=:hms), "\033[K")
 
     update_output_data!(dom)
-#    complete_uw_h(dom)
+    complete_ut_h(dom)
 
     return true
 
