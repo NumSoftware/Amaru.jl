@@ -324,7 +324,8 @@ function mplot(
                outline          = true,
                outlineangle     = 30,
                figsize          = (4,2.5),
-               leaveopen        = false
+               leaveopen        = false,
+               verbose          = true,
               )
 
     # Get initial info from mesh
@@ -720,6 +721,7 @@ function mplot(
         plt.show()
     else
         plt.savefig(filename, bbox_inches="tight", pad_inches=0.00, format="pdf")
+        verbose && printstyled("  file $filename saved\n", color=:cyan)
     end
 
     # Do not close if in IJulia
