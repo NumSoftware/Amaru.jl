@@ -80,6 +80,7 @@ function elem_conductivity_matrix(elem::ThermoSolid)
     ndim   = elem.env.ndim
     θ0     = elem.env.T0 + 273.15
     nnodes = length(elem.nodes)
+    nbsnodes = elem.shape.basic_shape.npoints
     C      = elem_coords(elem)
     H      = zeros(nnodes, nnodes)
     Bt     = zeros(ndim, nnodes)
@@ -87,6 +88,7 @@ function elem_conductivity_matrix(elem::ThermoSolid)
 
     J    = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
+    nodes_p = elem.nodes[1:nbsnodes]
 
     for ip in elem.ips
 
@@ -105,9 +107,9 @@ function elem_conductivity_matrix(elem::ThermoSolid)
     end
 
     # map
-    map = [ node.dofdict[:ut].eq_id for node in elem.nodes ]
+    map = [  node.dofdict[:ut].eq_id for node in elem.nodes[1:nbsnodes]  ]
 
-    return H, map, map
+    return H, map, map, nodes_p
 end
 
 
@@ -146,31 +148,25 @@ function elem_RHS_vector(elem::ThermoSolid)
     Q      = zeros(nnodes) # energy flux
     Bt     = zeros(ndim, nnodes)
     KZ     = zeros(ndim)
-
     J      = Array{Float64}(undef, ndim, ndim)
     dNdX   = Array{Float64}(undef, ndim, nnodes)
     Z      = zeros(ndim) # hydrostatic gradient
     Z[end] = 1.0
-
     for ip in elem.ips
-
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J  = dNdR*C
         @gemm Bt = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-
         # compute Q
         K = calcK(elem.mat, ip.data)
         coef = detJ*ip.w
         @gemv KZ = K*Z
         @gemm Q += coef*Bt'*KZ
     end
-
     # map
     map = [  node.dofdict[:ut].eq_id for node in elem.nodes  ]
-
     return Q, map
 end
 =#
