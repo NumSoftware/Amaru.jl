@@ -205,7 +205,7 @@ function hm_solve!(
 
     if !silent
         printstyled("Hydromechanical FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
-        println("  from t=$(round(dom.env.t,sigdigits=4)) to t=$(round(dom.env.t+time_span,sigdigits=3))")
+        println("  from t=$(round(dom.env.t,digits=4)) to t=$(round(dom.env.t+time_span,digits=3))")
         sw = StopWatch() # timing
     end
 
