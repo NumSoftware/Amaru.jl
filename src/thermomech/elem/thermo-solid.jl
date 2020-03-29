@@ -171,12 +171,13 @@ function elem_RHS_vector(elem::ThermoSolid)
 end
 =#
 
+#=
 function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     C   = elem_coords(elem)
 
-    map_p  = [ node.dofdicstiffnest[:ut].eq_id for node in elem.nodes ]
+    map_p  = [ node.dofdict[:ut].eq_id for node in elem.nodes ]
 
     dFw = zeros(nnodes)
     Bp  = zeros(ndim, nnodes)
@@ -210,6 +211,7 @@ function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
 
     F[map_p] += dFt
 end
+=#
 
 
 

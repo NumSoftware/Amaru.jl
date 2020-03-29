@@ -21,6 +21,7 @@ FILES = [
     "mesh/smoothing.jl",
     "mesh/plotting.jl",
 
+    # Tools
     "tools/show.jl",
     "tools/logger.jl",
 
@@ -61,6 +62,8 @@ FILES = [
     "hydromech/cutoff.jl",
     "hydromech/terzaghi.jl",
     "hydromech/terzaghi-joint.jl",
+
+    # Thermomechanical analysis:
    ]
 
 
