@@ -191,12 +191,21 @@ function hm_solve!(
                    silent    :: Bool    = false,
                   )
 
+    verbosity = 1
+    verbose && (verbosity=2)
+    silent && (verbosity=0)
+
     env = dom.env
     env.cstage += 1
     env.cinc    = 0
 
+    if !isnan(end_time)
+        time_span = end_time - dom.env.t
+    end
+
     if !silent
         printstyled("Hydromechanical FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
+        println("  from t=$(round(dom.env.t,sigdigits=4)) to t=$(round(dom.env.t+time_span,sigdigits=3))")
         sw = StopWatch() # timing
     end
 
@@ -224,8 +233,6 @@ function hm_solve!(
     end
 
     # Arguments checking
-    silent && (verbose=false)
-
     tol>0 || error("solve! : tolerance should be greater than zero")
 
     save_incs = nouts>0
@@ -245,17 +252,13 @@ function hm_solve!(
     end
 
 
-    if !isnan(end_time)
-        time_span = end_time - dom.env.t
-    end
-
     # Get dofs organized according to boundary conditions
     dofs, nu = configure_dofs!(dom, bcs) # unknown dofs first
     ndofs = length(dofs)
     umap  = 1:nu         # map for unknown displacements and pw
     pmap  = nu+1:ndofs   # map for prescribed displacements and pw
     dom.ndofs = length(dofs)
-    silent || println("  unknown dofs: $nu")
+    verbosity>0 && println("  unknown dofs: $nu")
 
     # get elevation Z for all Dofs
     Z = zeros(ndofs)
@@ -301,10 +304,14 @@ function hm_solve!(
     tend = t + time_span # end time
     Δt = time_span/nincs # initial Δt value
 
-    dT = time_span/nouts # output time increment for saving output file
-    T  = t + dT          # output time for saving the next output file
+    T  = 0.0
+    ΔT = 1.0/nincs # initial ΔT value
+    ΔT_bk = 0.0
+    Ttol = 1e-9          # time tolerance
 
-    ttol = 1e-9          # time tolerance
+    ΔTout = 1.0/nouts  # output time increment for saving output file
+    Tout  = ΔTout        # output time for saving the next output file
+
     inc  = 0             # increment counter
     iout = env.cout      # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
@@ -334,7 +341,7 @@ function hm_solve!(
     local G::SparseMatrixCSC{Float64,Int64}
     local RHS::Array{Float64,1}
 
-    while t < tend - ttol
+    while T < 1.0 - Ttol
         # Update counters
         inc += 1
         env.cinc += 1
@@ -344,9 +351,9 @@ function hm_solve!(
             return false
         end
 
-        silent || printstyled("  increment $inc from t=$(round(t,sigdigits=9)) to t=$(round(t+Δt,sigdigits=9)) (dt=$(round(Δt,sigdigits=9))):"," "^10,"\r", bold=true, color=:blue) # color 111
-        #silent || printstyled("  increment $inc  (progress=$(round), dt=$(round(Δt,sigdigits=9))):"," "^10,"\r", bold=true, color=:blue) # color 111
-        verbose && println()
+        progress = @sprintf("%4.2f", T*100)
+        verbosity>0 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)% increment $inc dT=$(round(ΔT,sigdigits=4))\033[K\r", bold=true, color=:blue) # color 111
+        verbosity>1 && println()
 
         # Get forces and displacements from boundary conditions
         dom.env.t = t + Δt
@@ -372,17 +379,17 @@ function hm_solve!(
             lastres = residue # residue from last iteration
 
             # Try FE step
-            verbose && print("    assembling... \r")
+            verbosity>1 && print("    assembling... \r")
             G, RHS = mount_G_RHS(dom, ndofs, it==1 ? Δt : 0.0 ) # TODO: check for Δt after iter 1
 
             R .+= RHS
 
             # Solve
-            verbose && print("    solving...   \r")
+            verbosity>1 && print("    solving...   \r")
             hm_solve_step!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
 
             # Update
-            verbose && print("    updating... \r")
+            verbosity>1 && print("    updating... \r")
 
             # Restore the state to last converged increment
             copyto!.(State, StateBk)
@@ -403,7 +410,7 @@ function hm_solve!(
             R = ΔFex - ΔFin  #
             R[pmap] .= 0.0  # Zero at prescribed positions
 
-            if verbose
+            if verbosity>1
                 printstyled("    it $it  ", bold=true)
                 @printf(" residue: %-10.4e\n", residue)
             end
@@ -435,28 +442,34 @@ function hm_solve!(
 
             update_loggers!(dom) # Tracking nodes, ips, elements, etc.
 
-            # Check for saving output file
-            Tn = t + Δt
+            # Update time
+            t += Δt
+            T += ΔT
 
-            if Tn + ttol>=T && save_incs
+            # Check for saving output file
+            if abs(T - Tout) < Ttol && save_incs
                 env.cout += 1
                 iout = env.cout
                 update_output_data!(dom)
-                complete_uw_h(dom)
-                save(dom, "$outdir/$filekey-$iout.vtu", verbose=false)
-                T = Tn - mod(Tn, dT) + dT
-                silent || verbose || print(" "^70, "\r")
+                save(dom, "$outdir/$filekey-$iout.vtu", silent=silent)
+                Tout += ΔTout # find the next output time
             end
 
-            # Update time t
-            t   += Δt
-
-            # Get new Δt
             if autoinc
-                Δt = min(1.5*Δt, time_span/nincs)
-                Δt = round(Δt, sigdigits=3)
-                Δt = min(Δt, tend-t)
+                if ΔT_bk>0.0
+                    ΔT = ΔT_bk
+                else
+                    ΔT = min(1.5*ΔT, 1.0/nincs)
+                end
             end
+            ΔT_bk = 0.0
+
+            # Fix ΔT in case T+ΔT>Tout
+            if T+ΔT>Tout
+                ΔT_bk = ΔT
+                ΔT = Tout-T
+            end
+
         else
             # Restore counters
             inc -= 1
@@ -464,9 +477,10 @@ function hm_solve!(
 
             # Restore the state to last converged increment
             if autoinc
-                silent || println("    increment failed.")
-                Δt = round(0.5*Δt, sigdigits=3)
-                if Δt < ttol
+                verbosity>1 && println("    increment failed.")
+                ΔT *= 0.5
+                ΔT = round(ΔT, sigdigits=3)  # round to 3 significant digits
+                if ΔT < Ttol
                     printstyled("solve!: solver did not converge \033[K \n", color=:red)
                     return false
                 end
@@ -475,10 +489,14 @@ function hm_solve!(
                 return false
             end
         end
+
+        # Fix Δt according to ΔT
+        Δt = ΔT*time_span
     end
 
     # time spent
-    silent || println("  time spent: ", see(sw, format=:hms), "\033[K")
+    verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress 100%\033[K\n", bold=true, color=:blue) # color 111
+    verbosity==1 && println("  time spent: ", see(sw, format=:hms), "\033[K")
 
     update_output_data!(dom)
     complete_uw_h(dom)
