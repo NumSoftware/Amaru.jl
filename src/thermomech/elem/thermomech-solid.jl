@@ -42,7 +42,7 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
     # Check bcs
     (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
     !(key in (:tx, :ty, :tz, :tn)) && error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
-    # TODO: add tq boundary condition (fluid volume per area)
+    # TODO: add tq boundary condition (energy per area)
 
     target = facet!=nothing ? facet : elem
     nodes  = target.nodes
@@ -73,7 +73,7 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
         X = C'*N
         if ndim==2
             x, y = X
-            vip = eval_arith_expr(val, t=t, x=x)
+            vip = eval_arith_expr(val, t=t, x=x, y=y)
             if key == :tx
                 Q = [vip, 0.0]
             elseif key == :ty
@@ -84,7 +84,7 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
             end
         else
             x, y, z = X
-            vip = eval_arith_expr(val, t=t, x=x)
+            vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
             if key == :tx
                 Q = [vip, 0.0, 0.0]
             elseif key == :ty
@@ -290,44 +290,7 @@ function elem_mass_matrix(elem::TMSolid)
 end
 
 
-function elem_RHS_vector(elem::TMSolid)
-    ndim   = elem.env.ndim
-    nnodes = length(elem.nodes)
-    C      = elem_coords(elem)
-    Q      = zeros(nnodes)
-    Bp     = zeros(ndim, nnodes)
-    KZ     = zeros(ndim)
-
-    J    = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, ndim, nnodes)
-    Z      = zeros(ndim) # ??????????????
-    Z[end] = 1.0 # hydrostatic gradient ???????????????
-
-    for ip in elem.ips
-
-        dNdR = elem.shape.deriv(ip.R)
-        @gemm J  = dNdR*C
-        @gemm Bp = inv(J)*dNdR
-        detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-
-        # compute Q
-        K = calcK(elem.mat, ip.data)
-        coef = detJ*ip.w
-        @gemv KZ = K*Z
-        @gemm Q += coef*Bp'*KZ
-    end
-
-    # map
-    map = [  node.dofdict[:ut].eq_id for node in elem.nodes  ]
-
-    return Q, map
-end
-
-
-
-
-function elem_internal_forces1(elem::TMSolid, F::Array{Float64,1}, DU::Array{Float64,1})
+function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Float64,1})
     ndim   = elem.env.ndim
     th     = elem.env.thickness # VERIFICAR ESPESSURA
     nnodes = length(elem.nodes)

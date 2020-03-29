@@ -233,6 +233,8 @@ function hm_solve!(
     end
 
     # Arguments checking
+    silent && (verbose=false)
+
     tol>0 || error("solve! : tolerance should be greater than zero")
 
     save_incs = nouts>0
@@ -250,7 +252,6 @@ function hm_solve!(
         isdir(outdir) || error("solve!: output directory <$outdir> not fount")
         outdir[end] in ('/', '\\')  && (outdir = outdir[1:end-1])
     end
-
 
     # Get dofs organized according to boundary conditions
     dofs, nu = configure_dofs!(dom, bcs) # unknown dofs first
@@ -407,8 +408,8 @@ function hm_solve!(
             ΔUa .+= ΔUi
 
             # Residual vector for next iteration
-            R = ΔFex - ΔFin  #
-            R[pmap] .= 0.0  # Zero at prescribed positions
+            R = ΔFex - ΔFin
+            R[pmap] .= 0.0  # zero at prescribed positions
 
             if verbosity>1
                 printstyled("    it $it  ", bold=true)
@@ -469,7 +470,6 @@ function hm_solve!(
                 ΔT_bk = ΔT
                 ΔT = Tout-T
             end
-
         else
             # Restore counters
             inc -= 1

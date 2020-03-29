@@ -9,12 +9,12 @@ msh = Mesh(blocks, verbose = true)
 # Finite element analysis
 
 # Analysis data
-k     = 0.0502  # thermal conductivity kW/m/K
-rho   = 7.8   # water specific weight Ton/m3
+k     = 0.0502 # thermal conductivity kW/m/K
+rho   = 7.8    # material specific weight Ton/m3
 cv    = 486.0  # specific heat (capacity) kJ/Ton/K
-E     = 200e6 # kPa
+E     = 200e6  # kPa
 nu    = 0.3
-alpha = 1.2e-5 #  thermal expansion coefficient  1/K or 1/°C
+alpha = 1.2e-5 # thermal expansion coefficient  1/K or 1/°C
 
 materials = ["solids" => ElasticSolidThermo(
     E     = E,

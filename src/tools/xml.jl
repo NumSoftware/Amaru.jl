@@ -21,7 +21,7 @@ end
 
 haschildren(node::Xnode) = length(node.children)>0
 
-# Get the last node with a given by name
+# Get a node from a nested sequence of names
 function (node::Xnode)(args::String...)
     n = node
     for s in args

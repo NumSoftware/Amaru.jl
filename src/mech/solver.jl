@@ -1,6 +1,5 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export solve!
 
 # Assemble the global stiffness matrix
 function mount_K(dom::Domain, ndofs::Int)
@@ -189,6 +188,10 @@ function solve!(
                 silent  :: Bool    = false,
                )
 
+    verbosity = 1
+    verbose && (verbosity=2)
+    silent && (verbosity=0)
+
     env = dom.env
     env.cstage += 1
     env.cinc    = 0
@@ -222,13 +225,12 @@ function solve!(
 
 
     # Get dofs organized according to boundary conditions
-    dofs, nu = configure_dofs!(dom, bcs)
+    dofs, nu = configure_dofs!(dom, bcs) # unknown dofs first
     ndofs = length(dofs)
     umap  = 1:nu         # map for unknown displacements
     pmap  = nu+1:ndofs   # map for prescribed displacements
     dom.ndofs = length(dofs)
-    silent || println("  elements: $(length(dom.elems))")
-    silent || println("  unknown dofs: $nu")
+    verbosity>0 && println("  unknown dofs: $nu")
 
     # Get forces and displacements from boundary conditions
     Uex, Fex = get_bc_vals(dom, bcs)
@@ -253,16 +255,16 @@ function solve!(
     StateBk = copy.(State)
 
     # Incremental analysis
-    t  = 0.0
-    dt = 1.0/nincs # initial dt value
-    dt_bk = 0.0
+    T  = 0.0
+    ΔT = 1.0/nincs # initial ΔT value
+    ΔT_bk = 0.0
+    Ttol = 1e-9          # time tolerance
 
-    dT = 1.0/nouts  # output time increment for saving output file
-    T  = dT        # output time for saving the next output file
+    ΔTout = 1.0/nouts  # output time increment for saving output file
+    Tout  = ΔTout        # output time for saving the next output file
 
-    ttol = 1e-9    # time tolerance
-    inc  = 0       # increment counter
-    iout = env.cout     # file output counter
+    inc  = 0             # increment counter
+    iout = env.cout      # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
@@ -283,7 +285,7 @@ function solve!(
 
     #remountK = true
 
-    while t < 1.0 - ttol
+    while T < 1.0 - Ttol
         # Update counters
         inc += 1
         env.cinc += 1
@@ -293,11 +295,11 @@ function solve!(
             return false
         end
 
-        progress = @sprintf("%4.2f", t*100)
-        silent || printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)% increment $inc dT=$(round(dt,sigdigits=4))\033[K\r", bold=true, color=:blue) # color 111
-        verbose && println()
+        progress = @sprintf("%4.2f", T*100)
+        verbosity>0 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)% increment $inc dT=$(round(ΔT,sigdigits=4))\033[K\r", bold=true, color=:blue) # color 111
+        verbosity>1 && println()
 
-        ΔUex, ΔFex = dt*Uex, dt*Fex     # increment of external vectors
+        ΔUex, ΔFex = ΔT*Uex, ΔT*Fex     # increment of external vectors
         R   .= ΔFex    # residual
         ΔUa .= 0.0
         ΔUi .= ΔUex    # essential values at iteration i
@@ -319,11 +321,11 @@ function solve!(
             #K = mount_K_threads(dom, ndofs)
 
             # Solve
-            verbose && print("    solving...   \r")
-            solve_step(K, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
+            verbosity>1 && print("    solving...   \r")
+            hm_solve_step!(K, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
 
             # Update
-            verbose && print("    updating... \r")
+            verbosity>1 && print("    updating... \r")
 
             # Restore the state to last converged increment
             copyto!.(State, StateBk)
@@ -332,7 +334,7 @@ function solve!(
             ΔFin .= 0.0
             ΔUt   = ΔUa + ΔUi
             for elem in dom.elems
-                elem_update!(elem, ΔUt, ΔFin, dt)
+                elem_update!(elem, ΔUt, ΔFin, ΔT)
             end
 
             residue = maximum(abs, (ΔFex-ΔFin)[umap] )
@@ -349,7 +351,7 @@ function solve!(
                 ΔFin .= 0.0
                 ΔUt   = ΔUa + ΔUi
                 for elem in dom.elems
-                    elem_update!(elem, ΔUt, ΔFin, dt)
+                    elem_update!(elem, ΔUt, ΔFin, ΔT)
                 end
 
                 residue = maximum(abs, (ΔFex-ΔFin)[umap] )
@@ -362,7 +364,7 @@ function solve!(
             R = ΔFex - ΔFin
             R[pmap] .= 0.0  # zero at prescribed positions
 
-            if verbose
+            if verbosity>1
                 printstyled("    it $it  ", bold=true)
                 @printf(" residue: %-10.4e\n", residue)
             end
@@ -390,44 +392,43 @@ function solve!(
 
             update_loggers!(dom) # Tracking nodes, ips, elements, etc.
 
-            # Update time t and dt
-            t += dt
+            # Update time
+            T += ΔT
 
             # Check for saving output file
-            if abs(t - T) < ttol && save_incs
+            if abs(T - Tout) < Ttol && save_incs
                 env.cout += 1
                 iout = env.cout
                 update_output_data!(dom)
                 save(dom, "$outdir/$filekey-$iout.vtu", silent=silent)
-                T += dT # find the next output time
+                Tout += ΔTout # find the next output time
             end
 
             if autoinc
-                if dt_bk>0.0
-                    dt = dt_bk
+                if ΔT_bk>0.0
+                    ΔT = ΔT_bk
                 else
-                    dt = min(1.5*dt, 1.0/nincs)
-                    dt = round(dt, digits=-ceil(Int, log10(dt))+3)  # round to 3 significant digits
+                    ΔT = min(1.5*ΔT, 1.0/nincs)
                 end
             end
-            dt_bk = 0.0
+            ΔT_bk = 0.0
 
-            # Fix dt in case t+dt>T
-            if t+dt>T
-                dt_bk = dt
-                dt = T-t
+            # Fix ΔT in case T+ΔT>Tout
+            if T+ΔT>Tout
+                ΔT_bk = ΔT
+                ΔT = Tout-T
             end
         else
             # Restore counters
-            env.cinc -= 1
             inc -= 1
+            env.cinc -= 1
 
             # Restore the state to last converged increment
             if autoinc
-                verbose && println("    increment failed.")
-                dt *= 0.5
-                dt = round(dt, sigdigits=3)  # round to 3 significant digits
-                if dt < ttol
+                verbosity>1 && println("    increment failed.")
+                ΔT *= 0.5
+                ΔT = round(ΔT, sigdigits=3)  # round to 3 significant digits
+                if ΔT < Ttol
                     printstyled("solve!: solver did not converge \033[K \n", color=:red)
                     return false
                 end
@@ -439,7 +440,8 @@ function solve!(
     end
 
     # time spent
-    silent || println("  time spent: ", see(sw, format=:hms), "\033[K")
+    verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress 100%\033[K\n", bold=true, color=:blue) # color 111
+    verbosity==1 && println("  time spent: ", see(sw, format=:hms), "\033[K")
 
     update_output_data!(dom)
     return true

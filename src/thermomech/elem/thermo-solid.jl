@@ -171,7 +171,7 @@ function elem_RHS_vector(elem::ThermoSolid)
 end
 =#
 
-function elem_internal_forces1(elem::SeepSolid, F::Array{Float64,1})
+function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     C   = elem_coords(elem)

@@ -34,15 +34,15 @@ function formatlapse(lapse::Float64; format::Symbol=:short)
         return @sprintf("%5.3fs", lapse)
     elseif format==:ms
         m, s = divrem(lapse, 60)
-        return @sprintf("%1dm %5.3fs", m, s)
+        return @sprintf("%1dm %5.2fs", m, s)
     else
         h, r = divrem(lapse, 3600)
         m, s = divrem(r, 60)
         #@show format
         if format==:hms
-            return @sprintf("%1dh %1dm %5.3fs", h, m, s)
+            return @sprintf("%1dh %1dm %5.2fs", h, m, s)
         else
-            return @sprintf("%1d:%1d:%3.1f", h, m, s)
+            return @sprintf("%1d:%1d:%3.2f", h, m, s)
         end
     end
 end
