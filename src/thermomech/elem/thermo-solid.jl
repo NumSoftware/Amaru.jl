@@ -35,7 +35,7 @@ function distributed_bc(elem::ThermoSolid, facet::Union{Facet,Nothing}, key::Sym
     ndim  = elem.env.ndim
 
     # Check bcs
-    (key == :qt) || error("distributed_bc: boundary condition $key is not applicable in a ThermoSolid element")
+    (key == :tq) || error("distributed_bc: boundary condition $key is not applicable in a ThermoSolid element")
 
     target = facet!=nothing ? facet : elem
     nodes  = target.nodes
@@ -49,7 +49,7 @@ function distributed_bc(elem::ThermoSolid, facet::Union{Facet,Nothing}, key::Sym
     C = nodes_coords(nodes, ndim)
 
     # Vector with values to apply
-    QQ = zeros(ndim)
+    Q = zeros(ndim)
 
     # Calculate the nodal values
     F     = zeros(nnodes, ndim)
@@ -76,34 +76,34 @@ function distributed_bc(elem::ThermoSolid, facet::Union{Facet,Nothing}, key::Sym
 end
 
 
+# thermal conductivity # matriz theta
 function elem_conductivity_matrix(elem::ThermoSolid)
     ndim   = elem.env.ndim
+    th     = elem.env.thickness # VERIFICAR ESPESSURA
     θ0     = elem.env.T0 + 273.15
     nnodes = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
-    C      = elem_coords(elem)
+    Cp      = elem_coords(elem)[1:nbsnodes,:]
     H      = zeros(nnodes, nnodes)
-    Bt     = zeros(ndim, nnodes)
-    KBt    = zeros(ndim, nnodes)
-
+    Bp     = zeros(ndim, nnodes)
+    KBp    = zeros(ndim, nnodes)
     J    = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
     nodes_p = elem.nodes[1:nbsnodes]
 
     for ip in elem.ips
 
-        N    = elem.shape.func(ip.R)
-        dNdR = elem.shape.deriv(ip.R)
-        @gemm J  = dNdR*C
-        @gemm Bt = inv(J)*dNdR
+        dNdR = elem.shape.basic_shape.deriv(ip.R)
+        @gemm J  = dNdR*Cp
+        @gemm Bp = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # compute H
         K = calcK(elem.mat, ip.data)
-        coef = detJ*ip.w/θ0
-        @gemm KBt = K*Bt
-        @gemm H -= coef*Bt'*KBt
+        coef = detJ*ip.w*th*elem.mat.k/θ0
+        @gemm KBp = K*Bp
+        @gemm H += coef*Bp'*KBp # VERIFICAR O SINAL (-) ou (+)
     end
 
     # map
@@ -112,33 +112,33 @@ function elem_conductivity_matrix(elem::ThermoSolid)
     return H, map, map, nodes_p
 end
 
-
 function elem_mass_matrix(elem::ThermoSolid)
     ndim   = elem.env.ndim
+    th     = elem.env.thickness
     θ0     = elem.env.T0 + 273.15
     nnodes = length(elem.nodes)
-    C = elem_coords(elem)
+    nbsnodes = elem.shape.basic_shape.npoints
+    Cp  = elem_coords(elem)[1:nbsnodes,:]
     M = zeros(nnodes, nnodes)
+
     J  = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        N    = elem.shape.func(ip.R)
-        dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        Np    = elem.shape.basic_shape.func(ip.R)
+        dNpdR = elem.shape.basic_shape.deriv(ip.R)
+        @gemm J = dNpdR*Cp
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # compute Cuu
-        coef = elem.mat.ρ*elem.mat.cv*detJ*ip.w/θ0
-        M  -= coef*N*N'
+        coef = elem.mat.ρ*elem.mat.cv*detJ*ip.w*th/θ0
+        M  -= coef*Np*Np'
     end
-
     # map
-    map = [  node.dofdict[:ut].eq_id for node in elem.nodes  ]
+    map = [  node.dofdict[:ut].eq_id for node in elem.nodes[1:nbsnodes]  ]
 
     return M, map, map
 end
-
 
 #=
 function elem_RHS_vector(elem::ThermoSolid)
@@ -172,7 +172,7 @@ end
 =#
 
 #=
-function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
+function elem_internal_forces(elem::ThermoSolid, F::Array{Float64,1})
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     C   = elem_coords(elem)

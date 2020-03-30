@@ -70,7 +70,10 @@ function mount_G_RHS_(dom::Domain, ndofs::Int, Δt::Float64)
             RHS[rmap] -= Δt*(H*Ut)
         end
 
-        # Assemble the conductivity matrix
+
+
+
+        # Assemble the mass matrix
         if has_mass_matrix
             M, rmap, cmap =  elem_mass_matrix(elem)
             nr, nc = size(M)
@@ -385,9 +388,9 @@ function tm_solve!(
 
             # Get internal forces and update data at integration points (update ΔFin)
             ΔFin .= 0.0
-            ΔUtt   = ΔUa + ΔUi
+            ΔUt   = ΔUa + ΔUi
             for elem in dom.elems
-                elem_update!(elem, ΔUtt, ΔFin, Δt)
+                elem_update!(elem, ΔUt, ΔFin, Δt)
             end
 
             residue = maximum(abs, (ΔFex-ΔFin)[umap] )
@@ -416,6 +419,7 @@ function tm_solve!(
             F .+= ΔFin
             Uex .= UexN
             Fex .= FexN
+
 
             # Backup converged state at ips
             copyto!.(StateBk, State)

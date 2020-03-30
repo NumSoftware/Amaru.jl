@@ -332,7 +332,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
         # compute N
 
         # internal force
-        ut   = ip.data.ut   # + 273
+        ut   = ip.data.ut + 273
         β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu)
         σ    = ip.data.σ - β*ut*m # get total stress
         coef = detJ*ip.w*th #VERIFICAAAAAAAAAAAAR
