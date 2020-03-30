@@ -2,7 +2,7 @@ using Amaru
 #using Test
 
 # Mesh generation
-blocks = [Block([0 0; 1 2], nx =    10, ny = 20, tag = "solids")]
+blocks = [Block([0 0; 1 2], nx = 10, ny = 20, tag = "solids")]
 
 msh = Mesh(blocks, verbose = true)
 
@@ -12,7 +12,7 @@ msh = Mesh(blocks, verbose = true)
 k = 0.0502   # thermal conductivity kW/m/K
 rho = 7.8   # water specific weight Ton/m3
 cv = 510.7896  # specific heat (capacity) kJ/Ton/K
-E = 200e6 # kN/m2
+E = 200e6 # kN/m2 = kPa
 nu = 0.3
 alpha = 1.2e-5 #  thermal expansion coefficient  1/K or 1/°C
 materials = ["solids" => ElasticSolidThermo(
