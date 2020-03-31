@@ -17,8 +17,8 @@ function mount_G_RHS_(dom::Domain, ndofs::Int, Δt::Float64)
         has_stiffness_matrix    = hasmethod(elem_stiffness, (ty,))
         has_coupling_matrix     = hasmethod(elem_coupling_matrix, (ty,))
         has_conductivity_matrix = hasmethod(elem_conductivity_matrix, (ty,))
-        has_mass_matrix = hasmethod(elem_mass_matrix, (ty,)) # M
-        has_RHS_vector          = hasmethod(elem_RHS_vector, (ty,))
+        has_mass_matrix         = hasmethod(elem_mass_matrix, (ty,)) # M
+        #has_RHS_vector          = hasmethod(elem_RHS_vector, (ty,))
 
         # Assemble the stiffness matrix
         if has_stiffness_matrix
@@ -35,19 +35,19 @@ function mount_G_RHS_(dom::Domain, ndofs::Int, Δt::Float64)
 
         # Assemble the coupling matrices
         if has_coupling_matrix
-            Cup, rmap, cmap = elem_coupling_matrix(elem)
-            nr, nc = size(Cup)
+            Cut, rmap, cmap = elem_coupling_matrix(elem)
+            nr, nc = size(Cut)
             for i=1:nr
                 for j=1:nc
-                    # matrix Cup
+                    # matrix Cut
                     push!(R, rmap[i])
                     push!(C, cmap[j])
-                    push!(V, Cup[i,j])
+                    push!(V, Cut[i,j])
 
-                    # matrix Cup'
+                    # matrix Cut'
                     push!(R, cmap[j])
                     push!(C, rmap[i])
-                    push!(V, Cup[i,j])
+                    push!(V, Cut[i,j])
                 end
             end
         end
@@ -64,17 +64,18 @@ function mount_G_RHS_(dom::Domain, ndofs::Int, Δt::Float64)
                     push!(V, α*Δt*H[i,j])
                 end
             end
-        end
-            # Assemble the conductivity matrix
-        if has_RHS_vector
-            H, rmap, cmap, nodes_p =  elem_conductivity_matrix(elem)
-            # Assembling RHS componentsz
+
+            # Assembling RHS components
             Ut = [ node.dofdict[:ut].vals[:ut] for node in nodes_p ]
             RHS[rmap] -= Δt*(H*Ut)
         end
-
-
-
+            # Assemble the conductivity matrix
+        #if has_RHS_vector
+            #H, rmap, cmap, nodes_p =  elem_conductivity_matrix(elem)
+            # Assembling RHS componentsz
+            #Ut = [ node.dofdict[:ut].vals[:ut] for node in nodes_p ]
+            #RHS[rmap] -= Δt*(H*Ut)
+        #end
 
         # Assemble the mass matrix
         if has_mass_matrix

@@ -88,7 +88,6 @@ function elem_conductivity_matrix(elem::ThermoSolid)
     Bp     = zeros(ndim, nnodes)
     KBp    = zeros(ndim, nnodes)
     J    = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, ndim, nnodes)
     nodes_p = elem.nodes[1:nbsnodes]
 
     for ip in elem.ips
@@ -101,7 +100,7 @@ function elem_conductivity_matrix(elem::ThermoSolid)
 
         # compute H
         K = calcK(elem.mat, ip.data)
-        coef = detJ*ip.w*elem.mat.k/θ0
+        coef = detJ*ip.w/θ0
         @gemm KBp = K*Bp
         @gemm H += coef*Bp'*KBp # VERIFICAR O SINAL (-) ou (+)
     end
@@ -219,6 +218,8 @@ function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64
     ndim   = elem.env.ndim
     θ0     = elem.env.T0 + 273.15
     nnodes = length(elem.nodes)
+    ρ      = elem.mat.ρ
+    cv     = elem.mat.cv
 
     map_t  = [ node.dofdict[:ut].eq_id for node in elem.nodes ]
 
@@ -232,7 +233,6 @@ function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64
     dFt = zeros(nnodes)
     Bt  = zeros(ndim, nnodes)
 
-    DB = Array{Float64}(undef, 6, nnodes*ndim)
     J  = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
 
@@ -245,15 +245,20 @@ function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
 
+        @gemm dNdX = inv(J)*dNdR
         Bt = dNdX
-        G  = Bt*Ut/θ0 # flow gradient
+        G  = Bt*Ut # flow gradient
 
         Δut = N'*dUt # interpolation to the integ. point
 
         QQ = update_state!(elem.mat, ip.data, Δut, G, Δt)
 
-        coef = Δt*detJ*ip.w
-        @gemv dFt += coef*Bt'*QQ
+        coef = Δt*detJ*ip.w/θ0
+        @gemv dFt -= coef*Bt'*QQ
+
+        coef = detJ*ip.w*ρ*cv/θ0
+        dFt += coef*N*Δut
+
     end
 
     DF[map_t] += dFt
