@@ -335,20 +335,20 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
         ut   = ip.data.ut + 273
         β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu)
         σ    = ip.data.σ - β*ut*m # get total stress
-        coef = detJ*ip.w*th #VERIFICAAAAAAAAAAAAR
+        coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*σ
 
         # internal volumes dFt
         ε    = ip.data.ε
         εvol = dot(m, ε)
-        coef = β*detJ*ip.w*th # VEEEERIFICAR
+        coef = β*detJ*ip.w*th
         dFt  -= coef*Np*εvol
 
-        coef = detJ*ip.w*elem.mat.ρ*elem.mat.cv*th/θ0  # VEEEERIFICAR
+        coef = detJ*ip.w*elem.mat.ρ*elem.mat.cv*th/θ0
         dFt -= coef*Np*ut
 
         D   = ip.data.D
-        coef = detJ*ip.w*th/θ0 # VEEEERIFICAR
+        coef = detJ*ip.w*th/θ0
         @gemv dFt -= coef*Bp'*D
     end
 
@@ -410,28 +410,27 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         # Compute Δut
         Δut = Np'*dUt # interpolation to the integ. point
 
-        # Compute thermal gradient G (REEEEEVER)
+        # Compute thermal gradient G
         Bt = dNdX
-        G  = Bt*Ut/θ0 # flow gradient
+        G  = Bt*Ut/θ0 #
 
-        #ut   = ip.data.ut
         # internal force dF
         Δσ, QQ = stress_update(elem.mat, ip.data, Δε, Δut, G, Δt)
         β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu)
         Δσ -= β*Δut*m # get total stress
 
-        coef = detJ*ip.w*th  # VEEEERIFICAR
+        coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*Δσ
 
         # internal volumes dFt
         Δεvol = dot(m, Δε)
-        coef  = β*detJ*ip.w # VEEEERIFICAR
-        dFt  -= coef*Np*Δεvol # VEEEERIFICAR
+        coef  = β*detJ*ip.w
+        dFt  -= coef*Np*Δεvol
 
         coef = detJ*ip.w*elem.mat.ρ*elem.mat.cv*th/θ0
         dFt -= coef*Np*Δut
 
-        coef = Δt*detJ*ip.w*th/θ0 # VEEEERIFICAR
+        coef = Δt*detJ*ip.w*th/θ0
         @gemv dFt -= coef*Bp'*QQ
     end
 

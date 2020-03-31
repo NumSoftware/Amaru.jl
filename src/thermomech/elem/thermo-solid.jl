@@ -102,7 +102,7 @@ function elem_conductivity_matrix(elem::ThermoSolid)
         K = calcK(elem.mat, ip.data)
         coef = detJ*ip.w/θ0
         @gemm KBp = K*Bp
-        @gemm H += coef*Bp'*KBp # VERIFICAR O SINAL (-) ou (+)
+        @gemm H += coef*Bp'*KBp
     end
 
     # map
@@ -140,45 +140,15 @@ function elem_mass_matrix(elem::ThermoSolid)
 end
 
 #=
-function elem_RHS_vector(elem::ThermoSolid)
-    ndim   = elem.env.ndim
-    nnodes = length(elem.nodes)
-    C      = elem_coords(elem)
-    Q      = zeros(nnodes) # energy flux
-    Bt     = zeros(ndim, nnodes)
-    KZ     = zeros(ndim)
-    J      = Array{Float64}(undef, ndim, ndim)
-    dNdX   = Array{Float64}(undef, ndim, nnodes)
-    Z      = zeros(ndim) # hydrostatic gradient
-    Z[end] = 1.0
-    for ip in elem.ips
-        N    = elem.shape.func(ip.R)
-        dNdR = elem.shape.deriv(ip.R)
-        @gemm J  = dNdR*C
-        @gemm Bt = inv(J)*dNdR
-        detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        # compute Q
-        K = calcK(elem.mat, ip.data)
-        coef = detJ*ip.w
-        @gemv KZ = K*Z
-        @gemm Q += coef*Bt'*KZ
-    end
-    # map
-    map = [  node.dofdict[:ut].eq_id for node in elem.nodes  ]
-    return Q, map
-end
-=#
-
-#=
 function elem_internal_forces(elem::ThermoSolid, F::Array{Float64,1})
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     C   = elem_coords(elem)
-
+    th     = elem.env.thickness
+    θ0     = elem.env.T0 + 273.15
     map_p  = [ node.dofdict[:ut].eq_id for node in elem.nodes ]
 
-    dFw = zeros(nnodes)
+    dFt = zeros(nnodes)
     Bp  = zeros(ndim, nnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
@@ -200,12 +170,12 @@ function elem_internal_forces(elem::ThermoSolid, F::Array{Float64,1})
 
         # internal volumes dFw
         ut   = ip.data.ut
-        coef = detJ*ip.w*elem.mat.cv # VERIFICAR
-        dFw -= coef*N*ut
+        coef = detJ*ip.w*elem.mat.cv*elem.mat.ρ # VERIFICAR
+        dFt -= coef*N*ut
 
         D    = ip.data.D
-        coef = detJ*ip.w
-        @gemv dFt += coef*Bp'*D
+        coef = detJ*ip.w*th/θ0
+        @gemv dFt -= coef*Bp'*D
     end
 
     F[map_p] += dFt
@@ -213,13 +183,11 @@ end
 =#
 
 
-
 function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     θ0     = elem.env.T0 + 273.15
     nnodes = length(elem.nodes)
-    ρ      = elem.mat.ρ
-    cv     = elem.mat.cv
+    th     = elem.env.thickness
 
     map_t  = [ node.dofdict[:ut].eq_id for node in elem.nodes ]
 
@@ -256,8 +224,8 @@ function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64
         coef = Δt*detJ*ip.w/θ0
         @gemv dFt -= coef*Bt'*QQ
 
-        coef = detJ*ip.w*ρ*cv/θ0
-        dFt += coef*N*Δut
+        coef = detJ*ip.w*elem.mat.ρ*elem.mat.cv*th/θ0
+        dFt -= coef*N*Δut
 
     end
 
