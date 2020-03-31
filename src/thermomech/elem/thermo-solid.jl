@@ -228,7 +228,7 @@ function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64
     Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes ]
     Ut += dUt # nodal temperature at step n+1
 
-#=    dF  = zeros(nnodes*ndim)
+    dF  = zeros(nnodes*ndim)
     dFt = zeros(nnodes)
     Bt  = zeros(ndim, nnodes)
 
@@ -253,9 +253,9 @@ function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64
         QQ = update_state!(elem.mat, ip.data, Δut, G, Δt)
 
         coef = Δt*detJ*ip.w
-    #    @gemv dFt += coef*Bt'*QQ
+        @gemv dFt += coef*Bt'*QQ
     end
 
     DF[map_t] += dFt
-=#
+
 end
