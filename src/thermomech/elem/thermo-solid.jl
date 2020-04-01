@@ -100,7 +100,7 @@ function elem_conductivity_matrix(elem::ThermoSolid)
 
         # compute H
         K = calcK(elem.mat, ip.data)
-        coef = detJ*ip.w/θ0
+        coef = detJ*ip.w*th/θ0
         @gemm KBp = K*Bp
         @gemm H += coef*Bp'*KBp
     end
