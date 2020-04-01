@@ -69,13 +69,6 @@ function mount_G_RHS_(dom::Domain, ndofs::Int, Δt::Float64)
             Ut = [ node.dofdict[:ut].vals[:ut] for node in nodes_p ]
             RHS[rmap] -= Δt*(H*Ut)
         end
-            # Assemble the conductivity matrix
-        #if has_RHS_vector
-            #H, rmap, cmap, nodes_p =  elem_conductivity_matrix(elem)
-            # Assembling RHS componentsz
-            #Ut = [ node.dofdict[:ut].vals[:ut] for node in nodes_p ]
-            #RHS[rmap] -= Δt*(H*Ut)
-        #end
 
         # Assemble the mass matrix
         if has_mass_matrix
@@ -90,11 +83,6 @@ function mount_G_RHS_(dom::Domain, ndofs::Int, Δt::Float64)
             end
         end
 
-        # Assemble ramaining RHS vectors
-        #if has_RHS_vector
-            #Q, map = elem_RHS_vector(elem)
-            #RHS[map] += Δt*Q
-        #end
     end
 
     # generating sparse matrix G
@@ -216,27 +204,24 @@ function tm_solve!(
         sw = StopWatch() # timing
     end
 
-    function complete_ut_h(dom::Domain)
-        haskey(dom.point_data, "ut") || return
-        Ut = dom.point_data["ut"]
-        H  = dom.point_data["h"]
-        for ele in dom.elems
-            ele.shape.family==SOLID_SHAPE || continue
-            ele.shape==ele.shape.basic_shape && continue
-            npoints = ele.shape.npoints
-            nbpoints = ele.shape.basic_shape.npoints
-            map = [ ele.nodes[i].id for i=1:nbpoints ]
-            Ue = Ut[map]
-            He = H[map]
-            C = ele.shape.nat_coords
-            for i=nbpoints+1:npoints
-                id = ele.nodes[i].id
-                R = C[i,:]
-                N = ele.shape.basic_shape.func(R)
-                Ut[id] = dot(N,Ue)
-                H[id] = dot(N,He)
-            end
-        end
+    function complete_ut_h(dom::Domain) # for high order elements TODO
+        #haskey(dom.point_data, "ut") || return
+        #Ut = dom.point_data["ut"]
+        #for ele in dom.elems
+            #ele.shape.family==SOLID_SHAPE || continue
+            #ele.shape==ele.shape.basic_shape && continue
+            #npoints = ele.shape.npoints
+            #nbpoints = ele.shape.basic_shape.npoints
+            #map = [ ele.nodes[i].id for i=1:nbpoints ]
+            #Ue = Ut[map]
+            #C = ele.shape.nat_coords
+            #for i=nbpoints+1:npoints
+                #id = ele.nodes[i].id
+                #R = C[i,:]
+                #N = ele.shape.basic_shape.func(R)
+                #Ut[id] = dot(N,Ue)
+            #end
+        #end
     end
 
     # Arguments checking
@@ -280,9 +265,6 @@ function tm_solve!(
         for (i,dof) in enumerate(dofs)
             dof.vals[dof.name]    = 0.0
             dof.vals[dof.natname] = 0.0
-            if dof.name==:ut
-                dof.vals[:h] = 0.0 # water head
-            end
         end
 
         update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
@@ -336,7 +318,6 @@ function tm_solve!(
     local G::SparseMatrixCSC{Float64,Int64}
     local RHS::Array{Float64,1}
 
-    #while t < tend - Ttol
     while T < 1.0 - Ttol
         # Update counters
         inc += 1
@@ -481,17 +462,6 @@ function tm_solve!(
                 printstyled("solve!: solver did not converge \033[K \n", color=:red)
                 return false
             end
-            #if autoinc
-                #silent || println("    increment failed.")
-                #Δt = round(0.5*Δt, sigdigits=3)
-                #if Δt < Ttol
-                    #printstyled("solve!: solver did not converge \033[K \n", color=:red)
-                    #return false
-                #end
-            #else
-                #printstyled("solve!: solver did not converge \033[K \n", color=:red)
-                #return false
-            #end
         end
 
         # Fix Δt according to ΔT
