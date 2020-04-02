@@ -1,16 +1,20 @@
+export newchart, savechart, showchart, cplot
 
-function newfig(; xlabel="\$x\$", ylabel="\$y\$", lw=0.7, ms=2, legendloc="best",
+function newchart(; xlabel="\$x\$", ylabel="\$y\$", lw=0.7, ms=2, legendloc="best",
                xbins=6, ybins=6, grid=false, figsize=(3,2), legendexpand=false, ncol=0,
                xmin=NaN, xmax=NaN, ymin=NaN, ymax=NaN,
                fontsize=7, legendfontsize=0, labelspacing=0.5)
     # for ploting use:
+    #
     # using PyPlot
-    # plot(X, Y, "k", label="label")
+    # newchart(...)
+    # plot(X, Y, "k", label="label1")
+    # plot(X, Z, "b", label="label2")
     #
     # later, for saving use:
-    # savefig("file.pdf", bbox_inches="tight", pad_inches=0.01, format="pdf")
+    # savechart(filename, ...)
 
-    @eval import PyPlot:plt
+    @eval import PyPlot:plt,gca
 
     # Configure plot
     plt.close("all")
@@ -19,7 +23,6 @@ function newfig(; xlabel="\$x\$", ylabel="\$y\$", lw=0.7, ms=2, legendloc="best"
     plt.rc("mathtext", fontset="cm")
     plt.rc("lines", scale_dashes=true)
 
-    plt.ioff()
     plt.rc("xtick", labelsize=7)
     plt.rc("ytick", labelsize=7)
     plt.rc("lines", lw=0.7)
@@ -45,6 +48,36 @@ function newfig(; xlabel="\$x\$", ylabel="\$y\$", lw=0.7, ms=2, legendloc="best"
     return nothing
 end
 
+
+function savechart(filename; showlegend=true, legendloc="best", labelspacing=0.5, legendexpand=false)
+    plt.ioff()
+    ax = gca()
+    if showlegend
+        mode = legendexpand ? "expand" : nothing
+        ncol = length(ax.lines)
+
+        if legendloc=="top"
+            leg = plt.legend(loc="lower left", bbox_to_anchor=(-0.02, 1.01, 1.04, 0.2), edgecolor="k", ncol=ncol, mode=mode)
+        elseif legendloc=="right"
+            leg = plt.legend(loc="upper left", bbox_to_anchor=(1.01, 1), edgecolor="k")
+        elseif legendloc=="bottom"
+            leg = plt.legend(loc="upper left", bbox_to_anchor=(-0.02, -0.02, 1.04, -0.2), edgecolor="k", ncol=ncol, mode=mode)
+        else
+            leg = plt.legend(loc=legendloc, edgecolor="k", labelspacing=labelspacing)
+        end
+
+        frame = leg.get_frame()
+        frame.set_linewidth(0.5)
+    end
+    plt.savefig(filename, bbox_inches="tight", pad_inches=0.01, format="pdf")
+end
+
+
+function showchart(showlegend=true, legendloc="best", labelspacing=0.5, legendexpand=false)
+    plt.ion()
+    plt.legend(loc=legendloc, edgecolor="k", labelspacing=labelspacing)
+    show()
+end
 
 
 function cplot(X, Y, filename=""; xlabel="\$x\$", ylabel="\$y\$", lw=0.7, ls="-", ms=2, marker=nothing, color="", legend=[], legendloc="best",

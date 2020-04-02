@@ -53,11 +53,7 @@ export max, min, sort, reset, getindex, sort, copy!, show
 include("mesh/include.jl")
 
 include("plot/mplot.jl")
-export mplot
-
 include("plot/cplot.jl")
-export cplot, newfig
-
 
 # Fem module
 include("model-env.jl")
