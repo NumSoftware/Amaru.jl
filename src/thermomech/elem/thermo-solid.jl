@@ -102,7 +102,7 @@ function elem_conductivity_matrix(elem::ThermoSolid)
         K = calcK(elem.mat, ip.data)
         coef = detJ*ip.w*th/θ0
         @gemm KBp = K*Bp
-        @gemm H += coef*Bp'*KBp
+        @gemm H -= coef*Bp'*KBp
     end
 
     # map
@@ -215,17 +215,18 @@ function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64
 
         @gemm dNdX = inv(J)*dNdR
         Bt = dNdX
-        G  = Bt*Ut # flow gradient
+        G  = Bt*Ut # temperature gradient
 
         Δut = N'*dUt # interpolation to the integ. point
 
         QQ = update_state!(elem.mat, ip.data, Δut, G, Δt)
 
-        coef = Δt*detJ*ip.w/θ0
-        @gemv dFt -= coef*Bt'*QQ
-
         coef = detJ*ip.w*elem.mat.ρ*elem.mat.cv*th/θ0
         dFt -= coef*N*Δut
+
+        coef = Δt*detJ*ip.w/θ0
+        @gemv dFt += coef*Bt'*QQ
+
 
     end
 

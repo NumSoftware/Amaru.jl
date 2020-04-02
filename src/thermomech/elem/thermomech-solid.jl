@@ -252,7 +252,7 @@ function elem_conductivity_matrix(elem::TMSolid)
         K = calcK(elem.mat, ip.data)
         coef = detJ*ip.w*th*elem.mat.k/θ0 # Pra que serve: detJ*ip.w?
         @gemm KBp = K*Bp
-        @gemm H += coef*Bp'*KBp # VERIFICAR O SINAL (-) ou (+)
+        @gemm H -= coef*Bp'*KBp # VERIFICAR O SINAL (-) ou (+)
     end
 
     # map
@@ -347,9 +347,9 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
         coef = detJ*ip.w*elem.mat.ρ*elem.mat.cv*th/θ0
         dFt -= coef*Np*ut
 
-        D   = ip.data.D
+        QQ   = ip.data.QQ
         coef = detJ*ip.w*th/θ0
-        @gemv dFt -= coef*Bp'*D
+        @gemv dFt += coef*Bp'*QQ
     end
 
     F[map_u] += dF
@@ -431,7 +431,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         dFt -= coef*Np*Δut
 
         coef = Δt*detJ*ip.w*th/θ0
-        @gemv dFt -= coef*Bp'*QQ
+        @gemv dFt += coef*Bp'*QQ
     end
 
     DF[map_u] += dF
