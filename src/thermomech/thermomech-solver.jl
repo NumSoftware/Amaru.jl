@@ -18,7 +18,6 @@ function mount_G_RHS_(dom::Domain, ndofs::Int, Δt::Float64)
         has_coupling_matrix     = hasmethod(elem_coupling_matrix, (ty,))
         has_conductivity_matrix = hasmethod(elem_conductivity_matrix, (ty,))
         has_mass_matrix         = hasmethod(elem_mass_matrix, (ty,)) # M
-        #has_RHS_vector          = hasmethod(elem_RHS_vector, (ty,))
 
         # Assemble the stiffness matrix
         if has_stiffness_matrix
@@ -37,6 +36,7 @@ function mount_G_RHS_(dom::Domain, ndofs::Int, Δt::Float64)
         if has_coupling_matrix
             Cut, rmap, cmap = elem_coupling_matrix(elem)
             nr, nc = size(Cut)
+            T0     = dom.env.T0 + 273.15
             for i=1:nr
                 for j=1:nc
                     # matrix Cut
@@ -47,7 +47,7 @@ function mount_G_RHS_(dom::Domain, ndofs::Int, Δt::Float64)
                     # matrix Cut'
                     push!(R, cmap[j])
                     push!(C, rmap[i])
-                    push!(V, Cut[i,j])
+                    push!(V, T0*Cut[i,j]) # transposed and multiplied by T0
                 end
             end
         end
@@ -55,7 +55,7 @@ function mount_G_RHS_(dom::Domain, ndofs::Int, Δt::Float64)
 
         # Assemble the conductivity matrix
         if has_conductivity_matrix
-            H, rmap, cmap, nodes_p =  elem_conductivity_matrix(elem)
+            H, rmap, cmap =  elem_conductivity_matrix(elem)
             nr, nc = size(H)
             for i=1:nr
                 for j=1:nc
@@ -66,7 +66,8 @@ function mount_G_RHS_(dom::Domain, ndofs::Int, Δt::Float64)
             end
 
             # Assembling RHS components
-            Ut = [ node.dofdict[:ut].vals[:ut] for node in nodes_p ]
+            nbnodes = elem.shape.basic_shape.npoints
+            Ut = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes[1:nbnodes] ]
             RHS[rmap] -= Δt*(H*Ut)
         end
 
@@ -193,39 +194,39 @@ function tm_solve!(
     env = dom.env
     env.cstage += 1
     env.cinc    = 0
+    env.transient = true
 
     if !isnan(end_time)
-        time_span = end_time - dom.env.t
+        time_span = end_time - env.t
     end
 
     if !silent
         printstyled("Thermomechanical FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
-        println("  from t=$(round(dom.env.t,digits=4)) to t=$(round(dom.env.t+time_span,digits=3))")
+        println("  from t=$(round(env.t,digits=4)) to t=$(round(env.t+time_span,digits=3))")
         sw = StopWatch() # timing
     end
 
-    function complete_ut_h(dom::Domain) # for high order elements TODO
-        #haskey(dom.point_data, "ut") || return
-        #Ut = dom.point_data["ut"]
-        #for ele in dom.elems
-            #ele.shape.family==SOLID_SHAPE || continue
-            #ele.shape==ele.shape.basic_shape && continue
-            #npoints = ele.shape.npoints
-            #nbpoints = ele.shape.basic_shape.npoints
-            #map = [ ele.nodes[i].id for i=1:nbpoints ]
-            #Ue = Ut[map]
-            #C = ele.shape.nat_coords
-            #for i=nbpoints+1:npoints
-                #id = ele.nodes[i].id
-                #R = C[i,:]
-                #N = ele.shape.basic_shape.func(R)
-                #Ut[id] = dot(N,Ue)
-            #end
-        #end
-    end
+    function complete_ut_T(dom::Domain)
+        haskey(dom.point_data, "ut") || return
+        Ut = dom.point_data["ut"]
+        for elem in dom.elems
+            elem.shape.family==SOLID_SHAPE || continue
+            elem.shape==elem.shape.basic_shape && continue
+            npoints  = elem.shape.npoints
+            nbpoints = elem.shape.basic_shape.npoints
+            map = [ elem.nodes[i].id for i=1:nbpoints ]
+            Ute = Ut[map]
+            C = elem.shape.nat_coords
+            for i=nbpoints+1:npoints
+                id = elem.nodes[i].id
+                R = C[i,:]
+                N = elem.shape.basic_shape.func(R)
+                Ut[id] = dot(N,Ute)
+            end
+        end
 
-    # Arguments checking
-    silent && (verbose=false)
+        dom.point_data["T"] = Ut .+ dom.env.T0
+    end
 
     tol>0 || error("solve! : tolerance should be greater than zero")
 
@@ -265,11 +266,14 @@ function tm_solve!(
         for (i,dof) in enumerate(dofs)
             dof.vals[dof.name]    = 0.0
             dof.vals[dof.natname] = 0.0
+            if dof.name==:ut
+                dof.vals[:T] = dom.env.T0 # real temperature
+            end
         end
 
         update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
         update_output_data!(dom) # Updates data arrays in domain
-        complete_ut_h(dom)
+        complete_ut_T(dom)
 
         if save_incs
             save(dom, "$outdir/$filekey-0.vtu", verbose=false)
@@ -277,7 +281,7 @@ function tm_solve!(
     end
 
     # Incremental analysis
-    t    = dom.env.t     # current time
+    t    = env.t     # current time
     tend = t + time_span # end time
     Δt = time_span/nincs # initial Δt value
 
@@ -333,7 +337,7 @@ function tm_solve!(
         verbosity>1 && println()
 
         # Get forces and displacements from boundary conditions
-        dom.env.t = t + Δt
+        env.t = t + Δt
         UexN, FexN = get_bc_vals(dom, bcs, t+Δt) # get values at time t+Δt
 
         ΔUex = UexN - U
@@ -405,7 +409,6 @@ function tm_solve!(
             Uex .= UexN
             Fex .= FexN
 
-
             # Backup converged state at ips
             copyto!.(StateBk, State)
 
@@ -413,6 +416,9 @@ function tm_solve!(
             for (i,dof) in enumerate(dofs)
                 dof.vals[dof.name]    += ΔUa[i]
                 dof.vals[dof.natname] += ΔFin[i]
+                if dof.name==:ut
+                    dof.vals[:T] = U[i] + env.T0
+                end
             end
 
             update_loggers!(dom) # Tracking nodes, ips, elements, etc.
@@ -426,6 +432,7 @@ function tm_solve!(
                 env.cout += 1
                 iout = env.cout
                 update_output_data!(dom)
+                complete_ut_T(dom)
                 save(dom, "$outdir/$filekey-$iout.vtu", silent=silent)
                 Tout += ΔTout # find the next output time
             end
@@ -473,7 +480,7 @@ function tm_solve!(
     verbosity==1 && println("  time spent: ", see(sw, format=:hms), "\033[K")
 
     update_output_data!(dom)
-    complete_ut_h(dom)
+    complete_ut_T(dom)
 
     return true
 

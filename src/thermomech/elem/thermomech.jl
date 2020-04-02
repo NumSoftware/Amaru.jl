@@ -54,7 +54,7 @@ function elem_vals(elem::Thermomechanical)
     return Dict{Symbol, Float64}()
 end
 
-
+#=
 function elem_stiffness(elem::Thermomechanical)
     return zeros(0,0), zeros(Int64,0), zeros(Int64,0)
 end
@@ -76,6 +76,7 @@ end
 function elem_RHS_vector(elem::Thermomechanical)
     return zeros(0), zeros(Int64,0)
 end
+=#
 
 
 """
