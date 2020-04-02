@@ -18,7 +18,7 @@ mutable struct ModelEnv
         this.thickness = 1.0
         this.transient = false
         this.t = 0.0
-        this.T0 = 20
+        this.T0 = 0
 
         this.cstage = 0 # current stage
         this.cinc   = 0 # current increment
