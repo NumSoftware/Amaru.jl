@@ -59,37 +59,6 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
     return H, map, map, elem.nodes
 end
 
-function elem_compressibility_matrix(elem::DrainPipe)
-    ndim   = elem.env.ndim
-    nnodes = length(elem.nodes)
-
-    A  = elem.mat.A
-    C  = elem_coords(elem)
-    Cpp = zeros(nnodes, nnodes)
-    J  = Array{Float64}(undef, 1, ndim)
-
-    for ip in elem.ips
-
-        dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
-        detJ = norm(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-
-        # compute Np vector
-        N    = elem.shape.func(ip.R)
-        Np   = N'
-
-        # compute Cuu
-        coef = detJ*ip.w*elem.mat.β*A
-        Cpp  -= coef*Np'*Np
-    end
-
-    # map
-    map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
-
-    return Cpp, map, map
-end
-
 function elem_RHS_vector(elem::DrainPipe)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
@@ -112,8 +81,8 @@ function elem_RHS_vector(elem::DrainPipe)
         Bp .= 0.0
         Bp = dNdR/detJ
 
-        # compute Q
-        coef = detJ*ip.w*elem.mat.k*Jvert*A
+        # compute Q 
+        coef = detJ*ip.w*elem.mat.k*A*Jvert
         Q += coef*Bp'
     end
 
@@ -125,6 +94,7 @@ end
 
 function elem_internal_forces(elem::DrainPipe, F::Array{Float64,1})
 local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
+
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
 
@@ -149,15 +119,7 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
         Bp .= 0.0
         Bp = dNdR/detJ
 
-        # compute Np vector
-        N    = elem.shape.func(ip.R)
-        Np   = N'
-
         # internal volumes dFw
-        uw   = ip.data.uw
-        coef = detJ*ip.w*elem.mat.β*A
-        dFw -= coef*Np'*uw
-
         D    = ip.data.D
         coef = detJ*ip.w*A
         dFw += coef*Bp'*D
@@ -172,8 +134,10 @@ function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1
 
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
-    C  = elem_coords(elem)
+
     A  = elem.mat.A
+    C  = elem_coords(elem)
+    Bp = zeros(1, nnodes)
 
     map_p  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
 
@@ -207,10 +171,7 @@ function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1
 
         V = update_state!(elem.mat, ip.data, Δuw, G, Δt)
 
-        coef = A*detJ*ip.w*elem.mat.β
-        dFw -= coef*Np'*Δuw
-
-        coef = Δt*A*detJ*ip.w
+        coef = Δt*detJ*ip.w*A
         dFw += coef*Bp'*V
     end
 
