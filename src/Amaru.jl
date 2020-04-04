@@ -32,19 +32,7 @@ const config = ConfigFlags(false, true)
 eye(n::Int64) = Array{Float64}(I,n,n)
 
 # Tools module
-include("tools/constants.jl")
-include("tools/math.jl")
-include("tools/linalg.jl")
-include("tools/expr.jl")
-include("tools/table.jl")
-include("tools/tensors.jl")
-include("tools/show.jl")
-include("tools/stopwatch.jl")
-
-include("tools/xml.jl")
-
-include("tools/iteration.jl")
-export unfold
+include("tools/include.jl")
 
 # generic exports
 export max, min, sort, reset, getindex, sort, copy!, show

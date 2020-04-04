@@ -1,4 +1,6 @@
 
+export unfold
+
 # Flatten a multilevel nested array
 function unfold(N)
     typeof(N) <: Union{Tuple,AbstractArray} || return [N]

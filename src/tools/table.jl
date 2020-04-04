@@ -161,8 +161,9 @@ sprintf(fmt, args...) = @eval @sprintf($fmt, $(args...))
 # TODO: Improve column width for string items
 #function save(table::DTable, filename::String; verbose::Bool=true, digits::Array{Int,1}=[])
 function save(table::DTable, filename::String; verbose::Bool=true, digits::Array=[])
+    suitable_formats = ("dat","tex")
     format = split(filename, ".")[end]
-    format in ("dat","json","tex") || error("save DTable: invalid extension $format")
+    format in suitable_formats || error("save DTable: $format is not a suitable formats $suitable_formats")
 
     local f::IOStream
     try
@@ -172,8 +173,7 @@ function save(table::DTable, filename::String; verbose::Bool=true, digits::Array
         return
     end
 
-
-    nc = length(table.colindex)             # number of cols
+    nc = length(table.colindex)              # number of cols
     nr = nc>0 ? length(table.columns[1]) : 0 # number of rows
 
     if format=="dat"
@@ -198,14 +198,6 @@ function save(table::DTable, filename::String; verbose::Bool=true, digits::Array
         end
 
         verbose && printstyled("  file $filename written\n", color=:cyan)
-    end
-
-    if format=="json"
-        # enconding
-        str  = JSON.json(table.colindex, 4)
-        print(f, str)
-
-        verbose && printstyled("  file $filename written (DTable)\n", color=:cyan)
     end
 
     if format=="tex"
