@@ -149,6 +149,29 @@ function hm_solve_step!(G::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu
 end
 
 
+function complete_uw_h(dom::Domain)
+    haskey(dom.point_data, "uw") || return
+    Uw = dom.point_data["uw"]
+    H  = dom.point_data["h"]
+    for ele in dom.elems
+        ele.shape.family==SOLID_SHAPE || continue
+        ele.shape==ele.shape.basic_shape && continue
+        npoints = ele.shape.npoints
+        nbpoints = ele.shape.basic_shape.npoints
+        map = [ ele.nodes[i].id for i=1:nbpoints ]
+        Ue = Uw[map]
+        He = H[map]
+        C = ele.shape.nat_coords
+        for i=nbpoints+1:npoints
+            id = ele.nodes[i].id
+            R = C[i,:]
+            N = ele.shape.basic_shape.func(R)
+            Uw[id] = dot(N,Ue)
+            H[id] = dot(N,He)
+        end
+    end
+end
+
 
 """
     hm_solve!(D, bcs, options...) -> Bool
@@ -208,29 +231,6 @@ function hm_solve!(
         printstyled("Hydromechanical FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
         println("  from t=$(round(dom.env.t,digits=4)) to t=$(round(dom.env.t+time_span,digits=3))")
         sw = StopWatch() # timing
-    end
-
-    function complete_uw_h(dom::Domain)
-        haskey(dom.point_data, "uw") || return
-        Uw = dom.point_data["uw"]
-        H  = dom.point_data["h"]
-        for ele in dom.elems
-            ele.shape.family==SOLID_SHAPE || continue
-            ele.shape==ele.shape.basic_shape && continue
-            npoints = ele.shape.npoints
-            nbpoints = ele.shape.basic_shape.npoints
-            map = [ ele.nodes[i].id for i=1:nbpoints ]
-            Ue = Uw[map]
-            He = H[map]
-            C = ele.shape.nat_coords
-            for i=nbpoints+1:npoints
-                id = ele.nodes[i].id
-                R = C[i,:]
-                N = ele.shape.basic_shape.func(R)
-                Uw[id] = dot(N,Ue)
-                H[id] = dot(N,He)
-            end
-        end
     end
 
     # Arguments checking
@@ -409,7 +409,7 @@ function hm_solve!(
             ΔUa .+= ΔUi
 
             # Residual vector for next iteration
-            R = ΔFex - ΔFin
+            R .= ΔFex - ΔFin
             R[pmap] .= 0.0  # zero at prescribed positions
 
             if verbosity>1

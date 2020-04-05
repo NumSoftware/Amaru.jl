@@ -144,6 +144,28 @@ function tm_solve_step!(G::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu
 end
 
 
+function complete_ut_T(dom::Domain)
+    haskey(dom.point_data, "ut") || return
+    Ut = dom.point_data["ut"]
+    for elem in dom.elems
+        elem.shape.family==SOLID_SHAPE || continue
+        elem.shape==elem.shape.basic_shape && continue
+        npoints  = elem.shape.npoints
+        nbpoints = elem.shape.basic_shape.npoints
+        map = [ elem.nodes[i].id for i=1:nbpoints ]
+        Ute = Ut[map]
+        C = elem.shape.nat_coords
+        for i=nbpoints+1:npoints
+            id = elem.nodes[i].id
+            R = C[i,:]
+            N = elem.shape.basic_shape.func(R)
+            Ut[id] = dot(N,Ute)
+        end
+    end
+
+    dom.point_data["T"] = Ut .+ dom.env.T0
+end
+
 
 """
     tm_solve!(D, bcs, options...) -> Bool
@@ -203,28 +225,6 @@ function tm_solve!(
         printstyled("Thermomechanical FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
         println("  from t=$(round(env.t,digits=4)) to t=$(round(env.t+time_span,digits=3))")
         sw = StopWatch() # timing
-    end
-
-    function complete_ut_T(dom::Domain)
-        haskey(dom.point_data, "ut") || return
-        Ut = dom.point_data["ut"]
-        for elem in dom.elems
-            elem.shape.family==SOLID_SHAPE || continue
-            elem.shape==elem.shape.basic_shape && continue
-            npoints  = elem.shape.npoints
-            nbpoints = elem.shape.basic_shape.npoints
-            map = [ elem.nodes[i].id for i=1:nbpoints ]
-            Ute = Ut[map]
-            C = elem.shape.nat_coords
-            for i=nbpoints+1:npoints
-                id = elem.nodes[i].id
-                R = C[i,:]
-                N = elem.shape.basic_shape.func(R)
-                Ut[id] = dot(N,Ute)
-            end
-        end
-
-        dom.point_data["T"] = Ut .+ dom.env.T0
     end
 
     tol>0 || error("solve! : tolerance should be greater than zero")
