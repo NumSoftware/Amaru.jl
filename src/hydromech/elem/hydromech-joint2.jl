@@ -190,9 +190,9 @@ function elem_coupling_matrix(elem::HydroMechJoint2)
     # map
     keys = (:ux, :uy, :uz)[1:ndim]
     map_u = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-    map_p = [ node.dofdict[:uw].eq_id for node in nodes_p ]
+    map_w = [ node.dofdict[:uw].eq_id for node in nodes_p ]
 
-    return Cup, map_u, map_p
+    return Cup, map_u, map_w
 end
 
 
@@ -406,7 +406,7 @@ function elem_internal_forces(elem::HydroMechJoint2, F::Array{Float64,1})
 
     keys   = (:ux, :uy, :uz)[1:ndim]
     map_u  = [ node.dofdict[key].eq_id for node in elem.nodes[1:nnodes] for key in keys ]
-    map_p  = [ node.dofdict[:uw].eq_id for node in nodes_p ]
+    map_w  = [ node.dofdict[:uw].eq_id for node in nodes_p ]
 
     dF     = zeros(nnodes*ndim)
     Bu     = zeros(ndim, nnodes*ndim)
@@ -488,7 +488,7 @@ function elem_internal_forces(elem::HydroMechJoint2, F::Array{Float64,1})
     end
 
     F[map_u] += dF
-    F[map_p] += dFw
+    F[map_w] += dFw
 end
 
 
@@ -510,10 +510,10 @@ function elem_update!(elem::HydroMechJoint2, U::Array{Float64,1}, F::Array{Float
 
     keys   = (:ux, :uy, :uz)[1:ndim]
     map_u  = [ node.dofdict[key].eq_id for node in elem.nodes[1:nnodes] for key in keys ]
-    map_p  = [ node.dofdict[:uw].eq_id for node in nodes_p ]
+    map_w  = [ node.dofdict[:uw].eq_id for node in nodes_p ]
 
     dU     = U[map_u] # nodal displacement increments
-    dUw    = U[map_p] # nodal pore-pressure increments
+    dUw    = U[map_w] # nodal pore-pressure increments
     Uw     = [ node.dofdict[:uw].vals[:uw] for node in nodes_p ] # nodal pore-pressure at step n
     Uw    += dUw # nodal pore-pressure at step n+1
 
@@ -607,5 +607,5 @@ function elem_update!(elem::HydroMechJoint2, U::Array{Float64,1}, F::Array{Float
     end
 
     F[map_u] .+= dF
-    F[map_p] .+= dFw
+    F[map_w] .+= dFw
 end

@@ -223,7 +223,7 @@ function elem_internal_forces(elem::HydroJoint, F::Array{Float64,1})
     dnlnodes = 2*nlnodes
     fshape   = elem.shape.facet_shape
 
-    map_p  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
+    map_w  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
 
     dFw    = zeros(nnodes)
     Bp     = zeros(ndim-1, nlnodes)
@@ -284,7 +284,7 @@ function elem_internal_forces(elem::HydroJoint, F::Array{Float64,1})
         dFw += coef*Nb'*D[2]
     end
 
-    F[map_p] += dFw
+    F[map_w] += dFw
 end
 
 
@@ -297,9 +297,9 @@ function elem_update!(elem::HydroJoint, U::Array{Float64,1}, F::Array{Float64,1}
     fshape   = elem.shape.facet_shape
 
 
-    map_p  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
+    map_w  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
 
-    dUw    = U[map_p] # nodal pore-pressure increments
+    dUw    = U[map_w] # nodal pore-pressure increments
     Uw     = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes ] # nodal pore-pressure at step n
     Uw    += dUw # nodal pore-pressure at step n+1
 
@@ -368,5 +368,5 @@ function elem_update!(elem::HydroJoint, U::Array{Float64,1}, F::Array{Float64,1}
         dFw -= coef*Nb'*V[2]
     end
 
-    F[map_p] .+= dFw
+    F[map_w] .+= dFw
 end

@@ -182,7 +182,7 @@ function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
     nnodes = length(elem.nodes)
     C   = elem_coords(elem)
 
-    map_p  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
+    map_w  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
 
     dFw = zeros(nnodes)
     Bw  = zeros(ndim, nnodes)
@@ -214,7 +214,7 @@ function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
         @gemv dFw += coef*Bw'*D
     end
 
-    F[map_p] += dFw
+    F[map_w] += dFw
 end
 
 function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
@@ -222,11 +222,11 @@ function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1
     nnodes = length(elem.nodes)
     th     = elem.env.thickness
 
-    map_p  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
+    map_w  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
 
     C   = elem_coords(elem)
 
-    dUw = DU[map_p] # nodal pore-pressure increments
+    dUw = DU[map_w] # nodal pore-pressure increments
     Uw  = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes ]
     Uw += dUw # nodal pore-pressure at step n+1
 
@@ -263,6 +263,6 @@ function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1
         @gemv dFw += coef*Bw'*V
     end
 
-    DF[map_p] += dFw
+    DF[map_w] += dFw
 end
 

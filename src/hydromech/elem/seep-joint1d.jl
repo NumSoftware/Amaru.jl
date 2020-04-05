@@ -91,9 +91,9 @@ function elem_conductivity_matrix(elem::SeepJoint1D)
         H -= coef*Bp'*Bp
     end
 
-    map_p = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
+    map_w = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
 
-    return H, map_p, map_p, elem.nodes
+    return H, map_w, map_w, elem.nodes
 end
 
 function elem_internal_forces(elem::SeepJoint1D, F::Array{Float64,1})
@@ -104,7 +104,7 @@ function elem_internal_forces(elem::SeepJoint1D, F::Array{Float64,1})
     dFw  = zeros(nnodes)
     h    = elem.mat.h
 
-    map_p = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
+    map_w = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
 
     for (i,ip) in enumerate(elem.ips)
         Bp   = elem.cache_B[i]
@@ -116,7 +116,7 @@ function elem_internal_forces(elem::SeepJoint1D, F::Array{Float64,1})
         dFw += coef*Bp'*D
     end
 
-    F[map_p] += dFw
+    F[map_w] += dFw
 end
 
 function elem_update!(elem::SeepJoint1D, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
@@ -126,9 +126,9 @@ function elem_update!(elem::SeepJoint1D, DU::Array{Float64,1}, DF::Array{Float64
     bar  = elem.linked_elems[2]
     h    = elem.mat.h
 
-    map_p  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
+    map_w  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
 
-    dUw = DU[map_p] # nodal pore-pressure increments
+    dUw = DU[map_w] # nodal pore-pressure increments
     Uw  = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes ]
     Uw += dUw # nodal pore-pressure at step n+1
 
@@ -147,7 +147,7 @@ function elem_update!(elem::SeepJoint1D, DU::Array{Float64,1}, DF::Array{Float64
         dFw += coef*Bp'*V
     end
 
-    DF[map_p] += dFw
+    DF[map_w] += dFw
 end
 
 function elem_extrapolated_node_vals(elem::SeepJoint1D)

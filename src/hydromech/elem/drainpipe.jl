@@ -34,7 +34,7 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
     A  = elem.mat.A
     C  = elem_coords(elem)
     H  = zeros(nnodes, nnodes)
-    Bp = zeros(1, nnodes)
+    Bw = zeros(1, nnodes)
     J  = Array{Float64}(undef, 1, ndim)
 
     for ip in elem.ips
@@ -44,13 +44,13 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
         detJ = norm(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
-        # mount Bp
-        Bp .= 0.0
-        Bp = dNdR/detJ
+        # mount Bw
+        Bw .= 0.0
+        Bw = dNdR/detJ
 
         # compute H
         coef = detJ*ip.w*(elem.mat.k/elem.mat.γw)*A
-        @gemm H -= coef*Bp'*Bp
+        @gemm H -= coef*Bw'*Bw
     end
 
     # map
@@ -66,7 +66,7 @@ function elem_RHS_vector(elem::DrainPipe)
     A  = elem.mat.A
     C  = elem_coords(elem)
     Q  = zeros(nnodes)
-    Bp = zeros(1, nnodes)
+    Bw = zeros(1, nnodes)
     dNdX = Array{Float64}(undef, 1, nnodes)
     J  = Array{Float64}(undef, 1, ndim)
 
@@ -77,12 +77,12 @@ function elem_RHS_vector(elem::DrainPipe)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
         Jvert = J[end]/detJ
 
-        # mount Bp
-        Bp = dNdR/detJ
+        # mount Bw
+        Bw = dNdR/detJ
 
         # compute Q 
         coef = detJ*ip.w*elem.mat.k*A*Jvert
-        Q += coef*Bp'
+        Q += coef*Bw'
     end
 
     # map
@@ -100,12 +100,12 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
     A  = elem.mat.A
     C  = elem_coords(elem)
     H  = zeros(nnodes, nnodes)
-    Bp = zeros(1, nnodes)
+    Bw = zeros(1, nnodes)
     dNdX = Array{Float64}(undef, 1, nnodes)
     J  = Array{Float64}(undef, 1, ndim)
     dFw = zeros(nnodes)
 
-    map_p  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
+    map_w  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
 
     for ip in elem.ips
 
@@ -114,17 +114,17 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
         detJ = norm(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
-        # mount Bp
-        Bp = dNdR/detJ
+        # mount Bw
+        Bw = dNdR/detJ
 
         # internal volumes dFw
         D    = ip.data.D
         coef = detJ*ip.w*A
-        dFw += coef*Bp'*D
+        dFw += coef*Bw'*D
 
     end
 
-    F[map_p] += dFw
+    F[map_w] += dFw
 end
 
 function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
@@ -135,11 +135,11 @@ function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1
 
     A  = elem.mat.A
     C  = elem_coords(elem)
-    Bp = zeros(1, nnodes)
+    Bw = zeros(1, nnodes)
 
-    map_p  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
+    map_w  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
 
-    dUw = DU[map_p] # nodal pore-pressure increments
+    dUw = DU[map_w] # nodal pore-pressure increments
     Uw  = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes ]
     Uw += dUw # nodal pore-pressure at step n+1
 
@@ -155,25 +155,25 @@ function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
         Jvert = J[end]/detJ
 
-        # mount Bp
-        Bp = dNdR/detJ
+        # mount Bw
+        Bw = dNdR/detJ
 
-        # compute Np vector
+        # compute Nw vector
         N  = elem.shape.func(ip.R)
-        Np = N'
+        Nw = N'
 
         # flow gradient
-        G  = dot(Bp,Uw)/(elem.mat.γw) # flow gradient
+        G  = dot(Bw,Uw)/(elem.mat.γw) # flow gradient
         G += Jvert; # gradient due to gravity
-        Δuw = dot(Np,dUw) # interpolation to the integ. point
+        Δuw = dot(Nw,dUw) # interpolation to the integ. point
 
         V = update_state!(elem.mat, ip.data, Δuw, G, Δt)
 
         coef = Δt*detJ*ip.w*A
-        dFw += coef*Bp'*V
+        dFw += coef*Bw'*V
     end
 
-    DF[map_p] += dFw
+    DF[map_w] += dFw
 end
 
 
