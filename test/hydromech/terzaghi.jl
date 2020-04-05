@@ -64,9 +64,6 @@ dom.env.t = 0.0
 # Stage 2: loading
 # ================
 
-pt(t) = -load
-#pt(t) = t>=t1? -load : -load/t1*t
-
 bcs = [
     :(z==0)  => NodeBC(ux=0, uy=0, uz=0),
     :(x>=0)  => NodeBC(ux=0, uy=0),

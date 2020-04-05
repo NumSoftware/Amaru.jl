@@ -9,7 +9,7 @@ bls = [bl, bl1, bl2]
 
 mesh = Mesh(bls, silent=true)
 
-gw = 9.8     # water specific weight
+gw = 10.0     # water specific weight
 A  = 0.01
 k  = 1e-10 
 kb = 1 
@@ -41,10 +41,9 @@ tag!(dom.elems[:solids][:nodes][:(x==1.0 && y==1.0 && z==1.0)], "input")
 bcs = [
        :(x==0.0 && y==0.0 && z==0.0) => NodeBC(uw=0),
        :(x==2.0 && y==2.0 && z==0.0) => NodeBC(uw=0),
-       "input" => NodeBC(fw=Q),
+       "input" => NodeBC(fw=:($Q*t/100)),
       ]
 
-
-hm_solve!(dom, bcs, end_time=100.0, nincs=1, tol=1e-2, nouts=1, verbose=false)
+hm_solve!(dom, bcs, end_time=100.0, nincs=2, tol=1e-2, nouts=2, verbose=false)
 
 save(dom, "dom1.vtk")
