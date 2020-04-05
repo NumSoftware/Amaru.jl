@@ -213,6 +213,11 @@ function get_nodes(elems::Array{<:Element,1})
     return [node for node in nodes]
 end
 
+# Get all dofs from an element
+function get_dofs(elem::Element)
+    return [ dof for node in elem.nodes for dof in node.dofs ]
+end
+
 
 # Get all ips from a collection of elements
 function get_ips(elems::Array{<:Element,1})

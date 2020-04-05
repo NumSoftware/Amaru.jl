@@ -60,7 +60,6 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
 
     # Calculate the nodal values
     F     = zeros(nnodes, ndim)
-    J     = Array{Float64}(undef, ndim, ndim)
     shape = target.shape
     ips   = get_ip_coords(shape)
 
@@ -70,7 +69,7 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
             w = R[end]
             N = shape.func(R)
             D = shape.deriv(R)
-            @gemm J = D*C
+            J = D*C
             nJ = norm2(J)
             X = C'*N
             if ndim==2
@@ -98,6 +97,7 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
         J = D*C
         nJ = norm2(J)
         X = C'*N
+
         if ndim==2
             x, y = X
             vip = eval_arith_expr(val, t=t, x=x, y=y)
@@ -107,7 +107,7 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
                 Q = [0.0, vip]
             elseif key == :tn
                 n = [J[1,2], -J[1,1]]
-                Q = vip*n/norm(n)
+                Q = vip*normalize(n)
             end
         else
             x, y, z = X
@@ -120,10 +120,11 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
                 Q = [0.0, 0.0, vip]
             elseif key == :tn && ndim==3
                 n = cross(J[1,:], J[2,:])
-                Q = vip*n/norm(n)
+                Q = vip*normalize(n)
             end
         end
-        F += N*Q'*(nJ*w) # F is a matrix
+        coef = nJ*w
+        #gemm F += coef*N*Q' # F is a matrix
     end
 
     # generate a map
@@ -222,11 +223,10 @@ function elem_coupling_matrix(elem::TMSolid)
     Bu  = zeros(6, nnodes*ndim)
     Cut = zeros(nnodes*ndim, nbnodes) # u-t coupling matrix
 
-    β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) # thermal stress modulus
-    J   = Array{Float64}(undef, ndim, ndim)
+    J    = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
-
-    m = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
+    m    = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
+    β    = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) # thermal stress modulus
 
     for ip in elem.ips
 
@@ -261,11 +261,9 @@ function elem_conductivity_matrix(elem::TMSolid)
     nbnodes = elem.shape.basic_shape.npoints
     C      = elem_coords(elem)
     H      = zeros(nnodes, nnodes)
-
     Bt     = zeros(ndim, nnodes)
     KBt    = zeros(ndim, nnodes)
     J    = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, ndim, nnodes)
 
     for ip in elem.ips
         dNdR  = elem.shape.deriv(ip.R)
@@ -293,8 +291,8 @@ function elem_mass_matrix(elem::TMSolid)
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    C  = elem_coords(elem)
-    M = zeros(nnodes, nnodes)
+    C      = elem_coords(elem)
+    M      = zeros(nnodes, nnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
 
@@ -391,7 +389,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
     T0     = elem.env.T0 + 273.15
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    C  = elem_coords(elem)
+    C      = elem_coords(elem)
 
     E = elem.mat.E
     α = elem.mat.α
@@ -437,7 +435,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         # compute Nt
         Nt = elem.shape.basic_shape.func(ip.R)
 
-        # Compute Δε
+        # compute Δε
         @gemv Δε = Bu*dU
 
         # compute Δut

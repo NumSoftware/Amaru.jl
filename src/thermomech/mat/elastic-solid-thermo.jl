@@ -98,11 +98,11 @@ end
 function ip_state_vals(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState)
     D = stress_strain_dict(ipd.σ, ipd.ε, ipd.env.ndim)
 
-   D[:qx] = ipd.QQ[1] # VERIFICAR NECESSIDADE
-    D[:qy] = ipd.QQ[2] # VERIFICAR NECESSIDADE
-    if ipd.env.ndim==3 # VERIFICAR NECESSIDADE
-        D[:qz] = ipd.QQ[3] # VERIFICAR NECESSIDADE
-    end # VERIFICAR NECESSIDADE
+    #D[:qx] = ipd.QQ[1] # VERIFICAR NECESSIDADE
+    #D[:qy] = ipd.QQ[2] # VERIFICAR NECESSIDADE
+    #if ipd.env.ndim==3 # VERIFICAR NECESSIDADE
+        #D[:qz] = ipd.QQ[3] # VERIFICAR NECESSIDADE
+    #end # VERIFICAR NECESSIDADE
 
-    return D # VERIFICAR NECESSIDADE
-end # VERIFICAR NECESSIDADE
+    return D
+end

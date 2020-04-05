@@ -33,11 +33,10 @@ end
 
 function distributed_bc(elem::SeepSolid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
+    suitable_keys = (:tq,) # tq: fluid volumes per area
 
-    # Check bcs
-    (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
-    !(key in (:tx, :ty, :tz, :tn)) && error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
-    # TODO: add tq boundary condition (fluid volume per area)
+    # Check keys
+    key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable in a SeepSolid element")
 
     target = facet!=nothing ? facet : elem
     nodes  = target.nodes
@@ -50,11 +49,9 @@ function distributed_bc(elem::SeepSolid, facet::Union{Facet,Nothing}, key::Symbo
     # Calculate the target coordinates matrix
     C = nodes_coords(nodes, ndim)
 
-    # Vector with values to apply
-    Q = zeros(ndim)
-
     # Calculate the nodal values
-    F     = zeros(nnodes, ndim)
+    F     = zeros(nnodes)
+    J     = Array{Float64}(undef, ndim, ndim)
     shape = target.shape
     ips   = get_ip_coords(shape)
 
@@ -63,102 +60,84 @@ function distributed_bc(elem::SeepSolid, facet::Union{Facet,Nothing}, key::Symbo
         w = R[end]
         N = shape.func(R)
         D = shape.deriv(R)
-        J = D*C
+        @gemm J = D*C
         nJ = norm2(J)
         X = C'*N
         if ndim==2
             x, y = X
             vip = eval_arith_expr(val, t=t, x=x, y=y)
-            if key == :tx
-                Q = [vip, 0.0]
-            elseif key == :ty
-                Q = [0.0, vip]
-            elseif key == :tn
-                n = [J[1,2], -J[1,1]]
-                Q = vip*n/norm(n)
-            end
         else
             x, y, z = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y)
-            if key == :tx
-                Q = [vip, 0.0, 0.0]
-            elseif key == :ty
-                Q = [0.0, vip, 0.0]
-            elseif key == :tz
-                Q = [0.0, 0.0, vip]
-            elseif key == :tn && ndim==3
-                n = cross(J[1,:], J[2,:])
-                Q = vip*n/norm(n)
-            end
+            vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
         end
-        F += N*Q'*(nJ*w) # F is a matrix
+        coef = vip*nJ*w
+        F .+= N*coef # F is a vector
     end
 
     # generate a map
-    keys = (:ux, :uy, :uz)[1:ndim]
-    map  = [ node.dofdict[key].eq_id for node in target.nodes for key in keys ]
+    map  = [ node.dofdict[:uw].eq_id for node in target.nodes ]
 
-    return reshape(F', nnodes*ndim), map
+    return F, map
 end
 
 
+# conductivity
 function elem_conductivity_matrix(elem::SeepSolid)
     ndim   = elem.env.ndim
+    th     = elem.env.thickness
     nnodes = length(elem.nodes)
     C      = elem_coords(elem)
     H      = zeros(nnodes, nnodes)
-    Bp     = zeros(ndim, nnodes)
-    KBp    = zeros(ndim, nnodes)
+    Bw     = zeros(ndim, nnodes)
+    KBw    = zeros(ndim, nnodes)
 
     J    = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, ndim, nnodes)
 
     for ip in elem.ips
-
-        N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J  = dNdR*C
-        @gemm Bp = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        @gemm Bw = inv(J)*dNdR
 
         # compute H
         K = calcK(elem.mat, ip.data)
-        coef = detJ*ip.w/elem.mat.γw
-        @gemm KBp = K*Bp
-        @gemm H -= coef*Bp'*KBp
+        coef  = 1/elem.mat.γw
+        coef *= detJ*ip.w*th
+        @gemm KBw = K*Bw
+        @gemm H -= coef*Bw'*KBw
     end
 
     # map
-    map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
+    map = [ node.dofdict[:uw].eq_id for node in elem.nodes  ]
 
-    return H, map, map, elem.nodes
+    return H, map, map
 end
 
 function elem_compressibility_matrix(elem::SeepSolid)
     ndim   = elem.env.ndim
+    th     = elem.env.thickness
     nnodes = length(elem.nodes)
-    C   = elem_coords(elem)
-    Cpp = zeros(nnodes, nnodes)
+    C      = elem_coords(elem)
+    Cpp    = zeros(nnodes, nnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
 
-
     for ip in elem.ips
-
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = dNdR*C
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
-        # compute Cuu
-        coef = detJ*ip.w*elem.mat.S
+        # compute Cpp
+        coef  = elem.mat.S
+        coef *= detJ*ip.w*th
         Cpp  -= coef*N*N'
     end
 
     # map
-    map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
+    map = [ node.dofdict[:uw].eq_id for node in elem.nodes  ]
 
     return Cpp, map, map
 end
@@ -168,7 +147,7 @@ function elem_RHS_vector(elem::SeepSolid)
     nnodes = length(elem.nodes)
     C      = elem_coords(elem)
     Q      = zeros(nnodes)
-    Bp     = zeros(ndim, nnodes)
+    Bw     = zeros(ndim, nnodes)
     KZ     = zeros(ndim)
 
     J      = Array{Float64}(undef, ndim, ndim)
@@ -181,7 +160,7 @@ function elem_RHS_vector(elem::SeepSolid)
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J  = dNdR*C
-        @gemm Bp = inv(J)*dNdR
+        @gemm Bw = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -189,11 +168,11 @@ function elem_RHS_vector(elem::SeepSolid)
         K = calcK(elem.mat, ip.data)
         coef = detJ*ip.w
         @gemv KZ = K*Z
-        @gemm Q += coef*Bp'*KZ
+        @gemm Q += coef*Bw'*KZ
     end
 
     # map
-    map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
+    map = [ node.dofdict[:uw].eq_id for node in elem.nodes  ]
 
     return Q, map
 end
@@ -206,21 +185,21 @@ function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
     map_p  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
 
     dFw = zeros(nnodes)
-    Bp  = zeros(ndim, nnodes)
+    Bw  = zeros(ndim, nnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
 
     for ip in elem.ips
 
-        # compute Bp matrix
+        # compute Bw matrix
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = dNdR*C
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
         @gemm dNdX = inv(J)*dNdR
 
-        Bp = dNdX
+        Bw = dNdX
 
         # compute N
         N    = elem.shape.func(ip.R)
@@ -232,7 +211,7 @@ function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
 
         D    = ip.data.D
         coef = detJ*ip.w
-        @gemv dFw += coef*Bp'*D
+        @gemv dFw += coef*Bw'*D
     end
 
     F[map_p] += dFw
@@ -241,6 +220,7 @@ end
 function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
+    th     = elem.env.thickness
 
     map_p  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
 
@@ -251,11 +231,9 @@ function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1
     Uw += dUw # nodal pore-pressure at step n+1
 
     dF  = zeros(nnodes*ndim)
-    Bu  = zeros(6, nnodes*ndim)
     dFw = zeros(nnodes)
-    Bp  = zeros(ndim, nnodes)
+    Bw  = zeros(ndim, nnodes)
 
-    DB = Array{Float64}(undef, 6, nnodes*ndim)
     J  = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
 
@@ -268,21 +246,21 @@ function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
         @gemm dNdX = inv(J)*dNdR
-        setBu(elem.env, dNdX, detJ, Bu)
 
-        Bp = dNdX
-        G  = Bp*Uw/elem.mat.γw # flow gradient
+        Bw = dNdX
+        G  = Bw*Uw/elem.mat.γw # flow gradient
         G[end] += 1.0; # gradient due to gravity
 
         Δuw = N'*dUw # interpolation to the integ. point
 
         V = update_state!(elem.mat, ip.data, Δuw, G, Δt)
 
-        coef = detJ*ip.w*elem.mat.S
-        dFw -= coef*N*Δuw
+        coef  = elem.mat.S
+        coef *= detJ*ip.w*th
+        dFw  -= coef*N*Δuw
 
-        coef = Δt*detJ*ip.w
-        @gemv dFw += coef*Bp'*V
+        coef = Δt*detJ*ip.w*th
+        @gemv dFw += coef*Bw'*V
     end
 
     DF[map_p] += dFw

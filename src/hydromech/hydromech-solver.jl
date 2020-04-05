@@ -55,7 +55,7 @@ function mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
 
         # Assemble the conductivity matrix
         if has_conductivity_matrix
-            H, rmap, cmap, nodes_p =  elem_conductivity_matrix(elem)
+            H, rmap, cmap =  elem_conductivity_matrix(elem)
             nr, nc = size(H)
             for i=1:nr
                 for j=1:nc
@@ -66,11 +66,11 @@ function mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
             end
 
             # Assembling RHS components
-            Uw = [ node.dofdict[:uw].vals[:uw] for node in nodes_p ]
+            Uw = [ dof.vals[:uw] for node in elem.nodes for dof in node.dofs if dof.name==:uw ]
             RHS[rmap] -= Δt*(H*Uw)
         end
 
-        # Assemble the conductivity matrix
+        # Assemble the compressibility matrix
         if has_compressibility_matrix
             Cpp, rmap, cmap =  elem_compressibility_matrix(elem)
             nr, nc = size(Cpp)
@@ -198,6 +198,7 @@ function hm_solve!(
     env = dom.env
     env.cstage += 1
     env.cinc    = 0
+    dom.env.transient = true
 
     if !isnan(end_time)
         time_span = end_time - dom.env.t
@@ -452,6 +453,7 @@ function hm_solve!(
                 env.cout += 1
                 iout = env.cout
                 update_output_data!(dom)
+                complete_uw_h(dom)
                 save(dom, "$outdir/$filekey-$iout.vtu", silent=silent)
                 Tout += ΔTout # find the next output time
             end
@@ -499,7 +501,6 @@ function hm_solve!(
     verbosity==1 && println("  time spent: ", see(sw, format=:hms), "\033[K")
 
     update_output_data!(dom)
-    complete_uw_h(dom)
 
     return true
 

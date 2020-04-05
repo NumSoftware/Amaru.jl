@@ -78,7 +78,6 @@ function elem_RHS_vector(elem::DrainPipe)
         Jvert = J[end]/detJ
 
         # mount Bp
-        Bp .= 0.0
         Bp = dNdR/detJ
 
         # compute Q 
@@ -116,7 +115,6 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # mount Bp
-        Bp .= 0.0
         Bp = dNdR/detJ
 
         # internal volumes dFw
@@ -165,7 +163,7 @@ function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1
         Np = N'
 
         # flow gradient
-        G  = dot(Bp,Uw)/(elem.mat.γw*1) # flow gradient
+        G  = dot(Bp,Uw)/(elem.mat.γw) # flow gradient
         G += Jvert; # gradient due to gravity
         Δuw = dot(Np,dUw) # interpolation to the integ. point
 

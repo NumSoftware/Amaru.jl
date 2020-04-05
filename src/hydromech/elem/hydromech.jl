@@ -54,7 +54,7 @@ function elem_vals(elem::Hydromechanical)
     return Dict{Symbol, Float64}()
 end
 
-
+#=
 function elem_stiffness_matrix(elem::Hydromechanical)
     return zeros(0,0), zeros(Int64,0), zeros(Int64,0)
 end
@@ -77,6 +77,7 @@ end
 function elem_RHS_vector(elem::Hydromechanical)
     return zeros(0), zeros(Int64,0)
 end
+=#
 
 """
 `elem_internal_forces!(elem, F)`

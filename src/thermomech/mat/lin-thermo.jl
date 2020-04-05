@@ -64,11 +64,11 @@ end
 
 
 function ip_state_vals(mat::LinThermo, ipd::LinThermoIpState)
-    D = Dict{Symbol, Float64}()
-    D[:qx] = ipd.QQ[1]
-    D[:qy] = ipd.QQ[2]
-    if ipd.env.ndim==3
-        D[:qz] = ipd.QQ[3]
-    end
+    D = OrderedDict{Symbol, Float64}()
+    #D[:qx] = ipd.QQ[1]
+    #D[:qy] = ipd.QQ[2]
+    #if ipd.env.ndim==3
+        #D[:qz] = ipd.QQ[3]
+    #end
     return D
 end

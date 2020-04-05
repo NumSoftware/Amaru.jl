@@ -81,12 +81,11 @@ function distributed_bc(elem::ThermoSolid, facet::Union{Facet,Nothing}, key::Sym
 end
 
 
-# thermal conductivity # matriz theta
+# thermal conductivity
 function elem_conductivity_matrix(elem::ThermoSolid)
     ndim   = elem.env.ndim
-    th     = elem.env.thickness # VERIFICAR ESPESSURA
+    th     = elem.env.thickness
     nnodes = length(elem.nodes)
-    nbnodes = elem.shape.basic_shape.npoints
     C      = elem_coords(elem)
     H      = zeros(nnodes, nnodes)
     Bt     = zeros(ndim, nnodes)
@@ -94,12 +93,11 @@ function elem_conductivity_matrix(elem::ThermoSolid)
     J    = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        dNdR = elem.shape.basic_shape.deriv(ip.R)
-        dNtdR = elem.shape.basic_shape.deriv(ip.R)
+        dNdR = elem.shape.deriv(ip.R)
         @gemm J  = dNdR*C
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        @gemm Bt = inv(J)*dNtdR
+        @gemm Bt = inv(J)*dNdR
 
         # compute H
         K = calcK(elem.mat, ip.data)
@@ -118,14 +116,13 @@ function elem_mass_matrix(elem::ThermoSolid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
-    nbnodes = elem.shape.basic_shape.npoints
-    C  = elem_coords(elem)
-    M = zeros(nnodes, nnodes)
+    C      = elem_coords(elem)
+    M      = zeros(nnodes, nnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        Nt   = elem.shape.basic_shape.func(ip.R)
+        N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = dNdR*C
         detJ = det(J)
@@ -134,7 +131,7 @@ function elem_mass_matrix(elem::ThermoSolid)
         # compute Cut
         coef  = elem.mat.ρ*elem.mat.cv
         coef *= detJ*ip.w*th
-        M    -= coef*Nt*Nt'
+        M    -= coef*N*N'
     end
 
     # map
@@ -201,8 +198,8 @@ function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64
     Ut += dUt # nodal temperature at step n+1
 
     dF  = zeros(nnodes*ndim)
-    dFt = zeros(nnodes)
     Bt  = zeros(ndim, nnodes)
+    dFt = zeros(nnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
@@ -215,8 +212,8 @@ function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64
         @gemm J = dNdR*C
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
-
         @gemm dNdX = inv(J)*dNdR
+
         Bt = dNdX
         G  = Bt*Ut # temperature gradient
 
@@ -224,10 +221,11 @@ function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64
 
         q = update_state!(elem.mat, ip.data, Δut, G, Δt)
 
-        coef = detJ*ip.w*elem.mat.ρ*elem.mat.cv*th
-        dFt -= coef*N*Δut
+        coef  = elem.mat.ρ*elem.mat.cv
+        coef *= detJ*ip.w*th
+        dFt  -= coef*N*Δut
 
-        coef = Δt*detJ*ip.w
+        coef = Δt*detJ*ip.w*th
         @gemv dFt += coef*Bt'*q
     end
 

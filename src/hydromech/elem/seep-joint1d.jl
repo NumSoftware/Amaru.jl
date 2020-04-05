@@ -55,7 +55,7 @@ function mountB(elem::SeepJoint1D, R, Ch, Ct)
 
     # Mount NN matrix
     N = bar.shape.func(R)
-    NN = hcat([ Ni for Ni in N  ]...)
+    NN = transpose(N)
 
     # Mount MM matrix
     stack = Array{Float64,1}[]
@@ -63,12 +63,10 @@ function mountB(elem::SeepJoint1D, R, Ch, Ct)
         Xj = bar.nodes[i].X
         R  = inverse_map(hook.shape, Ch, Xj)
         M  = hook.shape.func(R)
-        for Mi in M
-            push!(stack, Mi*ones(1))
-        end
+        push!(stack, M)
     end
 
-    MM = hvcat(nsnodes, stack...)
+    MM = transpose(hcat(stack...))
     B = [ NN*MM  -NN ]
 
     detJ = norm(J)

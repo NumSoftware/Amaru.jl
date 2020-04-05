@@ -66,8 +66,7 @@ function mount_G_RHS_(dom::Domain, ndofs::Int, Δt::Float64)
             end
 
             # Assembling RHS components
-            nbnodes = elem.shape.basic_shape.npoints
-            Ut = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes[1:nbnodes] ]
+            Ut = [ dof.vals[:ut] for node in elem.nodes for dof in node.dofs if dof.name==:ut ]
             RHS[rmap] -= Δt*(H*Ut)
         end
 
