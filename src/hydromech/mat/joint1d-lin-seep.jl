@@ -56,7 +56,7 @@ ip_state_type(mat::Joint1DLinSeep) = Joint1DLinSeepIpState
 
 function update_state!(mat::Joint1DLinSeep, ipd::Joint1DLinSeepIpState, ΔFw::Float64, Δt::Float64)
     k = mat.k
-    ipd.V  -= k*ΔFw
+    ipd.V  = -k*ΔFw
     ipd.D  += ipd.V*Δt
     return ipd.V
 end
