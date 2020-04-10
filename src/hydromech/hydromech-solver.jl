@@ -206,6 +206,7 @@ function hm_solve!(
                    autoinc   :: Bool    = false,
                    maxincs   :: Int     = 1000000,
                    tol       :: Number  = 1e-2,
+                   Ttol      :: Number  = 1e-9,
                    scheme    :: Symbol  = :FE,
                    nouts     :: Int     = 0,
                    outdir    :: String  = "",
@@ -309,11 +310,9 @@ function hm_solve!(
     T  = 0.0
     ΔT = 1.0/nincs       # initial ΔT value
     ΔT_bk = 0.0
-    Ttol = 1e-9          # time tolerance
 
     ΔTout = 1.0/nouts    # output time increment for saving output file
     Tout  = ΔTout        # output time for saving the next output file
-    @show Tout
 
     inc  = 0             # increment counter
     iout = env.cout      # file output counter
