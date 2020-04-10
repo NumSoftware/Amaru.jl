@@ -351,7 +351,7 @@ function solve!(
                 ΔFin .= 0.0
                 ΔUt   = ΔUa + ΔUi
                 for elem in dom.elems
-                    elem_update!(elem, ΔUt, ΔFin, ΔT)
+                    elem_update!(elem, ΔUt, ΔFin, 0.0)
                 end
 
                 residue = maximum(abs, (ΔFex-ΔFin)[umap] )
