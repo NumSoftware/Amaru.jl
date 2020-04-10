@@ -334,7 +334,7 @@ function solve!(
             ΔFin .= 0.0
             ΔUt   = ΔUa + ΔUi
             for elem in dom.elems
-                elem_update!(elem, ΔUt, ΔFin, ΔT)
+                elem_update!(elem, ΔUt, ΔFin, 0.0)
             end
 
             residue = maximum(abs, (ΔFex-ΔFin)[umap] )
@@ -439,11 +439,13 @@ function solve!(
         end
     end
 
+    update_output_data!(dom)
+
     # time spent
     verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress 100%\033[K\n", bold=true, color=:blue) # color 111
     verbosity==1 && println("  time spent: ", see(sw, format=:hms), "\033[K")
 
-    update_output_data!(dom)
-    return true
+    getlapse(sw)>60 && sound_alert()
 
+    return true
 end

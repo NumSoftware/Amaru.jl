@@ -307,12 +307,13 @@ function hm_solve!(
     Δt = time_span/nincs # initial Δt value
 
     T  = 0.0
-    ΔT = 1.0/nincs # initial ΔT value
+    ΔT = 1.0/nincs       # initial ΔT value
     ΔT_bk = 0.0
     Ttol = 1e-9          # time tolerance
 
-    ΔTout = 1.0/nouts  # output time increment for saving output file
+    ΔTout = 1.0/nouts    # output time increment for saving output file
     Tout  = ΔTout        # output time for saving the next output file
+    @show Tout
 
     inc  = 0             # increment counter
     iout = env.cout      # file output counter
@@ -347,6 +348,7 @@ function hm_solve!(
         # Update counters
         inc += 1
         env.cinc += 1
+        #@show Δt
 
         if inc > maxincs
             printstyled("  solver maxincs = $maxincs reached (try maxincs=0)\n", color=:red)
@@ -366,6 +368,7 @@ function hm_solve!(
 
         ΔUex[umap] .= 0.0
         ΔFex[pmap] .= 0.0
+        #@show maximum(abs.(ΔFex))
 
         R   .= ΔFex    # residual
         ΔUa .= 0.0
@@ -400,7 +403,7 @@ function hm_solve!(
             ΔFin .= 0.0
             ΔUt   = ΔUa + ΔUi
             for elem in dom.elems
-                elem_update!(elem, ΔUt, ΔFin, Δt)
+                elem_update!(elem, ΔUt, ΔFin, it==1 ? Δt : 0.0)
             end
 
             residue = maximum(abs, (ΔFex-ΔFin)[umap] )

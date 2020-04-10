@@ -378,7 +378,7 @@ function tm_solve!(
             ΔFin .= 0.0
             ΔUt   = ΔUa + ΔUi
             for elem in dom.elems
-                elem_update!(elem, ΔUt, ΔFin, Δt)
+                elem_update!(elem, ΔUt, ΔFin, it==1 ? Δt : 0.0)
             end
 
             residue = maximum(abs, (ΔFex-ΔFin)[umap] )
@@ -387,7 +387,7 @@ function tm_solve!(
             ΔUa .+= ΔUi
 
             # Residual vector for next iteration
-            R = ΔFex - ΔFin
+            R .= ΔFex - ΔFin
             R[pmap] .= 0.0  # zero at prescribed positions
 
             if verbosity>1
