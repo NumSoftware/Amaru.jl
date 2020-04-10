@@ -403,7 +403,7 @@ function hm_solve!(
             ΔFin .= 0.0
             ΔUt   = ΔUa + ΔUi
             for elem in dom.elems
-                elem_update!(elem, ΔUt, ΔFin, it==1 ? Δt : 0.0)
+                elem_update!(elem, ΔUt, ΔFin, Δt)
             end
 
             residue = maximum(abs, (ΔFex-ΔFin)[umap] )
