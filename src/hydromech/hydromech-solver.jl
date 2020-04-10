@@ -385,7 +385,7 @@ function hm_solve!(
 
             # Try FE step
             verbosity>1 && print("    assembling... \r")
-            G, RHS = mount_G_RHS(dom, ndofs, it==1 ? Δt : 0.0 ) # TODO: check for Δt after iter 1
+            G, RHS = mount_G_RHS(dom, ndofs, Δt ) # TODO: check for Δt after iter 1
 
             R .+= RHS
 
