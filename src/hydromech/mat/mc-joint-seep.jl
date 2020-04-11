@@ -430,7 +430,7 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
 
     # compute crack aperture
     if mat.kl == 0.0
-        if ipd.upa == 0.0 || ipd.w[1] <= 0.0 || isnan(ipd.upa)
+        if ipd.upa == 0.0 || ipd.w[1] <= 0.0 
             kl = 0.0
         else
             kl = ipd.w[1]
