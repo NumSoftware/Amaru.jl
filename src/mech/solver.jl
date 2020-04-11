@@ -422,6 +422,7 @@ function solve!(
             # Restore counters
             inc -= 1
             env.cinc -= 1
+            ΔT_bk = ΔT
 
             # Restore the state to last converged increment
             if autoinc

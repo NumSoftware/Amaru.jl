@@ -2,7 +2,7 @@
 
 
 # Assemble the global stiffness matrix
-function mount_G_RHS(dom::Domain, ndofs::Int, Δt::Float64)
+function hm_mount_global_matrices(dom::Domain, ndofs::Int, Δt::Float64)
 
     # Assembling matrix G
 
@@ -222,10 +222,10 @@ function hm_solve!(
     env = dom.env
     env.cstage += 1
     env.cinc    = 0
-    dom.env.transient = true
+    env.transient = true
 
     if !isnan(end_time)
-        time_span = end_time - dom.env.t
+        time_span = end_time - env.t
     end
 
     if !silent
@@ -303,7 +303,7 @@ function hm_solve!(
     end
 
     # Incremental analysis
-    t    = dom.env.t     # current time
+    t    = env.t     # current time
     tend = t + time_span # end time
     Δt = time_span/nincs # initial Δt value
 
@@ -347,7 +347,6 @@ function hm_solve!(
         # Update counters
         inc += 1
         env.cinc += 1
-        #@show Δt
 
         if inc > maxincs
             printstyled("  solver maxincs = $maxincs reached (try maxincs=0)\n", color=:red)
@@ -359,7 +358,7 @@ function hm_solve!(
         verbosity>1 && println()
 
         # Get forces and displacements from boundary conditions
-        dom.env.t = t + Δt
+        env.t = t + Δt
         UexN, FexN = get_bc_vals(dom, bcs, t+Δt) # get values at time t+Δt
 
         ΔUex = UexN - U
@@ -367,7 +366,6 @@ function hm_solve!(
 
         ΔUex[umap] .= 0.0
         ΔFex[pmap] .= 0.0
-        #@show maximum(abs.(ΔFex))
 
         R   .= ΔFex    # residual
         ΔUa .= 0.0
@@ -384,7 +382,7 @@ function hm_solve!(
 
             # Try FE step
             verbosity>1 && print("    assembling... \r")
-            G, RHS = mount_G_RHS(dom, ndofs, Δt ) # TODO: check for Δt after iter 1
+            G, RHS = hm_mount_global_matrices(dom, ndofs, Δt)
 
             R .+= RHS
 
@@ -478,6 +476,7 @@ function hm_solve!(
             # Restore counters
             inc -= 1
             env.cinc -= 1
+            ΔT_bk = ΔT
 
             # Restore the state to last converged increment
             if autoinc
@@ -503,6 +502,7 @@ function hm_solve!(
     verbosity==1 && println("  time spent: ", see(sw, format=:hms), "\033[K")
 
     update_output_data!(dom)
+    save_incs || complete_uw_h(dom)
 
     return true
 

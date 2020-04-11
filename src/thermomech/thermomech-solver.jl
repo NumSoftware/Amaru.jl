@@ -2,7 +2,7 @@
 
 
 # Assemble the global stiffness matrix
-function mount_G_RHS_(dom::Domain, ndofs::Int, Δt::Float64)
+function tm_mount_global_matrices(dom::Domain, ndofs::Int, Δt::Float64)
 
     # Assembling matrix G
 
@@ -266,7 +266,7 @@ function tm_solve!(
             dof.vals[dof.name]    = 0.0
             dof.vals[dof.natname] = 0.0
             if dof.name==:ut
-                dof.vals[:T] = dom.env.T0 # real temperature
+                dof.vals[:T] = env.T0 # real temperature
             end
         end
 
@@ -285,11 +285,11 @@ function tm_solve!(
     Δt = time_span/nincs # initial Δt value
 
     T  = 0.0
-    ΔT = 1.0/nincs # initial ΔT value
+    ΔT = 1.0/nincs       # initial ΔT value
     ΔT_bk = 0.0
     Ttol = 1e-9          # time tolerance
 
-    ΔTout = 1.0/nouts  # output time increment for saving output file
+    ΔTout = 1.0/nouts    # output time increment for saving output file
     Tout  = ΔTout        # output time for saving the next output file
 
     inc  = 0             # increment counter
@@ -360,7 +360,7 @@ function tm_solve!(
 
             # Try FE step
             verbosity>1 && print("    assembling... \r")
-            G, RHS = mount_G_RHS_(dom, ndofs, it==1 ? Δt : 0.0 ) # TODO: check for Δt after iter 1
+            G, RHS = tm_mount_global_matrices(dom, ndofs, Δt)
 
             R .+= RHS
 
@@ -454,6 +454,7 @@ function tm_solve!(
             # Restore counters
             inc -= 1
             env.cinc -= 1
+            ΔT_bk = ΔT
 
             # Restore the state to last converged increment
             if autoinc
@@ -479,7 +480,7 @@ function tm_solve!(
     verbosity==1 && println("  time spent: ", see(sw, format=:hms), "\033[K")
 
     update_output_data!(dom)
-    complete_ut_T(dom)
+    save_incs || complete_ut_T(dom)
 
     return true
 
