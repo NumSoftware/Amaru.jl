@@ -260,7 +260,7 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
 
          # compute crack aperture
         if elem.mat.kl == 0.0
-            if ip.data.upa == 0.0 || ip.data.w[1] <= 0.0 || isnan(ip.data.upa) 
+            if ip.data.upa == 0.0 || ip.data.w[1] <= 0.0  
                 kl = 0.0
             else
                 kl = ip.data.w[1]
@@ -378,7 +378,7 @@ function elem_RHS_vector(elem::HydroMechJoint)
 
         # compute crack aperture
         if elem.mat.kl == 0.0
-            if ip.data.upa == 0.0 || ip.data.w[1] <= 0.0 || isnan(ip.data.upa)
+            if ip.data.upa == 0.0 || ip.data.w[1] <= 0.0 
                 kl = 0.0
             else
                 kl = ip.data.w[1]
