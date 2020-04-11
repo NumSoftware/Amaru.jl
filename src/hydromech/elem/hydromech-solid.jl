@@ -292,7 +292,7 @@ function elem_compressibility_matrix(elem::HMSolid)
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    C      = elem_coords(elem)[1:nbnodes,:]
+    C      = elem_coords(elem)
     Cpp    = zeros(nbnodes, nbnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
@@ -321,7 +321,7 @@ function elem_RHS_vector(elem::HMSolid)
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    Cp     = elem_coords(elem)[1:nbnodes,:]
+    C      = elem_coords(elem)
     Q      = zeros(nbnodes)
     Bw     = zeros(ndim, nbnodes)
     KZ     = zeros(ndim)
@@ -331,12 +331,12 @@ function elem_RHS_vector(elem::HMSolid)
     Z[end] = 1.0 # hydrostatic gradient
 
     for ip in elem.ips
-
+        dNdR  = elem.shape.deriv(ip.R)
         dNwdR = elem.shape.basic_shape.deriv(ip.R)
-        @gemm J  = dNwdR*Cp
-        @gemm Bw = inv(J)*dNwdR
+        @gemm J  = dNdR*C
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        @gemm Bw = inv(J)*dNwdR
 
         # compute Q
         K = calcK(elem.mat, ip.data)
@@ -372,8 +372,6 @@ function elem_internal_forces(elem::HMSolid, F::Array{Float64,1})
 
     J  = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
-    Jp  = Array{Float64}(undef, ndim, nbnodes)
-    dNwdX = Array{Float64}(undef, ndim, nbnodes)
 
     for ip in elem.ips
 
@@ -386,9 +384,7 @@ function elem_internal_forces(elem::HMSolid, F::Array{Float64,1})
         setBu(elem.env, dNdX, detJ, Bu)
 
         dNwdR = elem.shape.basic_shape.deriv(ip.R)
-        Jp = dNwdR*Cp
-        @gemm dNwdX = inv(Jp)*dNwdR
-        Bw = dNwdX
+        @gemm Bw = inv(J)*dNwdR
 
         # compute N
         Nw   = elem.shape.basic_shape.func(ip.R)
