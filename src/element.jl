@@ -22,7 +22,7 @@ function new_element(etype::Type{<:Element}, cell::Cell, nodes::Array{Node,1}, e
     elem = etype()
     elem.id     = 0
     elem.shape  = cell.shape
-    elem.cell   = cell
+    #elem.cell   = cell
     elem.nodes  = nodes
     elem.ips    = []
     elem.tag    = tag
@@ -215,7 +215,11 @@ end
 
 # Get all dofs from an element
 function get_dofs(elem::Element)
-    return [ dof for node in elem.nodes for dof in node.dofs ]
+    return Dof[ dof for node in elem.nodes for dof in node.dofs ]
+end
+
+function get_dofs(elem::Element, dofname::Symbol)
+    return Dof[ dof for node in elem.nodes for dof in node.dofs if dof.name==dofname ]
 end
 
 
