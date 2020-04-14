@@ -1,15 +1,4 @@
-##############################################################################
-#    FemLab - Finite Element Library                                         #
-#    Copyright (C) Raul Durand <raul.durand at gmail.com>                    #
-#    All rights reserved.                                                    #
-#                                                                            #
-#    This software is distributed WITHOUT ANY WARRANTY; without even         #
-#    the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR     #
-#    PURPOSE. See the GNU General Public License for more details.           #
-#                                                                            #
-##############################################################################
-
-
+#    Amaru - Finite Element Library
 
 
 # TET4 shape
@@ -572,6 +561,271 @@ end
 # Registration
 const  HEX20 = MakeHEX20()
 export HEX20
+
+
+
+
+# HEX27 shape
+# ===========
+
+# Local IDs
+#                   Vertices                               Faces
+#     t
+#     |           5        16        8
+#    ,+--s         @-------@--------@                   +----------------+
+#  r'            ,'|              ,'|                 ,'|              ,'|
+#           13 @'  |         15 ,'  |               ,'  |  ___       ,'  |
+#            ,'    |17        ,@    |20           ,'    |,'6,'  [1],'    |
+#      6   ,'      @      7 ,'      @           ,'      |~~~     ,'      |
+#        @'=======@=======@'        |         +'===============+'  ,'|   |
+#        |      14 |      |         |         |   ,'|   |      |   |4|   |
+#        |         |      |  12     |         |   |3|   |      |   |,'   |
+#     18 |       1 @- - - | @- - - -@         |   |,'   +- - - | +- - - -+
+#        @       ,'       @       ,' 4        |       ,'       |       ,'
+#        |   9 @'      19 |     ,'            |     ,' [2]  ___|     ,'
+#        |   ,'           |   ,@ 11           |   ,'      ,'5,'|   ,'
+#        | ,'             | ,'                | ,'        ~~~  | ,'
+#        @-------@--------@'                  +----------------+'
+#      2        10         3
+
+
+# natural coordinates
+const coords_HEX27 =
+[
+  # corner points
+  -1.0  -1.0  -1.0
+   1.0  -1.0  -1.0
+   1.0   1.0  -1.0
+  -1.0   1.0  -1.0
+  -1.0  -1.0   1.0
+   1.0  -1.0   1.0
+   1.0   1.0   1.0
+  -1.0   1.0   1.0
+
+  # mid-edge points
+   0.0  -1.0  -1.0
+   1.0   0.0  -1.0
+   0.0   1.0  -1.0
+  -1.0   0.0  -1.0
+   0.0  -1.0   1.0
+   1.0   0.0   1.0
+   0.0   1.0   1.0
+  -1.0   0.0   1.0
+
+  -1.0  -1.0   0.0
+   1.0  -1.0   0.0
+   1.0   1.0   0.0
+  -1.0   1.0   0.0
+
+  # face center points
+  -1.0   0.0   0.0
+   1.0   0.0   0.0
+   0.0  -1.0   0.0
+   0.0   1.0   0.0
+   0.0   0.0  -1.0
+   0.0   0.0   1.0
+
+  # element center point
+   0.0   0.0   0.0 ]
+
+
+const facet_idxs_HEX27 = [[1, 5, 8, 4, 17, 16, 20, 12, 21], [2, 3, 7, 6, 10, 19, 14, 18, 22], [1, 2, 6, 5, 9, 18, 13, 17, 23], [4, 8, 7, 3, 20, 15, 19, 11, 24], [1, 4, 3, 2, 12, 11, 10, 9, 25], [5, 6, 7, 8, 13, 14, 15, 16, 26]]
+const edge_idxs_HEX27 = [[1, 2, 9], [2, 3, 10], [4, 3, 11], [1, 4, 12], [5, 6, 13], [6, 7, 14], [8, 7, 15], [5, 8, 16], [1, 5, 17], [2, 6, 18], [4, 8, 20], [3, 7, 19]]
+
+
+function shape_func_HEX27(R::Array{Float64,1})
+    r, s, t = R
+  
+    g1r = -0.5 * r * (1 - r)
+    g1s = -0.5 * s * (1 - s)
+    g1t = -0.5 * t * (1 - t)
+  
+    g2r = (1 + r)*(1 - r)
+    g2s = (1 + s)*(1 - s)
+    g2t = (1 + t)*(1 - t)
+  
+    g3r = 0.5 * r * (1 + r)
+    g3s = 0.5 * s * (1 + s)
+    g3t = 0.5 * t * (1 + t)
+  
+    N = Array{Float64}(undef,27)
+
+    N[1] = g1r * g1s * g1t
+    N[2] = g3r * g1s * g1t
+    N[3] = g3r * g3s * g1t
+    N[4] = g1r * g3s * g1t
+    N[5] = g1r * g1s * g3t
+    N[6] = g3r * g1s * g3t
+    N[7] = g3r * g3s * g3t
+    N[8] = g1r * g3s * g3t
+   
+    N[9] =  g2r * g1s * g1t
+    N[10] =  g3r * g2s * g1t
+    N[11] = g2r * g3s * g1t
+    N[12] = g1r * g2s * g1t
+    N[13] = g2r * g1s * g3t
+    N[14] = g3r * g2s * g3t
+    N[15] = g2r * g3s * g3t
+    N[16] = g1r * g2s * g3t
+    N[17] = g1r * g1s * g2t
+    N[18] = g3r * g1s * g2t
+    N[19] = g3r * g3s * g2t
+    N[20] = g1r * g3s * g2t
+   
+    N[21] = g1r * g2s * g2t
+    N[22] = g3r * g2s * g2t
+    N[23] = g2r * g1s * g2t
+    N[24] = g2r * g3s * g2t
+    N[25] = g2r * g2s * g1t
+    N[26] = g2r * g2s * g3t
+   
+    N[27] = g2r * g2s * g2t
+
+    return N
+end
+
+function shape_deriv_HEX27(R::Array{Float64,1})
+    r, s, t = R
+
+    g1r = -0.5 * r * (1 - r);
+    g1s = -0.5 * s * (1 - s);
+    g1t = -0.5 * t * (1 - t);
+   
+    g2r = (1 + r)*(1 - r);
+    g2s = (1 + s)*(1 - s);
+    g2t = (1 + t)*(1 - t);
+   
+    g3r = 0.5 * r * (1 + r);
+    g3s = 0.5 * s * (1 + s);
+    g3t = 0.5 * t * (1 + t);
+   
+    g1r_r = r - 0.5;
+    g1s_s = s - 0.5;
+    g1t_t = t - 0.5;
+   
+    g2r_r = -2*r;
+    g2s_s = -2*s;
+    g2t_t = -2*t;
+   
+    g3r_r = r + 0.5;
+    g3s_s = s + 0.5;
+    g3t_t = t + 0.5;
+   
+    D = Array{Float64}(undef,3, 27)
+   
+    # r-derivatives
+    D[1, 1] = g1r_r * g1s * g1t
+    D[1, 2] = g3r_r * g1s * g1t
+    D[1, 3] = g3r_r * g3s * g1t
+    D[1, 4] = g1r_r * g3s * g1t
+    D[1, 5] = g1r_r * g1s * g3t
+    D[1, 6] = g3r_r * g1s * g3t
+    D[1, 7] = g3r_r * g3s * g3t
+    D[1, 8] = g1r_r * g3s * g3t
+    D[1, 9] = g2r_r * g1s * g1t
+    D[1,10] = g3r_r * g2s * g1t
+    D[1,11] = g2r_r * g3s * g1t
+    D[1,12] = g1r_r * g2s * g1t
+    D[1,13] = g2r_r * g1s * g3t
+    D[1,14] = g3r_r * g2s * g3t
+    D[1,15] = g2r_r * g3s * g3t
+    D[1,16] = g1r_r * g2s * g3t
+    D[1,17] = g1r_r * g1s * g2t
+    D[1,18] = g3r_r * g1s * g2t
+    D[1,19] = g3r_r * g3s * g2t
+    D[1,20] = g1r_r * g3s * g2t
+    D[1,21] = g1r_r * g2s * g2t
+    D[1,22] = g3r_r * g2s * g2t
+    D[1,23] = g2r_r * g1s * g2t
+    D[1,24] = g2r_r * g3s * g2t
+    D[1,25] = g2r_r * g2s * g1t
+    D[1,26] = g2r_r * g2s * g3t
+    D[1,27] = g2r_r * g2s * g2t
+   
+    # s-derivatives
+    D[2, 1] =  g1r * g1s_s * g1t
+    D[2, 2] =  g3r * g1s_s * g1t
+    D[2, 3] =  g3r * g3s_s * g1t
+    D[2, 4] =  g1r * g3s_s * g1t
+    D[2, 5] =  g1r * g1s_s * g3t
+    D[2, 6] =  g3r * g1s_s * g3t
+    D[2, 7] =  g3r * g3s_s * g3t
+    D[2, 8] =  g1r * g3s_s * g3t
+    D[2, 9] =  g2r * g1s_s * g1t
+    D[2,10] =  g3r * g2s_s * g1t
+    D[2,11] =  g2r * g3s_s * g1t
+    D[2,12] =  g1r * g2s_s * g1t
+    D[2,13] =  g2r * g1s_s * g3t
+    D[2,14] =  g3r * g2s_s * g3t
+    D[2,15] =  g2r * g3s_s * g3t
+    D[2,16] =  g1r * g2s_s * g3t
+    D[2,17] =  g1r * g1s_s * g2t
+    D[2,18] =  g3r * g1s_s * g2t
+    D[2,19] =  g3r * g3s_s * g2t
+    D[2,20] =  g1r * g3s_s * g2t
+    D[2,21] =  g1r * g2s_s * g2t
+    D[2,22] =  g3r * g2s_s * g2t
+    D[2,23] =  g2r * g1s_s * g2t
+    D[2,24] =  g2r * g3s_s * g2t
+    D[2,25] =  g2r * g2s_s * g1t
+    D[2,26] =  g2r * g2s_s * g3t
+    D[2,27] =  g2r * g2s_s * g2t
+   
+    # t-derivatives
+    D[3, 1] =  g1r * g1s * g1t_t
+    D[3, 2] =  g3r * g1s * g1t_t
+    D[3, 3] =  g3r * g3s * g1t_t
+    D[3, 4] =  g1r * g3s * g1t_t
+    D[3, 5] =  g1r * g1s * g3t_t
+    D[3, 6] =  g3r * g1s * g3t_t
+    D[3, 7] =  g3r * g3s * g3t_t
+    D[3, 8] =  g1r * g3s * g3t_t
+    D[3, 9] =  g2r * g1s * g1t_t
+    D[3,10] =  g3r * g2s * g1t_t
+    D[3,11] =  g2r * g3s * g1t_t
+    D[3,12] =  g1r * g2s * g1t_t
+    D[3,13] =  g2r * g1s * g3t_t
+    D[3,14] =  g3r * g2s * g3t_t
+    D[3,15] =  g2r * g3s * g3t_t
+    D[3,16] =  g1r * g2s * g3t_t
+    D[3,17] =  g1r * g1s * g2t_t
+    D[3,18] =  g3r * g1s * g2t_t
+    D[3,19] =  g3r * g3s * g2t_t
+    D[3,20] =  g1r * g3s * g2t_t
+    D[3,21] =  g1r * g2s * g2t_t
+    D[3,22] =  g3r * g2s * g2t_t
+    D[3,23] =  g2r * g1s * g2t_t
+    D[3,24] =  g2r * g3s * g2t_t
+    D[3,25] =  g2r * g2s * g1t_t
+    D[3,26] =  g2r * g2s * g3t_t
+    D[3,27] =  g2r * g2s * g2t_t
+
+    return D
+end
+
+# constructor
+function MakeHEX27()
+    shape             = ShapeType()
+    shape.name        = "HEX27"
+    shape.family      = SOLID_SHAPE
+    shape.ndim        = 3
+    shape.npoints     = 27
+    shape.basic_shape = HEX8
+    shape.vtk_type    = VTK_TRIQUADRATIC_HEXAHEDRON
+    shape.facet_idxs  = facet_idxs_HEX27
+    shape.edge_idxs   = edge_idxs_HEX27
+    shape.facet_shape = QUAD9
+    shape.nat_coords  = coords_HEX27
+    shape.quadrature  = Dict( 0 => HEX_IP2, 8 => HEX_IP2, 27 => HEX_IP3 )
+    shape.func        = shape_func_HEX27
+    shape.deriv       = shape_deriv_HEX27
+    return shape
+end
+
+
+# Registration
+const  HEX27 = MakeHEX27()
+export HEX27
 
 
 

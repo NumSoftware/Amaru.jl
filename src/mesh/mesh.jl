@@ -153,6 +153,16 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
                 hs   = hash(edge)
                 all_edges[hs] = edge
             end
+            if cell.shape==HEX27
+                edge = Cell(POLYV, [ cell.points[1], cell.points[end] ] )
+                hs   = hash(edge)
+                all_edges[hs] = edge
+                for i in (21,22,23,24,25,26)
+                    edge = Cell(POLYV, [ cell.points[i], cell.points[end] ] )
+                    hs   = hash(edge)
+                    all_edges[hs] = edge
+                end
+            end
             continue
         end
 

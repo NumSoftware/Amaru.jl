@@ -56,7 +56,7 @@ mutable struct Block <: AbstractBlock
 
         shapes1d = (LIN2, LIN3)
         shapes2d = (TRI3, TRI6, QUAD4, QUAD8, QUAD9, QUAD12)
-        shapes3d = (TET4, TET10, HEX8, HEX20)
+        shapes3d = (TET4, TET10, HEX8, HEX20, HEX27)
 
         ncoord, ndim = size(coords)
         ndim<=3 || error("Block: invalid coordinate matrix")
@@ -409,7 +409,8 @@ function split_block(bl::Block, msh::Mesh)
         return
     end
 
-    if cellshape == HEX20 || cellshape == TET10
+    #if cellshape == HEX20 || cellshape == TET10 # || cellshape == HEX27
+    if cellshape in (TET10, HEX20, HEX27)
         p_arr = Array{Point}(undef, 2*nx+1, 2*ny+1, 2*nz+1)
         for k = 1:2*nz+1
             for j = 1:2*ny+1
@@ -444,73 +445,110 @@ function split_block(bl::Block, msh::Mesh)
         for k = 1:2:2*nz
             for j = 1:2:2*ny
                 for i = 1:2:2*nx
-                    conn = [
-                        p_arr[i  , j  , k  ],
-                        p_arr[i+2, j  , k  ],
-                        p_arr[i+2, j+2, k  ],
-                        p_arr[i  , j+2, k  ],
-                        p_arr[i  , j  , k+2],
-                        p_arr[i+2, j  , k+2],
-                        p_arr[i+2, j+2, k+2],
-                        p_arr[i  , j+2, k+2],
+                    p1  = p_arr[i  , j  , k  ]
+                    p2  = p_arr[i+2, j  , k  ]
+                    p3  = p_arr[i+2, j+2, k  ]
+                    p4  = p_arr[i  , j+2, k  ]
+                    p5  = p_arr[i  , j  , k+2]
+                    p6  = p_arr[i+2, j  , k+2]
+                    p7  = p_arr[i+2, j+2, k+2]
+                    p8  = p_arr[i  , j+2, k+2]
 
-                        p_arr[i+1, j  , k  ],
-                        p_arr[i+2, j+1, k  ],
-                        p_arr[i+1, j+2, k  ],
-                        p_arr[i  , j+1, k  ],
-                        p_arr[i+1, j  , k+2],
-                        p_arr[i+2, j+1, k+2],
-                        p_arr[i+1, j+2, k+2],
-                        p_arr[i  , j+1, k+2],
+                    p9  = p_arr[i+1, j  , k  ]
+                    p10 = p_arr[i+2, j+1, k  ]
+                    p11 = p_arr[i+1, j+2, k  ]
+                    p12 = p_arr[i  , j+1, k  ]
+                    p13 = p_arr[i+1, j  , k+2]
+                    p14 = p_arr[i+2, j+1, k+2]
+                    p15 = p_arr[i+1, j+2, k+2]
+                    p16 = p_arr[i  , j+1, k+2]
 
-                        p_arr[i  , j  , k+1],
-                        p_arr[i+2, j  , k+1],
-                        p_arr[i+2, j+2, k+1],
-                        p_arr[i  , j+2, k+1]]
+                    p17 = p_arr[i  , j  , k+1]
+                    p18 = p_arr[i+2, j  , k+1]
+                    p19 = p_arr[i+2, j+2, k+1]
+                    p20 = p_arr[i  , j+2, k+1]
+
+                    #conn = [
+                        #p_arr[i  , j  , k  ],
+                        #p_arr[i+2, j  , k  ],
+                        #p_arr[i+2, j+2, k  ],
+                        #p_arr[i  , j+2, k  ],
+                        #p_arr[i  , j  , k+2],
+                        #p_arr[i+2, j  , k+2],
+                        #p_arr[i+2, j+2, k+2],
+                        #p_arr[i  , j+2, k+2],
+#
+                        #p_arr[i+1, j  , k  ],
+                        #p_arr[i+2, j+1, k  ],
+                        #p_arr[i+1, j+2, k  ],
+                        #p_arr[i  , j+1, k  ],
+                        #p_arr[i+1, j  , k+2],
+                        #p_arr[i+2, j+1, k+2],
+                        #p_arr[i+1, j+2, k+2],
+                        #p_arr[i  , j+1, k+2],
+#
+                        #p_arr[i  , j  , k+1],
+                        #p_arr[i+2, j  , k+1],
+                        #p_arr[i+2, j+2, k+1],
+                        #p_arr[i  , j+2, k+1]]
 
                     if cellshape == HEX20
-                        cell = Cell(cellshape, conn, tag=bl.tag, nips=bl.nips)
+                        cell = Cell(cellshape, [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20], tag=bl.tag, nips=bl.nips)
                         push!(msh.cells, cell)
                     end
-                    if cellshape == TET10
+                    if cellshape in (TET10, HEX27)
 
-                        p1  = p_arr[i  , j  , k  ]
-                        p2  = p_arr[i+2, j  , k  ]
-                        p3  = p_arr[i+2, j+2, k  ]
-                        p4  = p_arr[i  , j+2, k  ]
-                        p5  = p_arr[i  , j  , k+2]
-                        p6  = p_arr[i+2, j  , k+2]
-                        p7  = p_arr[i+2, j+2, k+2]
-                        p8  = p_arr[i  , j+2, k+2]
+                        #p1  = p_arr[i  , j  , k  ]
+                        #p2  = p_arr[i+2, j  , k  ]
+                        #p3  = p_arr[i+2, j+2, k  ]
+                        #p4  = p_arr[i  , j+2, k  ]
+                        #p5  = p_arr[i  , j  , k+2]
+                        #p6  = p_arr[i+2, j  , k+2]
+                        #p7  = p_arr[i+2, j+2, k+2]
+                        #p8  = p_arr[i  , j+2, k+2]
+#
+                        #p9  = p_arr[i+1, j  , k  ]
+                        #p10 = p_arr[i+2, j+1, k  ]
+                        #p11 = p_arr[i+1, j+2, k  ]
+                        #p12 = p_arr[i  , j+1, k  ]
+                        #p13 = p_arr[i+1, j  , k+2]
+                        #p14 = p_arr[i+2, j+1, k+2]
+                        #p15 = p_arr[i+1, j+2, k+2]
+                        #p16 = p_arr[i  , j+1, k+2]
+#
+                        #p17 = p_arr[i  , j  , k+1]
+                        #p18 = p_arr[i+2, j  , k+1]
+                        #p19 = p_arr[i+2, j+2, k+1]
+                        #p20 = p_arr[i  , j+2, k+1]
 
-                        p9  = p_arr[i+1, j  , k  ]
-                        p10 = p_arr[i+2, j+1, k  ]
-                        p11 = p_arr[i+1, j+2, k  ]
-                        p12 = p_arr[i  , j+1, k  ]
-                        p13 = p_arr[i+1, j  , k+2]
-                        p14 = p_arr[i+2, j+1, k+2]
-                        p15 = p_arr[i+1, j+2, k+2]
-                        p16 = p_arr[i  , j+1, k+2]
+                        #p21 = p_arr[i+1, j+1, k  ]
+                        #p22 = p_arr[i+1, j+1, k+2]
+                        #p23 = p_arr[i+1, j  , k+1]
+                        #p24 = p_arr[i+2, j+1, k+1]
+                        #p25 = p_arr[i+1, j+2, k+1]
+                        #p26 = p_arr[i  , j+1, k+1]
+                        #p27 = p_arr[i+1, j+1, k+1]
 
-                        p17 = p_arr[i  , j  , k+1]
-                        p18 = p_arr[i+2, j  , k+1]
-                        p19 = p_arr[i+2, j+2, k+1]
-                        p20 = p_arr[i  , j+2, k+1]
 
-                        p21 = p_arr[i+1, j+1, k  ]
-                        p22 = p_arr[i+1, j+1, k+2]
+                        p21 = p_arr[i  , j+1, k+1]
+                        p22 = p_arr[i+2, j+1, k+1]
                         p23 = p_arr[i+1, j  , k+1]
-                        p24 = p_arr[i+2, j+1, k+1]
-                        p25 = p_arr[i+1, j+2, k+1]
-                        p26 = p_arr[i  , j+1, k+1]
+                        p24 = p_arr[i+1, j+2, k+1]
+                        p25 = p_arr[i+1, j+1, k  ]
+                        p26 = p_arr[i+1, j+1, k+2]
                         p27 = p_arr[i+1, j+1, k+1]
 
-                        push!( msh.cells, Cell(cellshape, [p2, p4, p1, p8, p21, p12, p9, p27, p20, p26], tag=bl.tag, nips=bl.nips) )
-                        push!( msh.cells, Cell(cellshape, [p2, p1, p5, p8, p9, p17, p23, p27, p26, p16], tag=bl.tag, nips=bl.nips) )
-                        push!( msh.cells, Cell(cellshape, [p2, p5, p6, p8, p23, p13, p18, p27, p16, p22], tag=bl.tag, nips=bl.nips) )
-                        push!( msh.cells, Cell(cellshape, [p2, p6, p7, p8, p18, p14, p24, p27, p22, p15], tag=bl.tag, nips=bl.nips) )
-                        push!( msh.cells, Cell(cellshape, [p2, p3, p4, p8, p10, p11, p21, p27, p25, p20], tag=bl.tag, nips=bl.nips) )
-                        push!( msh.cells, Cell(cellshape, [p2, p7, p3, p8, p24, p19, p10, p27, p15, p25], tag=bl.tag, nips=bl.nips) )
+                        if cellshape==TET10
+                            push!( msh.cells, Cell(cellshape, [p2, p4, p1, p8, p25, p12, p9, p27, p20, p21], tag=bl.tag, nips=bl.nips) )
+                            push!( msh.cells, Cell(cellshape, [p2, p1, p5, p8, p9, p17, p23, p27, p21, p16], tag=bl.tag, nips=bl.nips) )
+                            push!( msh.cells, Cell(cellshape, [p2, p5, p6, p8, p23, p13, p18, p27, p16, p26], tag=bl.tag, nips=bl.nips) )
+                            push!( msh.cells, Cell(cellshape, [p2, p6, p7, p8, p18, p14, p22, p27, p26, p15], tag=bl.tag, nips=bl.nips) )
+                            push!( msh.cells, Cell(cellshape, [p2, p3, p4, p8, p10, p11, p25, p27, p24, p20], tag=bl.tag, nips=bl.nips) )
+                            push!( msh.cells, Cell(cellshape, [p2, p7, p3, p8, p22, p19, p10, p27, p15, p24], tag=bl.tag, nips=bl.nips) )
+                        else
+                            cell = Cell(cellshape, [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24, p25, p26, p27], tag=bl.tag, nips=bl.nips)
+                            push!(msh.cells, cell)
+                        end
                     end
                 end
             end

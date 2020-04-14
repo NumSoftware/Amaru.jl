@@ -22,6 +22,7 @@ export VTKCellType
     VTK_QUADRATIC_WEDGE                  = 26,
     VTK_QUADRATIC_PYRAMID                = 27,
     VTK_BIQUADRATIC_QUAD                 = 28,
+    VTK_TRIQUADRATIC_HEXAHEDRON          = 29,
     VTK_QUADRATIC_LINEAR_QUAD            = 30,
     VTK_QUADRATIC_LINEAR_WEDGE           = 31,
     VTK_BIQUADRATIC_QUADRATIC_WEDGE      = 32,

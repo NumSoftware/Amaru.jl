@@ -61,27 +61,28 @@ function get_ip_coords(shape::ShapeType, nips=0)
 end
 
 
-# Available shape types
+# Available VTK shapes
 const VTK2SHAPE = Dict{VTKCellType,ShapeType}(
-    VTK_POLY_VERTEX          => POLYV,
-    VTK_LINE                 => LIN2,
-    VTK_TRIANGLE             => TRI3,
-    VTK_QUAD                 => QUAD4,
-    VTK_PYRAMID              => PYR5,
-    VTK_TETRA                => TET4,
-    VTK_HEXAHEDRON           => HEX8,
-    VTK_WEDGE                => WED6,
-    VTK_QUADRATIC_EDGE       => LIN3,
-    VTK_QUADRATIC_TRIANGLE   => TRI6,
-    VTK_QUADRATIC_QUAD       => QUAD8,
-    VTK_QUADRATIC_TETRA      => TET10,
-    VTK_QUADRATIC_HEXAHEDRON => HEX20,
-    VTK_QUADRATIC_WEDGE      => WED15,
-    VTK_BIQUADRATIC_QUAD     => QUAD9
+    VTK_POLY_VERTEX             => POLYV,
+    VTK_LINE                    => LIN2,
+    VTK_TRIANGLE                => TRI3,
+    VTK_QUAD                    => QUAD4,
+    VTK_PYRAMID                 => PYR5,
+    VTK_TETRA                   => TET4,
+    VTK_HEXAHEDRON              => HEX8,
+    VTK_WEDGE                   => WED6,
+    VTK_QUADRATIC_EDGE          => LIN3,
+    VTK_QUADRATIC_TRIANGLE      => TRI6,
+    VTK_QUADRATIC_QUAD          => QUAD8,
+    VTK_QUADRATIC_TETRA         => TET10,
+    VTK_QUADRATIC_HEXAHEDRON    => HEX20,
+    VTK_TRIQUADRATIC_HEXAHEDRON => HEX27,
+    VTK_QUADRATIC_WEDGE         => WED15,
+    VTK_BIQUADRATIC_QUAD        => QUAD9
 )
 
-# All bulk cell shapes
-const ALL_SHAPES = [
+# All isoparametric cell shapes
+const ALL_ISO_SHAPES = [
     LIN2
     LIN3
     LIN4
@@ -98,6 +99,7 @@ const ALL_SHAPES = [
     WED15
     HEX8
     HEX20
+    HEX27
 ]
 
 
@@ -146,6 +148,7 @@ function get_shape_from_ndim_npoints(npoints::Int64, ndim::Int64)::ShapeType
         npoints==10 &&  return TET10
         npoints==8  &&  return HEX8
         npoints==20 &&  return HEX20
+        npoints==27 &&  return HEX27
     else
         npoints==2  && return LIN2
         npoints==3  && return TRI3
@@ -158,18 +161,6 @@ function get_shape_from_ndim_npoints(npoints::Int64, ndim::Int64)::ShapeType
     npoints==1 && return POLYV
 
     error("get_shape_from_ndim_npoints: Cannot get the cell shape from npoints=$npoints and ndim=$ndim")
-end
-
-
-# For compatibility with gofem input file
-function get_shape_from_geo(geo, npoints=0)
-    types = [ LIN2, LIN3, -1, TRI3, TRI6, -1, QUAD4, QUAD8, QUAD9, PYR5, TET4, TET10, HEX8, HEX20, -2, LIN4, TRI10, QUAD12, QUAD16]
-    shapetype = types[geo+1]
-    if shapetype==-2 #joint
-        shapetype = npoints==2 ?  JLINK2 : JLINK3
-    end
-
-    return shapetype
 end
 
 

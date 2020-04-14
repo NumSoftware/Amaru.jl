@@ -297,7 +297,7 @@ function regular_surface(metric::Float64, shape::ShapeType)
         a = ( 6.0*√2.0*V )^(1.0/3.0)
         return √3.0*a^2
     end
-    if shape in [ HEX8, HEX20 ]
+    if shape in [ HEX8, HEX20, HEX27 ]
         V = metric
         a = V^(1.0/3.0)
         return 6.0*a^2.0
@@ -307,7 +307,7 @@ function regular_surface(metric::Float64, shape::ShapeType)
         a2 = (16.0/3.0*V^2)^(1.0/3.0)
         return (3.0 + √3.0/2.0)*a2
     end
-    error("No regular surface/perimeter value for shape $(get_name(shape))")
+    error("No regular surface/perimeter value for shape $(shape.name)")
 end
 
 
