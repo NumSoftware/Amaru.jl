@@ -13,6 +13,7 @@ mutable struct SeepJoint1D<:Hydromechanical
     env::ModelEnv
 
     # specific fields
+    uw_dofs   ::Array{Dof,1} # list of pore-pressure dofs
     cache_B   ::Array{Array{Float64,2}}
     cache_detJ::Array{Float64}
 
@@ -22,13 +23,13 @@ end
 matching_shape_family(::Type{SeepJoint1D}) = JOINT1D_SHAPE
 
 function elem_config_dofs(elem::SeepJoint1D)
-    nnodes = length(elem.nodes)
-    for (i, node) in enumerate(elem.nodes)
-        add_dof(node, :uw, :fw)
-    end
+    # No need to add dofs since they will be added by linked elements
 end
 
 function elem_init(elem::SeepJoint1D)
+    # Only pore-pressure dofs
+    elem.uw_dofs = get_dofs(elem, :uw)
+
     hook = elem.linked_elems[1]
     bar  = elem.linked_elems[2]
     Ch = elem_coords(hook)
@@ -40,16 +41,15 @@ function elem_init(elem::SeepJoint1D)
         push!(elem.cache_B, B)
         push!(elem.cache_detJ, detJ)
     end
+
     return nothing
 end
 
 function mountB(elem::SeepJoint1D, R, Ch, Ct)
-    ndim = elem.env.ndim
     hook = elem.linked_elems[1]
     bar  = elem.linked_elems[2]
     nnodes  = length(elem.nodes)
     nbnodes = length(bar.nodes)
-    nsnodes = length(hook.nodes)
     D = bar.shape.deriv(R)
     J = D*Ct
 
@@ -57,12 +57,19 @@ function mountB(elem::SeepJoint1D, R, Ch, Ct)
     N = bar.shape.func(R)
     NN = transpose(N)
 
+    # Babuška-Brezzi condition
+    hookshape = hook.shape
+    hook_uw_dofs = get_dofs(hook, :uw)
+    if length(hook.nodes)!=length(hook_uw_dofs) 
+        hookshape = hook.shape.basic_shape
+    end
+
     # Mount MM matrix
     stack = Array{Float64,1}[]
     for i=1:nbnodes
         Xj = bar.nodes[i].X
         R  = inverse_map(hook.shape, Ch, Xj)
-        M  = hook.shape.func(R)
+        M  = hookshape.func(R)
         push!(stack, M)
     end
 
@@ -75,13 +82,14 @@ function mountB(elem::SeepJoint1D, R, Ch, Ct)
 end
 
 function elem_conductivity_matrix(elem::SeepJoint1D)
-    ndim = elem.env.ndim
     nnodes = length(elem.nodes)
     hook = elem.linked_elems[1]
     bar  = elem.linked_elems[2]
     h    = elem.mat.h
+    map_w = [ dof.eq_id for dof in elem.uw_dofs ]
+    nuwnodes = length(map_w)
 
-    H  = zeros(nnodes, nnodes)
+    H  = zeros(nuwnodes, nuwnodes)
 
     for (i,ip) in enumerate(elem.ips)
         Bp   = elem.cache_B[i]
@@ -91,20 +99,17 @@ function elem_conductivity_matrix(elem::SeepJoint1D)
         H -= coef*Bp'*Bp
     end
 
-    map_w = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
-
     return H, map_w, map_w, elem.nodes
 end
 
 function elem_internal_forces(elem::SeepJoint1D, F::Array{Float64,1})
-    ndim = elem.env.ndim
-    nnodes = length(elem.nodes)
     hook = elem.linked_elems[1]
     bar  = elem.linked_elems[2]
-    dFw  = zeros(nnodes)
     h    = elem.mat.h
 
-    map_w = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
+    map_w = [ dof.eq_id for dof in elem.uw_dofs ]
+    nuwnodes = length(map_w)
+    dFw  = zeros(nuwnodes)
 
     for (i,ip) in enumerate(elem.ips)
         Bp   = elem.cache_B[i]
@@ -120,19 +125,18 @@ function elem_internal_forces(elem::SeepJoint1D, F::Array{Float64,1})
 end
 
 function elem_update!(elem::SeepJoint1D, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
-    ndim = elem.env.ndim
-    nnodes = length(elem.nodes)
     hook = elem.linked_elems[1]
     bar  = elem.linked_elems[2]
     h    = elem.mat.h
 
-    map_w  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
+    map_w = [ dof.eq_id for dof in elem.uw_dofs ]
+    nuwnodes = length(map_w)
 
     dUw = DU[map_w] # nodal pore-pressure increments
-    Uw  = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes ]
+    Uw  = [ dof.vals[:uw] for dof in elem.uw_dofs ]
     Uw += dUw # nodal pore-pressure at step n+1
 
-    dFw = zeros(nnodes)
+    dFw = zeros(nuwnodes)
 
     for (i,ip) in enumerate(elem.ips)
 

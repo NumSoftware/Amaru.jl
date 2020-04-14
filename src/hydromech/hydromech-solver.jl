@@ -67,6 +67,10 @@ function hm_mount_global_matrices(dom::Domain, ndofs::Int, Δt::Float64)
 
             # Assembling RHS components
             Uw = [ dof.vals[:uw] for node in elem.nodes for dof in node.dofs if dof.name==:uw ]
+            #@show Uw
+            #@show H
+            #@show elem.shape.name
+            #@show elem.nodes[end].dofs
             RHS[rmap] -= Δt*(H*Uw)
         end
 
@@ -153,19 +157,20 @@ function complete_uw_h(dom::Domain)
     haskey(dom.point_data, "uw") || return
     Uw = dom.point_data["uw"]
     H  = dom.point_data["h"]
-    for ele in dom.elems
-        ele.shape.family==SOLID_SHAPE || continue
-        ele.shape==ele.shape.basic_shape && continue
-        npoints = ele.shape.npoints
-        nbpoints = ele.shape.basic_shape.npoints
-        map = [ ele.nodes[i].id for i=1:nbpoints ]
+
+    for elem in dom.elems
+        elem.shape.family==SOLID_SHAPE || continue
+        elem.shape==elem.shape.basic_shape && continue
+        npoints  = elem.shape.npoints
+        nbpoints = elem.shape.basic_shape.npoints
+        map = [ elem.nodes[i].id for i=1:nbpoints ]
         Ue = Uw[map]
         He = H[map]
-        C = ele.shape.nat_coords
+        C = elem.shape.nat_coords
         for i=nbpoints+1:npoints
-            id = ele.nodes[i].id
+            id = elem.nodes[i].id
             R = C[i,:]
-            N = ele.shape.basic_shape.func(R)
+            N = elem.shape.basic_shape.func(R)
             Uw[id] = dot(N,Ue)
             H[id] = dot(N,He)
         end
@@ -215,6 +220,8 @@ function hm_solve!(
                    silent    :: Bool    = false,
                   )
 
+    #@show dom.elems[1].nodes[end].dofs
+
     verbosity = 1
     verbose && (verbosity=2)
     silent && (verbosity=0)
@@ -224,7 +231,9 @@ function hm_solve!(
     env.cinc    = 0
     env.transient = true
 
+    # Arguments checking
     if !isnan(end_time)
+        end_time > env.t || error("hm_solve! : end_time ($end_time) is greater that current time ($(env.t))")
         time_span = end_time - env.t
     end
 
@@ -234,10 +243,8 @@ function hm_solve!(
         sw = StopWatch() # timing
     end
 
-    # Arguments checking
     silent && (verbose=false)
-
-    tol>0 || error("solve! : tolerance should be greater than zero")
+    tol>0 || error("hm_solve! : tolerance should be greater than zero")
 
     save_incs = nouts>0
     if save_incs
@@ -251,7 +258,7 @@ function hm_solve!(
         end
 
         strip(outdir) == "" && (outdir = ".")
-        isdir(outdir) || error("solve!: output directory <$outdir> not fount")
+        isdir(outdir) || error("hm_solve!: output directory <$outdir> not fount")
         outdir[end] in ('/', '\\')  && (outdir = outdir[1:end-1])
     end
 
