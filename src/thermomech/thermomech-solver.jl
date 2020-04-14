@@ -147,6 +147,7 @@ end
 function complete_ut_T(dom::Domain)
     haskey(dom.point_data, "ut") || return
     Ut = dom.point_data["ut"]
+
     for elem in dom.elems
         elem.shape.family==SOLID_SHAPE || continue
         elem.shape==elem.shape.basic_shape && continue
@@ -200,6 +201,7 @@ function tm_solve!(
                    autoinc   :: Bool    = false,
                    maxincs   :: Int     = 1000000,
                    tol       :: Number  = 1e-2,
+                   Ttol      :: Number  = 1e-9,
                    scheme    :: Symbol  = :FE,
                    nouts     :: Int     = 0,
                    outdir    :: String  = "",
@@ -217,7 +219,9 @@ function tm_solve!(
     env.cinc    = 0
     env.transient = true
 
+    # Arguments checking
     if !isnan(end_time)
+        end_time > env.t || error("tm_solve! : end_time ($end_time) is greater that current time ($(env.t))")
         time_span = end_time - env.t
     end
 
@@ -227,6 +231,7 @@ function tm_solve!(
         sw = StopWatch() # timing
     end
 
+    silent && (verbose=false)
     tol>0 || error("solve! : tolerance should be greater than zero")
 
     save_incs = nouts>0
@@ -287,7 +292,6 @@ function tm_solve!(
     T  = 0.0
     ΔT = 1.0/nincs       # initial ΔT value
     ΔT_bk = 0.0
-    Ttol = 1e-9          # time tolerance
 
     ΔTout = 1.0/nouts    # output time increment for saving output file
     Tout  = ΔTout        # output time for saving the next output file
