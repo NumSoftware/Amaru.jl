@@ -3,7 +3,7 @@ using Test
 
 printstyled("\nShape extrapolation\n", color=:blue, bold=true)
 
-for shape in ALL_SHAPES
+for shape in ALL_ISO_SHAPES
     println("shape : ", shape.name)
     C = shape.nat_coords
     n = shape.npoints

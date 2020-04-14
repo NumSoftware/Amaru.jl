@@ -3,7 +3,7 @@ using Test
 
 printstyled("\nShape functions\n", color=:blue, bold=true)
 
-for shape in ALL_SHAPES
+for shape in ALL_ISO_SHAPES
     print("shape : ", shape.name)
     n  = shape.npoints
     ndim = shape.ndim
@@ -29,7 +29,7 @@ end
 
 printstyled("\nShape functions derivatives\n", color=:blue, bold=true)
 
-for shape in ALL_SHAPES
+for shape in ALL_ISO_SHAPES
     print("shape : ", shape.name)
     n    = shape.npoints
     ndim = shape.ndim

@@ -56,14 +56,17 @@ FILES = [
     "mech/dynamic/dyn-solid.jl",
 
     # Hydromechanical analysis:
-    "hydromech/drain.jl",
-    "hydromech/drain-solid.jl",
     "hydromech/seep.jl",
     "hydromech/cutoff.jl",
     "hydromech/terzaghi.jl",
     "hydromech/terzaghi-joint.jl",
+    "hydromech/drain.jl",
+    "hydromech/drain-solid.jl",
+    "hydromech/hm-drain.jl",
 
     # Thermomechanical analysis:
+    "thermomech/thermo.jl",
+    "thermomech/thermomech.jl",
    ]
 
 

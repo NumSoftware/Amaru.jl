@@ -1,15 +1,15 @@
 using Amaru
 
-# Geometria
-Lrocha    = 30.00;
-Hrocha    = 15.00;
+# Geometry
+Lrock    = 30.00;
+Hrock    = 15.00;
 Lgap      = 0.50;
 Hgap      = 8.00;
 
 blocks = [
-    Block( [0 0; (Lrocha/2-Lgap/2) Hrocha], nx=14, ny=15, cellshape=QUAD8, tag="solids"),
-    Block( [(Lrocha/2-Lgap/2) 0; (Lrocha/2+Lgap/2) (Hrocha-Hgap)], nx=1, ny=7, cellshape=QUAD8, tag="solids"),
-    Block( [(Lrocha/2+Lgap/2) 0; Lrocha Hrocha], nx=14, ny=15, cellshape=QUAD8, tag="solids"),
+    Block( [0 0; (Lrock/2-Lgap/2) Hrock], nx=14, ny=15, cellshape=QUAD8, tag="solids"),
+    Block( [(Lrock/2-Lgap/2) 0; (Lrock/2+Lgap/2) (Hrock-Hgap)], nx=1, ny=7, cellshape=QUAD8, tag="solids"),
+    Block( [(Lrock/2+Lgap/2) 0; Lrock Hrock], nx=14, ny=15, cellshape=QUAD8, tag="solids"),
 ]
 
 mesh  = Mesh(blocks, silent=true)
@@ -29,8 +29,8 @@ dom = Domain(mesh, mats, gammaw=10.0)
 
 # Boundary conditions
 bcs = [
-       :(x<=$Lrocha/2 && y==$Hrocha) => FaceBC(uw=10*gw),
-       :(x>=$Lrocha/2 && y==$Hrocha) => FaceBC(uw=0),
+       :(x<=$Lrock/2 && y==$Hrock) => FaceBC(uw=10*gw),
+       :(x>=$Lrock/2 && y==$Hrock) => FaceBC(uw=0),
       ]
 
 # Solving

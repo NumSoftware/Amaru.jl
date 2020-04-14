@@ -39,10 +39,9 @@ tm_solve!(dom, bcs, end_time=10000.0, tol=0.1, nincs=5, verbose=false)
 
 if Amaru.config.makeplots
     using PyPlot
-    save(log1, "book.dat")
 
     book = log1.book
-    for (i,table) in enumerate(book.tables)
+    for (i,table) in enumerate(log1.book.tables)
         plot(table[:ut], table[:y], "-o")
     end
 end
