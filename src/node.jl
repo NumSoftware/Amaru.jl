@@ -145,7 +145,7 @@ end
 =#
 
 
-function nodes_dof_vals(node::Node)
+function get_data(node::Node)
     table = DTable()
     dict = OrderedDict{Symbol,Float64}(:id=> node.id)
     for dof in node.dofs
@@ -155,7 +155,7 @@ function nodes_dof_vals(node::Node)
     return table
 end
 
-function nodes_dof_vals(nodes::Array{Node,1})
+function get_data(nodes::Array{Node,1})
     table = DTable()
     for node in nodes
         dict = OrderedDict{Symbol,Float64}(:id=> node.id)

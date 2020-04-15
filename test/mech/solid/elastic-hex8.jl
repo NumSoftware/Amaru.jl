@@ -66,7 +66,7 @@ for (ana, bcs, dis) in zip(ana_list, bcs_list, dis_list)
     solve!(dom, bcs, nincs=1, nouts=1, verbose=false)
 
     println("Displacements:")
-    D = nodes_dof_vals(dom.nodes)[[:ux, :uy, :uz]]
+    D = get_data(dom.nodes)[[:ux, :uy, :uz]]
     println(D)
 
     @test dis ≈ D[:uz] atol=1e-5
@@ -76,7 +76,7 @@ for (ana, bcs, dis) in zip(ana_list, bcs_list, dis_list)
     println(S)
 
     println("Support reactions:")
-    F = nodes_dof_vals(dom.nodes[:(z==0)])[[:fx, :fy, :fz]]
+    F = get_data(dom.nodes[:(z==0)])[[:fx, :fy, :fz]]
     println(F)
 end
 

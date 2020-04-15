@@ -29,11 +29,12 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8, QUAD9)
     uy = top_node.dofdict[:uy].vals[:uy]
     @test [ux, uy] ≈ dis atol=4e-2
 
-    println( nodes_dof_vals(dom.nodes[:(y==1)][1]) )
+    println( get_data(dom.nodes[:(y==1)][1]) )
 
 end
 
-for shape in (TET4, TET10, HEX8, HEX20)
+#for shape in (TET4, TET10, HEX8, HEX20, HEX27)
+for shape in (TET4, TET10, HEX8, HEX20, HEX27)
     printstyled(shape.name, color=:cyan); println()
     bl = Block( [0 0 0; 1 1 1], nx=2, ny=2, nz=2, cellshape=shape, tag="solids")
     mesh = Mesh(bl, silent=true)
@@ -58,7 +59,8 @@ for shape in (TET4, TET10, HEX8, HEX20)
     top_node = dom.nodes[:(z==1)][1]
     uy = top_node.dofdict[:uy].vals[:uy]
     uz = top_node.dofdict[:uz].vals[:uz]
-    @test [uy, uz] ≈ dis atol=1e-2
 
-    println( nodes_dof_vals(dom.nodes[:(z==1)][1]) )
+    println( get_data(dom.nodes[:(z==1)][1]) )
+
+    @test [uy, uz] ≈ dis atol=1e-2
 end

@@ -551,7 +551,7 @@ function MakeHEX20()
     shape.edge_idxs   = edge_idxs_HEX20
     shape.facet_shape = QUAD8
     shape.nat_coords  = coords_HEX20
-    shape.quadrature  = Dict( 0 => HEX_IP3, 8 => HEX_IP2, 27 => HEX_IP3 )
+    shape.quadrature  = Dict( 0 => HEX_IP2, 8 => HEX_IP2, 27 => HEX_IP3 ) # Note: Reduced integration may produce spurius modes
     shape.func        = shape_func_HEX20
     shape.deriv       = shape_deriv_HEX20
     return shape
@@ -816,7 +816,7 @@ function MakeHEX27()
     shape.edge_idxs   = edge_idxs_HEX27
     shape.facet_shape = QUAD9
     shape.nat_coords  = coords_HEX27
-    shape.quadrature  = Dict( 0 => HEX_IP2, 8 => HEX_IP2, 27 => HEX_IP3 )
+    shape.quadrature  = Dict( 0 => HEX_IP3, 8 => HEX_IP2, 27 => HEX_IP3 ) # Note: Reduced integration may produce spurius modes
     shape.func        = shape_func_HEX27
     shape.deriv       = shape_deriv_HEX27
     return shape

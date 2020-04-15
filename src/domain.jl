@@ -20,6 +20,7 @@ Creates an `Domain` object based on a Mesh object `mesh` and represents the geom
 
 """
 mutable struct Domain<:AbstractDomain
+    mesh::Mesh
     nodes::Array{Node,1}
     elems::Array{Element,1}
     faces::Array{Face,1}
@@ -804,6 +805,13 @@ function save_dom_json(dom::AbstractDomain, filename::String; verbose=true)
 end
 
 
+#function Base.convert(::Type{Mesh}, dom::AbstractDomain)
+    #merge!(dom.mesh.point_data, dom.point_data)
+    #merge!(dom.mesh.cell_data , dom.cell_data)
+    #return dom.mesh
+#end
+
+
 function Base.convert(::Type{Mesh}, dom::AbstractDomain)
     mesh = Mesh()
     mesh.ndim = dom.env.ndim
@@ -828,55 +836,6 @@ function Base.convert(::Type{Mesh}, dom::AbstractDomain)
 
     merge!(mesh.point_data, dom.point_data)
     merge!(mesh.cell_data , dom.cell_data)
-
-    # Get node and elem values
-    #=
-    node_vals, node_labels, elem_vals, elem_labels = get_node_and_elem_vals(dom)
-    nncomps = length(node_labels)
-    necomps = length(elem_labels)
-
-    # Write vectors
-    if :ux in node_labels
-        ux_idx = findfirst(isequal(:ux), node_labels)
-        uy_idx = findfirst(isequal(:uy), node_labels)
-        uz_idx = findfirst(isequal(:uz), node_labels)
-        if uz_idx!=nothing
-            U = node_vals[:, [ux_idx, uy_idx, uz_idx]]
-        elseif uy_idx!=nothing
-            U = hcat( node_vals[:, [ux_idx, uy_idx]], zeros(npoints) )
-        else
-            U = hcat( node_vals[:, [ux_idx]], zeros(npoints), zeros(npoints) )
-        end
-        mesh.point_data["U"] = U
-    end
-
-    if :vx in node_labels
-        vx_idx = findfirst(isequal(:vx), node_labels)
-        vy_idx = findfirst(isequal(:vy), node_labels)
-        vz_idx = findfirst(isequal(:vz), node_labels)
-        if vz_idx!=nothing
-            V = node_vals[:, [vx_idx, vy_idx, vz_idx]]
-        elseif vy_idx!=nothing
-            V = hcat( node_vals[:, [vx_idx, vy_idx]], zeros(npoints) )
-        else
-            V = hcat( node_vals[:, [vx_idx]], zeros(npoints), zeros(npoints) )
-        end
-        mesh.point_data["V"] = V
-    end
-
-    # Write nodal scalar data
-    for i=1:nncomps
-        field = string(node_labels[i])
-        mesh.point_data[field] = node_vals[:,i]
-    end
-
-
-    # Write elem scalar data
-    for i=1:necomps
-        field = string(elem_labels[i])
-        mesh.cell_data[field] = elem_vals[:,i]
-    end
-    =#
 
     return mesh
 end

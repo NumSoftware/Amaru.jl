@@ -60,7 +60,7 @@ mutable struct IpLogger<:AbstractLogger
         return new(filename, :(), DTable())
     end
 
-    IpLogger(ip::Ip, filename::String="") = new(:(), ip, filename, DTable())
+    #IpLogger(ip::Ip, filename::String="") = new(:(), ip, filename, DTable())
 end
 
 
@@ -243,49 +243,109 @@ function update_logger!(logger::IpGroupLogger, env::ModelEnv)
 end
 
 
-# Function to create loggers
-# ==========================
+# Logger for a point
+# ==================
 
 
-#Logger(node::Node, filename::String="") = NodeLogger(node, filename)
-#Logger(ip::Ip, filename::String="") = IpLogger(ip, filename)
-#Logger(facet::Facet, filename::String="") = FacetLogger([facet], filename)
-#Logger(facets::Array{<:Facet,1}, filename::String="") = FacetLogger(facets, filename)
-#GroupLogger(nodes::Array{Node,1}, filename::String=""; by::Function=identity)=NodeGroupLogger(nodes, filename, by)
-#GroupLogger(ips::Array{Ip,1}, filename::String=""; by::Function=identity)=IpGroupLogger(ips, filename, by)
+mutable struct PointLogger<:AbstractLogger
+    filename ::String
+    filter   ::Array{Float64,1}
+    table    ::DTable
+    elem     ::Element
+    R        ::Array{Float64,2}
 
-#Logger(::Array{Node,1}, args...) = error("Logger: use GroupLogger function to log a group of nodes.")
-#Logger(::Array{Ip,1}, args...)   = error("Logger: use GroupLogger function to log a group of ips.")
+    # logger = [  X1 => PointLogger()  ]
+    # logger = [  [1,2,3] => PointLogger()  ]
 
-#=
-function Logger(applyto::Symbol, target::Union{Expr, String}, filename="")
-    available = (:node, :ip, :face, :edge)
-    applyto in available || error("Logger: applyto shoud be one of $available. got :$applyto")
-
-    typeof(target)<:String && (target = :(isequal(tag, $target)))
-
-    if applyto==:node
-        return NodeLogger(target, filename)
-    elseif applyto==:ip
-        return IpLogger(target, filename)
-    else
-        return FacetLogger(applyto, target, filename)
+    function PointLogger(filename::String="", n=20)
+        return new(filename, ([0,0,0],[0,0,0]), DBook(), n, [], [])
     end
 end
 
-function GroupLogger(applyto::Symbol, target::Union{Expr, String}, filename=""; by::Function=identity)
-    available = (:node, :ip)
-    applyto in available || error("GroupLogger: applyto shoud be one of $available. got :$applyto")
 
-    typeof(target)<:String && (target = :(isequal(tag, $target)))
+function setup_logger!(domain, filter, logger::PointLogger)
+    logger.filter = filter
+    X = filter
+    # find cell and R
+    mesh = domain.mesh
+    cell = find_cell(X, msh.cells, msh.cellpartition, 1e-7, Cell[])
+    coords = getcoords(cell)
+    logger.R = inverse_map(cell.shape, coords, X)
+    logger.elem = domain.elems[cell.id]
+end
 
-    if applyto==:node
-        return NodeGroupLogger(target, filename)
-    else
-        return IpGroupLogger(target, filename)
+
+function update_logger!(logger::PointLogger, env::ModelEnv)
+    data  = domain.point_data
+    X = logger.filter
+    map = [ n.id for n in logger.elem.nodes ]
+    vals = OrderedDict()
+    for (k,V) in data
+        vals[k] = dot(V[map], N)
+    end
+    push!(logger.table, vals)
+    save(logger)
+end
+
+
+# Logger for a segment
+# ====================
+
+
+mutable struct SegmentLogger<:AbstractLogger
+    filename ::String
+    filter   ::Tuple{Array{Float64,1},Array{Float64,1}}
+    book     ::DBook
+    n        ::Int # resolution
+    elems    ::Array{Element,1}
+    Rs       ::Array{Float64,2}
+
+    # logger = [  (X1,X2) => SegmentLogger()  ]
+    # logger = [  ([1,2,3],[1,2,3]) => SegmentLogger()  ]
+
+    function SegmentLogger(filename::String="", n=20)
+        return new(filename, ([0,0,0],[0,0,0]), DBook(), n, [], [])
     end
 end
-=#
+
+
+function setup_logger!(domain, filter, logger::SegmentLogger)
+    logger.filter = filter
+    X1, X2 = filter
+    Xs = X1 .+ (X2.-X1)*range(0,1,length=logger.n)
+    # find cell and R
+    mesh = domain.mesh
+    for X in Xs
+        cell = find_cell(X, msh.cells, msh.cellpartition, 1e-7, Cell[])
+        coords = getcoords(cell)
+        R = inverse_map(cell.shape, coords, X)
+        elem = domain.elems[cell.id]
+        push!(logger.elems, elem)
+        push!(logger.Rs, R)
+    end
+end
+
+function update_logger!(logger::SegmentLogger, env::ModelEnv)
+    data  = domain.point_data
+    table = DTable(["s"; collect(keys(data))])
+    table = DTable()
+    X1, X2 = logger.filter
+    Δs = norm(X2-X1)/(logger.n-1)
+    s1 = 0.0
+    for (elem,R) in zip(logger.elems,logger.Rs)
+        s = s1 + Δs*(i-1)
+        map = [ n.id for n in elem.nodes ]
+        vals = [ s ]
+        for (k,V) in data
+            val = dot(V[map], N)
+            push!(vals, val)
+        end
+        push!(table, vals)
+    end
+
+    push!(logger.book, table)
+    save(logger)
+end
 
 
 # Functions to save loggers

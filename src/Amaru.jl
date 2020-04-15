@@ -48,7 +48,7 @@ include("model-env.jl")
 export ModelEnv
 
 include("node.jl")
-export Node, Dof, add_dof, nodes_dof_vals
+export Node, Dof, add_dof, get_data
 
 include("ip.jl")
 export Ip, ip_vals, maximum, minimum, sort
