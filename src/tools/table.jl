@@ -336,9 +336,9 @@ function save(book::DataBook, filename::String; verbose::Bool=true)
 end
 
 
-function loadtable(filename::String, delim='\t')
+function DataTable(filename::String, delim='\t')
     format = split(filename, ".")[end]
-    format != "dat" && error("loadtable: filename should have \"dat\" extension")
+    format != "dat" && error("DataTable: filename should have \"dat\" extension")
 
     if format=="dat"
         matrix, headstr = readdlm(filename, delim, header=true, use_mmap=false)
@@ -348,10 +348,10 @@ function loadtable(filename::String, delim='\t')
 end
 
 
-function loadbook(filename::String)
+function DataBook(filename::String)
     delim = "\t"
     format = split(filename, ".")[end]
-    format != "dat" && error("loadbook: filename should have \"dat\" extension")
+    format != "dat" && error("DataBook: filename should have \"dat\" extension")
 
     f      = open(filename, "r")
     book   = DataBook()
@@ -373,15 +373,14 @@ function loadbook(filename::String)
                 continue
             end
 
-            length(book.tables) == 0 && error("loadbook: Wrong file format. Use loadtable() to read a table")
+            length(book.tables) == 0 && error("DataBook: Wrong file format. Use DataTable(filename) to read a table")
             row = []
             for item in items
                 try
                     char1 = item[1]
                     isnumeric(char1) || char1 in ('+','-') ?  push!(row, Meta.parse(item)) : push!(row, item)
-                    #isnumeric(item[1]) ?  push!(row, Meta.parse(item)) : push!(row, item)
                 catch err
-                    @error "loadbook: Error while reading value '$item' at line $i"
+                    @error "DataBook: Error while reading value '$item' at line $i"
                     throw(err)
                 end
             end
@@ -393,8 +392,9 @@ function loadbook(filename::String)
     return book
 end
 
-DataTable(filename::String, delim='\t') = loadtable(filename, delim)
-DataBook(filename::String) = loadbook(filename)
+# Functions for backwards compatibility
+loadtable(filename::String, delim='\t') = DataTable(filename, delim)
+loadbook(filename::String) = DataBook(filename)
 
 # TODO: Improve display. Include column datatype
 function Base.show(io::IO, table::DataTable)
