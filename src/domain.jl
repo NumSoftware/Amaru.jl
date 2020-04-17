@@ -142,16 +142,20 @@ function Domain(
 
     # Shared analysis data
     ndim = mesh.ndim
-    dom.env = ModelEnv()
-    dom.env.ndim = ndim
-    dom.env.modeltype = modeltype
-    dom.env.thickness = thickness
-    dom.env.t = 0.0
+    env = ModelEnv()
+    dom.env = env
+    env.ndim = ndim
+    env.modeltype = modeltype
+    env.thickness = thickness
+    env.t = 0.0
 
     # Saving extra parameters
     for (k,v) in params
-        typeof(v) <: Number && ( dom.env.params[k] = v )
+        typeof(v) <: Number && ( env.params[k] = v )
     end
+
+    # Save a mesh reference
+    dom.mesh = mesh
 
     verbosity>0 && printstyled("Domain setup:\n", bold=true, color=:cyan)
 
@@ -186,7 +190,7 @@ function Domain(
             end
 
             conn = [ p.id for p in cell.points ]
-            elem = new_element(etype, cell, dom.nodes[conn], dom.env, cell.tag)
+            elem = new_element(etype, cell, dom.nodes[conn], env, cell.tag)
 
             elem.id = cell.id
             elem.mat = mat
@@ -275,7 +279,7 @@ end
 """
     setloggers!(domain, loggers)
 
-Register each logger from the array `loggers` in `domain`.
+Register the loggers from the array `loggers` into `domain`.
 
 """
 #function setloggers!(dom::Domain, logger::Union{AbstractLogger, Array{<:AbstractLogger,1}})
@@ -290,7 +294,19 @@ end
 
 
 # Function for updating loggers
-update_loggers!(domain::Domain) = update_logger!.(domain.loggers, Ref(domain.env))
+#update_loggers!(domain::Domain) = update_logger!.(domain.loggers, Ref(domain.env))
+
+function update_single_loggers!(domain::Domain)
+    for logger in domain.loggers
+        isa(logger, SingleLogger) && update_logger!(logger, domain)
+    end
+end
+
+function update_composed_loggers!(domain::Domain)
+    for logger in domain.loggers
+        isa(logger, ComposedLogger) && update_logger!(logger, domain)
+    end
+end
 
 function get_segment_data(dom::Domain, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=200)
     mesh = convert(Mesh, dom)
@@ -860,3 +876,36 @@ function datafields(dom::Domain)
     mesh = convert(Mesh, dom)
     return datafields(mesh)
 end
+
+#=
+function get_segment_data(dom::Domain, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=50)
+    msh = dom.mesh
+    data = dom.point_data
+    table = DTable(["s"; collect(keys(data))])
+    X1 = [X1; 0.0][1:3]
+    X2 = [X2; 0.0][1:3]
+    Δ = (X2-X1)/(npoints-1)
+    Δs = norm(Δ)
+    s1 = 0.0
+
+    for i=1:npoints
+        X = X1 + Δ*(i-1)
+        s = s1 + Δs*(i-1)
+        cell = find_cell(X, msh.cells, msh._cellpartition, 1e-7, Cell[])
+        coords = getcoords(cell)
+        R = inverse_map(cell.shape, coords, X)
+        N = cell.shape.func(R)
+        map = [ p.id for p in cell.points ]
+        vals = [ s ]
+        for (k,V) in data
+            val = dot(V[map], N)
+            push!(vals, val)
+        end
+        push!(table, vals)
+    end
+
+    filename != "" && save(table, filename)
+
+    return table
+end
+=#
