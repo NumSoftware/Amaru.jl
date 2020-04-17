@@ -393,6 +393,9 @@ function loadbook(filename::String)
     return book
 end
 
+DataTable(filename::String, delim='\t') = loadtable(filename, delim)
+DataBook(filename::String) = loadbook(filename)
+
 # TODO: Improve display. Include column datatype
 function Base.show(io::IO, table::DataTable)
     if length(table.columns)==0
