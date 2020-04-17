@@ -1,5 +1,5 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
-#
+
 export Xdoc, Xnode
 
 mutable struct Xnode
@@ -11,8 +11,11 @@ mutable struct Xnode
     function Xnode(name::AbstractString, attributes::AbstractDict=Dict{String,String}())
         return new(name, OrderedDict(attributes), Xnode[], "")
     end
-    function Xnode(name::AbstractString, attributes::AbstractDict, children::Array, content::AbstractString)
+    function Xnode(name::AbstractString, attributes::AbstractDict, children::Array, content::AbstractString="")
         return new(name, OrderedDict(attributes), children, content)
+    end
+    function Xnode(name::AbstractString, attributes::AbstractDict, content::AbstractString)
+        return new(name, OrderedDict(attributes), Xnode[], content)
     end
     function Xnode(name::AbstractString, content::AbstractString)
         return new(name, OrderedDict{String,String}(), Xnode[], content)
@@ -22,6 +25,8 @@ end
 haschildren(node::Xnode) = length(node.children)>0
 
 # Get a node from a nested sequence of names
+# If in a query there are more than one node with the 
+# same name, the last one is considered.
 function (node::Xnode)(args::String...)
     n = node
     for s in args
@@ -50,7 +55,7 @@ function Base.getindex(node::Xnode, s::String)
 end
 
 
-# Get a list of all nodes with a given attribute
+# Get a list of all nodes with a given attribute and value (att=>val)
 function Base.getindex(node::Xnode, p::Pair{String,String})
     nodes = Xnode[]
     att = p.first
@@ -203,3 +208,85 @@ function save(doc::Xdoc, filename::String)
 
     close(f)
 end
+
+
+export to_xml_node
+const Xsingletype = Union{Number,Bool,AbstractString,Char,Symbol}
+
+
+function to_xml_node(arr::Array{<:Any}, name::String="Array", attributes::AbstractDict=Dict{String,String}())
+    if eltype(arr) <: Xsingletype
+        attributes["format"] = "ascii"
+        attributes["type"] = string(eltype(arr))
+        attributes["components"] = string(size(arr,2))
+        if length(arr)>0
+            str = repr("text/plain", arr)
+            content = str[findfirst('\n',str)+2 : end]
+        else
+            content = ""
+        end
+
+        return Xnode(name, attributes, content)
+    end
+
+    attributes["type"] = string(eltype(arr))
+    children = Xnode[]
+    for item in arr
+        push!( children, to_xml_node(item) )
+    end
+
+    return Xnode(name, attributes, children)
+end
+
+
+function to_xml_node(dict::AbstractDict, name::String="Dict", attributes::AbstractDict=Dict{String,String}())
+    vty = valtype(dict)
+    s = string(typeof(dict))
+    s = split(s,".")[end]
+    attributes["type"] = s
+
+    children = [ 
+                to_xml_node(collect(keys(dict)), "keys"),
+                to_xml_node(collect(values(dict)), "values")
+               ]
+    #children = Xnode[]
+    #for (k,v) in dict
+        #if typeof(v) <: Xsingletype
+            #push!(children, Xnode(string(k), string(v)))
+        #else
+            #push!(children, Xnode(string(k), Dict(), [to_xml_node(v)]))
+        #end
+    #end
+
+    return Xnode(name, attributes, children)
+
+end
+
+
+function to_xml_node(obj::Any, name::String=""; skip::Array{Symbol,1}=Symbol[])
+    name=="" && (name=string(typeof(obj)))
+    attributes::AbstractDict=Dict{String,String}()
+    children = Xnode[]
+    ty = typeof(obj)
+    fields = fieldnames(ty)
+    types  = fieldtypes(ty)
+
+    for (fld,ty) in zip(fields,types)
+        fld in skip && continue
+        fld_str = string(fld)
+        fld_str[1] == '_' && continue
+
+        value = getfield(obj, fld)
+
+        if ty<:Xsingletype
+            attributes[string(fld)] = string(value)
+        else
+            push!(children, to_xml_node(value, fld_str))
+        end
+    end
+
+    return Xnode(name, attributes, children)
+    
+end
+
+
