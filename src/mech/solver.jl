@@ -59,7 +59,6 @@ function mount_K_threads(dom::Domain, ndofs::Int)
         end
 
     end
-    #@show IDs
 
     R = reduce(vcat, Rs)
     C = reduce(vcat, Cs)
@@ -162,6 +161,8 @@ subjected to a set of boundary conditions `bcs`.
 
 `tol     = 1e-2` : Tolerance for the maximum absolute error in forces vector
 
+`Ttol     = 1e-9` : Pseudo-time tolerance
+
 `scheme  = :FE` : Predictor-corrector scheme at each increment. Available schemes are `:FE` and `:ME`
 
 `nouts   = 0` : Number of output files per analysis
@@ -171,6 +172,8 @@ subjected to a set of boundary conditions `bcs`.
 `filekey = ""` : File key for output files
 
 `verbose = true` : If true, provides information of the analysis steps
+
+`silent = false` : If true, no information is printed
 """
 function solve!(
                 dom     :: Domain,
@@ -180,6 +183,7 @@ function solve!(
                 autoinc :: Bool    = false,
                 maxincs :: Int     = 1000000,
                 tol     :: Number  = 1e-2,
+                Ttol    :: Number  = 1e-9,
                 scheme  :: Symbol  = :FE,
                 nouts   :: Int     = 0,
                 outdir  :: String  = "",
@@ -188,27 +192,27 @@ function solve!(
                 silent  :: Bool    = false,
                )
 
+    # Arguments checking
     verbosity = 1
     verbose && (verbosity=2)
     silent && (verbosity=0)
 
+    tol>0 || error("solve! : tolerance should be greater than zero")
+    Ttol>0 || error("solve! : tolerance `Ttol `should be greater than zero")
+
     env = dom.env
     env.cstage += 1
     env.cinc    = 0
+    sw = StopWatch() # timing
 
-    if !silent
+    if verbosity==0
         printstyled("Mechanical FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
-        sw = StopWatch() # timing
     end
 
-    # Arguments checking
-    silent && (verbose=false)
+    verbosity>0 && println("  model type: ", env.modeltype)
 
-    tol>0 || error("solve! : tolerance should be greater than zero")
-    silent || println("  model type: ", env.modeltype)
-
-    save_incs = nouts>0
-    if save_incs
+    save_outs = nouts>0
+    if save_outs
         if nouts>nincs
             nincs = nouts
             @info "  nincs changed to $nincs to match nouts"
@@ -244,10 +248,11 @@ function solve!(
     end
 
     # Save initial file and loggers
-    update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
-    if env.cstage==1 && save_incs
+    if env.cstage==1
         update_output_data!(dom)
-        save(dom, "$outdir/$filekey-0.vtu", silent=silent)
+        update_single_loggers!(dom)
+        update_composed_loggers!(dom)
+        save_outs && save(dom, "$outdir/$filekey-0.vtu", silent=silent)
     end
 
     # Get the domain current state and backup
@@ -256,11 +261,10 @@ function solve!(
 
     # Incremental analysis
     T  = 0.0
-    ΔT = 1.0/nincs # initial ΔT value
+    ΔT = 1.0/nincs       # initial ΔT value
     ΔT_bk = 0.0
-    Ttol = 1e-9          # time tolerance
 
-    ΔTout = 1.0/nouts  # output time increment for saving output file
+    ΔTout = 1.0/nouts    # output time increment for saving output file
     Tout  = ΔTout        # output time for saving the next output file
 
     inc  = 0             # increment counter
@@ -278,12 +282,8 @@ function solve!(
         elem_internal_forces(elem, Fin)
     end
     Fex .-= Fin # add negative forces to external forces vector
-    #@show Fin
-    #@show Fex
 
     local K::SparseMatrixCSC{Float64,Int64}
-
-    #remountK = true
 
     while T < 1.0 - Ttol
         # Update counters
@@ -311,14 +311,11 @@ function solve!(
         nfails    = 0  # counter for iteration fails
         for it=1:maxits
             if it>1; ΔUi .= 0.0 end # essential values are applied only at first iteration
-            #if it>1; remountK=true end
             lastres = residue # residue from last iteration
 
             # Try FE step
-            verbose && print("    assembling... \r")
-            #remountK && (K = mount_K(dom, ndofs))
+            verbosity>1 && print("    assembling... \r")
             K = mount_K(dom, ndofs)
-            #K = mount_K_threads(dom, ndofs)
 
             # Solve
             verbosity>1 && print("    solving...   \r")
@@ -369,7 +366,7 @@ function solve!(
                 @printf(" residue: %-10.4e\n", residue)
             end
 
-            if residue < tol;        converged = true ; remountK=false; break end
+            if residue < tol;        converged = true ; break end
             if isnan(residue);       converged = false; break end
             if it > maxits;          converged = false; break end
             if residue > 0.9*lastres;  nfails += 1 end
@@ -378,8 +375,8 @@ function solve!(
 
         if converged
             # Update forces and displacement for the current stage
-            F .+= ΔFin
             U .+= ΔUa
+            F .+= ΔFin
 
             # Backup converged state at ips
             copyto!.(StateBk, State)
@@ -390,16 +387,17 @@ function solve!(
                 dof.vals[dof.natname] += ΔFin[i]
             end
 
-            update_loggers!(dom) # Tracking nodes, ips, elements, etc.
+            update_single_loggers!(dom)
 
             # Update time
             T += ΔT
 
             # Check for saving output file
-            if abs(T - Tout) < Ttol && save_incs
+            if abs(T - Tout) < Ttol && save_outs
                 env.cout += 1
                 iout = env.cout
                 update_output_data!(dom)
+                update_composed_loggers!(dom)
                 save(dom, "$outdir/$filekey-$iout.vtu", silent=silent)
                 Tout += ΔTout # find the next output time
             end
@@ -440,12 +438,14 @@ function solve!(
         end
     end
 
-    update_output_data!(dom)
+    if !save_outs
+        update_output_data!(dom)
+        update_composed_loggers!(dom)
+    end
 
     # time spent
     verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress 100%\033[K\n", bold=true, color=:blue) # color 111
     verbosity==1 && println("  time spent: ", see(sw, format=:hms), "\033[K")
-
     getlapse(sw)>60 && sound_alert()
 
     return true

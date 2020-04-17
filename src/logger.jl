@@ -4,12 +4,14 @@
 # =========================
 
 abstract type AbstractLogger end
+abstract type SingleLogger<:AbstractLogger end
+abstract type ComposedLogger<:AbstractLogger end
 
 
 # Node logger
 # ===========
 
-mutable struct NodeLogger<:AbstractLogger
+mutable struct NodeLogger<:SingleLogger
     filename ::String
     filter   ::Union{Symbol,String,Expr}
     table    ::DTable
@@ -18,13 +20,10 @@ mutable struct NodeLogger<:AbstractLogger
     function NodeLogger(filename::String="")
         return new(filename, :(), DTable())
     end
-
-    #NodeLogger(node::Node, filename::String="") = new(:(), node, filename, DTable())
 end
 
 function setup_logger!(domain, filter, logger::NodeLogger)
     logger.filter = filter
-    #logger.filter==:() && return
     nodes = domain.nodes[filter]
     n = length(nodes)
     n == 0 && @warn "setup_logger: No nodes found for expression:" filter=logger.filter
@@ -34,12 +33,11 @@ function setup_logger!(domain, filter, logger::NodeLogger)
     return nothing
 end
 
-function update_logger!(logger::NodeLogger, env::ModelEnv)
+function update_logger!(logger::NodeLogger, domain)
     isdefined(logger, :node) || return
 
     vals = node_vals(logger.node)
-    env.transient && (vals[:t] = env.t)
-    #env.transient && (vals = OrderedDict(:t=>env.t, vals...))
+    domain.env.transient && (vals[:t] = domain.env.t)
     push!(logger.table, vals)
 
     save(logger)
@@ -50,7 +48,7 @@ end
 # =========
 
 
-mutable struct IpLogger<:AbstractLogger
+mutable struct IpLogger<:SingleLogger
     filename ::String
     filter   ::Union{Symbol,String,Expr}
     table    ::DTable
@@ -59,8 +57,6 @@ mutable struct IpLogger<:AbstractLogger
     function IpLogger(filename::String="")
         return new(filename, :(), DTable())
     end
-
-    #IpLogger(ip::Ip, filename::String="") = new(:(), ip, filename, DTable())
 end
 
 
@@ -76,10 +72,11 @@ function setup_logger!(domain, filter, logger::IpLogger)
 end
 
 
-function update_logger!(logger::IpLogger, env::ModelEnv)
+function update_logger!(logger::IpLogger, domain)
     isdefined(logger, :ip) || return
+
     vals = ip_vals(logger.ip)
-    env.transient && (vals[:t] = env.t)
+    domain.env.transient && (vals[:t] = domain.env.t)
 
     push!(logger.table, vals)
     save(logger)
@@ -90,8 +87,7 @@ end
 # ==========================
 
 
-abstract type FacetLogger<:AbstractLogger
-end
+abstract type FacetLogger<:SingleLogger end
 
 
 mutable struct FaceLogger<:FacetLogger
@@ -122,7 +118,6 @@ end
 
 function setup_logger!(domain, filter, logger::FaceLogger)
     logger.filter = filter
-    #logger.filter==:() && return
     logger.faces = domain.faces[logger.filter]
     length(logger.faces) == 0 && @warn "setup_logger: No faces found for expression:" filter=logger.filter
     logger.nodes = logger.faces[:nodes]
@@ -131,14 +126,13 @@ end
 
 function setup_logger!(domain, filter, logger::EdgeLogger)
     logger.filter = filter
-    #logger.filter==:() && return
     logger.edges = domain.edges[logger.filter]
     length(logger.edges) == 0 && @warn "setup_logger: No edges found for expression:" filter=logger.filter
     logger.nodes = logger.edges[:nodes]
 end
 
 
-function update_logger!(logger::FacetLogger, env::ModelEnv)
+function update_logger!(logger::FacetLogger, domain)
     length(logger.nodes)==0 && return
 
     tableU = DTable()
@@ -155,7 +149,7 @@ function update_logger!(logger::FacetLogger, env::ModelEnv)
     valsU = OrderedDict( key => mean(tableU[key]) for key in keys(tableU) ) # gets the average of essential values
     valsF = OrderedDict( key => sum(tableF[key])  for key in keys(tableF) ) # gets the sum for each component
     vals  = merge(valsU, valsF)
-    env.transient && (vals[:t] = env.t)
+    domain.env.transient && (vals[:t] = domain.env.t)
 
     push!(logger.table, vals)
     save(logger)
@@ -166,7 +160,7 @@ end
 # ===========================
 
 
-mutable struct NodeGroupLogger<:AbstractLogger
+mutable struct NodeGroupLogger<:ComposedLogger
     filename ::String
     filter   ::Union{Symbol,String,Expr}
     book     ::DBook
@@ -179,7 +173,6 @@ end
 
 
 function setup_logger!(domain, filter, logger::NodeGroupLogger)
-    #logger.filter==:() && return
     logger.nodes = domain.nodes[filter]
     length(logger.nodes) == 0 && @warn "setup_logger: No nodes found for expression:" filter=logger.filter
     sort!(logger.nodes, by=n->sum(n.X))
@@ -187,7 +180,7 @@ function setup_logger!(domain, filter, logger::NodeGroupLogger)
 end
 
 
-function update_logger!(logger::NodeGroupLogger, env::ModelEnv)
+function update_logger!(logger::NodeGroupLogger, domain)
     length(logger.nodes) == 0 && return
 
     table = DTable()
@@ -203,7 +196,7 @@ end
 # =========================
 
 
-mutable struct IpGroupLogger<:AbstractLogger
+mutable struct IpGroupLogger<:ComposedLogger
     filename ::String
     filter   ::Union{Symbol,String,Expr}
     book     ::DBook
@@ -211,26 +204,19 @@ mutable struct IpGroupLogger<:AbstractLogger
 
     function IpGroupLogger(filename::String="")
         return new(filename, :(), DBook(), [])
-        #typeof(filter)<:String && ( filter=:(isequal(tag,$filter)) )
-        #new(filter, Array{Ip,1}(), filename, by, DBook())
     end
-    #function IpGroupLogger(ips::Array{Ip,1}, filename::String=""; by::Function=identity)
-        #new(:(), ips, filename, by, DBook())
-    #end
 end
 
 
 function setup_logger!(domain, filter, logger::IpGroupLogger)
     logger.filter = filter
-    #logger.filter==:() && return
     logger.ips = domain.elems[:ips][logger.filter]
     length(logger.ips)==0 && @warn "setup_logger: No ips found for expression:" filter=logger.filter
-    #logger.by != identity && sort!(logger.ips, by=logger.by)
     sort!(logger.ips, by=ip->sum(ip.X))
 end
 
 
-function update_logger!(logger::IpGroupLogger, env::ModelEnv)
+function update_logger!(logger::IpGroupLogger, domain)
     length(logger.ips) == 0 && return
 
     table = DTable()
@@ -247,42 +233,46 @@ end
 # ==================
 
 
-mutable struct PointLogger<:AbstractLogger
+mutable struct PointLogger<:ComposedLogger
     filename ::String
     filter   ::Array{Float64,1}
     table    ::DTable
     elem     ::Element
-    R        ::Array{Float64,2}
+    R        ::Array{Float64,1}
 
     # logger = [  X1 => PointLogger()  ]
     # logger = [  [1,2,3] => PointLogger()  ]
 
     function PointLogger(filename::String="", n=20)
-        return new(filename, ([0,0,0],[0,0,0]), DBook(), n, [], [])
+        return new(filename, [0,0,0], DTable())
     end
 end
 
 
 function setup_logger!(domain, filter, logger::PointLogger)
+    filter isa Array{<:Number,1} || error("setup_logger!: Cannot set PointLogger. Filter should be a coordinates array.")
     logger.filter = filter
     X = filter
     # find cell and R
     mesh = domain.mesh
-    cell = find_cell(X, msh.cells, msh.cellpartition, 1e-7, Cell[])
-    coords = getcoords(cell)
-    logger.R = inverse_map(cell.shape, coords, X)
+    cell = find_cell(X, mesh.cells, mesh._cellpartition, 1e-7, Cell[])
+    cell==nothing && error("setup_logger!: Cannot set PointLogger. Coordinate ($X) outside mesh.")
+    logger.R = inverse_map(cell, X)
     logger.elem = domain.elems[cell.id]
 end
 
 
-function update_logger!(logger::PointLogger, env::ModelEnv)
+function update_logger!(logger::PointLogger, domain)
     data  = domain.point_data
     X = logger.filter
+    N = logger.elem.shape.func(logger.R)
     map = [ n.id for n in logger.elem.nodes ]
     vals = OrderedDict()
     for (k,V) in data
+        size(V,2)==1 || continue
         vals[k] = dot(V[map], N)
     end
+    domain.env.transient && (vals[:t] = domain.env.t)
     push!(logger.table, vals)
     save(logger)
 end
@@ -292,13 +282,13 @@ end
 # ====================
 
 
-mutable struct SegmentLogger<:AbstractLogger
+mutable struct SegmentLogger<:ComposedLogger
     filename ::String
     filter   ::Tuple{Array{Float64,1},Array{Float64,1}}
     book     ::DBook
     n        ::Int # resolution
     elems    ::Array{Element,1}
-    Rs       ::Array{Float64,2}
+    Rs       ::Array{Array{Float64,1},1}
 
     # logger = [  (X1,X2) => SegmentLogger()  ]
     # logger = [  ([1,2,3],[1,2,3]) => SegmentLogger()  ]
@@ -312,11 +302,14 @@ end
 function setup_logger!(domain, filter, logger::SegmentLogger)
     logger.filter = filter
     X1, X2 = filter
-    Xs = X1 .+ (X2.-X1)*range(0,1,length=logger.n)
-    # find cell and R
+    Δ = (X2-X1)/(logger.n-1)
+    Xs = [ X1.+ Δ*i for i=0:logger.n-1]
+
+    # find cells and Rs
     mesh = domain.mesh
     for X in Xs
-        cell = find_cell(X, msh.cells, msh.cellpartition, 1e-7, Cell[])
+        cell = find_cell(X, mesh.cells, mesh._cellpartition, 1e-7, Cell[])
+        cell==nothing && error("setup_logger!: Cannot set SegmentLogger. Coordinate ($X) outside mesh.")
         coords = getcoords(cell)
         R = inverse_map(cell.shape, coords, X)
         elem = domain.elems[cell.id]
@@ -325,22 +318,25 @@ function setup_logger!(domain, filter, logger::SegmentLogger)
     end
 end
 
-function update_logger!(logger::SegmentLogger, env::ModelEnv)
+
+function update_logger!(logger::SegmentLogger, domain)
     data  = domain.point_data
-    table = DTable(["s"; collect(keys(data))])
-    table = DTable()
+    labels = [ k for (k,V) in data if size(V,2)==1 ]
+    table = DTable(["s"; labels])
     X1, X2 = logger.filter
     Δs = norm(X2-X1)/(logger.n-1)
-    s1 = 0.0
+    s = 0.0
     for (elem,R) in zip(logger.elems,logger.Rs)
-        s = s1 + Δs*(i-1)
+        N = elem.shape.func(R)
         map = [ n.id for n in elem.nodes ]
         vals = [ s ]
         for (k,V) in data
+            size(V,2)==1 || continue
             val = dot(V[map], N)
             push!(vals, val)
         end
         push!(table, vals)
+        s += Δs
     end
 
     push!(logger.book, table)

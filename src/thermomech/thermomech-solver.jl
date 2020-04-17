@@ -171,25 +171,44 @@ end
 """
     tm_solve!(D, bcs, options...) -> Bool
 
-Performs one stage finite element analysis of a domain `D`
-subjected to an array of boundary conditions `bcs`.
+Performs one stage finite element thermo-mechanical analysis of a `domain`
+subjected to a list of boundary conditions `bcs`.
 
-Available options are:
+# Arguments
 
-`verbose=true` : If true, provides information of the analysis steps
+`dom` : A finite element domain
 
-`tol=1e-2` : Tolerance for the absolute error in forces
+`bcs` : Array of boundary conditions given as an array of pairs ( location => condition)
 
-`nincs=1` : Number of increments
+# Keyword arguments
 
-`autoinc=false` : Sets automatic increments size. The first increment size will be `1/nincs`
+`time_span = NaN` : Time lapse for the transient analysis in the current stage
 
-`maxits=5` : The maximum number of Newton-Rapson iterations per increment
+`end_time = NaN` : Final time for the transient analysis in the current stage
 
-`nouts=0` : Number of output files per analysis
+`nincs   = 1` : Number of increments
 
-`scheme= :FE` : Predictor-corrector scheme at iterations. Available schemes are `:FE` and `:ME`
+`maxits  = 5` : Maximum number of Newton-Rapson iterations per increment
 
+`autoinc = false` : Sets automatic increments size. The first increment size will be `1/nincs`
+
+`maxincs = 1000000` : Maximum number of increments
+
+`tol     = 1e-2` : Tolerance for the maximum absolute error in forces vector
+
+`Ttol     = 1e-9` : Pseudo-time tolerance
+
+`scheme  = :FE` : Predictor-corrector scheme at each increment. Available scheme is `:FE`
+
+`nouts   = 0` : Number of output files per analysis
+
+`outdir  = ""` : Output directory
+
+`filekey = ""` : File key for output files
+
+`verbose = true` : If true, provides information of the analysis steps
+
+`silent = false` : If true, no information is printed
 """
 function tm_solve!(
                    dom       :: Domain,
@@ -210,6 +229,7 @@ function tm_solve!(
                    silent    :: Bool    = false,
                   )
 
+    # Arguments checking
     verbosity = 1
     verbose && (verbosity=2)
     silent && (verbosity=0)
@@ -219,23 +239,25 @@ function tm_solve!(
     env.cinc    = 0
     env.transient = true
 
+    sw = StopWatch() # timing
+
     # Arguments checking
     if !isnan(end_time)
         end_time > env.t || error("tm_solve! : end_time ($end_time) is greater that current time ($(env.t))")
         time_span = end_time - env.t
     end
 
-    if !silent
+    if verbosity==0
         printstyled("Thermomechanical FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
-        println("  from t=$(round(env.t,digits=4)) to t=$(round(env.t+time_span,digits=3))")
-        sw = StopWatch() # timing
+        println("  from t=$(round(dom.env.t,digits=4)) to t=$(round(dom.env.t+time_span,digits=3))")
     end
 
-    silent && (verbose=false)
-    tol>0 || error("solve! : tolerance should be greater than zero")
+    tol>0 || error("hm_solve! : tolerance `tol `should be greater than zero")
+    Ttol>0 || error("hm_solve! : tolerance `Ttol `should be greater than zero")
+    verbosity>0 && println("  model type: ", env.modeltype)
 
-    save_incs = nouts>0
-    if save_incs
+    save_outs = nouts>0
+    if save_outs
         if nouts>nincs
             nincs = nouts
             @info "  nincs changed to $nincs to match nouts"
@@ -258,12 +280,6 @@ function tm_solve!(
     dom.ndofs = length(dofs)
     verbosity>0 && println("  unknown dofs: $nu")
 
-    # Get array with all integration points
-    ips = [ ip for elem in dom.elems for ip in elem.ips ]
-    # Get the domain current state and backup
-    State = [ ip.data for elem in dom.elems for ip in elem.ips ]
-    StateBk = copy.(State)
-
     # Save initial file and loggers
     if env.cstage==1
         # Setup initial quantities at dofs
@@ -275,14 +291,19 @@ function tm_solve!(
             end
         end
 
-        update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
         update_output_data!(dom) # Updates data arrays in domain
+        update_single_loggers!(dom)  # Tracking nodes, ips, elements, etc.
+        update_composed_loggers!(dom)
         complete_ut_T(dom)
 
-        if save_incs
+        if save_outs
             save(dom, "$outdir/$filekey-0.vtu", verbose=false)
         end
     end
+
+    # Get the domain current state and backup
+    State = [ ip.data for elem in dom.elems for ip in elem.ips ]
+    StateBk = copy.(State)
 
     # Incremental analysis
     t    = env.t     # current time
@@ -356,8 +377,8 @@ function tm_solve!(
         # Newton Rapshon iterations
         residue   = 0.0
         converged = false
-        maxfails  = 3    # maximum number of it. fails with residual change less than 90%
-        nfails    = 0    # counter for iteration fails
+        maxfails  = 3  # maximum number of it. fails with residual change less than 90%
+        nfails    = 0  # counter for iteration fails
         for it=1:maxits
             if it>1; ΔUi .= 0.0 end # essential values are applied only at first iteration
             lastres = residue # residue from last iteration
@@ -391,7 +412,7 @@ function tm_solve!(
             ΔUa .+= ΔUi
 
             # Residual vector for next iteration
-            R .= ΔFex - ΔFin
+            R = ΔFex - ΔFin
             R[pmap] .= 0.0  # zero at prescribed positions
 
             if verbosity>1
@@ -407,6 +428,7 @@ function tm_solve!(
         end
 
         if converged
+            # Update nodal natural and essential values for the current stage
             U .+= ΔUa
             F .+= ΔFin
             Uex .= UexN
@@ -424,17 +446,18 @@ function tm_solve!(
                 end
             end
 
-            update_loggers!(dom) # Tracking nodes, ips, elements, etc.
+            update_single_loggers!(dom) # Tracking nodes, ips, etc.
 
             # Update time
             t += Δt
             T += ΔT
 
             # Check for saving output file
-            if abs(T - Tout) < Ttol && save_incs
+            if abs(T - Tout) < Ttol && save_outs
                 env.cout += 1
                 iout = env.cout
                 update_output_data!(dom)
+                update_composed_loggers!(dom)
                 complete_ut_T(dom)
                 save(dom, "$outdir/$filekey-$iout.vtu", silent=silent)
                 Tout += ΔTout # find the next output time
@@ -475,17 +498,19 @@ function tm_solve!(
             end
         end
 
-        # Fix Δt according to ΔT
+        # Set Δt according to ΔT
         Δt = ΔT*time_span
+    end
+
+    if !save_outs
+	update_output_data!(dom)
+	complete_uw_h(dom)
+	update_composed_loggers!(dom)
     end
 
     # time spent
     verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress 100%\033[K\n", bold=true, color=:blue) # color 111
     verbosity==1 && println("  time spent: ", see(sw, format=:hms), "\033[K")
 
-    update_output_data!(dom)
-    save_incs || complete_ut_T(dom)
-
     return true
-
 end

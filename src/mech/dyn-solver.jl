@@ -174,11 +174,13 @@ subjected to a set of boundary conditions `bcs` and a time span.
 function dynsolve!(
                    dom       :: Domain,
                    bcs       :: Array;
-                   time_span :: Real    = 0.0,
+                   time_span :: Real    = NaN,
+                   end_time  :: Real    = NaN,
                    nincs     :: Int     = 1,
                    maxits    :: Int     = 5,
                    autoinc   :: Bool    = false,
                    tol       :: Number  = 1e-2,
+                   Ttol      :: Number  = 1e-9,
                    nouts     :: Int     = 0,
                    sism      :: Bool    = false,
                    tds       :: Float64 = 0.0,
@@ -192,25 +194,36 @@ function dynsolve!(
                    silent    :: Bool    = false,
                   )
 
+    # Arguments checking
+    verbosity = 1
+    verbose && (verbosity=2)
+    silent && (verbosity=0)
+
+    tol>0 || error("solve! : tolerance should be greater than zero")
+    Ttol>0 || error("solve! : tolerance `Ttol `should be greater than zero")
+
     env = dom.env
     env.cstage += 1
     env.cinc    = 0
+    sw = StopWatch() # timing
 
-    if !silent
+    if !isnan(end_time)
+        end_time > env.t || error("dynsolve!! : end_time ($end_time) is greater that current time ($(env.t))")
+        time_span = end_time - env.t
+    end
+    isnan(time_span) && error("dynsolve!: neither time_span nor end_time were set.")
+
+    verbosity>0 && println("  model type: ", env.modeltype)
+
+    if verbosity==0
         printstyled("Dynamic FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
-        sw = StopWatch() # timing
     end
 
-    # Arguments checking
-    silent && (verbose=false)
-
-    tol>0 || error("solve! : tolerance should be greater than zero")
+    tol>0 || error("solve! : tolerance should be greater than zero.")
     silent || println("  model type: ", env.modeltype)
 
-    time_span==0.0 && @warn "  time_span not set"
-
-    save_incs = nouts>0
-    if save_incs
+    save_outs = nouts>0
+    if save_outs
         if nouts>nincs
             nincs = nouts
             @info "  nincs changed to $nincs to match nouts"
@@ -242,10 +255,7 @@ function dynsolve!(
     umap  = 1:nu         # map for unknown displacements
     pmap  = nu+1:ndofs   # map for prescribed displacements
     dom.ndofs = length(dofs)
-    verbose && println("  unknown dofs: $nu")
-
-    # Get array with all integration points
-    ips = [ ip for elem in dom.elems for ip in elem.ips ]
+    verbosity>0 && println("  unknown dofs: $nu")
 
     # Setup quantities at dofs
     if env.cstage==1
@@ -297,9 +307,10 @@ function dynsolve!(
     end
 
     # Save initial file
-    if env.cstage==1 && save_incs
-        update_loggers!(dom)  # Tracking nodes, ips, elements, etc.
+    if env.cstage==1 && save_outs
         update_output_data!(dom)
+        update_single_loggers!(dom)
+        update_composed_loggers!(dom)
         save(dom, "$outdir/$filekey-0.vtu", verbose=false)
     end
 
@@ -342,7 +353,7 @@ function dynsolve!(
         end
 
         silent || printstyled("  stage $(env.cstage)  increment $inc from t=$(round(t,digits=10)) to t=$(round(t+dt,digits=10)) (dt=$(round(dt,digits=10)))\033[K\r", bold=true, color=:blue) # color 111
-        verbose && println()
+        verbosity>0 && println()
         #R   .= FexN - F    # residual
         Fex_Fin = Fex-Fina    # residual
         ΔUa .= 0.0
@@ -361,7 +372,7 @@ function dynsolve!(
             lastres = residue # residue from last iteration
 
             # Try FE step
-            verbose && print("    assembling K... \r")
+            verbosity>0 && print("    assembling K... \r")
             #remountK && (K = mount_K(dom, ndofs))
             K = mount_K(dom, ndofs)
 
@@ -370,11 +381,11 @@ function dynsolve!(
             ΔFp = Fex_Fin + M*(A + 4*V/dt + 4*(-ΔUa)/(dt^2)) + C*(V + (2*(-ΔUa)/dt))
 
             # Solve
-            verbose && print("    solving...   \r")
+            verbosity>0 && print("    solving...   \r")
             solve_system!(Kp, ΔUi, ΔFp, nu)
 
             # Update
-            verbose && print("    updating... \r")
+            verbosity>0 && print("    updating... \r")
 
             # Restore the state to last converged increment
             copyto!.(State, StateBk)
@@ -405,7 +416,7 @@ function dynsolve!(
             Fex_Fin .= Fex .- Fina  # Check this variable, it is not the residue actually
             Fex_Fin[pmap] .= 0.0  # Zero at prescribed positions
 
-            if verbose
+            if verbosity>0 
                 printstyled("    it $it  ", bold=true)
                 @printf(" residue: %-10.4e\n", residue)
             end
@@ -439,19 +450,18 @@ function dynsolve!(
                 dof.vals[as] = A[i]
             end
 
+            update_single_loggers!(dom)
 
             # Update time t and dt
             t   += dt
             dom.env.t = t
 
-            update_loggers!(dom) # Tracking nodes, ips, elements, etc.
-
             # Check for saving output file
-            if abs(t - T) < ttol && save_incs
+            if abs(t - T) < ttol && save_outs
                 env.cout += 1
                 iout = env.cout
-                #iout += 1
                 update_output_data!(dom)
+                update_composed_loggers!(dom)
                 save(dom, "$outdir/$filekey-$iout.vtu", verbose=false)
                 T += dT # find the next output time
             end
@@ -472,7 +482,7 @@ function dynsolve!(
             inc -= 1
 
             if autoinc
-                verbose && println("    increment failed.")
+                verbosity>0 && println("    increment failed.")
                 dt *= 0.5
                 dt = round(dt, digits=-ceil(Int, log10(dt))+3)  # round to 3 significant digits
                 if dt < ttol
@@ -486,10 +496,13 @@ function dynsolve!(
         end
     end
 
+    if !save_outs
+        update_output_data!(dom)
+        update_composed_loggers!(dom)
+    end
+
     # time spent
-    verbose && println("  time spent: ", see(sw, format=:hms))
+    verbosity==1 && println("  time spent: ", see(sw, format=:hms), "\033[K")
 
-    update_output_data!(dom)
     return true
-
 end
