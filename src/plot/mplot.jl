@@ -293,7 +293,7 @@ Plots a `mesh` using `PyPlot` backend. If `filename` is provided it writes a pdf
 
 `outlineangle  = 30` : Limit angle to identify main edges
 
-`figsize       = (4,2.5)` : Figure size
+`figsize       = (3,2.5)` : Figure size
 
 `leaveopen     = false` : If true, leaves the plot open so other drawings can be added
 """
@@ -324,7 +324,7 @@ function mplot(
                dist             = 10.0,
                outline          = true,
                outlineangle     = 30,
-               figsize          = (4,2.5),
+               figsize          = (3,2.5),
                leaveopen        = false,
                verbose          = true,
               )
@@ -344,12 +344,13 @@ function mplot(
         cell_data  = OrderedDict{String,Array}()
 
         # get surface cells and update
-        if haskey(mesh.point_data, "U") && haskey(mesh.point_data, "wn")
+        scells = get_surface(mesh.cells)
+        #if haskey(mesh.point_data, "U") && haskey(mesh.point_data, "wn")
             # special case when using cohesive elements
-            scells = get_surface_based_on_displacements(mesh)
-        else
-            scells = get_surface(mesh.cells)
-        end
+            #scells = get_surface_based_on_displacements(mesh)
+        #else
+            #scells = get_surface(mesh.cells)
+        #end
         oc_ids = [ c.ocell.id for c in scells ]
         linecells = [ cell for cell in mesh.cells if cell.shape.family==LINE_SHAPE] # add line cells
         append!(oc_ids, [c.id for c in linecells])
@@ -398,10 +399,12 @@ function mplot(
 
 
     # All points coordinates
-    if warpscale>0
-        found = haskey(point_data, "U")
-        found || error("mplot: vector field U not found for warp")
-        XYZ .+= warpscale.*point_data["U"]
+    if warpscale>0 
+        if haskey(point_data, "U")
+            XYZ .+= warpscale.*point_data["U"]
+        else
+            @warn "mplot: Vector field U not found for warp"
+        end
     end
     X = XYZ[:,1]
     Y = XYZ[:,2]
