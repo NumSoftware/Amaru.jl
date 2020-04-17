@@ -72,11 +72,11 @@ export NodeBC, FaceBC, EdgeBC, ElemBC
 
 include("logger.jl")
 export NodeLogger, IpLogger, FaceLogger, EdgeLogger, NodeGroupLogger, IpGroupLogger
+export PointLogger, SegmentLogger
 export update_logger!
 
 include("domain.jl")
 export Domain, SubDomain, reset!, setloggers!, datafields
-
 
 # Mechanical module
 include("mech/include.jl")
@@ -87,18 +87,16 @@ include("hydromech/include.jl")
 # Thermomechanical module
 include("thermomech/include.jl")
 
-# show function for Amaru types
-for datatype in (:Dof, :Node, :Ip, :IpState, :Element, :Material, :BC, :Facet, :AbstractLogger, :Domain)
-    eval( quote
-        function Base.show(io::IO, obj::$datatype)
-            print_field_values(io, obj)
-        end
-
-        function Base.show(io::IO, array::Array{<:$datatype,1})
-            print_array_values(io, array)
-        end
-    end )
-end
-
+# show function for FE related types
+Base.show(io::IO, obj::Dof) = custom_dump(io, obj, 2, "")
+Base.show(io::IO, obj::Node) = custom_dump(io, obj, 2, "")
+Base.show(io::IO, obj::Ip) = custom_dump(io, obj, 2, "")
+Base.show(io::IO, obj::IpState) = custom_dump(io, obj, 2, "")
+Base.show(io::IO, obj::Element) = custom_dump(io, obj, 2, "")
+Base.show(io::IO, obj::Material) = custom_dump(io, obj, 2, "")
+Base.show(io::IO, obj::BC) = custom_dump(io, obj, 2, "")
+Base.show(io::IO, obj::Facet) = custom_dump(io, obj, 2, "")
+Base.show(io::IO, obj::AbstractLogger) = custom_dump(io, obj, 2, "")
+Base.show(io::IO, obj::Domain) = custom_dump(io, obj, 2, "")
 
 end#module
