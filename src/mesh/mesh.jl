@@ -1,8 +1,5 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-#include("delaunay.jl")
-
-### Type Mesh
 """
     Mesh()
 
@@ -10,15 +7,15 @@ Constructs an unitialized mesh object to be used in finite element analyses.
 It contains geometric fields as: points, cells, faces, edges, ndim, quality, etc.
 """
 mutable struct Mesh
-    ndim   ::Int
-    points ::Array{Point,1}
-    cells  ::Array{Cell,1}
+    ndim  ::Int
+    points::Array{Point,1}
+    cells ::Array{Cell,1}
 
-    faces  ::Array{Cell,1}
-    edges  ::Array{Cell,1}
+    faces ::Array{Cell,1}
+    edges ::Array{Cell,1}
 
-    pointdict::Dict{UInt64,Point}
-    cellpartition::CellPartition
+    _pointdict::Dict{UInt64,Point}
+    _cellpartition::CellPartition
 
     # Data
     point_data::OrderedDict{String,Array}
@@ -27,12 +24,12 @@ mutable struct Mesh
     function Mesh()
         this = new()
         this.points = []
-        this.pointdict = Dict{UInt64, Point}()
+        this._pointdict = Dict{UInt64, Point}()
         this.cells  = []
         this.faces  = []
         this.edges  = []
         this.ndim   = 0
-        this.cellpartition = CellPartition()
+        this._cellpartition = CellPartition()
         this.point_data = OrderedDict()
         this.cell_data = OrderedDict()
         return this
@@ -50,7 +47,7 @@ function Base.copy(mesh::Mesh)
         c.points = newmesh.points[ids]
     end
 
-    newmesh.pointdict = Dict( k => newmesh.points[p.id] for (k,p) in mesh.pointdict )
+    newmesh._pointdict = Dict( k => newmesh.points[p.id] for (k,p) in mesh._pointdict )
     fixup!(newmesh)
     return newmesh
 end
@@ -386,7 +383,7 @@ function join_mesh!(m1::Mesh, m2::Mesh)
     # copy m1 to m
     #m.points = copy(m1.points)
     #m.cells  = copy(m1.cells)
-    #m.pointdict = copy(m1.pointdict)
+    #m._pointdict = copy(m1._pointdict)
 
     pid = length(m1.points)
     cid = length(m1.cells)
@@ -394,14 +391,14 @@ function join_mesh!(m1::Mesh, m2::Mesh)
     #@show length(m1.points)
     #@show length(m2.points)
 
-    #for (h,p) in m1.pointdict
+    #for (h,p) in m1._pointdict
         #@show (p.id, p.x, p.y, p.z)
     #end
 
     # Add new points from m2
     for p in m2.points
         hs = hash(p)
-        if !haskey(m1.pointdict, hs)
+        if !haskey(m1._pointdict, hs)
             #@show (p.x, p.y, p.z)
             pid += 1
             p.id = pid
@@ -415,13 +412,13 @@ function join_mesh!(m1::Mesh, m2::Mesh)
     for c in m2.cells
         for (i,p) in enumerate(c.points)
             hs = hash(p)
-            if haskey(m1.pointdict, hs)
-                pp = m1.pointdict[hs]
+            if haskey(m1._pointdict, hs)
+                pp = m1._pointdict[hs]
                 c.points[i] = pp
             else
                 # update pointdict dict
-                if haskey(m2.pointdict, hs)
-                    m1.pointdict[hs] = p
+                if haskey(m2._pointdict, hs)
+                    m1._pointdict[hs] = p
                 end
             end
         end
@@ -583,8 +580,6 @@ function Mesh(
 
     # Add field for embedded points
     if any( c.shape.family==JOINT1D_SHAPE for c in mesh.cells )
-        #mesh.cell_data["linked-host"] = [ c.shape.family==JOINT1D_SHAPE ? c.linked_cells[1].id : 0 for c in mesh.cells ]
-        #mesh.cell_data["linked-line"] = [ c.shape.family==JOINT1D_SHAPE ? c.linked_cells[2].id : 0 for c in mesh.cells ]
         ncells = length(mesh.cells)
         inset_data = zeros(Int, ncells, 3) # npoints, first link id, second link id
         for i=1:ncells
@@ -597,9 +592,6 @@ function Mesh(
         end
         mesh.cell_data["inset-data"] = inset_data
     end
-
-    #emb_points = [ c.shape.family==JOINT1D_SHAPE ? c.shape.npoints : 0 for c in mesh.cells ]
-    #sum(emb_points) > 0 && (mesh.cell_data["emb-points"]=emb_points)
 
     if verbosity>0
         npoints = length(mesh.points)
@@ -727,36 +719,36 @@ function threshold(mesh::Mesh, field::Union{Symbol,String}, minval::Float64, max
 end
 
 
-export get_segment_data
-function get_segment_data(msh::Mesh, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=200)
-    data = msh.point_data
-    table = DTable(["s"; collect(keys(data))])
-    X1 = [X1; 0.0][1:3]
-    X2 = [X2; 0.0][1:3]
-    Δ = (X2-X1)/(npoints-1)
-    Δs = norm(Δ)
-    s1 = 0.0
-
-    for i=1:npoints
-        X = X1 + Δ*(i-1)
-        s = s1 + Δs*(i-1)
-        cell = find_cell(X, msh.cells, msh.cellpartition, 1e-7, Cell[])
-        coords = getcoords(cell)
-        R = inverse_map(cell.shape, coords, X)
-        N = cell.shape.func(R)
-        map = [ p.id for p in cell.points ]
-        vals = [ s ]
-        for (k,V) in data
-            val = dot(V[map], N)
-            push!(vals, val)
-        end
-        push!(table, vals)
-    end
-
-    filename != "" && save(table, filename)
-
-    return table
-end
+#export get_segment_data
+#function get_segment_data(msh::Mesh, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=200)
+    #data = msh.point_data
+    #table = DTable(["s"; collect(keys(data))])
+    #X1 = [X1; 0.0][1:3]
+    #X2 = [X2; 0.0][1:3]
+    #Δ = (X2-X1)/(npoints-1)
+    #Δs = norm(Δ)
+    #s1 = 0.0
+#
+    #for i=1:npoints
+        #X = X1 + Δ*(i-1)
+        #s = s1 + Δs*(i-1)
+        #cell = find_cell(X, msh.cells, msh._cellpartition, 1e-7, Cell[])
+        #coords = getcoords(cell)
+        #R = inverse_map(cell.shape, coords, X)
+        #N = cell.shape.func(R)
+        #map = [ p.id for p in cell.points ]
+        #vals = [ s ]
+        #for (k,V) in data
+            #val = dot(V[map], N)
+            #push!(vals, val)
+        #end
+        #push!(table, vals)
+    #end
+#
+    #filename != "" && save(table, filename)
+#
+    #return table
+#end
 
 
 export randmesh

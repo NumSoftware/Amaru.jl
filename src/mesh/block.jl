@@ -132,10 +132,10 @@ function split_block(bl::Block, msh::Mesh)
                 p::Any = nothing
                 if i in (1, nx+1) || j in (1, ny+1)
                     C = round.(C, digits=8)
-                    p = get_point(msh.pointdict, C)
+                    p = get_point(msh._pointdict, C)
                     if p==nothing
                         p = Point(C); push!(msh.points, p)
-                        msh.pointdict[hash(p)] = p
+                        msh._pointdict[hash(p)] = p
                     end
                 else
                     p = Point(C);
@@ -172,10 +172,10 @@ function split_block(bl::Block, msh::Mesh)
                 p::Any = nothing
                 if i in (1, 2*nx+1) || j in (1, 2*ny+1)
                     C = round.(C, digits=8)
-                    p = get_point(msh.pointdict, C)
+                    p = get_point(msh._pointdict, C)
                     if p==nothing
                         p = Point(C); push!(msh.points, p)
-                        msh.pointdict[hash(p)] = p
+                        msh._pointdict[hash(p)] = p
                     end
                 else
                     p = Point(C); push!(msh.points, p)
@@ -221,10 +221,10 @@ function split_block(bl::Block, msh::Mesh)
                 p::Any = nothing
                 if i in (1, 3*nx+1) || j in (1, 3*ny+1)
                     C = round.(C, digits=8)
-                    p = get_point(msh.pointdict, C)
+                    p = get_point(msh._pointdict, C)
                     if p==nothing
                         p = Point(C); push!(msh.points, p)
-                        msh.pointdict[hash(p)] = p
+                        msh._pointdict[hash(p)] = p
                     end
                 else
                     p = Point(C); push!(msh.points, p)
@@ -268,10 +268,10 @@ function split_block(bl::Block, msh::Mesh)
                 p::Any = nothing
                 if i in (1, nx+1) || j in (1, ny+1)
                     C = round.(C, digits=8)
-                    p = get_point(msh.pointdict, C)
+                    p = get_point(msh._pointdict, C)
                     if p==nothing
                         p = Point(C); push!(msh.points, p)
-                        msh.pointdict[hash(p)] = p
+                        msh._pointdict[hash(p)] = p
                     end
                 else
                     p = Point(C); push!(msh.points, p)
@@ -318,10 +318,10 @@ function split_block(bl::Block, msh::Mesh)
                 p::Any = nothing
                 if i in (1, 2*nx+1) || j in (1, 2*ny+1)
                     C = round.(C, digits=8)
-                    p = get_point(msh.pointdict, C)
+                    p = get_point(msh._pointdict, C)
                     if p==nothing
                         p = Point(C); push!(msh.points, p)
-                        msh.pointdict[hash(p)] = p
+                        msh._pointdict[hash(p)] = p
                     end
                 else
                     p = Point(C); push!(msh.points, p)
@@ -366,10 +366,10 @@ function split_block(bl::Block, msh::Mesh)
                     p::Any = nothing
                     if i in (1, nx+1) || j in (1, ny+1) || k in (1, nz+1)
                         C = round.(C, digits=8)
-                        p = get_point(msh.pointdict, C)
+                        p = get_point(msh._pointdict, C)
                         if p==nothing
                             p = Point(C); push!(msh.points, p)
-                            msh.pointdict[hash(p)] = p
+                            msh._pointdict[hash(p)] = p
                         end
                     else
                         p = Point(C); push!(msh.points, p)
@@ -429,10 +429,10 @@ function split_block(bl::Block, msh::Mesh)
                     p::Any = nothing
                     if i in (1, 2*nx+1) || j in (1, 2*ny+1) || k in (1, 2*nz+1)
                         C = round.(C, digits=8)
-                        p = get_point(msh.pointdict, C)
+                        p = get_point(msh._pointdict, C)
                         if p==nothing
                             p = Point(C); push!(msh.points, p)
-                            msh.pointdict[hash(p)] = p
+                            msh._pointdict[hash(p)] = p
                         end
                     else
                         p = Point(C); push!(msh.points, p)

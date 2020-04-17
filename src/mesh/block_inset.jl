@@ -198,7 +198,7 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
     # Find the initial and final element
     ecells = Cell[]
     s0 = get_point(εn,coords,curvetype)
-    icell = find_cell(s0, msh.cells, msh.cellpartition, εc, ecells) # The first tresspased cell
+    icell = find_cell(s0, msh.cells, msh._cellpartition, εc, ecells) # The first tresspased cell
 
     if icell == nothing
         error("Inset point $(s0) outside the mesh")
@@ -318,7 +318,7 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
         end
 
         # Preparing for the next iteration
-        ncell  = find_cell(get_point(s + εn, coords, curvetype), msh.cells, msh.cellpartition, εc, [ccell])
+        ncell  = find_cell(get_point(s + εn, coords, curvetype), msh.cells, msh._cellpartition, εc, [ccell])
         if ncell == nothing
             error("Hole found while searching for next tresspassed cell")
         end

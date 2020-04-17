@@ -184,7 +184,7 @@ function bdistance(shape::ShapeType, R::Array{Float64,1})
 end
 
 
-function inverse_map(shape::ShapeType, coords::Array{Float64,2}, X0::Array{Float64,1}, Tol=1.0e-7)
+function inverse_map(shape::ShapeType, coords::Array{Float64,2}, X0::Array{Float64,1}, tol=1.0e-7)
     MAXIT = 20
     ndim  = shape.ndim
     R = zeros(ndim)
@@ -212,7 +212,7 @@ function inverse_map(shape::ShapeType, coords::Array{Float64,2}, X0::Array{Float
 
         # updating local coords R
         R -= ΔR
-        if norm(ΔX) < Tol; break end
+        if norm(ΔX) < tol; break end
     end
 
     # TODO: Improve accuracy of inverse_map function in elements with non regular shape
@@ -225,7 +225,7 @@ function inverse_map(shape::ShapeType, coords::Array{Float64,2}, X0::Array{Float
 end
 
 
-function is_inside(shape::ShapeType, C::Array{Float64,2}, X::Array{Float64,1}, Tol = 1.e-7)
+function is_inside(shape::ShapeType, C::Array{Float64,2}, X::Array{Float64,1}, tol = 1.e-7)
     if shape.family!=SOLID_SHAPE return false end
 
     # Testing with bounding box
@@ -240,8 +240,8 @@ function is_inside(shape::ShapeType, C::Array{Float64,2}, X::Array{Float64,1}, T
     end
 
     # Testing with inverse mapping
-    R = inverse_map(shape, C, X, Tol)
-    if bdistance(shape, R) > -Tol
+    R = inverse_map(shape, C, X, tol)
+    if bdistance(shape, R) > -tol
         return true
     else
         return false

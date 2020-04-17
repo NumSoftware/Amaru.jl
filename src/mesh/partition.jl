@@ -2,12 +2,12 @@
 
 
 mutable struct CellPartition
-    cellpartition::Array{Array{Cell,1},3}
+    partition::Array{Array{Cell,1},3}
     bbox::Array{Float64,2}
     lbin::Float64
     function CellPartition(nx=0, ny=0, nz=0, bbox=nothing)
         this = new()
-        this.cellpartition = Array{Array{Cell,1}}(undef, nx, nx, nx)
+        this.partition = Array{Array{Cell,1}}(undef, nx, nx, nx)
         this.bbox = zeros(0,0)
         # this.lbin = ..
         return this
@@ -21,7 +21,7 @@ function get_bin_cells(cellpartition::CellPartition, p::Point) # returns an arra
     ix = floor(Int, (p.x - minx)/lbin) + 1
     iy = floor(Int, (p.y - miny)/lbin) + 1
     iz = floor(Int, (p.z - minz)/lbin) + 1
-    return cellpartition.cellpartition[ix, iy, iz]
+    return cellpartition.partition[ix, iy, iz]
 end
 
 function add_cell(cellpartition::CellPartition, cell::Cell) # TODO: untested function
@@ -40,7 +40,7 @@ function add_cell(cellpartition::CellPartition, cell::Cell) # TODO: untested fun
     end
 
     for (ix, iy, iz) in cell_pos
-        push!(cellpartition.cellpartition[ix, iy, iz], cell)
+        push!(cellpartition.partition[ix, iy, iz], cell)
     end
 end
 
@@ -74,9 +74,9 @@ function build_bins(cells::Array{Cell,1}, cellpartition::CellPartition)
     nz = floor(Int, Lz/lbin) + 1
 
     # Allocate cellpartition
-    cellpartition.cellpartition = Array{Array{Cell,1}}(undef, nx, ny, nz)
+    cellpartition.partition = Array{Array{Cell,1}}(undef, nx, ny, nz)
     for k=1:nz, j=1:ny, i=1:nx
-        cellpartition.cellpartition[i,j,k] = Cell[]
+        cellpartition.partition[i,j,k] = Cell[]
     end
 
     # Fill cellpartition
@@ -93,7 +93,7 @@ function build_bins(cells::Array{Cell,1}, cellpartition::CellPartition)
         end
 
         for (ix, iy, iz) in cell_loc
-            push!(cellpartition.cellpartition[ix, iy, iz], cell)
+            push!(cellpartition.partition[ix, iy, iz], cell)
         end
     end
 end
@@ -105,7 +105,7 @@ function find_cell(X::Array{Float64,1}, cells::Array{Cell,1}, cellpartition::Cel
     lbin = cellpartition.lbin
 
     # Build cellpartition if empty
-    length(cellpartition.cellpartition) == 0 && build_bins(cells, cellpartition)
+    length(cellpartition.partition) == 0 && build_bins(cells, cellpartition)
 
     for attempt=1:2
         Cmin = reshape(cellpartition.bbox[1,:],3)
@@ -122,7 +122,7 @@ function find_cell(X::Array{Float64,1}, cells::Array{Cell,1}, cellpartition::Cel
         iz = floor(Int, (z - Cmin[3])/lbin) + 1
 
         # Search cell in bin
-        bin = cellpartition.cellpartition[ix, iy, iz]
+        bin = cellpartition.partition[ix, iy, iz]
         for cell in bin
             coords = getcoords(cell)
             if is_inside(cell.shape, coords, X, tol) && !(cell in exc_cells)

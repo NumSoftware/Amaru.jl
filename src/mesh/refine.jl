@@ -16,10 +16,10 @@ function hrefine(mesh::Mesh; n=2, verbose=true)
                     C = N'*coords
                     if i==1 || j==1 || i+j==n+2
                         C = round.(C, digits=8)
-                        p = get_point(msh.pointdict, C)
+                        p = get_point(msh._pointdict, C)
                         if p==nothing
                             p = Point(C); push!(msh.points, p)
-                            msh.pointdict[hash(p)] = p
+                            msh._pointdict[hash(p)] = p
                         end
                     else
                         p = Point(C); push!(msh.points, p)
@@ -65,11 +65,11 @@ function prefine(mesh::Mesh; n=2, verbose=true)
                 N = cell.shape.func(R)
                 C = coords'*N
                 C = round.(C, digits=8)
-                p = get_point(msh.pointdict, C)
+                p = get_point(msh._pointdict, C)
                 if p==nothing
                     p = Point(C);
                     push!(msh.points, p)
-                    msh.pointdict[hash(p)] = p
+                    msh._pointdict[hash(p)] = p
                 end
                 push!(points, p)
             end

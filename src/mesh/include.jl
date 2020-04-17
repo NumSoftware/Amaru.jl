@@ -40,16 +40,9 @@ include("split.jl")
 include("embedded.jl")
 export generate_embedded_cells!
 
-# show function for Amaru types
-#for datatype in (:ShapeType, :Point, :Cell, :Block, :Mesh, :UnstructuredGrid )
-for datatype in (:ShapeType, :Point, :Cell, :Block, :Mesh)
-    eval( quote
-        function Base.show(io::IO, obj::$datatype)
-            print_field_values(io, obj)
-        end
-
-        function Base.show(io::IO, array::Array{<:($datatype),1})
-            print_array_values(io, array)
-        end
-    end )
-end
+# show function for mesh related types
+Base.show(io::IO, obj::ShapeType) = custom_dump(io, obj, 2, "")
+Base.show(io::IO, obj::Point) = custom_dump(io, obj, 2, "")
+Base.show(io::IO, obj::Cell) = custom_dump(io, obj, 2, "")
+Base.show(io::IO, obj::Block) = custom_dump(io, obj, 2, "")
+Base.show(io::IO, obj::Mesh) = custom_dump(io, obj, 2, "")

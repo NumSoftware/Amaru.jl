@@ -453,3 +453,8 @@ function get_patches(cells::Array{Cell,1})
     return points, patches
 end
 
+
+function inverse_map(cell::Cell, X::Array{Float64,1}, tol=1.0e-7)
+    return inverse_map(cell.shape, getcoords(cell), X, tol)
+end
+
