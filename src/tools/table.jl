@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export DTable, DBook, push!, save, loadtable, loadbook
+export DTable, DBook, push!, save, loadtable, loadbook, randtable
 
 
 # DTable object
@@ -481,3 +481,6 @@ function Base.show(io::IO, book::DBook)
         k<n && print(io, str, "\n")
     end
 end
+
+
+randtable() = DTable(["A","B","C"], [0:10 rand().*(sin.(0:10).+(0:10)) rand().*(cos.(0:10).+(0:10)) ])
