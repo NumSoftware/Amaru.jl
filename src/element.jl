@@ -314,7 +314,7 @@ Returns a table with values from all ips in the element.
 This function can be specialized by concrete types.
 """
 function elems_ip_vals(elem::Element)
-    table = DTable()
+    table = DataTable()
     for ip in elem.ips
         D = ip_state_vals(elem.mat, ip.data)
         push!(table, D)

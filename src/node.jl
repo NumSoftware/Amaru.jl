@@ -146,7 +146,7 @@ end
 
 
 function get_data(node::Node)
-    table = DTable()
+    table = DataTable()
     dict = OrderedDict{Symbol,Float64}(:id=> node.id)
     for dof in node.dofs
         dict = merge(dict, dof.vals)
@@ -156,7 +156,7 @@ function get_data(node::Node)
 end
 
 function get_data(nodes::Array{Node,1})
-    table = DTable()
+    table = DataTable()
     for node in nodes
         dict = OrderedDict{Symbol,Float64}(:id=> node.id)
         for dof in node.dofs

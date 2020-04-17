@@ -4,13 +4,13 @@ export stress_update
 mutable struct MechIntegrator
     ipd::IpState
     mat::Material
-    table::DTable
+    table::DataTable
     function MechIntegrator(mat::Material)
         this = new()
         env = ModelEnv()
         this.ipd = ip_state_type(mat)(env)
         this.mat = mat
-        this.table = DTable()
+        this.table = DataTable()
         return this
     end
 end

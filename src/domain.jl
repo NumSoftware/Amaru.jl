@@ -881,7 +881,7 @@ end
 function get_segment_data(dom::Domain, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=50)
     msh = dom.mesh
     data = dom.point_data
-    table = DTable(["s"; collect(keys(data))])
+    table = DataTable(["s"; collect(keys(data))])
     X1 = [X1; 0.0][1:3]
     X2 = [X2; 0.0][1:3]
     Δ = (X2-X1)/(npoints-1)

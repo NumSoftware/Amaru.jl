@@ -722,7 +722,7 @@ end
 #export get_segment_data
 #function get_segment_data(msh::Mesh, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=200)
     #data = msh.point_data
-    #table = DTable(["s"; collect(keys(data))])
+    #table = DataTable(["s"; collect(keys(data))])
     #X1 = [X1; 0.0][1:3]
     #X2 = [X2; 0.0][1:3]
     #Δ = (X2-X1)/(npoints-1)

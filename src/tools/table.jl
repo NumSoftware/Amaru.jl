@@ -1,25 +1,25 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export DTable, DBook, push!, save, loadtable, loadbook, randtable
+export DataTable, DataBook, push!, save, loadtable, loadbook, randtable
 
 
-# DTable object
+# DataTable object
 const KeyType = Union{Symbol,AbstractString}
 #const ItemType  = Union{Int64,Float64,AbstractString}
 const ColType = Array{T,1} where T
 
-mutable struct DTable
+mutable struct DataTable
     columns ::Array{ColType,1}
     colindex::OrderedDict{String,Int} # Data index
     header::Array{String,1}
-    function DTable()
+    function DataTable()
         this = new()
         this.columns  = []
         this.colindex = OrderedDict()
         this.header   = []
         return this
     end
-    function DTable(header::Array)
+    function DataTable(header::Array)
         this = new()
         header = vec(header)
         this.columns  = [ [] for s in header ]
@@ -30,39 +30,39 @@ mutable struct DTable
 end
 
 
-function DTable(header::Array, columns::Array{<:ColType,1})
-    this      = DTable(header)
+function DataTable(header::Array, columns::Array{<:ColType,1})
+    this      = DataTable(header)
     nfields   = length(header)
     ncols     = length(columns)
-    nfields  != ncols && error("DTable: header and number of data columns do not match")
+    nfields  != ncols && error("DataTable: header and number of data columns do not match")
     this.columns = deepcopy(columns)
     return this
 end
 
 
-function DTable(header::Array, matrix::Array{T,2} where T)
-    this   = DTable(header)
+function DataTable(header::Array, matrix::Array{T,2} where T)
+    this   = DataTable(header)
     nkeys  = length(header)
     ncols  = size(matrix,2)
-    nkeys != ncols && error("DTable: header and number of data columns do not match")
+    nkeys != ncols && error("DataTable: header and number of data columns do not match")
     types = [ typeof(matrix[1,i]) for i=1:ncols ]
     this.columns = [ convert(Array{types[i],1}, matrix[:,i]) for i=1:ncols ]
     return this
 end
 
 
-mutable struct DBook
-    tables::Array{DTable, 1}
-    function DBook()
+mutable struct DataBook
+    tables::Array{DataTable, 1}
+    function DataBook()
         this = new()
-        this.tables = DTable[]
+        this.tables = DataTable[]
         return this
     end
 end
 
 
 import Base.push!
-function push!(table::DTable, row::Array{T,1} where T)
+function push!(table::DataTable, row::Array{T,1} where T)
     @assert length(table.colindex)==length(row)
 
     if length(table.columns[1])==0
@@ -75,15 +75,15 @@ function push!(table::DTable, row::Array{T,1} where T)
 end
 
 
-function push!(book::DBook, table::DTable)
+function push!(book::DataBook, table::DataTable)
     push!(book.tables, table)
 end
 
-function Base.keys(table::DTable)
+function Base.keys(table::DataTable)
     return keys(table.colindex)
 end
 
-function Base.push!(table::DTable, dict::AbstractDict)
+function Base.push!(table::DataTable, dict::AbstractDict)
     if length(table.columns)==0
         table.columns  = [ typeof(v)[v] for (k,v) in dict ]
         table.colindex = OrderedDict( string(key)=>i for (i,key) in enumerate(keys(dict)) )
@@ -114,17 +114,17 @@ function Base.push!(table::DTable, dict::AbstractDict)
     end
 end
 
-function Base.getindex(table::DTable, key::KeyType)
+function Base.getindex(table::DataTable, key::KeyType)
     return table.columns[table.colindex[string(key)]]
 end
 
-function Base.getindex(table::DTable, keys::Array{<:KeyType,1})
+function Base.getindex(table::DataTable, keys::Array{<:KeyType,1})
     columns = [ table[string(key)] for key in keys ]
-    subtable = DTable(keys, columns)
+    subtable = DataTable(keys, columns)
     return subtable
 end
 
-function Base.getindex(table::DTable, rowindex::Int, colon::Colon)
+function Base.getindex(table::DataTable, rowindex::Int, colon::Colon)
     row = []
     for j=1:length(table.header)
         push!(row, table.columns[j][rowindex])
@@ -133,21 +133,21 @@ function Base.getindex(table::DTable, rowindex::Int, colon::Colon)
     return row
 end
 
-function Base.lastindex(table::DTable, idx::Int)
-    length(table.columns)==0 && error("DTable: use of 'end' in an empty table")
+function Base.lastindex(table::DataTable, idx::Int)
+    length(table.columns)==0 && error("DataTable: use of 'end' in an empty table")
     return length(table.columns[1])
 end
 
-function Base.getindex(book::DBook, index::Int)
+function Base.getindex(book::DataBook, index::Int)
     return book.tables[index]
 end
 
-function Base.lastindex(book::DBook)
+function Base.lastindex(book::DataBook)
     return length(book.tables)
 end
 
 # TODO: Check this function
-function Base.iterate(book::DBook, state=(nothing,1) )
+function Base.iterate(book::DataBook, state=(nothing,1) )
     table, idx = state
     if idx<=length(book.tables)
         return (book.tables[idx], (book.tables[i+1], idx+1))
@@ -159,17 +159,17 @@ end
 sprintf(fmt, args...) = @eval @sprintf($fmt, $(args...))
 
 # TODO: Improve column width for string items
-#function save(table::DTable, filename::String; verbose::Bool=true, digits::Array{Int,1}=[])
-function save(table::DTable, filename::String; verbose::Bool=true, digits::Array=[])
+#function save(table::DataTable, filename::String; verbose::Bool=true, digits::Array{Int,1}=[])
+function save(table::DataTable, filename::String; verbose::Bool=true, digits::Array=[])
     suitable_formats = ("dat","tex")
     format = split(filename, ".")[end]
-    format in suitable_formats || error("save DTable: $format is not a suitable formats $suitable_formats")
+    format in suitable_formats || error("save DataTable: $format is not a suitable formats $suitable_formats")
 
     local f::IOStream
     try
         f  = open(filename, "w")
     catch err
-        @warn "DTable: File $filename could not be opened for writing."
+        @warn "DataTable: File $filename could not be opened for writing."
         return
     end
 
@@ -281,15 +281,15 @@ function save(table::DTable, filename::String; verbose::Bool=true, digits::Array
 end
 
 
-function save(book::DBook, filename::String; verbose::Bool=true)
+function save(book::DataBook, filename::String; verbose::Bool=true)
     format = split(filename, ".")[end]
-    format != "dat" && error("save DBook: filename should have \"dat\" extension")
+    format != "dat" && error("save DataBook: filename should have \"dat\" extension")
 
     local f::IOStream
     try
         f  = open(filename, "w")
     catch err
-        @warn "DBook: File $filename could not be opened for writing."
+        @warn "DataBook: File $filename could not be opened for writing."
         return
     end
 
@@ -299,7 +299,7 @@ function save(book::DBook, filename::String; verbose::Bool=true)
         str  = JSON.json(dict_arr, 4)
         print(f, str)
 
-        if verbose  printstyled("  file $filename written (DBook)\n", color=:cyan) end
+        if verbose  printstyled("  file $filename written (DataBook)\n", color=:cyan) end
     end
 
     if format=="dat"
@@ -342,7 +342,7 @@ function loadtable(filename::String, delim='\t')
 
     if format=="dat"
         matrix, headstr = readdlm(filename, delim, header=true, use_mmap=false)
-        table = DTable(strip.(headstr), matrix)
+        table = DataTable(strip.(headstr), matrix)
         return table
     end
 end
@@ -354,7 +354,7 @@ function loadbook(filename::String)
     format != "dat" && error("loadbook: filename should have \"dat\" extension")
 
     f      = open(filename, "r")
-    book   = DBook()
+    book   = DataBook()
     if format=="dat"
         lines = readlines(f)
         header_expected = false
@@ -368,7 +368,7 @@ function loadbook(filename::String)
             end
             if header_expected # add new table
                 header = [ key for key in split(line, delim) ]
-                push!(book.tables, DTable(header))
+                push!(book.tables, DataTable(header))
                 header_expected = false
                 continue
             end
@@ -394,16 +394,16 @@ function loadbook(filename::String)
 end
 
 # TODO: Improve display. Include column datatype
-function Base.show(io::IO, table::DTable)
+function Base.show(io::IO, table::DataTable)
     if length(table.columns)==0
-        print("DTable()")
+        print("DataTable()")
         return
     end
     nc = length(table.colindex)     # number of fields (columns)
     nr = length(table.columns[1])   # number of rows
 
     if nr==0
-        print("DTable()")
+        print("DataTable()")
         return
     end
 
@@ -470,8 +470,8 @@ function Base.show(io::IO, table::DTable)
 
 end
 
-function Base.show(io::IO, book::DBook)
-    print(io, "DBook (tables=$(length(book.tables))):\n")
+function Base.show(io::IO, book::DataBook)
+    print(io, "DataBook (tables=$(length(book.tables))):\n")
     n = length(book.tables)
     for (k,table) in enumerate(book.tables)
         # print table label
@@ -483,4 +483,4 @@ function Base.show(io::IO, book::DBook)
 end
 
 
-randtable() = DTable(["A","B","C"], [0:10 rand().*(sin.(0:10).+(0:10)) rand().*(cos.(0:10).+(0:10)) ])
+randtable() = DataTable(["A","B","C"], [0:10 rand().*(sin.(0:10).+(0:10)) rand().*(cos.(0:10).+(0:10)) ])

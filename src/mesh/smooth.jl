@@ -701,8 +701,8 @@ function fast_smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Floa
     dev  = stdm(Q, q)
     q1, q2, q3 = quantile(Q, [0.25, 0.5, 0.75])
 
-    stats = DTable()
-    hists = DTable()
+    stats = DataTable()
+    hists = DataTable()
     push!(stats, OrderedDict(:qavg=>q, :qmin=>qmin, :qmax=>qmax, :dev=>dev))
 
     hist  = fit(Histogram, Q, 0.0:bin:1.0, closed=:right).weights
@@ -862,8 +862,8 @@ function smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Float64=0
     dev  = stdm(Q, q)
     q1, q2, q3 = quantile(Q, [0.25, 0.5, 0.75])
 
-    stats = DTable()
-    hists = DTable()
+    stats = DataTable()
+    hists = DataTable()
     push!(stats, OrderedDict(:qavg=>q, :qmin=>qmin, :qmax=>qmax, :dev=>dev))
 
     hist  = fit(Histogram, Q, 0.0:bin:1.0, closed=:right).weights
@@ -1068,8 +1068,8 @@ function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, verbose::Bool=true, fixe
     dev  = stdm(Q, q)
     q1, q2, q3 = quantile(Q, [0.25, 0.5, 0.75])
 
-    stats = DTable()
-    hists = DTable()
+    stats = DataTable()
+    hists = DataTable()
     push!(stats, OrderedDict(:qavg=>q, :qmin=>qmin, :qmax=>qmax, :dev=>dev))
 
     hist  = fit(Histogram, Q, 0.0:bin:1.0, closed=:right).weights

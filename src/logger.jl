@@ -14,11 +14,11 @@ abstract type ComposedLogger<:AbstractLogger end
 mutable struct NodeLogger<:SingleLogger
     filename ::String
     filter   ::Union{Symbol,String,Expr}
-    table    ::DTable
+    table    ::DataTable
     node     ::Node
 
     function NodeLogger(filename::String="")
-        return new(filename, :(), DTable())
+        return new(filename, :(), DataTable())
     end
 end
 
@@ -51,11 +51,11 @@ end
 mutable struct IpLogger<:SingleLogger
     filename ::String
     filter   ::Union{Symbol,String,Expr}
-    table    ::DTable
+    table    ::DataTable
     ip       ::Ip
 
     function IpLogger(filename::String="")
-        return new(filename, :(), DTable())
+        return new(filename, :(), DataTable())
     end
 end
 
@@ -93,12 +93,12 @@ abstract type FacetLogger<:SingleLogger end
 mutable struct FaceLogger<:FacetLogger
     filename ::String
     filter   ::Union{Symbol,String,Expr}
-    table    ::DTable
+    table    ::DataTable
     faces    ::Array{Face,1}
     nodes    ::Array{Node,1}
 
     function FaceLogger(filename::String="")
-        return new(filename, :(), DTable())
+        return new(filename, :(), DataTable())
     end
 end
 
@@ -106,12 +106,12 @@ end
 mutable struct EdgeLogger<:FacetLogger
     filename ::String
     filter   ::Union{Symbol,String,Expr}
-    table    ::DTable
+    table    ::DataTable
     edges    ::Array{Edge,1}
     nodes    ::Array{Node,1}
 
     function EdgeLogger(filename::String="")
-        return new(filename, :(), DTable())
+        return new(filename, :(), DataTable())
     end
 end
 
@@ -135,8 +135,8 @@ end
 function update_logger!(logger::FacetLogger, domain)
     length(logger.nodes)==0 && return
 
-    tableU = DTable()
-    tableF = DTable()
+    tableU = DataTable()
+    tableF = DataTable()
     for node in logger.nodes
         # TODO: valsF may be improved by calculating the internal forces components
         nvals = node_vals(node)
@@ -163,11 +163,11 @@ end
 mutable struct NodeGroupLogger<:ComposedLogger
     filename ::String
     filter   ::Union{Symbol,String,Expr}
-    book     ::DBook
+    book     ::DataBook
     nodes    ::Array{Node,1}
 
     function NodeGroupLogger(filename::String="")
-        return new(filename, :(), DBook(), [])
+        return new(filename, :(), DataBook(), [])
     end
 end
 
@@ -183,7 +183,7 @@ end
 function update_logger!(logger::NodeGroupLogger, domain)
     length(logger.nodes) == 0 && return
 
-    table = DTable()
+    table = DataTable()
     for node in logger.nodes
         push!(table, node_vals(node))
     end
@@ -199,11 +199,11 @@ end
 mutable struct IpGroupLogger<:ComposedLogger
     filename ::String
     filter   ::Union{Symbol,String,Expr}
-    book     ::DBook
+    book     ::DataBook
     ips      ::Array{Ip,1}
 
     function IpGroupLogger(filename::String="")
-        return new(filename, :(), DBook(), [])
+        return new(filename, :(), DataBook(), [])
     end
 end
 
@@ -219,7 +219,7 @@ end
 function update_logger!(logger::IpGroupLogger, domain)
     length(logger.ips) == 0 && return
 
-    table = DTable()
+    table = DataTable()
     for ip in logger.ips
         push!(table, ip_vals(ip))
     end
@@ -236,7 +236,7 @@ end
 mutable struct PointLogger<:ComposedLogger
     filename ::String
     filter   ::Array{Float64,1}
-    table    ::DTable
+    table    ::DataTable
     elem     ::Element
     R        ::Array{Float64,1}
 
@@ -244,7 +244,7 @@ mutable struct PointLogger<:ComposedLogger
     # logger = [  [1,2,3] => PointLogger()  ]
 
     function PointLogger(filename::String="", n=20)
-        return new(filename, [0,0,0], DTable())
+        return new(filename, [0,0,0], DataTable())
     end
 end
 
@@ -285,7 +285,7 @@ end
 mutable struct SegmentLogger<:ComposedLogger
     filename ::String
     filter   ::Tuple{Array{Float64,1},Array{Float64,1}}
-    book     ::DBook
+    book     ::DataBook
     n        ::Int # resolution
     elems    ::Array{Element,1}
     Rs       ::Array{Array{Float64,1},1}
@@ -294,7 +294,7 @@ mutable struct SegmentLogger<:ComposedLogger
     # logger = [  ([1,2,3],[1,2,3]) => SegmentLogger()  ]
 
     function SegmentLogger(filename::String="", n=20)
-        return new(filename, ([0,0,0],[0,0,0]), DBook(), n, [], [])
+        return new(filename, ([0,0,0],[0,0,0]), DataBook(), n, [], [])
     end
 end
 
@@ -322,7 +322,7 @@ end
 function update_logger!(logger::SegmentLogger, domain)
     data  = domain.point_data
     labels = [ k for (k,V) in data if size(V,2)==1 ]
-    table = DTable(["s"; labels])
+    table = DataTable(["s"; labels])
     X1, X2 = logger.filter
     Δs = norm(X2-X1)/(logger.n-1)
     s = 0.0
@@ -366,8 +366,8 @@ end
 
 function reset!(logger::AbstractLogger)
     if isdefined(logger, :(table))
-        logger.table = DTable()
+        logger.table = DataTable()
     else
-        logger.book = DBook()
+        logger.book = DataBook()
     end
 end
