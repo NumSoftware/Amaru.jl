@@ -44,5 +44,6 @@ if Amaru.config.makeplots
     for (i,table) in enumerate(log1.book.tables)
         plot(table[:ut], table[:y], "-o")
     end
+    show()
 end
 

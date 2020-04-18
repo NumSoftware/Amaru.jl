@@ -34,6 +34,8 @@ loggers = [
 
            :(x>0.5 && y>0.5 && z>0.5) => ip_log1,
            :(x>0.5 && y>0.5) => ips_log1,
+           [0.5,0.5,0.0] => PointLogger("plog.dat"),
+           ([0.5,0.5,0.0], [1,1,0]) => SegmentLogger("slog.dat"),
           ]
 
 setloggers!(dom, loggers)
@@ -44,5 +46,5 @@ bcs = [
        :(z==1)         => FaceBC(tz=-10.0),
       ]
 
-@test solve!(dom, bcs, nincs=4, verbose=false)
+@test solve!(dom, bcs, nincs=4, nouts=4, verbose=false)
 println("  uz = ", dom.nodes[:(z==1)][1].dofdict[:uz].vals)
