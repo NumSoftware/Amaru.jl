@@ -11,6 +11,13 @@ macro showm(M)
     end
 end
 
+macro display(x)
+    return quote
+        printstyled($(string(x)), " = \033[K\n", color=:light_magenta)
+        display($(esc(x)))
+    end
+end
+
 
 export custom_dump
 
