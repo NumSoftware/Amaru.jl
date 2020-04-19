@@ -14,11 +14,11 @@ abstract type IpState
     #other data
 end
 
-function clone(src::IpState)
-    dst = deepcopy(src)
-    dst.env= src.env# keep original analyses data
-    return dst
-end
+#function clone(src::IpState)
+    #dst = deepcopy(src)
+    #dst.env= src.env# keep original analyses data
+    #return dst
+#end
 
 function Base.copy(src::IpState)
     T = typeof(src)
