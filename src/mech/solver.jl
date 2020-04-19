@@ -64,13 +64,7 @@ function mount_K_threads(dom::Domain, ndofs::Int)
     C = reduce(vcat, Cs)
     V = reduce(vcat, Vs)
 
-    #local K
-    #try
-        K = sparse(R, C, V, ndofs, ndofs)
-    #catch err
-        #error("Error using sparse function")
-        #@show err
-    #end
+    K = sparse(R, C, V, ndofs, ndofs)
 
     return K
 end
@@ -205,11 +199,11 @@ function solve!(
     env.cinc    = 0
     sw = StopWatch() # timing
 
-    if verbosity==0
+    if verbosity>0
         printstyled("Mechanical FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
     end
 
-    verbosity>0 && println("  model type: ", env.modeltype)
+    verbosity>1 && println("  model type: ", env.modeltype)
 
     save_outs = nouts>0
     if save_outs

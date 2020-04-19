@@ -234,6 +234,9 @@ function tm_solve!(
     verbose && (verbosity=2)
     silent && (verbosity=0)
 
+    tol>0 || error("tm_solve! : tolerance `tol `should be greater than zero")
+    Ttol>0 || error("tm_solve! : tolerance `Ttol `should be greater than zero")
+
     env = dom.env
     env.cstage += 1
     env.cinc    = 0
@@ -241,20 +244,18 @@ function tm_solve!(
 
     sw = StopWatch() # timing
 
-    # Arguments checking
     if !isnan(end_time)
         end_time > env.t || error("tm_solve! : end_time ($end_time) is greater that current time ($(env.t))")
         time_span = end_time - env.t
     end
+    isnan(time_span) && error("hm_solve!: neither time_span nor end_time were set.")
 
-    if verbosity==0
+    if verbosity>0
         printstyled("Thermomechanical FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
         println("  from t=$(round(dom.env.t,digits=4)) to t=$(round(dom.env.t+time_span,digits=3))")
     end
 
-    tol>0 || error("hm_solve! : tolerance `tol `should be greater than zero")
-    Ttol>0 || error("hm_solve! : tolerance `Ttol `should be greater than zero")
-    verbosity>0 && println("  model type: ", env.modeltype)
+    verbosity>1 && println("  model type: ", env.modeltype)
 
     save_outs = nouts>0
     if save_outs
@@ -268,7 +269,7 @@ function tm_solve!(
         end
 
         strip(outdir) == "" && (outdir = ".")
-        isdir(outdir) || error("solve!: output directory <$outdir> not fount")
+        isdir(outdir) || error("tm_solve!: output directory <$outdir> not fount")
         outdir[end] in ('/', '\\')  && (outdir = outdir[1:end-1])
     end
 

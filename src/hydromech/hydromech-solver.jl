@@ -67,10 +67,6 @@ function hm_mount_global_matrices(dom::Domain, ndofs::Int, Δt::Float64)
 
             # Assembling RHS components
             Uw = [ dof.vals[:uw] for node in elem.nodes for dof in node.dofs if dof.name==:uw ]
-            #@show Uw
-            #@show H
-            #@show elem.shape.name
-            #@show elem.nodes[end].dofs
             RHS[rmap] -= Δt*(H*Uw)
         end
 
@@ -259,12 +255,12 @@ function hm_solve!(
     end
     isnan(time_span) && error("hm_solve!: neither time_span nor end_time were set.")
 
-    if verbosity==0
+    if verbosity>0
         printstyled("Hydromechanical FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
         println("  from t=$(round(dom.env.t,digits=4)) to t=$(round(dom.env.t+time_span,digits=3))")
     end
 
-    verbosity>0 && println("  model type: ", env.modeltype)
+    verbosity>1 && println("  model type: ", env.modeltype)
 
     save_outs = nouts>0
     if save_outs
@@ -289,7 +285,7 @@ function hm_solve!(
     pmap  = nu+1:ndofs   # map for prescribed displacements and pw
     dom.ndofs = length(dofs)
     verbosity>0 && println("  unknown dofs: $nu")
-
+    
     # get elevation Z for all Dofs
     Z = zeros(ndofs)
     for node in dom.nodes
