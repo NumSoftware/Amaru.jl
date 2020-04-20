@@ -7,9 +7,7 @@ coord2 = [0 0; 0.07071  0.07071; 0.0405325 0.0905325 ;0 0.1]
 coord3 = [0.1 0 ;0.2 0; 0 0.2; 0 0.1; 0.15 0; 0.14142 0.14142; 0 0.15; 0.07071  0.07071 ]
 coord4 = [0.2 0; 1.0 0; 0 1.0; 0 0.2; 0.6 0; 0.7071 0.7071; 0 0.6; 0.14142 0.14142]
 
-blocks = [#Block([-1 0;0 1.0], nx = 20, ny = 20, cellshape = QUAD4, tag = "insulated"),
-          #Block([0.0 -1;1.0 0], nx = 20, ny = 20, cellshape = QUAD4, tag = "insulated"),
-          Block(coord1, nx = 1, ny = 1, cellshape = TRI3, tag = "solids"),
+blocks = [Block(coord1, nx = 1, ny = 1, cellshape = TRI3, tag = "solids"),
           Block(coord2, nx = 1, ny = 1, cellshape = TRI3, tag = "solids"),
           Block(coord3, nx = 4, ny = 4, cellshape = QUAD4, tag = "solids"),
           Block(coord4, nx = 4, ny = 4, cellshape = QUAD4, tag = "solids"),
