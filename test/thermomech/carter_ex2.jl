@@ -26,7 +26,6 @@ cv = 140.79 # specific heat (capacity) kJ/Ton/K
 E = 200e6 # kN/m2
 nu = 0.3
 alpha = 5e-5 #  thermal expansion coefficient  1/K or 1/°C
-#k_ins = 0.0000000000000001
 
 materials = ["solids" => ElasticSolidThermo(
     E = E,
@@ -37,11 +36,6 @@ materials = ["solids" => ElasticSolidThermo(
     alpha = alpha,
 )]
 dom = Domain(msh, materials)
-
-log1 = NodeGroupLogger()
-loggers = [:(x>0 && y>0 && x^2 + y^2 >= $0.09^2 ) => log1]
-#loggers = [:(x ==0 && y==0 ) => log1]
-setloggers!(dom, loggers)
 
 bcs = [
      :(x^2 + y^2 >= $0.99^2) => NodeBC(ut =200.0),
