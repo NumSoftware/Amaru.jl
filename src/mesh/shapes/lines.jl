@@ -7,7 +7,7 @@
 const coords_LIN2 = [ -1.0, 1.0 ]
 
 # shape functions
-function shape_func_LIN2(R::Array{Float64,1})
+function shape_func_LIN2(R::AbstractArray{<:Float64,1})
     r = R[1]
     N = Array{Float64}(undef,2)
     N[1] = 0.5*(1-r)
@@ -18,7 +18,7 @@ end
 # shape derivatives
 const deriv_LIN2_mat = [ -0.5  0.5 ]
 
-function shape_deriv_LIN2(R::Array{Float64,1})
+function shape_deriv_LIN2(R::AbstractArray{<:Float64,1})
     return deriv_LIN2_mat
 end
 
@@ -56,7 +56,7 @@ export LIN2
 const coords_LIN3 = [ -1.0, 1.0,  0.0]
 
 # shape functions
-function shape_func_LIN3(R::Array{Float64,1})
+function shape_func_LIN3(R::AbstractArray{<:Float64,1})
     r = R[1]
     N = Array{Float64}(undef,3)
     N[1] = 0.5*(r*r - r)
@@ -66,7 +66,7 @@ function shape_func_LIN3(R::Array{Float64,1})
 end
 
 # shape derivatives
-function shape_deriv_LIN3(R::Array{Float64,1})
+function shape_deriv_LIN3(R::AbstractArray{<:Float64,1})
     r = R[1]
     D = Array{Float64}(undef,1, 3)
     D[1, 1] = r - 0.5
@@ -108,7 +108,7 @@ export LIN3
 const coords_LIN4 = [ -1.0,  1.0,  -1.0/3.0,  1.0/3.0 ]
 
 # shape functions
-function shape_func_LIN4(R::Array{Float64,1})
+function shape_func_LIN4(R::AbstractArray{<:Float64,1})
     #   (-1)            '   (+1)
     #    @------@-----@------@  --> r
     #    1      3     4      2
@@ -123,7 +123,7 @@ function shape_func_LIN4(R::Array{Float64,1})
 end
 
 # shape derivatives
-function shape_deriv_LIN4(R::Array{Float64,1})
+function shape_deriv_LIN4(R::AbstractArray{<:Float64,1})
     r = R[1]
     D = Array{Float64}(undef,1, 4)
     D[1,1] = 1.0/16.0*( -27.0*r*r + 18.0*r + 1.0 )

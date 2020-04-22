@@ -47,7 +47,7 @@ function distributed_bc(elem::SeepSolid, facet::Union{Facet,Nothing}, key::Symbo
     nnodes = length(nodes)
 
     # Calculate the target coordinates matrix
-    C = nodes_coords(nodes, ndim)
+    C = get_coords(nodes, ndim)
 
     # Calculate the nodal values
     F     = zeros(nnodes)
@@ -86,7 +86,7 @@ function elem_conductivity_matrix(elem::SeepSolid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
-    C      = elem_coords(elem)
+    C      = get_coords(elem)
     H      = zeros(nnodes, nnodes)
     Bw     = zeros(ndim, nnodes)
     KBw    = zeros(ndim, nnodes)
@@ -118,7 +118,7 @@ function elem_compressibility_matrix(elem::SeepSolid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
-    C      = elem_coords(elem)
+    C      = get_coords(elem)
     Cpp    = zeros(nnodes, nnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
@@ -145,7 +145,7 @@ end
 function elem_RHS_vector(elem::SeepSolid)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
-    C      = elem_coords(elem)
+    C      = get_coords(elem)
     Q      = zeros(nnodes)
     Bw     = zeros(ndim, nnodes)
     KZ     = zeros(ndim)
@@ -180,7 +180,7 @@ end
 function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
-    C   = elem_coords(elem)
+    C   = get_coords(elem)
 
     map_w  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
 
@@ -224,7 +224,7 @@ function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1
 
     map_w  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
 
-    C   = elem_coords(elem)
+    C   = get_coords(elem)
 
     dUw = DU[map_w] # nodal pore-pressure increments
     Uw  = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes ]

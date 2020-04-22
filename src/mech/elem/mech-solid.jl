@@ -24,7 +24,7 @@ function elem_init(elem::MechSolid)
     if :h in fieldnames(ipdata_ty)
         # Element volume/area
         V = 0.0
-        C = elem_coords(elem)
+        C = get_coords(elem)
         for ip in elem.ips
             dNdR = elem.shape.deriv(ip.R)
             J    = dNdR*C
@@ -61,7 +61,7 @@ function distributed_bc(elem::MechSolid, facet::Union{Facet, Nothing}, key::Symb
     nnodes = length(nodes)
 
     # Calculate the target coordinates matrix
-    C = nodes_coords(nodes, ndim)
+    C = get_coords(nodes, ndim)
 
     # Vector with values to apply
     Q = zeros(ndim)
@@ -158,7 +158,7 @@ function elem_stiffness(elem::MechSolid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
-    C = elem_coords(elem)
+    C = get_coords(elem)
     K = zeros(nnodes*ndim, nnodes*ndim)
     B = zeros(6, nnodes*ndim)
 
@@ -193,7 +193,7 @@ function elem_mass(elem::MechSolid)
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
     ρ = elem.mat.ρ
-    C = elem_coords(elem)
+    C = get_coords(elem)
     M = zeros(nnodes*ndim, nnodes*ndim)
     N = zeros(ndim, nnodes*ndim)
     J = Array{Float64}(undef, ndim, ndim)
@@ -237,7 +237,7 @@ function elem_internal_forces(elem::MechSolid, F::Array{Float64,1})
     J  = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
 
-    C = elem_coords(elem)
+    C = get_coords(elem)
     for ip in elem.ips
 
         # compute B matrix
@@ -274,7 +274,7 @@ function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1},
     dNdX = Array{Float64}(undef, ndim, nnodes)
     Δε = zeros(6)
 
-    C = elem_coords(elem)
+    C = get_coords(elem)
     for ip in elem.ips
 
         # compute B matrix

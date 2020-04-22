@@ -59,17 +59,19 @@ Creates an `Ip` object that represents an Integration Point in finite element an
 `R` is a vector with the integration point local coordinates and `w` is the corresponding integration weight.
 """
 mutable struct Ip
-    R    ::Array{Float64,1}
+    #R    ::Array{Float64,1}
+    R    ::Vec3
     w    ::Float64
-    X    ::Array{Float64,1}
+    #X    ::Array{Float64,1}
+    coord::Vec3
     id   ::Int
     tag  ::String
     owner::Any    # Element
     data ::IpState  # Ip current state
 
-    function Ip(R::Array, w::Float64)
-        this     = new(vec(R), w)
-        this.X   = zeros(3)
+    function Ip(R::AbstractArray{<:Float64}, w::Float64)
+        this     = new(Vec3(R), w)
+        this.coord = Vec3()
         this.tag = ""
         this.owner = nothing
         return this
@@ -77,9 +79,9 @@ mutable struct Ip
 end
 
 # The functions below can be used in conjuntion with sort
-get_x(ip::Ip) = ip.X[1]
-get_y(ip::Ip) = ip.X[2]
-get_z(ip::Ip) = ip.X[3]
+get_x(ip::Ip) = ip.coord[1]
+get_y(ip::Ip) = ip.coord[2]
+get_z(ip::Ip) = ip.coord[3]
 
 
 """
@@ -88,7 +90,7 @@ get_z(ip::Ip) = ip.X[3]
 Returns a dictionary with keys and vals for the integration point `ip`.
 """
 function ip_vals(ip::Ip)
-    coords = Dict( :x => ip.X[1], :y => ip.X[2], :z => ip.X[3] )
+    coords = Dict( :x => ip.coord[1], :y => ip.coord[2], :z => ip.coord[3] )
     vals   = ip_state_vals(ip.owner.mat, ip.data)
     return merge(coords, vals)
 end
@@ -98,7 +100,7 @@ end
 function Base.getindex(ips::Array{Ip,1}, filter_ex::Expr)
     R = Ip[]
     for ip in ips
-        x, y, z = ip.X
+        x, y, z = ip.coord
         eval_arith_expr(filter_ex, x=x, y=y, z=z) && push!(R, ip)
     end
     return R
@@ -113,11 +115,11 @@ end
 # Get the maximum value of a given coordinate for the whole collection of ips
 function maximum(ips::Array{Ip,1}, dir::Symbol)
     idx = findfisrt((:x, :y, :z), dir)
-    maximum([ip.X[idx] for ip in ips])
+    maximum([ip.coord[idx] for ip in ips])
 end
 
 function minimum(ips::Array{Ip,1}, dir::Symbol)
     idx = findfisrt((:x, :y, :z), dir)
-    minimum([ip.X[idx] for ip in ips])
+    minimum([ip.coord[idx] for ip in ips])
 end
 

@@ -34,7 +34,7 @@ function elem_init(elem::HydroJoint)
 
     # Volume from first linked element
     V1 = 0.0
-    C1 = elem_coords(e1)
+    C1 = get_coords(e1)
     for ip in e1.ips
         dNdR = e1.shape.deriv(ip.R)
         J    = dNdR*C1
@@ -44,7 +44,7 @@ function elem_init(elem::HydroJoint)
 
     # Volume from second linked element
     V2 = 0.0
-    C2 = elem_coords(e2)
+    C2 = get_coords(e2)
     for ip in e2.ips
         dNdR = e2.shape.deriv(ip.R)
         J    = dNdR*C2
@@ -54,7 +54,7 @@ function elem_init(elem::HydroJoint)
 
     # Area of joint element
     A = 0.0
-    C = elem_coords(elem)
+    C = get_coords(elem)
     n = div(length(elem.nodes), 3)
     C = C[1:n, :]
     fshape = elem.shape.facet_shape
@@ -82,7 +82,7 @@ function elem_conductivity_matrix(elem::HydroJoint)
     dnlnodes = 2*nlnodes
     fshape   = elem.shape.facet_shape
 
-    C        = elem_coords(elem)[1:nlnodes,:]
+    C        = get_coords(elem)[1:nlnodes,:]
     Cl       = zeros(nlnodes, ndim-1)
     J        = Array{Float64}(undef, ndim-1, ndim)
     Jl       = zeros(ndim-1, ndim-1)
@@ -136,7 +136,7 @@ function elem_compressibility_matrix(elem::HydroJoint)
     nlnodes  = div(nnodes, 3)
     dnlnodes = 2*nlnodes
     fshape   = elem.shape.facet_shape
-    C        = elem_coords(elem)[1:nlnodes,:]
+    C        = get_coords(elem)[1:nlnodes,:]
 
     J   = Array{Float64}(undef, ndim-1, ndim)
     Cpp = zeros(nnodes, nnodes)
@@ -173,7 +173,7 @@ function elem_RHS_vector(elem::HydroJoint)
     nlnodes  = div(nnodes, 3)
     dnlnodes = 2*nlnodes
     fshape   = elem.shape.facet_shape
-    C        = elem_coords(elem)[1:nlnodes,:]
+    C        = get_coords(elem)[1:nlnodes,:]
 
     J        = Array{Float64}(undef, ndim-1, ndim)
     Cl       = zeros(nlnodes, ndim-1)
@@ -230,7 +230,7 @@ function elem_internal_forces(elem::HydroJoint, F::Array{Float64,1})
 
     J      = Array{Float64}(undef, ndim-1, ndim)
 
-    C      = elem_coords(elem)[1:nlnodes,:]
+    C      = get_coords(elem)[1:nlnodes,:]
     Cl     = zeros(nlnodes, ndim-1)
     Jl     = zeros(ndim-1, ndim-1)
     mf     = [1.0, 0.0, 0.0][1:ndim]
@@ -310,7 +310,7 @@ function elem_update!(elem::HydroJoint, U::Array{Float64,1}, F::Array{Float64,1}
     Δω     = zeros(ndim)
     Δuw    = zeros(3)
     Bu     = zeros(ndim, dnlnodes*ndim)
-    C      = elem_coords(elem)[1:nlnodes,:]
+    C      = get_coords(elem)[1:nlnodes,:]
     Cl     = zeros(nlnodes, ndim-1)
     Jl     = zeros(ndim-1, ndim-1)
     Bp     = zeros(ndim-1, nlnodes)

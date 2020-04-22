@@ -33,15 +33,11 @@ eye(n::Int64) = Array{Float64}(I,n,n)
 
 # Tools module
 include("tools/include.jl")
+include("tools/vector.jl")
 
 # generic exports
 export max, min, sort, reset, getindex, sort, copy!, show
 
-# Mesh
-include("mesh/include.jl")
-
-include("plot/mplot.jl")
-include("plot/cplot.jl")
 
 # Fem module
 include("model-env.jl")
@@ -56,18 +52,24 @@ export Ip, ip_vals, maximum, minimum, sort
 include("material.jl")
 export Material, read_prms
 
+# Mesh
+abstract type AbstractCell end
+abstract type AbstractMesh end
+include("mesh/include.jl")
+
 include("element.jl")
 export Element
-export get_nodes, get_ips, getcoords, elems_ip_vals, setmat!, setstate!
-
-include("facet.jl")
-export Facet, Face, Edge
+export get_nodes, set_quadrature!, get_ips, elems_ip_vals, setmat!, setstate!
 
 include("tag.jl")
 export tag!
 
+
+include("plot/mplot.jl")
+include("plot/cplot.jl")
+
+# Boundary conditions
 include("bc.jl")
-#export NodeBC, FaceBC, EdgeBC, apply_bc
 export NodeBC, FaceBC, EdgeBC, ElemBC
 
 include("logger.jl")

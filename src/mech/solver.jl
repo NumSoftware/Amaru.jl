@@ -81,7 +81,7 @@ end
 
 
 # Solves for a load/displacement increment
-function solve_step(
+function solve_step!(
                     K  :: SparseMatrixCSC{Float64, Int},
                     DU :: Vect,
                     DF :: Vect,
@@ -313,7 +313,7 @@ function solve!(
 
             # Solve
             verbosity>1 && print("    solving...   \r")
-            hm_solve_step!(K, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
+            solve_step!(K, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
 
             # Update
             verbosity>1 && print("    updating... \r")
@@ -336,7 +336,7 @@ function solve!(
                 K2 = mount_K(dom, ndofs)
                 K  = 0.5*(K + K2)
                 verbose && print("    solving...   \r")
-                solve_step(K, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
+                solve_step!(K, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
                 copyto!.(State, StateBk)
 
                 ΔFin .= 0.0

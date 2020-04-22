@@ -1,8 +1,9 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 
-#Base.copy(p::Point) = Point(p.x, p.y, p.z, p.tag)
-Base.copy(c::Cell)  = Cell(c.shape, c.points, tag=c.tag, ocell=c.ocell, nips=c.nips)
+#Base.copy(p::Node) = Node(p.coord.x, p.coord.y, p.coord.z, p.tag)
+#Base.copy(c::Cell)  = Cell(c.shape, c.nodes, tag=c.tag, oelem=c.oelem, nips=c.nips)
+Base.copy(c::Cell)  = Cell(c.shape, c.nodes, tag=c.tag, oelem=c.oelem)
 
 function Base.copy(bls::Array{<:AbstractBlock,1})
     return [ copy(obj) for obj in bls ]
@@ -15,10 +16,10 @@ end
 Changes the coordinates of a `block`. Also returns a reference.
 """
 function move!(bl::AbstractBlock; dx=0.0, dy=0.0, dz=0.0)
-    for p in bl.points
-        p.x += dx
-        p.y += dy
-        p.z += dz
+    for p in bl.nodes
+        p.coord.x += dx
+        p.coord.y += dy
+        p.coord.z += dz
     end
     return bl
 end
@@ -31,10 +32,10 @@ Changes the coordinates of an array of blocks. Also returns a reference.
 """
 function move!(blocks::Array; dx=0.0, dy=0.0, dz=0.0)
     for bl in blocks
-        for p in bl.points
-            p.x += dx
-            p.y += dy
-            p.z += dz
+        for p in bl.nodes
+            p.coord.x += dx
+            p.coord.y += dy
+            p.coord.z += dz
         end
     end
     return blocks
@@ -42,11 +43,11 @@ end
 
 
 function scale!(bl::AbstractBlock; factor=1.0, base=[0.,0,0], axis=nothing)
-    coords = getcoords(bl)
+    coords =get_coords(bl)
     coords = ( base .+ factor*(coords' .- base) )'
 
-    for (i,p) in enumerate(bl.points)
-        p.x, p.y, p.z = coords[i,:]
+    for (i,p) in enumerate(bl.nodes)
+        p.coord.x, p.coord.y, p.coord.z = coords[i,:]
     end
 
     return bl
@@ -76,7 +77,7 @@ function mirror(block::AbstractBlock; face=[0.0 0 0; 0 1 0; 0 0 1])
     normal = normal/norm(normal)
 
     bl = copy(block)
-    coords = getcoords(bl.points)
+    coords =get_coords(bl.nodes)
 
     distances    = (coords .- p1')*normal       # d = n^.(xi - xp)
     coords = coords .- 2*distances.*normal'  # xi = xi - 2*d*n^
@@ -95,7 +96,7 @@ function mirror(block::AbstractBlock; face=[0.0 0 0; 0 1 0; 0 0 1])
         idxs = [ npts:-1:1; ]  # reverse
     end
     coords = coords[idxs,:]
-    bl.points = [ Point(coords[i,1], coords[i,2], coords[i,3]) for i=1:size(coords,1) ]
+    bl.nodes = [ Node(coords[i,1], coords[i,2], coords[i,3]) for i=1:size(coords,1) ]
 
     return bl
 end
@@ -123,22 +124,22 @@ function mirror(mesh::Mesh; face=[0.0 0 0; 0 1 0; 0 0 1])
     newmesh = copy(mesh)
 
     # mirror
-    coords = getcoords(newmesh.points)
+    coords =get_coords(newmesh.nodes)
     distances = (coords .- p1')*normal       # d = n^.(xi - xp)
     coords    = coords .- 2*distances.*normal'  # xi = xi - 2*d*n^
 
     # updating points
-    for (i,p) in enumerate(newmesh.points)
-        p.x = coords[i,1]
-        p.y = coords[i,2]
-        p.z = coords[i,3]
+    for (i,p) in enumerate(newmesh.nodes)
+        p.coord.x = coords[i,1]
+        p.coord.y = coords[i,2]
+        p.coord.z = coords[i,3]
     end
 
     # fix connectivities
-    for c in newmesh.cells
+    for c in newmesh.elems
         if c.shape==HEX8
             idxs = [ 5:8; 1:4 ]
-            c.points = c.points[idxs]
+            c.nodes = c.nodes[idxs]
         end
     end
 
@@ -217,12 +218,12 @@ function rotate!(bl::AbstractBlock; base=[0.0,0,0], axis=[0.0,0,1], angle=90.0 )
         R = Ryi*Rz*Ry
     end
 
-    coords = getcoords(bl.points)
+    coords =get_coords(bl.nodes)
 
     # equation: p2 = base + R*(p-base)
     coords = ( base .+ R*(coords' .- base) )'
 
-    setcoords!(bl.points, coords)
+    setcoords!(bl.nodes, coords)
 
     return bl
 end
@@ -270,10 +271,10 @@ end
 Moves a Mesh object `mesh`. Also returns a reference.
 """
 function move!(mesh::Mesh; dx=0.0, dy=0.0, dz=0.0)
-    for p in mesh.points
-        p.x += dx
-        p.y += dy
-        p.z += dz
+    for p in mesh.nodes
+        p.coord.x += dx
+        p.coord.y += dy
+        p.coord.z += dz
     end
     return mesh
 end
@@ -281,8 +282,8 @@ end
 
 
 function scale!(msh::Mesh; factor=1.0, base=[0.0,0,0])
-    for p in msh.points
-        p.x, p.y, p.z = base + ([p.x, p.y, p.z] - base)*factor
+    for p in msh.nodes
+        p.coord.x, p.coord.y, p.coord.z = base + ([p.coord.x, p.coord.y, p.coord.z] - base)*factor
     end
     return msh
 end
@@ -303,9 +304,7 @@ function rotate!(mesh::Mesh; base=[0.0,0,0], axis=[0.0,0,1], angle=90.0 )
     axis = axis/norm(axis)
     a, b, c = axis
     d = sqrt(b^2+c^2)
-    #@show d
     d==0.0 && ( d=1.0 )
-    #@show d
 
     # unit vector for rotation
     l = cos(angle*pi/180)
@@ -341,8 +340,8 @@ function rotate!(mesh::Mesh; base=[0.0,0,0], axis=[0.0,0,1], angle=90.0 )
                0.0   m     l ]
     end
 
-    for p in mesh.points
-        p.x, p.y, p.z = base + R*([p.x, p.y, p.z] - base)
+    for p in mesh.nodes
+        p.coord.x, p.coord.y, p.coord.z = base + R*([p.coord.x, p.coord.y, p.coord.z] - base)
     end
 
     return mesh
@@ -353,8 +352,8 @@ end
 # =========
 
 function rollaxes!(bl::AbstractBlock)
-    for p in bl.points
-        p.x, p.y, p.z = p.z, p.x, p.y
+    for p in bl.nodes
+        p.coord.x, p.coord.y, p.coord.z = p.coord.z, p.coord.x, p.coord.y
     end
     return nothing
 end
@@ -363,12 +362,12 @@ rollaxes!(bls::Array{<:AbstractBlock,1}) = (rollaxes!.(bls); nothing)
 
 function rollaxes!(mesh::Mesh)
     if mesh.ndim==2
-        for p in mesh.points
-            p.x, p.y = p.y, p.x
+        for p in mesh.nodes
+            p.coord.x, p.coord.y = p.coord.y, p.coord.x
         end
     else
-        for p in mesh.points
-            p.x, p.y, p.z = p.z, p.x, p.y
+        for p in mesh.nodes
+            p.coord.x, p.coord.y, p.coord.z = p.coord.z, p.coord.x, p.coord.y
         end
     end
 end
@@ -378,9 +377,9 @@ end
 function get_surface_alt(cells::Array{Cell,1})
     # Actually slower....
     # Get all points
-    pointsd = Dict{UInt64, Point}()
+    pointsd = Dict{UInt64, Node}()
     for cell in cells
-        for point in cell.points
+        for point in cell.nodes
             pointsd[hash(point)] = point
         end
     end
@@ -390,23 +389,21 @@ function get_surface_alt(cells::Array{Cell,1})
     np = length(points)
     N = [ Cell[] for i=1:np]
     for cell in cells
-        for pt in cell.points
+        for pt in cell.nodes
             push!(N[pt.id], cell)
         end
     end
 
-    @show 1
     # Get matrix of cells faces
     F = [ get_faces(cell) for cell in cells]
     nc = length(cells)
     #CF = Array(Array{Array{Int64,1},1}, nc)
     CF = Array(Array{UInt64,1}, nc)
     for cell in cells # fast
-        #CF[cell.id] = [ sort([pt.id for pt in face.points]) for face in F[cell.id]]
+        #CF[cell.id] = [ sort([pt.id for pt in face.nodes]) for face in F[cell.id]]
         CF[cell.id] = [ hash(face) for face in F[cell.id]]
     end
 
-    @show 2
     # Get cells boundary flag matrix
     CB = [ trues(length(CF[cell.id])) for cell in cells]
     for cell in cells
@@ -422,7 +419,6 @@ function get_surface_alt(cells::Array{Cell,1})
         end
     end
 
-    @show 3
     # Get list of boundary faces (almost fast)
     facets = Cell[]
     for cell in cells

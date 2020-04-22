@@ -74,7 +74,7 @@ FILES = [
     for file in FILES
         printstyled( "\nRunning file ", file,"...\n", color=:yellow, bold=true)
         #printstyled("Running test file ", file,"...\n", bold=true, color=:white)
-        #@show file
+
         include(file)
         println()
     end

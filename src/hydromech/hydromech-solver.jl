@@ -150,9 +150,9 @@ end
 
 
 function complete_uw_h(dom::Domain)
-    haskey(dom.point_data, "uw") || return
-    Uw = dom.point_data["uw"]
-    H  = dom.point_data["h"]
+    haskey(dom.node_data, "uw") || return
+    Uw = dom.node_data["uw"]
+    H  = dom.node_data["h"]
 
     for elem in dom.elems
         elem.shape.family==SOLID_SHAPE || continue
@@ -290,7 +290,7 @@ function hm_solve!(
     Z = zeros(ndofs)
     for node in dom.nodes
         for dof in node.dofs
-            Z[dof.eq_id] = node.X[env.ndim]
+            Z[dof.eq_id] = node.coord[env.ndim]
         end
     end
 

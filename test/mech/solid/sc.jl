@@ -5,13 +5,13 @@ using Test
 
 bl  = Block( [0 0; 0.2 0.1], nx=3, ny=1, cellshape=QUAD4)
 msh = Mesh(bl, silent=true
-iptag!(msh.cells[2], 100)
-tag!(msh.cells[2], 100)
-#tag!(msh.cells[5], 100)
-#tag!(msh.cells, 100)
+iptag!(msh.elems[2], 100)
+tag!(msh.elems[2], 100)
+#tag!(msh.elems[5], 100)
+#tag!(msh.elems, 100)
 tag!(msh.faces[:(x>0 && x<0.2 && y==0.1)], 10)
-tag!(msh.points[3], 3)
-tag!(msh.points[5], 5)
+tag!(msh.nodes[3], 3)
+tag!(msh.nodes[5], 5)
 
 # finite element analysis
 

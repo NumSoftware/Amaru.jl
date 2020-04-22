@@ -42,7 +42,7 @@ function Base.getindex(facets::Array{T,1}, filter_ex::Expr) where T<:Facet
     B = Bool[]
     for (i,node) in enumerate(nodes)
         nodemap[node.id] = i
-        x, y, z = node.X
+        x, y, z = node.coord
         push!(B, eval_arith_expr(filter_ex, x=x, y=y, z=z))
     end
 

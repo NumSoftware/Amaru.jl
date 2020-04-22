@@ -25,8 +25,8 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8, QUAD9)
     solve!(dom, bcs, nincs=1, verbose=false)
 
     top_node = dom.nodes[:(y==1)][1]
-    ux = top_node.dofdict[:ux].vals[:ux]
-    uy = top_node.dofdict[:uy].vals[:uy]
+    ux = top_node.dofs[:ux].vals[:ux]
+    uy = top_node.dofs[:uy].vals[:uy]
     @test [ux, uy] ≈ dis atol=4e-2
 
     println( get_data(dom.nodes[:(y==1)][1]) )
@@ -57,8 +57,8 @@ for shape in (TET4, TET10, HEX8, HEX20, HEX27)
     solve!(dom, bcs, nincs=1, verbose=false)
 
     top_node = dom.nodes[:(z==1)][1]
-    uy = top_node.dofdict[:uy].vals[:uy]
-    uz = top_node.dofdict[:uz].vals[:uz]
+    uy = top_node.dofs[:uy].vals[:uy]
+    uz = top_node.dofs[:uz].vals[:uz]
 
     println( get_data(dom.nodes[:(z==1)][1]) )
 

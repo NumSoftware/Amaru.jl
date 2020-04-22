@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-abstract type AbstractCell end
+#abstract type AbstractCell end
 
 abstract type AbstractBlock<:AbstractCell end
 
@@ -12,109 +12,117 @@ abstract type AbstractBlock<:AbstractCell end
 A geometry type that represent a definite line, area or volume.
 """
 mutable struct Cell<:AbstractCell
-    shape  ::ShapeType
-    points ::Array{Point,1}
-    tag    ::String
     id     ::Integer
-    ndim   ::Integer
+    shape  ::ShapeType
+    nodes  ::Array{Node,1}
+    ips    ::Array{Ip,1}
+    tag    ::String
+    #ndim   ::Integer
     quality::Float64              # quality index: surf/(reg_surf)
     embedded::Bool                # flag for embedded cells
     crossed::Bool                 # flag if cell crossed by linear inclusion
-    ocell  ::Union{AbstractCell,Nothing}     # owner cell if this cell is a face/edge
-    nips   ::Int                  # number of integration points if required
-    linked_cells::Array{Cell,1}   # neighbor cells in case of joint cell
-    function Cell(shape::ShapeType, points::Array{Point,1}; tag::String="", ocell=nothing, nips=0)
-        this = new(shape, points, tag, -1)
-        this.ndim = 0
+    oelem  ::Union{AbstractCell,Nothing}     # owner cell if this cell is a face/edge
+    #nips   ::Int                  # number of integration points if required
+    linked_elems::Array{AbstractCell,1}   # neighbor cells in case of joint cell
+    function Cell(shape::ShapeType, nodes::Array{Node,1}; tag::String="", oelem=nothing, nips=0)
+        this = new()
+        this.id = -1
+        this.shape = shape
+        this.nodes = nodes
+        this.tag = tag
+        #this = new(-1, shape, nodes, tag)
+        #this.ndim = 0
         this.quality = 0.0
         this.embedded= false
         this.crossed = false
-        this.ocell   = ocell
+        this.oelem   = oelem
         nips in keys(shape.quadrature) || error("Cell: integ. points number ($nips) not available for shape $(shape.name)")
-        this.nips = nips
-        this.linked_cells = []
+        #this.nips = nips
+        this.linked_elems = []
         return this
     end
 end
 
-const CellFace=Cell
+const Face=Cell
+const Edge=Cell
+const Facet=Cell
 
 
 ### Cell methods
 
-Base.hash(c::Cell) = sum(hash(p) for p in c.points)
+Base.hash(c::Cell) = sum(hash(p) for p in c.nodes)
 
-function getcoords(c::Cell, ndim=3)::Array{Float64,2}
-    n = length(c.points)
+function get_coords(c::AbstractCell, ndim=3)::Array{Float64,2}
+    n = length(c.nodes)
     C = Array{Float64}(undef, n, ndim)
-    for (i,p) in enumerate(c.points)
-        C[i,1] = p.x
-        if ndim>1 C[i,2] = p.y end
-        if ndim>2 C[i,3] = p.z end
+    for (i,p) in enumerate(c.nodes)
+        C[i,1] = p.coord.x
+        if ndim>1 C[i,2] = p.coord.y end
+        if ndim>2 C[i,3] = p.coord.z end
     end
     return C
 end
 
-# Return all points in cells
-function get_points(cells::Array{Cell,1})::Array{Point,1}
-    points = Set{Point}()
+# Return all nodes in cells
+function get_nodes(cells::Array{<:AbstractCell,1})::Array{Node,1}
+    nodes = Set{Node}()
     for cell in cells
-        for point in cell.points
-            push!(points, point)
+        for node in cell.nodes
+            push!(nodes, node)
         end
     end
-    R = Point[point for point in points]
+    R = Node[node for node in nodes]
 
     return R
 end
 
 
-function setquadrature!(cells::Array{Cell,1}, nips::Int=0)
-    shapes = ShapeType[]
+#function setquadrature!(cells::Array{<:AbstractCell,1}, nips::Int=0)
+    #shapes = ShapeType[]
+#
+    #for cell in cells
+        #shape = cell.shape
+        #if nips in keys(shape.quadrature)
+            #cell.nips = nips
+        #else
+            #cell.nips = 0
+            #if !(shape in shapes)
+                #@warn "setquadrature: cannot set $nips integ. points for shape $(shape.name)"
+                #push!(shapes, shape)
+            #end
+        #end
+    #end
+#end
 
-    for cell in cells
-        shape = cell.shape
-        if nips in keys(shape.quadrature)
-            cell.nips = nips
-        else
-            cell.nips = 0
-            if !(shape in shapes)
-                @warn "setquadrature: cannot set $nips integ. points for shape $(shape.name)"
-                push!(shapes, shape)
-            end
-        end
-    end
-end
 
-
-function Base.getproperty(c::Cell, s::Symbol)
-    s == :coords && return getcoords(c)
+function Base.getproperty(c::AbstractCell, s::Symbol)
+    s == :coords && returnget_coords(c)
     s == :faces  && return get_faces(c)
     s == :edges  && return get_edges(c)
     s == :extent && return cell_extent(c)
     return getfield(c, s)
 end
 
-function Base.getproperty(cells::Array{Cell,1}, s::Symbol)
+function Base.getproperty(cells::Array{<:AbstractCell,1}, s::Symbol)
     s == :solids   && return filter(cell -> cell.shape.family==SOLID_SHAPE, cells)
     s == :lines    && return filter(cell -> cell.shape.family==LINE_SHAPE, cells)
     s == :joints   && return filter(cell -> cell.shape.family==JOINT_SHAPE, cells)
     s in (:joints1D, :joints1d) && return filter(cell -> cell.shape.family==JOINT1D_SHAPE, cells)
-    s == :points && return get_points(cells)
+    s == :nodes && return get_nodes(cells)
 
-    error("type Array{Cell,1} has no property $s")
+    error("type $(typeof(cells)) has no property $s")
 end
 
 
 # Index operator for a collection of elements. This function is not type stable
-function Base.getindex(cells::Array{Cell,1}, s::Symbol)
+function Base.getindex(cells::Array{<:AbstractCell,1}, s::Symbol)
     s == :all      && return cells
     s == :solids   && return filter(cell -> cell.shape.family==SOLID_SHAPE, cells)
     s == :lines    && return filter(cell -> cell.shape.family==LINE_SHAPE, cells)
     s == :joints   && return filter(cell -> cell.shape.family==JOINT_SHAPE, cells)
     s == :joints1D && return filter(cell -> cell.shape.family==JOINT1D_SHAPE, cells)
-    s == :points   && return get_points(cells)
-    error("Cell getindex: Invalid symbol $s")
+    s == :nodes   && return get_nodes(cells)
+    error("getindex: $(typeof(cells)) has no property $s")
 end
 
 
@@ -125,64 +133,64 @@ end
 
 function Base.getindex(cells::Array{Cell,1}, filter_ex::Expr)
     # cells id must be set
-    points = unique(p->p.id, p for c in cells for p in c.points )
-    sort!(points, by=p->p.x+p.y+p.z)
-    pointmap = zeros(Int, maximum(point.id for point in points) )
+    nodes = unique(p->p.id, p for c in cells for p in c.nodes )
+    sort!(nodes, by=p->p.coord.x+p.coord.y+p.coord.z)
+    pointmap = zeros(Int, maximum(node.id for node in nodes) )
     # points and pointmap may have different sizes
 
     T = Bool[]
-    for (i,point) in enumerate(points)
-        pointmap[point.id] = i
-        x, y, z = point.x, point.y, point.z
+    for (i,node) in enumerate(nodes)
+        pointmap[node.id] = i
+        x, y, z = node.coord.x, node.coord.y, node.coord.z
         push!(T, eval_arith_expr(filter_ex, x=x, y=y, z=z))
     end
 
     R = Cell[]
     for cell in cells
-        all( T[pointmap[point.id]] for point in cell.points ) && push!(R, cell)
+        all( T[pointmap[node.id]] for node in cell.nodes ) && push!(R, cell)
     end
     return R
 end
 
 
-function tag!(object::Union{Point, Cell}, tag::String)
-    object.tag = tag
-end
+#function tag!(object::Union{Node, Cell}, tag::String)
+    #object.tag = tag
+#end
 
 
-function tag!(arr::Array{T,1}, tag::String) where T<:Union{Point,Cell}
-    for obj in arr
-        obj.tag = tag
-    end
-end
+#function tag!(arr::Array{T,1}, tag::String) where T<:Union{Node,Cell}
+    #for obj in arr
+        #obj.tag = tag
+    #end
+#end
 
 
-# Gets the coordinates of a bounding box for an array of points
-function bounding_box(points::Array{Point,1})
+# Gets the coordinates of a bounding box for an array of nodes
+function bounding_box(nodes::Array{Node,1})
     minx = miny = minz =  Inf
     maxx = maxy = maxz = -Inf
-    for point in points
-        point.x < minx && (minx = point.x)
-        point.y < miny && (miny = point.y)
-        point.z < minz && (minz = point.z)
-        point.x > maxx && (maxx = point.x)
-        point.y > maxy && (maxy = point.y)
-        point.z > maxz && (maxz = point.z)
+    for node in nodes
+        node.coord.x < minx && (minx = node.coord.x)
+        node.coord.y < miny && (miny = node.coord.y)
+        node.coord.z < minz && (minz = node.coord.z)
+        node.coord.x > maxx && (maxx = node.coord.x)
+        node.coord.y > maxy && (maxy = node.coord.y)
+        node.coord.z > maxz && (maxz = node.coord.z)
     end
     return [ minx miny minz; maxx maxy maxz ]
 end
 
 
 # Gets the coordinates of a bounding box for a cell
-function bounding_box(cell::Cell)
-    return bounding_box(cell.points)
+function bounding_box(cell::AbstractCell)
+    return bounding_box(cell.nodes)
 end
 
 
 # Gets the coordinates of a bounding box for an array of cells
-function bounding_box(cells::Array{Cell,1})
-    points = unique( Point[ p for c in cells for p in c.points ] )
-    return bounding_box(points)
+function bounding_box(cells::Array{<:AbstractCell,1})
+    nodes = unique( Node[ p for c in cells for p in c.nodes ] )
+    return bounding_box(nodes)
 end
 
 
@@ -199,9 +207,9 @@ function get_faces(cell::AbstractCell)
 
     # Iteration for each facet
     for (i, face_idxs) in enumerate(all_faces_idxs)
-        points = cell.points[face_idxs]
+        nodes = cell.nodes[face_idxs]
         shape  = sameshape ? facet_shape : facet_shape[i]
-        face   = Cell(shape, points, tag=cell.tag, ocell=cell)
+        face   = Cell(shape, nodes, tag=cell.tag, oelem=cell)
         push!(faces, face)
     end
 
@@ -210,16 +218,16 @@ end
 
 
 # gets all edges of a cell
-function get_edges(cell::Cell)
+function get_edges(cell::AbstractCell)
     if cell.shape.ndim==2 return get_faces(cell) end
 
     edges  = Cell[]
     all_edge_idxs = cell.shape.edge_idxs
 
     for edge_idx in all_edge_idxs
-        points = cell.points[edge_idx]
-        shape  = (LIN2, LIN3, LIN4)[length(points)-1]
-        edge   = Cell(shape, points, tag=cell.tag, ocell=cell)
+        nodes = cell.nodes[edge_idx]
+        shape  = (LIN2, LIN3, LIN4)[length(nodes)-1]
+        edge   = Cell(shape, nodes, tag=cell.tag, oelem=cell)
         push!(edges, edge)
     end
 
@@ -246,14 +254,14 @@ end
 
 
 # Returns the volume/area/length of a cell, returns zero if jacobian<=0 at any ip
-function cell_extent(c::Cell)
+function cell_extent(c::AbstractCell)
     IP = get_ip_coords(c.shape)
     nip = size(IP,1)
     nldim = c.shape.ndim # cell basic dimension
 
 
     # get coordinates matrix
-    C = getcoords(c)
+    C =get_coords(c)
     J = Array{Float64}(undef, nldim, size(C,2))
 
     # calc metric
@@ -349,7 +357,7 @@ end
 
 
 #= Returns the cell aspect ratio
-function cell_aspect_ratio(c::Cell)
+function cell_aspect_ratio(c::AbstractCell)
     # get faces
     faces = get_faces(c)
     if length(faces)==0
@@ -370,7 +378,7 @@ end =#
 
 
 # Returns the cell quality ratio as vol/reg_vol
-function cell_quality_2(c::Cell)::Float64
+function cell_quality_2(c::AbstractCell)::Float64
     # get faces
     faces = get_faces(c)
     length(faces)==0 && return 1.0
@@ -386,7 +394,7 @@ end
 
 
 # Returns the cell quality ratio as reg_surf/surf
-function cell_quality(c::Cell)::Float64
+function cell_quality(c::AbstractCell)::Float64
     # get faces
     faces = get_faces(c)
     if length(faces)==0
@@ -411,50 +419,50 @@ function cell_quality(c::Cell)::Float64
     return q
 end
 
-function cell_aspect_ratio(c::Cell)::Float64
+function cell_aspect_ratio(c::AbstractCell)::Float64
     faces = get_faces(c)
     len = [ cell_extent(f) for f in faces ]
     c.quality = minimum(len)/maximum(len)
     return c.quality
 end
 
-# Get an array with shares for all points
-function get_patches(cells::Array{Cell,1})
-    # get all points from cells if needed
-    pointsd = Dict{UInt64, Point}()
+# Get an array with shares for all nodes
+function get_patches(cells::Array{<:AbstractCell,1})
+    # get all nodes from cells if needed
+    pointsd = Dict{UInt64, Node}()
     for cell in cells
-        for point in cell.points
-            pointsd[hash(point)] = point
+        for node in cell.nodes
+            pointsd[hash(node)] = node
         end
     end
 
-    points = collect(values(pointsd))
-    np     = length(points)
+    nodes = collect(values(pointsd))
+    np     = length(nodes)
 
-    # backup points ids
-    bk_pt_id = [ pt.id for pt in points ]
+    # backup nodes ids
+    bk_pt_id = [ pt.id for pt in nodes ]
     for i=1:np
-        points[i].id = i
+        nodes[i].id = i
     end
 
     # get incidence array
-    patches  = [ Cell[] for i=1:np ]
+    patches  = [ AbstractCell[] for i=1:np ]
     for cell in cells
-        for pt in cell.points
+        for pt in cell.nodes
             push!(patches[pt.id], cell)
         end
     end
 
-    # restore points ids
+    # restore nodes ids
     for i=1:np
-        points[i].id = bk_pt_id[i]
+        nodes[i].id = bk_pt_id[i]
     end
 
-    return points, patches
+    return nodes, patches
 end
 
 
-function inverse_map(cell::Cell, X::Array{Float64,1}, tol=1.0e-7)
-    return inverse_map(cell.shape, getcoords(cell), X, tol)
+function inverse_map(cell::AbstractCell, X::AbstractArray{Float64,1}, tol=1.0e-7)
+    return inverse_map(cell.shape,get_coords(cell), X, tol)
 end
 

@@ -13,4 +13,4 @@ using PyPlot
 t = int.table
 plot(t[:ezz], t[:szz], "-o")
 
-@show t
+

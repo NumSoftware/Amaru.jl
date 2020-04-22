@@ -97,18 +97,18 @@ function mplot(items::Union{Block, Array}, filename::String=""; args...)
         isa(item, Block) || error("mplot: Block object expected")
     end
 
-    # Using Point and Cell types
-    points = Array{Point,1}()
+    # Using Nodes and Cell types
+    nodes = Array{Node,1}()
     cells  = Array{Cell,1}()
 
     for bl in blocks
-        append!(points, bl.points)
+        append!(nodes, bl.nodes)
 
         if bl.shape.family==SOLID_SHAPE
-            cell = Cell(bl.shape, bl.points)
+            cell = Cell(bl.shape, bl.nodes)
             push!(cells, cell)
         elseif bl.shape.family==LINE_SHAPE
-            lines = [ Cell(LIN2, bl.points[i-1:i]) for i=2:length(bl.points)]
+            lines = [ Cell(LIN2, bl.nodes[i-1:i]) for i=2:length(bl.nodes)]
             append!(cells, lines)
         else
             continue
@@ -118,15 +118,15 @@ function mplot(items::Union{Block, Array}, filename::String=""; args...)
 
     # Get ndim
     ndim = 1
-    for point in points
-        point.y != 0.0 && (ndim=2)
-        point.z != 0.0 && (ndim=3; break)
+    for node in nodes
+        node.coord.y != 0.0 && (ndim=2)
+        node.coord.z != 0.0 && (ndim=3; break)
     end
 
     mesh = Mesh()
     mesh.ndim = ndim
-    mesh.points = points
-    mesh.cells  = cells
+    mesh.nodes = nodes
+    mesh.elems  = cells
     mplot(mesh, filename; args...)
 end
 
@@ -150,7 +150,7 @@ function get_main_edges(cells::Array{Cell,1}, angle=30)
             else
                 delete!(edge_dict, hs)
                 n1 = normals[face_idx] # normal from face
-                face0_idx = faces_dict[hash(edge0.ocell)]
+                face0_idx = faces_dict[hash(edge0.oelem)]
                 n2 = normals[face0_idx] # normal from edge0's parent
                 α =acos( abs(clamp(dot(n1,n2),-1,1)) )*180/pi
                 α>angle && push!(main_edges, edge)
@@ -164,7 +164,7 @@ end
 
 function get_facet_normal(face::Cell)
     ndim = 1 + face.shape.ndim
-    C = getcoords(face, ndim)
+    C = get_coords(face, ndim)
 
     if ndim==2
         C .+= [pi pi^1.1]
@@ -184,25 +184,25 @@ end
 function get_surface_based_on_displacements(mesh::Mesh)
 
     surf_dict = Dict{UInt64, Cell}()
-    W = mesh.point_data["wn"]
-    #U = mesh.point_data["U"]
+    W = mesh.node_data["wn"]
+    #U = mesh.node_data["U"]
     maxW = maximum(W)
 
     disp(face) = begin
-        map = [p.id for p in face.points]
+        map = [p.id for p in face.nodes]
         #d=mean(W[map])
         d=max(maximum(W[map]), 0)
-        #@show d
+
         return d
     end
-    #disp(face) = mean( W[p.id] for p in face.points )
+    #disp(face) = mean( W[p.id] for p in face.nodes )
     #disp(face) = begin
-        #map = [p.id for p in face.points]
+        #map = [p.id for p in face.nodes]
         #mean(U[map,:])
     #end
 
     # Get only unique faces. If dup, original and dup are deleted
-    for cell in mesh.cells
+    for cell in mesh.elems
         for face in get_faces(cell)
             hs = hash(face)
             dface = disp(face)
@@ -224,8 +224,8 @@ function get_surface_based_on_displacements(mesh::Mesh)
         end
     end
 
-    #@show maxW
-    #@show W
+
+
 
     return [ face for face in values(surf_dict) ]
 
@@ -251,9 +251,9 @@ Plots a `mesh` using `PyPlot` backend. If `filename` is provided it writes a pdf
 
 `lw            = 0.5` : Line width
 
-`pointmarkers  = false` : If true, shows point markers
+`nodemarkers  = false` : If true, shows node markers
 
-`pointlabels   = false` : If true, shows point labels
+`nodelabels   = false` : If true, shows node labels
 
 `celllabels    = false` : If true, shows cell labels
 
@@ -298,12 +298,12 @@ Plots a `mesh` using `PyPlot` backend. If `filename` is provided it writes a pdf
 `leaveopen     = false` : If true, leaves the plot open so other drawings can be added
 """
 function mplot(
-               mesh::Mesh,
+               mesh::AbstractMesh,
                filename::String = "";
                axis             = true,
                lw               = 0.3,
-               pointmarkers     = false,
-               pointlabels      = false,
+               nodemarkers     = false,
+               nodelabels      = false,
                celllabels       = false,
                alpha            = 1.0,
                field            = nothing,
@@ -332,53 +332,53 @@ function mplot(
     # Get initial info from mesh
     ndim = mesh.ndim
     if ndim==2
-        point_data = mesh.point_data
-        cell_data  = mesh.cell_data
-        points  = mesh.points
-        cells   = mesh.cells
+        node_data = mesh.node_data
+        elem_data  = mesh.elem_data
+        nodes  = mesh.nodes
+        cells   = mesh.elems
         connect = []
-        connect = [ [ p.id for p in c.points ] for c in cells ] # Do not use type specifier inside comprehension to avoid problem with Revise
-        id_dict = Dict{Int, Int}( p.id => i for (i,p) in enumerate(points) )
+        connect = [ [ p.id for p in c.nodes ] for c in cells ] # Do not use type specifier inside comprehension to avoid problem with Revise
+        id_dict = Dict{Int, Int}( p.id => i for (i,p) in enumerate(nodes) )
     else
-        point_data = OrderedDict{String,Array}()
-        cell_data  = OrderedDict{String,Array}()
+        node_data = OrderedDict{String,Array}()
+        elem_data  = OrderedDict{String,Array}()
 
         # get surface cells and update
-        scells = get_surface(mesh.cells)
-        #if haskey(mesh.point_data, "U") && haskey(mesh.point_data, "wn")
+        scells = get_surface(mesh.elems)
+        #if haskey(mesh.node_data, "U") && haskey(mesh.node_data, "wn")
             # special case when using cohesive elements
             #scells = get_surface_based_on_displacements(mesh)
         #else
-            #scells = get_surface(mesh.cells)
+            #scells = get_surface(mesh.elems)
         #end
-        oc_ids = [ c.ocell.id for c in scells ]
-        linecells = [ cell for cell in mesh.cells if cell.shape.family==LINE_SHAPE] # add line cells
+        oc_ids = [ c.oelem.id for c in scells ]
+        linecells = [ cell for cell in mesh.elems if cell.shape.family==LINE_SHAPE] # add line cells
         append!(oc_ids, [c.id for c in linecells])
         newcells = [ scells; linecells ]
-        newpoints = [ p for c in newcells for p in c.points ]
-        pt_ids = [ p.id for p in newpoints ]
+        newnodes = [ p for c in newcells for p in c.nodes ]
+        pt_ids = [ p.id for p in newnodes ]
 
         # update data
-        for (field, data) in mesh.point_data
-            point_data[field] = data[pt_ids]
+        for (field, data) in mesh.node_data
+            node_data[field] = data[pt_ids]
         end
-        for (field, data) in mesh.cell_data
-            cell_data[field] = data[oc_ids]
+        for (field, data) in mesh.elem_data
+            elem_data[field] = data[oc_ids]
         end
 
-        # points and cells
-        points = newpoints
+        # nodes and cells
+        nodes = newnodes
         cells  = newcells
 
         # connectivities
-        id_dict = Dict{Int, Int}( p.id => i for (i,p) in enumerate(points) )
-        connect = [ [ id_dict[p.id] for p in c.points ] for c in cells ]
+        id_dict = Dict{Int, Int}( p.id => i for (i,p) in enumerate(nodes) )
+        connect = [ [ id_dict[p.id] for p in c.nodes ] for c in cells ]
     end
 
     ncells  = length(cells)
-    npoints = length(points)
-    pts = [ [p.x, p.y, p.z] for p in points ]
-    XYZ = [ pts[i][j] for i=1:npoints, j=1:3]
+    nnodes = length(nodes)
+    pts = [ [p.coord.x, p.coord.y, p.coord.z] for p in nodes ]
+    XYZ = [ pts[i][j] for i=1:nnodes, j=1:3]
 
     # Lazy import of PyPlot
     @eval import PyPlot:plt, matplotlib, figure, art3D, Axes3D, ioff
@@ -398,10 +398,10 @@ function mplot(
     plt.rc("figure", figsize=figsize) # suggested size (4.5,3)
 
 
-    # All points coordinates
+    # All nodes coordinates
     if warpscale>0 
-        if haskey(point_data, "U")
-            XYZ .+= warpscale.*point_data["U"]
+        if haskey(node_data, "U")
+            XYZ .+= warpscale.*node_data["U"]
         else
             @warn "mplot: Vector field U not found for warp"
         end
@@ -427,7 +427,7 @@ function mplot(
             #ax.set_proj_type("3d") # not necessary
         catch err
             @warn "mplot: Could not set aspect ratio to equal"
-            #@show err
+
             #dump(err)
         end
 
@@ -493,13 +493,13 @@ function mplot(
     if has_field
         colorbarlabel = colorbarlabel=="" ? field : colorbarlabel
         field = string(field)
-        found = haskey(cell_data, field)
+        found = haskey(elem_data, field)
         if found
-            fvals = cell_data[field]
+            fvals = elem_data[field]
         else
-            found = haskey(point_data, field)
+            found = haskey(node_data, field)
             found || error("mplot: field $field not found")
-            data  = point_data[field]
+            data  = node_data[field]
             fvals = [ mean(data[connect[i]]) for i=1:ncells ]
         end
         fvals *= fieldscale
@@ -515,8 +515,8 @@ function mplot(
             shape = cells[i].shape
             shape.family == LINE_SHAPE || continue # only line cells
             con = connect[i]
-            points = [ XYZ[i,1:3] for i in con ]
-            verts = plot_data_for_cell3d(points, shape)
+            nodes = [ XYZ[i,1:3] for i in con ]
+            verts = plot_data_for_cell3d(nodes, shape)
             push!(all_verts, verts)
             if has_field
                 push!(lfvals, fvals[i])
@@ -567,11 +567,11 @@ function mplot(
             ΔX = [ cos(θ)*cos(γ), sin(θ)*cos(γ), sin(γ) ]*0.01*L
 
             for edge in edges
-                #p1 = edge.points[1]
-                #p2 = edge.points[2]
+                #p1 = edge.nodes[1]
+                #p2 = edge.nodes[2]
                 #verts = [ [ p1.x, p1.y, p1.z ], [ p2.x, p2.y, p2.z ] ]
-                id1 = edge.points[1].id
-                id2 = edge.points[2].id
+                id1 = edge.nodes[1].id
+                id2 = edge.nodes[2].id
                 verts = [ XYZ[id_dict[id1],:], XYZ[id_dict[id2],:] ]
                 for v in verts
                     v .+= ΔX
@@ -671,8 +671,8 @@ function mplot(
         ax.add_collection(cltn)
     end
 
-    # Draw points
-    if pointmarkers
+    # Draw nodes
+    if nodemarkers
         if ndim==3
             ax.scatter(X, Y, Z, color="k", marker="o", s=1)
         else
@@ -682,7 +682,7 @@ function mplot(
 
     # Draw arrows
     if vectorfield!=nothing && ndim==2
-        data = point_data[vectorfield]
+        data = node_data[vectorfield]
         color = "blue"
         if arrowscale==0
             plt.quiver(X, Y, data[:,1], data[:,2], color=color)
@@ -691,10 +691,10 @@ function mplot(
         end
     end
 
-    # Draw point numbers
-    if pointlabels
-        npoints = length(X)
-        for i=1:npoints
+    # Draw node numbers
+    if nodelabels
+        nnodes = length(X)
+        for i=1:nnodes
             x = X[i] + 0.01*L
             y = Y[i] - 0.01*L
             z = Z[i] - 0.01*L

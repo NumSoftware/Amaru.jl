@@ -20,7 +20,7 @@ for shape in ALL_ISO_SHAPES
     # Check at default set of integration points
     Q  = shape.quadrature[0]
     nip, _ = size(Q)
-    #@show Q
+
     RR = [ Q[i,:] for i=1:nip ]
     NN = shape.func.(RR)
     TR = @test sum(sum(NN)) ≈ nip atol=1e-10

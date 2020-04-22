@@ -6,11 +6,10 @@ export ShapeType, ALL_ISO_SHAPES, ShapeFamily
 export get_ip_coords, get_shape_from_vtk
 export inverse_map, extrapolator
 
-include("point.jl")
-export Point, Cell, hash, get_x, get_y, get_z
+#include("point.jl")
+export Node, Cell, hash, get_x, get_y, get_z
 include("cell.jl")
-export getcoords, get_point, get_points, get_faces, get_patches, cell_extent, cell_quality
-export tag!, setquadrature!
+export get_coords, get_node, get_nodes, get_faces, get_patches, cell_extent, cell_quality
 include("partition.jl")
 
 include("mesh.jl")
@@ -42,7 +41,5 @@ export generate_embedded_cells!
 
 # show function for mesh related types
 Base.show(io::IO, obj::ShapeType) = custom_dump(io, obj, 2, "")
-Base.show(io::IO, obj::Point) = custom_dump(io, obj, 2, "")
-Base.show(io::IO, obj::Cell) = custom_dump(io, obj, 2, "")
 Base.show(io::IO, obj::Block) = custom_dump(io, obj, 2, "")
 Base.show(io::IO, obj::Mesh) = custom_dump(io, obj, 2, "")

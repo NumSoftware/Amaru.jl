@@ -13,7 +13,7 @@ that represents the inset curve and can be:
 """
 mutable struct BlockInset <: AbstractBlock
     #coords   ::Array{Float64,2}
-    points::Array{Point,1}
+    nodes::Array{Node,1}
     curvetype::Union{Int,AbstractString} # 0:polyline, 1:closed polyline, 2: lagrangian, 3:cubic Bezier with inner points
     closed   ::Bool
     embedded ::Bool
@@ -27,8 +27,8 @@ mutable struct BlockInset <: AbstractBlock
     λ        ::Float64 # jump distance to find multiple intersections in one cell
     id       ::Int64
     icount   ::Int64
-    _endpoint  ::Union{Point, Nothing}
-    _startpoint::Union{Point, Nothing}
+    _endpoint  ::Union{Node, Nothing}
+    _startpoint::Union{Node, Nothing}
 
     function BlockInset(coords::Array{<:Real,2}; curvetype=0, closed=false, embedded=false, cellshape=LIN3, tag="", jointtag="", tol=1e-9, toln=1e-4, tolc=1e-9, lam=1.0, id=-1)
         # TODO: add option: merge_points
@@ -43,9 +43,9 @@ mutable struct BlockInset <: AbstractBlock
         end
 
         nrows  = size(coords,1)
-        points = [ Point(coords[i,:]) for i=1:nrows ]
+        nodes = [ Node(coords[i,:]) for i=1:nrows ]
 
-        this = new(points, ctype, closed, embedded, LIN2, cellshape, tag, jointtag, tol, toln, tolc, lam, id)
+        this = new(nodes, ctype, closed, embedded, LIN2, cellshape, tag, jointtag, tol, toln, tolc, lam, id)
         this.icount = 0
         this.ε  = tol
         this.εn = toln
@@ -59,7 +59,7 @@ end
 
 
 function Base.copy(bl::BlockInset; dx=0.0, dy=0.0, dz=0.0)
-    newbl = BlockInset(getcoords(bl.points), curvetype=bl.curvetype, closed=bl.closed,
+    newbl = BlockInset(get_coords(bl.nodes), curvetype=bl.curvetype, closed=bl.closed,
                        embedded=bl.embedded, cellshape=bl.cellshape, tag=bl.tag,
                        jointtag=bl.jointtag)
 end
@@ -137,7 +137,7 @@ end
 
 
 function split_block(bl::BlockInset, msh::Mesh)
-    coords = getcoords(bl.points)
+    coords =get_coords(bl.nodes)
     n, ndim = size(coords)
 
     if n<2; error("At list two points are required in BlockInset") end
@@ -197,8 +197,8 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
 
     # Find the initial and final element
     ecells = Cell[]
-    s0 = get_point(εn,coords,curvetype)
-    icell = find_cell(s0, msh.cells, msh._cellpartition, εc, ecells) # The first tresspased cell
+    s0 =get_point(εn,coords,curvetype)
+    icell = find_elem(s0, msh.elems, msh._elempartition, εc, exclude=ecells) # The first tresspased cell
 
     if icell == nothing
         error("Inset point $(s0) outside the mesh")
@@ -206,7 +206,7 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
 
     # Initializing more variables
     ccell  = icell
-    points = Array{Point}(undef, npoints)
+    nodes = Array{Node}(undef, npoints)
 
     # Do not set _endpoint to nothing ( bl._endpoint = nothing ) to allow connectivity between segments!
 
@@ -220,7 +220,7 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
     k = 0
     while true
         k +=1
-        ccell_coords = getcoords(ccell)
+        ccell_coords =get_coords(ccell)
         # Default step
         step  = 0.50*(1.0-s)
 
@@ -229,7 +229,7 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
         for i=1:nits
             st += λ
             if st>1.0; break end
-            X = get_point(st, coords, curvetype)
+            X =get_point(st, coords, curvetype)
             is_in = is_inside(ccell.shape, ccell_coords, X, ε)
             if !is_in
                 step  = 0.5*(st-s)
@@ -238,7 +238,7 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
         end
 
         s += step
-        X  = get_point(s, coords, curvetype)
+        X  =get_point(s, coords, curvetype)
         n  = floor(Int, log(2, step/ε)) + 1  # number of required iterations to find intersection
 
         itcount+=n ##
@@ -253,7 +253,7 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
                 s -= step
             end
 
-            X = get_point(s, coords, curvetype)
+            X =get_point(s, coords, curvetype)
 
             R     = inverse_map(ccell.shape, ccell_coords, X)
             bdist = bdistance(ccell.shape, R)
@@ -269,17 +269,17 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
         # Counter
         bl.icount += end_reached ? 0 : 1
 
-        # Getting line cell points
+        # Getting line cell nodes
         if bl._endpoint==nothing
-            P1 = Point(X1)
-            push!(msh.points, P1)
+            P1 = Node(X1)
+            push!(msh.nodes, P1)
         else
             P1 = bl._endpoint
         end
 
         if !(closed && end_reached)
-            P2 = Point(X)
-            push!(msh.points, P2)
+            P2 = Node(X)
+            push!(msh.nodes, P2)
         else
             P2 = bl._startpoint
         end
@@ -287,8 +287,8 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
         if npoints==2
             Ps = [P1, P2]
         else
-            P3 = Point(get_point( (sp+s)/2.0, coords, curvetype))
-            push!(msh.points, P3)
+            P3 = Node(get_point( (sp+s)/2.0, coords, curvetype))
+            push!(msh.nodes, P3)
             Ps = [P1, P2, P3]
         end
 
@@ -297,18 +297,18 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
 
         # Saving line cell
         lcell = Cell(shape, Ps, tag=bl.tag)
-        push!(msh.cells, lcell)
+        push!(msh.elems, lcell)
 
         if bl.embedded
             # Set line as embedded
             lcell.embedded = true
-            lcell.linked_cells = [ ccell ]
+            lcell.linked_elems = [ ccell ]
         else
             # Generate a continuous joint element
-            jntpts  = vcat( ccell.points, lcell.points )
+            jntpts  = vcat( ccell.nodes, lcell.nodes )
             jntcell = Cell(jntshape, jntpts, tag=bl.jointtag)
-            push!(msh.cells, jntcell)
-            jntcell.linked_cells = [ccell, lcell]
+            push!(msh.elems, jntcell)
+            jntcell.linked_elems = [ccell, lcell]
         end
 
         ccell.crossed = true
@@ -318,7 +318,7 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
         end
 
         # Preparing for the next iteration
-        ncell  = find_cell(get_point(s + εn, coords, curvetype), msh.cells, msh._cellpartition, εc, [ccell])
+        ncell  = find_elem(get_point(s + εn, coords, curvetype), msh.elems, msh._elempartition, εc, exclude=[ccell])
         if ncell == nothing
             error("Hole found while searching for next tresspassed cell")
         end

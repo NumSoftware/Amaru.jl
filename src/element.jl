@@ -3,7 +3,7 @@
 # Abstract Element type
 # =====================
 
-abstract type Element
+abstract type Element<:AbstractCell
     #Element subtypes must have the following fields:
     #id    ::Int
     #shape ::ShapeType
@@ -18,11 +18,11 @@ abstract type Element
 end
 
 # Function to create new concrete types filled with relevant information
-function new_element(etype::Type{<:Element}, cell::Cell, nodes::Array{Node,1}, env::ModelEnv, tag::String=0)
+
+function new_element(etype::Type{<:Element}, shape::ShapeType, nodes::Array{Node,1}, tag::String, env::ModelEnv)
     elem = etype()
     elem.id     = 0
-    elem.shape  = cell.shape
-    #elem.cell   = cell
+    elem.shape  = shape
     elem.nodes  = nodes
     elem.ips    = []
     elem.tag    = tag
@@ -31,6 +31,7 @@ function new_element(etype::Type{<:Element}, cell::Cell, nodes::Array{Node,1}, e
     elem.env  = env
     return elem
 end
+
 
 # Functions that should be available in all concrete types derived from Element
 # =============================================================================
@@ -86,13 +87,73 @@ end
 # ================================
 
 # Get the element coordinates matrix
-function elem_coords(elem::Element)
+function get_coords(elem::Element)
     nnodes = length(elem.nodes)
     ndim   = elem.env.ndim
-    return [ elem.nodes[i].X[j] for i=1:nnodes, j=1:ndim]
+    return [ elem.nodes[i].coord[j] for i=1:nnodes, j=1:ndim]
 end
 
 
+function set_quadrature!(elem::Element, n::Int=0)
+
+    if !(n in keys(elem.shape.quadrature))
+        @warn "set_quadrature!: cannot set $n integ. points for shape $(elem.shape.name)"
+        return
+    end
+
+    ipc = get_ip_coords(elem.shape, n)
+    n = size(ipc,1)
+
+    resize!(elem.ips, n)
+    for i=1:n
+        R = ipc[i,1:3]
+        w = ipc[i,4]
+        elem.ips[i] = Ip(R, w)
+        elem.ips[i].id = i
+        elem.ips[i].data = ip_state_type(elem.mat)(elem.env)
+        elem.ips[i].owner = elem
+    end
+
+    # finding ips global coordinates
+    C     = get_coords(elem)
+    shape = elem.shape
+
+    # fix for link elements
+    if shape.family==JOINT1D_SHAPE
+        bar   = elem.linked_elems[2]
+        C     = get_coords(bar)
+        shape = bar.shape
+    end
+
+    # fix for joint elements
+    if shape.family==JOINT_SHAPE
+        C     = C[1:shape.facet_shape.npoints, : ]
+        shape = shape.facet_shape
+    end
+
+    # interpolation
+    for ip in elem.ips
+        N = shape.func(ip.R)
+        ip.coord = C'*N
+    end
+end
+
+function set_quadrature!(elems::Array{<:Element,1}, n::Int=0)
+    shapes = ShapeType[]
+
+    for elem in elems
+        if n in keys(elem.shape.quadrature)
+            set_quadrature!(elem, n)
+        else
+            if !(elem.shape in shapes)
+                @warn "setquadrature: cannot set $n integ. points for shape $(elem.shape.name)"
+                push!(shapes, elem.shape)
+            end
+        end
+    end
+end
+
+#=
 function elem_config_ips(elem::Element, nips::Int=0)
     ipc = get_ip_coords(elem.shape, nips)
     nips = size(ipc,1)
@@ -109,13 +170,13 @@ function elem_config_ips(elem::Element, nips::Int=0)
     end
 
     # finding ips global coordinates
-    C     = elem_coords(elem)
+    C     = get_coords(elem)
     shape = elem.shape
 
     # fix for link elements
     if shape.family==JOINT1D_SHAPE
         bar   = elem.linked_elems[2]
-        C     = elem_coords(bar)
+        C     = get_coords(bar)
         shape = bar.shape
     end
 
@@ -128,11 +189,10 @@ function elem_config_ips(elem::Element, nips::Int=0)
     # interpolation
     for ip in elem.ips
         N = shape.func(ip.R)
-        ip.X = C'*N
-        # complete z=0.0 for 2D analyses
-        length(ip.X)==2 && push!(ip.X, 0.0)
+        ip.coord = C'*N
     end
 end
+=#
 
 function setmat!(elem::Element, mat::Material)
     typeof(elem.mat) == typeof(mat) || error("setmat!: The same material type should be used.")
@@ -270,7 +330,7 @@ function Base.getindex(elems::Array{<:Element,1}, filter_ex::Expr)
     T = Bool[]
     for (i,node) in enumerate(nodes)
         nodemap[node.id] = i
-        x, y, z = node.X
+        x, y, z = node.coord
         push!(T, eval_arith_expr(filter_ex, x=x, y=y, z=z))
     end
 
@@ -286,7 +346,7 @@ function Base.sort!(elems::Array{<:Element,1})
     length(elems)==0 && return
 
     # General sorting
-    sorted = sort(elems, by=elem->sum(nodes_coords(elem.nodes)))
+    sorted = sort(elems, by=elem->sum(get_coords(elem.nodes)))
 
     # Check type of elements
     shapes = [ elem.shapetype for elem in elems ]

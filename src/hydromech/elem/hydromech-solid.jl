@@ -53,7 +53,7 @@ function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol,
     nnodes = length(nodes)
 
     # Calculate the target coordinates matrix
-    C = nodes_coords(nodes, ndim)
+    C = get_coords(nodes, ndim)
 
     # Vector with values to apply
     Q = zeros(ndim)
@@ -180,7 +180,7 @@ function elem_stiffness(elem::HMSolid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
-    C = elem_coords(elem)
+    C = get_coords(elem)
     K = zeros(nnodes*ndim, nnodes*ndim)
     Bu = zeros(6, nnodes*ndim)
 
@@ -219,7 +219,7 @@ function elem_coupling_matrix(elem::HMSolid)
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    C   = elem_coords(elem)
+    C   = get_coords(elem)
     Bu  = zeros(6, nnodes*ndim)
     Cuw = zeros(nnodes*ndim, nbnodes) # u-p coupling matrix
 
@@ -259,7 +259,7 @@ function elem_conductivity_matrix(elem::HMSolid)
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    C      = elem_coords(elem)
+    C      = get_coords(elem)
     H      = zeros(nbnodes, nbnodes)
     Bw     = zeros(ndim, nbnodes)
     KBw    = zeros(ndim, nbnodes)
@@ -292,7 +292,7 @@ function elem_compressibility_matrix(elem::HMSolid)
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    C      = elem_coords(elem)
+    C      = get_coords(elem)
     Cpp    = zeros(nbnodes, nbnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
@@ -321,7 +321,7 @@ function elem_RHS_vector(elem::HMSolid)
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    C      = elem_coords(elem)
+    C      = get_coords(elem)
     Q      = zeros(nbnodes)
     Bw     = zeros(ndim, nbnodes)
     KZ     = zeros(ndim)
@@ -356,8 +356,8 @@ function elem_internal_forces(elem::HMSolid, F::Array{Float64,1})
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    C   = elem_coords(elem)
-    Cp  = elem_coords(elem)[1:nbnodes,:]
+    C   = get_coords(elem)
+    Cp  = get_coords(elem)[1:nbnodes,:]
 
     keys   = (:ux, :uy, :uz)[1:ndim]
     map_u  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
@@ -419,7 +419,7 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    C      = elem_coords(elem)
+    C      = get_coords(elem)
 
     keys   = (:ux, :uy, :uz)[1:ndim]
     map_u  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
@@ -450,7 +450,7 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
         invJ = inv(J)
         @gemm dNdX = invJ*dNdR
-        set_Bu(elem.env, dNdX, detJ, Bu)
+        setBu(elem.env, dNdX, detJ, Bu)
 
         dNwdR = elem.shape.basic_shape.deriv(ip.R)
         @gemm dNwdX = invJ*dNwdR

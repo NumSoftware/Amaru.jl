@@ -1,10 +1,10 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 # Tag functions
-for T in (Node, Element, Ip, Edge, Face)
+for T in (Node, AbstractCell, Ip)
     @eval begin
         tag!(object::$T, tag::String) = (object.tag = tag)
-        tag!(objects::Array{$T,1}, tag::String) = for object in objects; object.tag = tag end
+        tag!(objects::Array{<:$T,1}, tag::String) = for object in objects; object.tag = tag end
     end
 end
 

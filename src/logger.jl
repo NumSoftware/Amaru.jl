@@ -175,7 +175,7 @@ end
 function setup_logger!(domain, filter, logger::NodeGroupLogger)
     logger.nodes = domain.nodes[filter]
     length(logger.nodes) == 0 && @warn "setup_logger: No nodes found for expression:" filter=logger.filter
-    sort!(logger.nodes, by=n->sum(n.X))
+    sort!(logger.nodes, by=n->sum(n.coord))
     logger.filter = filter
 end
 
@@ -212,7 +212,7 @@ function setup_logger!(domain, filter, logger::IpGroupLogger)
     logger.filter = filter
     logger.ips = domain.elems[:ips][logger.filter]
     length(logger.ips)==0 && @warn "setup_logger: No ips found for expression:" filter=logger.filter
-    sort!(logger.ips, by=ip->sum(ip.X))
+    sort!(logger.ips, by=ip->sum(ip.coord))
 end
 
 
@@ -253,17 +253,16 @@ function setup_logger!(domain, filter, logger::PointLogger)
     filter isa Array{<:Number,1} || error("setup_logger!: Cannot set PointLogger. Filter should be a coordinates array.")
     logger.filter = filter
     X = filter
-    # find cell and R
-    mesh = domain.mesh
-    cell = find_cell(X, mesh.cells, mesh._cellpartition, 1e-7, Cell[])
-    cell==nothing && error("setup_logger!: Cannot set PointLogger. Coordinate ($X) outside mesh.")
-    logger.R = inverse_map(cell, X)
-    logger.elem = domain.elems[cell.id]
+    # find elem and R
+    elem = find_elem(X, domain.elems, domain._elempartition)
+    elem==nothing && error("setup_logger!: Cannot set PointLogger. Coordinate ($X) outside mesh.")
+    logger.elem = elem
+    logger.R = inverse_map(elem, X)
 end
 
 
 function update_logger!(logger::PointLogger, domain)
-    data  = domain.point_data
+    data  = domain.node_data
     X = logger.filter
     N = logger.elem.shape.func(logger.R)
     map = [ n.id for n in logger.elem.nodes ]
@@ -306,13 +305,10 @@ function setup_logger!(domain, filter, logger::SegmentLogger)
     Xs = [ X1.+ Δ*i for i=0:logger.n-1]
 
     # find cells and Rs
-    mesh = domain.mesh
     for X in Xs
-        cell = find_cell(X, mesh.cells, mesh._cellpartition, 1e-7, Cell[])
-        cell==nothing && error("setup_logger!: Cannot set SegmentLogger. Coordinate ($X) outside mesh.")
-        coords = getcoords(cell)
-        R = inverse_map(cell.shape, coords, X)
-        elem = domain.elems[cell.id]
+        elem = find_elem(X, domain.elems, domain._elempartition)
+        elem==nothing && error("setup_logger!: Cannot set SegmentLogger. Coordinate ($X) outside mesh.")
+        R = inverse_map(elem, X)
         push!(logger.elems, elem)
         push!(logger.Rs, R)
     end
@@ -320,7 +316,7 @@ end
 
 
 function update_logger!(logger::SegmentLogger, domain)
-    data  = domain.point_data
+    data  = domain.node_data
     labels = [ k for (k,V) in data if size(V,2)==1 ]
     table = DataTable(["s"; labels])
     X1, X2 = logger.filter

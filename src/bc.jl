@@ -40,7 +40,7 @@ function compute_bc_vals!(bc::NodeBC, t::Float64, U::Array{Float64,1}, F::Array{
     essential_keys = Set( dof.name for node in bc.nodes for dof in node.dofs )
 
     for node in bc.nodes
-        x, y, z = node.X
+        x, y, z = node.coord
         for (key,cond) in bc.conds
             !haskey(node.dofdict, key) && continue
             dof = node.dofdict[key]
@@ -121,7 +121,7 @@ function compute_bc_vals!(bc::Union{FaceBC,EdgeBC}, t::Float64, U::Array{Float64
                 for node in facet.nodes
                     if haskey(node.dofdict, key)
                         dof = node.dofdict[key]
-                        x, y, z = node.X
+                        x, y, z = node.coord
                         U[dof.eq_id] = eval_arith_expr(val, x=x, y=y, z=z, t=t)
                     end
                 end
@@ -178,7 +178,7 @@ function compute_bc_vals!(bc::ElemBC, t::Float64, U::Array{Float64,1}, F::Array{
                 for node in elem.nodes
                     if haskey(node.dofdict, key)
                         dof = node.dofdict[key]
-                        x, y, z = node.X
+                        x, y, z = node.coord
                         U[dof.eq_id] = eval_arith_expr(val, x=x, y=y, z=z, t=t)
                     end
                 end

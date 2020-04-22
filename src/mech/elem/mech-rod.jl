@@ -26,7 +26,7 @@ function elem_stiffness(elem::MechRod)
     nnodes = length(elem.nodes)
 
     A = elem.mat.A
-    C = elem_coords(elem)
+    C = get_coords(elem)
     K = zeros(nnodes*ndim, nnodes*ndim)
     B = zeros(1, nnodes*ndim)
     J = Array{Float64}(undef, 1, ndim)
@@ -62,7 +62,7 @@ function elem_mass(elem::MechRod)
     ρ = elem.mat.ρ
     A = elem.mat.A
 
-    C = elem_coords(elem)
+    C = get_coords(elem)
     M = zeros(nnodes*ndim, nnodes*ndim)
     J  = Array{Float64}(undef, 1, ndim)
     N = zeros(ndim, ndim*nnodes)
@@ -133,7 +133,7 @@ function distributed_bc(elem::MechRod, facet::Union{Facet, Nothing}, key::Symbol
     nnodes = length(nodes)
 
     # Calculate the target coordinates matrix
-    C = nodes_coords(nodes, ndim)
+    C = get_coords(nodes, ndim)
 
     # Vector with values to apply
     Q = zeros(ndim)
@@ -196,7 +196,7 @@ function elem_internal_forces(elem::MechRod, F::Array{Float64,1})
     map    = Int[ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
 
     dF = zeros(nnodes*ndim)
-    C = elem_coords(elem)
+    C = get_coords(elem)
     B = zeros(1, nnodes*ndim)
     J = Array{Float64}(undef, 1, ndim)
 
@@ -232,7 +232,7 @@ function elem_update!(elem::MechRod, U::Array{Float64,1}, F::Array{Float64,1}, �
 
     dU = U[map]
     dF = zeros(nnodes*ndim)
-    C  = elem_coords(elem)
+    C  = get_coords(elem)
     B  = zeros(1, nnodes*ndim)
     J  = Array{Float64}(undef, 1, ndim)
 

@@ -11,10 +11,10 @@ bls = [
 msh = Mesh(bls, silent=true)
 save(msh, "mesh.vtk")
 
-bar_points  = sort(msh.cells["bars"].points, by=get_y)
+bar_points  = sort(msh.elems["bars"].nodes, by=get_y)
 
 tag!(bar_points[end], "tip")
-tag!(msh.cells["solids"].points, "fixed_points")
+tag!(msh.elems["solids"].nodes, "fixed_points")
 
 
 # Finite elements:

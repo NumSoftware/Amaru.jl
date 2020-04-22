@@ -4,58 +4,86 @@
     Mesh()
 
 Constructs an unitialized mesh object to be used in finite element analyses.
-It contains geometric fields as: points, cells, faces, edges, ndim, quality, etc.
+It contains geometric fields as: nodes, elems, faces, edges, ndim, quality, etc.
 """
-mutable struct Mesh
+mutable struct Mesh<:AbstractMesh
     ndim  ::Int
-    points::Array{Point,1}
-    cells ::Array{Cell,1}
+    nodes::Array{Node,1}
+    elems ::Array{Cell,1}
 
     faces ::Array{Cell,1}
     edges ::Array{Cell,1}
 
-    _pointdict::Dict{UInt64,Point}
-    _cellpartition::CellPartition
+    _pointdict::Dict{UInt64,Node}
+    _elempartition::ElemPartition
 
     # Data
-    point_data::OrderedDict{String,Array}
-    cell_data ::OrderedDict{String,Array}
+    node_data::OrderedDict{String,Array}
+    elem_data ::OrderedDict{String,Array}
 
     function Mesh()
         this = new()
-        this.points = []
-        this._pointdict = Dict{UInt64, Point}()
-        this.cells  = []
+        this.nodes = []
+        this._pointdict = Dict{UInt64, Node}()
+        this.elems  = []
         this.faces  = []
         this.edges  = []
         this.ndim   = 0
-        this._cellpartition = CellPartition()
-        this.point_data = OrderedDict()
-        this.cell_data = OrderedDict()
+        this._elempartition = ElemPartition()
+        this.node_data = OrderedDict()
+        this.elem_data = OrderedDict()
         return this
     end
 end
 
+function get_node(nodes::Dict{UInt64,Node}, C::AbstractArray{<:Real})
+    hs = hash(Node(C))
+    return get(nodes, hs, nothing)
+end
 
 function Base.copy(mesh::Mesh)
+    #=
     newmesh = Mesh()
     newmesh.ndim = mesh.ndim
-    newmesh.points = copy.(mesh.points)
-    newmesh.cells  = copy.(mesh.cells)
-    for c in newmesh.cells
-        ids = [ p.id for p in c.points ]
-        c.points = newmesh.points[ids]
+
+    # Setting nodes and cells
+    newmesh.nodes = [ copy(p) for p in mesh.nodes ]
+    newmesh.elems = [ copy(c) for c in mesh.elems ]
+
+    # Setting cells
+    ncells = length(mesh.elems)
+    for i=1:ncells
+        cell = mesh.elems[i]
+        map = [ c.id for c in cell ]
+        oelem = cell.oelem==nothing ? nothing : mesh.elems[cell.oelem.id]
+        newcell = Cell(cell.shape, newmesh.nodes[map], tag=cell.tag, oelem=oelem)
+        elem = dom.elems[i]
+        nodes = [ mesh.nodes[node.id] for node in elem.nodes ]
+        push!(mesh.elems, Cell(elem.shape, nodes, tag=elem.tag ) )
     end
 
-    newmesh._pointdict = Dict( k => newmesh.points[p.id] for (k,p) in mesh._pointdict )
+    fixup!(mesh, reorder=false) # updates also point and cell numbering
+    =#
+
+
+    newmesh = Mesh()
+    newmesh.ndim = mesh.ndim
+    newmesh.nodes = copy.(mesh.nodes)
+    newmesh.elems  = copy.(mesh.elems)
+    for c in newmesh.elems
+        ids = [ p.id for p in c.nodes ]
+        c.nodes = newmesh.nodes[ids]
+    end
+
+    newmesh._pointdict = Dict( k => newmesh.nodes[p.id] for (k,p) in mesh._pointdict )
     fixup!(newmesh)
     return newmesh
 end
 
 function datafields(mesh::Mesh)
     return [
-            collect(keys(mesh.point_data));
-            collect(keys(mesh.cell_data));
+            collect(keys(mesh.node_data));
+            collect(keys(mesh.elem_data));
            ]
 end
 
@@ -66,7 +94,7 @@ function get_surface(cells::Array{Cell,1})::Array{Cell,1}
     # Get only unique faces. If dup, original and dup are deleted
     for cell in cells
         for face in get_faces(cell)
-            #conns = [ pt.id for pt in face.points ]
+            #conns = [ pt.id for pt in face.nodes ]
             #hs = hash(conns)
             hs = hash(face)
             if haskey(surf_dict, hs)
@@ -86,7 +114,7 @@ function get_edges(surf_cells::Array{Cell,1})::Array{Cell,1}
     # Get only unique edges
     for cell in surf_cells
         for edge in get_faces(cell)
-            edge.ocell = cell.ocell
+            edge.oelem = cell.oelem
             edges_dict[hash(edge)] = edge
         end
     end
@@ -107,8 +135,8 @@ function get_neighbors(cells::Array{Cell,1})::Array{Cell,1}
             if other == nothing
                 faces_dict[hs] = face
             else
-                push!(neighbors[face.ocell.id], other.ocell)
-                push!(neighbors[other.ocell.id], face.ocell)
+                push!(neighbors[face.oelem.id], other.oelem)
+                push!(neighbors[other.oelem.id], face.oelem)
                 delete!(faces_dict, hs)
             end
         end
@@ -120,14 +148,14 @@ end
 
 # Return the cell patch for each point
 function get_patches(mesh::Mesh)
-    patches = [ Cell[] for i=1:length(mesh.points) ]
-    for cell in mesh.cells
-        for pt in cell.points
+    patches = [ Cell[] for i=1:length(mesh.nodes) ]
+    for cell in mesh.elems
+        for pt in cell.nodes
             push!(patches[pt.id], cell)
         end
     end
 
-    return mesh.points, patches
+    return mesh.nodes, patches
 end
 
 # Reverse Cuthill–McKee algorithm (RCM)
@@ -135,7 +163,7 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
 
     # Get all mesh edges
     all_edges = Dict{UInt64, Cell}()
-    for cell in mesh.cells
+    for cell in mesh.elems
 
         # adding cell edges
         if cell.shape.family == SOLID_SHAPE #is_solid(cell.shape)
@@ -146,16 +174,16 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
 
             #check for lagrangian elements
             if cell.shape==QUAD9
-                edge = Cell(POLYV, [ cell.points[1], cell.points[end] ] )
+                edge = Cell(POLYV, [ cell.nodes[1], cell.nodes[end] ] )
                 hs   = hash(edge)
                 all_edges[hs] = edge
             end
             if cell.shape==HEX27
-                edge = Cell(POLYV, [ cell.points[1], cell.points[end] ] )
+                edge = Cell(POLYV, [ cell.nodes[1], cell.nodes[end] ] )
                 hs   = hash(edge)
                 all_edges[hs] = edge
                 for i in (21,22,23,24,25,26)
-                    edge = Cell(POLYV, [ cell.points[i], cell.points[end] ] )
+                    edge = Cell(POLYV, [ cell.nodes[i], cell.nodes[end] ] )
                     hs   = hash(edge)
                     all_edges[hs] = edge
                 end
@@ -165,46 +193,46 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
 
         # joint1D cells (semi-embedded approach)
         if cell.shape in (JLINK2, JLINK3)
-            edge = Cell(POLYV, [ cell.points[1], cell.points[end-1] ])
+            edge = Cell(POLYV, [ cell.nodes[1], cell.nodes[end-1] ])
             hs = hash(edge)
             all_edges[hs] = edge
             continue
         end
 
         # embedded line cells
-        if cell.shape.family == LINE_SHAPE && length(cell.linked_cells)>0
-            edge1 = Cell(cell.shape, cell.points)
-            edge2 = Cell(LIN2, [ cell.points[1], cell.linked_cells[1].points[1] ])
+        if cell.shape.family == LINE_SHAPE && length(cell.linked_elems)>0
+            edge1 = Cell(cell.shape, cell.nodes)
+            edge2 = Cell(LIN2, [ cell.nodes[1], cell.linked_elems[1].nodes[1] ])
             all_edges[hash(edge1)] = edge1
             all_edges[hash(edge2)] = edge2
             continue
         end
 
         # all other cells
-        edge = Cell(cell.shape, cell.points)
+        edge = Cell(cell.shape, cell.nodes)
         hs = hash(edge)
         all_edges[hs] = edge
 
     end
 
     # Get neighbors ids
-    npoints = length(mesh.points)
+    npoints = length(mesh.nodes)
     neighs_ids = Array{Int64}[ [] for i in 1:npoints ]
 
     for edge in values(all_edges)
-        points = edge.points
-        np = length(points)
+        nodes = edge.nodes
+        np = length(nodes)
         for i=1:np-1
             for j=i+1:np
-                push!(neighs_ids[points[i].id], points[j].id)
-                push!(neighs_ids[points[j].id], points[i].id)
+                push!(neighs_ids[nodes[i].id], nodes[j].id)
+                push!(neighs_ids[nodes[j].id], nodes[i].id)
             end
         end
     end
 
     # removing duplicates and get neighbors
-    neighs = Array{Point}[ mesh.points[unique(list)] for list in neighs_ids ]
-    #neighs = Array{Point}[ mesh.points[unique(list)] for list in neighs_ids ]
+    neighs = Array{Node}[ mesh.nodes[unique(list)] for list in neighs_ids ]
+    #neighs = Array{Node}[ mesh.nodes[unique(list)] for list in neighs_ids ]
 
     # list of degrees per point
     degrees = Int64[ length(list) for list in neighs]
@@ -212,18 +240,18 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
 
     if mindeg == 0
         # Case of overlapping elements where edges have at least one point with the same coordinates
-        @warn "reorder!: Reordering nodes failed! Check for overlapping cells or non used points."
+        @warn "reorder!: Reordering nodes failed! Check for overlapping cells or non used nodes."
         return
     end
 
-    N = [ mesh.points[idx] ] # new list of points
-    L = Dict{Int64,Point}()  # last levelset. Use ids as keys instead of hash to avoid collisions of points with same coordinates
-    L[idx] = mesh.points[idx]
-    LL = Dict{Int64,Point}()  # levelset before the last one
+    N = [ mesh.nodes[idx] ] # new list of nodes
+    L = Dict{Int64,Node}()  # last levelset. Use ids as keys instead of hash to avoid collisions of nodes with same coordinates
+    L[idx] = mesh.nodes[idx]
+    LL = Dict{Int64,Node}()  # levelset before the last one
 
     while length(N) < npoints
         # Generating current levelset A
-        A = Dict{Int64,Point}()
+        A = Dict{Int64,Node}()
 
         for p in values(L)
             for q in neighs[p.id]
@@ -257,7 +285,7 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
         p.id = i
     end
 
-    mesh.points = N
+    mesh.nodes = N
 
     return nothing
 
@@ -267,31 +295,31 @@ end
 function renumber!(mesh::Mesh)
     # Get ndim
     ndim = 1
-    for point in mesh.points
+    for point in mesh.nodes
         point.y != 0.0 && (ndim=2)
         point.z != 0.0 && (ndim=3; break)
     end
     mesh.ndim = ndim
 
     # Numberig nodes
-    for (i,p) in enumerate(mesh.points) p.id = i end
+    for (i,p) in enumerate(mesh.nodes) p.id = i end
 
     # Numberig cells
-    for (i,c) in enumerate(mesh.cells )
+    for (i,c) in enumerate(mesh.elems )
         c.id = i;
         c.ndim=ndim;
     end
 
-    mesh.point_data["point-id"] = collect(1:length(mesh.points))
-    mesh.cell_data["cell-id"]   = collect(1:length(mesh.cells))
-    mesh.cell_data["cell-type"] = [ Int(cell.shape.vtk_type) for cell in mesh.cells ]
+    mesh.node_data["point-id"] = collect(1:length(mesh.nodes))
+    mesh.elem_data["cell-id"]   = collect(1:length(mesh.elems))
+    mesh.elem_data["cell-type"] = [ Int(cell.shape.vtk_type) for cell in mesh.elems ]
 end
 
 function set_faces_edges!(mesh::Mesh)
     # Facets
     if genfacets
         verbose && print("  finding facets...   \r")
-        mesh.faces = get_surface(mesh.cells)
+        mesh.faces = get_surface(mesh.elems)
     end
     ndim==2 && (mesh.edges=mesh.faces)
 
@@ -305,11 +333,11 @@ end
 function update_quality!(mesh::Mesh)
     # Quality
     Q = Float64[]
-    for c in mesh.cells
+    for c in mesh.elems
         c.quality = cell_quality(c)
         push!(Q, c.quality)
     end
-    mesh.cell_data["quality"]   = Q
+    mesh.elem_data["quality"]   = Q
 end
 
 # Updates numbering, faces and edges in a Mesh object
@@ -317,25 +345,25 @@ function fixup!(mesh::Mesh; verbose::Bool=false, genfacets::Bool=true, genedges:
 
     # Get ndim
     ndim = 1
-    for point in mesh.points
-        point.y != 0.0 && (ndim=2)
-        point.z != 0.0 && (ndim=3; break)
+    for point in mesh.nodes
+        point.coord.y != 0.0 && (ndim=2)
+        point.coord.z != 0.0 && (ndim=3; break)
     end
     mesh.ndim = ndim
 
     # Numberig nodes
-    for (i,p) in enumerate(mesh.points) p.id = i end
+    for (i,p) in enumerate(mesh.nodes) p.id = i end
 
     # Numberig cells
-    for (i,c) in enumerate(mesh.cells )
+    for (i,c) in enumerate(mesh.elems )
         c.id = i;
-        c.ndim=ndim;
+        #c.ndim=ndim;
     end
 
     # Facets
     if genfacets
         verbose && print("  finding facets...   \r")
-        mesh.faces = get_surface(mesh.cells)
+        mesh.faces = get_surface(mesh.elems)
     end
     ndim==2 && (mesh.edges=mesh.faces)
 
@@ -347,9 +375,9 @@ function fixup!(mesh::Mesh; verbose::Bool=false, genfacets::Bool=true, genedges:
 
     # Quality
     Q = Float64[]
-    for c in mesh.cells
-        #@show getcoords(c)
-        #@show c.id
+    for c in mesh.elems
+
+
         c.quality = cell_quality(c)
         push!(Q, c.quality)
     end
@@ -358,21 +386,21 @@ function fixup!(mesh::Mesh; verbose::Bool=false, genfacets::Bool=true, genedges:
     reorder && reorder!(mesh)
 
     # Reset data
-    mesh.point_data["point-id"] = collect(1:length(mesh.points))
-    mesh.cell_data["quality"]   = Q
-    mesh.cell_data["cell-id"]   = collect(1:length(mesh.cells))
-    mesh.cell_data["cell-type"] = [ Int(cell.shape.vtk_type) for cell in mesh.cells ]
+    mesh.node_data["point-id"] = collect(1:length(mesh.nodes))
+    mesh.elem_data["quality"]   = Q
+    mesh.elem_data["cell-id"]   = collect(1:length(mesh.elems))
+    mesh.elem_data["cell-type"] = [ Int(cell.shape.vtk_type) for cell in mesh.elems ]
 
     return nothing
 end
 
 # Mesh quality
 function quality!(mesh::Mesh)
-    for c in mesh.cells
+    for c in mesh.elems
         c.quality = cell_quality(c)
     end
-    Q = Float64[ c.quality for c in mesh.cells]
-    mesh.cell_data["quality"] = Q
+    Q = Float64[ c.quality for c in mesh.elems]
+    mesh.elem_data["quality"] = Q
     return nothing
 end
 
@@ -381,40 +409,40 @@ function join_mesh!(m1::Mesh, m2::Mesh)
     #m = Mesh()
 
     # copy m1 to m
-    #m.points = copy(m1.points)
-    #m.cells  = copy(m1.cells)
+    #m.nodes = copy(m1.nodes)
+    #m.elems  = copy(m1.elems)
     #m._pointdict = copy(m1._pointdict)
 
-    pid = length(m1.points)
-    cid = length(m1.cells)
+    pid = length(m1.nodes)
+    cid = length(m1.elems)
 
-    #@show length(m1.points)
-    #@show length(m2.points)
+
+
 
     #for (h,p) in m1._pointdict
-        #@show (p.id, p.x, p.y, p.z)
+
     #end
 
-    # Add new points from m2
-    for p in m2.points
+    # Add new nodes from m2
+    for p in m2.nodes
         hs = hash(p)
         if !haskey(m1._pointdict, hs)
-            #@show (p.x, p.y, p.z)
+
             pid += 1
             p.id = pid
-            push!(m1.points, p)
+            push!(m1.nodes, p)
         end
     end
 
-    #@show length(m1.points)
 
-    # Fix m2 cells connectivities for points at m1 border
-    for c in m2.cells
-        for (i,p) in enumerate(c.points)
+
+    # Fix m2 cells connectivities for nodes at m1 border
+    for c in m2.elems
+        for (i,p) in enumerate(c.nodes)
             hs = hash(p)
             if haskey(m1._pointdict, hs)
                 pp = m1._pointdict[hs]
-                c.points[i] = pp
+                c.nodes[i] = pp
             else
                 # update pointdict dict
                 if haskey(m2._pointdict, hs)
@@ -425,7 +453,7 @@ function join_mesh!(m1::Mesh, m2::Mesh)
 
         cid += 1
         c.id = cid
-        push!(m1.cells, c)
+        push!(m1.elems, c)
     end
 
     return nothing
@@ -451,13 +479,13 @@ function Mesh(
               verbose    :: Bool=true,
               silent     :: Bool=false
              )
-    n = size(coords, 1) # number of points
+    n = size(coords, 1) # number of nodes
     m = size(conns , 1) # number of cells
 
-    points = Point[]
+    nodes = Node[]
     for i=1:n
         C = coords[i,:]
-        push!(points, Point(C))
+        push!(nodes, Node(C))
     end
 
     # Get ndim
@@ -465,7 +493,7 @@ function Mesh(
 
     cells = Cell[]
     for i=1:m
-        pts = points[conns[i]]
+        pts = nodes[conns[i]]
         if length(cellshapes)>0
             shape = cellshapes[i]
         else
@@ -476,8 +504,8 @@ function Mesh(
     end
 
     mesh = Mesh()
-    mesh.points = points
-    mesh.cells  = cells
+    mesh.nodes = nodes
+    mesh.elems  = cells
     fixup!(mesh, reorder=false) # no node ordering
     mesh.ndim = ndim # force ndim
 
@@ -568,7 +596,7 @@ function Mesh(
         join_mesh!(mesh, m)
     end
 
-    # Split blocks: generates points and cells
+    # Split blocks: generates nodes and cells
     for (i,b) in enumerate(blocks)
         b.id = i
         split_block(b, mesh)
@@ -578,26 +606,26 @@ function Mesh(
     # Updates numbering, quality, facets and edges
     fixup!(mesh, verbose=verbose, genfacets=genfacets, genedges=genedges, reorder=reorder)
 
-    # Add field for embedded points
-    if any( c.shape.family==JOINT1D_SHAPE for c in mesh.cells )
-        ncells = length(mesh.cells)
+    # Add field for embedded nodes
+    if any( c.shape.family==JOINT1D_SHAPE for c in mesh.elems )
+        ncells = length(mesh.elems)
         inset_data = zeros(Int, ncells, 3) # npoints, first link id, second link id
         for i=1:ncells
-            cell = mesh.cells[i]
+            cell = mesh.elems[i]
             if cell.shape.family==JOINT1D_SHAPE
                 inset_data[i,1] = cell.shape.npoints
-                inset_data[i,2] = cell.linked_cells[1].id
-                inset_data[i,3] = cell.linked_cells[2].id
+                inset_data[i,2] = cell.linked_elems[1].id
+                inset_data[i,3] = cell.linked_elems[2].id
             end
         end
-        mesh.cell_data["inset-data"] = inset_data
+        mesh.elem_data["inset-data"] = inset_data
     end
 
     if verbosity>0
-        npoints = length(mesh.points)
-        ncells  = length(mesh.cells)
+        npoints = length(mesh.nodes)
+        ncells  = length(mesh.elems)
         @printf "  %4dd mesh                             \n" mesh.ndim
-        @printf "  %5d points\n" npoints
+        @printf "  %5d nodes\n" npoints
         @printf "  %5d cells\n" ncells
     end
     if verbosity>1
@@ -625,8 +653,8 @@ end
 function Mesh(cells::Array{Cell,1})
     # New mesh object TODO: make a copy?
     mesh = Mesh()
-    mesh.points = cells[:points]
-    mesh.cells  = cells
+    mesh.nodes = cells[:nodes]
+    mesh.elems  = cells
     fixup!(mesh, reorder=false)
 
     return mesh
@@ -638,26 +666,26 @@ function Base.getindex(mesh::Mesh, filter_ex::Expr)
     # TODO: make a copy?
 
     # filter cells
-    cells  = mesh.cells[filter_ex]
-    # get points
-    points = get_points(cells)
+    cells  = mesh.elems[filter_ex]
+    # get nodes
+    nodes =get_nodes(cells)
 
     # ids from selected cells and poitns
     cids = [ c.id for c in cells ]
-    pids = [ p.id for p in points ]
+    pids = [ p.id for p in nodes ]
 
     # new mesh object
     new_mesh = Mesh()
-    new_mesh.points = points
-    new_mesh.cells = cells
+    new_mesh.nodes = nodes
+    new_mesh.elems = cells
 
     # select relevant data
-    for (key,vals) in mesh.point_data
-        new_mesh.point_data[key] = vals[pids]
+    for (key,vals) in mesh.node_data
+        new_mesh.node_data[key] = vals[pids]
     end
 
-    for (key,vals) in mesh.cell_data
-        new_mesh.cell_data[key] = vals[cids]
+    for (key,vals) in mesh.elem_data
+        new_mesh.elem_data[key] = vals[cids]
     end
 
     # update node numbering, facets and edges
@@ -672,43 +700,43 @@ function threshold(mesh::Mesh, field::Union{Symbol,String}, minval::Float64, max
     field = string(field)
 
     # check if field exists
-    found = haskey(mesh.cell_data, field)
+    found = haskey(mesh.elem_data, field)
     if found
-        vals = mesh.cell_data[field]
+        vals = mesh.elem_data[field]
     else
-        found = haskey(mesh.point_data, field)
+        found = haskey(mesh.node_data, field)
         found || error("threshold: field $field not found")
-        data  = mesh.point_data[field]
+        data  = mesh.node_data[field]
         vals = [ mean(data[i]) for i=1:ncells ]
     end
 
     # filter cells
     cells = Cell[]
-    for (cell, val) in zip(mesh.cells, vals)
+    for (cell, val) in zip(mesh.elems, vals)
         if minval <= val <= maxval
             push!(cells, cell)
         end
     end
 
-    # get points
-    points = get_points(cells)
+    # get nodes
+    nodes = get_nodes(cells)
 
-    # ids from selected cells and points
+    # ids from selected cells and nodes
     cids = [ c.id for c in cells ]
-    pids = [ p.id for p in points ]
+    pids = [ p.id for p in nodes ]
 
     # new mesh object
     new_mesh = Mesh()
-    new_mesh.points = points
-    new_mesh.cells = cells
+    new_mesh.nodes = nodes
+    new_mesh.elems = cells
 
     # select relevant data
-    for (key,vals) in mesh.point_data
-        new_mesh.point_data[key] = vals[pids,:]
+    for (key,vals) in mesh.node_data
+        new_mesh.node_data[key] = vals[pids,:]
     end
 
-    for (key,vals) in mesh.cell_data
-        new_mesh.cell_data[key] = vals[cids]
+    for (key,vals) in mesh.elem_data
+        new_mesh.elem_data[key] = vals[cids]
     end
 
     # update node numbering, facets and edges
@@ -719,36 +747,36 @@ function threshold(mesh::Mesh, field::Union{Symbol,String}, minval::Float64, max
 end
 
 
-#export get_segment_data
-#function get_segment_data(msh::Mesh, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=200)
-    #data = msh.point_data
-    #table = DataTable(["s"; collect(keys(data))])
-    #X1 = [X1; 0.0][1:3]
-    #X2 = [X2; 0.0][1:3]
-    #Δ = (X2-X1)/(npoints-1)
-    #Δs = norm(Δ)
-    #s1 = 0.0
-#
-    #for i=1:npoints
-        #X = X1 + Δ*(i-1)
-        #s = s1 + Δs*(i-1)
-        #cell = find_cell(X, msh.cells, msh._cellpartition, 1e-7, Cell[])
-        #coords = getcoords(cell)
-        #R = inverse_map(cell.shape, coords, X)
-        #N = cell.shape.func(R)
-        #map = [ p.id for p in cell.points ]
-        #vals = [ s ]
-        #for (k,V) in data
-            #val = dot(V[map], N)
-            #push!(vals, val)
-        #end
-        #push!(table, vals)
-    #end
-#
-    #filename != "" && save(table, filename)
-#
-    #return table
-#end
+export get_segment_data
+function get_segment_data(msh::AbstractMesh, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; n=200)
+    data = msh.node_data
+    table = DataTable(["s"; collect(keys(data))])
+    X1 = [X1; 0.0][1:3]
+    X2 = [X2; 0.0][1:3]
+    Δ = (X2-X1)/(n-1)
+    Δs = norm(Δ)
+    s1 = 0.0
+
+    for i=1:n
+        X = X1 + Δ*(i-1)
+        s = s1 + Δs*(i-1)
+        cell = find_elem(X, msh.elems, msh._elempartition, 1e-7, Cell[])
+        coords =get_coords(cell)
+        R = inverse_map(cell.shape, coords, X)
+        N = cell.shape.func(R)
+        map = [ p.id for p in cell.nodes ]
+        vals = [ s ]
+        for (k,V) in data
+            val = dot(V[map], N)
+            push!(vals, val)
+        end
+        push!(table, vals)
+    end
+
+    filename != "" && save(table, filename)
+
+    return table
+end
 
 
 export randmesh
@@ -772,7 +800,7 @@ function check_mesh(mesh::Mesh)
 
     # Get only unique elems. If dup, original and dup are deleted
     n = 0
-    for cell in mesh.cells
+    for cell in mesh.elems
         hs = hash(cell)
         if haskey(cell_dict, hs)
             n += 1

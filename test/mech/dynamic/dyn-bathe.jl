@@ -42,8 +42,8 @@ bl21 = BlockInset( (1/1000)*[3*25.4 0 3*25.4; 3*25.4 136*25.4 3*25.4] , curvetyp
 mesh=Mesh(bl1, bl2, bl3, bl4, bl5, bl6, bl7, bl8, bl9, bl10, bl21, bl11, bl12, bl13, bl14, bl15, bl16, bl17, bl18, bl19, bl20,
  silent=true)
 
-#tag!(mesh.points[1], 1)
-#tag!(mesh.cells    , 10) # all cells
+#tag!(mesh.nodes[1], 1)
+#tag!(mesh.elems    , 10) # all cells
 #tag!(mesh.ips[:(x>0)], 1000)
 
 

@@ -145,8 +145,8 @@ end
 
 
 function complete_ut_T(dom::Domain)
-    haskey(dom.point_data, "ut") || return
-    Ut = dom.point_data["ut"]
+    haskey(dom.node_data, "ut") || return
+    Ut = dom.node_data["ut"]
 
     for elem in dom.elems
         elem.shape.family==SOLID_SHAPE || continue
@@ -164,7 +164,7 @@ function complete_ut_T(dom::Domain)
         end
     end
 
-    dom.point_data["T"] = Ut .+ dom.env.T0
+    dom.node_data["T"] = Ut .+ dom.env.T0
 end
 
 

@@ -1,13 +1,13 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 
-mutable struct CellPartition
-    partition::Array{Array{Cell,1},3}
+mutable struct ElemPartition
+    partition::Array{Array{AbstractCell,1},3}
     bbox::Array{Float64,2}
     lbin::Float64
-    function CellPartition(nx=0, ny=0, nz=0, bbox=nothing)
+    function ElemPartition(nx=0, ny=0, nz=0, bbox=nothing)
         this = new()
-        this.partition = Array{Array{Cell,1}}(undef, nx, nx, nx)
+        this.partition = Array{Array{AbstractCell,1}}(undef, nx, nx, nx)
         this.bbox = zeros(0,0)
         # this.lbin = ..
         return this
@@ -15,16 +15,16 @@ mutable struct CellPartition
 end
 
 
-function get_bin_cells(cellpartition::CellPartition, p::Point) # returns an array of cells: TODO: untested function
+function get_bin_cells(cellpartition::ElemPartition, p::Node) # returns an array of cells: TODO: untested function
     minx, miny, minz = cellpartition.bbox[1,:]
     lbin = cellpartition.lbin
-    ix = floor(Int, (p.x - minx)/lbin) + 1
-    iy = floor(Int, (p.y - miny)/lbin) + 1
-    iz = floor(Int, (p.z - minz)/lbin) + 1
+    ix = floor(Int, (p.coord.x - minx)/lbin) + 1
+    iy = floor(Int, (p.coord.y - miny)/lbin) + 1
+    iz = floor(Int, (p.coord.z - minz)/lbin) + 1
     return cellpartition.partition[ix, iy, iz]
 end
 
-function add_cell(cellpartition::CellPartition, cell::Cell) # TODO: untested function
+function add_cell(cellpartition::ElemPartition, cell::AbstractCell) # TODO: untested function
     minx, miny, minz = cellpartition.bbox[1,:]
     lbin = cellpartition.lbin
     bbox = bounding_box(cell)
@@ -45,7 +45,7 @@ function add_cell(cellpartition::CellPartition, cell::Cell) # TODO: untested fun
 end
 
 # Grepares a group of cellpartition that contain given cells
-function build_bins(cells::Array{Cell,1}, cellpartition::CellPartition)
+function build_bins(cells::Array{<:AbstractCell,1}, cellpartition::ElemPartition)
     # Get all points
     cellpartition.bbox = bounding_box(cells)
     minx, miny, minz = cellpartition.bbox[1,:]
@@ -74,9 +74,9 @@ function build_bins(cells::Array{Cell,1}, cellpartition::CellPartition)
     nz = floor(Int, Lz/lbin) + 1
 
     # Allocate cellpartition
-    cellpartition.partition = Array{Array{Cell,1}}(undef, nx, ny, nz)
+    cellpartition.partition = Array{Array{AbstractCell,1}}(undef, nx, ny, nz)
     for k=1:nz, j=1:ny, i=1:nx
-        cellpartition.partition[i,j,k] = Cell[]
+        cellpartition.partition[i,j,k] = AbstractCell[]
     end
 
     # Fill cellpartition
@@ -99,8 +99,8 @@ function build_bins(cells::Array{Cell,1}, cellpartition::CellPartition)
 end
 
 # Find the cell that contains a given point
-function find_cell(X::Array{Float64,1}, cells::Array{Cell,1}, cellpartition::CellPartition, tol::Float64, exc_cells::Array{Cell,1})
-    # Point coordinates
+function find_elem(X::Array{Float64,1}, cells::Array{<:AbstractCell,1}, cellpartition::ElemPartition, tol::Float64=1e-7; exclude::Array{<:AbstractCell,1}=AbstractCell[])
+    # Node coordinates
     x, y, z = vcat(X, 0)[1:3]
     lbin = cellpartition.lbin
 
@@ -113,7 +113,7 @@ function find_cell(X::Array{Float64,1}, cells::Array{Cell,1}, cellpartition::Cel
         lbin = cellpartition.lbin
 
         if any(X .< Cmin .- tol) || any(X .> Cmax .+ tol)
-            error("find_cell: point outside bounding box")
+            error("find_elem: point outside bounding box")
         end
 
         # Find bin index
@@ -124,19 +124,19 @@ function find_cell(X::Array{Float64,1}, cells::Array{Cell,1}, cellpartition::Cel
         # Search cell in bin
         bin = cellpartition.partition[ix, iy, iz]
         for cell in bin
-            coords = getcoords(cell)
-            if is_inside(cell.shape, coords, X, tol) && !(cell in exc_cells)
+            coords =get_coords(cell)
+            if is_inside(cell.shape, coords, X, tol) && !(cell in exclude)
                 return cell
             end
         end
 
         # If not found in the first attempt try then rebuild cellpartition
         if attempt==1
-            @warn "find_cell: Bin search failed. Rebuilding cellpartition..."
+            @warn "find_elem: Bin search failed. Rebuilding cellpartition..."
             build_bins(cells, cellpartition)
         end
     end
 
-    @warn "find_cell: Bin search failed"
+    @warn "find_elem: Bin search failed"
     return nothing
 end

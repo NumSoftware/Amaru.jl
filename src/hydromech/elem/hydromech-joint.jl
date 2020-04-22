@@ -43,7 +43,7 @@ function elem_init(elem::HydroMechJoint)
 
     # Volume from first linked element
     V1 = 0.0
-    C1 = elem_coords(e1)
+    C1 = get_coords(e1)
 
     for ip in e1.ips
         dNdR = e1.shape.deriv(ip.R)
@@ -54,7 +54,7 @@ function elem_init(elem::HydroMechJoint)
 
     # Volume from second linked element
     V2 = 0.0
-    C2 = elem_coords(e2)
+    C2 = get_coords(e2)
     for ip in e2.ips
         dNdR = e2.shape.deriv(ip.R)
         J    = dNdR*C2
@@ -64,7 +64,7 @@ function elem_init(elem::HydroMechJoint)
 
     # Area of joint element
     A = 0.0
-    C = elem_coords(elem)
+    C = get_coords(elem)
     nnodes   = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints 
     nlnodes  = Int((nnodes-nbsnodes)/2) 
@@ -94,7 +94,7 @@ function elem_stiffness(elem::HydroMechJoint)
     nlnodes  = Int((nnodes-nbsnodes)/2) 
     dnlnodes = nnodes-nbsnodes
     fshape   = elem.shape.facet_shape
-    C        = elem_coords(elem)[1:nlnodes,:]
+    C        = get_coords(elem)[1:nlnodes,:]
 
     J        = Array{Float64}(undef, ndim-1, ndim)
     NN       = zeros(ndim, dnlnodes*ndim)
@@ -146,7 +146,7 @@ function elem_coupling_matrix(elem::HydroMechJoint)
     nlnodes  = Int((nnodes-nbsnodes)/2) 
     dnlnodes = nnodes-nbsnodes
     fshape   = elem.shape.facet_shape
-    C        = elem_coords(elem)[1:nlnodes,:]
+    C        = get_coords(elem)[1:nlnodes,:]
 
     J        = Array{Float64}(undef, ndim-1, ndim)
     NN       = zeros(ndim, dnlnodes*ndim)
@@ -213,7 +213,7 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
     dnlnodes = nnodes-nbsnodes
     fshape   = elem.shape.facet_shape
 
-    C        = elem_coords(elem)[1:nbsnodes,:]
+    C        = get_coords(elem)[1:nbsnodes,:]
     Cl       = zeros(nbsnodes, ndim-1)
     J        = Array{Float64}(undef, ndim-1, ndim)
     Jl       = zeros(ndim-1, ndim-1)
@@ -292,7 +292,7 @@ function elem_compressibility_matrix(elem::HydroMechJoint)
     nlnodes  = Int((nnodes-nbsnodes)/2) 
     dnlnodes = nnodes-nbsnodes
     fshape   = elem.shape.facet_shape
-    C        = elem_coords(elem)[1:nbsnodes,:]
+    C        = get_coords(elem)[1:nbsnodes,:]
 
     J   = Array{Float64}(undef, ndim-1, ndim)
     Cpp = zeros(3*nbsnodes, 3*nbsnodes)
@@ -337,7 +337,7 @@ function elem_RHS_vector(elem::HydroMechJoint)
     nlnodes  = Int((nnodes-nbsnodes)/2) 
     dnlnodes = nnodes-nbsnodes
     fshape   = elem.shape.facet_shape
-    C        = elem_coords(elem)[1:nbsnodes,:]
+    C        = get_coords(elem)[1:nbsnodes,:]
 
     J        = Array{Float64}(undef, ndim-1, ndim)
     Cl       = zeros(nbsnodes, ndim-1)
@@ -432,7 +432,7 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
     J      = Array{Float64}(undef, ndim-1, ndim)
     NN     = zeros(ndim, dnlnodes*ndim)
 
-    C      = elem_coords(elem)[1:nbsnodes,:]
+    C      = get_coords(elem)[1:nbsnodes,:]
     Cl     = zeros(nbsnodes, ndim-1)
     Jl     = zeros(ndim-1, ndim-1)
     mf     = [1.0, 0.0, 0.0][1:ndim]    
@@ -544,7 +544,7 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
     Δω     = zeros(ndim)
     Δuw    = zeros(3)
     Bu     = zeros(ndim, dnlnodes*ndim)
-    C      = elem_coords(elem)[1:nbsnodes,:]
+    C      = get_coords(elem)[1:nbsnodes,:]
     Cl     = zeros(nbsnodes, ndim-1)
     Jl     = zeros(ndim-1, ndim-1)
     Bp     = zeros(ndim-1, nbsnodes)

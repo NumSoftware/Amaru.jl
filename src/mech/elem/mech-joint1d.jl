@@ -25,8 +25,8 @@ matching_shape_family(::Type{MechJoint1D}) = JOINT1D_SHAPE
 function elem_init(elem::MechJoint1D)
     hook = elem.linked_elems[1]
     bar  = elem.linked_elems[2]
-    Ch = elem_coords(hook)
-    Ct = elem_coords(bar)
+    Ch = get_coords(hook)
+    Ct = get_coords(bar)
     elem.cache_B = []
     elem.cache_detJ = []
     for ip in elem.ips
@@ -108,7 +108,7 @@ function mountB(elem::MechJoint1D, R, Ch, Ct)
     # Mount MM matrix
     stack = Array{Float64,2}[]
     for i=1:nbnodes
-        Xj = bar.nodes[i].X
+        Xj = bar.nodes[i].coord
         R  = inverse_map(hook.shape, Ch, Xj)
         M  = hook.shape.func(R)
         for Mi in M

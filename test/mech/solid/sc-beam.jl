@@ -5,9 +5,9 @@ using Test
 
 bl  = Block( [0 0 0; 0.1 0.6 0.1], nx=1, ny=33, nz=6)
 msh = Mesh(bl, silent=true
-iptag!(msh.cells[2], 100)
-tag!(msh.cells[22], 100)
-tag!(msh.cells, 100)
+iptag!(msh.elems[2], 100)
+tag!(msh.elems[22], 100)
+tag!(msh.elems, 100)
 tag!(msh.edges[:(y==0.2 && z==0.1)], 10)
 
 # finite element analysis

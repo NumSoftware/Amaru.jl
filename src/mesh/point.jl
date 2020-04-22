@@ -1,18 +1,18 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-# Point
+# Node
 # =====
 """
 A geometry type that represents a coordinate point.
 """
-mutable struct Point
+mutable struct Node
     x    ::Float64
     y    ::Float64
     z    ::Float64
     tag  ::String
     id   ::Int64
     _hash::UInt64
-    function Point(x::Real, y::Real, z::Real=0.0; tag::String="")
+    function Node(x::Real, y::Real, z::Real=0.0; tag::String="")
         # zero is added to avoid negative bit sign for zero signed values
         x += 0.0
         y += 0.0
@@ -24,12 +24,12 @@ mutable struct Point
         #z = round(z, digits=NDIG) + 0.0
         return new(x, y, z, tag,-1, _hash)
     end
-    function Point(C::AbstractArray{<:Real}; tag::String="")
+    function Node(C::AbstractArray{<:Real}; tag::String="")
         # zero is added to avoid negative bit sign for zero signed values
         n = length(C)
-        n==1 && return Point(C[1], 0.0, 0.0, tag=tag)
-        n==2 && return Point(C[1], C[2], 0.0, tag=tag)
-        return Point(C[1], C[2], C[3]+0.0, tag=tag)
+        n==1 && return Node(C[1], 0.0, 0.0, tag=tag)
+        n==2 && return Node(C[1], C[2], 0.0, tag=tag)
+        return Node(C[1], C[2], C[3]+0.0, tag=tag)
 
         #n==1 && return new(C[1]+0.0, 0.0, 0.0, tag, -1)
         #n==2 && return new(C[1]+0.0, C[2]+0.0, 0.0, tag, -1)
@@ -38,38 +38,38 @@ mutable struct Point
 end
 
 
-### Point methods
+### Node methods
 
-Base.copy(point::Point) = Point(point.x, point.y, point.z, tag=point.tag)
-Base.copy(points::Array{Point,1}) = [ copy(p) for p in points ]
+Base.copy(point::Node) = Node(point.x, point.y, point.z, tag=point.tag)
+Base.copy(points::Array{Node,1}) = [ copy(p) for p in points ]
 
 # The functions below can be used in conjuntion with sort
-get_x(point::Point) = point.x
-get_y(point::Point) = point.y
-get_z(point::Point) = point.z
+get_x(point::Node) = point.x
+get_y(point::Node) = point.y
+get_z(point::Node) = point.z
 
-#Base.hash(p::Point) = floor(UInt, abs(1000000 + p.x*1001 + p.y*10000001 + p.z*100000000001))
-#Base.hash(p::Point) = hash( (p.x==0.0?0.0:p.x, p.y==0.0?0.0:p.y, p.z==0.0?0.0:p.z) ) # comparisons used to avoid signed zero
-#Base.hash(p::Point) = hash( (p.x==0.0?0.0:p.x, p.y==0.0?0.0:p.y, p.z==0.0?0.0:p.z) ) # comparisons used to avoid signed zero
+#Base.hash(p::Node) = floor(UInt, abs(1000000 + p.coord.x*1001 + p.coord.y*10000001 + p.coord.z*100000000001))
+#Base.hash(p::Node) = hash( (p.coord.x==0.0?0.0:p.coord.x, p.coord.y==0.0?0.0:p.coord.y, p.coord.z==0.0?0.0:p.coord.z) ) # comparisons used to avoid signed zero
+#Base.hash(p::Node) = hash( (p.coord.x==0.0?0.0:p.coord.x, p.coord.y==0.0?0.0:p.coord.y, p.coord.z==0.0?0.0:p.coord.z) ) # comparisons used to avoid signed zero
 
-Base.hash(p::Point) = hash( (round(p.x, digits=8), round(p.y, digits=8), round(p.z, digits=8)) )
-#Base.hash(p::Point) = hash( (p.x, p.y, p.z))
+Base.hash(p::Node) = hash( (round(p.coord.x, digits=8), round(p.coord.y, digits=8), round(p.coord.z, digits=8)) )
+#Base.hash(p::Node) = hash( (p.coord.x, p.coord.y, p.coord.z))
 
-Base.hash(points::Array{Point,1}) = sum(hash(p) for p in points)
+Base.hash(points::Array{Node,1}) = sum(hash(p) for p in points)
 
-Base.:(==)(p1::Point, p2::Point) = hash(p1)==hash(p2)
+Base.:(==)(p1::Node, p2::Node) = hash(p1)==hash(p2)
 
-getcoords(p::Point) = [p.x, p.y, p.z]
+get_coords(p::Node) = [p.coord.x, p.coord.y, p.coord.z]
 
 # Sentinel instance for not found point
-const NO_POINT = Point(1e+308, 1e+308, 1e+308)
+const NO_POINT = Node(1e+308, 1e+308, 1e+308)
 
-function get_point(points::Dict{UInt64,Point}, C::AbstractArray{<:Real})
-    hs = hash(Point(C))
+function get_node(points::Dict{UInt64,Node}, C::AbstractArray{<:Real})
+    hs = hash(Node(C))
     return get(points, hs, nothing)
 end
 
-function getcoords(points::Array{Point,1}, ndim::Int64=3)
+function get_coords(points::Array{Node,1}, ndim::Int64=3)
     np = length(points)
     C  = Array{Float64}(undef, np, ndim)
     for i=1:np
@@ -81,21 +81,21 @@ function getcoords(points::Array{Point,1}, ndim::Int64=3)
     return C
 end
 
-function setcoords!(points::Array{Point,1}, coords::AbstractArray{Float64,2})
+function setcoords!(points::Array{Node,1}, coords::AbstractArray{Float64,2})
     nrows, ncols = size(coords)
     @assert nrows == length(points)
 
     for (i,p) in enumerate(points)
-        p.x = coords[i,1]
-        p.y = coords[i,2]
-        ncols==3 && (p.z = coords[i,3])
+        p.coord.x = coords[i,1]
+        p.coord.y = coords[i,2]
+        ncols==3 && (p.coord.z = coords[i,3])
     end
 end
 
 
 # Index operator for an collection of points
-function Base.getindex(points::Array{Point,1}, filter_ex::Expr)
-    R = Point[]
+function Base.getindex(points::Array{Node,1}, filter_ex::Expr)
+    R = Node[]
     for point in points
         x, y, z = point.x, point.y, point.z
         eval_arith_expr(filter_ex, x=x, y=y, z=z) && push!(R, point)
@@ -104,7 +104,7 @@ function Base.getindex(points::Array{Point,1}, filter_ex::Expr)
     return R
 end
 
-function Base.getindex(points::Array{Point,1}, tag::String)
-    return Point[ p for p in points if p.tag==tag ]
+function Base.getindex(points::Array{Node,1}, tag::String)
+    return Node[ p for p in points if p.tag==tag ]
 end
 

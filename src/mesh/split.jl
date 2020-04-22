@@ -22,19 +22,19 @@ end
 function generate_joints!(mesh::Mesh; layers::Int64=2, verbose::Bool=true, tag="", midpointstag="")
 
     verbose && printstyled("Mesh generation of joint elements:\n", bold=true, color=:cyan)
-    cells  = mesh.cells
+    cells  = mesh.elems
 
     any(c.shape.family==JOINT_SHAPE for c in cells) && error("generate_joints!: mesh already contains joint elements.")
     solids = [ c for c in cells if c.shape.family==SOLID_SHAPE ]
 
-    newpoints = Point[]
+    newpoints = Node[]
 
     # Splitting: generating new points
     for c in solids
-        for (i,p) in enumerate(c.points)
-            newp = Point([p.x, p.y, p.z])
+        for (i,p) in enumerate(c.nodes)
+            newp = Node([p.coord.x, p.coord.y, p.coord.z])
             push!(newpoints, newp)
-            c.points[i] = newp
+            c.nodes[i] = newp
         end
     end
 
@@ -61,10 +61,10 @@ function generate_joints!(mesh::Mesh; layers::Int64=2, verbose::Bool=true, tag="
     # Generate joint elements
     jcells = Cell[]
     for (f1, f2) in face_pairs
-        n   = length(f1.points)
-        con = Array{Point}(undef, 2*n)
-        for (i,p1) in enumerate(f1.points)
-            for p2 in f2.points
+        n   = length(f1.nodes)
+        con = Array{Node}(undef, 2*n)
+        for (i,p1) in enumerate(f1.nodes)
+            for p2 in f2.nodes
                 if hash(p1)==hash(p2)
                     con[i]   = p1
                     con[n+i] = p2
@@ -75,29 +75,29 @@ function generate_joints!(mesh::Mesh; layers::Int64=2, verbose::Bool=true, tag="
 
         jshape = joint_shape(f1.shape)
         cell = Cell(jshape, con, tag=tag)
-        cell.linked_cells = [f1.ocell, f2.ocell]
+        cell.linked_elems = [f1.oelem, f2.oelem]
         push!(jcells, cell)
     end
 
     # Generate inner points at joints (used in hydromechanical analyses)
     if layers==3
 
-        auxpointdict = Dict{UInt64,Point}()
+        auxpointdict = Dict{UInt64,Node}()
 
         for jcell in jcells
             npts = jcell.shape.basic_shape.npoints
-            #npts = div(length(jcell.points),2) # number of points in one side
-            sample_pts = jcell.points[1:npts]
+            #npts = div(length(jcell.nodes),2) # number of points in one side
+            sample_pts = jcell.nodes[1:npts]
             for p in sample_pts
                 hs = hash(p)
                 if haskey(auxpointdict, hs)
                     newp = auxpointdict[hs]
-                    push!(jcell.points, newp)
+                    push!(jcell.nodes, newp)
                 else
-                    newp = Point(p.x, p.y, p.z, tag=midpointstag)
+                    newp = Node(p.coord.x, p.coord.y, p.coord.z, tag=midpointstag)
                     auxpointdict[hs] = newp
                     push!(newpoints, newp)
-                    push!(jcell.points, newp)
+                    push!(jcell.nodes, newp)
                 end
             end
 
@@ -108,53 +108,53 @@ function generate_joints!(mesh::Mesh; layers::Int64=2, verbose::Bool=true, tag="
     # Fix JOINT1D_SHAPE cells connectivities
     for c in cells
         c.shape.family != JOINT1D_SHAPE && continue
-        scell = c.linked_cells[1]
-        nspts = length(scell.points)
-        c.points[1:nspts] .= scell.points
+        scell = c.linked_elems[1]
+        nspts = length(scell.nodes)
+        c.nodes[1:nspts] .= scell.nodes
     end
 
-    if haskey(mesh.cell_data, "inset-data")
-        idata = mesh.cell_data["inset-data"]
-        mesh.cell_data["inset-data"] = [ idata; zeros(length(jcells), 3) ]
+    if haskey(mesh.elem_data, "inset-data")
+        idata = mesh.elem_data["inset-data"]
+        mesh.elem_data["inset-data"] = [ idata; zeros(length(jcells), 3) ]
     end
 
     # Get points from non-separated cells, e.g. lines, beams, etc.
-    points_dict = Dict{UInt64, Point}()
-    for c in mesh.cells
+    points_dict = Dict{UInt64, Node}()
+    for c in mesh.elems
         c.shape.family == SOLID_SHAPE && continue # skip because they have points with same coordinates
         c.shape.family == JOINT1D_SHAPE && continue # skip because their points were already considered
-        for p in c.points
+        for p in c.nodes
             points_dict[hash(p)] = p
         end
     end
 
     # Add new cells
-    mesh.cells  = vcat(cells, jcells)
+    mesh.elems  = vcat(cells, jcells)
 
     # Get points from solid and joint cells
-    mesh.points = [ collect(values(points_dict)); newpoints ]
+    mesh.nodes = [ collect(values(points_dict)); newpoints ]
 
     # update and reorder mesh
     fixup!(mesh, reorder=true)
 
     # Add field for joints (1 or 0 values)
-    #mesh.cell_data["joint-layers"] = [ c.shape.family==JOINT_SHAPE ? layer : 0 for c in mesh.cells ]
-    ncells = length(mesh.cells)
+    #mesh.elem_data["joint-layers"] = [ c.shape.family==JOINT_SHAPE ? layer : 0 for c in mesh.elems ]
+    ncells = length(mesh.elems)
     joint_data = zeros(Int, ncells, 3) # nlayers, first link, second link
     for i=1:ncells
-        cell = mesh.cells[i]
+        cell = mesh.elems[i]
         if cell.shape.family==JOINT_SHAPE
             joint_data[i,1] = layers
-            joint_data[i,2] = cell.linked_cells[1].id
-            joint_data[i,3] = cell.linked_cells[2].id
+            joint_data[i,2] = cell.linked_elems[1].id
+            joint_data[i,3] = cell.linked_elems[2].id
         end
     end
-    mesh.cell_data["joint-data"] = joint_data
+    mesh.elem_data["joint-data"] = joint_data
 
     if verbose
         @printf "  %4dd mesh                             \n" mesh.ndim
-        @printf "  %5d points\n" length(mesh.points)
-        @printf "  %5d total cells\n" length(mesh.cells)
+        @printf "  %5d points\n" length(mesh.nodes)
+        @printf "  %5d total cells\n" length(mesh.elems)
         @printf "  %5d new joint cells\n" length(jcells)
         nfaces = length(mesh.faces)
         nfaces>0 && @printf("  %5d faces\n", nfaces)
@@ -173,15 +173,15 @@ function split!(mesh::Mesh)
 end
 
 mutable struct FacePair
-    face1::CellFace
-    face2::CellFace
+    face1::Face
+    face2::Face
     idxs1::Array{Int,1}
     idxs2::Array{Int,1}
     FacePair() = new()
 end
 
 function generate_joints_candidate!(mesh::Mesh, expr::Expr, tag::String="") # TODO: needs checking
-    solids = mesh.cells[:solids][expr]
+    solids = mesh.elems[:solids][expr]
     @assert length(solids)>0
 
     # List for all paired faces
@@ -221,53 +221,53 @@ function generate_joints_candidate!(mesh::Mesh, expr::Expr, tag::String="") # TO
     # Generating new points
     for fp in face_pairs[in_idxs]
         for i in fp.idxs1
-            p = fp.face1.ocell.points[i]
-            newp = Point(p.x, p.y, p.z)
-            fp.face1.ocell.points[i] = newp
+            p = fp.face1.oelem.nodes[i]
+            newp = Node(p.coord.x, p.coord.y, p.coord.z)
+            fp.face1.oelem.nodes[i] = newp
         end
         for i in fp.idxs2
-            p = fp.face2.ocell.points[i]
-            newp = Point(p.x, p.y, p.z)
-            fp.face2.ocell.points[i] = newp
+            p = fp.face2.oelem.nodes[i]
+            newp = Node(p.coord.x, p.coord.y, p.coord.z)
+            fp.face2.oelem.nodes[i] = newp
         end
     end
 
     # Joining extra points
-    points_dict = Dict{UInt64,Point}()
+    points_dict = Dict{UInt64,Node}()
     for fp in face_pairs[out_idxs]
         for i in fp.idxs1
-            p = fp.face1.ocell.points[i]
+            p = fp.face1.oelem.nodes[i]
             points_dict[hash(p)] = p
         end
         for i in fp.idxs2
-            p = fp.face2.ocell.points[i]
+            p = fp.face2.oelem.nodes[i]
             points_dict[hash(p)] = p
         end
     end
 
     for fp in face_pairs[out_idxs]
         for i in fp.idxs1
-            p = fp.face1.ocell.points[i]
-            fp.face1.ocell.points[i] = points_dict[hash(p)]
+            p = fp.face1.oelem.nodes[i]
+            fp.face1.oelem.nodes[i] = points_dict[hash(p)]
         end
         for i in fp.idxs2
-            p = fp.face2.ocell.points[i]
-            fp.face2.ocell.points[i] = points_dict[hash(p)]
+            p = fp.face2.oelem.nodes[i]
+            fp.face2.oelem.nodes[i] = points_dict[hash(p)]
         end
     end
 
     # Generating Joints
     jcells = Cell[]
     for fp in face_pairs[in_idxs]
-        n   = length(fp.face1.points)
-        con = Array{Point}(2*n)
+        n   = length(fp.face1.nodes)
+        con = Array{Node}(2*n)
         k   = 0
         for i in fp.idxs1
             k += 1
-            p1 = fp.face1.ocell.points[i]
+            p1 = fp.face1.oelem.nodes[i]
             h1 = hash(p1)
             for j in fp.idxs2
-                p2 = fp.face2.ocell.points[j]
+                p2 = fp.face2.oelem.nodes[j]
                 if h1==hash(p2)
                     con[k]   = p1
                     con[n+k] = p2
@@ -278,12 +278,12 @@ function generate_joints_candidate!(mesh::Mesh, expr::Expr, tag::String="") # TO
 
         jshape = joint_shape(fp.face1.shape)
         cell = Cell(jshape, con, tag="")
-        cell.linked_cells = [fp.face1.ocell, fp.face2.ocell]
+        cell.linked_elems = [fp.face1.oelem, fp.face2.oelem]
         push!(jcells, cell)
     end
 
-    mesh.points = collect(Set(p for c in mesh.cells for p in c.points))
-    mesh.cells  = [mesh.cells; jcells]
+    mesh.nodes = collect(Set(p for c in mesh.elems for p in c.nodes))
+    mesh.elems  = [mesh.elems; jcells]
 
     # update and reorder mesh
     fixup!(mesh, reorder=true)
@@ -297,7 +297,7 @@ end
 function generate_joints_by_tag!(mesh::Mesh; layers::Int64=2, verbose::Bool=true, tag="")
 
     verbose && printstyled("Mesh generation of joint elements:\n", bold=true, color=:cyan)
-    cells  = mesh.cells
+    cells  = mesh.elems
 
     any(c.shape.family==JOINT_SHAPE for c in cells) && error("generate_joints!: mesh already contains joint elements.")
     solids = [ c for c in cells if c.shape.family==SOLID_SHAPE ]
@@ -325,30 +325,30 @@ function generate_joints_by_tag!(mesh::Mesh; layers::Int64=2, verbose::Bool=true
         end
     end
 
-    newpoints = Point[]
+    newpoints = Node[]
     # Splitting: generating new points
 
     cfp = [fp[1] for fp in face_pairs] #cells of face (pairs) shared between diffenrent materials
     cellsfp = [cfp;cfp]#cells of faces shared between different materials
-    pointsdict_fp = Dict{UInt64, Point}()
+    pointsdict_fp = Dict{UInt64, Node}()
     for c in cellsfp
-        for (i,p) in enumerate(c.points)
+        for (i,p) in enumerate(c.nodes)
             hs = hash(p)
             pointsdict_fp[hs] = p
-            newp =Point([p.x, p.y, p.z])
+            newp =Node([p.coord.x, p.coord.y, p.coord.z])
             push!(newpoints, newp)
         end
     end
 
     c_other = collect(values(facedict))
-    pointsdict_other = Dict{UInt64, Point}()
+    pointsdict_other = Dict{UInt64, Node}()
     for c in c_other
-        for (i,p) in enumerate(c.points)
+        for (i,p) in enumerate(c.nodes)
             hs = hash(p)
             f = get(pointsdict_fp,hs,nothing)
             if f==nothing
                 pointsdict_fp[hs] = p
-                newp =Point([p.x, p.y, p.z])
+                newp =Node([p.coord.x, p.coord.y, p.coord.z])
                 push!(newpoints, newp)
             end
         end
@@ -357,10 +357,10 @@ function generate_joints_by_tag!(mesh::Mesh; layers::Int64=2, verbose::Bool=true
     # Generate joint elements
     jcells = Cell[]
     for (f1, f2) in face_pairs
-        n   = length(f1.points)
-        con = Array{Point}(undef, 2*n)
-        for (i,p1) in enumerate(f1.points)
-            for p2 in f2.points
+        n   = length(f1.nodes)
+        con = Array{Node}(undef, 2*n)
+        for (i,p1) in enumerate(f1.nodes)
+            for p2 in f2.nodes
                 if hash(p1)==hash(p2)
                     con[i]   = p1
                     con[n+i] = p2
@@ -371,37 +371,37 @@ function generate_joints_by_tag!(mesh::Mesh; layers::Int64=2, verbose::Bool=true
 
         jshape = joint_shape(f1.shape)
         cell = Cell(jshape, con, tag=tag)
-        cell.linked_cells = [f1.ocell, f2.ocell]
+        cell.linked_elems = [f1.oelem, f2.oelem]
         push!(jcells, cell)
     end
 
 
     # Get points from non-separated cells
-    points_dict = Dict{UInt64, Point}()
-    for c in mesh.cells
+    points_dict = Dict{UInt64, Node}()
+    for c in mesh.elems
         c.shape.family == SOLID_SHAPE && continue # skip because they have points with same coordinates
         c.shape.family == JOINT1D_SHAPE && continue # skip because their points were already considered
-        for p in c.points
+        for p in c.nodes
             points_dict[hash(p)] = p
         end
     end
 
     # Add new cells
-    mesh.cells  = vcat(cells, jcells)
+    mesh.elems  = vcat(cells, jcells)
 
 
     # Get points from solid and joint cells
-    mesh.points = [ collect(values(points_dict)); newpoints ]
+    mesh.nodes = [ collect(values(points_dict)); newpoints ]
 
 
-    #Creating dictionaries to after assign mesh.points to mesh.cells.points
+    #Creating dictionaries to after assign mesh.nodes to mesh.elems.nodes
 
-   pointsdict_1 =  Dict{UInt64, Point}()
-   pointsdict_2 =  Dict{UInt64, Point}()
-   pointsdict_3 =  Dict{UInt64, Point}()
-   pointsdict_4 =  Dict{UInt64, Point}()
+   pointsdict_1 =  Dict{UInt64, Node}()
+   pointsdict_2 =  Dict{UInt64, Node}()
+   pointsdict_3 =  Dict{UInt64, Node}()
+   pointsdict_4 =  Dict{UInt64, Node}()
 
-       for p in mesh.points
+       for p in mesh.nodes
             hs = hash(p)
             f = get(pointsdict_1,hs,nothing)
             if f == nothing
@@ -424,12 +424,12 @@ function generate_joints_by_tag!(mesh::Mesh; layers::Int64=2, verbose::Bool=true
             end
         end
 
-   pointsdict_1bk =  Dict{UInt64, Point}()
-   pointsdict_2bk =  Dict{UInt64, Point}()
-   pointsdict_3bk =  Dict{UInt64, Point}()
-   pointsdict_4bk =  Dict{UInt64, Point}()
+   pointsdict_1bk =  Dict{UInt64, Node}()
+   pointsdict_2bk =  Dict{UInt64, Node}()
+   pointsdict_3bk =  Dict{UInt64, Node}()
+   pointsdict_4bk =  Dict{UInt64, Node}()
 
-       for p in mesh.points
+       for p in mesh.nodes
             hs = hash(p)
             f = get(pointsdict_1bk,hs,nothing)
             if f == nothing
@@ -452,30 +452,30 @@ function generate_joints_by_tag!(mesh::Mesh; layers::Int64=2, verbose::Bool=true
             end
         end
 
-    #Copying points from mesh.points to mesh.cells[i].points if joints
+    #Copying points from mesh.nodes to mesh.elems[i].nodes if joints
 
-    for c in mesh.cells
+    for c in mesh.elems
         c.shape.family == SOLID_SHAPE && continue
-        for (i,p) in enumerate(c.points)
+        for (i,p) in enumerate(c.nodes)
             hs = hash(p)
             f = get(pointsdict_4,hs,nothing)
             if f!=nothing
-                c.points[i] = f
+                c.nodes[i] = f
                 delete!(pointsdict_4,hs)
             else
                 f = get(pointsdict_3,hs,nothing)
                 if f!=nothing
-                    c.points[i] = f
+                    c.nodes[i] = f
                     delete!(pointsdict_3,hs)
                 else
                      f = get(pointsdict_2,hs,nothing)
                     if f!=nothing
-                        c.points[i] = f
+                        c.nodes[i] = f
                         delete!(pointsdict_2,hs)
                     else
                         f = get(pointsdict_1,hs,nothing)
                         if f!=nothing
-                        c.points[i] = f
+                        c.nodes[i] = f
                         delete!(pointsdict_1,hs)
                         end
                     end
@@ -485,35 +485,35 @@ function generate_joints_by_tag!(mesh::Mesh; layers::Int64=2, verbose::Bool=true
     end
 
 
-    #Copying points from mesh.points to mesh.cells[i].points if solids
+    #Copying points from mesh.nodes to mesh.elems[i].nodes if solids
 
-    for c in mesh.cells
+    for c in mesh.elems
         c.shape.family == JOINT_SHAPE && continue
-        for (i,p) in enumerate(c.points)
+        for (i,p) in enumerate(c.nodes)
             hs = hash(p)
             f = get(pointsdict_1,hs,nothing)
             if f!=nothing
-                c.points[i] = f
+                c.nodes[i] = f
                 delete!(pointsdict_1,hs)
             else
                 f = get(pointsdict_4bk,hs,nothing)
                 if f!=nothing
-                    c.points[i] = f
+                    c.nodes[i] = f
                     delete!(pointsdict_4bk,hs)
                 else
                     f = get(pointsdict_3bk,hs,nothing)
                     if f!=nothing
-                        c.points[i] = f
+                        c.nodes[i] = f
                         delete!(pointsdict_3bk,hs)
                     else
                         f = get(pointsdict_2bk,hs,nothing)
                         if f!=nothing
-                            c.points[i] = f
+                            c.nodes[i] = f
                             delete!(pointsdict_2bk,hs)
                         else
                             f = get(pointsdict_1bk,hs,nothing)
                             if f!=nothing
-                                c.points[i] = f
+                                c.nodes[i] = f
                                 delete!(pointsdict_1bk,hs)
                             end
                         end
@@ -529,8 +529,8 @@ function generate_joints_by_tag!(mesh::Mesh; layers::Int64=2, verbose::Bool=true
 
     if verbose
         @printf "  %4dd mesh                             \n" mesh.ndim
-        @printf "  %5d points\n" length(mesh.points)
-        @printf "  %5d total cells\n" length(mesh.cells)
+        @printf "  %5d points\n" length(mesh.nodes)
+        @printf "  %5d total cells\n" length(mesh.elems)
         @printf "  %5d new joint cells\n" length(jcells)
         nfaces = length(mesh.faces)
         nfaces>0 && @printf("  %5d faces\n", nfaces)

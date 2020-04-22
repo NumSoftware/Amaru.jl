@@ -184,7 +184,7 @@ function bdistance(shape::ShapeType, R::Array{Float64,1})
 end
 
 
-function inverse_map(shape::ShapeType, coords::Array{Float64,2}, X0::Array{Float64,1}, tol=1.0e-7)
+function inverse_map(shape::ShapeType, coords::Array{Float64,2}, X0::AbstractArray{Float64,1}, tol=1.0e-7)
     MAXIT = 20
     ndim  = shape.ndim
     R = zeros(ndim)

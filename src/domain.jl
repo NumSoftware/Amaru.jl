@@ -1,7 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-abstract type AbstractDomain
-end
+abstract type AbstractDomain<:AbstractMesh end
 
 """
 `Domain(mesh, [filekey="out"])`
@@ -20,19 +19,21 @@ Creates an `Domain` object based on a Mesh object `mesh` and represents the geom
 
 """
 mutable struct Domain<:AbstractDomain
-    mesh::Mesh
+    #mesh::Mesh
     nodes::Array{Node,1}
     elems::Array{Element,1}
     faces::Array{Face,1}
     edges::Array{Edge,1}
+
+    _elempartition::ElemPartition
 
     loggers::Array{AbstractLogger,1}
     ndofs::Integer
     env::ModelEnv
 
     # Data
-    point_data::OrderedDict{String,Array}
-    cell_data ::OrderedDict{String,Array}
+    node_data::OrderedDict{String,Array}
+    elem_data ::OrderedDict{String,Array}
 
     function Domain()
         this = new()
@@ -40,13 +41,14 @@ mutable struct Domain<:AbstractDomain
         this.loggers = []
         this.ndofs   = 0
 
-        this.point_data = OrderedDict()
-        this.cell_data  = OrderedDict()
+        this._elempartition = ElemPartition()
+        this.node_data = OrderedDict()
+        this.elem_data  = OrderedDict()
         return this
     end
 end
 
-
+#=
 mutable struct SubDomain<:AbstractDomain
     nodes::Array{Node,1}
     elems::Array{Element,1}
@@ -67,9 +69,9 @@ function SubDomain(dom::Domain, expr::Expr)
     # Setting faces
     faces = Array{Face}(0)
     for (i,cell) in enumerate(scells)
-        conn = [ p.id for p in cell.points ]
+        conn = [ p.id for p in cell.nodes ]
         face = Face(cell.shape, dom.nodes[conn], ndim, cell.tag)
-        face.oelem = dom.elems[cell.ocell.id]
+        face.oelem = dom.elems[cell.oelem.id]
         face.id = i
         push!(faces, face)
     end
@@ -94,15 +96,16 @@ function SubDomain(elems::Array{<:Element,1})
     # Setting faces
     faces = Array{Face}(0)
     for (i,cell) in enumerate(scells)
-        conn = [ nodemap[p.id] for p in cell.points ]
+        conn = [ nodemap[p.id] for p in cell.nodes ]
         face = Face(cell.shape, nodes[conn], ndim, cell.tag)
-        face.oelem = elems[elemmap[cell.ocell.id]]
+        face.oelem = elems[elemmap[cell.oelem.id]]
         face.id = i
         push!(faces, face)
     end
 
     return SubDomain(nodes, elems, faces, ModelEnv())
 end
+=#
 
 
 """
@@ -155,22 +158,23 @@ function Domain(
     end
 
     # Save a mesh reference
-    dom.mesh = mesh
+    #dom.mesh = mesh
 
     verbosity>0 && printstyled("Domain setup:\n", bold=true, color=:cyan)
 
     # Setting nodes
-    dom.nodes = [ Node([p.x, p.y, p.z], tag=p.tag, id=i) for (i,p) in enumerate(mesh.points)]
+    #dom.nodes = [ Node([p.x, p.y, p.z], tag=p.tag, id=i) for (i,p) in enumerate(mesh.nodes)]
+    dom.nodes = copy(mesh.nodes)
 
     # Setting new elements
     verbosity>0 && print("  setting elements...\r")
-    ncells    = length(mesh.cells)
+    ncells    = length(mesh.elems)
     dom.elems = Array{Element,1}(undef, ncells)
-    Nips      = zeros(Int, ncells)       # list with number of ips per element
-    Tips      = Array{String,1}(undef, ncells)  # list with the ip tag per element
-    Tips     .= ""
+    #Nips      = zeros(Int, ncells)       # list with number of ips per element
+    #Tips      = Array{String,1}(undef, ncells)  # list with the ip tag per element
+    #Tips     .= ""
     for (filter, mat) in matbinds
-        cells = mesh.cells[filter]
+        cells = mesh.elems[filter]
         if ! (cells isa Array)
             cells = [ cells ]
         end
@@ -189,13 +193,15 @@ function Domain(
                 error("Domain: material model $(typeof(mat)) cannot be used with shape $(cell.shape.name) (cell id: $(cell.id))\n")
             end
 
-            conn = [ p.id for p in cell.points ]
-            elem = new_element(etype, cell, dom.nodes[conn], env, cell.tag)
+            conn = [ p.id for p in cell.nodes ]
+            elem = new_element(etype, cell.shape, dom.nodes[conn], cell.tag, env)
+            #@show typeof(elem)
 
             elem.id = cell.id
             elem.mat = mat
             dom.elems[cell.id] = elem
-            Nips[elem.id] = cell.nips
+            #Nips[elem.id] = cell.nips
+            #Nips[elem.id] = 0
         end
     end
 
@@ -203,7 +209,7 @@ function Domain(
     undefined_elem_shapes = Set{String}()
     for i=1:ncells
         if !isassigned(dom.elems, i)
-            push!(undefined_elem_shapes, mesh.cells[i].shape.name)
+            push!(undefined_elem_shapes, mesh.elems[i].shape.name)
         end
     end
     if !isempty(undefined_elem_shapes)
@@ -211,8 +217,8 @@ function Domain(
     end
 
     # Setting linked elements
-    for cell in mesh.cells
-        for lcell in cell.linked_cells
+    for cell in mesh.elems
+        for lcell in cell.linked_elems
             push!(dom.elems[cell.id].linked_elems, dom.elems[lcell.id])
         end
     end
@@ -220,9 +226,9 @@ function Domain(
     # Setting faces
     dom.faces = Face[]
     for (i,cell) in enumerate(mesh.faces)
-        conn = [ p.id for p in cell.points ]
-        face = Face(cell.shape, dom.nodes[conn], ndim, cell.tag)
-        face.oelem = dom.elems[cell.ocell.id]
+        conn = [ p.id for p in cell.nodes ]
+        face = Face(cell.shape, dom.nodes[conn], tag=cell.tag)
+        face.oelem = dom.elems[cell.oelem.id]
         face.id = i
         push!(dom.faces, face)
     end
@@ -230,9 +236,9 @@ function Domain(
     # Setting edges
     dom.edges = Edge[]
     for (i,cell) in enumerate(mesh.edges)
-        conn = [ p.id for p in cell.points ]
-        edge = Edge(cell.shape, dom.nodes[conn], ndim, cell.tag)
-        edge.oelem = dom.elems[cell.ocell.id]
+        conn = [ p.id for p in cell.nodes ]
+        edge = Edge(cell.shape, dom.nodes[conn], tag=cell.tag)
+        edge.oelem = dom.elems[cell.oelem.id]
         edge.id = i
         push!(dom.edges, edge)
     end
@@ -241,11 +247,11 @@ function Domain(
     ip_id = 0
     for elem in dom.elems
         elem_config_dofs(elem)               # dofs
-        elem_config_ips(elem, Nips[elem.id]) # ips
+        set_quadrature!(elem) # ips
         for ip in elem.ips # updating ip tags
             ip_id += 1
             ip.id = ip_id
-            ip.tag = Tips[elem.id]
+            #ip.tag = Tips[elem.id]
         end
     end
 
@@ -308,10 +314,10 @@ function update_composed_loggers!(domain::Domain)
     end
 end
 
-function get_segment_data(dom::Domain, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=200)
-    mesh = convert(Mesh, dom)
-    return get_segment_data(mesh, X1, X2, filename, npoints=npoints)
-end
+#function get_segment_data(dom::Domain, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=200)
+    #mesh = convert(Mesh, dom)
+    #return get_segment_data(mesh, X1, X2, filename, npoints=npoints)
+#end
 
 
 # Function to reset a domain
@@ -373,8 +379,8 @@ end
 
 function update_output_data!(dom::Domain)
     # Updates data arrays in the domain
-    dom.point_data = OrderedDict()
-    dom.cell_data  = OrderedDict()
+    dom.node_data = OrderedDict()
+    dom.elem_data  = OrderedDict()
 
     # Nodal values
     # ============
@@ -391,14 +397,14 @@ function update_output_data!(dom::Domain)
 
     # Generate empty lists
     for field in node_fields
-        dom.point_data[string(field)] = zeros(nnodes)
+        dom.node_data[string(field)] = zeros(nnodes)
     end
 
     # Fill dof values
     for node in dom.nodes
         for dof in node.dofs
             for (field,val) in dof.vals
-                dom.point_data[string(field)][node.id] = val
+                dom.node_data[string(field)][node.id] = val
             end
         end
     end
@@ -406,14 +412,14 @@ function update_output_data!(dom::Domain)
     # add nodal values from patch recovery (solid elements) : regression + averaging
     V_rec, fields_rec = nodal_patch_recovery(dom)
     for (i,field) in enumerate(fields_rec)
-        dom.point_data[string(field)] = V_rec[:,i]
+        dom.node_data[string(field)] = V_rec[:,i]
     end
     append!(node_fields, fields_rec)
 
     # add nodal values from local recovery (joints) : extrapolation + averaging
     V_rec, fields_rec = nodal_local_recovery(dom)
     for (i,field) in enumerate(fields_rec)
-        dom.point_data[string(field)] = V_rec[:,i]
+        dom.node_data[string(field)] = V_rec[:,i]
     end
     append!(node_fields, fields_rec)
 
@@ -423,21 +429,21 @@ function update_output_data!(dom::Domain)
 
     if :ux in node_fields
         if :uz in node_fields
-            dom.point_data["U"] = [ dom.point_data["ux"] dom.point_data["uy"] dom.point_data["uz"] ]
+            dom.node_data["U"] = [ dom.node_data["ux"] dom.node_data["uy"] dom.node_data["uz"] ]
         elseif :uy in node_fields
-            dom.point_data["U"] = [ dom.point_data["ux"] dom.point_data["uy"] zeros(nnodes) ]
+            dom.node_data["U"] = [ dom.node_data["ux"] dom.node_data["uy"] zeros(nnodes) ]
         else
-            dom.point_data["U"] = [ dom.point_data["ux"] zeros(nnodes) zeros(nnodes) ]
+            dom.node_data["U"] = [ dom.node_data["ux"] zeros(nnodes) zeros(nnodes) ]
         end
     end
 
     if :vx in node_fields
         if :vz in node_fields
-            dom.point_data["V"] = [ dom.point_data["vx"] dom.point_data["vy"] dom.point_data["vz"] ]
+            dom.node_data["V"] = [ dom.node_data["vx"] dom.node_data["vy"] dom.node_data["vz"] ]
         elseif :vy in node_fields
-            dom.point_data["V"] = [ dom.point_data["vx"] dom.point_data["vy"] zeros(nnodes) ]
+            dom.node_data["V"] = [ dom.node_data["vx"] dom.node_data["vy"] zeros(nnodes) ]
         else
-            dom.point_data["V"] = [ dom.point_data["vx"] zeros(nnodes) zeros(nnodes) ]
+            dom.node_data["V"] = [ dom.node_data["vx"] zeros(nnodes) zeros(nnodes) ]
         end
     end
 
@@ -452,13 +458,13 @@ function update_output_data!(dom::Domain)
 
     # generate empty lists
     for field in elem_fields
-        dom.cell_data[string(field)] = zeros(nelems)
+        dom.elem_data[string(field)] = zeros(nelems)
     end
 
     # fill elem values
     for elem in dom.elems
         for (field,val) in all_elem_vals[elem.id]
-            dom.cell_data[string(field)][elem.id] = val
+            dom.elem_data[string(field)][elem.id] = val
         end
     end
 
@@ -466,7 +472,7 @@ end
 
 
 
-function get_node_and_elem_vals(dom::AbstractDomain)
+function get_node_and_elem_vals(dom::Domain)
     # Return symbols and values for nodes and elements
     # Note: nodal ids must be numbered starting from 1
 
@@ -536,7 +542,7 @@ function reg_terms(x::Float64, y::Float64, z::Float64, nterms::Int64)
 end
 
 
-function nodal_patch_recovery(dom::AbstractDomain)
+function nodal_patch_recovery(dom::Domain)
     # Note: nodal ids must be numbered starting from 1
 
     ndim = dom.env.ndim
@@ -660,7 +666,7 @@ function nodal_patch_recovery(dom::AbstractDomain)
                 # matrix M for regression
                 M = Array{Float64,2}(undef,m,nterms)
                 for (i,ip) in enumerate(subpatch_ips)
-                    x, y, z = ip.X
+                    x, y, z = ip.coord
                     if ndim==3
                         M[i,:] .= reg_terms(x, y, z, nterms)
                     else
@@ -672,7 +678,7 @@ function nodal_patch_recovery(dom::AbstractDomain)
                 # find nodal values
                 N = Array{Float64,2}(undef,n,nterms)
                 for (i,node) in enumerate(subpatch_nodes)
-                    x, y, z = node.X
+                    x, y, z = node.coord
                     if ndim==3
                         N[i,:] .= reg_terms(x, y, z, nterms)
                     else
@@ -707,7 +713,7 @@ function nodal_patch_recovery(dom::AbstractDomain)
 end
 
 
-function nodal_local_recovery(dom::AbstractDomain)
+function nodal_local_recovery(dom::Domain)
     # Recovers nodal values from non-solid elements as joints and joint1d elements
     # The element type should implement the elem_extrapolated_node_vals function
     # Note: nodal ids must be numbered starting from 1
@@ -760,8 +766,8 @@ function nodal_local_recovery(dom::AbstractDomain)
     return V_vals, collect(all_fields_set)
 end
 
-
-function save(dom::AbstractDomain, filename::String; verbose=true, silent=false)
+#=
+function save(dom::Domain, filename::String; verbose=true, silent=false)
     format = split(filename, ".")[end]
     mesh = convert(Mesh, dom)
     save(mesh, filename, silent=silent)
@@ -771,6 +777,7 @@ function save(dom::AbstractDomain, filename::String; verbose=true, silent=false)
     #else   error("save: Cannot save $(typeof(dom)) in $format format. Available formats are vtk and json")
     #end
 end
+=#
 
 
 function save(elems::Array{<:Element,1}, filename::String; verbose=true)
@@ -780,26 +787,26 @@ function save(elems::Array{<:Element,1}, filename::String; verbose=true)
 end
 
 
-function save_dom_vtk(dom::AbstractDomain, filename::String; verbose=true, silent=false)
+function save_dom_vtk(dom::Domain, filename::String; verbose=true, silent=false)
     mesh = convert(Mesh, dom)
     save(mesh, filename, silent=silent)
     #verbose && printstyled("  file $filename written (Domain)\n", color=:cyan)
 end
 
 
-function save_dom_json(dom::AbstractDomain, filename::String; verbose=true)
+function save_dom_json(dom::Domain, filename::String; verbose=true)
     data  = OrderedDict{String,Any}()
     #ugrid = convert(UnstructuredGrid, dom)
 
-    data["points"] = ugrid.points
-    data["cells"]  = ugrid.cells
+    data["points"] = ugrid.nodes
+    data["cells"]  = ugrid.elems
     data["types"]  = [ split(string(typeof(elem)),".")[end] for elem in dom.elems]
-    data["point_data"] = ugrid.point_data
-    data["cell_data"]  = ugrid.cell_data
+    data["node_data"] = ugrid.node_data
+    data["elem_data"]  = ugrid.elem_data
 
-    X = [ ip.X[1] for elem in dom.elems for ip in elem.ips ]
-    Y = [ ip.X[2] for elem in dom.elems for ip in elem.ips ]
-    Z = [ ip.X[3] for elem in dom.elems for ip in elem.ips ]
+    X = [ ip.coord[1] for elem in dom.elems for ip in elem.ips ]
+    Y = [ ip.coord[2] for elem in dom.elems for ip in elem.ips ]
+    Z = [ ip.coord[3] for elem in dom.elems for ip in elem.ips ]
     data["state_points"] = [ X, Y, Z ]
 
     cell_state_points = []
@@ -811,7 +818,7 @@ function save_dom_json(dom::AbstractDomain, filename::String; verbose=true)
     end
     data["cell_state_points"] = cell_state_points
 
-    data["state_point_data"] = [ ip_state_vals(elem.mat, ip.data) for elem in dom.elems for ip in elem.ips ]
+    data["state_node_data"] = [ ip_state_vals(elem.mat, ip.data) for elem in dom.elems for ip in elem.ips ]
 
     f = open(filename, "w")
     print(f, JSON.json(data,4))
@@ -822,12 +829,12 @@ end
 
 
 #function Base.convert(::Type{Mesh}, dom::AbstractDomain)
-    #merge!(dom.mesh.point_data, dom.point_data)
-    #merge!(dom.mesh.cell_data , dom.cell_data)
+    #merge!(dom.mesh.node_data, dom.node_data)
+    #merge!(dom.mesh.elem_data , dom.elem_data)
     #return dom.mesh
 #end
 
-
+#=
 function Base.convert(::Type{Mesh}, dom::AbstractDomain)
     mesh = Mesh()
     mesh.ndim = dom.env.ndim
@@ -835,23 +842,23 @@ function Base.convert(::Type{Mesh}, dom::AbstractDomain)
     # Setting points
     npoints = length(dom.nodes)
     for i=1:npoints
-        X = dom.nodes[i].X
+        X = dom.nodes[i].coord
         point = Point(X[1], X[2], X[3])
-        push!(mesh.points, point)
+        push!(mesh.nodes, point)
     end
 
     # Setting cells
     ncells = length(dom.elems)
     for i=1:ncells
         elem = dom.elems[i]
-        points = [ mesh.points[node.id] for node in elem.nodes ]
-        push!(mesh.cells, Cell(elem.shape, points, tag=elem.tag ) )
+        points = [ mesh.nodes[node.id] for node in elem.nodes ]
+        push!(mesh.elems, Cell(elem.shape, points, tag=elem.tag ) )
     end
 
     fixup!(mesh, reorder=false) # updates also point and cell numbering
 
-    merge!(mesh.point_data, dom.point_data)
-    merge!(mesh.cell_data , dom.cell_data)
+    merge!(mesh.node_data, dom.node_data)
+    merge!(mesh.elem_data , dom.elem_data)
 
     return mesh
 end
@@ -876,11 +883,12 @@ function datafields(dom::Domain)
     mesh = convert(Mesh, dom)
     return datafields(mesh)
 end
+=#
 
 #=
 function get_segment_data(dom::Domain, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=50)
     msh = dom.mesh
-    data = dom.point_data
+    data = dom.node_data
     table = DataTable(["s"; collect(keys(data))])
     X1 = [X1; 0.0][1:3]
     X2 = [X2; 0.0][1:3]
@@ -891,11 +899,11 @@ function get_segment_data(dom::Domain, X1::Array{<:Real,1}, X2::Array{<:Real,1},
     for i=1:npoints
         X = X1 + Δ*(i-1)
         s = s1 + Δs*(i-1)
-        cell = find_cell(X, msh.cells, msh._cellpartition, 1e-7, Cell[])
+        cell = find_elem(X, msh.elems, msh._elempartition, 1e-7, Cell[])
         coords = getcoords(cell)
         R = inverse_map(cell.shape, coords, X)
         N = cell.shape.func(R)
-        map = [ p.id for p in cell.points ]
+        map = [ p.id for p in cell.nodes ]
         vals = [ s ]
         for (k,V) in data
             val = dot(V[map], N)

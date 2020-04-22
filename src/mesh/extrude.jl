@@ -10,7 +10,7 @@ function extrude(block::Block2D; axis=[0,0,1], len::Number=1.0, n::Int=1)::Block
     V = axis/norm(axis)
     δ = len/n
     #coords = block.coords
-    coords = getcoords(block.points)
+    coords =get_coords(block.nodes)
 
     # check numbering order
     v1 = vec(coords[1,:])
@@ -81,30 +81,30 @@ function extrude(mesh::Mesh; len::Number=1.0, n::Int=1, verbose::Bool=true)
     # Generate new cells
     cells = Cell[]
 
-    for cell in mesh.cells
+    for cell in mesh.elems
         if cell.shape in (TRI3, QUAD4)
             newshape = cell.shape==TRI3 ? WED6 : HEX8
             for i=1:n
                 zi = (i-1)*Δz
-                points  = [ Point(p.x, p.y, z) for z in (zi, zi+Δz) for p in cell.points ]
+                points  = [ Node(p.coord.x, p.coord.y, z) for z in (zi, zi+Δz) for p in cell.nodes ]
                 newcell = Cell(newshape, points, tag=cell.tag)
                 push!(cells, newcell)
             end
         elseif cell.shape==TRI6
             for i=1:n
                 zi = (i-1)*Δz
-                points1 = [ Point(p.x, p.y, z) for z in (zi, zi+Δz) for p in view(cell.points, 1:3) ]
-                points2 = [ Point(p.x, p.y, z) for z in (zi, zi+Δz) for p in view(cell.points, 4:6) ]
-                points3 = [ Point(p.x, p.y, zi+Δz/2) for p in view(cell.points, 1:3) ]
+                points1 = [ Node(p.coord.x, p.coord.y, z) for z in (zi, zi+Δz) for p in view(cell.nodes, 1:3) ]
+                points2 = [ Node(p.coord.x, p.coord.y, z) for z in (zi, zi+Δz) for p in view(cell.nodes, 4:6) ]
+                points3 = [ Node(p.coord.x, p.coord.y, zi+Δz/2) for p in view(cell.nodes, 1:3) ]
                 newcell = Cell(WED15, [ points1; points2; points3 ], tag=cell.tag)
                 push!(cells, newcell)
             end
         elseif cell.shape==QUAD8
             for i=1:n
                 zi = (i-1)*Δz
-                points1 = [ Point(p.x, p.y, z) for z in (zi, zi+Δz) for p in view(cell.points, 1:4) ]
-                points2 = [ Point(p.x, p.y, z) for z in (zi, zi+Δz) for p in view(cell.points, 5:8) ]
-                points3 = [ Point(p.x, p.y, zi+Δz/2) for p in view(cell.points, 1:4) ]
+                points1 = [ Node(p.coord.x, p.coord.y, z) for z in (zi, zi+Δz) for p in view(cell.nodes, 1:4) ]
+                points2 = [ Node(p.coord.x, p.coord.y, z) for z in (zi, zi+Δz) for p in view(cell.nodes, 5:8) ]
+                points3 = [ Node(p.coord.x, p.coord.y, zi+Δz/2) for p in view(cell.nodes, 1:4) ]
                 newcell = Cell(WED6, [ points1; points2; points3 ], tag=cell.tag)
                 push!(cells, newcell)
             end
@@ -114,21 +114,21 @@ function extrude(mesh::Mesh; len::Number=1.0, n::Int=1, verbose::Bool=true)
     end
 
     # Merge points
-    pointsD = Dict{UInt64,Point}( hash(p) => p for c in cells for p in c.points )
+    pointsD = Dict{UInt64,Node}( hash(p) => p for c in cells for p in c.nodes )
 
     for cell in cells
-        cell.points = [ pointsD[hash(p)] for p in cell.points ]
+        cell.nodes = [ pointsD[hash(p)] for p in cell.nodes ]
     end
 
     # New mesh
     newmesh = Mesh()
-    newmesh.points = collect(values(pointsD))
-    newmesh.cells  = cells
+    newmesh.nodes = collect(values(pointsD))
+    newmesh.elems  = cells
     fixup!(newmesh, reorder=true)
 
     if verbose
-        @printf "  %5d points obtained\n" length(newmesh.points)
-        @printf "  %5d cells obtained\n" length(newmesh.cells)
+        @printf "  %5d points obtained\n" length(newmesh.nodes)
+        @printf "  %5d cells obtained\n" length(newmesh.elems)
         @printf "  %5d faces obtained\n" length(newmesh.faces)
         @printf "  %5d surface edges obtained\n" length(newmesh.edges)
     end
@@ -144,8 +144,8 @@ function extrude2(mesh::Mesh; axis=[0.0,0.0,1.], len::Number=1.0, n::Int=1, verb
 
     V = axis/norm(axis)
     δ = len/n
-    inipoints = mesh.points
-    inicells  = mesh.cells
+    inipoints = mesh.nodes
+    inicells  = mesh.elems
     newmesh   = Mesh()
 
     length(inicells)>0 || error("Extrude: Cannot extrude mesh with no cells.")
@@ -158,24 +158,24 @@ function extrude2(mesh::Mesh; axis=[0.0,0.0,1.], len::Number=1.0, n::Int=1, verb
     (shape == QUAD4 || shape == QUAD8) || error("Error: Only can extrude meshes of QUAD4 and QUAD8 cells.")
 
     # check numbering order
-    p1, p2, p3 = inicells[1].points[1:3]
-    v1 = [ p1.x, p1.y, p1.z ]
-    v2 = [ p2.x, p2.y, p2.z ]
-    v3 = [ p3.x, p3.y, p3.z ]
+    p1, p2, p3 = inicells[1].nodes[1:3]
+    v1 = [ p1.coord.x, p1.coord.y, p1.coord.z ]
+    v2 = [ p2.coord.x, p2.coord.y, p2.coord.z ]
+    v3 = [ p3.coord.x, p3.coord.y, p3.coord.z ]
     normal_order = dot(cross(v2-v1, v3-v2), axis) > 0.0
 
     # generate extra nodes and cells
     if shape == QUAD4
         # generate new points
-        p_arr = [ Array{Point}(n+1) for p in inipoints ]
+        p_arr = [ Array{Node}(n+1) for p in inipoints ]
         for (i,p) in enumerate(inipoints)
             pp = p_arr[i]
-            X = [ p.x, p.y, p.z ]
+            X = [ p.coord.x, p.coord.y, p.coord.z ]
             for j=1:length(pp)
                 C = X + V*δ*(j-1)
-                newp  = Point(C)
+                newp  = Node(C)
                 pp[j] = newp
-                push!(newmesh.points, newp)
+                push!(newmesh.nodes, newp)
             end
         end
 
@@ -184,22 +184,22 @@ function extrude2(mesh::Mesh; axis=[0.0,0.0,1.], len::Number=1.0, n::Int=1, verb
         for (i,c) in enumerate(inicells)
             cc = c_arr[i]
             for j=1:n
-                cpoints = Array{Point}( 8)
-                cpoints[1] = p_arr[ c.points[1].id ][j]
-                cpoints[2] = p_arr[ c.points[2].id ][j]
-                cpoints[3] = p_arr[ c.points[3].id ][j]
-                cpoints[4] = p_arr[ c.points[4].id ][j]
-                cpoints[5] = p_arr[ c.points[1].id ][j+1]
-                cpoints[6] = p_arr[ c.points[2].id ][j+1]
-                cpoints[7] = p_arr[ c.points[3].id ][j+1]
-                cpoints[8] = p_arr[ c.points[4].id ][j+1]
+                cpoints = Array{Node}( 8)
+                cpoints[1] = p_arr[ c.nodes[1].id ][j]
+                cpoints[2] = p_arr[ c.nodes[2].id ][j]
+                cpoints[3] = p_arr[ c.nodes[3].id ][j]
+                cpoints[4] = p_arr[ c.nodes[4].id ][j]
+                cpoints[5] = p_arr[ c.nodes[1].id ][j+1]
+                cpoints[6] = p_arr[ c.nodes[2].id ][j+1]
+                cpoints[7] = p_arr[ c.nodes[3].id ][j+1]
+                cpoints[8] = p_arr[ c.nodes[4].id ][j+1]
 
                 if !normal_order
                     cpoints = vcat(cpoints[5:8], cpoints[1:4])
                 end
 
                 cell = Cell(HEX8, cpoints, tag=c.tag)
-                push!(newmesh.cells, cell)
+                push!(newmesh.elems, cell)
             end
         end
     end
@@ -211,21 +211,21 @@ function extrude2(mesh::Mesh; axis=[0.0,0.0,1.], len::Number=1.0, n::Int=1, verb
         middle = trues(length(inipoints))
         for c in inicells
             for i=1:4
-                middle[ c.points[i].id ] = false
+                middle[ c.nodes[i].id ] = false
             end
         end
 
         # generate new points
-        p_arr = [ Array{Point}(2*n+1) for p in inipoints ]
+        p_arr = [ Array{Node}(2*n+1) for p in inipoints ]
         for (i,p) in enumerate(inipoints)
             pp = p_arr[i]
-            X = [ p.x, p.y, p.z ]
+            X = [ p.coord.x, p.coord.y, p.coord.z ]
             for j=1:length(pp)
                 (middle[i] && iseven(j)) && continue
                 C = X + V*δ*(j-1)*0.5
-                newp  = Point(C)
+                newp  = Node(C)
                 pp[j] = newp
-                push!(newmesh.points, newp)
+                push!(newmesh.nodes, newp)
             end
         end
 
@@ -234,34 +234,34 @@ function extrude2(mesh::Mesh; axis=[0.0,0.0,1.], len::Number=1.0, n::Int=1, verb
         for (i,c) in enumerate(inicells)
             cc = c_arr[i]
             for j=1:2:2*n
-                cpoints = Array{Point}( 20)
-                cpoints[1 ] = p_arr[ c.points[1].id ][j]
-                cpoints[2 ] = p_arr[ c.points[2].id ][j]
-                cpoints[3 ] = p_arr[ c.points[3].id ][j]
-                cpoints[4 ] = p_arr[ c.points[4].id ][j]
-                cpoints[5 ] = p_arr[ c.points[1].id ][j+2]
-                cpoints[6 ] = p_arr[ c.points[2].id ][j+2]
-                cpoints[7 ] = p_arr[ c.points[3].id ][j+2]
-                cpoints[8 ] = p_arr[ c.points[4].id ][j+2]
-                cpoints[9 ] = p_arr[ c.points[5].id ][j]
-                cpoints[10] = p_arr[ c.points[6].id ][j]
-                cpoints[11] = p_arr[ c.points[7].id ][j]
-                cpoints[12] = p_arr[ c.points[8].id ][j]
-                cpoints[13] = p_arr[ c.points[5].id ][j+2]
-                cpoints[14] = p_arr[ c.points[6].id ][j+2]
-                cpoints[15] = p_arr[ c.points[7].id ][j+2]
-                cpoints[16] = p_arr[ c.points[8].id ][j+2]
-                cpoints[17] = p_arr[ c.points[1].id ][j+1]
-                cpoints[18] = p_arr[ c.points[2].id ][j+1]
-                cpoints[19] = p_arr[ c.points[3].id ][j+1]
-                cpoints[20] = p_arr[ c.points[4].id ][j+1]
+                cpoints = Array{Node}( 20)
+                cpoints[1 ] = p_arr[ c.nodes[1].id ][j]
+                cpoints[2 ] = p_arr[ c.nodes[2].id ][j]
+                cpoints[3 ] = p_arr[ c.nodes[3].id ][j]
+                cpoints[4 ] = p_arr[ c.nodes[4].id ][j]
+                cpoints[5 ] = p_arr[ c.nodes[1].id ][j+2]
+                cpoints[6 ] = p_arr[ c.nodes[2].id ][j+2]
+                cpoints[7 ] = p_arr[ c.nodes[3].id ][j+2]
+                cpoints[8 ] = p_arr[ c.nodes[4].id ][j+2]
+                cpoints[9 ] = p_arr[ c.nodes[5].id ][j]
+                cpoints[10] = p_arr[ c.nodes[6].id ][j]
+                cpoints[11] = p_arr[ c.nodes[7].id ][j]
+                cpoints[12] = p_arr[ c.nodes[8].id ][j]
+                cpoints[13] = p_arr[ c.nodes[5].id ][j+2]
+                cpoints[14] = p_arr[ c.nodes[6].id ][j+2]
+                cpoints[15] = p_arr[ c.nodes[7].id ][j+2]
+                cpoints[16] = p_arr[ c.nodes[8].id ][j+2]
+                cpoints[17] = p_arr[ c.nodes[1].id ][j+1]
+                cpoints[18] = p_arr[ c.nodes[2].id ][j+1]
+                cpoints[19] = p_arr[ c.nodes[3].id ][j+1]
+                cpoints[20] = p_arr[ c.nodes[4].id ][j+1]
 
                 if !normal_order
                     cpoints = vcat(cpoints[5:8], cpoints[1:4], cpoints[13:16], cpoints[9:12], cpoints[17:20])
                 end
 
                 cell = Cell(HEX20, cpoints, tag=c.tag)
-                push!(newmesh.cells, cell)
+                push!(newmesh.elems, cell)
             end
         end
     end
@@ -269,8 +269,8 @@ function extrude2(mesh::Mesh; axis=[0.0,0.0,1.], len::Number=1.0, n::Int=1, verb
     fixup!(newmesh, reorder=true, genfacets=true, genedges=genedges)
 
     if verbose
-        @printf "  %5d points obtained\n" length(newmesh.points)
-        @printf "  %5d cells obtained\n" length(newmesh.cells)
+        @printf "  %5d points obtained\n" length(newmesh.nodes)
+        @printf "  %5d cells obtained\n" length(newmesh.elems)
         @printf "  %5d faces obtained\n" length(newmesh.faces)
         if genedges
             @printf "  %5d surface edges obtained\n" length(newmesh.edges)
@@ -288,15 +288,15 @@ function extrude1(mesh::Mesh; axis=[0.0,0.0,1.], len::Number=1.0, n::Int=1, verb
 
     V = axis/norm(axis)
     δ = len/n
-    inipoints = mesh.points
-    inicells  = mesh.cells
+    inipoints = mesh.nodes
+    inicells  = mesh.elems
     newmesh   = Mesh()
-    newpoints = Dict{UInt64, Point}()
+    newpoints = Dict{UInt64, Node}()
 
     # Replicate points
     X = zeros(3)
     for j=1:n
-        for point in mesh.points
+        for point in mesh.nodes
             X.x = point.x
             X.y = point.y
             X.z = point.z
@@ -311,7 +311,7 @@ function extrude1(mesh::Mesh; axis=[0.0,0.0,1.], len::Number=1.0, n::Int=1, verb
         shape = cell.shape
         if shape == QUAD4
             for j=1:n
-                for point in cell.points
+                for point in cell.nodes
                     p
                 end
             end
@@ -331,24 +331,24 @@ function extrude1(mesh::Mesh; axis=[0.0,0.0,1.], len::Number=1.0, n::Int=1, verb
     (shape == QUAD4 || shape == QUAD8) || error("Error: Only can extrude meshes of QUAD4 and QUAD8 cells.")
 
     # check numbering order
-    p1, p2, p3 = inicells[1].points[1:3]
-    v1 = [ p1.x, p1.y, p1.z ]
-    v2 = [ p2.x, p2.y, p2.z ]
-    v3 = [ p3.x, p3.y, p3.z ]
+    p1, p2, p3 = inicells[1].nodes[1:3]
+    v1 = [ p1.coord.x, p1.coord.y, p1.coord.z ]
+    v2 = [ p2.coord.x, p2.coord.y, p2.coord.z ]
+    v3 = [ p3.coord.x, p3.coord.y, p3.coord.z ]
     normal_order = dot(cross(v2-v1, v3-v2), axis) > 0.0
 
     # generate extra nodes and cells
     if shape == QUAD4
         # generate new points
-        p_arr = [ Array{Point}(n+1) for p in inipoints ]
+        p_arr = [ Array{Node}(n+1) for p in inipoints ]
         for (i,p) in enumerate(inipoints)
             pp = p_arr[i]
-            X = [ p.x, p.y, p.z ]
+            X = [ p.coord.x, p.coord.y, p.coord.z ]
             for j=1:length(pp)
                 C = X + V*δ*(j-1)
-                newp  = Point(C)
+                newp  = Node(C)
                 pp[j] = newp
-                push!(newmesh.points, newp)
+                push!(newmesh.nodes, newp)
             end
         end
 
@@ -357,22 +357,22 @@ function extrude1(mesh::Mesh; axis=[0.0,0.0,1.], len::Number=1.0, n::Int=1, verb
         for (i,c) in enumerate(inicells)
             cc = c_arr[i]
             for j=1:n
-                cpoints = Array{Point}( 8)
-                cpoints[1] = p_arr[ c.points[1].id ][j]
-                cpoints[2] = p_arr[ c.points[2].id ][j]
-                cpoints[3] = p_arr[ c.points[3].id ][j]
-                cpoints[4] = p_arr[ c.points[4].id ][j]
-                cpoints[5] = p_arr[ c.points[1].id ][j+1]
-                cpoints[6] = p_arr[ c.points[2].id ][j+1]
-                cpoints[7] = p_arr[ c.points[3].id ][j+1]
-                cpoints[8] = p_arr[ c.points[4].id ][j+1]
+                cpoints = Array{Node}( 8)
+                cpoints[1] = p_arr[ c.nodes[1].id ][j]
+                cpoints[2] = p_arr[ c.nodes[2].id ][j]
+                cpoints[3] = p_arr[ c.nodes[3].id ][j]
+                cpoints[4] = p_arr[ c.nodes[4].id ][j]
+                cpoints[5] = p_arr[ c.nodes[1].id ][j+1]
+                cpoints[6] = p_arr[ c.nodes[2].id ][j+1]
+                cpoints[7] = p_arr[ c.nodes[3].id ][j+1]
+                cpoints[8] = p_arr[ c.nodes[4].id ][j+1]
 
                 if !normal_order
                     cpoints = vcat(cpoints[5:8], cpoints[1:4])
                 end
 
                 cell = Cell(HEX8, cpoints, tag=c.tag)
-                push!(newmesh.cells, cell)
+                push!(newmesh.elems, cell)
             end
         end
     end
@@ -384,21 +384,21 @@ function extrude1(mesh::Mesh; axis=[0.0,0.0,1.], len::Number=1.0, n::Int=1, verb
         middle = trues(length(inipoints))
         for c in inicells
             for i=1:4
-                middle[ c.points[i].id ] = false
+                middle[ c.nodes[i].id ] = false
             end
         end
 
         # generate new points
-        p_arr = [ Array{Point}(2*n+1) for p in inipoints ]
+        p_arr = [ Array{Node}(2*n+1) for p in inipoints ]
         for (i,p) in enumerate(inipoints)
             pp = p_arr[i]
-            X = [ p.x, p.y, p.z ]
+            X = [ p.coord.x, p.coord.y, p.coord.z ]
             for j=1:length(pp)
                 (middle[i] && iseven(j)) && continue
                 C = X + V*δ*(j-1)*0.5
-                newp  = Point(C)
+                newp  = Node(C)
                 pp[j] = newp
-                push!(newmesh.points, newp)
+                push!(newmesh.nodes, newp)
             end
         end
 
@@ -407,34 +407,34 @@ function extrude1(mesh::Mesh; axis=[0.0,0.0,1.], len::Number=1.0, n::Int=1, verb
         for (i,c) in enumerate(inicells)
             cc = c_arr[i]
             for j=1:2:2*n
-                cpoints = Array{Point}( 20)
-                cpoints[1 ] = p_arr[ c.points[1].id ][j]
-                cpoints[2 ] = p_arr[ c.points[2].id ][j]
-                cpoints[3 ] = p_arr[ c.points[3].id ][j]
-                cpoints[4 ] = p_arr[ c.points[4].id ][j]
-                cpoints[5 ] = p_arr[ c.points[1].id ][j+2]
-                cpoints[6 ] = p_arr[ c.points[2].id ][j+2]
-                cpoints[7 ] = p_arr[ c.points[3].id ][j+2]
-                cpoints[8 ] = p_arr[ c.points[4].id ][j+2]
-                cpoints[9 ] = p_arr[ c.points[5].id ][j]
-                cpoints[10] = p_arr[ c.points[6].id ][j]
-                cpoints[11] = p_arr[ c.points[7].id ][j]
-                cpoints[12] = p_arr[ c.points[8].id ][j]
-                cpoints[13] = p_arr[ c.points[5].id ][j+2]
-                cpoints[14] = p_arr[ c.points[6].id ][j+2]
-                cpoints[15] = p_arr[ c.points[7].id ][j+2]
-                cpoints[16] = p_arr[ c.points[8].id ][j+2]
-                cpoints[17] = p_arr[ c.points[1].id ][j+1]
-                cpoints[18] = p_arr[ c.points[2].id ][j+1]
-                cpoints[19] = p_arr[ c.points[3].id ][j+1]
-                cpoints[20] = p_arr[ c.points[4].id ][j+1]
+                cpoints = Array{Node}( 20)
+                cpoints[1 ] = p_arr[ c.nodes[1].id ][j]
+                cpoints[2 ] = p_arr[ c.nodes[2].id ][j]
+                cpoints[3 ] = p_arr[ c.nodes[3].id ][j]
+                cpoints[4 ] = p_arr[ c.nodes[4].id ][j]
+                cpoints[5 ] = p_arr[ c.nodes[1].id ][j+2]
+                cpoints[6 ] = p_arr[ c.nodes[2].id ][j+2]
+                cpoints[7 ] = p_arr[ c.nodes[3].id ][j+2]
+                cpoints[8 ] = p_arr[ c.nodes[4].id ][j+2]
+                cpoints[9 ] = p_arr[ c.nodes[5].id ][j]
+                cpoints[10] = p_arr[ c.nodes[6].id ][j]
+                cpoints[11] = p_arr[ c.nodes[7].id ][j]
+                cpoints[12] = p_arr[ c.nodes[8].id ][j]
+                cpoints[13] = p_arr[ c.nodes[5].id ][j+2]
+                cpoints[14] = p_arr[ c.nodes[6].id ][j+2]
+                cpoints[15] = p_arr[ c.nodes[7].id ][j+2]
+                cpoints[16] = p_arr[ c.nodes[8].id ][j+2]
+                cpoints[17] = p_arr[ c.nodes[1].id ][j+1]
+                cpoints[18] = p_arr[ c.nodes[2].id ][j+1]
+                cpoints[19] = p_arr[ c.nodes[3].id ][j+1]
+                cpoints[20] = p_arr[ c.nodes[4].id ][j+1]
 
                 if !normal_order
                     cpoints = vcat(cpoints[5:8], cpoints[1:4], cpoints[13:16], cpoints[9:12], cpoints[17:20])
                 end
 
                 cell = Cell(HEX20, cpoints, tag=c.tag)
-                push!(newmesh.cells, cell)
+                push!(newmesh.elems, cell)
             end
         end
     end
@@ -442,8 +442,8 @@ function extrude1(mesh::Mesh; axis=[0.0,0.0,1.], len::Number=1.0, n::Int=1, verb
     fixup!(newmesh, genfacets=true, genedges=genedgesm, reorder=true)
 
     if verbose
-        @printf "  %5d points obtained\n" length(newmesh.points)
-        @printf "  %5d cells obtained\n" length(newmesh.cells)
+        @printf "  %5d points obtained\n" length(newmesh.nodes)
+        @printf "  %5d cells obtained\n" length(newmesh.elems)
         @printf "  %5d faces obtained\n" length(newmesh.faces)
         if genedges
             @printf "  %5d surface edges obtained\n" length(newmesh.edges)

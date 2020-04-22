@@ -18,7 +18,7 @@ mesh  = Mesh(blocks, silent=true)
 k    = 1.0e-8  # permeability
 gw   = 10.0    # water specific weight
 
-tag!(mesh.cells[:solids], "solids")
+tag!(mesh.elems[:solids], "solids")
 
 # FEM analysis
 mats = [

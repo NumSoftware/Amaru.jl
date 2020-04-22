@@ -6,7 +6,7 @@ bls = [
        Block( [0 0 -0.05; 0.05 1.0 0.05], nx=1, ny=50, nz=2, cellshape=HEX20),
       ]
 msh= Mesh(bls, silent=true
-iptag!(msh.cells[end], "ip")
+iptag!(msh.elems[end], "ip")
 
 # fem domain
 mat = MaterialBind(:all, VonMises(E=210e6, nu=0.3, σy=0.24e6) )

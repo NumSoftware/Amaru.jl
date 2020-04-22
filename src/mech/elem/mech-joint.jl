@@ -28,7 +28,7 @@ function elem_init(elem::MechJoint)
 
     # Volume from first linked element
     V1 = 0.0
-    C1 = elem_coords(e1)
+    C1 = get_coords(e1)
     for ip in e1.ips
         dNdR = e1.shape.deriv(ip.R)
         J    = dNdR*C1
@@ -38,7 +38,7 @@ function elem_init(elem::MechJoint)
 
     # Volume from second linked element
     V2 = 0.0
-    C2 = elem_coords(e2)
+    C2 = get_coords(e2)
     for ip in e2.ips
         dNdR = e2.shape.deriv(ip.R)
         J    = dNdR*C2
@@ -48,7 +48,7 @@ function elem_init(elem::MechJoint)
 
     # Area of joint element
     A = 0.0
-    C = elem_coords(elem)
+    C = get_coords(elem)
     n = div(length(elem.nodes), 2)
     C = C[1:n, :]
     fshape = elem.shape.facet_shape
@@ -93,7 +93,7 @@ function elem_stiffness(elem::MechJoint)
     hnodes = div(nnodes, 2) # half the number of total nodes
     fshape = elem.shape.facet_shape
 
-    C = elem_coords(elem)[1:hnodes,:]
+    C = get_coords(elem)[1:hnodes,:]
     B = zeros(ndim, nnodes*ndim)
     K = zeros(nnodes*ndim, nnodes*ndim)
 
@@ -144,7 +144,7 @@ function elem_update!(elem::MechJoint, U::Array{Float64,1}, F::Array{Float64,1},
 
     dU = U[map]
     dF = zeros(nnodes*ndim)
-    C = elem_coords(elem)[1:hnodes,:]
+    C = get_coords(elem)[1:hnodes,:]
     B = zeros(ndim, nnodes*ndim)
 
     DB = zeros(ndim, nnodes*ndim)

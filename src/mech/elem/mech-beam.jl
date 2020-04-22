@@ -85,7 +85,7 @@ function calcT(elem::MechBeam, C)
 end
 
 function elem_stiffness(elem::MechBeam)
-    C  = elem_coords(elem)
+    C  = get_coords(elem)
     L  = norm(C[2,:]-C[1,:])
     L2 = L*L
     L3 = L*L*L
@@ -117,7 +117,7 @@ function elem_stiffness(elem::MechBeam)
 end
 
 function elem_mass(elem::MechBeam)
-    C  = elem_coords(elem)
+    C  = get_coords(elem)
     L  = norm(C[2,:]-C[1,:])
     L2 = L*L
     mat = elem.mat

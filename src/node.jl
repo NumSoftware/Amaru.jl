@@ -20,6 +20,14 @@ mutable struct Dof
     end
 end
 
+function Base.getindex(dofs::Array{Dof,1}, s::Symbol)
+    for dof in dofs
+        dof.name == s && return dof
+        dof.natname == s && return dof
+    end
+    error("getindex: Dof key $s not found.")
+end
+
 const NULL_DOF = Dof(:null, :null)
 
 # Node
@@ -38,26 +46,54 @@ vector that represents the node coordinates.
 """
 mutable struct Node
     id      ::Int
-    X       ::Array{Float64,1}
+    coord   ::Vec3
     tag     ::String
     dofs    ::Array{Dof,1}
     dofdict ::OrderedDict{Symbol,Dof}
 
-    function Node(X::Array{Float64,1}; tag::String=0, id::Int=-1)
-        this = new(id, X, tag)
+    function Node(x::Real, y::Real, z::Real=0.0; tag::String="", id::Int=-1)
+        this = new(id, Vec3(x,y,z), tag)
         this.dofs = []
         this.dofdict = OrderedDict{Symbol,Dof}()
         return this
     end
-    #function Node(point::Point; id::Int=-1)
-        #Node([point.x, point.y, point.z], tag=point.tag, id=id)
-    #end
+
+    function Node(X::AbstractArray{<:Real}; tag::String="", id::Int=-1)
+        @assert length(X) in (1,2,3)
+        this = new()
+        this.id = id
+        if length(X)==3
+            this.coord = Vec3(X[1], X[2], X[3])
+        elseif length(X)==2
+            this.coord = Vec3(X[1], X[2], 0.0)
+        else
+            this.coord = Vec3(X[1], 0.0, 0.0)
+        end
+        this.tag = tag
+        this.dofs = []
+        this.dofdict = OrderedDict{Symbol,Dof}()
+        return this
+    end
 end
 
+
+Base.hash(n::Node) = hash( (round(n.coord.x, digits=8), round(n.coord.y, digits=8), round(n.coord.z, digits=8)) )
+
+#function Base.getproperty(node::Node, s::Symbol)
+    #s == :x && return node.coord.x
+    #s == :y && return node.coord.y
+    #s == :z && return node.coord.z
+    #return getfield(node, s)
+#end
+
+Base.copy(node::Node) = Node(node.coord, tag=node.tag, id=node.id)
+Base.copy(nodes::Array{Node,1}) = [ copy(n) for n in nodes ]
+
 # The functions below can be used in conjuntion with sort
-get_x(node::Node) = node.X[1]
-get_y(node::Node) = node.X[2]
-get_z(node::Node) = node.X[3]
+get_x(node::Node) = node.coord[1]
+get_y(node::Node) = node.coord[2]
+get_z(node::Node) = node.coord[3]
+
 
 # Add a new degree of freedom to a node
 function add_dof(node::Node, name::Symbol, natname::Symbol)
@@ -77,13 +113,13 @@ end
 
 # General node sorting
 function Base.sort!(nodes::Array{Node,1})
-    return sort!(nodes, by=node->sum(node.X))
+    return sort!(nodes, by=node->sum(node.coord))
 end
 
 
 # Get node values in a dictionary
 function node_vals(node::Node)
-    coords = OrderedDict( :x => node.X[1], :y => node.X[2], :z => node.X[3] )
+    coords = OrderedDict( :x => node.coord[1], :y => node.coord[2], :z => node.coord[3] )
     all_vals = [ dof.vals for dof in node.dofs ]
     return merge(coords, all_vals...)
 end
@@ -93,33 +129,44 @@ end
 # ===============
 
 # Index operator for an collection of nodes
-function Base.getindex(nodes::Array{Node,1}, s::Symbol)
-    s==:all && return nodes
-    error("Element getindex: Invalid symbol $s")
-end
+#function Base.getindex(nodes::Array{Node,1}, s::Symbol)
+    #s==:all && return nodes
+    #error("Element getindex: Invalid symbol $s")
+#end
 
 # Index operator for an collection of nodes
 function Base.getindex(nodes::Array{Node,1}, s::String)
     R = [ node for node in nodes if node.tag==s ]
-    sort!(R, by=node->sum(node.X))
+    sort!(R, by=node->sum(node.coord))
 end
 
 # Index operator for an collection of nodes
 function Base.getindex(nodes::Array{Node,1}, filter_ex::Expr)
     R = Node[]
     for node in nodes
-        x, y, z = node.X
+        x, y, z = node.coord
         eval_arith_expr(filter_ex, x=x, y=y, z=z) && push!(R, node)
     end
 
-    sort!(R, by=node->sum(node.X))
+    sort!(R, by=node->sum(node.coord))
     return R
 end
 
 # Get node coordinates for an collection of nodes as a matrix
-function nodes_coords(nodes::Array{Node,1}, ndim=3)
+function get_coords(nodes::Array{Node,1}, ndim=3)
     nnodes = length(nodes)
-    [ nodes[i].X[j] for i=1:nnodes, j=1:ndim]
+    [ nodes[i].coord[j] for i=1:nnodes, j=1:ndim]
+end
+
+function setcoords!(nodes::Array{Node,1}, coords::AbstractArray{Float64,2})
+    nrows, ncols = size(coords)
+    @assert nrows == length(nodes)
+
+    for (i,node) in enumerate(nodes)
+        node.coord.x = coords[i,1]
+        node.coord.y = coords[i,2]
+        ncols==3 && (node.coord.z = coords[i,3])
+    end
 end
 
 #=

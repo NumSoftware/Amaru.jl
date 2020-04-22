@@ -38,10 +38,10 @@ function mountNN(elem::MechEmbRod)
     n  = length(solid.nodes)
     m  = length(elem.nodes)
     NN = zeros(ndim*n, ndim*m)
-    Cs = elem_coords(solid)
+    Cs = get_coords(solid)
 
     for j=1:m
-        R = inverse_map(solid.shape, Cs, elem.nodes[j].X)
+        R = inverse_map(solid.shape, Cs, elem.nodes[j].coord)
         N = solid.shape.func(R)
         for i=1:n
             for k=1:ndim
@@ -62,7 +62,7 @@ function elem_stiffness(elem::MechEmbRod)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     A = elem.mat.A
-    C = elem_coords(elem)
+    C = get_coords(elem)
     K = zeros(nnodes*ndim, nnodes*ndim)
     B = zeros(1, nnodes*ndim)
     J = Array{Float64}(undef,1, ndim)
@@ -101,7 +101,7 @@ function elem_update!(elem::MechEmbRod, U::Array{Float64,1}, F::Array{Float64,1}
     A = elem.mat.A
 
     dF = zeros(nnodes*ndim)
-    C  = elem_coords(elem)
+    C  = get_coords(elem)
     B  = zeros(1, nnodes*ndim)
     J  = Array{Float64}(undef,1, ndim)
     for ip in elem.ips

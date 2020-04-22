@@ -5,11 +5,11 @@ function generate_embedded_cells!(mesh::Mesh)
 
     newcells = []
     id = 0
-    for cell in mesh.cells
+    for cell in mesh.elems
         if cell.shape.family==JOINT1D_SHAPE
             # link solid cell to line cells
-            solid, line = cell.linked_cells
-            line.linked_cells = [ solid ]
+            solid, line = cell.linked_elems
+            line.linked_elems = [ solid ]
         else
             # save non joint1D cells
             id += 1
@@ -19,6 +19,6 @@ function generate_embedded_cells!(mesh::Mesh)
     end
 
     # update mesh
-    mesh.cells = newcells
+    mesh.elems = newcells
     return mesh
 end

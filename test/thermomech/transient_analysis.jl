@@ -17,7 +17,7 @@ cv = 486    # specific heat (capacity) kJ/ton/K
 materials = ["solids" => LinThermo(k=k, rho=rho, cv=cv)]
 dom = Domain(msh, materials)
 #dom.env.T0 = 0
-#@show dump(dom.env)
+
 
 log1 = NodeGroupLogger()
 loggers = [

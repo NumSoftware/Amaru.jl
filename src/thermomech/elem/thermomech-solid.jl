@@ -53,7 +53,7 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
     nnodes = length(nodes)
 
     # Calculate the target coordinates matrix
-    C = nodes_coords(nodes, ndim)
+    C = get_coords(nodes, ndim)
 
     # Vector with values to apply
     Q = zeros(ndim)
@@ -180,7 +180,7 @@ function elem_stiffness(elem::TMSolid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
-    C = elem_coords(elem)
+    C = get_coords(elem)
     K = zeros(nnodes*ndim, nnodes*ndim)
     Bu = zeros(6, nnodes*ndim)
 
@@ -219,7 +219,7 @@ function elem_coupling_matrix(elem::TMSolid)
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    C   = elem_coords(elem)
+    C   = get_coords(elem)
     Bu  = zeros(6, nnodes*ndim)
     Cut = zeros(nnodes*ndim, nbnodes) # u-t coupling matrix
 
@@ -259,7 +259,7 @@ function elem_conductivity_matrix(elem::TMSolid)
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    C      = elem_coords(elem)
+    C      = get_coords(elem)
     H      = zeros(nnodes, nnodes)
     Bt     = zeros(ndim, nnodes)
     KBt    = zeros(ndim, nnodes)
@@ -291,7 +291,7 @@ function elem_mass_matrix(elem::TMSolid)
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    C      = elem_coords(elem)
+    C      = get_coords(elem)
     M      = zeros(nnodes, nnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
@@ -321,7 +321,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
     th     = elem.env.thickness # VERIFICAR ESPESSURA
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    C   = elem_coords(elem)
+    C   = get_coords(elem)
     T0     = elem.env.T0 + 273.15
 
     keys   = (:ux, :uy, :uz)[1:ndim]
@@ -389,7 +389,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
     T0     = elem.env.T0 + 273.15
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    C      = elem_coords(elem)
+    C      = get_coords(elem)
 
     E = elem.mat.E
     α = elem.mat.α

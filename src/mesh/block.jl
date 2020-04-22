@@ -9,23 +9,23 @@ function box_points(C1::Array{<:Real,1}, C2::Array{<:Real,1})
 
     if length(C1)==2
         return [
-                 Point(x1   , y1   , 0.0),
-                 Point(x1+lx, y1   , 0.0),
-                 Point(x1+lx, y1+ly, 0.0),
-                 Point(x1   , y1+ly, 0.0),
+                 Node(x1   , y1   , 0.0),
+                 Node(x1+lx, y1   , 0.0),
+                 Node(x1+lx, y1+ly, 0.0),
+                 Node(x1   , y1+ly, 0.0),
                 ]
     else
         z1 = C1[3]
         lz = C2[3] - C1[3]
         return [
-                 Point(x1   , y1   , z1 ),
-                 Point(x1+lx, y1   , z1 ),
-                 Point(x1+lx, y1+ly, z1 ),
-                 Point(x1   , y1+ly, z1 ),
-                 Point(x1   , y1   , z1+lz ),
-                 Point(x1+lx, y1   , z1+lz ),
-                 Point(x1+lx, y1+ly, z1+lz ),
-                 Point(x1   , y1+ly, z1+lz ),
+                 Node(x1   , y1   , z1 ),
+                 Node(x1+lx, y1   , z1 ),
+                 Node(x1+lx, y1+ly, z1 ),
+                 Node(x1   , y1+ly, z1 ),
+                 Node(x1   , y1   , z1+lz ),
+                 Node(x1+lx, y1   , z1+lz ),
+                 Node(x1+lx, y1+ly, z1+lz ),
+                 Node(x1   , y1+ly, z1+lz ),
                 ]
     end
 end
@@ -38,7 +38,7 @@ Generates a block object for the mesh generation of 2D meshes.
 `shape` can be TRI3, TRI6, QUAD4, QUAD8.
 """
 mutable struct Block <: AbstractBlock
-    points::Array{Point,1}
+    nodes::Array{Node,1}
     shape::ShapeType
     cellshape::ShapeType
     nx::Int64
@@ -68,36 +68,36 @@ mutable struct Block <: AbstractBlock
             cellshape==nothing && (cellshape=LIN2)
             cellshape in shapes1d || error("Block: invalid cell type $cellshape for dimension $ndim")
             shape = LIN2
-            points = box_points(coords[1,:], coords[2,:])
+            nodes = box_points(coords[1,:], coords[2,:])
         elseif ndim==2
             ncoord in (2, 4, 8) || error("Block: invalid coordinates matrix rows ($ncoord) for dimension $ndim")
             cellshape==nothing && (cellshape=QUAD4)
             cellshape in shapes2d || error("Block: invalid cell type $cellshape for dimension $ndim")
             if ncoord==2
-                points = box_points(coords[1,:], coords[2,:])
+                nodes = box_points(coords[1,:], coords[2,:])
                 shape = QUAD4
             else
-                points = [ Point(coords[i,:]) for i=1:ncoord ]
-                shape = length(points)==4 ? QUAD4 : QUAD8
+                nodes = [ Node(coords[i,:]) for i=1:ncoord ]
+                shape = length(nodes)==4 ? QUAD4 : QUAD8
             end
         else
             ncoord in (2, 8, 20) || error("Block: invalid coordinates matrix rows ($ncoord) for dimension $ndim")
             cellshape==nothing && (cellshape=HEX8)
             cellshape in shapes3d || error("Block: invalid cell type $cellshape for dimension $ndim")
             if ncoord==2
-                points = box_points(coords[1,:], coords[2,:])
+                nodes = box_points(coords[1,:], coords[2,:])
                 shape = HEX8
             else
-                points = [ Point(coords[i,:]) for i=1:ncoord ]
-                shape = length(points)==8 ? HEX8 : HEX20
+                nodes = [ Node(coords[i,:]) for i=1:ncoord ]
+                shape = length(nodes)==8 ? HEX8 : HEX20
             end
         end
 
-        for i=1:length(points)
-            points[i].id = i
+        for i=1:length(nodes)
+            nodes[i].id = i
         end
 
-        return new(points, shape, cellshape, nx, ny, nz, tag, nips, id)
+        return new(nodes, shape, cellshape, nx, ny, nz, tag, nips, id)
     end
 end
 
@@ -107,7 +107,7 @@ Block3D = Block
 
 
 function Base.copy(bl::Block; dx=0.0, dy=0.0, dz=0.0)
-    newbl = Block3D(copy(getcoords(bl.points)), nx=bl.nx, ny=bl.ny, nz=bl.nz, cellshape=bl.cellshape, tag=bl.tag, nips=bl.nips)
+    newbl = Block3D(copy(get_coords(bl.nodes)), nx=bl.nx, ny=bl.ny, nz=bl.nz, cellshape=bl.cellshape, tag=bl.tag, nips=bl.nips)
 end
 
 
@@ -118,11 +118,11 @@ function split_block(bl::Block, msh::Mesh)
     #nx, ny = bl.nx, bl.ny
     nx, ny, nz = bl.nx, bl.ny, bl.nz
     shape  = bl.shape # cell shape
-    coords = getcoords(bl.points)
+    coords = get_coords(bl.nodes)
     cellshape = bl.cellshape
 
     if cellshape==QUAD4
-        p_arr = Array{Point}(undef, nx+1, ny+1)
+        p_arr = Array{Node}(undef, nx+1, ny+1)
         for j = 1:ny+1
             for i = 1:nx+1
                 r = (2.0/nx)*(i-1) - 1.0
@@ -132,14 +132,14 @@ function split_block(bl::Block, msh::Mesh)
                 p::Any = nothing
                 if i in (1, nx+1) || j in (1, ny+1)
                     C = round.(C, digits=8)
-                    p = get_point(msh._pointdict, C)
+                    p =get_node(msh._pointdict, C)
                     if p==nothing
-                        p = Point(C); push!(msh.points, p)
+                        p = Node(C); push!(msh.nodes, p)
                         msh._pointdict[hash(p)] = p
                     end
                 else
-                    p = Point(C);
-                    push!(msh.points, p)
+                    p = Node(C);
+                    push!(msh.nodes, p)
                 end
                 p_arr[i,j] = p
             end
@@ -153,14 +153,14 @@ function split_block(bl::Block, msh::Mesh)
                 p4 = p_arr[i  , j+1]
 
                 cell = Cell(cellshape, [p1, p2, p3, p4], tag=bl.tag, nips=bl.nips)
-                push!(msh.cells, cell)
+                push!(msh.elems, cell)
             end
         end
         return
     end
 
     if cellshape == QUAD8 || cellshape == QUAD9
-        p_arr = Array{Point}(undef, 2*nx+1, 2*ny+1)
+        p_arr = Array{Node}(undef, 2*nx+1, 2*ny+1)
         for j = 1:2*ny+1
             for i = 1:2*nx+1
                 if cellshape==QUAD8 && iseven(i) && iseven(j) continue end
@@ -172,13 +172,13 @@ function split_block(bl::Block, msh::Mesh)
                 p::Any = nothing
                 if i in (1, 2*nx+1) || j in (1, 2*ny+1)
                     C = round.(C, digits=8)
-                    p = get_point(msh._pointdict, C)
+                    p =get_node(msh._pointdict, C)
                     if p==nothing
-                        p = Point(C); push!(msh.points, p)
+                        p = Node(C); push!(msh.nodes, p)
                         msh._pointdict[hash(p)] = p
                     end
                 else
-                    p = Point(C); push!(msh.points, p)
+                    p = Node(C); push!(msh.nodes, p)
                 end
                 p_arr[i,j] = p
             end
@@ -202,14 +202,14 @@ function split_block(bl::Block, msh::Mesh)
                     p9   = p_arr[i+1, j+1]
                     cell = Cell(cellshape, [p1, p2, p3, p4, p5, p6, p7, p8, p9], tag=bl.tag, nips=bl.nips)
                 end
-                push!(msh.cells, cell)
+                push!(msh.elems, cell)
             end
         end
         return
     end
 
     if cellshape == QUAD12
-        p_arr = Array{Point}(undef, 3*nx+1, 3*ny+1)
+        p_arr = Array{Node}(undef, 3*nx+1, 3*ny+1)
         for j = 1:3*ny+1
             for i = 1:3*nx+1
                 if cellshape==QUAD12 && (i-1)%3>0 && (j-1)%3>0 continue end
@@ -221,13 +221,13 @@ function split_block(bl::Block, msh::Mesh)
                 p::Any = nothing
                 if i in (1, 3*nx+1) || j in (1, 3*ny+1)
                     C = round.(C, digits=8)
-                    p = get_point(msh._pointdict, C)
+                    p =get_node(msh._pointdict, C)
                     if p==nothing
-                        p = Point(C); push!(msh.points, p)
+                        p = Node(C); push!(msh.nodes, p)
                         msh._pointdict[hash(p)] = p
                     end
                 else
-                    p = Point(C); push!(msh.points, p)
+                    p = Node(C); push!(msh.nodes, p)
                 end
                 p_arr[i,j] = p
             end
@@ -251,14 +251,14 @@ function split_block(bl::Block, msh::Mesh)
                 p12 = p_arr[i  , j+1]
 
                 cell = Cell(cellshape, [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12], tag=bl.tag, nips=bl.nips)
-                push!(msh.cells, cell)
+                push!(msh.elems, cell)
             end
         end
         return
     end
 
     if cellshape == TRI3
-        p_arr = Array{Point}(undef, nx+1, ny+1)
+        p_arr = Array{Node}(undef, nx+1, ny+1)
         for j = 1:ny+1
             for i = 1:nx+1
                 r = (2.0/nx)*(i-1) - 1.0
@@ -268,13 +268,13 @@ function split_block(bl::Block, msh::Mesh)
                 p::Any = nothing
                 if i in (1, nx+1) || j in (1, ny+1)
                     C = round.(C, digits=8)
-                    p = get_point(msh._pointdict, C)
+                    p =get_node(msh._pointdict, C)
                     if p==nothing
-                        p = Point(C); push!(msh.points, p)
+                        p = Node(C); push!(msh.nodes, p)
                         msh._pointdict[hash(p)] = p
                     end
                 else
-                    p = Point(C); push!(msh.points, p)
+                    p = Node(C); push!(msh.nodes, p)
                 end
                 p_arr[i,j] = p
             end
@@ -289,8 +289,8 @@ function split_block(bl::Block, msh::Mesh)
 
                 cell1 = Cell(cellshape, [p1, p2, p3], tag=bl.tag, nips=bl.nips)
                 cell2 = Cell(cellshape, [p4, p1, p3], tag=bl.tag, nips=bl.nips)
-                push!(msh.cells, cell1)
-                push!(msh.cells, cell2)
+                push!(msh.elems, cell1)
+                push!(msh.elems, cell2)
             end
         end
         return
@@ -308,7 +308,7 @@ function split_block(bl::Block, msh::Mesh)
                @-----@-----@
              1       5       2     =#
 
-        p_arr = Array{Point}(undef, 2*nx+1, 2*ny+1)
+        p_arr = Array{Node}(undef, 2*nx+1, 2*ny+1)
         for j = 1:2*ny+1
             for i = 1:2*nx+1
                 r = (1.0/nx)*(i-1) - 1.0
@@ -318,13 +318,13 @@ function split_block(bl::Block, msh::Mesh)
                 p::Any = nothing
                 if i in (1, 2*nx+1) || j in (1, 2*ny+1)
                     C = round.(C, digits=8)
-                    p = get_point(msh._pointdict, C)
+                    p =get_node(msh._pointdict, C)
                     if p==nothing
-                        p = Point(C); push!(msh.points, p)
+                        p = Node(C); push!(msh.nodes, p)
                         msh._pointdict[hash(p)] = p
                     end
                 else
-                    p = Point(C); push!(msh.points, p)
+                    p = Node(C); push!(msh.nodes, p)
                 end
                 p_arr[i,j] = p
             end
@@ -346,15 +346,15 @@ function split_block(bl::Block, msh::Mesh)
 
                 cell1 = Cell(cellshape, [p1, p2, p3, p5, p6, p9], tag=bl.tag, nips=bl.nips)
                 cell2 = Cell(cellshape, [p4, p1, p3, p8, p9, p7], tag=bl.tag, nips=bl.nips)
-                push!(msh.cells, cell1)
-                push!(msh.cells, cell2)
+                push!(msh.elems, cell1)
+                push!(msh.elems, cell2)
             end
         end
         return
     end
 
     if cellshape==HEX8 || cellshape==TET4
-        p_arr = Array{Point}(undef, nx+1, ny+1, nz+1)
+        p_arr = Array{Node}(undef, nx+1, ny+1, nz+1)
         for k = 1:nz+1
             for j = 1:ny+1
                 for i = 1:nx+1
@@ -366,13 +366,13 @@ function split_block(bl::Block, msh::Mesh)
                     p::Any = nothing
                     if i in (1, nx+1) || j in (1, ny+1) || k in (1, nz+1)
                         C = round.(C, digits=8)
-                        p = get_point(msh._pointdict, C)
+                        p =get_node(msh._pointdict, C)
                         if p==nothing
-                            p = Point(C); push!(msh.points, p)
+                            p = Node(C); push!(msh.nodes, p)
                             msh._pointdict[hash(p)] = p
                         end
                     else
-                        p = Point(C); push!(msh.points, p)
+                        p = Node(C); push!(msh.nodes, p)
                     end
                     p_arr[i,j,k] = p
                 end
@@ -393,15 +393,15 @@ function split_block(bl::Block, msh::Mesh)
 
                     if cellshape==HEX8
                         cell = Cell(cellshape, [p1, p2, p3, p4, p5, p6, p7, p8], tag=bl.tag, nips=bl.nips)
-                        push!(msh.cells, cell)
+                        push!(msh.elems, cell)
                     end
                     if cellshape==TET4
-                        push!( msh.cells, Cell(cellshape, [p2, p4, p1, p8], tag=bl.tag, nips=bl.nips) )
-                        push!( msh.cells, Cell(cellshape, [p2, p1, p5, p8], tag=bl.tag, nips=bl.nips) )
-                        push!( msh.cells, Cell(cellshape, [p2, p5, p6, p8], tag=bl.tag, nips=bl.nips) )
-                        push!( msh.cells, Cell(cellshape, [p2, p6, p7, p8], tag=bl.tag, nips=bl.nips) )
-                        push!( msh.cells, Cell(cellshape, [p2, p3, p4, p8], tag=bl.tag, nips=bl.nips) )
-                        push!( msh.cells, Cell(cellshape, [p2, p7, p3, p8], tag=bl.tag, nips=bl.nips) )
+                        push!( msh.elems, Cell(cellshape, [p2, p4, p1, p8], tag=bl.tag, nips=bl.nips) )
+                        push!( msh.elems, Cell(cellshape, [p2, p1, p5, p8], tag=bl.tag, nips=bl.nips) )
+                        push!( msh.elems, Cell(cellshape, [p2, p5, p6, p8], tag=bl.tag, nips=bl.nips) )
+                        push!( msh.elems, Cell(cellshape, [p2, p6, p7, p8], tag=bl.tag, nips=bl.nips) )
+                        push!( msh.elems, Cell(cellshape, [p2, p3, p4, p8], tag=bl.tag, nips=bl.nips) )
+                        push!( msh.elems, Cell(cellshape, [p2, p7, p3, p8], tag=bl.tag, nips=bl.nips) )
                     end
                 end
             end
@@ -411,7 +411,7 @@ function split_block(bl::Block, msh::Mesh)
 
     #if cellshape == HEX20 || cellshape == TET10 # || cellshape == HEX27
     if cellshape in (TET10, HEX20, HEX27)
-        p_arr = Array{Point}(undef, 2*nx+1, 2*ny+1, 2*nz+1)
+        p_arr = Array{Node}(undef, 2*nx+1, 2*ny+1, 2*nz+1)
         for k = 1:2*nz+1
             for j = 1:2*ny+1
                 for i = 1:2*nx+1
@@ -429,13 +429,13 @@ function split_block(bl::Block, msh::Mesh)
                     p::Any = nothing
                     if i in (1, 2*nx+1) || j in (1, 2*ny+1) || k in (1, 2*nz+1)
                         C = round.(C, digits=8)
-                        p = get_point(msh._pointdict, C)
+                        p =get_node(msh._pointdict, C)
                         if p==nothing
-                            p = Point(C); push!(msh.points, p)
+                            p = Node(C); push!(msh.nodes, p)
                             msh._pointdict[hash(p)] = p
                         end
                     else
-                        p = Point(C); push!(msh.points, p)
+                        p = Node(C); push!(msh.nodes, p)
                     end
                     p_arr[i,j,k] = p
                 end
@@ -494,7 +494,7 @@ function split_block(bl::Block, msh::Mesh)
 
                     if cellshape == HEX20
                         cell = Cell(cellshape, [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20], tag=bl.tag, nips=bl.nips)
-                        push!(msh.cells, cell)
+                        push!(msh.elems, cell)
                     end
                     if cellshape in (TET10, HEX27)
 
@@ -539,15 +539,15 @@ function split_block(bl::Block, msh::Mesh)
                         p27 = p_arr[i+1, j+1, k+1]
 
                         if cellshape==TET10
-                            push!( msh.cells, Cell(cellshape, [p2, p4, p1, p8, p25, p12, p9, p27, p20, p21], tag=bl.tag, nips=bl.nips) )
-                            push!( msh.cells, Cell(cellshape, [p2, p1, p5, p8, p9, p17, p23, p27, p21, p16], tag=bl.tag, nips=bl.nips) )
-                            push!( msh.cells, Cell(cellshape, [p2, p5, p6, p8, p23, p13, p18, p27, p16, p26], tag=bl.tag, nips=bl.nips) )
-                            push!( msh.cells, Cell(cellshape, [p2, p6, p7, p8, p18, p14, p22, p27, p26, p15], tag=bl.tag, nips=bl.nips) )
-                            push!( msh.cells, Cell(cellshape, [p2, p3, p4, p8, p10, p11, p25, p27, p24, p20], tag=bl.tag, nips=bl.nips) )
-                            push!( msh.cells, Cell(cellshape, [p2, p7, p3, p8, p22, p19, p10, p27, p15, p24], tag=bl.tag, nips=bl.nips) )
+                            push!( msh.elems, Cell(cellshape, [p2, p4, p1, p8, p25, p12, p9, p27, p20, p21], tag=bl.tag, nips=bl.nips) )
+                            push!( msh.elems, Cell(cellshape, [p2, p1, p5, p8, p9, p17, p23, p27, p21, p16], tag=bl.tag, nips=bl.nips) )
+                            push!( msh.elems, Cell(cellshape, [p2, p5, p6, p8, p23, p13, p18, p27, p16, p26], tag=bl.tag, nips=bl.nips) )
+                            push!( msh.elems, Cell(cellshape, [p2, p6, p7, p8, p18, p14, p22, p27, p26, p15], tag=bl.tag, nips=bl.nips) )
+                            push!( msh.elems, Cell(cellshape, [p2, p3, p4, p8, p10, p11, p25, p27, p24, p20], tag=bl.tag, nips=bl.nips) )
+                            push!( msh.elems, Cell(cellshape, [p2, p7, p3, p8, p22, p19, p10, p27, p15, p24], tag=bl.tag, nips=bl.nips) )
                         else
                             cell = Cell(cellshape, [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24, p25, p26, p27], tag=bl.tag, nips=bl.nips)
-                            push!(msh.cells, cell)
+                            push!(msh.elems, cell)
                         end
                     end
                 end
@@ -560,7 +560,7 @@ end
 
 
 mutable struct BlockCylinder <: AbstractBlock
-    points::Array{Point,1}
+    nodes::Array{Node,1}
     shape::ShapeType # LIN2
     cellshape::ShapeType # HEX8, HEX20
     r::Float64
@@ -574,14 +574,14 @@ mutable struct BlockCylinder <: AbstractBlock
         size(coords,1) != 2 && error("Invalid coordinates matrix for BlockCylinder")
         nr<2 && error("Invalid nr=$nr value for BlockCylinder")
         cellshape in (HEX8, HEX20) || error("BlockCylinder: cellshape must be HEX8 or HEX20")
-        points = [ Point(coords[i,1], coords[i,2], coords[i,3]) for i=1:size(coords,1) ]
-        return new(points, LIN2, cellshape, r, nr, n, tag, nips, id)
+        nodes = [ Node(coords[i,1], coords[i,2], coords[i,3]) for i=1:size(coords,1) ]
+        return new(nodes, LIN2, cellshape, r, nr, n, tag, nips, id)
     end
 end
 
 
 function Base.copy(bl::BlockCylinder)
-    newbl = BlockCylinder(copy(getcoords(bl.points)), r=bl.r, nr=bl.nr, n=bl.n, cellshape=bl.cellshape, tag=bl.tag, nips=bl.nips)
+    newbl = BlockCylinder(copy(get_coords(bl.nodes)), r=bl.r, nr=bl.nr, n=bl.n, cellshape=bl.cellshape, tag=bl.tag, nips=bl.nips)
 end
 
 
@@ -610,7 +610,7 @@ function split_block(bl::BlockCylinder, msh::Mesh)
 
     # polar and move
     blocks = polar(blocks, n=4)
-    coords = getcoords(bl.points)
+    coords =get_coords(bl.nodes)
     move!(blocks, dx=coords[1,1], dy=coords[1,2], dz=coords[1,3])
 
     # extrude
@@ -633,7 +633,7 @@ end
 
 
 mutable struct BlockGrid<: AbstractBlock
-    points::Array{Point,1}
+    points::Array{Node,1}
     shape::ShapeType # QUAD4
     cellshape::ShapeType # QUAD4, QUAD8
     r::Float64
