@@ -80,6 +80,8 @@ export update_logger!
 include("domain.jl")
 export Domain, SubDomain, reset!, setloggers!, datafields
 
+include("io.jl")
+
 # Mechanical module
 include("mech/include.jl")
 

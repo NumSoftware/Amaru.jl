@@ -19,7 +19,6 @@ Creates an `Domain` object based on a Mesh object `mesh` and represents the geom
 
 """
 mutable struct Domain<:AbstractDomain
-    #mesh::Mesh
     nodes::Array{Node,1}
     elems::Array{Element,1}
     faces::Array{Face,1}
@@ -27,19 +26,26 @@ mutable struct Domain<:AbstractDomain
 
     _elempartition::ElemPartition
 
+    #mats::Array{Material,1}
     loggers::Array{AbstractLogger,1}
     ndofs::Integer
     env::ModelEnv
 
     # Data
     node_data::OrderedDict{String,Array}
-    elem_data ::OrderedDict{String,Array}
+    elem_data::OrderedDict{String,Array}
 
     function Domain()
         this = new()
 
+        this.nodes = []
+        this.elems = []
+        this.faces = []
+        this.edges = []
+
         this.loggers = []
         this.ndofs   = 0
+        this.env = ModelEnv()
 
         this._elempartition = ElemPartition()
         this.node_data = OrderedDict()
@@ -145,8 +151,7 @@ function Domain(
 
     # Shared analysis data
     ndim = mesh.ndim
-    env = ModelEnv()
-    dom.env = env
+    env = dom.env
     env.ndim = ndim
     env.modeltype = modeltype
     env.thickness = thickness
@@ -163,16 +168,12 @@ function Domain(
     verbosity>0 && printstyled("Domain setup:\n", bold=true, color=:cyan)
 
     # Setting nodes
-    #dom.nodes = [ Node([p.x, p.y, p.z], tag=p.tag, id=i) for (i,p) in enumerate(mesh.nodes)]
-    dom.nodes = copy(mesh.nodes)
+    dom.nodes = copy.(mesh.nodes)
 
     # Setting new elements
     verbosity>0 && print("  setting elements...\r")
     ncells    = length(mesh.elems)
     dom.elems = Array{Element,1}(undef, ncells)
-    #Nips      = zeros(Int, ncells)       # list with number of ips per element
-    #Tips      = Array{String,1}(undef, ncells)  # list with the ip tag per element
-    #Tips     .= ""
     for (filter, mat) in matbinds
         cells = mesh.elems[filter]
         if ! (cells isa Array)
@@ -195,13 +196,10 @@ function Domain(
 
             conn = [ p.id for p in cell.nodes ]
             elem = new_element(etype, cell.shape, dom.nodes[conn], cell.tag, env)
-            #@show typeof(elem)
 
             elem.id = cell.id
             elem.mat = mat
             dom.elems[cell.id] = elem
-            #Nips[elem.id] = cell.nips
-            #Nips[elem.id] = 0
         end
     end
 
@@ -246,12 +244,11 @@ function Domain(
     # Finishing to configure elements
     ip_id = 0
     for elem in dom.elems
-        elem_config_dofs(elem)               # dofs
-        set_quadrature!(elem) # ips
-        for ip in elem.ips # updating ip tags
+        elem_config_dofs(elem)  # dofs
+        set_quadrature!(elem)   # ips
+        for ip in elem.ips      # ip ids
             ip_id += 1
             ip.id = ip_id
-            #ip.tag = Tips[elem.id]
         end
     end
 
@@ -276,6 +273,11 @@ function Domain(
         @printf "  %5d materials\n" length(matbinds)
         @printf "  %5d loggers\n" length(dom.loggers)
     end
+
+    # Setting data
+    dom.node_data["node-id"] = copy(mesh.node_data["node-id"])
+    dom.elem_data["elem-id"] = copy(mesh.elem_data["elem-id"])
+    dom.elem_data["cell-type"] = copy(mesh.elem_data["cell-type"])
 
     return dom
 end
@@ -375,12 +377,99 @@ end
 
 =#
 
+function Domain(elems::Array{<:Element,1})
+    domain = Domain()
+
+    # Copying nodes
+    nodesset = OrderedSet(node for elem in elems for node in elem.nodes)
+    nodes    = collect(Node, nodesset)
+    domain.nodes = copy.(nodes)
+
+    # Map for nodes
+    nodemap = zeros(Int, maximum(node.id for node in nodes))
+    for (i,node) in enumerate(nodes)
+        nodemap[node.id] = i 
+        node.id = i
+    end
+
+    # Map for elements
+    elemmap = zeros(Int, maximum(elem.id for elem in elems))
+    for (i,elem) in enumerate(elems)
+        elemmap[elem.id] = i 
+    end
+
+    # Get ndim
+    ndim = 1
+    for node in nodes
+        node.coord.y != 0.0 && (ndim=2)
+        node.coord.z != 0.0 && (ndim=3; break)
+    end
+    domain.env.ndim = ndim
+
+    # Setting elements
+    for (i,elem) in enumerate(elems)
+        nodeidxs = [ nodemap[node.id] for node in elem.nodes]
+        elemnodes = nodes[nodeidxs]
+        newelem = new_element(typeof(elem), elem.shape, elemnodes, elem.tag, domain.env)
+        newelem.id = i
+        newelem.mat = elem.mat
+        push!(domain.elems, newelem)
+    end
+    
+    # Setting linked elements
+    warn = false
+    for (i,elem) in enumerate(elems)
+        for lelem in elem.linked_elems
+            idx = elemmap[lelem.id]
+            idx==0 && (warn=true; continue)
+            push!(domain.elems[i].linked_elems, domain.elems[idx])
+        end
+    end
+    warn && @warn "Domain: Missing linked elements while generating a domain from a list of elements."
+
+    # Setting quadrature
+    ip_id = 0
+    for (newelem, elem) in zip(domain.elems, elems)
+        #elem_config_dofs(newelem)  # dofs
+        set_quadrature!(newelem, length(elem.ips))   # ips
+        for ip in newelem.ips      # ip ids
+            ip_id += 1
+            ip.id = ip_id
+        end
+        elem_init(newelem)
+    end
+
+    # Copying states
+    for (newelem, elem) in zip(domain.elems, elems)
+        for i=1:length(elem.ips)
+            copyto!(newelem.ips[i].state, elem.ips[i].state)
+        end
+    end
+
+    # Setting faces and edges
+    domain.faces = get_surface(domain.elems)
+    domain.edges = get_edges(domain.faces)
+
+    # Setting data
+    update_output_data!(domain)
+
+    return domain
+
+end
+
 
 
 function update_output_data!(dom::Domain)
     # Updates data arrays in the domain
     dom.node_data = OrderedDict()
-    dom.elem_data  = OrderedDict()
+    dom.elem_data = OrderedDict()
+
+    # Ids and cell type
+    # =================
+
+    dom.node_data["node-id"] = collect(1:length(dom.nodes))
+    dom.elem_data["elem-id"]  = collect(1:length(dom.elems))
+    dom.elem_data["cell-type"] = [ Int(elem.shape.vtk_type) for elem in dom.elems ]
 
     # Nodal values
     # ============
@@ -612,7 +701,7 @@ function nodal_patch_recovery(dom::Domain)
     all_fields_set = OrderedSet{Symbol}()
     for elem in dom.elems
         if elem.shape.family==SOLID_SHAPE
-            ips_vals = [ ip_state_vals(elem.mat, ip.data) for ip in elem.ips ]
+            ips_vals = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
             push!(all_ips_vals, ips_vals)
             union!(all_fields_set, keys(ips_vals[1]))
         else # skip data from non solid elements
@@ -766,154 +855,3 @@ function nodal_local_recovery(dom::Domain)
     return V_vals, collect(all_fields_set)
 end
 
-#=
-function save(dom::Domain, filename::String; verbose=true, silent=false)
-    format = split(filename, ".")[end]
-    mesh = convert(Mesh, dom)
-    save(mesh, filename, silent=silent)
-
-    #if     format=="vtk" ; save_dom_vtk(dom, filename, silent=silent)
-    #elseif format=="json"; save_dom_json(dom, filename, silent=silent)
-    #else   error("save: Cannot save $(typeof(dom)) in $format format. Available formats are vtk and json")
-    #end
-end
-=#
-
-
-function save(elems::Array{<:Element,1}, filename::String; verbose=true)
-    # Save a group of elements as a subdomain
-    subdom = SubDomain(elems)
-    save(subdom, filename, silent=silent)
-end
-
-
-function save_dom_vtk(dom::Domain, filename::String; verbose=true, silent=false)
-    mesh = convert(Mesh, dom)
-    save(mesh, filename, silent=silent)
-    #verbose && printstyled("  file $filename written (Domain)\n", color=:cyan)
-end
-
-
-function save_dom_json(dom::Domain, filename::String; verbose=true)
-    data  = OrderedDict{String,Any}()
-    #ugrid = convert(UnstructuredGrid, dom)
-
-    data["points"] = ugrid.nodes
-    data["cells"]  = ugrid.elems
-    data["types"]  = [ split(string(typeof(elem)),".")[end] for elem in dom.elems]
-    data["node_data"] = ugrid.node_data
-    data["elem_data"]  = ugrid.elem_data
-
-    X = [ ip.coord[1] for elem in dom.elems for ip in elem.ips ]
-    Y = [ ip.coord[2] for elem in dom.elems for ip in elem.ips ]
-    Z = [ ip.coord[3] for elem in dom.elems for ip in elem.ips ]
-    data["state_points"] = [ X, Y, Z ]
-
-    cell_state_points = []
-    k = 0
-    for elem in dom.elems
-        nips = length(elem.ips)
-        push!(cell_state_points, collect(k+1:k+nips))
-        k += nips
-    end
-    data["cell_state_points"] = cell_state_points
-
-    data["state_node_data"] = [ ip_state_vals(elem.mat, ip.data) for elem in dom.elems for ip in elem.ips ]
-
-    f = open(filename, "w")
-    print(f, JSON.json(data,4))
-    close(f)
-
-    verbose && printstyled("  file $filename written (Domain)\n", color=:cyan)
-end
-
-
-#function Base.convert(::Type{Mesh}, dom::AbstractDomain)
-    #merge!(dom.mesh.node_data, dom.node_data)
-    #merge!(dom.mesh.elem_data , dom.elem_data)
-    #return dom.mesh
-#end
-
-#=
-function Base.convert(::Type{Mesh}, dom::AbstractDomain)
-    mesh = Mesh()
-    mesh.ndim = dom.env.ndim
-
-    # Setting points
-    npoints = length(dom.nodes)
-    for i=1:npoints
-        X = dom.nodes[i].coord
-        point = Point(X[1], X[2], X[3])
-        push!(mesh.nodes, point)
-    end
-
-    # Setting cells
-    ncells = length(dom.elems)
-    for i=1:ncells
-        elem = dom.elems[i]
-        points = [ mesh.nodes[node.id] for node in elem.nodes ]
-        push!(mesh.elems, Cell(elem.shape, points, tag=elem.tag ) )
-    end
-
-    fixup!(mesh, reorder=false) # updates also point and cell numbering
-
-    merge!(mesh.node_data, dom.node_data)
-    merge!(mesh.elem_data , dom.elem_data)
-
-    return mesh
-end
-
-
-"""
-    mplot(dom<:AbstractDomain, args...)
-
-    Plots `dom` using the PyPlot package.
-"""
-function mplot(dom::AbstractDomain, filename::String=""; args...)
-
-    any(node.id==0 for node in dom.nodes) && error("mplot: all nodes must have a valid id")
-
-    mesh = convert(Mesh, dom)
-
-    mplot(mesh, filename; args...)
-end
-
-
-function datafields(dom::Domain)
-    mesh = convert(Mesh, dom)
-    return datafields(mesh)
-end
-=#
-
-#=
-function get_segment_data(dom::Domain, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=50)
-    msh = dom.mesh
-    data = dom.node_data
-    table = DataTable(["s"; collect(keys(data))])
-    X1 = [X1; 0.0][1:3]
-    X2 = [X2; 0.0][1:3]
-    Δ = (X2-X1)/(npoints-1)
-    Δs = norm(Δ)
-    s1 = 0.0
-
-    for i=1:npoints
-        X = X1 + Δ*(i-1)
-        s = s1 + Δs*(i-1)
-        cell = find_elem(X, msh.elems, msh._elempartition, 1e-7, Cell[])
-        coords = getcoords(cell)
-        R = inverse_map(cell.shape, coords, X)
-        N = cell.shape.func(R)
-        map = [ p.id for p in cell.nodes ]
-        vals = [ s ]
-        for (k,V) in data
-            val = dot(V[map], N)
-            push!(vals, val)
-        end
-        push!(table, vals)
-    end
-
-    filename != "" && save(table, filename)
-
-    return table
-end
-=#

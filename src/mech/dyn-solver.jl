@@ -269,7 +269,7 @@ function dynsolve!(
     end
 
     # Get the domain current state and backup
-    State = [ ip.data for elem in dom.elems for ip in elem.ips ]
+    State = [ ip.state for elem in dom.elems for ip in elem.ips ]
     StateBk = copy.(State)
 
     #If the problem is sismic, read the sismic acelerations asking to user the file's name AS:SeismicAcelerations

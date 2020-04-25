@@ -3,7 +3,7 @@
 mutable struct DrainPipe<:Hydromechanical
     id    ::Int
     shape ::ShapeType
-    cell  ::Cell
+
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -118,7 +118,7 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
         Bw = dNdR/detJ
 
         # internal volumes dFw
-        D    = ip.data.D
+        D    = ip.state.D
         coef = detJ*ip.w*A
         dFw += coef*Bw'*D
 
@@ -167,7 +167,7 @@ function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1
         G += Jvert; # gradient due to gravity
         Δuw = dot(Nw,dUw) # interpolation to the integ. point
 
-        V = update_state!(elem.mat, ip.data, Δuw, G, Δt)
+        V = update_state!(elem.mat, ip.state, Δuw, G, Δt)
 
         coef = Δt*detJ*ip.w*A
         dFw += coef*Bw'*V
@@ -180,7 +180,7 @@ end
 function elem_vals(elem::DrainPipe)
     # get area and average fluid velocity and flow
     vals = OrderedDict(:A => elem.mat.A )
-    mean_va = mean( ip_state_vals(elem.mat, ip.data)[:va] for ip in elem.ips )
+    mean_va = mean( ip_state_vals(elem.mat, ip.state)[:va] for ip in elem.ips )
     vals[:va] = mean_va
     vals[:Qa] = elem.mat.A*mean_va
     return vals

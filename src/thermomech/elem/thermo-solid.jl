@@ -4,7 +4,7 @@
 mutable struct ThermoSolid<:Thermomechanical
     id    ::Int
     shape ::ShapeType
-    cell  ::Cell
+
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -100,7 +100,7 @@ function elem_conductivity_matrix(elem::ThermoSolid)
         @gemm Bt = inv(J)*dNdR
 
         # compute H
-        K = calcK(elem.mat, ip.data)
+        K = calcK(elem.mat, ip.state)
         coef = detJ*ip.w*th
         @gemm KBt = K*Bt
         @gemm H -= coef*Bt'*KBt
@@ -170,11 +170,11 @@ function elem_internal_forces(elem::ThermoSolid, F::Array{Float64,1})
         N    = elem.shape.func(ip.R)
 
         # internal volumes dFw
-        ut   = ip.data.ut
+        ut   = ip.state.ut
         coef = detJ*ip.w*elem.mat.cv*elem.mat.ρ # VERIFICAR
         dFt -= coef*N*ut
 
-        D    = ip.data.D
+        D    = ip.state.D
         coef = detJ*ip.w*th/θ0
         @gemv dFt -= coef*Bt'*D
     end
@@ -219,7 +219,7 @@ function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64
 
         Δut = N'*dUt # interpolation to the integ. point
 
-        q = update_state!(elem.mat, ip.data, Δut, G, Δt)
+        q = update_state!(elem.mat, ip.state, Δut, G, Δt)
 
         coef  = elem.mat.ρ*elem.mat.cv
         coef *= detJ*ip.w*th

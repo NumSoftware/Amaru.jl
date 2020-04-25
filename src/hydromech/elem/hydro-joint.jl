@@ -2,7 +2,7 @@
 mutable struct HydroJoint<:Hydromechanical
     id    ::Int
     shape ::ShapeType
-    cell  ::Cell
+
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -70,7 +70,7 @@ function elem_init(elem::HydroJoint)
     # Calculate and save h at joint element's integration points
     h = (V1+V2)/(2.0*A)
     for ip in elem.ips
-        ip.data.h = h
+        ip.state.h = h
     end
 end
 
@@ -270,16 +270,16 @@ function elem_internal_forces(elem::HydroJoint, F::Array{Float64,1})
 
         # internal volumes dFw
         coef = detJ*ip.w*elem.mat.β
-        dFw -= coef*Nf'*ip.data.uw[3]
+        dFw -= coef*Nf'*ip.state.uw[3]
 
         # longitudinal flow
         coef = detJ*ip.w
-        S = ip.data.S
+        S = ip.state.S
         dFw -= coef*Bf'*S
 
         # transverse flow
         coef  = detJ*ip.w
-        D = ip.data.D
+        D = ip.state.D
         dFw += coef*Nt'*D[1]
         dFw += coef*Nb'*D[2]
     end
@@ -353,7 +353,7 @@ function elem_update!(elem::HydroJoint, U::Array{Float64,1}, F::Array{Float64,1}
         G    = [dot(Nt,Uw)/(elem.mat.γw*1); dot(Nb,Uw)/(elem.mat.γw*1)]
         BfUw = Bf*Uw + bf
 
-        V, L = update_state!(elem.mat, ip.data, Δuw, G, BfUw, Δt)
+        V, L = update_state!(elem.mat, ip.state, Δuw, G, BfUw, Δt)
 
         # internal volumes dFw
         coef = detJ*ip.w*elem.mat.β

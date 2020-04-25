@@ -3,7 +3,7 @@
 mutable struct MechJoint<:Mechanical
     id    ::Int
     shape ::ShapeType
-    cell  ::Cell
+
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -63,7 +63,7 @@ function elem_init(elem::MechJoint)
     # Calculate and save h at joint element's integration points
     h = (V1+V2)/(2.0*A)
     for ip in elem.ips
-        ip.data.h = h
+        ip.state.h = h
     end
 
 end
@@ -123,7 +123,7 @@ function elem_stiffness(elem::MechJoint)
 
         # compute K
         coef = detJ*ip.w*th
-        D    = mountD(elem.mat, ip.data)
+        D    = mountD(elem.mat, ip.state)
         @gemm DB = D*B
         @gemm K += coef*B'*DB
     end
@@ -172,7 +172,7 @@ function elem_update!(elem::MechJoint, U::Array{Float64,1}, F::Array{Float64,1},
 
         # internal force
         @gemv Δω = B*dU
-        Δσ   = stress_update(elem.mat, ip.data, Δω)
+        Δσ   = stress_update(elem.mat, ip.state, Δω)
         coef = detJ*ip.w*th
         @gemv dF += coef*B'*Δσ
     end
@@ -184,8 +184,8 @@ function elem_extrapolated_node_vals(elem::MechJoint)
     nips = length(elem.ips)
 
     E  = extrapolator(elem.shape.facet_shape, nips)
-    Sn = E*[ ip.data.σ[1] for ip in elem.ips ]
-    Wn = E*[ ip.data.w[1] for ip in elem.ips ]
+    Sn = E*[ ip.state.σ[1] for ip in elem.ips ]
+    Wn = E*[ ip.state.w[1] for ip in elem.ips ]
     N  = [ Sn Wn; Sn Wn ]
 
     node_vals = OrderedDict{Symbol, Array{Float64,1}}()

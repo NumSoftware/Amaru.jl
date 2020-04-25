@@ -2,7 +2,7 @@
 mutable struct HydroMechJoint<:Hydromechanical
     id    ::Int
     shape ::ShapeType
-    cell  ::Cell
+
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -82,7 +82,7 @@ function elem_init(elem::HydroMechJoint)
     # Calculate and save h at joint element's integration points
     h = (V1+V2)/(2.0*A)
     for ip in elem.ips
-        ip.data.h = h
+        ip.state.h = h
     end
 end
 
@@ -125,7 +125,7 @@ function elem_stiffness(elem::HydroMechJoint)
 
         # compute K
         coef = detJ*ip.w*th
-        D    = mountD(elem.mat, ip.data)
+        D    = mountD(elem.mat, ip.state)
         @gemm DBu = D*Bu
         @gemm K  += coef*Bu'*DBu
     end
@@ -260,16 +260,16 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
 
          # compute crack aperture
         if elem.mat.kl == 0.0
-            if ip.data.upa == 0.0 || ip.data.w[1] <= 0.0  
+            if ip.state.upa == 0.0 || ip.state.w[1] <= 0.0  
                 kl = 0.0
             else
-                kl = ip.data.w[1]
+                kl = ip.state.w[1]
             end
         else
-            if elem.mat.kl >= ip.data.w[1]
+            if elem.mat.kl >= ip.state.w[1]
                 kl = elem.mat.kl
             else 
-                kl = ip.data.w[1]
+                kl = ip.state.w[1]
             end
         end    
 
@@ -378,16 +378,16 @@ function elem_RHS_vector(elem::HydroMechJoint)
 
         # compute crack aperture
         if elem.mat.kl == 0.0
-            if ip.data.upa == 0.0 || ip.data.w[1] <= 0.0 
+            if ip.state.upa == 0.0 || ip.state.w[1] <= 0.0 
                 kl = 0.0
             else
-                kl = ip.data.w[1]
+                kl = ip.state.w[1]
             end 
         else
-            if elem.mat.kl >= ip.data.w[1]
+            if elem.mat.kl >= ip.state.w[1]
                 kl = elem.mat.kl
             else 
-                kl = ip.data.w[1]
+                kl = ip.state.w[1]
             end
         end    
 
@@ -480,13 +480,13 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
         @gemm Bu = T*NN
 
         # internal force 
-        uwf  = ip.data.uw[3]
-        σ    = ip.data.σ[1:ndim] - mf*uwf # get total stress
+        uwf  = ip.state.uw[3]
+        σ    = ip.state.σ[1:ndim] - mf*uwf # get total stress
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*σ
 
         # internal volumes dFw
-        w  = ip.data.w[1:ndim]
+        w  = ip.state.w[1:ndim]
         coef = detJ*ip.w*th
         mfw = mf'*w
         dFw-= coef*Nf'*mfw 
@@ -496,11 +496,11 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
 =#
         # longitudinal flow
         coef = detJ*ip.w*th  
-        S = ip.data.S
+        S = ip.state.S
         dFw -= coef*Bf'*S
          
         # transverse flow
-        D = ip.data.D
+        D = ip.state.D
         dFw -= coef*Nt'*D[1]
         dFw -= coef*Nb'*D[2]
     end
@@ -602,7 +602,7 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
         @gemv Δω = Bu*dU
           
         # internal force dF
-        Δσ, Vt, L = stress_update(elem.mat, ip.data, Δω, Δuw, G, BfUw, Δt)
+        Δσ, Vt, L = stress_update(elem.mat, ip.state, Δω, Δuw, G, BfUw, Δt)
         Δσ -= mf*Δuw[3] # get total stress
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*Δσ

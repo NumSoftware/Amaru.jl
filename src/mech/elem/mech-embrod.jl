@@ -3,7 +3,7 @@
 mutable struct MechEmbRod<:Mechanical
     id    ::Int
     shape ::ShapeType
-    cell  ::Cell
+
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -80,7 +80,7 @@ function elem_stiffness(elem::MechEmbRod)
             end
         end
 
-        E    = calcD(elem.mat, ip.data)
+        E    = calcD(elem.mat, ip.state)
         coef = E*A*detJ*ip.w
         @gemm K += coef*B'*B
     end
@@ -118,7 +118,7 @@ function elem_update!(elem::MechEmbRod, U::Array{Float64,1}, F::Array{Float64,1}
         end
 
         deps = (B*dUr)[1]
-        dsig = stress_update(elem.mat, ip.data, deps)
+        dsig = stress_update(elem.mat, ip.state, deps)
         coef = A*detJ*ip.w
         dF  += coef*B'*dsig
     end
@@ -130,7 +130,7 @@ end
 function elem_vals(elem::MechEmbRod)
     # get area and average stress and axial force
     vals = OrderedDict(:A => elem.mat.A )
-    mean_sa = mean( ip_state_vals(elem.mat, ip.data)[:sa] for ip in elem.ips )
+    mean_sa = mean( ip_state_vals(elem.mat, ip.state)[:sa] for ip in elem.ips )
     vals[:sa] = mean_sa
     vals[:fa] = elem.mat.A*mean_sa
     return vals

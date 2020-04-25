@@ -11,5 +11,5 @@ include("stopwatch.jl")
 include("sound.jl")
 include("xml.jl")
 
-Base.show(io::IO, obj::Xnode) = custom_dump(io, obj, 11, "")
-Base.show(io::IO, obj::Xdoc) = custom_dump(io, obj, 4, "")
+Base.show(io::IO, obj::Xnode) = custom_dump(io, obj, 3, "")
+Base.show(io::IO, obj::Xdoc) = custom_dump(io, obj, 3, "")

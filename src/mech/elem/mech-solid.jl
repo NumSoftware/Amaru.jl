@@ -3,7 +3,6 @@
 mutable struct MechSolid<:Mechanical
     id    ::Int
     shape ::ShapeType
-    cell  ::Cell
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -20,7 +19,7 @@ end
 matching_shape_family(::Type{MechSolid}) = SOLID_SHAPE
 
 function elem_init(elem::MechSolid)
-    ipdata_ty = typeof(elem.ips[1].data)
+    ipdata_ty = typeof(elem.ips[1].state)
     if :h in fieldnames(ipdata_ty)
         # Element volume/area
         V = 0.0
@@ -38,7 +37,7 @@ function elem_init(elem::MechSolid)
         h = (V/nips)^(1/ndim)
 
         for ip in elem.ips
-            ip.data.h = h
+            ip.state.h = h
         end
     end
 
@@ -178,7 +177,7 @@ function elem_stiffness(elem::MechSolid)
 
         # compute K
         coef = detJ*ip.w*th
-        D    = calcD(elem.mat, ip.data)
+        D    = calcD(elem.mat, ip.state)
         @gemm DB = D*B
         @gemm K += coef*B'*DB
     end
@@ -248,7 +247,7 @@ function elem_internal_forces(elem::MechSolid, F::Array{Float64,1})
         detJ > 0.0 || error("Negative jacobian determinant in element $(elem.id)")
         setB(elem.env, dNdX, detJ, B)
 
-        σ    = ip.data.σ
+        σ    = ip.state.σ
         coef = detJ*ip.w*th
         @gemv dF += coef*B'*σ
     end
@@ -286,7 +285,7 @@ function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1},
         setB(elem.env, dNdX, detJ, B)
 
         @gemv Δε = B*dU
-        Δσ   = stress_update(elem.mat, ip.data, Δε)
+        Δσ   = stress_update(elem.mat, ip.state, Δε)
         coef = detJ*ip.w*th
         @gemv dF += coef*B'*Δσ
     end
@@ -297,19 +296,19 @@ end
 function elem_vals(elem::MechSolid)
     vals = OrderedDict{Symbol,Float64}()
 
-    if haskey(ip_state_vals(elem.mat, elem.ips[1].data), :damt)
+    if haskey(ip_state_vals(elem.mat, elem.ips[1].state), :damt)
 
-        mean_dt = mean( ip_state_vals(elem.mat, ip.data)[:damt] for ip in elem.ips )
+        mean_dt = mean( ip_state_vals(elem.mat, ip.state)[:damt] for ip in elem.ips )
 
         vals[:damt] = mean_dt
-        mean_dc = mean( ip_state_vals(elem.mat, ip.data)[:damc] for ip in elem.ips )
+        mean_dc = mean( ip_state_vals(elem.mat, ip.state)[:damc] for ip in elem.ips )
         vals[:damc] = mean_dc
     end
 
     #vals = OrderedDict{String, Float64}()
     #keys = elem_vals_keys(elem)
 #
-    #dicts = [ ip_state_vals(elem.mat, ip.data) for ip in elem.ips ]
+    #dicts = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
     #nips = length(elem.ips)
 #
     #for key in keys

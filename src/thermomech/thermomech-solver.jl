@@ -303,7 +303,7 @@ function tm_solve!(
     end
 
     # Get the domain current state and backup
-    State = [ ip.data for elem in dom.elems for ip in elem.ips ]
+    State = [ ip.state for elem in dom.elems for ip in elem.ips ]
     StateBk = copy.(State)
 
     # Incremental analysis

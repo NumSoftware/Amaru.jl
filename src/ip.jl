@@ -67,7 +67,7 @@ mutable struct Ip
     id   ::Int
     tag  ::String
     owner::Any    # Element
-    data ::IpState  # Ip current state
+    state::IpState  # Ip current state
 
     function Ip(R::AbstractArray{<:Float64}, w::Float64)
         this     = new(Vec3(R), w)
@@ -91,7 +91,7 @@ Returns a dictionary with keys and vals for the integration point `ip`.
 """
 function ip_vals(ip::Ip)
     coords = Dict( :x => ip.coord[1], :y => ip.coord[2], :z => ip.coord[3] )
-    vals   = ip_state_vals(ip.owner.mat, ip.data)
+    vals   = ip_state_vals(ip.owner.mat, ip.state)
     return merge(coords, vals)
 end
 

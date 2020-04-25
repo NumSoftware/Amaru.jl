@@ -88,7 +88,7 @@ function datafields(mesh::Mesh)
 end
 
 
-function get_surface(cells::Array{Cell,1})::Array{Cell,1}
+function get_surface(cells::Array{<:AbstractCell,1})
     surf_dict = Dict{UInt64, Cell}()
 
     # Get only unique faces. If dup, original and dup are deleted
@@ -108,7 +108,7 @@ function get_surface(cells::Array{Cell,1})::Array{Cell,1}
     return [ face for face in values(surf_dict) ]
 end
 
-function get_edges(surf_cells::Array{Cell,1})::Array{Cell,1}
+function get_edges(surf_cells::Array{<:AbstractCell,1})
     edges_dict = Dict{UInt64, Cell}()
 
     # Get only unique edges
@@ -291,7 +291,7 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
 
 end
 
-
+#=
 function renumber!(mesh::Mesh)
     # Get ndim
     ndim = 1
@@ -310,10 +310,11 @@ function renumber!(mesh::Mesh)
         c.ndim=ndim;
     end
 
-    mesh.node_data["point-id"] = collect(1:length(mesh.nodes))
+    mesh.node_data["node-id"] = collect(1:length(mesh.nodes))
     mesh.elem_data["cell-id"]   = collect(1:length(mesh.elems))
     mesh.elem_data["cell-type"] = [ Int(cell.shape.vtk_type) for cell in mesh.elems ]
 end
+=#
 
 function set_faces_edges!(mesh::Mesh)
     # Facets
@@ -386,9 +387,9 @@ function fixup!(mesh::Mesh; verbose::Bool=false, genfacets::Bool=true, genedges:
     reorder && reorder!(mesh)
 
     # Reset data
-    mesh.node_data["point-id"] = collect(1:length(mesh.nodes))
+    mesh.node_data["node-id"] = collect(1:length(mesh.nodes))
     mesh.elem_data["quality"]   = Q
-    mesh.elem_data["cell-id"]   = collect(1:length(mesh.elems))
+    mesh.elem_data["elem-id"]   = collect(1:length(mesh.elems))
     mesh.elem_data["cell-type"] = [ Int(cell.shape.vtk_type) for cell in mesh.elems ]
 
     return nothing

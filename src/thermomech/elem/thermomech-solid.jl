@@ -3,7 +3,7 @@
 mutable struct TMSolid<:Thermomechanical
     id    ::Int
     shape ::ShapeType
-    cell  ::Cell
+
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -200,7 +200,7 @@ function elem_stiffness(elem::TMSolid)
 
         # compute K
         coef = detJ*ip.w*th
-        D    = calcD(elem.mat, ip.data)
+        D    = calcD(elem.mat, ip.state)
         @gemm DBu = D*Bu
         @gemm K += coef*Bu'*DBu
     end
@@ -274,7 +274,7 @@ function elem_conductivity_matrix(elem::TMSolid)
         @gemm Bt = inv(J)*dNtdR
 
         # compute H
-        K = calcK(elem.mat, ip.data)
+        K = calcK(elem.mat, ip.state)
         coef = detJ*ip.w*th
         @gemm KBt = K*Bt
         @gemm H  -= coef*Bt'*KBt
@@ -357,14 +357,14 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
         # compute N
 
         # internal force
-        ut   = ip.data.ut + 273
+        ut   = ip.state.ut + 273
         β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu)
-        σ    = ip.data.σ - β*ut*m # get total stress
+        σ    = ip.state.σ - β*ut*m # get total stress
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*σ
 
         # internal volumes dFt
-        ε    = ip.data.ε
+        ε    = ip.state.ε
         εvol = dot(m, ε)
         coef = β*detJ*ip.w*th
         dFt  -= coef*Nt*εvol
@@ -372,7 +372,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
         coef = detJ*ip.w*elem.mat.ρ*elem.mat.cv*th/T0
         dFt -= coef*Nt*ut
 
-        QQ   = ip.data.QQ
+        QQ   = ip.state.QQ
         coef = detJ*ip.w*th/T0
         @gemv dFt += coef*Bt'*QQ
     end
@@ -446,7 +446,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         G  = Bt*Ut
 
         # internal force dF
-        Δσ, q = stress_update(elem.mat, ip.data, Δε, Δut, G, Δt)
+        Δσ, q = stress_update(elem.mat, ip.state, Δε, Δut, G, Δt)
         Δσ -= β*Δut*m # get total stress
 
         coef = detJ*ip.w*th

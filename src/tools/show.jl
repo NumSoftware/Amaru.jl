@@ -39,14 +39,14 @@ function custom_dump(io::IO, x, maxdepth::Int, indent)
 
     if maxdepth==0
         if :name in fieldnames(T) && isdefined(x, :name )
-            print(io, " name=", getfield(x, :name))
+            print(io, "  name=", repr(getfield(x, :name)))
         end
         if :id in fieldnames(T) && isdefined(x, :id )
-            print(io, " id=", getfield(x, :id))
+            print(io, "  id=", getfield(x, :id))
         end
         if :tag in fieldnames(T) && isdefined(x, :tag )
             tag = getfield(x, :tag)
-            tag=="" || print(io, " tag=", tag)
+            tag=="" || print(io, "  tag=", repr(tag))
         end
         return
     end

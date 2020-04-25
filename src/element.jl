@@ -110,7 +110,7 @@ function set_quadrature!(elem::Element, n::Int=0)
         w = ipc[i,4]
         elem.ips[i] = Ip(R, w)
         elem.ips[i].id = i
-        elem.ips[i].data = ip_state_type(elem.mat)(elem.env)
+        elem.ips[i].state = ip_state_type(elem.mat)(elem.env)
         elem.ips[i].owner = elem
     end
 
@@ -164,8 +164,8 @@ function elem_config_ips(elem::Element, nips::Int=0)
         w = ipc[i,4]
         elem.ips[i] = Ip(R, w)
         elem.ips[i].id = i
-        #elem.ips[i].data = new_ip_state(elem.mat, elem.env)
-        elem.ips[i].data = ip_state_type(elem.mat)(elem.env)
+        #elem.ips[i].state = new_ip_state(elem.mat, elem.env)
+        elem.ips[i].state = ip_state_type(elem.mat)(elem.env)
         elem.ips[i].owner = elem
     end
 
@@ -232,7 +232,7 @@ function setstate!(elems::Array{<:Element,1}; args...)
         for ip in elem.ips
             for (k,v) in args
                 if k in fields
-                    setfield!(ip.data, k, v)
+                    setfield!(ip.state, k, v)
                     push!(found, k)
                 else
                     gk = get(greek, k, :none)
@@ -240,7 +240,7 @@ function setstate!(elems::Array{<:Element,1}; args...)
                         push!(notfound, k)
                     else
                         if gk in fields
-                            setfield!(ip.data, gk, v)
+                            setfield!(ip.state, gk, v)
                             push!(found, k)
                         else
                             push!(notfound, k)
@@ -376,7 +376,7 @@ This function can be specialized by concrete types.
 function elems_ip_vals(elem::Element)
     table = DataTable()
     for ip in elem.ips
-        D = ip_state_vals(elem.mat, ip.data)
+        D = ip_state_vals(elem.mat, ip.state)
         push!(table, D)
     end
 

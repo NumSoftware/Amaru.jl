@@ -3,7 +3,7 @@
 mutable struct MechJoint1D<:Mechanical
     id    ::Int
     shape ::ShapeType
-    cell  ::Cell
+
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -135,7 +135,7 @@ function elem_stiffness(elem::MechJoint1D)
     for (i,ip) in enumerate(elem.ips)
         B    = elem.cache_B[i]
         detJ = elem.cache_detJ[i]
-        D    = calcD(mat, ip.data)
+        D    = calcD(mat, ip.state)
         D[1,1]*=mat.h
         coef = detJ*ip.w
         @gemm DB = D*B
@@ -163,9 +163,9 @@ function elem_update!(elem::MechJoint1D, U::Array{Float64,1}, F::Array{Float64,1
     for (i,ip) in enumerate(elem.ips)
         B    = elem.cache_B[i]
         detJ = elem.cache_detJ[i]
-        D    = calcD(mat, ip.data)
+        D    = calcD(mat, ip.state)
         @gemv Δu = B*dU
-        Δσ = stress_update(mat, ip.data, Δu)
+        Δσ = stress_update(mat, ip.state, Δu)
         coef = detJ*ip.w
         Δσ[1]  *= mat.h
         @gemv dF += coef*B'*Δσ
@@ -176,7 +176,7 @@ end
 
 
 function elem_extrapolated_node_vals(elem::MechJoint1D)
-    all_ip_vals = [ ip_state_vals(elem.mat, ip.data) for ip in elem.ips ]
+    all_ip_vals = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
     nips        = length(elem.ips)
     fields      = keys(all_ip_vals[1])
     nfields     = length(fields)

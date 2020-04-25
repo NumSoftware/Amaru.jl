@@ -20,6 +20,14 @@ mutable struct Dof
     end
 end
 
+function Base.copy(dof::Dof)
+    newdof = Dof(dof.name, dof.natname)
+    newdof.eq_id = dof.eq_id
+    newdof.prescribed = dof.prescribed
+    newdof.vals = copy(dof.vals)
+    return newdof
+end
+
 function Base.getindex(dofs::Array{Dof,1}, s::Symbol)
     for dof in dofs
         dof.name == s && return dof
@@ -51,9 +59,18 @@ mutable struct Node
     dofs    ::Array{Dof,1}
     dofdict ::OrderedDict{Symbol,Dof}
 
-    function Node(x::Real, y::Real, z::Real=0.0; tag::String="", id::Int=-1)
+    function Node()
+        this = new()
+        this.id = -1
+        this.coord = Vec3()
+        this.dofs = Dof[]
+        this.dofdict = OrderedDict{Symbol,Dof}()
+        return this
+    end
+
+    function Node(x::Real, y::Real=0, z::Real=0.0; tag::String="", id::Int=-1)
         this = new(id, Vec3(x,y,z), tag)
-        this.dofs = []
+        this.dofs = Dof[]
         this.dofdict = OrderedDict{Symbol,Dof}()
         return this
     end
@@ -79,15 +96,17 @@ end
 
 Base.hash(n::Node) = hash( (round(n.coord.x, digits=8), round(n.coord.y, digits=8), round(n.coord.z, digits=8)) )
 
-#function Base.getproperty(node::Node, s::Symbol)
-    #s == :x && return node.coord.x
-    #s == :y && return node.coord.y
-    #s == :z && return node.coord.z
-    #return getfield(node, s)
-#end
+function Base.copy(node::Node)
+    newnode = Node(node.coord, tag=node.tag, id=node.id)
+    for dof in node.dofs
+        newdof = copy(dof)
+        push!(newnode.dofs, newdof)
+        newnode.dofdict[dof.name] = newdof
+        newnode.dofdict[dof.natname] = newdof
+    end
+    return newnode
+end
 
-Base.copy(node::Node) = Node(node.coord, tag=node.tag, id=node.id)
-Base.copy(nodes::Array{Node,1}) = [ copy(n) for n in nodes ]
 
 # The functions below can be used in conjuntion with sort
 get_x(node::Node) = node.coord[1]

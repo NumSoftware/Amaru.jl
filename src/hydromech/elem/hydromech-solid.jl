@@ -3,7 +3,7 @@
 mutable struct HMSolid<:Hydromechanical
     id    ::Int
     shape ::ShapeType
-    cell  ::Cell
+
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -200,7 +200,7 @@ function elem_stiffness(elem::HMSolid)
 
         # compute K
         coef = detJ*ip.w*th
-        D    = calcD(elem.mat, ip.data)
+        D    = calcD(elem.mat, ip.state)
         @gemm DBu = D*Bu
         @gemm K += coef*Bu'*DBu
     end
@@ -274,7 +274,7 @@ function elem_conductivity_matrix(elem::HMSolid)
         @gemm Bw = inv(J)*dNwdR
 
         # compute H
-        K = calcK(elem.mat, ip.data)
+        K = calcK(elem.mat, ip.state)
         coef  = 1/elem.mat.γw
         coef *= detJ*ip.w*th
         @gemm KBw = K*Bw
@@ -339,7 +339,7 @@ function elem_RHS_vector(elem::HMSolid)
         @gemm Bw = inv(J)*dNwdR
 
         # compute Q
-        K = calcK(elem.mat, ip.data)
+        K = calcK(elem.mat, ip.state)
         coef = detJ*ip.w*th
         @gemv KZ = K*Z
         @gemm Q += coef*Bw'*KZ
@@ -390,13 +390,13 @@ function elem_internal_forces(elem::HMSolid, F::Array{Float64,1})
         Nw   = elem.shape.basic_shape.func(ip.R)
 
         # internal force
-        uw   = ip.data.uw
-        σ    = ip.data.σ - elem.mat.α*uw*m # get total stress
+        uw   = ip.state.uw
+        σ    = ip.state.σ - elem.mat.α*uw*m # get total stress
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*σ
 
         # internal volumes dFw
-        ε    = ip.data.ε
+        ε    = ip.state.ε
         εvol = dot(m, ε)
         coef = elem.mat.α*detJ*ip.w*th
         dFw  -= coef*Nw*εvol
@@ -404,7 +404,7 @@ function elem_internal_forces(elem::HMSolid, F::Array{Float64,1})
         coef = detJ*ip.w*elem.mat.S*th
         dFw -= coef*Nw*uw
 
-        D    = ip.data.D
+        D    = ip.state.D
         coef = detJ*ip.w*th
         @gemv dFw += coef*Bw'*D
     end
@@ -470,7 +470,7 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         G[end] += 1.0; # gradient due to gravity
 
         # internal force dF
-        Δσ, V = stress_update(elem.mat, ip.data, Δε, Δuw, G, Δt)
+        Δσ, V = stress_update(elem.mat, ip.state, Δε, Δuw, G, Δt)
         Δσ -= elem.mat.α*Δuw*m # get total stress
 
         coef = detJ*ip.w*th

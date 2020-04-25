@@ -8,10 +8,13 @@ mutable struct Vec3<:AbstractArray{Float64,1}
     function Vec3(X::AbstractArray{<:Float64})
         return new(X[1], X[2], X[3])
     end
+    function Vec3(X::Tuple{Float64,Float64,Float64})
+        return new(X[1], X[2], X[3])
+    end
 end
 
 function Base.convert(::Type{Array{Float64,1}}, V::Vec3)
-    return [ V.x, V.y, V.z]
+    return [ V.x, V.y, V.z ]
 end
 
 function Base.convert(::Type{Vec3}, A::Array{Float64,1})

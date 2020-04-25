@@ -3,7 +3,7 @@
 mutable struct SeepJoint1D<:Hydromechanical
     id    ::Int
     shape ::ShapeType
-    cell  ::Cell
+
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -116,7 +116,7 @@ function elem_internal_forces(elem::SeepJoint1D, F::Array{Float64,1})
         detJ = elem.cache_detJ[i]
 
         # internal volumes dFw
-        D    = ip.data.D
+        D    = ip.state.D
         coef = detJ*ip.w*h
         dFw += coef*Bp'*D
     end
@@ -145,7 +145,7 @@ function elem_update!(elem::SeepJoint1D, DU::Array{Float64,1}, DF::Array{Float64
 
         # poropression difference between solid and drain
         ΔFw = dot(Bp,Uw)/elem.mat.γw
-        V = update_state!(elem.mat, ip.data, ΔFw, Δt)
+        V = update_state!(elem.mat, ip.state, ΔFw, Δt)
 
         coef = Δt*detJ*ip.w*h
         dFw += coef*Bp'*V
@@ -155,7 +155,7 @@ function elem_update!(elem::SeepJoint1D, DU::Array{Float64,1}, DF::Array{Float64
 end
 
 function elem_extrapolated_node_vals(elem::SeepJoint1D)
-    all_ip_vals = [ ip_state_vals(elem.mat, ip.data) for ip in elem.ips ]
+    all_ip_vals = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
     nips        = length(elem.ips)
     fields      = keys(all_ip_vals[1])
     nfields     = length(fields)

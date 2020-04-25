@@ -4,7 +4,7 @@
 mutable struct SeepSolid<:Hydromechanical
     id    ::Int
     shape ::ShapeType
-    cell  ::Cell
+
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -101,7 +101,7 @@ function elem_conductivity_matrix(elem::SeepSolid)
         @gemm Bw = inv(J)*dNdR
 
         # compute H
-        K = calcK(elem.mat, ip.data)
+        K = calcK(elem.mat, ip.state)
         coef  = 1/elem.mat.γw
         coef *= detJ*ip.w*th
         @gemm KBw = K*Bw
@@ -165,7 +165,7 @@ function elem_RHS_vector(elem::SeepSolid)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # compute Q
-        K = calcK(elem.mat, ip.data)
+        K = calcK(elem.mat, ip.state)
         coef = detJ*ip.w
         @gemv KZ = K*Z
         @gemm Q += coef*Bw'*KZ
@@ -205,11 +205,11 @@ function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
         N    = elem.shape.func(ip.R)
 
         # internal volumes dFw
-        uw   = ip.data.uw
+        uw   = ip.state.uw
         coef = detJ*ip.w*elem.mat.S
         dFw -= coef*N*uw
 
-        D    = ip.data.D
+        D    = ip.state.D
         coef = detJ*ip.w
         @gemv dFw += coef*Bw'*D
     end
@@ -253,7 +253,7 @@ function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1
 
         Δuw = N'*dUw # interpolation to the integ. point
 
-        V = update_state!(elem.mat, ip.data, Δuw, G, Δt)
+        V = update_state!(elem.mat, ip.state, Δuw, G, Δt)
 
         coef  = elem.mat.S
         coef *= detJ*ip.w*th

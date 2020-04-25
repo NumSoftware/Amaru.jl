@@ -25,7 +25,7 @@ end
 haschildren(node::Xnode) = length(node.children)>0
 
 # Get a node from a nested sequence of names
-# If in a query there are more than one node with the 
+# If among the children there are more than one node with the 
 # same name, the last one is considered.
 function (node::Xnode)(args::String...)
     n = node
@@ -52,6 +52,12 @@ function Base.getindex(node::Xnode, s::String)
         end
     end
     return nodes
+end
+
+# Get a child according to index
+function Base.getindex(node::Xnode, i::Int)
+    i<=length(node.children) && return node.children[i]
+    return nothing
 end
 
 
@@ -97,6 +103,11 @@ function readnode(text, pos)
         att = m.captures[1]
         val = m.captures[2]
         attributes[att] = val
+    end
+
+    # check if self-closing tag
+    if str[end-1:end]=="/>"
+        return Xnode(name, attributes, [], ""), pos
     end
 
     # get children or content
@@ -172,6 +183,14 @@ function writenode(f::IOStream, node::Xnode, level::Int)
     for (att,val) in node.attributes
         print(f, " $att=\"$val\"")
     end
+
+    # Self-closing tag
+    if length(node.children)==0 && node.content==""
+        println(f, "/>")
+        return
+    end
+
+    # Ending header
     println(f, ">")
 
     # Print content or children
@@ -263,16 +282,16 @@ function to_xml_node(dict::AbstractDict, name::String="Dict", attributes::Abstra
 end
 
 
-function to_xml_node(obj::Any, name::String=""; skip::Array{Symbol,1}=Symbol[])
+function to_xml_node(obj::Any, name::String=""; exclude::Array{Symbol,1}=Symbol[])
     name=="" && (name=string(typeof(obj)))
-    attributes::AbstractDict=Dict{String,String}()
+    attributes=Dict{String,String}()
     children = Xnode[]
     ty = typeof(obj)
     fields = fieldnames(ty)
     types  = fieldtypes(ty)
 
     for (fld,ty) in zip(fields,types)
-        fld in skip && continue
+        fld in exclude && continue
         fld_str = string(fld)
         fld_str[1] == '_' && continue
 
@@ -289,4 +308,6 @@ function to_xml_node(obj::Any, name::String=""; skip::Array{Symbol,1}=Symbol[])
     
 end
 
-
+function Xnode(obj::Any, name::String=""; exclude::Array{Symbol,1}=Symbol[])
+    return to_xml_node(obj, name, exclude=exclude)
+end
