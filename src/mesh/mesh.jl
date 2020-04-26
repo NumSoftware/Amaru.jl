@@ -270,22 +270,6 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
 
 end
 
-#=
-function set_faces_edges!(mesh::Mesh)
-     Facets
-    if genfacets
-        verbose && print("  finding facets...   \r")
-        mesh.faces = get_surface(mesh.elems)
-    end
-    ndim==2 && (mesh.edges=mesh.faces)
-
-    # Edges
-    if genedges && ndim==3
-        verbose && print("  finding edges...   \r")
-        mesh.edges = get_edges(mesh.faces)
-    end
-end
-=#
 
 function update_quality!(mesh::Mesh)
     # Quality
@@ -296,6 +280,7 @@ function update_quality!(mesh::Mesh)
     end
     mesh.elem_data["quality"]   = Q
 end
+
 
 # Updates numbering, faces and edges in a Mesh object
 function fixup!(mesh::Mesh; verbose::Bool=false, genfacets::Bool=true, genedges::Bool=true, reorder::Bool=false)
@@ -601,7 +586,13 @@ function Mesh(elems::Array{Cell,1})
 end
 
 
-function cut(mesh::Mesh, normal::Array{Float64,1})
+function slice(mesh::Mesh, normal::Array{Float64,1})
+    mesh = Mesh()
+    return mesh
+end
+
+
+function clip(mesh::Mesh, normal::Array{Float64,1})
     mesh = Mesh()
     return mesh
 end
@@ -705,23 +696,3 @@ function randmesh(l::Real...)
         m = Mesh(Block3D([0.0 0.0 0.0; lx ly lz], nx=nx, ny=ny, nz=nz, cellshape=cellshape), verbose=false)
     end
 end
-
-function check_mesh(mesh::Mesh)
-    cell_dict = Dict{UInt64, Cell}()
-
-    # Get only unique elems. If dup, original and dup are deleted
-    n = 0
-    for cell in mesh.elems
-        hs = hash(cell)
-        if haskey(cell_dict, hs)
-            n += 1
-        else
-            cell_dict[hs] = cell
-        end
-    end
-
-    return n
-
-end
-
-
