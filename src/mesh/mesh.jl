@@ -42,40 +42,19 @@ function get_node(nodes::Dict{UInt64,Node}, C::AbstractArray{<:Real})
 end
 
 function Base.copy(mesh::Mesh)
-    #=
-    newmesh = Mesh()
-    newmesh.ndim = mesh.ndim
-
-    # Setting nodes and cells
-    newmesh.nodes = [ copy(p) for p in mesh.nodes ]
-    newmesh.elems = [ copy(c) for c in mesh.elems ]
-
-    # Setting cells
-    ncells = length(mesh.elems)
-    for i=1:ncells
-        cell = mesh.elems[i]
-        map = [ c.id for c in cell ]
-        oelem = cell.oelem==nothing ? nothing : mesh.elems[cell.oelem.id]
-        newcell = Cell(cell.shape, newmesh.nodes[map], tag=cell.tag, oelem=oelem)
-        elem = dom.elems[i]
-        nodes = [ mesh.nodes[node.id] for node in elem.nodes ]
-        push!(mesh.elems, Cell(elem.shape, nodes, tag=elem.tag ) )
-    end
-
-    fixup!(mesh, reorder=false) # updates also point and cell numbering
-    =#
-
-
     newmesh = Mesh()
     newmesh.ndim = mesh.ndim
     newmesh.nodes = copy.(mesh.nodes)
-    newmesh.elems  = copy.(mesh.elems)
-    for c in newmesh.elems
-        ids = [ p.id for p in c.nodes ]
-        c.nodes = newmesh.nodes[ids]
+
+    for elem in mesh.elems
+        idxs = [ node.id for node in elem.nodes ]
+        newelemnodes = newmesh.nodes[idxs]
+        newelem = Cell(elem.shape, newelemnodes, tag=elem.tag)
+        push!(newmesh.elems, newelem)
     end
 
-    newmesh._pointdict = Dict( k => newmesh.nodes[p.id] for (k,p) in mesh._pointdict )
+    newmesh._pointdict = Dict( hash(node) => node for node in newmesh.nodes )
+
     fixup!(newmesh)
     return newmesh
 end
@@ -292,32 +271,8 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
 end
 
 #=
-function renumber!(mesh::Mesh)
-    # Get ndim
-    ndim = 1
-    for point in mesh.nodes
-        point.y != 0.0 && (ndim=2)
-        point.z != 0.0 && (ndim=3; break)
-    end
-    mesh.ndim = ndim
-
-    # Numberig nodes
-    for (i,p) in enumerate(mesh.nodes) p.id = i end
-
-    # Numberig cells
-    for (i,c) in enumerate(mesh.elems )
-        c.id = i;
-        c.ndim=ndim;
-    end
-
-    mesh.node_data["node-id"] = collect(1:length(mesh.nodes))
-    mesh.elem_data["cell-id"]   = collect(1:length(mesh.elems))
-    mesh.elem_data["cell-type"] = [ Int(cell.shape.vtk_type) for cell in mesh.elems ]
-end
-=#
-
 function set_faces_edges!(mesh::Mesh)
-    # Facets
+     Facets
     if genfacets
         verbose && print("  finding facets...   \r")
         mesh.faces = get_surface(mesh.elems)
@@ -330,6 +285,7 @@ function set_faces_edges!(mesh::Mesh)
         mesh.edges = get_edges(mesh.faces)
     end
 end
+=#
 
 function update_quality!(mesh::Mesh)
     # Quality
@@ -405,59 +361,30 @@ function quality!(mesh::Mesh)
     return nothing
 end
 
-# Adds m2 to m1
-function join_mesh!(m1::Mesh, m2::Mesh)
-    #m = Mesh()
 
-    # copy m1 to m
-    #m.nodes = copy(m1.nodes)
-    #m.elems  = copy(m1.elems)
-    #m._pointdict = copy(m1._pointdict)
+function join_mesh!(mesh::Mesh, m2::Mesh)
 
-    pid = length(m1.nodes)
-    cid = length(m1.elems)
-
-
-
-
-    #for (h,p) in m1._pointdict
-
-    #end
-
-    # Add new nodes from m2
-    for p in m2.nodes
-        hs = hash(p)
-        if !haskey(m1._pointdict, hs)
-
-            pid += 1
-            p.id = pid
-            push!(m1.nodes, p)
-        end
+    for node in m2.nodes
+        push!(mesh.nodes, node)
+        mesh._pointdict[hash(node)] = node
     end
 
-
-
-    # Fix m2 cells connectivities for nodes at m1 border
-    for c in m2.elems
-        for (i,p) in enumerate(c.nodes)
-            hs = hash(p)
-            if haskey(m1._pointdict, hs)
-                pp = m1._pointdict[hs]
-                c.nodes[i] = pp
-            else
-                # update pointdict dict
-                if haskey(m2._pointdict, hs)
-                    m1._pointdict[hs] = p
-                end
-            end
-        end
-
-        cid += 1
-        c.id = cid
-        push!(m1.elems, c)
+    for elem in m2.elems
+        newelemnodes = Node[ mesh._pointdict[hash(node)] for node in elem.nodes ]
+        newelem = Cell(elem.shape, newelemnodes, tag=elem.tag)
+        push!(mesh.elems, newelem)
     end
+
+    fixup!(mesh, reorder=false)
 
     return nothing
+end
+
+
+function join_meshes(m1::Mesh, m2::Mesh)
+    mesh = copy(m1)
+    join_mesh!(mesh, m2)
+    return mesh
 end
 
 
@@ -651,49 +578,32 @@ function Mesh(
 end
 
 
-function Mesh(cells::Array{Cell,1})
-    # New mesh object TODO: make a copy?
+function Mesh(elems::Array{Cell,1})
     mesh = Mesh()
-    mesh.nodes = cells[:nodes]
-    mesh.elems  = cells
-    fixup!(mesh, reorder=false)
+    
+    for elem in elems
+        for node in elem.nodes
+            mesh._pointdict[hash(node)] = node
+        end
+    end
+
+    mesh.nodes = collect(Node, values(mesh._pointdict))
+
+    for elem in elems
+        newelemnodes = Node[ mesh._pointdict[hash(node)] for node in elem.nodes ]
+        newelem = Cell(elem.shape, newelemnodes, tag=elem.tag)
+        push!(mesh.elems, newelem)
+    end
+
+    fixup!(mesh, reorder=true)
 
     return mesh
 end
 
 
-# Gets a part of a mesh filtering elements
-function Base.getindex(mesh::Mesh, filter_ex::Expr)
-    # TODO: make a copy?
-
-    # filter cells
-    cells  = mesh.elems[filter_ex]
-    # get nodes
-    nodes =get_nodes(cells)
-
-    # ids from selected cells and poitns
-    cids = [ c.id for c in cells ]
-    pids = [ p.id for p in nodes ]
-
-    # new mesh object
-    new_mesh = Mesh()
-    new_mesh.nodes = nodes
-    new_mesh.elems = cells
-
-    # select relevant data
-    for (key,vals) in mesh.node_data
-        new_mesh.node_data[key] = vals[pids]
-    end
-
-    for (key,vals) in mesh.elem_data
-        new_mesh.elem_data[key] = vals[cids]
-    end
-
-    # update node numbering, facets and edges
-    fixup!(new_mesh, reorder=false)
-
-    return new_mesh
-
+function cut(mesh::Mesh, normal::Array{Float64,1})
+    mesh = Mesh()
+    return mesh
 end
 
 
