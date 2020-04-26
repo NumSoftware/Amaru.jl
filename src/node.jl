@@ -20,6 +20,7 @@ mutable struct Dof
     end
 end
 
+
 function Base.copy(dof::Dof)
     newdof = Dof(dof.name, dof.natname)
     newdof.eq_id = dof.eq_id
@@ -28,6 +29,7 @@ function Base.copy(dof::Dof)
     return newdof
 end
 
+
 function Base.getindex(dofs::Array{Dof,1}, s::Symbol)
     for dof in dofs
         dof.name == s && return dof
@@ -35,6 +37,16 @@ function Base.getindex(dofs::Array{Dof,1}, s::Symbol)
     end
     error("getindex: Dof key $s not found.")
 end
+
+
+function Base.haskey(dofs::Array{Dof,1}, s::Symbol)
+    for dof in dofs
+        dof.name == s && return true
+        dof.natname == s && return true
+    end
+    return false
+end
+
 
 const NULL_DOF = Dof(:null, :null)
 
