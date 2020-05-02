@@ -28,6 +28,7 @@ FILES = [
     # Static analysis: solid models
     "mech/solid/elastic-elems.jl",
     "mech/solid/elastic-hex8.jl",
+    "mech/solid/axisymmetric.jl",
     "mech/solid/dp.jl",
     "mech/solid/vm.jl",
     "mech/solid/mazars.jl",

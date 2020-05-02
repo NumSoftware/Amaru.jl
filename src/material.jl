@@ -31,7 +31,7 @@ function copy!(target::Material, source::Material)
 end
 
 """
-`elem_vals_keys(mat)`
+`mat_elem_keys(mat)`
 
 Returns a list of keys from an specified material
 for output at element level as constant values.
@@ -41,6 +41,7 @@ function mat_elem_keys(mat::Material)
 end
 
 
+#=
 # Reads material parameters from a json file
 function read_prms(filename::String)
 
@@ -61,3 +62,4 @@ function read_prms(filename::String)
 
     return mats_prms
 end
+=#

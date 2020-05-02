@@ -29,7 +29,7 @@ include("operators.jl")
 export move!, array, copy, mirror, rotate!, polar, rollaxes!, scale!
 
 include("extrude.jl")
-export extrude
+export extrude, revolve
 
 include("smooth.jl")
 export smooth!, laplacian_smooth!, fast_smooth!

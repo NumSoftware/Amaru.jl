@@ -20,6 +20,10 @@ mutable struct Xnode
     function Xnode(name::AbstractString, content::AbstractString)
         return new(name, OrderedDict{String,String}(), Xnode[], content)
     end
+
+    function Xnode(name::AbstractString; attributes::AbstractDict=Dict(), children::Array=Xnode[], content::AbstractString="")
+        return new(name, OrderedDict{String,String}(attributes), children, content)
+    end
 end
 
 haschildren(node::Xnode) = length(node.children)>0

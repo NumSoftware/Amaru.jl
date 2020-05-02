@@ -1,11 +1,4 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
-#
-function save(elems::Array{<:Element,1}, filename::String; verbose=true)
-    # Save a group of elements as a subdomain
-    subdom = SubDomain(elems)
-    save(subdom, filename, silent=silent)
-end
-
 
 function save_xml(dom::Domain, filename::String)
     io = IOBuffer()
@@ -172,10 +165,15 @@ function save(domain::Domain, filename::String; verbose::Bool=true, silent::Bool
 
     if format=="xml"; 
         save_xml(domain, filename)
+        verbosity>0 && printstyled( "  file $filename written \033[K \n", color=:cyan)
     else
         invoke(save, Tuple{AbstractMesh,String}, domain, filename, verbose=verbose, silent=silent)
     end
-    verbosity>0 && printstyled( "  file $filename written \033[K \n", color=:cyan)
+end
+
+
+function save(elems::Array{<:Element,1}, filename::String; verbose::Bool=true, silent::Bool=false)
+    save(Domain(elems), filename, verbose=verbose, silent=silent)
 end
 
 

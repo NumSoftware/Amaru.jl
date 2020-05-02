@@ -25,7 +25,7 @@ for i=1:2
         mats = mats[[1,3]]
     end
 
-    dom = Domain(msh, mats, modeltype=:plane_stress, thickness=1.0)
+    dom = Domain(msh, mats, modeltype="plane-stress", thickness=1.0)
 
     # Loggers
     tag!(dom.elems["joints"].ips, "jips")

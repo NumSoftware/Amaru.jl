@@ -146,7 +146,7 @@ function set_Bu(env::ModelEnv, dNdX::Matx, detJ::Float64, B::Matx)
             B[2,2+j*ndim] = dNdX[2,i]
             B[6,1+j*ndim] = dNdX[2,i]/SR2; B[6,2+j*ndim] = dNdX[1,i]/SR2
         end
-        if env.modeltype==:axisymmetric
+        if env.modeltype=="axisymmetric"
             for i in 1:nnodes
                 N =elem.shape.func(R)
                 j = i-1

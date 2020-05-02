@@ -136,7 +136,7 @@ Uses a mesh and a list of meterial especifications to construct a finite element
 function Domain(
                 mesh      :: Mesh,
                 matbinds  :: Array{<:Pair,1};
-                modeltype :: Symbol = :general, # :plane_stress, plane_strain
+                modeltype :: String = "3d", # "plane-stress", plane_strain
                 thickness :: Real   = 1.0,
                 verbose   :: Bool   = false,
                 silent    :: Bool   = false,
@@ -310,72 +310,13 @@ function update_single_loggers!(domain::Domain)
     end
 end
 
+
 function update_composed_loggers!(domain::Domain)
     for logger in domain.loggers
         isa(logger, ComposedLogger) && update_logger!(logger, domain)
     end
 end
 
-#function get_segment_data(dom::Domain, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=200)
-    #mesh = convert(Mesh, dom)
-    #return get_segment_data(mesh, X1, X2, filename, npoints=npoints)
-#end
-
-
-# Function to reset a domain
-#= This is error prone specially with ips in loggers
-A new Domain is preferable
-function reset!(dom::Domain)
-    dom.nincs = 0
-    dom.stage = 0
-
-    # Reconfigure nodes and dofs
-    for node in dom.nodes
-        empty!(node.dofs)
-        empty!(node.dofdict)
-    end
-
-    # Reconfigure elements, dofs and ips
-    ip_id = 0
-    for elem in dom.elems
-        elem_config_dofs(elem)
-        ip_tags = [ ip.tag for ip in elem.ips]
-        elem_config_ips(elem, length(elem.ips)) # ips
-        for (i,ip) in enumerate(elem.ips) # updating ip tags
-            ip_id += 1
-            ip.id = ip_id
-            ip.tag = ip_tags[i]
-        end
-    end
-
-    # Reconfigure loggers
-    for logger in dom.loggers
-        setup_logger!(dom, logger)
-    end
-end
-
-function reset!(dom::Domain)
-    dom.nincs = 0
-    dom.stage = 0
-
-    # Reconfigure nodes and dofs
-    for node in dom.nodes
-        reset!(node)
-    end
-
-    # Reconfigure elements, dofs and ips
-    for elem in dom.elems
-        reset!(elem)
-    end
-
-    # Reconfigure loggers
-    for logger in dom.loggers
-        reset!(logger)
-    end
-
-end
-
-=#
 
 function Domain(elems::Array{<:Element,1})
     domain = Domain()

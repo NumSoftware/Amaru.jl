@@ -17,12 +17,10 @@ mutable struct Cell<:AbstractCell
     nodes  ::Array{Node,1}
     ips    ::Array{Ip,1}
     tag    ::String
-    #ndim   ::Integer
     quality::Float64              # quality index: surf/(reg_surf)
     embedded::Bool                # flag for embedded cells
     crossed::Bool                 # flag if cell crossed by linear inclusion
     oelem  ::Union{AbstractCell,Nothing}     # owner cell if this cell is a face/edge
-    #nips   ::Int                  # number of integration points if required
     linked_elems::Array{AbstractCell,1}   # neighbor cells in case of joint cell
     function Cell(shape::ShapeType, nodes::Array{Node,1}; tag::String="", oelem=nothing, nips=0)
         this = new()
@@ -30,14 +28,11 @@ mutable struct Cell<:AbstractCell
         this.shape = shape
         this.nodes = nodes
         this.tag = tag
-        #this = new(-1, shape, nodes, tag)
-        #this.ndim = 0
         this.quality = 0.0
         this.embedded= false
         this.crossed = false
         this.oelem   = oelem
         nips in keys(shape.quadrature) || error("Cell: integ. points number ($nips) not available for shape $(shape.name)")
-        #this.nips = nips
         this.linked_elems = []
         return this
     end
@@ -63,6 +58,7 @@ function get_coords(c::AbstractCell, ndim=3)::Array{Float64,2}
     return C
 end
 
+
 # Return all nodes in cells
 function get_nodes(cells::Array{<:AbstractCell,1})::Array{Node,1}
     nodes = Set{Node}()
@@ -77,26 +73,8 @@ function get_nodes(cells::Array{<:AbstractCell,1})::Array{Node,1}
 end
 
 
-#function setquadrature!(cells::Array{<:AbstractCell,1}, nips::Int=0)
-    #shapes = ShapeType[]
-#
-    #for cell in cells
-        #shape = cell.shape
-        #if nips in keys(shape.quadrature)
-            #cell.nips = nips
-        #else
-            #cell.nips = 0
-            #if !(shape in shapes)
-                #@warn "setquadrature: cannot set $nips integ. points for shape $(shape.name)"
-                #push!(shapes, shape)
-            #end
-        #end
-    #end
-#end
-
-
 function Base.getproperty(c::AbstractCell, s::Symbol)
-    s == :coords && returnget_coords(c)
+    s == :coords && return get_coords(c)
     s == :faces  && return get_faces(c)
     s == :edges  && return get_edges(c)
     s == :extent && return cell_extent(c)
@@ -151,18 +129,6 @@ function Base.getindex(cells::Array{Cell,1}, filter_ex::Expr)
     end
     return R
 end
-
-
-#function tag!(object::Union{Node, Cell}, tag::String)
-    #object.tag = tag
-#end
-
-
-#function tag!(arr::Array{T,1}, tag::String) where T<:Union{Node,Cell}
-    #for obj in arr
-        #obj.tag = tag
-    #end
-#end
 
 
 # Gets the coordinates of a bounding box for an array of nodes
@@ -253,12 +219,11 @@ function norm2(J::Array{Float64,2})
 end
 
 
-# Returns the volume/area/length of a cell, returns zero if jacobian<=0 at any ip
+# Returns the volume/area/length of a cell
 function cell_extent(c::AbstractCell)
     IP = get_ip_coords(c.shape)
     nip = size(IP,1)
     nldim = c.shape.ndim # cell basic dimension
-
 
     # get coordinates matrix
     C =get_coords(c)
@@ -320,7 +285,7 @@ end
 
 
 # Returns the area/volume of a regular element given the perimeter/surface
-function regular_vol(metric::Float64, shape::ShapeType)
+function regular_volume(metric::Float64, shape::ShapeType)
     if shape in [ TRI3, TRI6, TRI9, TRI10 ]
         p = metric
         a = p/3
@@ -388,7 +353,7 @@ function cell_quality_2(c::AbstractCell)::Float64
 
     # quality calculation
     vol = cell_extent(c) # volume or area
-    rvol = regular_vol(surf, c.shape)
+    rvol = regular_volume(surf, c.shape)
     return min(vol/rvol, 1.0)
 end
 
@@ -419,12 +384,14 @@ function cell_quality(c::AbstractCell)::Float64
     return q
 end
 
+
 function cell_aspect_ratio(c::AbstractCell)::Float64
     faces = get_faces(c)
     len = [ cell_extent(f) for f in faces ]
     c.quality = minimum(len)/maximum(len)
     return c.quality
 end
+
 
 # Get an array with shares for all nodes
 function get_patches(cells::Array{<:AbstractCell,1})

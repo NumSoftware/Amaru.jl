@@ -212,36 +212,3 @@ function tensor_rot(V::Array{Float64,2})
     return T
 end
 
-"""
-Return a dictionary with conventional stress and stress values
-from stress and strain tensors defined in Mandel notation.
-"""
-@inline function stress_strain_dict(σ::Tensor2, ε::Tensor2, ndim::Int)
-    if ndim==2;
-        return OrderedDict{Symbol,Float64}(
-          :sxx => σ[1],
-          :syy => σ[2],
-          :szz => σ[3],
-          :sxy => σ[6]/SR2,
-          :exx => ε[1],
-          :eyy => ε[2],
-          :ezz => ε[3],
-          :exy => ε[6]/SR2,
-          )
-    else
-        return OrderedDict{Symbol,Float64}(
-          :sxx => σ[1],
-          :syy => σ[2],
-          :szz => σ[3],
-          :syz => σ[4]/SR2,
-          :sxz => σ[5]/SR2,
-          :sxy => σ[6]/SR2,
-          :exx => ε[1],
-          :eyy => ε[2],
-          :ezz => ε[3],
-          :eyz => ε[4]/SR2,
-          :exz => ε[5]/SR2,
-          :exy => ε[6]/SR2,
-          )
-    end
-end

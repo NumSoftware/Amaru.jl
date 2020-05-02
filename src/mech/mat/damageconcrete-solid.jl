@@ -308,7 +308,7 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
 end
 
 function ip_state_vals(mat::DamageConcrete, ipd::DamageConcreteIpState)
-    dict = stress_strain_dict(ipd.σ, ipd.ε, ipd.env.ndim)
+    dict = stress_strain_dict(ipd.σ, ipd.ε, ipd.env)
     dict[:damt] = ipd.damt
     dict[:damc] = ipd.damc
     dict[:E] = ipd._E

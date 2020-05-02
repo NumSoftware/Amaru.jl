@@ -33,7 +33,6 @@ eye(n::Int64) = Array{Float64}(I,n,n)
 
 # Tools module
 include("tools/include.jl")
-include("tools/vec3.jl")
 
 # generic exports
 export max, min, sort, reset, getindex, sort, copy!, show

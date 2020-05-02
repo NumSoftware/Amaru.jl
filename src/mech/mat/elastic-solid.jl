@@ -43,8 +43,8 @@ matching_elem_type(::ElasticSolid) = MechSolid
 ip_state_type(mat::ElasticSolid) = ElasticSolidIpState
 
 
-function calcDe(E::Number, ν::Number, modeltype::Symbol)
-    if modeltype==:plane_stress
+function calcDe(E::Number, ν::Number, modeltype::String)
+    if modeltype=="plane-stress"
         c = E/(1.0-ν^2)
         return [
             c    c*ν   0.0  0.0  0.0  0.0
@@ -79,5 +79,5 @@ function stress_update(mat::ElasticSolid, ipd::ElasticSolidIpState, dε::Array{F
 end
 
 function ip_state_vals(mat::ElasticSolid, ipd::ElasticSolidIpState)
-    return stress_strain_dict(ipd.σ, ipd.ε, ipd.env.ndim)
+    return stress_strain_dict(ipd.σ, ipd.ε, ipd.env)
 end

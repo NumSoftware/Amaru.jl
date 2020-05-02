@@ -89,6 +89,9 @@ function distributed_bc(elem::MechSolid, facet::Union{Facet, Nothing}, key::Symb
                 n = [J[1,2], -J[1,1]]
                 Q = vip*n/norm(n)
             end
+            if elem.env.modeltype=="axisymmetric"
+                Q *= 2*pi*X[1]
+            end
         else
             x, y, z = X
             vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
@@ -113,9 +116,11 @@ function distributed_bc(elem::MechSolid, facet::Union{Facet, Nothing}, key::Symb
     return reshape(F', nnodes*ndim), map
 end
 
-function setB(env::ModelEnv, dNdX::Matx, detJ::Float64, B::Matx)
+#function setB(env::ModelEnv, dNdX::Matx, B::Matx)
+function setB(elem::Element, ip::Ip, dNdX::Matx, B::Matx)
+    env = elem.env
     ndim, nnodes = size(dNdX)
-    B   .= 0.0
+    B .= 0.0
 
     if ndim==2
         for i in 1:nnodes
@@ -124,11 +129,11 @@ function setB(env::ModelEnv, dNdX::Matx, detJ::Float64, B::Matx)
             B[2,2+j*ndim] = dNdX[2,i]
             B[6,1+j*ndim] = dNdX[2,i]/SR2; B[6,2+j*ndim] = dNdX[1,i]/SR2
         end
-        if env.modeltype==:axisymmetric
+        if env.modeltype=="axisymmetric"
+            N = elem.shape.func(ip.R)
             for i in 1:nnodes
-                N =elem.shape.func(R)
                 j = i-1
-                r = R[0]
+                r = ip.coord.x
                 B[1,1+j*ndim] = dNdX[1,i]
                 B[2,2+j*ndim] = dNdX[2,i]
                 B[3,1+j*ndim] =    N[i]/r
@@ -150,7 +155,6 @@ function setB(env::ModelEnv, dNdX::Matx, detJ::Float64, B::Matx)
         end
     end
 
-    return detJ
 end
 
 function elem_stiffness(elem::MechSolid)
@@ -166,6 +170,9 @@ function elem_stiffness(elem::MechSolid)
     dNdX = Array{Float64}(undef, ndim, nnodes)
 
     for ip in elem.ips
+        if elem.env.modeltype=="axisymmetric"
+            th = 2*pi*ip.coord.x
+        end
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -173,7 +180,7 @@ function elem_stiffness(elem::MechSolid)
         @gemm dNdX = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        setB(elem.env, dNdX, detJ, B)
+        setB(elem, ip, dNdX, B)
 
         # compute K
         coef = detJ*ip.w*th
@@ -198,6 +205,10 @@ function elem_mass(elem::MechSolid)
     J = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
+        if elem.env.modeltype=="axisymmetric"
+            th = 2*pi*ip.coord.x
+        end
+
         # compute N matrix
         Ni   = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
@@ -212,7 +223,7 @@ function elem_mass(elem::MechSolid)
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
-        # compute K
+        # compute M
         coef = ρ*detJ*ip.w*th
         @gemm M += coef*N'*N
     end
@@ -238,6 +249,9 @@ function elem_internal_forces(elem::MechSolid, F::Array{Float64,1})
 
     C = get_coords(elem)
     for ip in elem.ips
+        if elem.env.modeltype=="axisymmetric"
+            th = 2*pi*ip.coord.x
+        end
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -245,7 +259,7 @@ function elem_internal_forces(elem::MechSolid, F::Array{Float64,1})
         @gemm dNdX = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in element $(elem.id)")
-        setB(elem.env, dNdX, detJ, B)
+        setB(elem, ip, dNdX, B)
 
         σ    = ip.state.σ
         coef = detJ*ip.w*th
@@ -275,6 +289,9 @@ function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1},
 
     C = get_coords(elem)
     for ip in elem.ips
+        if elem.env.modeltype=="axisymmetric"
+            th = 2*pi*ip.coord.x
+        end
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -282,7 +299,7 @@ function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1},
         @gemm dNdX = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
-        setB(elem.env, dNdX, detJ, B)
+        setB(elem, ip, dNdX, B)
 
         @gemv Δε = B*dU
         Δσ   = stress_update(elem.mat, ip.state, Δε)

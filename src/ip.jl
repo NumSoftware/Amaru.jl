@@ -59,10 +59,8 @@ Creates an `Ip` object that represents an Integration Point in finite element an
 `R` is a vector with the integration point local coordinates and `w` is the corresponding integration weight.
 """
 mutable struct Ip
-    #R    ::Array{Float64,1}
     R    ::Vec3
     w    ::Float64
-    #X    ::Array{Float64,1}
     coord::Vec3
     id   ::Int
     tag  ::String

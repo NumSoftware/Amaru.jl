@@ -101,7 +101,7 @@ function stress_update(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState
 end
 
 function ip_state_vals(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState)
-    D = stress_strain_dict(ipd.σ, ipd.ε, ipd.env.ndim)
+    D = stress_strain_dict(ipd.σ, ipd.ε, ipd.env)
 
     D[:vx] = ipd.V[1]
     D[:vy] = ipd.V[2]

@@ -514,7 +514,7 @@ function ip_state_vals(mat::SmearedCrack, ipd::SmearedCrackIpState)
     ndim  = ipd.env.ndim
     σ, ε  = ipd.σ, ipd.ε
 
-    D = stress_strain_dict(σ, ε, ndim)
+    D = stress_strain_dict(σ, ε, ipd.env)
 
 
     mand = (1.0, SR2, SR2)

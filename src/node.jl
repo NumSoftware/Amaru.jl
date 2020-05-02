@@ -48,7 +48,8 @@ function Base.haskey(dofs::Array{Dof,1}, s::Symbol)
 end
 
 
-const NULL_DOF = Dof(:null, :null)
+const null_Dof = Dof(:null, :null)
+@inline null(::Type{Dof}) = null_Dof
 
 # Node
 # ====
@@ -56,11 +57,12 @@ const NULL_DOF = Dof(:null, :null)
 """
 `Node(X)`
 
-Creates an object that represents a Node in a finite element analysis. The `X` parameter is a
+Creates an object that represents a Node in a finite element analysis. The `coord` parameter is a
 vector that represents the node coordinates.
 
 **Important fields are**
-`X`   : A vector of coordinates
+`id`    : Id number
+`coord` : A vector of coordinates
 `tag` : An int or string tag
 `dofs`: An array of `Dof` objects
 """
@@ -104,6 +106,10 @@ mutable struct Node
         return this
     end
 end
+
+
+const null_Node = Node(NaN, NaN, NaN)
+@inline null(::Type{Node}) = null_Node
 
 
 Base.hash(n::Node) = hash( (round(n.coord.x, digits=8), round(n.coord.y, digits=8), round(n.coord.z, digits=8)) )

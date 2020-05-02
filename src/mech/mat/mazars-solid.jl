@@ -49,7 +49,7 @@ mutable struct Mazars<:Material
         @assert eps0>0
 
         this     = new(E, nu, eps0, At, Bt, Ac, Bc, rho)
-        this.De  = calcDe(E, nu, :general)
+        this.De  = calcDe(E, nu, "3d")
         this.invDe  = inv(this.De)
         return this
     end
@@ -176,7 +176,7 @@ function ip_state_vals(mat::Mazars, ipd::MazarsIpState)
     ndim  = ipd.env.ndim
     σ, ε  = ipd.σ, ipd.ε
 
-    D = stress_strain_dict(σ, ε, ndim)
+    D = stress_strain_dict(σ, ε, ipd.env)
     D[:dam]  = ipd.φ
     D[:damt] = ipd.φt
     D[:damc] = ipd.φc

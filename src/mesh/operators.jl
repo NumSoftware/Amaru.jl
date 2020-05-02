@@ -175,6 +175,7 @@ end
 Rotate `block` according to the provided `base` point, `axis` vector and `angle`.
 """
 function rotate!(bl::AbstractBlock; base=[0.0,0,0], axis=[0.0,0,1], angle=90.0 )
+    # see also: https://lucidar.me/en/quaternions/quaternions-rotations/
 
     length(axis)==2 && ( axis=vcat(axis, 0.0) )
     length(base)==2 && ( base=vcat(base, 0.0) )
@@ -190,11 +191,11 @@ function rotate!(bl::AbstractBlock; base=[0.0,0,0], axis=[0.0,0,1], angle=90.0 )
 
     # Rotation matrices
     if d != 0.0
-        Rx  = [  1.0    0.0    0.0
+        Rx  = [  1.0   0.0   0.0
                  0.0   c/d  -b/d
                  0.0   b/d   c/d ]
 
-        Rxi = [  1.0    0.0    0.0
+        Rxi = [  1.0   0.0   0.0
                  0.0   c/d   b/d
                  0.0  -b/d   c/d ]
     end

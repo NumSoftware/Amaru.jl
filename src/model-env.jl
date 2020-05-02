@@ -2,7 +2,7 @@
 
 mutable struct ModelEnv
     ndim::Int              # Analysis dimension
-    modeltype::Symbol      # Analysis type (eg. :general, :plane_stress, :plane_strain, etc.
+    modeltype::String      # Analysis type (eg. "3d", "plane-stress", "plane-strain", etc.
     thickness::Float64     # Model thickness
     transient::Bool        # Time dependent analysis
     t::Float64             # Time in time dependent analysis
@@ -14,7 +14,7 @@ mutable struct ModelEnv
     function ModelEnv()
         this = new()
         this.ndim = 3
-        this.modeltype = :general # plane_stress, axisymmetric
+        this.modeltype = "3d" # plane_stress, axisymmetric
         this.thickness = 1.0
         this.transient = false
         this.t = 0.0
@@ -26,5 +26,53 @@ mutable struct ModelEnv
 
         this.params = Dict()
         return this
+    end
+end
+
+
+"""
+Return a dictionary with conventional stress and stress values
+from stress and strain tensors defined in Mandel notation.
+"""
+@inline function stress_strain_dict(σ::Tensor2, ε::Tensor2, env::ModelEnv)
+    if env.ndim==2;
+        if env.modeltype=="axisymmetric"
+            return OrderedDict{Symbol,Float64}(
+              :srr => σ[1],
+              :syy => σ[2],
+              :stt => σ[3],
+              :sry => σ[6]/SR2,
+              :err => ε[1],
+              :eyy => ε[2],
+              :ett => ε[3],
+              :ery => ε[6]/SR2,
+              )
+        else
+            return OrderedDict{Symbol,Float64}(
+              :sxx => σ[1],
+              :syy => σ[2],
+              :szz => σ[3],
+              :sxy => σ[6]/SR2,
+              :exx => ε[1],
+              :eyy => ε[2],
+              :ezz => ε[3],
+              :exy => ε[6]/SR2,
+              )
+        end
+    else
+        return OrderedDict{Symbol,Float64}(
+          :sxx => σ[1],
+          :syy => σ[2],
+          :szz => σ[3],
+          :syz => σ[4]/SR2,
+          :sxz => σ[5]/SR2,
+          :sxy => σ[6]/SR2,
+          :exx => ε[1],
+          :eyy => ε[2],
+          :ezz => ε[3],
+          :eyz => ε[4]/SR2,
+          :exz => ε[5]/SR2,
+          :exy => ε[6]/SR2,
+          )
     end
 end

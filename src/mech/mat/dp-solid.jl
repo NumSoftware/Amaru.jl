@@ -133,7 +133,7 @@ function ip_state_vals(mat::DruckerPrager, ipd::DruckerPragerIpState)
     j1    = tr(σ)
     srj2d = √J2D(σ)
 
-    D = stress_strain_dict(σ, ε, ndim)
+    D = stress_strain_dict(σ, ε, ipd.env)
     D[:epa]   = ipd.εpa
     D[:j1]    = j1
     D[:srj2d] = srj2d
