@@ -18,7 +18,7 @@ set_mat, set_bc, clear_bc, solve!, save
 """
 module Amaru
 using Printf, StatsBase, Statistics, LinearAlgebra, SparseArrays, DelimitedFiles, Arpack
-using JSON, DataStructures
+using DataStructures
 import DataStructures.OrderedDict, DataStructures.OrderedSet
 
 # Debug

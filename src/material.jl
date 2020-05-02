@@ -39,27 +39,3 @@ for output at element level as constant values.
 function mat_elem_keys(mat::Material)
     return String[]
 end
-
-
-#=
-# Reads material parameters from a json file
-function read_prms(filename::String)
-
-    # read file
-    file = open(filename, "r")
-    data = JSON.parse(file)
-    close(file)
-
-    # parse materials
-    mats_prms = Dict{String, Any}()
-    for d in data
-        name = d["name"]
-        keys = d["prms"]
-        vals = d["vals"]
-        prms = Dict{Symbol, Float64}( Symbol(k) => v for (k,v) in zip(keys, vals) )
-        mats_prms[name] = prms
-    end
-
-    return mats_prms
-end
-=#

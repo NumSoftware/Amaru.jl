@@ -8,21 +8,12 @@ mutable struct Xnode
     children::Array{Xnode,1}
     content::String
 
-    function Xnode(name::AbstractString, attributes::AbstractDict=Dict{String,String}())
-        return new(name, OrderedDict(attributes), Xnode[], "")
-    end
-    function Xnode(name::AbstractString, attributes::AbstractDict, children::Array, content::AbstractString="")
+    function Xnode(name::AbstractString, attributes::Union{AbstractDict, Tuple}, children::Array, content::AbstractString="")
         return new(name, OrderedDict(attributes), children, content)
     end
-    function Xnode(name::AbstractString, attributes::AbstractDict, content::AbstractString)
-        return new(name, OrderedDict(attributes), Xnode[], content)
-    end
-    function Xnode(name::AbstractString, content::AbstractString)
-        return new(name, OrderedDict{String,String}(), Xnode[], content)
-    end
 
-    function Xnode(name::AbstractString; attributes::AbstractDict=Dict(), children::Array=Xnode[], content::AbstractString="")
-        return new(name, OrderedDict{String,String}(attributes), children, content)
+    function Xnode(name::AbstractString; attributes::Union{AbstractDict,Tuple}=Dict(), children::Array=Xnode[], content::AbstractString="")
+        return new(name, OrderedDict(attributes), children, content)
     end
 end
 
@@ -111,7 +102,7 @@ function readnode(text, pos)
 
     # check if self-closing tag
     if str[end-1:end]=="/>"
-        return Xnode(name, attributes, [], ""), pos
+        return Xnode(name, attributes=attributes), pos
     end
 
     # get children or content
@@ -137,12 +128,9 @@ end
 mutable struct Xdoc
     attributes::OrderedDict{String,String}
     root::Xnode
-    function Xdoc(attributes::AbstractDict, root::Xnode)
+    function Xdoc(attributes::Union{AbstractDict,Tuple}, root::Xnode)
         return new(OrderedDict(attributes), root)
     end
-    #function Xdoc(root::Xnode)
-        #return new(attributes, root)
-    #end
 end
 
 # Get a list of all nodes with a given attribute
@@ -249,7 +237,7 @@ function to_xml_node(arr::Array{<:Any}, name::String="Array", attributes::Abstra
             content = ""
         end
 
-        return Xnode(name, attributes, content)
+        return Xnode(name, attributes=attributes, content=content)
     end
 
     attributes["type"] = string(eltype(arr))
@@ -258,7 +246,7 @@ function to_xml_node(arr::Array{<:Any}, name::String="Array", attributes::Abstra
         push!( children, to_xml_node(item) )
     end
 
-    return Xnode(name, attributes, children)
+    return Xnode(name, attributes=attributes, children=children)
 end
 
 
@@ -281,7 +269,7 @@ function to_xml_node(dict::AbstractDict, name::String="Dict", attributes::Abstra
         #end
     #end
 
-    return Xnode(name, attributes, children)
+    return Xnode(name, attributes=attributes, children=children)
 
 end
 
@@ -308,7 +296,7 @@ function to_xml_node(obj::Any, name::String=""; exclude::Array{Symbol,1}=Symbol[
         end
     end
 
-    return Xnode(name, attributes, children)
+    return Xnode(name, attributes=attributes, children=children)
     
 end
 

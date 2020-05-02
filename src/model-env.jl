@@ -14,7 +14,7 @@ mutable struct ModelEnv
     function ModelEnv()
         this = new()
         this.ndim = 3
-        this.modeltype = "3d" # plane_stress, axisymmetric
+        this.modeltype = "3d"
         this.thickness = 1.0
         this.transient = false
         this.t = 0.0

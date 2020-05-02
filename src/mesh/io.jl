@@ -111,9 +111,9 @@ end
 function save_vtu(mesh::AbstractMesh, filename::String; desc::String="")
     npoints = length(mesh.nodes)
     ncells  = length(mesh.elems)
-    root = Xnode("VTKFile", Dict("type"=>"UnstructuredGrid", "version"=>"0.1", "byte_order"=>"LittleEndian"))
+    root = Xnode("VTKFile", attributes=("type"=>"UnstructuredGrid", "version"=>"0.1", "byte_order"=>"LittleEndian"))
     ugrid = Xnode("UnstructuredGrid")
-    piece = Xnode("Piece", Dict("NumberOfPoints"=>"$npoints", "NumberOfCells"=>"$ncells"))
+    piece = Xnode("Piece", attributes=("NumberOfPoints"=>"$npoints", "NumberOfCells"=>"$ncells"))
     push!(ugrid.children, piece)
     push!(root.children, ugrid)
 
@@ -121,7 +121,7 @@ function save_vtu(mesh::AbstractMesh, filename::String; desc::String="")
 
     # Write coordinates
     xpoints = Xnode("Points")
-    xcoords  = Xnode("DataArray", Dict("type"=>"Float64", "NumberOfComponents"=>"3", "format"=>"ascii"))
+    xcoords  = Xnode("DataArray", attributes=("type"=>"Float64", "NumberOfComponents"=>"3", "format"=>"ascii"))
     for (i,node) in enumerate(mesh.nodes)
         @printf io "%17.7e %17.7e %17.7e" node.coord.x node.coord.y node.coord.z
         i<npoints && print(io, "\n")
@@ -133,7 +133,7 @@ function save_vtu(mesh::AbstractMesh, filename::String; desc::String="")
     xcells = Xnode("Cells")
 
     # Write connectivities
-    xconn  = Xnode("DataArray", Dict("type"=>"Int32", "Name"=>"connectivity", "format"=>"ascii"))
+    xconn  = Xnode("DataArray", attributes=("type"=>"Int32", "Name"=>"connectivity", "format"=>"ascii"))
     for cell in mesh.elems
         for node in cell.nodes
             print(io, node.id-1, "  ")
@@ -142,7 +142,7 @@ function save_vtu(mesh::AbstractMesh, filename::String; desc::String="")
     xconn.content = String(take!(io))
 
     # Write offset
-    xoffset = Xnode("DataArray", Dict("type"=>"Int32", "Name"=>"offsets", "format"=>"ascii"))
+    xoffset = Xnode("DataArray", attributes=("type"=>"Int32", "Name"=>"offsets", "format"=>"ascii"))
     offset = 0
     for cell in mesh.elems
         offset += length(cell.nodes)
@@ -151,7 +151,7 @@ function save_vtu(mesh::AbstractMesh, filename::String; desc::String="")
     xoffset.content = String(take!(io))
 
     # Write cell types
-    xtypes = Xnode("DataArray", Dict("type"=>"Int32", "Name"=>"types", "format"=>"ascii"))
+    xtypes = Xnode("DataArray", attributes=("type"=>"Int32", "Name"=>"types", "format"=>"ascii"))
     for cell in mesh.elems
         print(io, Int(cell.shape.vtk_type), "  ")
     end
@@ -175,7 +175,7 @@ function save_vtu(mesh::AbstractMesh, filename::String; desc::String="")
             isfloat = eltype(D)<:AbstractFloat
             dtype = isfloat ? "Float64" : "Int32"
             ncomps = size(D,2)
-            xdata = Xnode("DataArray", Dict("type"=>dtype, "Name"=>"$field", "NumberOfComponents"=>"$ncomps", "format"=>"ascii"))
+            xdata = Xnode("DataArray", attributes=("type"=>dtype, "Name"=>"$field", "NumberOfComponents"=>"$ncomps", "format"=>"ascii"))
             for i=1:npoints
                 for j=1:ncomps
                     if isfloat
@@ -199,7 +199,7 @@ function save_vtu(mesh::AbstractMesh, filename::String; desc::String="")
             isfloat = eltype(D)<:AbstractFloat
             dtype = isfloat ? "Float64" : "Int32"
             ncomps = size(D,2)
-            xdata = Xnode("DataArray", Dict("type"=>dtype, "Name"=>"$field", "NumberOfComponents"=>"$ncomps", "format"=>"ascii"))
+            xdata = Xnode("DataArray", attributes=("type"=>dtype, "Name"=>"$field", "NumberOfComponents"=>"$ncomps", "format"=>"ascii"))
             for i=1:ncells
                 for j=1:ncomps
                     if isfloat
@@ -215,7 +215,7 @@ function save_vtu(mesh::AbstractMesh, filename::String; desc::String="")
         push!(piece.children, xcelldata)
     end
 
-    fileatts = OrderedDict("version"=>"1.0")
+    fileatts = ("version"=>"1.0",)
     doc = Xdoc(fileatts, root)
     save(doc, filename)
 end
@@ -239,7 +239,7 @@ function read_vtk(filename::String)
     cell_types = Int[]
 
     node_data = OrderedDict{String,Array}()
-    elem_data  = OrderedDict{String,Array}()
+    elem_data = OrderedDict{String,Array}()
 
     reading_node_data = false
     reading_elem_data  = false
@@ -397,7 +397,7 @@ function read_vtu(filename::String)
     end
 
     node_data = OrderedDict{String,Array}()
-    elem_data  = OrderedDict{String,Array}()
+    elem_data = OrderedDict{String,Array}()
 
     xpointdata = piece("PointData")
     if xpointdata!=nothing
@@ -780,35 +780,30 @@ end
 """
     Mesh(filename)
 
-Constructs a `Mesh` object based on a file in VTK legacy format or JSON format.
+Constructs a `Mesh` object based on a file.
 """
-function Mesh(filename::String; verbose::Bool=false, silent::Bool=false, format::String="", reorder::Bool=false)
+function Mesh(filename::String; verbose::Bool=false, silent::Bool=false, reorder::Bool=false)
 
+    suitable_formats = (".vtk", ".vtu", ".tetgen")
     verbosity = 1
     verbose && (verbosity=2)
     silent && (verbosity=0)
 
     verbosity>1 && printstyled("Mesh loading: filename $filename\n", bold=true, color=:cyan)
 
-    if format==""
-        basename, format = splitext(filename)
-        format = format[2:end]
-    end
+    basename, format = splitext(filename)
 
-    if format=="vtk"
+    format in suitable_formats || error("Mesh: cannot read format \"$format\". Suitable formats are $suitable_formats.")
+
+    if format==".vtk"
         verbosity>1 && print("  Reading VTK legacy format...\n")
         mesh = read_vtk(filename)
-    elseif format=="vtu"
+    elseif format==".vtu"
         verbosity>1 && print("  Reading VTU format...\n")
         mesh = read_vtu(filename)
-    elseif format=="json"
-        verbosity>1 && print("  Reading JSON format...\n")
-        mesh = read_json(filename)
-    elseif format=="tetgen"
+    elseif format==".tetgen"
         verbosity>1 && print("  Reading tetgen output files...\n")
         mesh = read_tetgen(filename)
-    else
-        error("Mesh: Reading $format format is not available (file=$filename)")
     end
 
     verbosity>0 && printstyled( "  file $filename loaded \033[K \n", color=:cyan)

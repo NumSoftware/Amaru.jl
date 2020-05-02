@@ -46,7 +46,7 @@ function save_xml(dom::Domain, filename::String)
                            "tag"=>string(node.tag),
                            "coord"=>"$(node.coord.x),$(node.coord.y),$(node.coord.z)",
                           )
-        xnode = Xnode("Node", atts)
+        xnode = Xnode("Node", attributes=atts)
         for dof in node.dofs
             atts = OrderedDict(
                                "name"=>string(dof.name),
@@ -56,7 +56,7 @@ function save_xml(dom::Domain, filename::String)
                                "keys"=>join(keys(dof.vals), ","),
                                "vals"=>join(values(dof.vals), ","),
                               )
-            xdof = Xnode("Dof", atts)
+            xdof = Xnode("Dof", attributes=atts)
             push!(xnode.children, xdof)
         end
         push!(xnodes.children, xnode)
@@ -76,7 +76,7 @@ function save_xml(dom::Domain, filename::String)
                            "linked_elems"=>join((e.id for e in elem.linked_elems), ","),
                           )
         elemname = split(string(typeof(elem)), ".")[end]
-        xelem = Xnode(elemname, atts) 
+        xelem = Xnode(elemname, attributes=atts) 
         for ip in elem.ips
             atts = OrderedDict(
                                "id"=>string(ip.id),
@@ -92,7 +92,7 @@ function save_xml(dom::Domain, filename::String)
             end
             atts["keys"] = join(keys, ",")
             atts["vals"] = join(vals, ",")
-            xip = Xnode("Ip", atts)
+            xip = Xnode("Ip", attributes=atts)
             push!(xelem.children, xip)
         end
         push!(xelems.children, xelem)
@@ -106,7 +106,7 @@ function save_xml(dom::Domain, filename::String)
         isfloat = eltype(D)<:AbstractFloat
         dtype = isfloat ? "Float64" : "Int32"
         ncomps = size(D,2)
-        xdata = Xnode("DataArray", OrderedDict("name"=>string(field), "type"=>dtype, "ncomps"=>string(ncomps)))
+        xdata = Xnode("DataArray", attributes=OrderedDict("name"=>string(field), "type"=>dtype, "ncomps"=>string(ncomps)))
         for i=1:nnodes
             for j=1:ncomps
                 if isfloat
@@ -128,7 +128,7 @@ function save_xml(dom::Domain, filename::String)
         isfloat = eltype(D)<:AbstractFloat
         dtype = isfloat ? "Float64" : "Int32"
         ncomps = size(D,2)
-        xdata = Xnode("DataArray", OrderedDict("name"=>string(field), "type"=>dtype, "ncomps"=>string(ncomps)))
+        xdata = Xnode("DataArray", attributes=OrderedDict("name"=>string(field), "type"=>dtype, "ncomps"=>string(ncomps)))
         for i=1:nelems
             for j=1:ncomps
                 if isfloat

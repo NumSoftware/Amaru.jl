@@ -5,7 +5,6 @@ export DataTable, DataBook, push!, save, loadtable, loadbook, randtable
 
 # DataTable object
 const KeyType = Union{Symbol,AbstractString}
-#const ItemType  = Union{Int64,Float64,AbstractString}
 const ColType = Array{T,1} where T
 
 mutable struct DataTable
@@ -159,11 +158,11 @@ end
 sprintf(fmt, args...) = @eval @sprintf($fmt, $(args...))
 
 # TODO: Improve column width for string items
-#function save(table::DataTable, filename::String; verbose::Bool=true, digits::Array{Int,1}=[])
 function save(table::DataTable, filename::String; verbose::Bool=true, digits::Array=[])
-    suitable_formats = ("dat","tex")
-    format = split(filename, ".")[end]
-    format in suitable_formats || error("save DataTable: $format is not a suitable formats $suitable_formats")
+    suitable_formats = (".dat", ".tex")
+
+    basename, format = splitext(filename)
+    format in suitable_formats || error("DataTable: cannot save in \"$format\" format. Suitable formats $suitable_formats.")
 
     local f::IOStream
     try
@@ -176,7 +175,7 @@ function save(table::DataTable, filename::String; verbose::Bool=true, digits::Ar
     nc = length(table.colindex)              # number of cols
     nr = nc>0 ? length(table.columns[1]) : 0 # number of rows
 
-    if format=="dat"
+    if format==".dat"
         for (i,key) in enumerate(keys(table.colindex))
             @printf(f, "%12s", key)
             print(f, i!=nc ? "\t" : "\n")
@@ -200,7 +199,7 @@ function save(table::DataTable, filename::String; verbose::Bool=true, digits::Ar
         verbose && printstyled("  file $filename written\n", color=:cyan)
     end
 
-    if format=="tex"
+    if format==".tex"
         # widths calculation
         header = keys(table.colindex)
         widths = length.(header)
@@ -282,27 +281,18 @@ end
 
 
 function save(book::DataBook, filename::String; verbose::Bool=true)
-    format = split(filename, ".")[end]
-    format != "dat" && error("save DataBook: filename should have \"dat\" extension")
+    basename, format = splitext(filename)
+    format == ".dat" || error("DataBook: cannot save in \"$format\". Suitable format is \".dat\".")
 
     local f::IOStream
     try
-        f  = open(filename, "w")
+        f = open(filename, "w")
     catch err
         @warn "DataBook: File $filename could not be opened for writing."
         return
     end
 
-    if format=="json"
-        # generate dictionary
-        dict_arr = [ table.colindex for table in book.tables ]
-        str  = JSON.json(dict_arr, 4)
-        print(f, str)
-
-        if verbose  printstyled("  file $filename written (DataBook)\n", color=:cyan) end
-    end
-
-    if format=="dat"
+    if format==".dat"
 
         for (k,table) in enumerate(book.tables)
 
@@ -337,10 +327,10 @@ end
 
 
 function DataTable(filename::String, delim='\t')
-    format = split(filename, ".")[end]
-    format != "dat" && error("DataTable: filename should have \"dat\" extension")
+    basename, format = splitext(filename)
+    format == ".dat" || error("DataTable: cannot read \"$format\". Suitable format is \".dat\".")
 
-    if format=="dat"
+    if format==".dat"
         matrix, headstr = readdlm(filename, delim, header=true, use_mmap=false)
         table = DataTable(strip.(headstr), matrix)
         return table
@@ -350,12 +340,12 @@ end
 
 function DataBook(filename::String)
     delim = "\t"
-    format = split(filename, ".")[end]
-    format != "dat" && error("DataBook: filename should have \"dat\" extension")
+    basename, format = splitext(filename)
+    format == ".dat" || error("DataBook: cannot read \"$format\". Suitable format is \".dat\".")
 
     f      = open(filename, "r")
     book   = DataBook()
-    if format=="dat"
+    if format==".dat"
         lines = readlines(f)
         header_expected = false
         for (i,line) in enumerate(lines)
@@ -399,14 +389,14 @@ loadbook(filename::String) = DataBook(filename)
 # TODO: Improve display. Include column datatype
 function Base.show(io::IO, table::DataTable)
     if length(table.columns)==0
-        print("DataTable()")
+        print(io, "DataTable()")
         return
     end
     nc = length(table.colindex)     # number of fields (columns)
     nr = length(table.columns[1])   # number of rows
 
     if nr==0
-        print("DataTable()")
+        print(io, "DataTable()")
         return
     end
 
@@ -426,18 +416,18 @@ function Base.show(io::IO, table::DataTable)
         end
     end
 
-    print(" │ ")
+    print(io, " │ ")
     for (i,key) in enumerate(header)
         etype = types[i]
         width = widths[i]
         if etype<:Real
-            print(lpad(key, width))
+            print(io, lpad(key, width))
         else
-            print(rpad(key, width))
+            print(io, rpad(key, width))
         end
-        print(" │ ")
+        print(io, " │ ")
     end
-    println()
+    println(io)
 
     visible_rows = 30
     half_vrows = div(visible_rows,2)
@@ -449,29 +439,30 @@ function Base.show(io::IO, table::DataTable)
             continue
         end
 
-        print(" │ ")
+        print(io, " │ ")
         for j=1:nc
             etype = types[j]
             item = table.columns[j][i]
             if etype<:AbstractFloat
                 item = @sprintf("%12.5e", item)
-                print(lpad(item, widths[j]))
+                print(io, lpad(item, widths[j]))
             elseif etype<:Integer
                 item = @sprintf("%6d", item)
-                print(lpad(item, widths[j]))
+                print(io, lpad(item, widths[j]))
             elseif etype<:AbstractString
                 str = item
-                print(rpad(item, widths[j]))
+                print(io, rpad(item, widths[j]))
             else
                 str = string(item)
-                print(rpad(item, widths[j]))
+                print(io, rpad(item, widths[j]))
             end
-            print(" │ ")
+            print(io, " │ ")
         end
-        i<nr && println()
+        i<nr && println(io)
     end
 
 end
+
 
 function Base.show(io::IO, book::DataBook)
     print(io, "DataBook (tables=$(length(book.tables))):\n")
