@@ -1,31 +1,31 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 
-function box_points(C1::Array{<:Real,1}, C2::Array{<:Real,1})
+function box_coords(C1::Array{<:Real,1}, C2::Array{<:Real,1}, ndim::Int)
     x1 = C1[1]
     y1 = C1[2]
     lx = C2[1] - C1[1]
     ly = C2[2] - C1[2]
 
-    if length(C1)==2
+    if ndim==2
         return [
-                 Node(x1   , y1   , 0.0),
-                 Node(x1+lx, y1   , 0.0),
-                 Node(x1+lx, y1+ly, 0.0),
-                 Node(x1   , y1+ly, 0.0),
-                ]
+                 x1     y1     0.0
+                 x1+lx  y1     0.0
+                 x1+lx  y1+ly  0.0
+                 x1     y1+ly  0.0
+               ]
     else
         z1 = C1[3]
         lz = C2[3] - C1[3]
         return [
-                 Node(x1   , y1   , z1 ),
-                 Node(x1+lx, y1   , z1 ),
-                 Node(x1+lx, y1+ly, z1 ),
-                 Node(x1   , y1+ly, z1 ),
-                 Node(x1   , y1   , z1+lz ),
-                 Node(x1+lx, y1   , z1+lz ),
-                 Node(x1+lx, y1+ly, z1+lz ),
-                 Node(x1   , y1+ly, z1+lz ),
+                 x1     y1     z1
+                 x1+lx  y1     z1
+                 x1+lx  y1+ly  z1
+                 x1     y1+ly  z1
+                 x1     y1     z1+lz
+                 x1+lx  y1     z1+lz
+                 x1+lx  y1+ly  z1+lz
+                 x1     y1+ly  z1+lz
                 ]
     end
 end
@@ -48,7 +48,7 @@ mutable struct Block <: AbstractBlock
     nips::Int64
     id::Int64
 
-    function Block(coords::Array{<:Real}; nx::Int=1, ny::Int=1, nz::Int=1, cellshape=nothing, tag="", id=-1, shape=nothing, nips=0)
+    function Block(coords::Array{<:Real}; nx::Int=1, ny::Int=1, nz::Int=0, cellshape=nothing, tag="", id=-1, shape=nothing, nips=0)
         if shape != nothing
             @warn "Block: argument shape was deprecated. Please use cellshape instead"
             cellshape = shape
@@ -58,39 +58,49 @@ mutable struct Block <: AbstractBlock
         shapes2d = (TRI3, TRI6, QUAD4, QUAD8, QUAD9, QUAD12)
         shapes3d = (TET4, TET10, HEX8, HEX20, HEX27)
 
-        ncoord, ndim = size(coords)
-        ndim<=3 || error("Block: invalid coordinate matrix")
-        (ndim==3 && cellshape in shapes2d) && (ndim=2)
+        ncoord, ncol = size(coords)
+        ncol<=3 || error("Block: invalid coordinate matrix")
+
+        # Get ndim
+        sum2 = ncol>=2 ? sum(abs, coords[:,2]) : 0.0
+        sum3 = ncol==3 ? sum(abs, coords[:,3]) : 0.0
+
+        ndim = 3
+        sum3==0 && (ndim=2)
+        sum2+sum3==0 && (ndim=1)
+        surface = ndim==3 && nz==0
+        nz == 0 && (nz=1)
+
+        nz==0 && (ndim=2; nz=1)
+        ny==0 && (ndim=1; ny=1)
         cellshape in shapes3d && (ndim==3 || error("Block: 3d points are required for cell shape $cellshape"))
 
         if ndim==1
-            ncoord==2 || error("Block: invalid coordinates matrix rows ($ncoord) for dimension $ndim")
+            ncoord==2 || error("Block: invalid coordinates matrix rows ($ncoord) for dimension $ndim.")
             cellshape==nothing && (cellshape=LIN2)
-            cellshape in shapes1d || error("Block: invalid cell type $cellshape for dimension $ndim")
+            cellshape in shapes1d || error("Block: invalid cell type $(cellshape.name) for dimension $ndim.")
             shape = LIN2
-            nodes = box_points(coords[1,:], coords[2,:])
-        elseif ndim==2
-            ncoord in (2, 4, 8) || error("Block: invalid coordinates matrix rows ($ncoord) for dimension $ndim")
+            nodes = [ Node(coords[i,:]) for i=1:ncoord ]
+        elseif ndim==2 || surface
+            if !surface && ncoord==2
+                coords = box_coords(coords[1,:], coords[2,:], ndim)
+                ncoord = size(coords,1)
+            end
+            ncoord in (4, 8) || error("Block: invalid coordinates matrix rows ($ncoord) for dimension $ndim or surface.")
             cellshape==nothing && (cellshape=QUAD4)
-            cellshape in shapes2d || error("Block: invalid cell type $cellshape for dimension $ndim")
-            if ncoord==2
-                nodes = box_points(coords[1,:], coords[2,:])
-                shape = QUAD4
-            else
-                nodes = [ Node(coords[i,:]) for i=1:ncoord ]
-                shape = length(nodes)==4 ? QUAD4 : QUAD8
-            end
+            cellshape in shapes2d || error("Block: invalid cell type $(cellshape.name) for dimension $ndim or surface.")
+            nodes = [ Node(coords[i,:]) for i=1:ncoord ]
+            shape = length(nodes)==4 ? QUAD4 : QUAD8
         else
-            ncoord in (2, 8, 20) || error("Block: invalid coordinates matrix rows ($ncoord) for dimension $ndim")
-            cellshape==nothing && (cellshape=HEX8)
-            cellshape in shapes3d || error("Block: invalid cell type $cellshape for dimension $ndim")
             if ncoord==2
-                nodes = box_points(coords[1,:], coords[2,:])
-                shape = HEX8
-            else
-                nodes = [ Node(coords[i,:]) for i=1:ncoord ]
-                shape = length(nodes)==8 ? HEX8 : HEX20
+                coords = box_coords(coords[1,:], coords[2,:], ndim)
+                ncoord = size(coords,1)
             end
+            ncoord in (8, 20) || error("Block: invalid coordinates matrix rows ($ncoord) for dimension $ndim.")
+            cellshape==nothing && (cellshape=HEX8)
+            cellshape in shapes3d || error("Block: invalid cell type $(cellshape.name) for dimension $ndim.")
+            nodes = [ Node(coords[i,:]) for i=1:ncoord ]
+            shape = length(nodes)==8 ? HEX8 : HEX20
         end
 
         for i=1:length(nodes)
@@ -112,10 +122,8 @@ end
 
 
 # Splits a block
-# TODO: replace msh::Mesh by points, pointdict and cells
 # TODO: optimize matrix products
 function split_block(bl::Block, msh::Mesh)
-    #nx, ny = bl.nx, bl.ny
     nx, ny, nz = bl.nx, bl.ny, bl.nz
     shape  = bl.shape # cell shape
     coords = get_coords(bl.nodes)
@@ -468,67 +476,11 @@ function split_block(bl::Block, msh::Mesh)
                     p19 = p_arr[i+2, j+2, k+1]
                     p20 = p_arr[i  , j+2, k+1]
 
-                    #conn = [
-                        #p_arr[i  , j  , k  ],
-                        #p_arr[i+2, j  , k  ],
-                        #p_arr[i+2, j+2, k  ],
-                        #p_arr[i  , j+2, k  ],
-                        #p_arr[i  , j  , k+2],
-                        #p_arr[i+2, j  , k+2],
-                        #p_arr[i+2, j+2, k+2],
-                        #p_arr[i  , j+2, k+2],
-#
-                        #p_arr[i+1, j  , k  ],
-                        #p_arr[i+2, j+1, k  ],
-                        #p_arr[i+1, j+2, k  ],
-                        #p_arr[i  , j+1, k  ],
-                        #p_arr[i+1, j  , k+2],
-                        #p_arr[i+2, j+1, k+2],
-                        #p_arr[i+1, j+2, k+2],
-                        #p_arr[i  , j+1, k+2],
-#
-                        #p_arr[i  , j  , k+1],
-                        #p_arr[i+2, j  , k+1],
-                        #p_arr[i+2, j+2, k+1],
-                        #p_arr[i  , j+2, k+1]]
-
                     if cellshape == HEX20
                         cell = Cell(cellshape, [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20], tag=bl.tag, nips=bl.nips)
                         push!(msh.elems, cell)
                     end
                     if cellshape in (TET10, HEX27)
-
-                        #p1  = p_arr[i  , j  , k  ]
-                        #p2  = p_arr[i+2, j  , k  ]
-                        #p3  = p_arr[i+2, j+2, k  ]
-                        #p4  = p_arr[i  , j+2, k  ]
-                        #p5  = p_arr[i  , j  , k+2]
-                        #p6  = p_arr[i+2, j  , k+2]
-                        #p7  = p_arr[i+2, j+2, k+2]
-                        #p8  = p_arr[i  , j+2, k+2]
-#
-                        #p9  = p_arr[i+1, j  , k  ]
-                        #p10 = p_arr[i+2, j+1, k  ]
-                        #p11 = p_arr[i+1, j+2, k  ]
-                        #p12 = p_arr[i  , j+1, k  ]
-                        #p13 = p_arr[i+1, j  , k+2]
-                        #p14 = p_arr[i+2, j+1, k+2]
-                        #p15 = p_arr[i+1, j+2, k+2]
-                        #p16 = p_arr[i  , j+1, k+2]
-#
-                        #p17 = p_arr[i  , j  , k+1]
-                        #p18 = p_arr[i+2, j  , k+1]
-                        #p19 = p_arr[i+2, j+2, k+1]
-                        #p20 = p_arr[i  , j+2, k+1]
-
-                        #p21 = p_arr[i+1, j+1, k  ]
-                        #p22 = p_arr[i+1, j+1, k+2]
-                        #p23 = p_arr[i+1, j  , k+1]
-                        #p24 = p_arr[i+2, j+1, k+1]
-                        #p25 = p_arr[i+1, j+2, k+1]
-                        #p26 = p_arr[i  , j+1, k+1]
-                        #p27 = p_arr[i+1, j+1, k+1]
-
 
                         p21 = p_arr[i  , j+1, k+1]
                         p22 = p_arr[i+2, j+1, k+1]
