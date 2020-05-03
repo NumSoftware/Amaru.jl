@@ -1,8 +1,11 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-mutable struct MechSolid<:Mechanical
+export MechBeam
+
+mutable struct MechBeam<:Mechanical
     id    ::Int
     shape ::ShapeType
+
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -11,313 +14,141 @@ mutable struct MechSolid<:Mechanical
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function MechSolid();
+    function MechBeam()
         return new()
     end
 end
 
-matching_shape_family(::Type{MechSolid}) = SOLID_SHAPE
+matching_shape_family(::Type{MechBeam}) = LINE_SHAPE
 
-function elem_init(elem::MechSolid)
-    ipdata_ty = typeof(elem.ips[1].state)
-    if :h in fieldnames(ipdata_ty)
-        # Element volume/area
-        V = 0.0
-        C = get_coords(elem)
-        for ip in elem.ips
-            dNdR = elem.shape.deriv(ip.R)
-            J    = dNdR*C
-            detJ = det(J)
-            V   += detJ*ip.w
-        end
-
-        # Representative length size for an integration point
-        nips = length(elem.ips)
-        ndim = elem.env.ndim
-        h = (V/nips)^(1/ndim)
-
-        for ip in elem.ips
-            ip.state.h = h
-        end
+function beam_shape_func(ξ::Float64, nnodes::Int)
+    if nnodes==2
+        N = Array{Float64}(undef,4)
+        x = (ξ+1)/2
+        N[1] = 1 - 3*x^2 + 2*x^3
+        N[2] = x - 2*x^2 + x^3
+        N[3] = 3*x^2 - 2*x^3
+        N[4] = x^3 - x^2
+    else
+        N = Array{Float64}(undef,4)
     end
-
-    return nothing
+    return N
 end
 
-function distributed_bc(elem::MechSolid, facet::Union{Facet, Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
-    ndim  = elem.env.ndim
-
-    # Check bcs
-    (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
-    !(key in (:tx, :ty, :tz, :tn)) && error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
-
-    target = facet!=nothing ? facet : elem
-    nodes  = target.nodes
-    nnodes = length(nodes)
-    t      = elem.env.t
-
-    # Force boundary condition
-    nnodes = length(nodes)
-
-    # Calculate the target coordinates matrix
-    C = get_coords(nodes, ndim)
-
-    # Vector with values to apply
-    Q = zeros(ndim)
-
-    # Calculate the nodal values
-    F     = zeros(nnodes, ndim)
-    shape = target.shape
-    ips   = get_ip_coords(shape)
-
-    for i=1:size(ips,1)
-        R = vec(ips[i,:])
-        w = R[end]
-        N = shape.func(R)
-        D = shape.deriv(R)
-        J = D*C
-        nJ = norm2(J)
-        X = C'*N
-        if ndim==2
-            x, y = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y)
-            if key == :tx
-                Q = [vip, 0.0]
-            elseif key == :ty
-                Q = [0.0, vip]
-            elseif key == :tn
-                n = [J[1,2], -J[1,1]]
-                Q = vip*n/norm(n)
-            end
-        else
-            x, y, z = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
-            if key == :tx
-                Q = [vip, 0.0, 0.0]
-            elseif key == :ty
-                Q = [0.0, vip, 0.0]
-            elseif key == :tz
-                Q = [0.0, 0.0, vip]
-            elseif key == :tn && ndim==3
-                n = cross(J[1,:], J[2,:])
-                Q = vip*n/norm(n)
-            end
-        end
-        F += N*Q'*(nJ*w) # F is a matrix
+function beam_second_deriv(ξ::Float64, nnodes::Int)
+    if nnodes==2
+        DD = Array{Float64}(undef,4)
+    else
+        DD = Array{Float64}(undef,6)
     end
-
-    # generate a map
-    keys = (:ux, :uy, :uz)[1:ndim]
-    map  = [ node.dofdict[key].eq_id for node in target.nodes for key in keys ]
-
-    return reshape(F', nnodes*ndim), map
+    return DD
 end
 
-function setB(env::ModelEnv, dNdX::Matx, detJ::Float64, B::Matx)
-    ndim, nnodes = size(dNdX)
-    B   .= 0.0
-
+function elem_config_dofs(elem::MechBeam)
+    ndim = elem.env.ndim
+    ndim == 1 && error("MechBeam: Beam elements do not work in 1d analyses")
     if ndim==2
-        for i in 1:nnodes
-            j = i-1
-            B[1,1+j*ndim] = dNdX[1,i]
-            B[2,2+j*ndim] = dNdX[2,i]
-            B[6,1+j*ndim] = dNdX[2,i]/SR2; B[6,2+j*ndim] = dNdX[1,i]/SR2
-        end
-        if env.modeltype==:axisymmetric
-            for i in 1:nnodes
-                N =elem.shape.func(R)
-                j = i-1
-                r = R[0]
-                B[1,1+j*ndim] = dNdX[1,i]
-                B[2,2+j*ndim] = dNdX[2,i]
-                B[3,1+j*ndim] =    N[i]/r
-                B[6,1+j*ndim] = dNdX[2,i]/SR2; B[6,2+j*ndim] = dNdX[1,i]/SR2
-            end
+        for node in elem.nodes
+            add_dof(node, :ux, :fx)
+            add_dof(node, :uy, :fy)
+            add_dof(node, :rz, :mz)
         end
     else
-        for i in 1:nnodes
-            dNdx = dNdX[1,i]
-            dNdy = dNdX[2,i]
-            dNdz = dNdX[3,i]
-            j    = i-1
-            B[1,1+j*ndim] = dNdx
-            B[2,2+j*ndim] = dNdy
-            B[3,3+j*ndim] = dNdz
-            B[4,2+j*ndim] = dNdz/SR2;   B[4,3+j*ndim] = dNdy/SR2
-            B[5,1+j*ndim] = dNdz/SR2;   B[5,3+j*ndim] = dNdx/SR2
-            B[6,1+j*ndim] = dNdy/SR2;   B[6,2+j*ndim] = dNdx/SR2
+        for node in elem.nodes
+            add_dof(node, :ux, :fx)
+            add_dof(node, :uy, :fy)
+            add_dof(node, :uz, :fz)
+            add_dof(node, :rx, :mx)
+            add_dof(node, :ry, :my)
+            add_dof(node, :rz, :mz)
         end
     end
-
-    return detJ
 end
 
-function elem_stiffness(elem::MechSolid)
-    ndim   = elem.env.ndim
-    th     = elem.env.thickness
-    nnodes = length(elem.nodes)
-    C = get_coords(elem)
-    K = zeros(nnodes*ndim, nnodes*ndim)
-    B = zeros(6, nnodes*ndim)
-
-    DB = Array{Float64}(undef, 6, nnodes*ndim)
-    J  = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, ndim, nnodes)
-
-    for ip in elem.ips
-
-        # compute B matrix
-        dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
-        @gemm dNdX = inv(J)*dNdR
-        detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        setB(elem.env, dNdX, detJ, B)
-
-        # compute K
-        coef = detJ*ip.w*th
-        D    = calcD(elem.mat, ip.state)
-        @gemm DB = D*B
-        @gemm K += coef*B'*DB
+function elem_map(elem::MechBeam)::Array{Int,1}
+    if elem.env.ndim==2
+        dof_keys = (:ux, :uy, :rz)
+    else
+        dof_keys = (:ux, :uy, :uz, :rx, :ry, :rz)
     end
-
-    keys = (:ux, :uy, :uz)[1:ndim]
-    map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-    return K, map, map
+    vcat([ [node.dofdict[key].eq_id for key in dof_keys] for node in elem.nodes]...)
 end
 
-function elem_mass(elem::MechSolid)
-    ndim   = elem.env.ndim
-    th     = elem.env.thickness
-    nnodes = length(elem.nodes)
-    ρ = elem.mat.ρ
-    C = get_coords(elem)
-    M = zeros(nnodes*ndim, nnodes*ndim)
-    N = zeros(ndim, nnodes*ndim)
-    J = Array{Float64}(undef, ndim, ndim)
+# Return the class of element where this material can be used
+#client_shape_class(mat::MechBeam) = LINE_SHAPE
 
-    for ip in elem.ips
-        # compute N matrix
-        Ni   = elem.shape.func(ip.R)
-        dNdR = elem.shape.deriv(ip.R)
+function calcT(elem::MechBeam, C)
+    c = (C[2,1] - C[1,1])/L
+    s = (C[2,2] - C[1,1])/L
+    return
 
-        for i=1:nnodes
-            for j=1:ndim
-                N[j, (i-1)*ndim+j] = Ni[i]
-            end
-        end
-
-        @gemm J = dNdR*C
-        detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-
-        # compute K
-        coef = ρ*detJ*ip.w*th
-        @gemm M += coef*N'*N
-    end
-
-    keys = (:ux, :uy, :uz)[1:ndim]
-    map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-    return M, map, map
 end
 
+function elem_stiffness(elem::MechBeam)
+    C  = get_coords(elem)
+    L  = norm(C[2,:]-C[1,:])
+    L2 = L*L
+    L3 = L*L*L
+    mat = elem.mat
+    EA = mat.E*mat.A
+    EI = mat.E*mat.I
 
-function elem_internal_forces(elem::MechSolid, F::Array{Float64,1})
-    ndim   = elem.env.ndim
-    th     = elem.env.thickness
-    nnodes = length(elem.nodes)
-    keys   = (:ux, :uy, :uz)[1:ndim]
-    map    = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
+    K0 = [ EA/L     0         0         -EA/L    0         0
+           0       12*EI/L3   6*EI/L2    0     -12*EI/L3   6*EI/L2
+           0        6*EI/L2   4*EI/L     0      -6*EI/L2   2*EI/L
+          -EA/L     0          0         EA/L     0        0
+           0      -12*EI/L3  -6*EI/L2    0      12*EI/L3  -6*EI/L2
+           0        6*EI/L2   2*EI/L     0      -6*EI/L2   4*EI/L  ]
 
-    dF = zeros(nnodes*ndim)
-    B  = zeros(6, nnodes*ndim)
 
-    J  = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, ndim, nnodes)
+    # Rotation matrix
+    c = (C[2,1] - C[1,1])/L
+    s = (C[2,2] - C[1,2])/L
 
-    C = get_coords(elem)
-    for ip in elem.ips
+    T = [  c s 0  0 0 0
+          -s c 0  0 0 0
+           0 0 1  0 0 0
+           0 0 0  c s 0
+           0 0 0 -s c 0
+           0 0 0  0 0 1 ]
 
-        # compute B matrix
-        dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
-        @gemm dNdX = inv(J)*dNdR
-        detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in element $(elem.id)")
-        setB(elem.env, dNdX, detJ, B)
+    map = elem_map(elem)
+    return T'*K0*T, map, map
+end
 
-        σ    = ip.state.σ
-        coef = detJ*ip.w*th
-        @gemv dF += coef*B'*σ
-    end
+function elem_mass(elem::MechBeam)
+    C  = get_coords(elem)
+    L  = norm(C[2,:]-C[1,:])
+    L2 = L*L
+    mat = elem.mat
+    EA = mat.E*mat.A
+    EI = mat.E*mat.I
 
-    F[map] += dF
+
+    M0 = mat.ρ*L/420.0*[ 140   0      0      70    0      0
+                         0     156    22*L   0     54    -13*L
+                         0     22*L   4*L2   0     13*L  -3*L2
+                         70    0      0      140   0      0
+                         0     54     13*L   0     156   -22*L
+                         0    -13*L  -3*L2   0    -22*L   4*L2 ]
+
+    # Rotation matrix
+    c = (C[2,1] - C[1,1])/L
+    s = (C[2,2] - C[1,2])/L
+    T = [  c s 0  0 0 0
+          -s c 0  0 0 0
+           0 0 1  0 0 0
+           0 0 0  c s 0
+           0 0 0 -s c 0
+           0 0 0  0 0 1 ]
+
+    map = elem_map(elem)
+    return T'*M0*T, map, map
 end
 
 
-
-function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
-    ndim   = elem.env.ndim
-    th     = elem.env.thickness
-    nnodes = length(elem.nodes)
-    keys   = (:ux, :uy, :uz)[1:ndim]
-    map    = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-
-    dU = U[map]
-    dF = zeros(nnodes*ndim)
-    B  = zeros(6, nnodes*ndim)
-
-    DB = Array{Float64}(undef, 6, nnodes*ndim)
-    J  = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, ndim, nnodes)
-    Δε = zeros(6)
-
-    C = get_coords(elem)
-    for ip in elem.ips
-
-        # compute B matrix
-        dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
-        @gemm dNdX = inv(J)*dNdR
-        detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
-        setB(elem.env, dNdX, detJ, B)
-
-        @gemv Δε = B*dU
-        Δσ   = stress_update(elem.mat, ip.state, Δε)
-        coef = detJ*ip.w*th
-        @gemv dF += coef*B'*Δσ
-    end
-
-    F[map] += dF
-end
-
-function elem_vals(elem::MechSolid)
-    vals = OrderedDict{Symbol,Float64}()
-
-    if haskey(ip_state_vals(elem.mat, elem.ips[1].state), :damt)
-
-        mean_dt = mean( ip_state_vals(elem.mat, ip.state)[:damt] for ip in elem.ips )
-
-        vals[:damt] = mean_dt
-        mean_dc = mean( ip_state_vals(elem.mat, ip.state)[:damc] for ip in elem.ips )
-        vals[:damc] = mean_dc
-    end
-
-    #vals = OrderedDict{String, Float64}()
-    #keys = elem_vals_keys(elem)
-#
-    #dicts = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
-    #nips = length(elem.ips)
-#
-    #for key in keys
-        #s = 0.0
-        #for dict in dicts
-            #s += dict[key]
-        #end
-        #vals[key] = s/nips
-    #end
-
-    return vals
+function elem_update!(elem::MechBeam, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
+    K, map, map = elem_stiffness(elem)
+    dU  = U[map]
+    F[map] += K*dU
 end
