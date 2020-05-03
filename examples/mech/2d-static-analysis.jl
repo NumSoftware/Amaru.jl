@@ -9,7 +9,7 @@ blocks = [
 
 msh = Mesh(blocks, verbose=true);
 
-mplot(msh, "mesh.pdf", field="cell-id")
+mplot(msh, "mesh.pdf", field="elem-id")
 
 # Finite element modeling
 
@@ -39,5 +39,5 @@ bcs = [
 # Perform the finite element analysis
 solve!(domain, bcs, nincs=10)
 
-save(domain, "domain.vtk")
+save(domain, "domain.vtu")
 mplot(domain, "domain.pdf", field="uy")

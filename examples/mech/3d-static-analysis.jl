@@ -29,20 +29,13 @@ loggers = [
 setloggers!(domain, loggers)
 
 # List of boundary conditions
-# List of boundary conditions
 bcs = [
        :(z==0) => NodeBC(ux=0, uy=0, uz=0),
-       #:(z==1) => FaceBC(tz=:(-10*x)),   # triangular load
+       :(z==1) => FaceBC(tz=:(-10*x)),   # triangular load
 ]
-
-for elem in domain.elems
-    for ip in elem.ips
-        ip.data.σ[3] = 40.0
-    end
-end
 
 # Perform the finite element analysis
 solve!(domain, bcs, nincs=4, nouts=1)
 
-save(domain, "domain.vtk")
-#mplot(domain, "domain.pdf", field="uy")
+save(domain, "domain.vtu")
+mplot(domain, "domain.pdf", field="uy")

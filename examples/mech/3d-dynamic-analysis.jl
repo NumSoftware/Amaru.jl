@@ -4,11 +4,11 @@ using Amaru
 # ===============
 # Mesh generation
 blocks = [
-    Block3D( [0 0 0; 0.2 2.0 0.2], nx=2, ny=12, nz=2, shape=HEX8, tag="solids"),
+    Block3D( [0 0 0; 0.2 2.0 0.2], nx=2, ny=12, nz=2, cellshape=HEX8, tag="solids"),
 ]
 
 msh = Mesh(blocks, verbose=true);
-mplot(msh, "mesh.pdf", field="cell-id")
+mplot(msh, "mesh.pdf", field="elem-id")
 
 
 # Finite element modeling
@@ -35,7 +35,7 @@ bcs = [
 ]
 
 # Perform the finite element analysis
-dynsolve!(domain, bcs, time_span=0.0, nincs=40, filekey="dyn")
+dynsolve!(domain, bcs, time_span=10.0, nincs=4, filekey="dyn")
 
 save(domain, "domain.vtk")
 mplot(domain, "domain.pdf", field="uy")
