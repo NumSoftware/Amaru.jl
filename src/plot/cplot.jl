@@ -2,7 +2,7 @@ using LaTeXStrings
 export newchart, savechart, showchart, cplot, cplot0
 
 #const CHART_ARGS = Dict{String, Any}()
-
+#=
 """
     newchart(kwargs...)
 
@@ -161,6 +161,7 @@ function showchart(showlegend=true, legendloc="best", labelspacing=0.5, legendex
     plt.legend(loc=legendloc, edgecolor="k", labelspacing=labelspacing)
     show()
 end
+=#
 
 
 function cplot0(X, Y, filename=""; xlabel="\$x\$", ylabel="\$y\$", lw=0.7, ls="-", ms=2, marker=nothing, color="", legend=[], legendloc="best",
@@ -439,12 +440,14 @@ function cplot(data::Array{<:NamedTuple},
     if filename==""
         printstyled("cplot: generating plot\n", color=:cyan )
     else
-        printstyled("cplot: generating plot to file ", repr(filename), "\n", color=:cyan )
+        printstyled("mplot: generating plot to file $filename\n", color=:cyan )
     end
-    printstyled("Available options: xlabel, ylabel, legendloc, xbins, ybins, grid, figsize, legendexpand, ncol,"*
-            " xlim, ylim, xscale, yscale, fontsize, ticksinside, legendfontsize, labelspacing\n", color=:light_black)
-    printstyled("Options per curve: x, y, color, ls, lw, marker, ms, mfc, label\n", color=:light_black)
-
+    wrap(str::String) = (str=replace(str, r"(\s|\n)+" => " "); replace(str, r".{1,60}( |$)" => s"    \0\n");)
+    options = "xlabel, ylabel, legendloc, xbins, ybins, grid, figsize, legendexpand, ncol,
+               xlim, ylim, xscale, yscale, fontsize, ticksinside, legendfontsize, labelspacing"
+    printstyled("  Options:\n", wrap(options), color=:light_black)
+    options = "x, y, color, ls, lw, marker, ms, mfc, label"
+    printstyled("  Options per curve:\n", wrap(options), color=:light_black)
 
     @eval import PyPlot:plt, matplotlib, figure
 
@@ -454,7 +457,7 @@ function cplot(data::Array{<:NamedTuple},
                    "c", "b", "w", "g", "y", "k", "r", "m",
                    "tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan",
                    "indigo", "gold", "hotpink", "firebrick", "indianred", "yellow", "mistyrose", "darkolivegreen", "olive", "darkseagreen", "pink", "tomato", "lightcoral", "orangered", "navajowhite", "lime", "palegreen", "darkslategrey", "greenyellow", "burlywood", "seashell", "mediumspringgreen", "fuchsia", "papayawhip", "blanchedalmond", "chartreuse", "dimgray", "black", "peachpuff", "springgreen", "aquamarine", "white", "orange", "lightsalmon", "darkslategray", "brown", "ivory", "dodgerblue", "per", "lawngreen", "chocolate", "crimson", "forestgreen", "darkgrey", "lightseagreen", "cyan", "mintcream", "silver", "antiquewhite", "mediumorchid", "skyblue", "gray", "darkturquoise", "goldenrod", "darkgreen", "floralwhite", "darkviolet", "darkgray", "moccasin", "saddlebrown", "grey", "darkslateblue", "lightskyblue", "lightpink", "mediumvioletred", "slategrey", "red", "deeppink", "limegreen", "darkmagenta", "palegoldenrod", "plum", "turquoise", "lightgrey", "lightgoldenrodyellow", "darkgoldenrod", "lavender", "maroon", "yellowgreen", "sandybrown", "thistle", "violet", "navy", "magenta", "dimgrey", "tan", "rosybrown", "olivedrab", "blue", "lightblue", "ghostwhite", "honeydew", "cornflowerblue", "slateblue", "linen", "darkblue", "powderblue", "seagreen", "darkkhaki", "snow", "sienna", "mediumblue", "royalblue", "lightcyan", "green", "mediumpurple", "midnightblue", "cornsilk", "paleturquoise", "bisque", "slategray", "darkcyan", "khaki", "wheat", "teal", "darkorchid", "salmon", "deepskyblue", "rebeccapurple", "darkred", "steelblue", "palevioletred", "lightslategray", "aliceblue", "lightslategrey", "lightgreen", "orchid", "gainsboro", "mediumseagreen", "lightgray", "mediumturquoise", "lemonchiffon", "cadetblue", "lightyellow", "lavenderblush", "coral", "purple", "aqua", "whitesmoke", "mediumslateblue", "darkorange", "mediumaquamarine", "darksalmon", "beige", "blueviolet", "azure", "lightsteelblue", "oldlace")
-    scales     = ("linear", "log", "symlog", "logit")
+    scales      = ("linear", "log", "symlog", "logit")
 
     # Fix labels
     texlabels = Dict(
@@ -618,6 +621,7 @@ function cplot(data::Array{<:NamedTuple},
         plt.show()
     else
         plt.savefig(filename, bbox_inches="tight", pad_inches=0.01, format="pdf")
+        printstyled("  file $filename saved\n", color=:cyan)
     end
 
     plt.close("all")

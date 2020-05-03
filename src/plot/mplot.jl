@@ -131,7 +131,7 @@ function mplot(items::Union{Block, Array}, filename::String=""; args...)
 end
 
 
-function get_main_edges(cells::Array{Cell,1}, angle=30)
+function get_main_edges(cells::Array{<:AbstractCell,1}, angle=30)
     edge_dict  = Dict{UInt64,Cell}()
     faces_dict = Dict{UInt64,Int}( hash(f)=>i for (i,f) in enumerate(cells) )
     main_edges = Cell[]
@@ -162,7 +162,7 @@ function get_main_edges(cells::Array{Cell,1}, angle=30)
 end
 
 
-function get_facet_normal(face::Cell)
+function get_facet_normal(face::AbstractCell)
     ndim = 1 + face.shape.ndim
     C = get_coords(face, ndim)
 
@@ -373,6 +373,24 @@ function mplot(
         # connectivities
         id_dict = Dict{Int, Int}( p.id => i for (i,p) in enumerate(nodes) )
         connect = [ [ id_dict[p.id] for p in c.nodes ] for c in cells ]
+    end
+
+    if verbose
+        if filename==""
+            printstyled("mplot: generating plot\n", color=:cyan )
+        else
+            printstyled("mplot: generating plot to file $filename\n", color=:cyan )
+        end
+        wrap(str::String) = (str=replace(str, r"(\s|\n)+" => " "); replace(str, r".{1,60}( |$)" => s"    \0\n");)
+        options = "axis, lw, nodemarkers, nodelabels, celllabels, alpha, field,
+                   fieldscale, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
+                   colorbarlabel, colorbarlocation, colorbarorientation, colorbarpad, 
+                   warpscale, highlightcell, elev, azim, dist, outline, outlineangle,
+                   figsize, leaveopen, verbose"
+        printstyled("  Options:\n", wrap(options), color=:light_black)
+        printstyled("  Available node fields:\n", wrap(join(keys(node_data), ", ")), color=:light_black)
+        printstyled("  Available element fields:\n", wrap(join(keys(elem_data), ", ")), color=:light_black)
+
     end
 
     ncells  = length(cells)
