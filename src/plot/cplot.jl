@@ -379,25 +379,42 @@ Plots a pyplot line chart.
 
 # Example
 
-The following example shows the function usage:
+```
+using Amaru
+X1 = collect(1:20)
+X2 = collect(1:20)
+Y1 = log.(X1)
+Y2 = log.(X2)*1.1
+
+cplot([
+       (x=X1, y=Y1, marker="o", color="r", label="curve 1")
+       (x=X2, y=Y2, marker="s", color="b", label="curve 2")
+      ],
+      "plot.pdf"
+     )
+```
+
+Extended example:
 
 ```
 using Amaru
 X1 = collect(1:20)
 X2 = collect(1:20)
-Y1 = rand(20)
-Y2 = rand(20)
+Y1 = log.(X1)
+Y2 = log.(X2)*1.1
 
 cplot([
-   (x=X1, y=Y1, lw=1, ls="-", ms=2, marker="s", color="", label="")
-   (x=X2, y=Y2, lw=1, ls="-", ms=2, marker="s", color="", label="")
-   ],
-   "out.pdf",
-   xlabel=raw"\$x\$", ylabel="\$y\$", legendloc="best",
-   xbins=6, ybins=6, grid=false, figsize=(3,2), legendexpand=false, ncol=0,
-   xlim=(0,1), xscale="linear", yscale="log",
-   fontsize=7, legendfontsize=0, labelspacing=0.5)
+       (x=X1, y=Y1, lw=0.5, ls="-", ms=2, mfc="w", marker="o", color="r", label="curve 1")
+       (x=X2, y=Y2, lw=0.5, ls="-", ms=2, mfc="w", marker="s", color="b", label="curve 2")
+      ],
+      "plot.pdf",
+      xlabel="\$x\$", ylabel="\$y\$", legendloc="best",
+      xbins=6, ybins=6, grid=false, figsize=(3,2), legendexpand=false, ncol=0,
+      xlim=(0,20), xscale="linear", yscale="log",
+      fontsize=7, legendfontsize=0, labelspacing=0.5
+     )
 ```
+
 """
 function cplot(data::Array{<:NamedTuple}, 
                filename::String = "";
@@ -415,7 +432,7 @@ function cplot(data::Array{<:NamedTuple},
                xscale           = "linear",
                yscale           = "linear",
                ticksinside      = true,
-               fontsize         = 7,
+               fontsize         = 6,
                legendfontsize   = 0,
                labelspacing     = 0.5)
 
@@ -426,7 +443,7 @@ function cplot(data::Array{<:NamedTuple},
     end
     printstyled("Available options: xlabel, ylabel, legendloc, xbins, ybins, grid, figsize, legendexpand, ncol,"*
             " xlim, ylim, xscale, yscale, fontsize, ticksinside, legendfontsize, labelspacing\n", color=:light_black)
-    printstyled("Options per curve: x, y, color, ls, lw, marker, ms, label\n", color=:light_black)
+    printstyled("Options per curve: x, y, color, ls, lw, marker, ms, mfc, label\n", color=:light_black)
 
 
     @eval import PyPlot:plt, matplotlib, figure
@@ -509,18 +526,14 @@ function cplot(data::Array{<:NamedTuple},
 
     if filename!=""
         plt.ioff()
-        plt.rc("xtick", labelsize=7)
-        plt.rc("ytick", labelsize=7)
+        plt.rc("xtick", labelsize=fontsize)
+        plt.rc("ytick", labelsize=fontsize)
         plt.rc("lines", lw=0.7)
-        plt.rc("lines", markersize=2)
+        plt.rc("lines", markersize=1.5)
         plt.rc("axes" , linewidth=0.5)
         plt.rc("figure", figsize=(3, 2))
         legendfontsize==0 && (legendfontsize=fontsize)
         plt.rc("legend", fontsize=legendfontsize)
-        #plt.rc("xtick.major.size") = 20
-        #plt.rc("xtick.major.width") = 4
-        #plt.rc("xtick.minor.size") = 10
-        #plt.rc("xtick.minor.width") = 2
     end
 
     # Set axis limits
@@ -546,9 +559,10 @@ function cplot(data::Array{<:NamedTuple},
         Y = get(line, :y, 0)
         lw = get(line, :lw, 0.5)
         ls = get(line, :ls, "-")
-        ms = get(line, :ms, 2)
-        marker = get(line, :marker, nothing)
         color = get(line, :color, "C$(i-1)")
+        marker = get(line, :marker, nothing)
+        ms = get(line, :ms, 2)
+        mfc = get(line, :mfc, color)
         label = string(get(line, :label, ""))
         label = get(texlabels, label, label)
         label != "" && (haslegend=true)
@@ -559,7 +573,7 @@ function cplot(data::Array{<:NamedTuple},
         marker in markers || error("cplot: marker should be one of $markers. \n\"$markers\" was provided")
         color in colors || error("cplot: color should be one of $colors. \n\"$color\" was provided")
 
-        plt.plot(X, Y, marker=marker, ms=ms, color=color, lw=lw, ls=ls, label=label)
+        plt.plot(X, Y, marker=marker, ms=ms, mfc=mfc, mew=0.5, color=color, lw=lw, ls=ls, label=label)
     end
 
 
@@ -586,14 +600,18 @@ function cplot(data::Array{<:NamedTuple},
         frame.set_linewidth(0.5)
     end
 
-    # Tick marks direction
+    # Tick parameters
+    ax = plt.axes()
+    ax.xaxis.set_tick_params(width=0.3)
+    ax.yaxis.set_tick_params(width=0.3)
+    ax.xaxis.set_tick_params(size=2.5)
+    ax.yaxis.set_tick_params(size=2.5)
     if ticksinside
-        ax = plt.axes()
-        ax.tick_params(axis="x", direction="in")
-        ax.tick_params(axis="y", direction="in")
+        ax.tick_params(which="minor", axis="x", direction="in")
+        ax.tick_params(which="minor", axis="y", direction="in")
+        ax.tick_params(which="major", axis="x", direction="in")
+        ax.tick_params(which="major", axis="y", direction="in")
     end
-    #ax.xaxis.set_tick_params(width=5)
-    #ax.yaxis.set_tick_params(width=5)
 
     # show or save plot
     if filename==""
