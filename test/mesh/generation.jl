@@ -5,78 +5,92 @@ printstyled("\nMesh generation on solids\n", color=:blue, bold=true)
 
 println("\nGenerating mesh using TRI3")
 bl = Block( [0 0; 1 1], nx=10, ny=10, cellshape=TRI3)
-mesh = Mesh(bl, verbose=true)
+mesh = Mesh(bl, silent=true)
 TR = @test length(mesh.nodes) == 121
 println(TR)
 
 println("\nGenerating mesh using TRI6")
 bl = Block( [0 0; 1 1], nx=10, ny=10, cellshape=TRI6)
-mesh = Mesh(bl, verbose=true)
+mesh = Mesh(bl, silent=true)
 TR = @test length(mesh.nodes) == 441
 println(TR)
 
 println("\nGenerating mesh using QUAD4")
 bl = Block( [0 0; 1 1], nx=10, ny=10, cellshape=QUAD4)
-mesh = Mesh(bl, verbose=true)
+mesh = Mesh(bl, silent=true)
 TR = @test length(mesh.nodes) == 121
 println(TR)
 
 println("\nGenerating mesh using QUAD8")
 bl = Block( [0 0; 1 1], nx=10, ny=10, cellshape=QUAD8)
-mesh = Mesh(bl, verbose=true)
+mesh = Mesh(bl, silent=true)
 TR = @test length(mesh.nodes) == 341
 println(TR)
 
 println("\nGenerating mesh using QUAD9")
 bl = Block( [0 0; 1 1], nx=10, ny=10, cellshape=QUAD9)
-mesh = Mesh(bl, verbose=true)
+mesh = Mesh(bl, silent=true)
 TR = @test length(mesh.nodes) == 441
 println(TR)
 
 println("\nGenerating mesh using HEX8")
 bl = Block( [0 0 0; 1 1 1], nx=10, ny=10, nz=10, cellshape=HEX8)
-mesh = Mesh(bl, verbose=true)
+mesh = Mesh(bl, silent=true)
 TR = @test length(mesh.nodes) == 1331
 println(TR)
 
 println("\nGenerating mesh using HEX20")
 bl = Block( [0 0 0; 1 1 1], nx=10, ny=10, nz=10, cellshape=HEX20)
-mesh = Mesh(bl, verbose=true)
+mesh = Mesh(bl, silent=true)
 TR = @test length(mesh.nodes) == 4961
 println(TR)
 
 println("\nGenerating mesh using HEX27")
 bl = Block( [0 0 0; 1 1 1], nx=10, ny=10, nz=10, cellshape=HEX27)
-mesh = Mesh(bl, verbose=true)
+mesh = Mesh(bl, silent=true)
 TR = @test length(mesh.nodes) == 9261
 println(TR)
 
 println("\nGenerating mesh using TET4")
 bl = Block( [0 0 0; 1 1 1], nx=10, ny=10, nz=10, cellshape=TET4)
-mesh = Mesh(bl, verbose=true)
+mesh = Mesh(bl, silent=true)
 TR = @test length(mesh.nodes) == 1331
 println(TR)
 
 println("\nGenerating mesh using TET10")
 bl = Block( [0 0 0; 1 1 1], nx=10, ny=10, nz=10, cellshape=TET10)
-mesh = Mesh(bl, verbose=true)
+mesh = Mesh(bl, silent=true)
 TR = @test length(mesh.nodes) == 9261
 println(TR)
 
 println("\nGenerating mesh using HEX8 in BlockCylinder")
 bl = BlockCylinder( [0 0 0; 5 5 5], r=2.0, nr=6, n=4, cellshape=HEX8)
-mesh = Mesh(bl, verbose=true)
+mesh = Mesh(bl, silent=true)
 TR = @test length(mesh.nodes) == 445
 println(TR)
 
 println("\nGenerating mesh using HEX20 in BlockCylinder")
 bl = BlockCylinder( [0 0 0; 5 5 5], r=2.0, nr=6, n=4, cellshape=HEX20)
-mesh = Mesh(bl, verbose=true)
+mesh = Mesh(bl, silent=true)
 TR = @test length(mesh.nodes) == 1641
 println(TR)
 
+printstyled("\nMesh generation for surfaces\n", color=:blue, bold=true)
+
+coords = [ 0.0 0.0 0.0
+           1.0 0.0 0.0
+           1.0 1.0 0.0
+           0.0 1.0 0.0
+           0.5 0.0 0.25
+           1.0 0.5 0.0
+           0.5 1.0 0.5
+           0.0 0.5 0.0 ]
+bl = Block(coords, nx=8, ny=8, cellshape=QUAD4)
+mesh = Mesh(bl, silent=true)
+TR = @test length(mesh.nodes) == 81
 
 printstyled("\nMesh generation on trusses\n", color=:blue, bold=true)
+
 coord = [ 0 0; 9 0; 18 0; 0 9; 9 9; 18 9.]
 conn  = [ [1, 2], [1, 5], [2, 3], [2, 6], [2, 5], [2, 4], [3, 6], [3, 5], [4, 5], [5, 6] ]
 mesh = Mesh(coord, conn)
