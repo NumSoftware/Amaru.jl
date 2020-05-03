@@ -46,6 +46,7 @@ end
 
 function distributed_bc(elem::MechSolid, facet::Union{Facet, Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
+    th    = elem.env.thickness
 
     # Check bcs
     (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
@@ -76,7 +77,6 @@ function distributed_bc(elem::MechSolid, facet::Union{Facet, Nothing}, key::Symb
         N = shape.func(R)
         D = shape.deriv(R)
         J = D*C
-        nJ = norm2(J)
         X = C'*N
         if ndim==2
             x, y = X
@@ -90,7 +90,7 @@ function distributed_bc(elem::MechSolid, facet::Union{Facet, Nothing}, key::Symb
                 Q = vip*n/norm(n)
             end
             if elem.env.modeltype=="axisymmetric"
-                Q .*= 2*pi*X[1]
+                th = 2*pi*X[1]
             end
         else
             x, y, z = X
@@ -106,7 +106,8 @@ function distributed_bc(elem::MechSolid, facet::Union{Facet, Nothing}, key::Symb
                 Q = vip*n/norm(n)
             end
         end
-        F += N*Q'*(nJ*w) # F is a matrix
+        coef = norm2(J)*w*th
+        F += N*Q'*coef # F is a matrix
     end
 
     # generate a map
