@@ -18,6 +18,7 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
            :(x==0) => FaceBC(ux=0),
            :(y==0) => FaceBC(uy=0),
            :(y==1) => FaceBC(ty=-10),
+           #"solids" => FaceBC(ty=-10),
     ]
 
     solve!(dom, bcs, nincs=1, verbose=false, nouts=0, silent=true)
@@ -37,6 +38,7 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
            :(x==0 && y==0) => NodeBC(ux=0, uy=0),
            :(y==0) => FaceBC(uy=0),
            :(y==1) => FaceBC(ty=-10),
+           #"solids" => FaceBC(ty=-10),
     ]
 
     solve!(dom, bcs, nincs=1, verbose=false, nouts=0, silent=true)
@@ -46,6 +48,7 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
 
     println( get_data(dom.nodes[:(x==1 && y==1)][1]) )
 
+    # Verification
     @test [uxr, uyr] ≈ [ux, uy] atol=1e-3
 
 end
