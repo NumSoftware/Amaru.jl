@@ -7,12 +7,12 @@ Constructs an unitialized mesh object to be used in finite element analyses.
 It contains geometric fields as: nodes, elems, faces, edges, ndim, quality, etc.
 """
 mutable struct Mesh<:AbstractMesh
-    ndim  ::Int
+    ndim ::Int
     nodes::Array{Node,1}
-    elems ::Array{Cell,1}
+    elems::Array{Cell,1}
 
-    faces ::Array{Cell,1}
-    edges ::Array{Cell,1}
+    faces::Array{Cell,1}
+    edges::Array{Cell,1}
 
     _pointdict::Dict{UInt64,Node}
     _elempartition::ElemPartition

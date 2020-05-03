@@ -174,7 +174,7 @@ function revolve(mesh::Mesh;
     Δθ = (maxangle-minangle)/n*pi/180
 
     # move points that lie at the axis
-    normal = Vec3(axis[2], axis[1], 0.0) # TODO: improve
+    normal = Vec3(axis[2], -axis[1], 0.0) # TODO: improve
     for node in mesh.nodes
         X = node.coord
         if norm( dot(X-base, axis)*axis - X ) < 1e-8

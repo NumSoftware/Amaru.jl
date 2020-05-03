@@ -19,6 +19,7 @@ Creates an `Domain` object based on a Mesh object `mesh` and represents the geom
 
 """
 mutable struct Domain<:AbstractDomain
+    ndim ::Int
     nodes::Array{Node,1}
     elems::Array{Element,1}
     faces::Array{Face,1}
@@ -42,6 +43,7 @@ mutable struct Domain<:AbstractDomain
         this.elems = []
         this.faces = []
         this.edges = []
+        this.ndim  = 0
 
         this.loggers = []
         this.ndofs   = 0
@@ -136,7 +138,7 @@ Uses a mesh and a list of meterial especifications to construct a finite element
 function Domain(
                 mesh      :: Mesh,
                 matbinds  :: Array{<:Pair,1};
-                modeltype :: String = "3d", # "plane-stress", plane_strain
+                modeltype :: String = "3d", # or "plane-stress", "plane-strain", "axysimmetric"
                 thickness :: Real   = 1.0,
                 verbose   :: Bool   = false,
                 silent    :: Bool   = false,
@@ -148,11 +150,11 @@ function Domain(
     silent && (verbosity=0)
 
     dom  = Domain()
+    dom.ndim = mesh.ndim
 
-    # Shared analysis data
-    ndim = mesh.ndim
+    # Environment data
     env = dom.env
-    env.ndim = ndim
+    env.ndim = mesh.ndim
     env.modeltype = modeltype
     env.thickness = thickness
     env.t = 0.0
@@ -258,13 +260,13 @@ function Domain(
     end
 
     if verbosity>0
-        print("  ", ndim, "D domain $modeltype model      \n")
+        print("  ", dom.ndim, "D domain $modeltype model      \n")
         @printf "  %5d nodes\n" length(dom.nodes)
         @printf "  %5d elements\n" length(dom.elems)
     end
 
     if verbosity>1
-        if ndim==2
+        if dom.ndim==2
             @printf "  %5d edges\n" length(dom.faces)
         else
             @printf "  %5d faces\n" length(dom.faces)
@@ -290,7 +292,6 @@ end
 Register the loggers from the array `loggers` into `domain`.
 
 """
-#function setloggers!(dom::Domain, logger::Union{AbstractLogger, Array{<:AbstractLogger,1}})
 function setloggers!(dom::Domain, loggers::Array{<:Pair,1})
     dom.loggers = []
     for (filter,logger) in loggers
@@ -301,8 +302,7 @@ function setloggers!(dom::Domain, loggers::Array{<:Pair,1})
 end
 
 
-# Function for updating loggers
-#update_loggers!(domain::Domain) = update_logger!.(domain.loggers, Ref(domain.env))
+# Functions for updating loggers
 
 function update_single_loggers!(domain::Domain)
     for logger in domain.loggers
@@ -345,6 +345,7 @@ function Domain(elems::Array{<:Element,1})
         node.coord.y != 0.0 && (ndim=2)
         node.coord.z != 0.0 && (ndim=3; break)
     end
+    domain.ndim = ndim
     domain.env.ndim = ndim
 
     # Setting elements
@@ -371,7 +372,6 @@ function Domain(elems::Array{<:Element,1})
     # Setting quadrature
     ip_id = 0
     for (newelem, elem) in zip(domain.elems, elems)
-        #elem_config_dofs(newelem)  # dofs
         set_quadrature!(newelem, length(elem.ips))   # ips
         for ip in newelem.ips      # ip ids
             ip_id += 1

@@ -210,6 +210,7 @@ function Domain(filename::String)
     setfields!(env, xdomain.attributes)
 
     domain.env = env
+    domain.ndim = env.ndim
 
     materials = Material[]
     xmats = xdomain("Materials")
