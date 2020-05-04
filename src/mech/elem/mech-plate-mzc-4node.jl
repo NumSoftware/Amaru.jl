@@ -26,8 +26,25 @@ function plate_B_matrix(elem::PlateMZC)
         a  = C[2,1]-C[1,1] # element length in X direction
         b  = C[2,2]-C[2,1] # element length in Y direction
 
-        # x = Local X coordinate of the Gauss point
-        # y = Local Y coordinate of the Gauss point
+        gauss_x = zeros(4,1)
+        gauss_y = zeros(4,1)
+
+        gauss_x[1] = -1/sqrt(3);
+        gauss_y[1] = -1/sqrt(3);
+
+        gauss_x[2] =  1/sqrt(3);
+        gauss_y[2] =-1/sqrt(3);
+
+        gauss_x[3] = 1/sqrt(3);
+        gauss_y[3] = 1/sqrt(3);
+
+        gauss_x[4] =-1/sqrt(3);
+        gauss_y[4] = 1/sqrt(3);
+
+
+    for igaus = 1 : 4
+        x = gauss_x(igaus) # x = Local X coordinate of the Gauss point
+        y = gauss_y(igaus) # y = Local Y coordinate of the Gauss point
 
         d2N = zeros(4,3)
         d2N[1,1] = 3*( x - x*y )/(4*a^2);
@@ -94,11 +111,11 @@ function plate_B_matrix(elem::PlateMZC)
                     -d2N[4,3] -d2NN[4,3] -d2NNN[4,3]];
 
         Bb = [bmat_1 bmat_2 bmat_3 bmat_4]; # strain-displacement matrix
-
-    return Bb
+    end
+   return Bb
 end
 
-function D_matrx(elem::PlateMZC)
+function D_matrix(elem::PlateMZC)
 
     coef = elem.mat.E*th^3/(12*(1-elem.mat.nu^2));
 
@@ -140,15 +157,17 @@ end
 
 # Return the class of element where this material can be used
 #client_shape_class(mat::PlateMZC) = LINE_SHAPE
-
+#=
 function calcT(elem::PlateMZC, C)
     c = (C[2,1] - C[1,1])/L
     s = (C[2,2] - C[1,1])/L
     return
 
 end
+=#
 
 function elem_stiffness(elem::PlateMZC)
+#=
     C  = get_coords(elem)
     L  = norm(C[2,:]-C[1,:])
     L2 = L*L
@@ -164,7 +183,6 @@ function elem_stiffness(elem::PlateMZC)
            0      -12*EI/L3  -6*EI/L2    0      12*EI/L3  -6*EI/L2
            0        6*EI/L2   2*EI/L     0      -6*EI/L2   4*EI/L  ]
 
-
     # Rotation matrix
     c = (C[2,1] - C[1,1])/L
     s = (C[2,2] - C[1,2])/L
@@ -175,9 +193,19 @@ function elem_stiffness(elem::PlateMZC)
            0 0 0  c s 0
            0 0 0 -s c 0
            0 0 0  0 0 1 ]
+=#
+    nnodes = length(elem.nodes)
 
+    # K_elem = zeros( nnodes*3 , nnodes*3 )
+
+    Bb = plate_B_matrix(elem)
+    D_mat = D_matrix(elem)
+
+    # K_elem = K_elem + bmat'*D_mat*bmat_b*a*b
+    K_elem = bmat'*D_mat*bmat_b*a*b
     map = elem_map(elem)
-    return T'*K0*T, map, map
+
+    return K_elem, map, map
 end
 
 #=
