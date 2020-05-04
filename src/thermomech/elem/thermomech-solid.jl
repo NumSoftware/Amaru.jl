@@ -38,6 +38,7 @@ end
 
 function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
+    th    = elem.env.thickness
     suitable_keys = (:tx, :ty, :tz, :tn, :tq)
 
     # Check keys
@@ -95,9 +96,7 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
         N = shape.func(R)
         D = shape.deriv(R)
         J = D*C
-        nJ = norm2(J)
         X = C'*N
-
         if ndim==2
             x, y = X
             vip = eval_arith_expr(val, t=t, x=x, y=y)
@@ -108,6 +107,9 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
             elseif key == :tn
                 n = [J[1,2], -J[1,1]]
                 Q = vip*normalize(n)
+            end
+            if elem.env.modeltype=="axisymmetric"
+                th = 2*pi*X[1]
             end
         else
             x, y, z = X
@@ -123,8 +125,8 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
                 Q = vip*normalize(n)
             end
         end
-        coef = nJ*w
-        #gemm F += coef*N*Q' # F is a matrix
+        coef = norm2(J)*w*th
+        @gemm F += coef*N*Q' # F is a matrix
     end
 
     # generate a map
@@ -135,44 +137,8 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
 end
 
 
-function set_Bu(env::ModelEnv, dNdX::Matx, detJ::Float64, B::Matx)
-    ndim, nnodes = size(dNdX)
-    B .= 0.0
-
-    if ndim==2
-        for i in 1:nnodes
-            j = i-1
-            B[1,1+j*ndim] = dNdX[1,i]
-            B[2,2+j*ndim] = dNdX[2,i]
-            B[6,1+j*ndim] = dNdX[2,i]/SR2; B[6,2+j*ndim] = dNdX[1,i]/SR2
-        end
-        if env.modeltype=="axisymmetric"
-            for i in 1:nnodes
-                N =elem.shape.func(R)
-                j = i-1
-                r = R[0]
-                B[1,1+j*ndim] = dNdX[1,i]
-                B[2,2+j*ndim] = dNdX[2,i]
-                B[3,1+j*ndim] =    N[i]/r
-                B[6,1+j*ndim] = dNdX[2,i]/SR2; B[6,2+j*ndim] = dNdX[1,i]/SR2
-            end
-        end
-    else
-        for i in 1:nnodes
-            dNdx = dNdX[1,i]
-            dNdy = dNdX[2,i]
-            dNdz = dNdX[3,i]
-            j    = i-1
-            B[1,1+j*ndim] = dNdx
-            B[2,2+j*ndim] = dNdy
-            B[3,3+j*ndim] = dNdz
-            B[4,2+j*ndim] = dNdz/SR2;   B[4,3+j*ndim] = dNdy/SR2
-            B[5,1+j*ndim] = dNdz/SR2;   B[5,3+j*ndim] = dNdx/SR2
-            B[6,1+j*ndim] = dNdy/SR2;   B[6,2+j*ndim] = dNdx/SR2
-        end
-    end
-
-    return detJ
+@inline function set_Bu(elem::Element, ip::Ip, dNdX::Matx, B::Matx)
+    setB(elem, ip, dNdX, B) # using function setB from mechanical analysis
 end
 
 
@@ -189,6 +155,7 @@ function elem_stiffness(elem::TMSolid)
     dNdX = Array{Float64}(undef, ndim, nnodes)
 
     for ip in elem.ips
+        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -196,7 +163,7 @@ function elem_stiffness(elem::TMSolid)
         @gemm dNdX = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        set_Bu(elem.env, dNdX, detJ, Bu)
+        set_Bu(elem, ip, dNdX, Bu)
 
         # compute K
         coef = detJ*ip.w*th
@@ -229,6 +196,7 @@ function elem_coupling_matrix(elem::TMSolid)
     β    = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) # thermal stress modulus
 
     for ip in elem.ips
+        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -236,7 +204,7 @@ function elem_coupling_matrix(elem::TMSolid)
         @gemm dNdX = inv(J)*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        set_Bu(elem.env, dNdX, detJ, Bu)
+        set_Bu(elem, ip, dNdX, Bu)
 
         # compute Cut
         Nt    = elem.shape.basic_shape.func(ip.R)
@@ -266,6 +234,8 @@ function elem_conductivity_matrix(elem::TMSolid)
     J    = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
+        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+
         dNdR  = elem.shape.deriv(ip.R)
         dNtdR = elem.shape.basic_shape.deriv(ip.R)
         @gemm J  = dNdR*C
@@ -297,6 +267,8 @@ function elem_mass_matrix(elem::TMSolid)
     J  = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
+        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+
         Nt   = elem.shape.basic_shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = dNdR*C
@@ -341,6 +313,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
     dNtdX = Array{Float64}(undef, ndim, nbnodes)
     dUt = DU[mat_t] # nodal temperature increments
     for ip in elem.ips
+        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix and Bt
         dNdR = elem.shape.deriv(ip.R)
@@ -348,7 +321,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
         @gemm dNdX = inv(J)*dNdR
-        set_Bu(elem.env, dNdX, detJ, Bu)
+        set_Bu(elem, ip, dNdX, Bu)
 
         dNtdR = elem.shape.basic_shape.deriv(ip.R)
         Jp = dNtdR*Ct
@@ -419,6 +392,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
     Δε = zeros(6)
 
     for ip in elem.ips
+        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute Bu and Bt matrices
         dNdR = elem.shape.deriv(ip.R)
@@ -427,7 +401,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
         invJ = inv(J)
         @gemm dNdX = invJ*dNdR
-        set_Bu(elem.env, dNdX, detJ, Bu)
+        set_Bu(elem, ip, dNdX, Bu)
 
         dNtdR = elem.shape.basic_shape.deriv(ip.R)
         @gemm dNtdX = invJ*dNtdR

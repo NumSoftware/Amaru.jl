@@ -44,13 +44,15 @@ function elem_init(elem::MechSolid)
     return nothing
 end
 
+
 function distributed_bc(elem::MechSolid, facet::Union{Facet, Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     th    = elem.env.thickness
+    suitable_keys = (:tx, :ty, :tz, :tn)
 
-    # Check bcs
+    # Check keys
+    key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
     (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
-    !(key in (:tx, :ty, :tz, :tn)) && error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
 
     target = facet!=nothing ? facet : elem
     nodes  = target.nodes
@@ -87,7 +89,7 @@ function distributed_bc(elem::MechSolid, facet::Union{Facet, Nothing}, key::Symb
                 Q = [0.0, vip]
             elseif key == :tn
                 n = [J[1,2], -J[1,1]]
-                Q = vip*n/norm(n)
+                Q = vip*normalize(n)
             end
             if elem.env.modeltype=="axisymmetric"
                 th = 2*pi*X[1]
@@ -103,11 +105,11 @@ function distributed_bc(elem::MechSolid, facet::Union{Facet, Nothing}, key::Symb
                 Q = [0.0, 0.0, vip]
             elseif key == :tn && ndim==3
                 n = cross(J[1,:], J[2,:])
-                Q = vip*n/norm(n)
+                Q = vip*normalize(n)
             end
         end
         coef = norm2(J)*w*th
-        F += N*Q'*coef # F is a matrix
+        @gemm F += coef*N*Q' # F is a matrix
     end
 
     # generate a map
@@ -116,6 +118,7 @@ function distributed_bc(elem::MechSolid, facet::Union{Facet, Nothing}, key::Symb
 
     return reshape(F', nnodes*ndim), map
 end
+
 
 function setB(elem::Element, ip::Ip, dNdX::Matx, B::Matx)
     ndim, nnodes = size(dNdX)
@@ -158,6 +161,7 @@ function setB(elem::Element, ip::Ip, dNdX::Matx, B::Matx)
 
 end
 
+
 function elem_stiffness(elem::MechSolid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
@@ -171,9 +175,7 @@ function elem_stiffness(elem::MechSolid)
     dNdX = Array{Float64}(undef, ndim, nnodes)
 
     for ip in elem.ips
-        if elem.env.modeltype=="axisymmetric"
-            th = 2*pi*ip.coord.x
-        end
+        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -192,8 +194,10 @@ function elem_stiffness(elem::MechSolid)
 
     keys = (:ux, :uy, :uz)[1:ndim]
     map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
+
     return K, map, map
 end
+
 
 function elem_mass(elem::MechSolid)
     ndim   = elem.env.ndim
@@ -206,9 +210,7 @@ function elem_mass(elem::MechSolid)
     J = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        if elem.env.modeltype=="axisymmetric"
-            th = 2*pi*ip.coord.x
-        end
+        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute N matrix
         Ni   = elem.shape.func(ip.R)
@@ -231,6 +233,7 @@ function elem_mass(elem::MechSolid)
 
     keys = (:ux, :uy, :uz)[1:ndim]
     map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
+
     return M, map, map
 end
 

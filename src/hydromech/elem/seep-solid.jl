@@ -1,6 +1,5 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-
 mutable struct SeepSolid<:Hydromechanical
     id    ::Int
     shape ::ShapeType
@@ -33,6 +32,7 @@ end
 
 function distributed_bc(elem::SeepSolid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
+    th    = elem.env.thickness
     suitable_keys = (:tq,) # tq: fluid volumes per area
 
     # Check keys
@@ -66,12 +66,15 @@ function distributed_bc(elem::SeepSolid, facet::Union{Facet,Nothing}, key::Symbo
         if ndim==2
             x, y = X
             vip = eval_arith_expr(val, t=t, x=x, y=y)
+            if elem.env.modeltype=="axisymmetric"
+                th = 2*pi*X[1]
+            end
         else
             x, y, z = X
             vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
         end
-        coef = vip*nJ*w
-        F .+= N*coef # F is a vector
+        coef = vip*norm(J)*w*th
+        F .+= coef*N # F is a vector
     end
 
     # generate a map
@@ -81,7 +84,7 @@ function distributed_bc(elem::SeepSolid, facet::Union{Facet,Nothing}, key::Symbo
 end
 
 
-# conductivity
+# hydraulic conductivity
 function elem_conductivity_matrix(elem::SeepSolid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
@@ -94,6 +97,8 @@ function elem_conductivity_matrix(elem::SeepSolid)
     J    = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
+        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+
         dNdR = elem.shape.deriv(ip.R)
         @gemm J  = dNdR*C
         detJ = det(J)
@@ -124,6 +129,8 @@ function elem_compressibility_matrix(elem::SeepSolid)
     J  = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
+        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = dNdR*C
@@ -144,6 +151,7 @@ end
 
 function elem_RHS_vector(elem::SeepSolid)
     ndim   = elem.env.ndim
+    th     = elem.env.thickness
     nnodes = length(elem.nodes)
     C      = get_coords(elem)
     Q      = zeros(nnodes)
@@ -156,6 +164,7 @@ function elem_RHS_vector(elem::SeepSolid)
     Z[end] = 1.0
 
     for ip in elem.ips
+        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
@@ -166,7 +175,7 @@ function elem_RHS_vector(elem::SeepSolid)
 
         # compute Q
         K = calcK(elem.mat, ip.state)
-        coef = detJ*ip.w
+        coef = detJ*ip.w*th
         @gemv KZ = K*Z
         @gemm Q += coef*Bw'*KZ
     end
@@ -179,6 +188,7 @@ end
 
 function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
     ndim   = elem.env.ndim
+    th     = elem.env.thickness
     nnodes = length(elem.nodes)
     C   = get_coords(elem)
 
@@ -191,6 +201,7 @@ function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
     dNdX = Array{Float64}(undef, ndim, nnodes)
 
     for ip in elem.ips
+        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute Bw matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -206,11 +217,11 @@ function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
 
         # internal volumes dFw
         uw   = ip.state.uw
-        coef = detJ*ip.w*elem.mat.S
+        coef = detJ*ip.w*elem.mat.S*th
         dFw -= coef*N*uw
 
         D    = ip.state.D
-        coef = detJ*ip.w
+        coef = detJ*ip.w*th
         @gemv dFw += coef*Bw'*D
     end
 
@@ -238,6 +249,7 @@ function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1
     dNdX = Array{Float64}(undef, ndim, nnodes)
 
     for ip in elem.ips
+        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix
         N    = elem.shape.func(ip.R)

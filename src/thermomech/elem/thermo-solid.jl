@@ -33,6 +33,7 @@ end
 
 function distributed_bc(elem::ThermoSolid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
+    th    = elem.env.thickness
     suitable_keys = (:tq,)
 
     # Check keys
@@ -66,12 +67,15 @@ function distributed_bc(elem::ThermoSolid, facet::Union{Facet,Nothing}, key::Sym
         if ndim==2
             x, y = X
             vip = eval_arith_expr(val, t=t, x=x, y=y)
+            if elem.env.modeltype=="axisymmetric"
+                th = 2*pi*X[1]
+            end
         else
             x, y, z = X
             vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
         end
-        coef = vip*nJ*w
-        F .+= N*coef # F is a vector
+        coef = vip*norm(J)*w*th
+        F .+= coef*N # F is a vector
     end
 
     # generate a map
@@ -90,9 +94,11 @@ function elem_conductivity_matrix(elem::ThermoSolid)
     H      = zeros(nnodes, nnodes)
     Bt     = zeros(ndim, nnodes)
     KBt    = zeros(ndim, nnodes)
+
     J    = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
+        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J  = dNdR*C
         detJ = det(J)
@@ -122,6 +128,8 @@ function elem_mass_matrix(elem::ThermoSolid)
     J  = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
+        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = dNdR*C
@@ -156,6 +164,8 @@ function elem_internal_forces(elem::ThermoSolid, F::Array{Float64,1})
     dNdX = Array{Float64}(undef, ndim, nnodes)
 
     for ip in elem.ips
+        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+
 
         # compute Bt matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -171,7 +181,7 @@ function elem_internal_forces(elem::ThermoSolid, F::Array{Float64,1})
 
         # internal volumes dFw
         ut   = ip.state.ut
-        coef = detJ*ip.w*elem.mat.cv*elem.mat.ρ # VERIFICAR
+        coef = detJ*ip.w*elem.mat.cv*elem.mat.ρ*th # VERIFICAR
         dFt -= coef*N*ut
 
         D    = ip.state.D
@@ -205,6 +215,7 @@ function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64
     dNdX = Array{Float64}(undef, ndim, nnodes)
 
     for ip in elem.ips
+        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix
         N    = elem.shape.func(ip.R)
