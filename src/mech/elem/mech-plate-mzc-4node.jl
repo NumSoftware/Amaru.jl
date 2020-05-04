@@ -215,7 +215,7 @@ function elem_stiffness(elem::PlateMZC)
     D_mat = D_matrix(elem)
 
     # K_elem = K_elem + bmat'*D_mat*bmat_b*a*b
-    K_elem = bmat'*D_mat*bmat_b*a*b
+    K_elem = Bb'*D_mat*bmat_b*a*b
     map = elem_map(elem)
 
     return K_elem, map, map
