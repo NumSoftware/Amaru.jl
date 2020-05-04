@@ -116,7 +116,7 @@ function plate_B_matrix(elem::PlateMZC)
 end
 
 function D_matrix(elem::PlateMZC)
-
+    th     = elem.env.thickness
     coef = elem.mat.E*th^3/(12*(1-elem.mat.nu^2));
 
     D_mat = coef*[1 elam.mat.nu 0
@@ -147,12 +147,17 @@ function elem_config_dofs(elem::PlateMZC)
 end
 
 function elem_map(elem::PlateMZC)::Array{Int,1}
+    #=
     if elem.env.ndim==2
         dof_keys = (:ux, :uy, :rz)
     else
         dof_keys = (:ux, :uy, :uz, :rx, :ry, :rz)
     end
+        =#
+
+    dof_keys = (:uz, :rx, :ry)
     vcat([ [node.dofdict[key].eq_id for key in dof_keys] for node in elem.nodes]...)
+
 end
 
 # Return the class of element where this material can be used
@@ -195,6 +200,7 @@ function elem_stiffness(elem::PlateMZC)
            0 0 0  0 0 1 ]
 =#
     nnodes = length(elem.nodes)
+    th     = elem.env.thickness
 
     # K_elem = zeros( nnodes*3 , nnodes*3 )
 
