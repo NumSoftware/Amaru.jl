@@ -18,11 +18,11 @@ mutable struct ElasticPlate<:Material
         return  ElasticPlate(;prms...)
     end
 
-    function ElasticBeam(;E=NaN, A=NaN, I=NaN, Ix=NaN, Iy=NaN, Iz=NaN, rho=0.0)
+    function ElasticPlate(;E=NaN, nu=NaN, ρ=0.0)
         E>0.0 || error("Invalid value for E: $E")
         (0<=nu<0.5) || error("Invalid value for nu: $nu")
 
-        this = new(E, nu, rho)
+        this = new(E, nu, ρ)
         return this
     end
 end
