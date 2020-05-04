@@ -1,8 +1,8 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export MechBeam
+export PlateMZC
 
-mutable struct MechBeam<:Mechanical
+mutable struct PlateMZC<:Mechanical
     id    ::Int
     shape ::ShapeType
 
@@ -14,17 +14,18 @@ mutable struct MechBeam<:Mechanical
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function MechBeam()
+    function PlateMZC()
         return new()
     end
 end
 
-matching_shape_family(::Type{MechBeam}) = LINE_SHAPE
+matching_shape_family(::Type{PlateMZC}) = LINE_SHAPE
 
-function plate_shape_func(a::Float64, b::Float64, x::Float64, y::Float64)
+function plate_B_matrix(elem::PlateMZC)
+        C  = get_coords(elem)
+        a  = C[2,1]-C[1,1] # element length in X direction
+        b  = C[2,2]-C[2,1] # element length in Y direction
 
-        # a = Element length in X direction
-        # b = Element length in Y direction
         # x = Local X coordinate of the Gauss point
         # y = Local Y coordinate of the Gauss point
 
@@ -97,19 +98,19 @@ function plate_shape_func(a::Float64, b::Float64, x::Float64, y::Float64)
     return Bb
 end
 
-function D_matrx(E::Float64, nu::Float64, th::Float64)
+function D_matrx(elem::PlateMZC)
 
-    coef = E*th^3/(12*(1-nu^2));
+    coef = elem.mat.E*th^3/(12*(1-elem.mat.nu^2));
 
-    D_mat = coef*[1 nu 0
-                  nu 1 0
-                  0  0 (1-nu)/2];
+    D_mat = coef*[1 elam.mat.nu 0
+                  elam.mat. 1 0
+                  0  0 (1-elem.mat.nu)/2];
     return D_mat
 end
 
-function elem_config_dofs(elem::MechBeam)
+function elem_config_dofs(elem::PlateMZC)
     ndim = elem.env.ndim
-    ndim == 1 && error("MechBeam: Beam elements do not work in 1d analyses")
+    ndim == 1 && error("PlateMZC: Plate elements do not work in 1d analyses")
     if ndim==2
         for node in elem.nodes
             add_dof(node, :ux, :fx)
@@ -128,7 +129,7 @@ function elem_config_dofs(elem::MechBeam)
     end
 end
 
-function elem_map(elem::MechBeam)::Array{Int,1}
+function elem_map(elem::PlateMZC)::Array{Int,1}
     if elem.env.ndim==2
         dof_keys = (:ux, :uy, :rz)
     else
@@ -138,16 +139,16 @@ function elem_map(elem::MechBeam)::Array{Int,1}
 end
 
 # Return the class of element where this material can be used
-#client_shape_class(mat::MechBeam) = LINE_SHAPE
+#client_shape_class(mat::PlateMZC) = LINE_SHAPE
 
-function calcT(elem::MechBeam, C)
+function calcT(elem::PlateMZC, C)
     c = (C[2,1] - C[1,1])/L
     s = (C[2,2] - C[1,1])/L
     return
 
 end
 
-function elem_stiffness(elem::MechBeam)
+function elem_stiffness(elem::PlateMZC)
     C  = get_coords(elem)
     L  = norm(C[2,:]-C[1,:])
     L2 = L*L
@@ -179,7 +180,8 @@ function elem_stiffness(elem::MechBeam)
     return T'*K0*T, map, map
 end
 
-function elem_mass(elem::MechBeam)
+#=
+function elem_mass(elem::PlateMZC)
     C  = get_coords(elem)
     L  = norm(C[2,:]-C[1,:])
     L2 = L*L
@@ -208,9 +210,9 @@ function elem_mass(elem::MechBeam)
     map = elem_map(elem)
     return T'*M0*T, map, map
 end
+=#
 
-
-function elem_update!(elem::MechBeam, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
+function elem_update!(elem::PlateMZC, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
     dU  = U[map]
     F[map] += K*dU
