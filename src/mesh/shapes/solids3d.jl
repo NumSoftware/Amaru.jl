@@ -276,11 +276,146 @@ function MakePYR5()
     return shape
 end
 
-
 # Registration
 const  PYR5 = MakePYR5()
 export PYR5
 
+
+# PYR13 shape
+# ===========
+
+# G. Bedrosian. Shape functions and integration formulas for
+# three-dimensional finite element analysis.
+# Int. J. Numerical Methods Engineering, vol 35, p. 95-108, 1992.
+
+# natural coordinates
+const coords_PYR13 =
+[ -1.0 -1.0  0.0
+   1.0 -1.0  0.0
+   1.0  1.0  0.0
+  -1.0  1.0  0.0
+   0.0  0.0  1.0
+   0.0 -1.0  0.0
+   1.0  0.0  0.0
+   0.0  1.0  0.0
+  -1.0  0.0  0.0
+  -0.5 -0.5  0.5
+   0.5 -0.5  0.5
+   0.5  0.5  0.5
+  -0.5  0.5  0.5 ]
+
+const facet_idxs_PYR13 =
+    [ [1, 4, 3, 2, 9, 8, 7, 6],     [1, 2, 5, 6, 11, 10],     [1, 5, 4, 10, 13, 9],      [3, 4, 5, 8, 13, 12],     [2, 3, 5, 7, 12, 11] ]
+
+const edge_idxs_PYR13 =
+    [ [1, 2, 6],    [2, 3, 7],    [3, 4, 8],     [4, 1, 9],      [1, 5, 10],      [2, 5, 11],      [3, 5, 12],      [4, 5, 13] ]
+
+function shape_func_PYR13(R::AbstractArray{<:Float64,1})
+    r, s, t = R
+    if r==s==0.0 && t==1.0
+        return [ 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ]
+    end
+    t==1 && (t=0.9999999999999999) # undetermined at t==1; tested for Float64
+    w = 1/(1-t)
+
+    N = Array{Float64}(undef,13)
+    N[1]  = 1/4*(-r-s-1)*((1-r)*(1-s)-t+r*s*t*w)
+    N[2]  = 1/4*(-s+r-1)*((1+r)*(1-s)-t-r*s*t*w)
+    N[3]  = 1/4*(r+s-1)*((1+r)*(1+s)-t+r*s*t*w)
+    N[4]  = 1/4*(s-r-1)*((1-r)*(1+s)-t-r*s*t*w)
+    N[5]  = t*(2*t-1)
+    N[6]  = 1/2*(1+r-t)*(1-r-t)*(1-s-t)*w
+    N[7]  = 1/2*(1+s-t)*(1-s-t)*(1+r-t)*w
+    N[8]  = 1/2*(1+r-t)*(1-r-t)*(1+s-t)*w
+    N[9]  = 1/2*(1+s-t)*(1-s-t)*(1-r-t)*w
+    N[10] = t*(1-r-t)*(1-s-t)*w
+    N[11] = t*(1+r-t)*(1-s-t)*w
+    N[12] = (1+s-t)*(1+r-t)*t*w
+    N[13] = t*(1-r-t)*(1+s-t)*w
+    return N
+end
+
+
+function shape_deriv_PYR13(R::AbstractArray{<:Float64,1})
+    r, s, t = R
+    if r==s==0.0 && t==1.0
+        return [ 0.25 -0.25 -0.25  0.25 0.0 0.0 0.0 0.0 0.0 -1.0  1.0  1.0 -1.0
+                 0.25  0.25 -0.25 -0.25 0.0 0.0 0.0 0.0 0.0 -1.0 -1.0  1.0  1.0
+                 0.25  0.25  0.25  0.25 3.0 0.0 0.0 0.0 0.0 -1.0 -1.0 -1.0 -1.0 ]
+    end
+
+    t==1 && (t=0.99999) # undetermined at t==1; tested for Float64
+    w = 1/(1-t)
+
+    D = Array{Float64}(undef,3, 13)
+    D[1,1]  = -1/4*(-t-s+2*s*t-2*r+2*t*r+2*s*r+t^2+s^2)*w
+    D[1,2]  =  1/4*(-t-s+2*s*t+2*r-2*t*r-2*s*r+t^2+s^2)*w
+    D[1,3]  =  1/4*(-t+s-2*s*t+2*r-2*t*r+2*s*r+t^2+s^2)*w
+    D[1,4]  = -1/4*(-t+s-2*s*t-2*r+2*t*r-2*s*r+t^2+s^2)*w
+    D[1,5]  =  0.0
+    D[1,6]  =  (-1+s+t)*r*w
+    D[1,7]  = -1/2*(-1+s+t)*(1+s-t)*w
+    D[1,8]  = -(1+s-t)*r*w
+    D[1,9]  =  1/2*(-1+s+t)*(1+s-t)*w
+    D[1,10] =  (-1+s+t)*t*w
+    D[1,11] = -(-1+s+t)*t*w
+    D[1,12] =  (1+s-t)*t*w
+    D[1,13] = -(1+s-t)*t*w
+
+    D[2,1]  = -1/4*(-t-2*s+2*s*t-r+2*t*r+2*s*r+t^2+r^2)*w
+    D[2,2]  =  1/4*(t+2*s-2*s*t-r+2*t*r+2*s*r-t^2-r^2)*w
+    D[2,3]  =  1/4*(-t+2*s-2*s*t+r-2*t*r+2*s*r+t^2+r^2)*w
+    D[2,4]  = -1/4*(t-2*s+2*s*t+r-2*t*r+2*s*r-t^2-r^2)*w
+    D[2,5]  =  0.0
+    D[2,6]  =  1/2*(-1+r+t)*(1+r-t)*w
+    D[2,7]  = -(1+r-t)*s*w
+    D[2,8]  = -1/2*(-1+r+t)*(1+r-t)*w
+    D[2,9]  =  (-1+r+t)*s*w
+    D[2,10] =  (-1+r+t)*t*w
+    D[2,11] = -(1+r-t)*t*w
+    D[2,12] =  (1+r-t)*t*w
+    D[2,13] = -(-1+r+t)*t*w
+
+    D[3,1]  = -1/4*(r+s+1)*(-1+2*t-t^2+s*r)*w^2
+    D[3,2]  =  1/4*(s-r+1)*(1-2*t+t^2+s*r)*w^2
+    D[3,3]  =  1/4*(r+s-1)*(-1+2*t-t^2+s*r)*w^2
+    D[3,4]  = -1/4*(s-r-1)*(1-2*t+t^2+s*r)*w^2
+    D[3,5]  =  4*t-1
+    D[3,6]  =  1/2*(-2+s+6*t+s*r^2+s*t^2-6*t^2+2*t^3-2*s*t)*w^2
+    D[3,7]  = -1/2*(2-6*t+r+r*t^2+s^2*r+6*t^2-2*t^3-2*t*r)*w^2
+    D[3,8]  = -1/2*(2+s-6*t+s*r^2+s*t^2+6*t^2-2*t^3-2*s*t)*w^2
+    D[3,9]  =  1/2*(-2+6*t+r+r*t^2+s^2*r-6*t^2+2*t^3-2*t*r)*w^2
+    D[3,10] =  (1-s-4*t-r-r*t^2-s*t^2+s*r+5*t^2-2*t^3+2*s*t+2*t*r)*w^2
+    D[3,11] = -(-1+s+4*t-r-r*t^2+s*t^2+s*r-5*t^2+2*t^3-2*s*t+2*t*r)*w^2
+    D[3,12] =  (1+s-4*t+r+r*t^2+s*t^2+s*r+5*t^2-2*t^3-2*s*t-2*t*r)*w^2
+    D[3,13] = -(-1-s+4*t+r+r*t^2-s*t^2+s*r-5*t^2+2*t^3+2*s*t-2*t*r)*w^2
+
+    return D
+end
+
+# constructor
+function MakePYR13()
+    shape             = ShapeType()
+    shape.name        = "PYR13"
+    shape.family      = SOLID_SHAPE
+    shape.ndim        = 3
+    shape.npoints     = 13
+    shape.basic_shape = PYR5
+    shape.vtk_type    = VTK_QUADRATIC_PYRAMID
+    shape.facet_idxs  = facet_idxs_PYR13
+    shape.edge_idxs   = edge_idxs_PYR13
+    shape.facet_shape = (QUAD8, TRI6, TRI6, TRI6, TRI6)
+    shape.nat_coords  = coords_PYR13
+    shape.quadrature  = Dict( 0 => PYR_IP5,  5 => PYR_IP5,  8 => PYR_IP8 )
+    shape.func        = shape_func_PYR13
+    shape.deriv       = shape_deriv_PYR13
+    return shape
+end
+
+
+# Registration
+const  PYR13 = MakePYR13()
+export PYR13
 
 # HEX8 shape
 # ==========
@@ -573,17 +708,17 @@ export HEX20
 #     t
 #     |           5        16        8
 #    ,+--s         @-------@--------@                   +----------------+
-#  r'            ,'|              ,'|                 ,'|              ,'|
-#           13 @'  |         15 ,'  |               ,'  |  ___       ,'  |
-#            ,'    |17        ,@    |20           ,'    |,'6,'  [1],'    |
-#      6   ,'      @      7 ,'      @           ,'      |~~~     ,'      |
-#        @'=======@=======@'        |         +'===============+'  ,'|   |
-#        |      14 |      |         |         |   ,'|   |      |   |4|   |
-#        |         |      |  12     |         |   |3|   |      |   |,'   |
-#     18 |       1 @- - - | @- - - -@         |   |,'   +- - - | +- - - -+
-#        @       ,'       @       ,' 4        |       ,'       |       ,'
-#        |   9 @'      19 |     ,'            |     ,' [2]  ___|     ,'
-#        |   ,'           |   ,@ 11           |   ,'      ,'5,'|   ,'
+#  r'            ,'|    26        ,'|                 ,'|              ,'|
+#           13 @'  |     #   15 ,'  |               ,'  |  ___       ,'  |
+#            ,'    |17   21   ,@    |             ,'    |,'6,'  [1],'    |
+#      6   ,'      @      # ,'      @ 20        ,'      |~~~     ,'      |
+#        @'=======@=======@'   24   |         +'===============+'  ,'|   |
+#        |      14 |  27  |7   #    |         |   ,'|   |      |   |4|   |
+#        |    #    |  @   |  12     |         |   |3|   |      |   |,'   |
+#        |   22  1 @- - - | @- - - -@         |   |,'   +- - - | +- - - -+
+#     18 @       ,'#      @       ,' 4        |       ,'       |       ,'
+#        |   9 @'  23  #  |19   ,'            |     ,' [2]  ___|     ,'
+#        |   ,'       25  |   ,@ 11           |   ,'      ,'5,'|   ,'
 #        | ,'             | ,'                | ,'        ~~~  | ,'
 #        @-------@--------@'                  +----------------+'
 #      2        10         3

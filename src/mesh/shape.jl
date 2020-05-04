@@ -93,6 +93,7 @@ const ALL_ISO_SHAPES = [
     QUAD9
     QUAD12
     PYR5
+    PYR13
     TET4
     TET10
     WED6
