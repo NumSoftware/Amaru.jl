@@ -102,6 +102,10 @@ function elem_stiffness(elem::MechJoint)
     NN = zeros(ndim, nnodes*ndim)
 
     for ip in elem.ips
+    	if elem.env.modeltype=="axisymmetric"
+            th = 2*pi*ip.coord.x
+        end
+        
         # compute shape Jacobian
         N    = fshape.func(ip.R)
         dNdR = fshape.deriv(ip.R)
@@ -153,6 +157,10 @@ function elem_update!(elem::MechJoint, U::Array{Float64,1}, F::Array{Float64,1},
     Δω = zeros(ndim)
 
     for ip in elem.ips
+    	if elem.env.modeltype=="axisymmetric"
+            th = 2*pi*ip.coord.x
+        end
+
         # compute shape Jacobian
         N    = fshape.func(ip.R)
         dNdR = fshape.deriv(ip.R)
