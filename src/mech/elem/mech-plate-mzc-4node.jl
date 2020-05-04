@@ -205,6 +205,9 @@ function elem_stiffness(elem::PlateMZC)
 =#
     nnodes = length(elem.nodes)
     th     = elem.env.thickness
+    C  = get_coords(elem)
+    a  = C[2,1]-C[1,1] # element length in X direction
+    b  = C[2,2]-C[2,1] # element length in Y direction
 
     # K_elem = zeros( nnodes*3 , nnodes*3 )
 
