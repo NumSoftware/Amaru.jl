@@ -130,12 +130,15 @@ function elem_config_dofs(elem::PlateMZC)
     ndim == 1 && error("PlateMZC: Plate elements do not work in 1d analyses")
     if ndim==2
         for node in elem.nodes
-            add_dof(node, :ux, :fx)
-            add_dof(node, :uy, :fy)
-            add_dof(node, :rz, :mz)
+            add_dof(node, :rx, :mx)
+            add_dof(node, :ry, :my)
+            add_dof(node, :uz, :fz)
         end
     else
+        error("PlateMZC: Plate elements do not work in this analyses")
+        #=
         for node in elem.nodes
+
             add_dof(node, :ux, :fx)
             add_dof(node, :uy, :fy)
             add_dof(node, :uz, :fz)
@@ -143,6 +146,7 @@ function elem_config_dofs(elem::PlateMZC)
             add_dof(node, :ry, :my)
             add_dof(node, :rz, :mz)
         end
+        =#
     end
 end
 
