@@ -45,6 +45,7 @@ function plate_B_matrix(elem::PlateMZC)
     for igaus = 1 : 4
         x = gauss_x[igaus] # x = Local X coordinate of the Gauss point
         y = gauss_y[igaus] # y = Local Y coordinate of the Gauss point
+        Bb = zeros(3, 12) # strain-displacement matrix
 
         d2N = zeros(4,3)
         d2N[1,1] = 3*( x - x*y )/(4*a^2);
@@ -110,10 +111,11 @@ function plate_B_matrix(elem::PlateMZC)
                     -d2N[4,2] -d2NN[4,2] -d2NNN[4,2]
                     -d2N[4,3] -d2NN[4,3] -d2NNN[4,3]];
 
-        Bb = [bmat_1 bmat_2 bmat_3 bmat_4]; # strain-displacement matrix
+        Bb = [bmat_1 bmat_2 bmat_3 bmat_4];
 
      end
-   return Bb
+
+     return
 end
 
 function D_matrix(elem::PlateMZC)
@@ -121,7 +123,7 @@ function D_matrix(elem::PlateMZC)
     coef = elem.mat.E*th^3/(12*(1-elem.mat.nu^2));
 
     D_mat = coef*[1 elem.mat.nu 0
-                  elem.mat. 1 0
+                  elem.mat.nu 1 0
                   0  0 (1-elem.mat.nu)/2];
     return D_mat
 end
