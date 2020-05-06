@@ -3,7 +3,8 @@ using Test
 
 for shape in (TRI3, TRI6, QUAD4, QUAD8)
     # Axisymmetric
-    printstyled("$(shape.name) - axisymmetric", color=:cyan); println()
+    printstyled("$(shape.name)\n", color=:cyan)
+    printstyled("axisymmetric\n", color=:cyan)
 
     bl = Block( [0 0; 1 1], nx=4, ny=4, cellshape=shape, tag="solids")
     mesh = Mesh(bl, silent=true)
@@ -29,7 +30,7 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
     println( get_data(dom.nodes[:(x==1 && y==1)][1]) )
 
     # 3D
-    printstyled("$(shape.name) - 3d", color=:cyan); println()
+    printstyled("3d version", color=:cyan); println()
 
     mesh = revolve(mesh, n=12)
     dom = Domain(mesh, materials, modeltype="3d", silent=true)

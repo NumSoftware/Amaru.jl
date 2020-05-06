@@ -15,14 +15,13 @@ mutable struct Cell<:AbstractCell
     id     ::Integer
     shape  ::ShapeType
     nodes  ::Array{Node,1}
-    ips    ::Array{Ip,1}
     tag    ::String
     quality::Float64              # quality index: surf/(reg_surf)
     embedded::Bool                # flag for embedded cells
     crossed::Bool                 # flag if cell crossed by linear inclusion
-    oelem  ::Union{AbstractCell,Nothing}     # owner cell if this cell is a face/edge
+    oelem  ::Union{AbstractCell,Nothing}  # owner cell if this cell is a face/edge
     linked_elems::Array{AbstractCell,1}   # neighbor cells in case of joint cell
-    function Cell(shape::ShapeType, nodes::Array{Node,1}; tag::String="", oelem=nothing, nips=0)
+    function Cell(shape::ShapeType, nodes::Array{Node,1}; tag::String="", oelem=nothing)
         this = new()
         this.id = -1
         this.shape = shape
@@ -32,7 +31,6 @@ mutable struct Cell<:AbstractCell
         this.embedded= false
         this.crossed = false
         this.oelem   = oelem
-        nips in keys(shape.quadrature) || error("Cell: integ. points number ($nips) not available for shape $(shape.name)")
         this.linked_elems = []
         return this
     end
@@ -260,7 +258,7 @@ function regular_surface(metric::Float64, shape::ShapeType)
         a = √A
         return 4*a
     end
-    if shape in [ PYR5 ]
+    if shape in [ PYR5, PYR13 ]
         V = metric
         a = ( 3.0*√2.0*V )^(1.0/3.0)
         return (1 + √3.0)*a^2

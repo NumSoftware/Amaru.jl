@@ -9,6 +9,8 @@ export inverse_map, extrapolator
 #include("point.jl")
 export Node, Cell, hash, get_x, get_y, get_z
 include("cell.jl")
+include("collapse.jl")
+
 export get_coords, get_node, get_nodes, get_faces, get_patches, cell_extent, cell_quality
 include("partition.jl")
 
@@ -29,7 +31,10 @@ include("operators.jl")
 export move!, array, copy, mirror, rotate!, polar, rollaxes!, scale!
 
 include("extrude.jl")
-export extrude, revolve
+export extrude
+
+include("revolve.jl")
+export revolve
 
 include("smooth.jl")
 export smooth!, laplacian_smooth!, fast_smooth!

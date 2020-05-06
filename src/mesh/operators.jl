@@ -2,7 +2,7 @@
 
 
 #Base.copy(p::Node) = Node(p.coord.x, p.coord.y, p.coord.z, p.tag)
-#Base.copy(c::Cell)  = Cell(c.shape, c.nodes, tag=c.tag, oelem=c.oelem, nips=c.nips)
+#Base.copy(c::Cell)  = Cell(c.shape, c.nodes, tag=c.tag, oelem=c.oelem)
 Base.copy(c::Cell)  = Cell(c.shape, c.nodes, tag=c.tag, oelem=c.oelem)
 
 function Base.copy(bls::Array{<:AbstractBlock,1})

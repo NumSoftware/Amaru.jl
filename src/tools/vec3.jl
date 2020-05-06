@@ -72,6 +72,12 @@ function Base.setindex!(X::Vec3, val, i::Int)
     end
 end
 
+function round!(X::Vec3; digits=0)
+    X.x = round(X.x, digits=digits)
+    X.y = round(X.y, digits=digits)
+    X.z = round(X.z, digits=digits)
+end
+
 #macro commutative(expr)
     #expr2 = deepcopy(expr)
     #fargs = expr2.args[1].args

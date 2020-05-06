@@ -105,7 +105,7 @@ export TET4
 
 # natural coordinates
 const coords_TET10 =
-[  0.0      0.0   0.0
+[  0.0   0.0   0.0
    1.0   0.0   0.0
    0.0   1.0   0.0
    0.0   0.0   1.0
@@ -334,7 +334,6 @@ function shape_func_PYR13(R::AbstractArray{<:Float64,1})
     N[13] = t*(1-r-t)*(1+s-t)*w
     return N
 end
-
 
 function shape_deriv_PYR13(R::AbstractArray{<:Float64,1})
     r, s, t = R
