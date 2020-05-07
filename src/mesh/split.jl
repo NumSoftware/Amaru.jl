@@ -169,12 +169,12 @@ end
 
 
 """
-    generate_joints!(mesh, filter=:(); layers=2, tag="", midpointstag="", verbose=true)
+    generate_joints!(mesh, filter=:(); layers=2, tag="", midnodestag="", verbose=true)
 
 Adds joint elements between bulk elements in `mesh`. 
 If `filter` is supplied (element tag or expression), the joints are generated over a specific region only.
 Joints can be generated with 2 or 3 `layers`.  All generated joints get the supplied `tag`.
-Also, all middle points in three-layered joints receive a `midpointstag`.
+Also, all middle points in three-layered joints receive a `midnodestag`.
 """
 function generate_joints!(mesh::Mesh, filter::Union{Expr,String}=:(); layers::Int64=2, verbose::Bool=true, tag="", midnodestag="")
 
