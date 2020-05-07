@@ -84,7 +84,7 @@ function get_surface(cells::Array{<:AbstractCell,1})
         end
     end
 
-    return [ face for face in values(surf_dict) ]
+    return Face[ face for face in values(surf_dict) ]
 end
 
 function get_edges(surf_cells::Array{<:AbstractCell,1})
@@ -172,7 +172,8 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
 
         # joint1D cells (semi-embedded approach)
         if cell.shape in (JLINK2, JLINK3)
-            edge = Cell(POLYV, [ cell.nodes[1], cell.nodes[end-1] ])
+            npts = cell.shape.npoints
+            edge = Cell(POLYV, [ cell.nodes[1]; cell.nodes[end-npts+1:end] ])
             hs = hash(edge)
             all_edges[hs] = edge
             continue
@@ -318,8 +319,6 @@ function fixup!(mesh::Mesh; verbose::Bool=false, genfacets::Bool=true, genedges:
     # Quality
     Q = Float64[]
     for c in mesh.elems
-
-
         c.quality = cell_quality(c)
         push!(Q, c.quality)
     end
