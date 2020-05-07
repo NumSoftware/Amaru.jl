@@ -18,8 +18,9 @@ function joint_shape(shape::ShapeType)
     error("No joint for shape $shape")
 end
 
+#=
 # Adds joint cells over all shared faces
-function generate_joints!(mesh::Mesh; layers::Int64=2, verbose::Bool=true, tag="", midpointstag="")
+function generate_joints_old(mesh::Mesh; layers::Int64=2, verbose::Bool=true, tag="", midpointstag="")
 
     verbose && printstyled("Mesh generation of joint elements:\n", bold=true, color=:cyan)
     cells  = mesh.elems
@@ -115,7 +116,7 @@ function generate_joints!(mesh::Mesh; layers::Int64=2, verbose::Bool=true, tag="
 
     if haskey(mesh.elem_data, "inset-data")
         idata = mesh.elem_data["inset-data"]
-        mesh.elem_data["inset-data"] = [ idata; zeros(length(jcells), 3) ]
+        mesh.elem_data["inset-data"] = [ idata; zeros(Int, length(jcells), 3) ]
     end
 
     # Get points from non-separated cells, e.g. lines, beams, etc.
@@ -138,7 +139,6 @@ function generate_joints!(mesh::Mesh; layers::Int64=2, verbose::Bool=true, tag="
     fixup!(mesh, reorder=true)
 
     # Add field for joints (1 or 0 values)
-    #mesh.elem_data["joint-layers"] = [ c.shape.family==JOINT_SHAPE ? layer : 0 for c in mesh.elems ]
     ncells = length(mesh.elems)
     joint_data = zeros(Int, ncells, 3) # nlayers, first link, second link
     for i=1:ncells
@@ -165,6 +165,173 @@ function generate_joints!(mesh::Mesh; layers::Int64=2, verbose::Bool=true, tag="
     return mesh
 
 end
+=#
+
+
+"""
+    generate_joints!(mesh, filter=:(); layers=2, tag="", midpointstag="", verbose=true)
+
+Adds joint elements between bulk elements in `mesh`. 
+If `filter` is supplied (element tag or expression), the joints are generated over a specific region only.
+Joints can be generated with 2 or 3 `layers`.  All generated joints get the supplied `tag`.
+Also, all middle points in three-layered joints receive a `midpointstag`.
+"""
+function generate_joints!(mesh::Mesh, filter::Union{Expr,String}=:(); layers::Int64=2, verbose::Bool=true, tag="", midnodestag="")
+
+    verbose && printstyled("Mesh generation of joint elements:\n", bold=true, color=:cyan)
+
+    # Target and locked cells
+    # locked cells include solids, lines, beams, etc.
+    if filter==:()
+        targetcells = mesh.elems.solids
+        lockedcells = setdiff(mesh.elems, targetcells)
+        # remove previous joints at filtered region
+        lockedcells = setdiff(lockedcells, lockedcells[:joints])
+    else
+        targetcells = mesh.elems[filter].solids
+        lockedcells = setdiff(mesh.elems, targetcells)
+        # remove previous joints at filtered region
+        lockedcells = setdiff(lockedcells, lockedcells[filter][:joints])
+    end
+
+    # Splitting: generating new nodes
+    newnodes = Node[]
+    for c in targetcells
+        for (i,p) in enumerate(c.nodes)
+            newp = Node([p.coord.x, p.coord.y, p.coord.z])
+            push!(newnodes, newp)
+            c.nodes[i] = newp
+        end
+    end
+
+    # Get paired faces
+    facedict = Dict{UInt64, Cell}()
+    face_pairs = Tuple{Cell, Cell}[]
+    for cell in targetcells
+        for face in get_faces(cell)
+            hs = hash(face)
+            f  = get(facedict, hs, nothing)
+            if f==nothing
+                facedict[hs] = face
+            else
+                push!(face_pairs, (face, f))
+                delete!(facedict, hs)
+            end
+        end
+    end
+
+    # Add pairs using surface faces from locked cells
+    for face in get_surface(lockedcells)
+        hs = hash(face)
+        f  = get(facedict, hs, nothing)
+        f==nothing && continue
+        push!(face_pairs, (face, f))
+        delete!(facedict, hs)
+    end
+
+    # Generate joint elements
+    jointcells = Cell[]
+    for (f1, f2) in face_pairs
+        n   = length(f1.nodes)
+        con = Array{Node}(undef, 2*n)
+        for (i,p1) in enumerate(f1.nodes)
+            for p2 in f2.nodes
+                if hash(p1)==hash(p2)
+                    con[i]   = p1
+                    con[n+i] = p2
+                    break
+                end
+            end
+        end
+
+        jshape = joint_shape(f1.shape)
+        cell = Cell(jshape, con, tag=tag)
+        cell.linked_elems = [f1.oelem, f2.oelem]
+        push!(jointcells, cell)
+    end
+
+    # Generate inner nodes at joints (used in hydromechanical analyses)
+    if layers==3
+
+        auxnodedict = Dict{UInt64,Node}()
+
+        for jcell in jointcells
+            npts = jcell.shape.basic_shape.npoints
+            sample_pts = jcell.nodes[1:npts]
+            for p in sample_pts
+                hs = hash(p)
+                if haskey(auxnodedict, hs)
+                    newp = auxnodedict[hs]
+                    push!(jcell.nodes, newp)
+                else
+                    newp = Node(p.coord.x, p.coord.y, p.coord.z, tag=midnodestag)
+                    auxnodedict[hs] = newp
+                    push!(newnodes, newp)
+                    push!(jcell.nodes, newp)
+                end
+            end
+        end
+    end
+
+    # Fix JOINT1D_SHAPE cells connectivities
+    for c in lockedcells
+        c.shape.family == JOINT1D_SHAPE || continue
+        scell = c.linked_elems[1]
+        nspts = length(scell.nodes)
+        c.nodes[1:nspts] .= scell.nodes
+    end
+
+    if haskey(mesh.elem_data, "inset-data")
+        idata = mesh.elem_data["inset-data"]
+        mesh.elem_data["inset-data"] = [ idata; zeros(Int, length(jointcells), 3) ]
+    end
+
+    # Locked nodes
+    lockednodedict = Dict{Int,Node}()
+    for cell in lockedcells
+        for node in cell.nodes
+            node.id == -1 && continue # skip in case of new nodes
+            lockednodedict[node.id] = node
+        end
+    end
+    lockednodes = collect(values(lockednodedict))
+
+    # All nodes
+    mesh.nodes = vcat(lockednodes, newnodes)
+
+    # All cells
+    mesh.elems  = vcat(lockedcells, targetcells, jointcells)
+
+    # Update and reorder mesh
+    fixup!(mesh, reorder=true)
+
+    # Add field for joints (1 or 0 values)
+    ncells = length(mesh.elems)
+    joint_data = zeros(Int, ncells, 3) # nlayers, first link, second link
+    for i=1:ncells
+        cell = mesh.elems[i]
+        if cell.shape.family==JOINT_SHAPE
+            joint_data[i,1] = layers
+            joint_data[i,2] = cell.linked_elems[1].id
+            joint_data[i,3] = cell.linked_elems[2].id
+        end
+    end
+    mesh.elem_data["joint-data"] = joint_data
+
+    if verbose
+        @printf "  %4dd mesh                             \n" mesh.ndim
+        @printf "  %5d points\n" length(mesh.nodes)
+        @printf "  %5d total cells\n" length(mesh.elems)
+        @printf "  %5d new joint cells\n" length(jointcells)
+        nfaces = length(mesh.faces)
+        nfaces>0 && @printf("  %5d faces\n", nfaces)
+        nedges = length(mesh.edges)
+        nedges>0 && @printf("  %5d edges\n", nedges)
+    end
+
+    return mesh
+
+end
 
 # Deprecated function
 function split!(mesh::Mesh)
@@ -172,6 +339,7 @@ function split!(mesh::Mesh)
     generate_joints!(mesh)
 end
 
+#=
 mutable struct FacePair
     face1::Face
     face2::Face
@@ -290,9 +458,10 @@ function generate_joints_candidate!(mesh::Mesh, expr::Expr, tag::String="") # TO
 
     tag!(jcells, tag)
 end
+=#
 
 
- #Generate joints taking account tags
+#Generate joints taking account tags
 
 function generate_joints_by_tag!(mesh::Mesh; layers::Int64=2, verbose::Bool=true, tag="")
 
