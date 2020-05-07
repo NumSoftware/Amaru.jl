@@ -11,11 +11,11 @@ function revolve(mesh::Mesh;
                  minangle::Real = 0,
                  maxangle::Real = 360,
                  angle::Real = NaN,
-                 n::Int=4
+                 n::Int=8
                 )
     @assert length(axis)==3
     @assert length(base)==3
-    #@assert n>1
+    @assert n>0
 
     axis = Vec3(normalize(axis))
     base = Vec3(base)
@@ -112,7 +112,7 @@ function revolve(mesh::Mesh;
                     push!(nodes, Node(coord))
                 end
             else
-                error("revolve: Cell $(cell.shape.name) is not supported")
+                error("revolve: Cell shape $(cell.shape.name) is not supported")
             end
 
             newcell = Cell(newshape, nodes, tag=cell.tag)
@@ -152,7 +152,6 @@ function revolve(mesh::Mesh;
             end
         end
         inaxis && collapse!(elem)
-        #collapse!(elem)
     end
 
     fixup!(newmesh, reorder=true)
