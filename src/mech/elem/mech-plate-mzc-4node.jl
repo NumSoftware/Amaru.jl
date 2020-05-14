@@ -117,7 +117,7 @@ function elem_stiffness(elem::PlateMZC)
     for igaus = 1 : 4
         x = gauss_x[igaus] # x = Local X coordinate of the Gauss point
         y = gauss_y[igaus] # y = Local Y coordinate of the Gauss point
-        #Bb = zeros(3, 12) # strain-displacement matrix
+
 
         d2N[1,1] = 3*( x - x*y )/(4*a^2);
         d2N[2,1] = 3*(-x + x*y )/(4*a^2);
@@ -190,37 +190,6 @@ function elem_stiffness(elem::PlateMZC)
     return K_elem, map, map
 end
 
-#=
-function elem_mass(elem::PlateMZC)
-    C  = get_coords(elem)
-    L  = norm(C[2,:]-C[1,:])
-    L2 = L*L
-    mat = elem.mat
-    EA = mat.E*mat.A
-    EI = mat.E*mat.I
-
-
-    M0 = mat.ρ*L/420.0*[ 140   0      0      70    0      0
-                         0     156    22*L   0     54    -13*L
-                         0     22*L   4*L2   0     13*L  -3*L2
-                         70    0      0      140   0      0
-                         0     54     13*L   0     156   -22*L
-                         0    -13*L  -3*L2   0    -22*L   4*L2 ]
-
-    # Rotation matrix
-    c = (C[2,1] - C[1,1])/L
-    s = (C[2,2] - C[1,2])/L
-    T = [  c s 0  0 0 0
-          -s c 0  0 0 0
-           0 0 1  0 0 0
-           0 0 0  c s 0
-           0 0 0 -s c 0
-           0 0 0  0 0 1 ]
-
-    map = elem_map(elem)
-    return T'*M0*T, map, map
-end
-=#
 
 function elem_update!(elem::PlateMZC, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
