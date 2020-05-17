@@ -41,7 +41,8 @@ include("mat/pp-rod.jl")
 include("mat/elastic-beam.jl")
 
 # Models for plates
-include("mat/elastic-plate.jl")
+include("mat/elastic-plateMZC.jl")
+include("mat/elastic-plateRM.jl")
 
 # Models for joint elements
 include("mat/elastic-joint.jl")
