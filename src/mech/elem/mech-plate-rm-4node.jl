@@ -78,8 +78,8 @@ function elem_stiffness(elem::PlateRM)
     nnodes = length(elem.nodes)
     th     = 0.15 # COLOCAR AUTOMÁTICO
     C  = get_coords(elem)
-    a  = 0.5  #C[2,1]-C[1,1] # element length in X direction
-    b  = 0.5 #C[2,2]-C[2,1] # element length in Y direction
+    a  = C[2,1]-C[1,1] # element length in X direction
+    b  = C[2,2]-C[2,1] # element length in Y direction
 
     K_elem = zeros(12,12)
 
