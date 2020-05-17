@@ -7,14 +7,14 @@ mutable struct ElasticSolidThermoIpState<:IpState
     σ::Array{Float64,1} # stress
     ε::Array{Float64,1} # strain
     QQ::Array{Float64,1} # heat flux
-    D::Array{Float64,1} # VERIFICAR NECESSIDADE
+    D::Array{Float64,1}
     ut::Float64
     function ElasticSolidThermoIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
         this.QQ = zeros(env.ndim)
-        this.D = zeros(env.ndim) # VERIFICAR NECESSIDADE
+        this.D = zeros(env.ndim) 
         this.ut = 0.0
         return this
     end

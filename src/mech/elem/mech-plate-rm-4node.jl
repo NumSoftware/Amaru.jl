@@ -1,8 +1,8 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export PlateMZC
+export PlateRM
 
-mutable struct PlateMZC<:Mechanical
+mutable struct PlateRM<:Mechanical
     id    ::Int
     shape ::ShapeType
 
@@ -14,27 +14,29 @@ mutable struct PlateMZC<:Mechanical
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function PlateMZC()
+    function PlateRM()
         return new()
     end
 end
 
-matching_shape_family(::Type{PlateMZC}) = SOLID_SHAPE
+matching_shape_family(::Type{PlateRM}) = SOLID_SHAPE
 
-function D_matrix(elem::PlateMZC)
-    #th     = elem.env.thickness
-    th1     = 0.1
-    coef = elem.mat.E*th1^3/(12*(1-elem.mat.nu^2));
+function D_matrix(elem::PlateRM)
 
-    D_mat = coef*[1 elem.mat.nu 0
-                  elem.mat.nu 1 0
-                  0  0 (1-elem.mat.nu)/2];
+    coef = elem.mat.E/(1-elem.mat.nu^2);
+
+    D_mat = coef*[1 elem.mat.nu 0 0 0
+                  elem.mat.nu 1 0 0 0
+                  0  0 (5/12)*(1-elem.mat.nu) 0 0
+                  0  0 0 (5/12)*(1-elem.mat.nu) 0
+                  0  0 0 0 (5/12)*(1-elem.mat.nu)];
     return D_mat
 end
 
-function elem_config_dofs(elem::PlateMZC)
+
+function elem_config_dofs(elem::PlateRM)
     ndim = elem.env.ndim
-    ndim == 1 && error("PlateMZC: Plate elements do not work in 1d analyses")
+    ndim == 1 && error("PlateRM: Plate elements do not work in 1d analyses")
     if ndim==2
         for node in elem.nodes
             add_dof(node, :rx, :mx)
@@ -42,7 +44,7 @@ function elem_config_dofs(elem::PlateMZC)
             add_dof(node, :uz, :fz)
         end
     else
-        error("PlateMZC: Plate elements do not work in this analyses")
+        error("PlateRM: Plate elements do not work in this analyses")
         #=
         for node in elem.nodes
 
@@ -57,7 +59,7 @@ function elem_config_dofs(elem::PlateMZC)
     end
 end
 
-function elem_map(elem::PlateMZC)::Array{Int,1}
+function elem_map(elem::PlateRM)::Array{Int,1}
 
     #if elem.env.ndim==2
         dof_keys = (:uz, :rx, :ry)
@@ -71,127 +73,77 @@ function elem_map(elem::PlateMZC)::Array{Int,1}
 
 end
 
-# Return the class of element where this material can be used
-#client_shape_class(mat::PlateMZC) = LINE_SHAPE
-#=
-function calcT(elem::PlateMZC, C)
-    c = (C[2,1] - C[1,1])/L
-    s = (C[2,2] - C[1,1])/L
-    return
-
-end
-=#
-
-function elem_stiffness(elem::PlateMZC)
+function elem_stiffness(elem::PlateRM)
 
     nnodes = length(elem.nodes)
-    th     = elem.env.thickness
+    th     = 0.15 # COLOCAR AUTOMÁTICO
     C  = get_coords(elem)
-    a  = C[2,1]-C[1,1] # element length in X direction
-    b  = C[2,2]-C[2,1] # element length in Y direction
+    a  = 0.5  #C[2,1]-C[1,1] # element length in X direction
+    b  = 0.5 #C[2,2]-C[2,1] # element length in Y direction
 
-    d2N = zeros(4,3)
-    d2NN = zeros(4,3)
-    d2NNN = zeros(4,3)
-    K_elem = zeros( nnodes*3 , nnodes*3 )
+    K_elem = zeros(12,12)
 
     D_mat = D_matrix(elem)
 
+    # Gauss_Legendre_Numerical Integration constants
 
-    gauss_x = zeros(4,1)
-    gauss_y = zeros(4,1)
+    H=[0.171324492379170 0.360761573048139 0.467913934572691 0.467913934572691 0.360761573048139 0.171324492379170]
+    W=[0.932469514203152;
+       0.661209386466265;
+       0.238619186083197;
+      -0.238619186083197;
+      -0.661209386466265;
+      -0.932469514203152];
 
-    gauss_x[1] = -1/sqrt(3);
-    gauss_y[1] = -1/sqrt(3);
+      # This region 6 segment integration
+         for k=1:6;
+            for  i=1:6;
+               for j=1:6;
+                   e=W[i];
+                   n=W[j];
+                   z=0.5*th*W[k];
 
-    gauss_x[2] =  1/sqrt(3);
-    gauss_y[2] =-1/sqrt(3);
+      #Element  shape function
+                    N1=1/4*(1-e)*(1-n);
+                    N2=1/4*(1+e)*(1-n);
+                    N3=1/4*(1+e)*(1+n);
+                    N4=1/4*(1-e)*(1+n);
 
-    gauss_x[3] = 1/sqrt(3);
-    gauss_y[3] = 1/sqrt(3);
+      # Element shape function partial derivative
+                    Hx1=-(1-n)/a/2.0;
+                    Hx2= (1-n)/a/2.0;
+                    Hx3= (n+1)/a/2.0;
+                    Hx4=-(n+1)/a/2.0;
+                    Hy1 = -(1-e)/b/2.0;
+                    Hy2 = -(e+1)/b/2.0;
+                    Hy3 =  (e+1)/b/2.0;
+                    Hy4 =  (1-e)/b/2.0;
 
-    gauss_x[4] =-1/sqrt(3);
-    gauss_y[4] = 1/sqrt(3);
+                    Jac=[a/2   0  ;
+                          0   b/2];
+
+      #Element connection matrix
+
+                    A=[0     0     z*Hx1   0     0     z*Hx2   0    0      z*Hx3    0      0      z*Hx4   ;
+                0  -z*Hy1     0     0   -z*Hy2    0     0   -z*Hy3    0      0    -z*Hy4     0     ;
+                0  -z*Hx1   z*Hy1   0   -z*Hx2  z*Hy2   0   -z*Hx3   z*Hy3   0    -z*Hx4   z*Hy4   ;
+               Hy1   -N1      0    Hy2   -N2      0    Hy3  -N3       0     Hy4    -N4       0     ;
+               Hx1    0       N1   Hx2    0      N2    Hx3    0       N3    Hx4     0       N4    ];
 
 
-    for igaus = 1 : 4
-        x = gauss_x[igaus] # x = Local X coordinate of the Gauss point
-        y = gauss_y[igaus] # y = Local Y coordinate of the Gauss point
+      #Local axis element stiffness matrix
+                    K_elem += 0.5*th*det(Jac)*H[i]*H[j]*H[k]*A'*D_mat*A
+                  end
+              end
+           end
 
-
-        d2N[1,1] = 3*( x - x*y )/(4*a^2);
-        d2N[2,1] = 3*(-x + x*y )/(4*a^2);
-        d2N[3,1] = 3*(-x - x*y )/(4*a^2);
-        d2N[4,1] = 3*( x + x*y )/(4*a^2);
-
-        d2N[1,2] = 3*( y - x*y )/(4*b^2);
-        d2N[2,2] = 3*( y + x*y )/(4*b^2);
-        d2N[3,2] = 3*(-y - x*y )/(4*b^2);
-        d2N[4,2] = 3*(-y + x*y )/(4*b^2);
-
-        d2N[1,3] = 2*(  1/2 - 3*x^2/8 - 3*y^2/8)/(a*b);
-        d2N[2,3] = 2*( -1/2 + 3*x^2/8 + 3*y^2/8)/(a*b);
-        d2N[3,3] = 2*(  1/2 - 3*x^2/8 - 3*y^2/8)/(a*b);
-        d2N[4,3] = 2*( -1/2 + 3*x^2/8 + 3*y^2/8)/(a*b);
-    #------------------------------------------------------
-        d2NN[1,1] = ( (3*a*x - 3*a*x*y - a + a*y)/4 )/a^2;
-        d2NN[2,1] = ( (3*a*x - 3*a*x*y + a - a*y)/4 )/a^2;
-        d2NN[3,1] = ( (3*a*x + 3*a*x*y + a + a*y)/4 )/a^2;
-        d2NN[4,1] = ( (3*a*x + 3*a*x*y - a - a*y)/4 )/a^2;
-
-        d2NN[1,2] = 0;
-        d2NN[2,2] = 0;
-        d2NN[3,2] = 0;
-        d2NN[4,2] = 0;
-
-        d2NN[1,3] = 2*( -3/8*a*x^2 + a*x/4 + a/8 )/(a*b);
-        d2NN[2,3] = 2*( -3/8*a*x^2 - a*x/4 + a/8 )/(a*b);
-        d2NN[3,3] = 2*(  3/8*a*x^2 + a*x/4 - a/8 )/(a*b);
-        d2NN[4,3] = 2*(  3/8*a*x^2 - a*x/4 - a/8 )/(a*b);
-    #------------------------------------------------------
-        d2NNN[1,1] = 0;
-        d2NNN[2,1] = 0;
-        d2NNN[3,1] = 0;
-        d2NNN[4,1] = 0;
-
-        d2NNN[1,2] = ( (3*b*y - 3*b*x*y - b + b*x)/4 )/b^2;
-        d2NNN[2,2] = ( (3*b*y + 3*b*x*y - b - b*x)/4 )/b^2;
-        d2NNN[3,2] = ( (3*b*y + 3*b*x*y + b + b*x)/4 )/b^2;
-        d2NNN[4,2] = ( (3*b*y - 3*b*x*y + b - b*x)/4 )/b^2;
-
-        d2NNN[1,3] = 2*( -3/8*b*y^2 + b*y/4 + b/8 )/(a*b);
-        d2NNN[2,3] = 2*(  3/8*b*y^2 - b*y/4 - b/8 )/(a*b);
-        d2NNN[3,3] = 2*(  3/8*b*y^2 + b*y/4 - b/8 )/(a*b);
-        d2NNN[4,3] = 2*( -3/8*b*y^2 - b*y/4 + b/8 )/(a*b);
-    #-----------------------------------------------------
-        bmat_1  = [ -d2N[1,1] -d2NN[1,1] -d2NNN[1,1]
-                -d2N[1,2] -d2NN[1,2] -d2NNN[1,2]
-                -d2N[1,3] -d2NN[1,3] -d2NNN[1,3]];
-
-        bmat_2  = [ -d2N[2,1] -d2NN[2,1] -d2NNN[2,1]
-                -d2N[2,2] -d2NN[2,2] -d2NNN[2,2]
-                -d2N[2,3] -d2NN[2,3] -d2NNN[2,3]];
-
-        bmat_3  = [ -d2N[3,1] -d2NN[3,1] -d2NNN[3,1]
-                -d2N[3,2] -d2NN[3,2] -d2NNN[3,2]
-                -d2N[3,3] -d2NN[3,3] -d2NNN[3,3]];
-
-        bmat_4  = [ -d2N[4,1] -d2NN[4,1] -d2NNN[4,1]
-                -d2N[4,2] -d2NN[4,2] -d2NNN[4,2]
-                -d2N[4,3] -d2NN[4,3] -d2NNN[4,3]];
-
-        Bb = [bmat_1 bmat_2 bmat_3 bmat_4];
-
-        K_elem += Bb'*D_mat*Bb*a*b
-
-    end
     map = elem_map(elem)
 
-    return K_elem, map, map
+  return K_elem, map, map
 end
 
 
-function elem_update!(elem::PlateMZC, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
+function elem_update!(elem::PlateRM, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
     dU  = U[map]
     F[map] += K*dU

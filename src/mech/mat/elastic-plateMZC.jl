@@ -2,23 +2,23 @@
 
 export ElasticPlateMZC
 
-mutable struct PlateIpState<:IpState
+mutable struct ElasticPlateMZCIpState<:IpState
     env::ModelEnv
-    function PlateIpState(env::ModelEnv=ModelEnv())
+    function ElasticPlateMZCIpState(env::ModelEnv=ModelEnv())
         return new(env)
     end
 end
 
-mutable struct ElasticPlate<:Material
+mutable struct ElasticPlateMZC<:Material
     E::Float64
     nu::Float64
     ρ::Float64
 
-    function ElasticPlate(prms::Dict{Symbol,Float64})
-        return  ElasticPlate(;prms...)
+    function ElasticPlateMZC(prms::Dict{Symbol,Float64})
+        return  ElasticPlateMZC(;prms...)
     end
 
-    function ElasticPlate(;E=NaN, nu=NaN, ρ=0.0)
+    function ElasticPlateMZC(;E=NaN, nu=NaN, ρ=0.0)
         E>0.0 || error("Invalid value for E: $E")
         (0<=nu<0.5) || error("Invalid value for nu: $nu")
 
@@ -27,11 +27,11 @@ mutable struct ElasticPlate<:Material
     end
 end
 
-matching_elem_type(::ElasticPlate) = PlateMZC
+matching_elem_type(::ElasticPlateMZC) = PlateMZC
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticPlate) = PlateIpState
+ip_state_type(mat::ElasticPlateMZC) = ElasticPlateMZCIpState
 
-function ip_state_vals(mat::ElasticPlate, ipd::PlateIpState)
+function ip_state_vals(mat::ElasticPlateMZC, ipd::ElasticPlateMZCIpState)
     return OrderedDict{Symbol, Float64}()
 end
