@@ -5,7 +5,6 @@ export PlateMZC
 mutable struct PlateMZC<:Mechanical
     id    ::Int
     shape ::ShapeType
-
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -23,7 +22,7 @@ matching_shape_family(::Type{PlateMZC}) = SOLID_SHAPE
 
 function D_matrix(elem::PlateMZC)
     #th     = elem.env.thickness
-    th1     = 0.1
+    th1     = 0.15
     coef = elem.mat.E*th1^3/(12*(1-elem.mat.nu^2));
 
     D_mat = coef*[1 elem.mat.nu 0
@@ -71,24 +70,13 @@ function elem_map(elem::PlateMZC)::Array{Int,1}
 
 end
 
-# Return the class of element where this material can be used
-#client_shape_class(mat::PlateMZC) = LINE_SHAPE
-#=
-function calcT(elem::PlateMZC, C)
-    c = (C[2,1] - C[1,1])/L
-    s = (C[2,2] - C[1,1])/L
-    return
-
-end
-=#
 
 function elem_stiffness(elem::PlateMZC)
 
     nnodes = length(elem.nodes)
-    th     = elem.env.thickness
     C  = get_coords(elem)
-    a  = C[2,1]-C[1,1] # element length in X direction
-    b  = C[2,2]-C[2,1] # element length in Y direction
+    a  = abs(C[2,1]-C[1,1])/2 # element length in X direction
+    b  = abs(C[2,1]-C[1,1])/2# element length in Y direction
 
     d2N = zeros(4,3)
     d2NN = zeros(4,3)
@@ -117,7 +105,6 @@ function elem_stiffness(elem::PlateMZC)
     for igaus = 1 : 4
         x = gauss_x[igaus] # x = Local X coordinate of the Gauss point
         y = gauss_y[igaus] # y = Local Y coordinate of the Gauss point
-
 
         d2N[1,1] = 3*( x - x*y )/(4*a^2);
         d2N[2,1] = 3*(-x + x*y )/(4*a^2);

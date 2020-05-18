@@ -27,7 +27,7 @@ function D_matrix(elem::PlateRM)
 
     D_mat = coef*[1 elem.mat.nu 0 0 0
                   elem.mat.nu 1 0 0 0
-                  0  0 (5/12)*(1-elem.mat.nu) 0 0
+                  0  0 (1/2)*(1-elem.mat.nu) 0 0
                   0  0 0 (5/12)*(1-elem.mat.nu) 0
                   0  0 0 0 (5/12)*(1-elem.mat.nu)];
     return D_mat
@@ -62,7 +62,7 @@ end
 function elem_map(elem::PlateRM)::Array{Int,1}
 
     #if elem.env.ndim==2
-        dof_keys = (:uz, :rx, :ry)
+    #    dof_keys = (:uz, :rx, :ry)
     #else
     #    dof_keys = (:ux, :uy, :uz, :rx, :ry, :rz) # VERIFICAR
     #end
@@ -78,8 +78,9 @@ function elem_stiffness(elem::PlateRM)
     nnodes = length(elem.nodes)
     th     = 0.15 # COLOCAR AUTOMÁTICO
     C  = get_coords(elem)
-    a  = C[2,1]-C[1,1] # element length in X direction
-    b  = C[2,2]-C[2,1] # element length in Y direction
+
+    a  = abs(C[2,1]-C[1,1])  # element length in X direction
+    b  = abs(C[2,1]-C[1,1]) # ALTERAR element length in Y direction
 
     K_elem = zeros(12,12)
 
@@ -124,7 +125,7 @@ function elem_stiffness(elem::PlateRM)
 
       #Element connection matrix
 
-                    A=[0     0     z*Hx1   0     0     z*Hx2   0    0      z*Hx3    0      0      z*Hx4   ;
+                    B=[0     0     z*Hx1   0     0     z*Hx2   0    0      z*Hx3    0      0      z*Hx4   ;
                 0  -z*Hy1     0     0   -z*Hy2    0     0   -z*Hy3    0      0    -z*Hy4     0     ;
                 0  -z*Hx1   z*Hy1   0   -z*Hx2  z*Hy2   0   -z*Hx3   z*Hy3   0    -z*Hx4   z*Hy4   ;
                Hy1   -N1      0    Hy2   -N2      0    Hy3  -N3       0     Hy4    -N4       0     ;
@@ -132,7 +133,7 @@ function elem_stiffness(elem::PlateRM)
 
 
       #Local axis element stiffness matrix
-                    K_elem += 0.5*th*det(Jac)*H[i]*H[j]*H[k]*A'*D_mat*A
+                    K_elem += 0.5*th*det(Jac)*H[i]*H[j]*H[k]*B'*D_mat*B
                   end
               end
            end
