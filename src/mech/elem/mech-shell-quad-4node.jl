@@ -141,21 +141,26 @@ function elem_config_dofs(elem::ShellQuad4node)
         end
     else
         error("ShellQuad4node: Plate elements do not work in this analyses")
-
+        #=
         for node in elem.nodes
-
-            add_dof(node, :rx, :mx)
-            add_dof(node, :ry, :my)
             add_dof(node, :ux, :fx)
             add_dof(node, :uy, :fy)
             add_dof(node, :uz, :fz)
+            add_dof(node, :rx, :mx)
+            add_dof(node, :ry, :my)
+            add_dof(node, :rz, :mz)
         end
-
+        =#
     end
 end
 
 function elem_map(elem::ShellQuad4node)::Array{Int,1}
 
+    #if elem.env.ndim==2
+        dof_keys = (:ux, :uy, :uz, :rx, :ry)
+    #else
+    #    dof_keys = (:ux, :uy, :uz, :rx, :ry, :rz) # VERIFICAR
+    #end
 
     dof_keys = (:ux, :uy, :uz, :rx, :ry)
 
@@ -167,6 +172,8 @@ function elem_stiffness(elem::ShellQuad4node)
 
     nnodes = length(elem.nodes)
     C  = get_coords(elem)
+    #a  = abs(C[2,1]-C[1,1])/2 # element length in X direction
+    #b  = abs(C[2,1]-C[1,1])/2# element length in Y direction
 
     D_matm = D_matrixm(elem)
     D_mats = D_matrixs(elem)
@@ -202,10 +209,6 @@ function elem_stiffness(elem::ShellQuad4node)
     dyN = zeros(4,1)
 
     K_elem = zeros( nnodes*5 , nnodes*5 )
-    N= zeros(4,1)
-    c     = zeros(8,8);
-
-    b_bar = zeros(8,12)
 
     cxyz  = zeros(4,3)
     cxyz[:,1:2]  = get_coords(elem)
@@ -219,7 +222,6 @@ function elem_stiffness(elem::ShellQuad4node)
         #-----------------------------
       xgs = gauss_x[igaus] # Local X coordinate of the Gauss point
       ygs = gauss_y[igaus] # Local Y coordinate of the Gauss point
-
 
       dxNl[1] = (-1+ygs)/4;
       dxNl[2] = ( 1-ygs)/4;
@@ -240,35 +242,35 @@ function elem_stiffness(elem::ShellQuad4node)
 
       area = abs(xjacm[1,1]*xjacm[2,2] - xjacm[2,1]*xjacm[1,2]);
 
-      dxN[1] = xjaci[1,1]*dxNl[1] + xjaci[1,2]*dyNl[1]
-      dxN[2] = xjaci[1,1]*dxNl[2] + xjaci[1,2]*dyNl[2]
-      dxN[3] = xjaci[1,1]*dxNl[3] + xjaci[1,2]*dyNl[3]
-      dxN[4] = xjaci[1,1]*dxNl[4] + xjaci[1,2]*dyNl[4]
+      dxN[1] = xjaci[1,1]*dxNl[1]+xjaci[1,2]*dyNl[1]
+      dxN[2] = xjaci[1,1]*dxNl[2]+xjaci[1,2]*dyNl[2]
+      dxN[3] = xjaci[1,1]*dxNl[3]+xjaci[1,2]*dyNl[3]
+      dxN[4] = xjaci[1,1]*dxNl[4]+xjaci[1,2]*dyNl[4]
 
-      dyN[1] = xjaci[2,1]*dxNl[1] + xjaci[2,2]*dyNl[1]
-      dyN[2] = xjaci[2,1]*dxNl[2] + xjaci[2,2]*dyNl[2]
-      dyN[3] = xjaci[2,1]*dxNl[3] + xjaci[2,2]*dyNl[3]
-      dyN[4] = xjaci[2,1]*dxNl[4] + xjaci[2,2]*dyNl[4]
+      dyN[1] = xjaci[2,1]*dxNl[1]+xjaci[2,2]*dyNl[1]
+      dyN[2] = xjaci[2,1]*dxNl[2]+xjaci[2,2]*dyNl[2]
+      dyN[3] = xjaci[2,1]*dxNl[3]+xjaci[2,2]*dyNl[3]
+      dyN[4] = xjaci[2,1]*dxNl[4]+xjaci[2,2]*dyNl[4]
 
       #-----------------------------
-             bmat_b1  = [ 0 0 0 -dxN[1] 0
-                          0 0 0      0  -dyN[1]
-                          0 0 0 -dyN[1] -dxN[1]];
+      bmat_b1  = [ 0 0 0 -dxN[1] 0
+             0 0 0      0  -dyN[1]
+             0 0 0 -dyN[1] -dxN[1]];
 
              bmat_b2  = [ 0 0 0 -dxN[2]     0
-                          0 0 0      0 -dyN[2]
-                          0 0 0 -dyN[2] -dxN[2]];
+             0 0 0      0 -dyN[2]
+             0 0 0 -dyN[2] -dxN[2]];
 
              bmat_b3  = [ 0 0 0 -dxN[3]     0
-                          0 0 0      0 -dyN[3]
-                          0 0 0 -dyN[3] -dxN[3]];
+             0 0 0      0 -dyN[3]
+             0 0 0 -dyN[3] -dxN[3]];
 
              bmat_b4  = [ 0 0 0 -dxN[4]     0
-                          0 0 0      0 -dyN[4]
-                          0 0 0 -dyN[4] -dxN[4]];
+             0 0 0      0 -dyN[4]
+             0 0 0 -dyN[4] -dxN[4]];
 
 
-             bmat_b = [bmat_b1 bmat_b2 bmat_b3 bmat_b4]
+             bmat_b = [bmat_b1 bmat_b2 bmat_b3 bmat_b4];
              #-----------------------------
              bmat_m1d  = [ dxN[1]     0  0
                    0 dyN[1] 0
@@ -299,8 +301,13 @@ function elem_stiffness(elem::ShellQuad4node)
 
               #-----------------------------
               cx = [ 0 1 0 -1]
-              cy = [-1 0 1 0]
+              cy = [-1 0 1 0 ]
 
+              c     = zeros(8,8);
+
+              b_bar = zeros(8,12)
+
+              N= zeros(4,1)
 
               for i = 1 : 4
                 N[1] = (1-cx[i])*(1-cy[i])/4 ;
@@ -383,16 +390,16 @@ function elem_stiffness(elem::ShellQuad4node)
                     bmat_s = [bmat_s1 bmat_s2 bmat_s3 bmat_s4]
 
                     #-----------------------------
-                    K_b = bmat_b'*D_matb*bmat_b*area*gauss_w[igaus]
-                    K_m = bmat_m'*D_matm*bmat_m*area*gauss_w[igaus]
-                    K_s = bmat_s'*D_mats*bmat_s*area*gauss_w[igaus]
+                    K_b = bmat_b'*D_matb*bmat_b*area*gauss_w[igaus];
+                    K_m = bmat_m'*D_matm*bmat_m*area*gauss_w[igaus];
+                    K_s = bmat_s'*D_mats*bmat_s*area*gauss_w[igaus];
 
-                    K_elem += K_s + K_m + K_s
+                    K_elem += K_b + K_m + K_s
 
 
             end
         map = elem_map(elem)
-    println(K_elem)
+
     return K_elem, map, map
 end
 
