@@ -22,11 +22,10 @@ matching_shape_family(::Type{ShellQuad4node}) = SOLID_SHAPE
 
 # the strain-displacement matrix for membrane forces
 function D_matrixm(elem::ShellQuad4node)
-    #th     = elem.env.thickness
-    thick      = 0.15
-    coef1 = elem.mat.E*thick /(1-elem.mat.nu^2)
+
+    coef1 = elem.mat.E*elem.mat.thick /(1-elem.mat.nu^2)
     coef2 = elem.mat.nu*coef1
-    coef3 = elem.mat.E*thick /2/(1+elem.mat.nu)
+    coef3 = elem.mat.E*elem.mat.thick /2/(1+elem.mat.nu)
 
         D_matm = [coef1  coef2 0
                   coef2  coef1 0
@@ -37,9 +36,8 @@ end
 # the strain-displacement matrix for shear forces
 
 function D_matrixs(elem::ShellQuad4node)
-    #th     = elem.env.thickness
-    thick      = 0.15
-    coef = (5/6)*elem.mat.E*thick/2/(1+elem.mat.nu)
+
+    coef = (5/6)*elem.mat.E*elem.mat.thick/2/(1+elem.mat.nu)
 
             D_mats = [coef    0
                         0     coef];
@@ -48,12 +46,10 @@ end
 
 # the strain-displacement matrix for bending moments
 function D_matrixb(elem::ShellQuad4node)
-    #th     = elem.env.thickness
-    thick     = 0.15
 
     D_matm = D_matrixm(elem)
 
-    D_matb = D_matm*(thick^2/12)
+    D_matb = D_matm*(elem.mat.thick^2/12)
 
     return D_matb
 end
@@ -62,8 +58,7 @@ end
 
 function RotMatrix(elem::ShellQuad4node)
 
-    cxyz  = get_coords(elem)
-    println(cxyz)
+    cxyz  = get_coords(elem) # Como chamar as coordenadas em Z?
 
     v12 = zeros(3,1)
     v13 = zeros(3,1)
@@ -73,11 +68,11 @@ function RotMatrix(elem::ShellQuad4node)
 
     v12[1] = cxyz[2,1] - cxyz[1,1]
     v12[2] = cxyz[2,2] - cxyz[1,2]
-    v12[3] = 0 #cxyz[2,3] - cxyz[1,3]
+    v12[3] = 0 #cxyz[2,3] - cxyz[1,3] # ARRUMAR
 
     v13[1] = cxyz[3,1] - cxyz[1,1]
     v13[2] = cxyz[3,2] - cxyz[1,2]
-    v13[3] = 0 #cxyz[3,3] - cxyz[1,3]
+    v13[3] = 0 #cxyz[3,3] - cxyz[1,3] # ARRUMAR
 
     vze[1] = v12[2]*v13[3] - v12[3]*v13[2]
     vze[2] = v12[3]*v13[1] - v12[1]*v13[3]
@@ -128,7 +123,6 @@ function RotMatrix(elem::ShellQuad4node)
     Rot = [ vxe[1] vxe[2] vxe[3]
            vye[1] vye[2] vye[3]
            vze[1] vze[2] vze[3] ]
-    println(Rot)
 
     return Rot
 end
@@ -175,8 +169,6 @@ function elem_map(elem::ShellQuad4node)::Array{Int,1}
 
 end
 
-
-
 function elem_stiffness(elem::ShellQuad4node)
 
     nnodes = length(elem.nodes)
@@ -189,8 +181,10 @@ function elem_stiffness(elem::ShellQuad4node)
     D_matb = D_matrixb(elem)
 
     Rot = RotMatrix(elem)
+
     gauss_x = zeros(4,1)
     gauss_y = zeros(4,1)
+    gauss_w = zeros(4,1)
 
     gauss_x[1] = -1/sqrt(3);
     gauss_y[1] = -1/sqrt(3);
@@ -217,10 +211,19 @@ function elem_stiffness(elem::ShellQuad4node)
 
     K_elem = zeros( nnodes*5 , nnodes*5 )
 
+    cxyz  = zeros(4,3)
+    cxyz[:,1:2]  = get_coords(elem)
+    println(cxyz)
+
+    ctxy = cxyz*Rot';    # Rotate coordinates to element mid plane
+
+    x = ctxy[1:4,1]; # Local X coordinate of the element
+    y = ctxy[1:4,2];  # Local Y coordinate of the element
+
     for igaus = 1 : 4
         #-----------------------------
-      x = gauss_x[igaus] # Local X coordinate of the Gauss point
-      y = gauss_y[igaus] # Local Y coordinate of the Gauss point
+      xgs = gauss_x[igaus] # Local X coordinate of the Gauss point
+      ygs = gauss_y[igaus] # Local Y coordinate of the Gauss point
 
       dxNl[1] = (-1+ygs)/4;
       dxNl[2] = ( 1-ygs)/4;
@@ -288,8 +291,8 @@ function elem_stiffness(elem::ShellQuad4node)
               dyN[4] dxN[4] 0];
 
               bmat_mir  = [ 0 0
-              0 0
-              0 0];
+                            0 0
+                            0 0];
 
               bmat_m1 = [bmat_m1d*Rot bmat_mir];
               bmat_m2 = [bmat_m2d*Rot bmat_mir];
@@ -304,9 +307,9 @@ function elem_stiffness(elem::ShellQuad4node)
 
               c     = zeros(8,8);
 
-              b_bar = []
+              b_bar = zeros(8,12)
 
-              N= zeroc=s(4,1)
+              N= zeros(4,1)
 
               for i = 1 : 4
                 N[1] = (1-cx[i])*(1-cy[i])/4 ;
@@ -347,8 +350,8 @@ function elem_stiffness(elem::ShellQuad4node)
 
                     bmat_s = [bmat_s1 bmat_s2 bmat_s3 bmat_s4];
 
-                    b_bar = [ b_bar ;
-                    bmat_s];
+                    b_bar[2*i-1,:] = bmat_s[1,:];
+                    b_bar[2*i,:] = bmat_s[2,:]
                 end
                 #-----------------------------
                     T_mat = [ 1  0  0  0  0  0  0  0
@@ -388,17 +391,15 @@ function elem_stiffness(elem::ShellQuad4node)
 
                     bmat_s = [bmat_s1 bmat_s2 bmat_s3 bmat_s4]
 
-#-----------------------------
-                    x = gauss_x[igaus] # x = Local X coordinate of the Gauss point
-                    y = gauss_y[igaus] # y = Local Y coordinate of the Gauss point
-
-                    K_b = transpose(bmat_b)*D_matb*bmat_b*area*gauss_w(igaus);
-                    K_m = transpose(bmat_m)*D_matm*bmat_m*area*gauss_w(igaus);
-                    K_s = transpose(bmat_s)*D_mats*bmat_s*area*gauss_w(igaus);
+                    #-----------------------------
+                    K_b = bmat_b'*D_matb*bmat_b*area*gauss_w[igaus];
+                    K_m = bmat_m'*D_matm*bmat_m*area*gauss_w[igaus];
+                    K_s = bmat_s'*D_mats*bmat_s*area*gauss_w[igaus];
 
                     K_elem += K_b + K_m + K_s
 
-                end
+
+            end
         map = elem_map(elem)
 
     return K_elem, map, map

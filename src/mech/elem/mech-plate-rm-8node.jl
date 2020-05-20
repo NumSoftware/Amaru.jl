@@ -73,6 +73,7 @@ function elem_map(elem::PlateRM8node)::Array{Int,1}
 
 end
 
+#=
 # Returns the volume/area/length of a cell
 function cell_extent(c::AbstractCell)
     IP = get_ip_coords(c.shape)
@@ -100,7 +101,7 @@ function cell_extent(c::AbstractCell)
     end
     return Area
 end
-
+=#
 function elem_stiffness(elem::PlateRM8node)
 
     nnodes = length(elem.nodes)
