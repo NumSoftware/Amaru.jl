@@ -62,8 +62,8 @@ end
 
 function RotMatrix(elem::ShellQuad4node)
 
-    C  = get_coords(elem)
-    cxyz = C
+    cxyz  = get_coords(elem)
+    println(cxyz)
 
     v12 = zeros(3,1)
     v13 = zeros(3,1)
@@ -73,11 +73,11 @@ function RotMatrix(elem::ShellQuad4node)
 
     v12[1] = cxyz[2,1] - cxyz[1,1]
     v12[2] = cxyz[2,2] - cxyz[1,2]
-    v12[3] = cxyz[2,3] - cxyz[1,3]
+    v12[3] = 0 #cxyz[2,3] - cxyz[1,3]
 
     v13[1] = cxyz[3,1] - cxyz[1,1]
     v13[2] = cxyz[3,2] - cxyz[1,2]
-    v13[3] = cxyz[3,3] - cxyz[1,3]
+    v13[3] = 0 #cxyz[3,3] - cxyz[1,3]
 
     vze[1] = v12[2]*v13[3] - v12[3]*v13[2]
     vze[2] = v12[3]*v13[1] - v12[1]*v13[3]
@@ -189,6 +189,8 @@ function elem_stiffness(elem::ShellQuad4node)
     D_matb = D_matrixb(elem)
 
     Rot = RotMatrix(elem)
+    gauss_x = zeros(4,1)
+    gauss_y = zeros(4,1)
 
     gauss_x[1] = -1/sqrt(3);
     gauss_y[1] = -1/sqrt(3);
@@ -217,8 +219,8 @@ function elem_stiffness(elem::ShellQuad4node)
 
     for igaus = 1 : 4
         #-----------------------------
-      x = gauss_x[igaus] # x = Local X coordinate of the Gauss point
-      y = gauss_y[igaus] # y = Local Y coordinate of the Gauss point
+      x = gauss_x[igaus] # Local X coordinate of the Gauss point
+      y = gauss_y[igaus] # Local Y coordinate of the Gauss point
 
       dxNl[1] = (-1+ygs)/4;
       dxNl[2] = ( 1-ygs)/4;
