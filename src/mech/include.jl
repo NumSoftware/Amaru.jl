@@ -16,6 +16,7 @@ include("elem/mech-joint1d.jl")
 include("elem/mech-plate-mzc-4node.jl")
 include("elem/mech-plate-rm-4node.jl")
 include("elem/mech-plate-rm-8node.jl")
+include("elem/mech-shell-quad-4node.jl")
 
 # Models for bulk elements
 include("mat/elastic-solid.jl")
@@ -45,6 +46,9 @@ include("mat/elastic-beam.jl")
 include("mat/elastic-plateMZC.jl")
 include("mat/elastic-plateRM.jl")
 include("mat/elastic-plateRM8node.jl")
+
+# Models for shelss
+include("mat/elastic-shell-4node.jl")
 
 # Models for joint elements
 include("mat/elastic-joint.jl")
