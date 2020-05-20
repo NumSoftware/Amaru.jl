@@ -73,11 +73,40 @@ function elem_map(elem::PlateRM8node)::Array{Int,1}
 
 end
 
+# Returns the volume/area/length of a cell
+function cell_extent(c::AbstractCell)
+    IP = get_ip_coords(c.shape)
+    nip = size(IP,1)
+    nldim = c.shape.ndim # cell basic dimension
+
+    # get coordinates matrix
+    C =get_coords(c)
+    J = Array{Float64}(undef, nldim, size(C,2))
+
+    # calc metric
+    Area = 0.0
+    for i=1:nip
+        R    = vec(IP[i,1:3])
+        dNdR = c.shape.deriv(R)
+
+        @gemm J = dNdR*C
+        w    = IP[i,4]
+        normJ = norm2(J)
+        #if normJ<0
+            #@error "cell_extent: Negative Jacobian while calculating cell volume/area/length" id=c.id shape=c.shape.name
+            #error("cell_extent: Negative Jacobian while calculating cell volume/area/length id=$(c.id) shape=$(c.shape.name) ")
+        #end
+        Area += normJ*w
+    end
+    return Area
+end
+
 function elem_stiffness(elem::PlateRM8node)
 
     nnodes = length(elem.nodes)
     th     = 0.15 # COLOCAR AUTOMÁTICO
     C  = get_coords(elem)
+    Area = cell_extent(Area)
 
     a  = abs(C[2,1]-C[1,1]) # element length in X direction
     b  = abs(C[2,1]-C[1,1]) # VERIFICAR element length in Y direction
