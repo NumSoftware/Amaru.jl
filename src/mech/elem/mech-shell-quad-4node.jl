@@ -59,6 +59,7 @@ end
 function RotMatrix(elem::ShellQuad4node)
 
     cxyz  = get_coords(elem) # Como chamar as coordenadas em Z?
+    #println(cxyz)
 
     v12 = zeros(3,1)
     v13 = zeros(3,1)
@@ -130,7 +131,7 @@ end
 
 function elem_config_dofs(elem::ShellQuad4node)
     ndim = elem.env.ndim
-    ndim == 1 && error("ShellQuad4node: Plate elements do not work in 1d analyses")
+    ndim == 1 && error("ShellQuad4node: Shell elements do not work in 1d analyses")
     if ndim==2
         for node in elem.nodes
             add_dof(node, :rx, :mx)
@@ -140,7 +141,7 @@ function elem_config_dofs(elem::ShellQuad4node)
             add_dof(node, :uz, :fz)
         end
     else
-        error("ShellQuad4node: Plate elements do not work in this analyses")
+        error("ShellQuad4node: Shell elements do not work in this analyses")
         #=
         for node in elem.nodes
             add_dof(node, :ux, :fx)
@@ -171,9 +172,6 @@ end
 function elem_stiffness(elem::ShellQuad4node)
 
     nnodes = length(elem.nodes)
-    C  = get_coords(elem)
-    #a  = abs(C[2,1]-C[1,1])/2 # element length in X direction
-    #b  = abs(C[2,1]-C[1,1])/2# element length in Y direction
 
     D_matm = D_matrixm(elem)
     D_mats = D_matrixs(elem)
