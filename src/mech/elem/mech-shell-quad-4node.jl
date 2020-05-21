@@ -23,9 +23,9 @@ matching_shape_family(::Type{ShellQuad4node}) = SOLID_SHAPE
 # the strain-displacement matrix for membrane forces
 function D_matrixm(elem::ShellQuad4node)
 
-    coef1 = elem.mat.E*elem.mat.thick /(1-elem.mat.nu^2)
+    coef1 = elem.mat.E*elem.mat.thick/(1-elem.mat.nu^2)
     coef2 = elem.mat.nu*coef1
-    coef3 = elem.mat.E*elem.mat.thick /2/(1+elem.mat.nu)
+    coef3 = elem.mat.E*elem.mat.thick/2/(1+elem.mat.nu)
 
         D_matm = [coef1  coef2 0
                   coef2  coef1 0
@@ -53,6 +53,21 @@ function D_matrixb(elem::ShellQuad4node)
 
     return D_matb
 end
+
+#=
+function cell_extent(c::AbstractCell)
+        IP = get_ip_coords(c.shape)
+        nip = size(IP,1)
+        nldim = c.shape.ndim # cell basic dimension
+
+        # get coordinates matrix
+        Cxyz =get_coords(c)
+      return Cxyz
+    println(Cxyz)
+end
+
+=#
+
 
 # Rotation Matrix
 
@@ -158,7 +173,7 @@ end
 function elem_map(elem::ShellQuad4node)::Array{Int,1}
 
     #if elem.env.ndim==2
-        dof_keys = (:ux, :uy, :uz, :rx, :ry)
+    #    dof_keys = (:ux, :uy, :uz, :rx, :ry)
     #else
     #    dof_keys = (:ux, :uy, :uz, :rx, :ry, :rz) # VERIFICAR
     #end
@@ -304,7 +319,6 @@ function elem_stiffness(elem::ShellQuad4node)
               c     = zeros(8,8);
 
               b_bar = zeros(8,12)
-
               N= zeros(4,1)
 
               for i = 1 : 4
