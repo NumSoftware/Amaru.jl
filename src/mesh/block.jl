@@ -68,18 +68,19 @@ mutable struct Block <: AbstractBlock
         sum3==0 && (ndim=2)
         sum2+sum3==0 && (ndim=1)
         surface = ndim==3 && nz==0
+        chord   = ndim>1 && cellshape in shapes1d
         nz == 0 && (nz=1)
 
         nz==0 && (ndim=2; nz=1)
         ny==0 && (ndim=1; ny=1)
         cellshape in shapes3d && (ndim==3 || error("Block: 3d points are required for cell shape $cellshape"))
 
-        if ndim==1
-            ncoord==2 || error("Block: invalid coordinates matrix rows ($ncoord) for dimension $ndim.")
+        if ndim==1 || chord
+            ncoord in (2,3) || error("Block: invalid coordinates matrix rows ($ncoord) for dimension $ndim.")
             cellshape==nothing && (cellshape=LIN2)
             cellshape in shapes1d || error("Block: invalid cell type $(cellshape.name) for dimension $ndim.")
-            shape = LIN2
             nodes = [ Node(coords[i,:]) for i=1:ncoord ]
+            shape = length(nodes)==2 ? LIN2 : LIN3
         elseif ndim==2 || surface
             if !surface && ncoord==2
                 coords = box_coords(coords[1,:], coords[2,:], ndim)
@@ -127,6 +128,59 @@ function split_block(bl::Block, msh::Mesh)
     shape  = bl.shape # cell shape
     coords = get_coords(bl.nodes)
     cellshape = bl.cellshape
+
+    if cellshape==LIN2
+        p_arr = Array{Node}(undef, nx+1)
+        for i = 1:nx+1
+            r = (2.0/nx)*(i-1) - 1.0
+            N = bl.shape.func([r])
+            C = N'*coords
+            C = round.(C, digits=8)
+            p = get_node(msh._pointdict, C)
+            if p==nothing
+                p = Node(C); 
+                push!(msh.nodes, p)
+                msh._pointdict[hash(p)] = p
+            end
+            p_arr[i] = p
+        end
+
+        for i = 1:nx
+            p1 = p_arr[i  ]
+            p2 = p_arr[i+1]
+
+            cell = Cell(cellshape, [p1, p2], tag=bl.tag)
+            push!(msh.elems, cell)
+        end
+        return
+    end
+
+    if cellshape==LIN3
+        p_arr = Array{Node}(undef, 2*nx+1)
+            for i = 1:2*nx+1
+                r = (1.0/nx)*(i-1) - 1.0
+                N = bl.shape.func([r])
+                C = N'*coords
+                C = round.(C, digits=8)
+                p =get_node(msh._pointdict, C)
+                if p==nothing
+                    p = Node(C); 
+                    push!(msh.nodes, p)
+                    msh._pointdict[hash(p)] = p
+                end
+                p_arr[i] = p
+            end
+
+            for i = 1:2:2*nx
+                p1 = p_arr[i  ]
+                p2 = p_arr[i+2]
+                p3 = p_arr[i+1]
+
+                cell = Cell(cellshape, [p1, p2, p3], tag=bl.tag)
+                push!(msh.elems, cell)
+            end
+        return
+    end
 
     if cellshape==QUAD4
         p_arr = Array{Node}(undef, nx+1, ny+1)

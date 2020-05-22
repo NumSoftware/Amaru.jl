@@ -52,7 +52,27 @@ function revolve(mesh::Mesh;
         for cell in mesh.elems
             nodes = Node[]
 
-            if cell.shape in (TRI3, QUAD4)
+            if cell.shape==LIN2
+                newshape = QUAD4
+                n1, n2 = cell.nodes
+                nnodes = length(cell.nodes)
+
+                for (n, R) in zip([n1, n2, n2, n1], [Rend, Rend, Rini, Rini])
+                    coord = base + R*(n.coord-base)*conj(R)
+                    coord = round.(coord, digits=8)
+                    push!(nodes, Node(coord))
+                end
+            elseif cell.shape==LIN3
+                newshape = QUAD8
+                n1, n2, n3 = cell.nodes
+                nnodes = length(cell.nodes)
+
+                for (n, R) in zip([n1, n2, n2, n1, n3, n2, n3, n1], [Rend, Rend, Rini, Rini, Rend, Rhalf, Rini, Rhalf])
+                    coord = base + R*(n.coord-base)*conj(R)
+                    coord = round.(coord, digits=8)
+                    push!(nodes, Node(coord))
+                end
+            elseif cell.shape in (TRI3, QUAD4)
                 newshape = cell.shape==TRI3 ? WED6 : HEX8
                 nnodes = length(cell.nodes)
 
