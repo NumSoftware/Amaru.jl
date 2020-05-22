@@ -21,9 +21,8 @@ end
 matching_shape_family(::Type{PlateMZC}) = SOLID_SHAPE
 
 function D_matrix(elem::PlateMZC)
-    #th     = elem.env.thickness
-    th1     = 0.15
-    coef = elem.mat.E*th1^3/(12*(1-elem.mat.nu^2));
+
+    coef = elem.mat.E*elem.mat.thick^3/(12*(1-elem.mat.nu^2));
 
     D_mat = coef*[1 elem.mat.nu 0
                   elem.mat.nu 1 0

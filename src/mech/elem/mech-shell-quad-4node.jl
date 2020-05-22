@@ -33,6 +33,81 @@ function D_matrixm(elem::ShellQuad4node)
     return D_matm
 end
 
+function distributed_bc(elem::ShellQuad4node, facet::Union{Facet, Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
+    ndim  = elem.env.ndim
+    th    = elem.env.thickness
+    suitable_keys = (:tx, :ty, :tz, :tn)
+
+    # Check keys
+    key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
+    (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
+
+    target = facet!=nothing ? facet : elem
+    nodes  = target.nodes
+    nnodes = length(nodes)
+    t      = elem.env.t
+
+    # Force boundary condition
+    nnodes = length(nodes)
+
+    # Calculate the target coordinates matrix
+    C = get_coords(nodes, ndim)
+
+    # Vector with values to apply
+    Q = zeros(ndim)
+
+    # Calculate the nodal values
+    F     = zeros(nnodes, ndim)
+    shape = target.shape
+    ips   = get_ip_coords(shape)
+
+    for i=1:size(ips,1)
+        R = vec(ips[i,:])
+        w = R[end]
+        N = shape.func(R)
+        D = shape.deriv(R)
+        J = D*C
+        X = C'*N
+        if ndim==2
+            x, y = X
+            vip = eval_arith_expr(val, t=t, x=x, y=y)
+            if key == :tx
+                Q = [vip, 0.0]
+            elseif key == :ty
+                Q = [0.0, vip]
+            elseif key == :tn
+                n = [J[1,2], -J[1,1]]
+                Q = vip*normalize(n)
+            end
+            if elem.env.modeltype=="axisymmetric"
+                th = 2*pi*X[1]
+            end
+        else
+            x, y, z = X
+            vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
+            if key == :tx
+                Q = [vip, 0.0, 0.0]
+            elseif key == :ty
+                Q = [0.0, vip, 0.0]
+            elseif key == :tz
+                Q = [0.0, 0.0, vip]
+            elseif key == :tn && ndim==3
+                n = cross(J[1,:], J[2,:])
+                Q = vip*normalize(n)
+            end
+        end
+        coef = norm2(J)*w*th
+        @gemm F += coef*N*Q' # F is a matrix
+    end
+
+    # generate a map
+    keys = (:ux, :uy, :uz)[1:ndim]
+    map  = [ node.dofdict[key].eq_id for node in target.nodes for key in keys ]
+
+    return reshape(F', nnodes*ndim), map
+end
+
+
 # the strain-displacement matrix for shear forces
 
 function D_matrixs(elem::ShellQuad4node)
@@ -73,22 +148,29 @@ end
 
 function RotMatrix(elem::ShellQuad4node)
 
-    cxyz  = get_coords(elem) # Como chamar as coordenadas em Z?
-    #println(cxyz)
-
     v12 = zeros(3,1)
     v13 = zeros(3,1)
     vxe = zeros(3,1)
     vye = zeros(3,1)
     vze = zeros(3,1)
 
+
+
+    cxyz = get_coords(elem)
+
+        if size(cxyz,2)==2
+            v12[3] = 0
+            v13[3] = 0
+        else
+            v12[3] = cxyz[2,3] - cxyz[1,3]
+            v13[3] = cxyz[3,3] - cxyz[1,3]
+        end
+
     v12[1] = cxyz[2,1] - cxyz[1,1]
     v12[2] = cxyz[2,2] - cxyz[1,2]
-    v12[3] = 0 #cxyz[2,3] - cxyz[1,3] # ARRUMAR
 
     v13[1] = cxyz[3,1] - cxyz[1,1]
     v13[2] = cxyz[3,2] - cxyz[1,2]
-    v13[3] = 0 #cxyz[3,3] - cxyz[1,3] # ARRUMAR
 
     vze[1] = v12[2]*v13[3] - v12[3]*v13[2]
     vze[2] = v12[3]*v13[1] - v12[1]*v13[3]
@@ -147,7 +229,7 @@ end
 function elem_config_dofs(elem::ShellQuad4node)
     ndim = elem.env.ndim
     ndim == 1 && error("ShellQuad4node: Shell elements do not work in 1d analyses")
-    if ndim==2
+    #if ndim==2
         for node in elem.nodes
             add_dof(node, :rx, :mx)
             add_dof(node, :ry, :my)
@@ -155,8 +237,8 @@ function elem_config_dofs(elem::ShellQuad4node)
             add_dof(node, :uy, :fy)
             add_dof(node, :uz, :fz)
         end
-    else
-        error("ShellQuad4node: Shell elements do not work in this analyses")
+    #else
+        #error("ShellQuad4node: Shell elements do not work in this analyses")
         #=
         for node in elem.nodes
             add_dof(node, :ux, :fx)
@@ -167,7 +249,7 @@ function elem_config_dofs(elem::ShellQuad4node)
             add_dof(node, :rz, :mz)
         end
         =#
-    end
+    #end
 end
 
 function elem_map(elem::ShellQuad4node)::Array{Int,1}
@@ -223,8 +305,16 @@ function elem_stiffness(elem::ShellQuad4node)
 
     K_elem = zeros( nnodes*5 , nnodes*5 )
 
-    cxyz  = zeros(4,3)
-    cxyz[:,1:2]  = get_coords(elem)
+    C = get_coords(elem)
+
+        if size(C,2)==2
+            cxyz  = zeros(4,3)
+            cxyz[:,1:2]  = get_coords(elem)
+        else
+
+            cxyz = C
+        end
+
 
     ctxy = cxyz*Rot';    # Rotate coordinates to element mid plane
 
@@ -317,7 +407,6 @@ function elem_stiffness(elem::ShellQuad4node)
               cy = [-1 0 1 0 ]
 
               c     = zeros(8,8);
-
               b_bar = zeros(8,12)
               N= zeros(4,1)
 
