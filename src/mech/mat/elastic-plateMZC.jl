@@ -12,17 +12,18 @@ end
 mutable struct ElasticPlateMZC<:Material
     E::Float64
     nu::Float64
+    thick::Float64
     ρ::Float64
 
     function ElasticPlateMZC(prms::Dict{Symbol,Float64})
         return  ElasticPlateMZC(;prms...)
     end
 
-    function ElasticPlateMZC(;E=NaN, nu=NaN, ρ=0.0)
+    function ElasticPlateMZC(;E=NaN, nu=NaN, thick=NaN, ρ=0.0)
         E>0.0 || error("Invalid value for E: $E")
         (0<=nu<0.5) || error("Invalid value for nu: $nu")
-
-        this = new(E, nu, ρ)
+        thick>0.0 || error("Invalid value for thick: $thick")
+        this = new(E, nu, thick, ρ)
         return this
     end
 end
