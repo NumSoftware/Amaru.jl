@@ -1,4 +1,5 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
+#
 
 # This file includes the code for adding joints between cells
 
@@ -18,7 +19,7 @@ tags.  In this case, the joints get specific tags according to the regions
 they are linking.  Joints can be generated with 2 or 3 `layers`. If provided, all
 middle points in three-layered joints receive a `midnodestag`.
 """
-function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing; intertags::Bool=false, layers::Int64=2, verbose::Bool=true, tag="", midnodestag=nothing)
+function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing; intertags::Bool=false, layers::Int64=2, verbose::Bool=true, tag="", midnodestag="")
 
     verbose && printstyled("Mesh generation of joint elements:\n", bold=true, color=:cyan)
 
