@@ -1,9 +1,11 @@
 
 """
-    revolve(mesh; base=[0,0,0], axis=[0,0,1], minangle=0, maxangle=360, angle=360, n=8)
+    revolve(mesh; base=[0,0,0], axis=[0,0,1], minangle=0, maxangle=360, angle=360, n=8, collapse=true)
 
 Generates a 3D mesh by revolving a 2D `mesh` using a `base` point, 
-a direction `axis`, a rotation `angle` a number `n` of divisions.
+a direction `axis`, a rotation `angle` and a number of divisions `n`.
+If `collapse` is true, elements with concident nodes are collapsed
+into simpler elements with fewer nodes.
 """
 function revolve(mesh::Mesh; 
                  base::AbstractArray{<:Real,1} = [0.0,0.0,0.0],
@@ -11,7 +13,8 @@ function revolve(mesh::Mesh;
                  minangle::Real = 0,
                  maxangle::Real = 360,
                  angle::Real = NaN,
-                 n::Int=8
+                 n::Int=8,
+                 collapse::Bool=true
                 )
     @assert length(axis)==3
     @assert length(base)==3
@@ -32,14 +35,16 @@ function revolve(mesh::Mesh;
     cells = Cell[]
     Δθ = (maxangle-minangle)/n*pi/180
 
-    # move points that lie at the axis
-    #normal = Vec3(axis[2], -axis[1], 0.0) # TODO: improve
-    #for node in mesh.nodes
-        #X = node.coord
-        #if norm( dot(X-base, axis)*axis - X ) < 1e-8
-            #node.coord = node.coord + normal*1e-6
-        #end
-    #end
+    if !collapse
+        # move points that lie at the axis
+        normal = Vec3(axis[2], -axis[1], 0.0) # TODO: improve this strategy
+        for node in mesh.nodes
+            X = node.coord
+            if norm( dot(X-base, axis)*axis - X ) < 1e-8
+                node.coord = node.coord + normal*1e-6
+            end
+        end
+    end
 
     for θ in range(minangle,step=Δθ,length=n)
         θhalf = θ + Δθ/2
@@ -148,32 +153,33 @@ function revolve(mesh::Mesh;
     end
     nodes = collect(values(point_dict))
 
-    # move back points that lied at the axis
-    #for node in mesh.nodes
-        #X = node.coord
-        #if norm( dot(X-base, axis)*axis - X ) < 1.00001e-6
-            #node.coord = round.( dot(X-base, axis)*axis , digits=8)
-        #end
-    #end
+
+    if collapse
+        for elem in cells
+            inaxis = false
+            for node in elem.nodes
+                X = node.coord
+                if norm( dot(X-base, axis)*axis - X ) < 1e-8
+                    inaxis = true
+                    break
+                end
+            end
+            inaxis && Amaru.collapse!(elem)
+        end
+    else
+        # move back points that lied at the axis
+        for node in mesh.nodes
+            X = node.coord
+            if norm( dot(X-base, axis)*axis - X ) < 1.00001e-6
+                node.coord = round.( dot(X-base, axis)*axis , digits=8)
+            end
+        end
+    end
 
     # New mesh
     newmesh = Mesh()
     newmesh.nodes = nodes
     newmesh.elems = cells
-
-    for elem in newmesh.elems
-        inaxis = false
-        for node in elem.nodes
-            X = node.coord
-            if norm( dot(X-base, axis)*axis - X ) < 1e-8
-                inaxis = true
-                break
-                node.coord = node.coord + normal*1e-6
-            end
-        end
-        inaxis && collapse!(elem)
-    end
-
     fixup!(newmesh, reorder=true)
 
     return newmesh
