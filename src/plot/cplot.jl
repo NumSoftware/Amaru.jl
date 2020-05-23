@@ -293,8 +293,8 @@ function cplot0(X, Y, filename=""; xlabel="\$x\$", ylabel="\$y\$", lw=0.7, ls="-
     plt.locator_params(axis="y", nbins=ybins)
 
     # Set limits
-    !isnan(xmax) && plt.xlim(right=xmax)
-    !isnan(ymax) && plt.ylim(top=ymax)
+    #!isnan(xmax) && plt.xlim(right=xmax)
+    #!isnan(ymax) && plt.ylim(top=ymax)
 
     # Print axes labels
     plt.xlabel(xlabel)
