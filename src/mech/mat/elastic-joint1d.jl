@@ -4,14 +4,12 @@ export ElasticJoint1D
 
 mutable struct Joint1DIpState<:IpState
     env::ModelEnv
-    ndim::Int
     σ ::Array{Float64,1}
     u ::Array{Float64,1}
     function Joint1DIpState(env::ModelEnv=ModelEnv())
         this = new(env)
-        ndim = env.ndim
-        this.σ = zeros(ndim)
-        this.u = zeros(ndim)
+        this.σ = zeros(env.ndim)
+        this.u = zeros(env.ndim)
         return this
     end
 end
