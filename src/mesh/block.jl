@@ -47,7 +47,7 @@ mutable struct Block <: AbstractBlock
     tag::String
     id::Int64
 
-    function Block(coords::Array{<:Real}; nx::Int=1, ny::Int=1, nz::Int=0, cellshape=nothing, tag="", id=-1, shape=nothing)
+    function Block(coords::Array{<:Real}; nx::Int=0, ny::Int=0, nz::Int=0, n::Int=0, cellshape=nothing, tag="", id=-1, shape=nothing)
         if shape != nothing
             @warn "Block: argument shape was deprecated. Please use cellshape instead"
             cellshape = shape
@@ -61,22 +61,24 @@ mutable struct Block <: AbstractBlock
         ncol<=3 || error("Block: invalid coordinate matrix")
 
         # Get ndim
-        sum2 = ncol>=2 ? sum(abs, coords[:,2]) : 0.0
-        sum3 = ncol==3 ? sum(abs, coords[:,3]) : 0.0
+        sumy = ncol>=2 ? sum(abs, coords[:,2]) : 0.0
+        sumz = ncol==3 ? sum(abs, coords[:,3]) : 0.0
 
         ndim = 3
-        sum3==0 && (ndim=2)
-        sum2+sum3==0 && (ndim=1)
+        n>0 && (nx=n)
+        sumz==0 && (ndim=2)
+        sumy+sumz==0 && (ndim=1)
+
+        # Check for surface or chord
         surface = ndim==3 && nz==0
-        chord   = ndim>1 && cellshape in shapes1d
-        nz == 0 && (nz=1)
+        chord   = ndim>1 && ny==0 && nz==0
 
         nz==0 && (ndim=2; nz=1)
         ny==0 && (ndim=1; ny=1)
         cellshape in shapes3d && (ndim==3 || error("Block: 3d points are required for cell shape $cellshape"))
 
         if ndim==1 || chord
-            ncoord in (2,3) || error("Block: invalid coordinates matrix rows ($ncoord) for dimension $ndim.")
+            ncoord in (2, 3) || error("Block: invalid coordinates matrix rows ($ncoord) for dimension $ndim or chord.")
             cellshape==nothing && (cellshape=LIN2)
             cellshape in shapes1d || error("Block: invalid cell type $(cellshape.name) for dimension $ndim.")
             nodes = [ Node(coords[i,:]) for i=1:ncoord ]

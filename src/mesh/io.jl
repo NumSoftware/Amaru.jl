@@ -222,15 +222,9 @@ end
 
 
 function read_vtk(filename::String)
-    # Reading file
-    # ============
-
     # read nodal information
     alltext = read(filename, String)
     data    = split(alltext)
-
-    #local npoints, ncells
-    #local coords, connects, cell_types
 
     npoints = 0
     ncells  = 0

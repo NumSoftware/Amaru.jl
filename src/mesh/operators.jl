@@ -371,63 +371,33 @@ function rollaxes!(mesh::Mesh)
             p.coord.x, p.coord.y, p.coord.z = p.coord.z, p.coord.x, p.coord.y
         end
     end
+
+    if length(mesh.node_data)>0 || length(mesh.elem_data)>0
+        @warn "rollaxes!: mesh associated data was not reordered according to new axes."
+    end
 end
 
 
-# TESTING
-function get_surface_alt(cells::Array{Cell,1})
-    # Actually slower....
-    # Get all points
-    pointsd = Dict{UInt64, Node}()
-    for cell in cells
-        for point in cell.nodes
-            pointsd[hash(point)] = point
-        end
-    end
-    points = values(pointsd)
+"""
+    changeaxes!(mesh, order)
 
-    # Get incidence matrix (shares) (fast)
-    np = length(points)
-    N = [ Cell[] for i=1:np]
-    for cell in cells
-        for pt in cell.nodes
-            push!(N[pt.id], cell)
-        end
+Changes the coordinates axes of a `mesh` according to a new `order` given as a string.
+
+# Example
+
+```
+julia> mesh = Mesh(Block([0 0; 1 1], nx=2, ny=2));
+julia> changeaxes!(mesh, "zxy")
+```
+"""
+function changeaxes!(mesh::Mesh, order::String)
+    @assert length(order)==3
+    idxs = [ char-'w' for char in order ]
+    for p in mesh.nodes
+        p.coord[1:3] = p.coord[idxs]
     end
 
-    # Get matrix of cells faces
-    F = [ get_faces(cell) for cell in cells]
-    nc = length(cells)
-    #CF = Array(Array{Array{Int64,1},1}, nc)
-    CF = Array(Array{UInt64,1}, nc)
-    for cell in cells # fast
-        #CF[cell.id] = [ sort([pt.id for pt in face.nodes]) for face in F[cell.id]]
-        CF[cell.id] = [ hash(face) for face in F[cell.id]]
+    if length(mesh.node_data)>0 || length(mesh.elem_data)>0
+        @warn "changeaxes!: mesh associated data was not reordered according to new axes."
     end
-
-    # Get cells boundary flag matrix
-    CB = [ trues(length(CF[cell.id])) for cell in cells]
-    for cell in cells
-        for (i,fcon) in enumerate(CF[cell.id])
-            for pid in fcon
-                for cl in N[pid]
-                    if cl.id == cell.id; continue end
-                    if fcon in CF[cl.id]
-                        CB[cell.id][i] = false
-                    end
-                end
-            end
-        end
-    end
-
-    # Get list of boundary faces (almost fast)
-    facets = Cell[]
-    for cell in cells
-        for (i,face) in enumerate(F[cell.id])
-            if CB[cell.id][i]
-                push!(facets, face)
-            end
-        end
-    end
-    #return facets
 end

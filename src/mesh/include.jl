@@ -28,7 +28,7 @@ include("refine.jl")
 export hrefine, prefine
 
 include("operators.jl")
-export move!, array, copy, mirror, rotate!, polar, rollaxes!, scale!
+export move!, array, copy, mirror, rotate!, polar, scale!, rollaxes!, changeaxes!
 
 include("extrude.jl")
 export extrude
