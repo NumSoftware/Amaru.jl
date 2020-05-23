@@ -215,12 +215,7 @@ function solve!(
             nincs = nincs - (nincs%nouts) + nouts
             @info "  nincs changed to $nincs to be a multiple of nouts"
         end
-
-        strip(outdir) == "" && (outdir = ".")
-        isdir(outdir) || error("solve!: output directory <$outdir> not fount")
-        outdir[end] in ('/', '\\')  && (outdir = outdir[1:end-1])
     end
-
 
     # Get dofs organized according to boundary conditions
     dofs, nu = configure_dofs!(dom, bcs) # unknown dofs first
@@ -243,6 +238,10 @@ function solve!(
 
     # Save initial file and loggers
     if env.cstage==1
+        outdir = strip(outdir, ['/', '\\'])
+        strip(outdir) == "" && (outdir = ".")
+        isdir(outdir) || error("solve!: output directory <$outdir> not found")
+
         update_output_data!(dom)
         update_single_loggers!(dom)
         update_composed_loggers!(dom)
