@@ -67,7 +67,7 @@ function plot_data_for_cell3d(points::Array{Array{Float64,1},1}, shape::ShapeTyp
         verts = points
     elseif shape == TRI6
         verts = points[[1,4,2,5,3,6]]
-    elseif shape == QUAD8
+    elseif shape in (QUAD8, QUAD9)
         verts = points[[1,5,2,6,3,7,4,8]]
     end
     return verts
@@ -126,7 +126,7 @@ function mplot(items::Union{Block, Array}, filename::String=""; args...)
     mesh = Mesh()
     mesh.ndim = ndim
     mesh.nodes = nodes
-    mesh.elems  = cells
+    mesh.elems = cells
     mplot(mesh, filename; args...)
 end
 
@@ -344,17 +344,20 @@ function mplot(
         elem_data  = OrderedDict{String,Array}()
 
         # get surface cells and update
-        scells = get_surface(mesh.elems)
+        volume_cells = [ elem for elem in mesh.elems if elem.shape.ndim==3 ]
+        area_cells = [ elem for elem in mesh.elems if elem.shape.ndim==2 ]
+        scells = get_surface(volume_cells)
         #if haskey(mesh.node_data, "U") && haskey(mesh.node_data, "wn")
             # special case when using cohesive elements
             #scells = get_surface_based_on_displacements(mesh)
         #else
             #scells = get_surface(mesh.elems)
         #end
-        oc_ids = [ c.oelem.id for c in scells ]
-        linecells = [ cell for cell in mesh.elems if cell.shape.family==LINE_SHAPE] # add line cells
-        append!(oc_ids, [c.id for c in linecells])
-        newcells = [ scells; linecells ]
+        linecells = [ cell for cell in mesh.elems if cell.shape.family==LINE_SHAPE]
+
+        oc_ids = [ [c.oelem.id for c in scells]; [c.id for c in linecells]; [c.id for c in area_cells] ]
+
+        newcells = [ scells; area_cells; linecells ]
         newnodes = [ p for c in newcells for p in c.nodes ]
         pt_ids = [ p.id for p in newnodes ]
 
