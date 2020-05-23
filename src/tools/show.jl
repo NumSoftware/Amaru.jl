@@ -24,12 +24,14 @@ export custom_dump
 
 custom_dump(x; maxdepth=2) = custom_dump(stdout, x, maxdepth, "")
 
+not_unrolling_typenames_in_custom_dump = [ "ShapeType" ]
 
-function custom_dump(io::IO, x, maxdepth::Int, indent)
+function custom_dump(io::IO, x, maxdepth::Int, indent::String)
     T = typeof(x)
 
     nf = nfields(x)
 
+    # Prints objects with no fields
     if nf==0 
         print(io, repr(x))
         return
@@ -38,7 +40,7 @@ function custom_dump(io::IO, x, maxdepth::Int, indent)
     print(io, T)
 
     if maxdepth==0
-        if :name in fieldnames(T) && isdefined(x, :name )
+        if :name in fieldnames(T) && isdefined(x, :name)
             print(io, "  name=", repr(getfield(x, :name)))
         end
         if :id in fieldnames(T) && isdefined(x, :id )
@@ -48,18 +50,29 @@ function custom_dump(io::IO, x, maxdepth::Int, indent)
             tag = getfield(x, :tag)
             tag=="" || print(io, "  tag=", repr(tag))
         end
-        return
     end
 
     maxdepth==0 && return
 
     for field in 1:nf
+
         fname = string(fieldname(T, field))
         fname[1]=='_' && continue
         println(io)
+
+
         print(io, indent, "  ", fname, ": ")
-        if isdefined(x,field)
-            custom_dump(io, getfield(x, field), maxdepth-1, indent*"  ")
+
+
+        if isdefined(x, field)
+            fieldvalue = getfield(x, field)
+
+            if string(typeof(fieldvalue)) in not_unrolling_typenames_in_custom_dump
+                custom_dump(io, fieldvalue, 0, indent*"  ")
+                continue
+            end
+
+            custom_dump(io, fieldvalue, maxdepth-1, indent*"  ")
         else
             print(io, "#undef")
         end
@@ -70,10 +83,21 @@ function custom_dump(io::IO, x, maxdepth::Int, indent)
 end
 
 
-custom_dump(io::IO, x::Function, maxdepth::Int, indent) = print(io, "Function ", x)
+custom_dump(io::IO, x::Function, maxdepth::Int, indent::String) = print(io, "Function ", x)
 
 
-function custom_dump(io::IO, x::AbstractDict, maxdepth::Int, indent)
+function custom_dump(io::IO, x::AbstractDict, maxdepth::Int, indent::String)
+    if valtype(x)<:Real || valtype(x)<:AbstractString
+        n = length(x)
+        if n<8 
+            s = repr(x)
+            if length(s)<70
+                show(io, x)
+                return
+            end
+        end
+    end
+
     s = split(summary(x), ".")[end]
     #print(io, summary(x))
     print(io, s)
@@ -88,8 +112,12 @@ end
 
 
 # Print arrays of objects
-function custom_dump(io::IO, x::AbstractArray, maxdepth::Int, indent="")
-    n  = length(x)
+function custom_dump(io::IO, x::AbstractArray, maxdepth::Int, indent::String="")
+    n = length(x)
+    if n==0
+        print(io, summary(x))
+        return
+    end
 
     if eltype(x) <: Number
         if n<20 
