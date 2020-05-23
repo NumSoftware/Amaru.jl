@@ -173,10 +173,10 @@ end
 
 
 function setup_logger!(domain, filter, logger::NodeGroupLogger)
+    logger.filter = filter
     logger.nodes = domain.nodes[filter]
     length(logger.nodes) == 0 && @warn "setup_logger: No nodes found for expression:" filter=logger.filter
     sort!(logger.nodes, by=n->sum(n.coord))
-    logger.filter = filter
 end
 
 

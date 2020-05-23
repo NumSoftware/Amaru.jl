@@ -285,7 +285,7 @@ end
 
 # Get all ips from a collection of elements
 function get_ips(elems::Array{<:Element,1})
-    return [ ip for elem in elems for ip in elem.ips ]
+    return Ip[ ip for elem in elems for ip in elem.ips ]
 end
 
 

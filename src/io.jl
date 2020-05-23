@@ -18,7 +18,7 @@ function save_xml(dom::Domain, filename::String)
     end
 
     # Domain
-    root = Xnode("Domain", attributes)
+    root = Xnode("Domain", attributes=attributes)
 
     # Materials
     xmats = Xnode("Materials")
@@ -253,6 +253,33 @@ function Domain(filename::String)
         matidx = eval(parse(Int,xelem.attributes["material"]))
         elem.mat = materials[matidx]
         nips = length(xelem.children)
+
+        #for (i,xip) in enumerate(xelem.children)
+            #ip = elem.ips[i]
+            #setfields!(ip, xip.attributes, exclude=(:keys, :vals))
+            #keys = Symbol.(split(xip.attributes["keys"], ","))
+            #vals = eval(Meta.parse(xip.attributes["vals"]))
+            #for (fld,val) in zip(keys,vals)
+                #setfield!(elem.ips[i].state, fld, val)
+            #end
+        #end
+        
+        push!(domain.elems, elem)
+    end
+
+    # Setting linked elements
+    for (i,xelem) in enumerate(xelems.children)
+        linked_str = xelem.attributes["linked_elems"]
+        linked_str == "" && continue
+        linked_idx = collect(eval(Meta.parse(linked_str)))
+        domain.elems[i].linked_elems = domain.elems[linked_idx]
+    end
+
+    # Quadrature and initialization
+    for (i,xelem) in enumerate(xelems.children)
+        elem = domain.elems[i]
+        nips = length(xelem.children)
+
         set_quadrature!(elem, nips)
         elem_init(elem)
 
@@ -267,14 +294,6 @@ function Domain(filename::String)
         end
         
         push!(domain.elems, elem)
-    end
-
-    # Setting linked elements
-    for xelem in xelems.children
-        linked_str = (xelem.attributes["linked_elems"])
-        linked_str == "" && continue
-        linked_idx = collect(eval(Meta.parse(linked_str)))
-        domain.elems[i].linked_elems = domain.elems[linked_idx]
     end
 
 

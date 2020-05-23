@@ -330,7 +330,7 @@ function Domain(elems::Array{<:Element,1})
     nodemap = zeros(Int, maximum(node.id for node in nodes))
     for (i,node) in enumerate(nodes)
         nodemap[node.id] = i 
-        node.id = i
+        domain.nodes[i].id = i
     end
 
     # Map for elements
@@ -350,6 +350,7 @@ function Domain(elems::Array{<:Element,1})
 
     # Setting elements
     for (i,elem) in enumerate(elems)
+        #@show elem.nodes
         nodeidxs = [ nodemap[node.id] for node in elem.nodes]
         elemnodes = nodes[nodeidxs]
         newelem = new_element(typeof(elem), elem.shape, elemnodes, elem.tag, domain.env)
@@ -359,15 +360,15 @@ function Domain(elems::Array{<:Element,1})
     end
     
     # Setting linked elements
-    warn = false
+    missing_linked = false
     for (i,elem) in enumerate(elems)
         for lelem in elem.linked_elems
             idx = elemmap[lelem.id]
-            idx==0 && (warn=true; continue)
+            idx==0 && (missing_linked=true; continue)
             push!(domain.elems[i].linked_elems, domain.elems[idx])
         end
     end
-    warn && @warn "Domain: Missing linked elements while generating a domain from a list of elements."
+    missing_linked && error("Domain: Missing linked elements while generating a domain from a list of elements.")
 
     # Setting quadrature
     ip_id = 0

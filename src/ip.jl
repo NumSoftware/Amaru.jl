@@ -106,7 +106,7 @@ end
 
 
 function Base.getindex(ips::Array{Ip,1}, s::String)
-    return [ ip for ip in ips if ip.tag==s ]
+    return Ip[ ip for ip in ips if ip.tag==s ]
 end
 
 
