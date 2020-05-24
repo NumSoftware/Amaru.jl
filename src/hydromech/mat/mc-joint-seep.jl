@@ -47,12 +47,13 @@ mutable struct MCJointSeep<:Material
     η  ::Float64       # viscosity
     kt ::Float64       # transverse leak-off coefficient
     kl ::Float64       # initial fracture opening (longitudinal flow)
+    fracture::String   # pre-existing fracture ("y" or "n")
 
     function MCJointSeep(prms::Dict{Symbol,Float64})
         return  MCJointSeep(;prms...)
     end
 
-     function MCJointSeep(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", k=NaN, kappa=NaN, gammaw=NaN, alpha=1.0, S=0.0, n=NaN, Ks=NaN, Kw=NaN, eta=NaN, kt=NaN, kl=0.0)  
+     function MCJointSeep(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", k=NaN, kappa=NaN, gammaw=NaN, alpha=1.0, S=0.0, n=NaN, Ks=NaN, Kw=NaN, eta=NaN, kt=NaN, kl=0.0, fracture="n")  
 
         !(isnan(GF) || GF>0) && error("Invalid value for GF: $GF")
         !(isnan(Gf) || Gf>0) && error("Invalid value for Gf: $Gf")
@@ -81,7 +82,7 @@ mutable struct MCJointSeep<:Material
 
         if isnan(S) 
             S = (alpha - n)/Ks + n/Kw # S = (alpha - porosity)/(bulk module of the solid) + (porosity)/(bulk module of the fluid) 
-        end
+        end  
 
         E>0.0       || error("Invalid value for E: $E")
         0<=nu<0.5   || error("Invalid value for nu: $nu")
@@ -98,8 +99,9 @@ mutable struct MCJointSeep<:Material
         eta>=0      || error("Invalid value for eta: $eta")
         kt>=0       || error("Invalid value for kt: $kt")
         kl>=0       || error("Invalid value for kl: $kl")
+        (fracture=="y" || fracture=="n") || error("Invalid fracture: fracture must to be y or n")
 
-        this = new(E, nu, ft, mu, zeta, wc, ws, softcurve, k, gammaw, alpha, S, eta, kt, kl)
+        this = new(E, nu, ft, mu, zeta, wc, ws, softcurve, k, gammaw, alpha, S, eta, kt, kl, fracture)
         return this
     end
 end
@@ -341,6 +343,11 @@ function mountD(mat::MCJointSeep, ipd::MCJointSeepIpState)
 
     ndim = ipd.env.ndim
     kn, ks, De = calc_kn_ks_De(mat, ipd)
+
+    if mat.fracture == "y" 
+        ipd.upa = mat.wc
+    end 
+
     σmax = calc_σmax(mat, ipd, ipd.upa)
 
     if ipd.Δλ == 0.0  # Elastic 
@@ -379,6 +386,11 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
     σini = copy(ipd.σ)
 
     kn, ks, De = calc_kn_ks_De(mat, ipd)
+
+    if mat.fracture == "y" 
+        ipd.upa = mat.wc
+    end 
+    
     σmax = calc_σmax(mat, ipd, ipd.upa) 
 
     if isnan(Δw[1]) || isnan(Δw[2])
