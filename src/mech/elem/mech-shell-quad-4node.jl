@@ -231,11 +231,11 @@ function elem_config_dofs(elem::ShellQuad4node)
     ndim == 1 && error("ShellQuad4node: Shell elements do not work in 1d analyses")
     #if ndim==2
         for node in elem.nodes
-            add_dof(node, :rx, :mx)
-            add_dof(node, :ry, :my)
             add_dof(node, :ux, :fx)
             add_dof(node, :uy, :fy)
             add_dof(node, :uz, :fz)
+            add_dof(node, :rx, :mx)
+            add_dof(node, :ry, :my)
         end
     #else
         #error("ShellQuad4node: Shell elements do not work in this analyses")
