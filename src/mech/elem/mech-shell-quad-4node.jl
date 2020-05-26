@@ -20,19 +20,6 @@ end
 
 matching_shape_family(::Type{ShellQuad4node}) = SOLID_SHAPE
 
-# the strain-displacement matrix for membrane forces
-function D_matrixm(elem::ShellQuad4node)
-
-    coef1 = elem.mat.E*elem.mat.thick/(1-elem.mat.nu^2)
-    coef2 = elem.mat.nu*coef1
-    coef3 = elem.mat.E*elem.mat.thick/2/(1+elem.mat.nu)
-
-        D_matm = [coef1  coef2 0
-                  coef2  coef1 0
-                  0      0     coef3];
-    return D_matm
-end
-
 function distributed_bc(elem::ShellQuad4node, facet::Union{Facet, Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     th    = elem.env.thickness
@@ -107,16 +94,17 @@ function distributed_bc(elem::ShellQuad4node, facet::Union{Facet, Nothing}, key:
     return reshape(F', nnodes*ndim), map
 end
 
+# the strain-displacement matrix for membrane forces
+function D_matrixm(elem::ShellQuad4node)
 
-# the strain-displacement matrix for shear forces
+    coef1 = elem.mat.thick*elem.mat.E/(1-elem.mat.nu^2)
+    coef2 = elem.mat.nu*coef1
+    coef3 = coef1*(1-elem.mat.nu)/2
 
-function D_matrixs(elem::ShellQuad4node)
-
-    coef = (5/6)*elem.mat.E*elem.mat.thick/2/(1+elem.mat.nu)
-
-            D_mats = [coef    0
-                        0     coef];
-    return D_mats
+        D_matm = [coef1  coef2 0
+                  coef2  coef1 0
+                  0      0     coef3];
+    return D_matm
 end
 
 # the strain-displacement matrix for bending moments
@@ -129,19 +117,16 @@ function D_matrixb(elem::ShellQuad4node)
     return D_matb
 end
 
-#=
-function cell_extent(c::AbstractCell)
-        IP = get_ip_coords(c.shape)
-        nip = size(IP,1)
-        nldim = c.shape.ndim # cell basic dimension
+# the strain-displacement matrix for shear forces
 
-        # get coordinates matrix
-        Cxyz =get_coords(c)
-      return Cxyz
-    println(Cxyz)
+function D_matrixs(elem::ShellQuad4node)
+
+    coef = elem.mat.thick*(5/6)*elem.mat.E/(2*(1+elem.mat.nu))
+
+            D_mats = [coef    0
+                        0     coef];
+    return D_mats
 end
-
-=#
 
 
 # Rotation Matrix
@@ -153,8 +138,6 @@ function RotMatrix(elem::ShellQuad4node)
     vxe = zeros(3,1)
     vye = zeros(3,1)
     vze = zeros(3,1)
-
-
 
     cxyz = get_coords(elem)
 
@@ -431,21 +414,21 @@ function elem_stiffness(elem::ShellQuad4node)
                 xjacm[2,1] = x[1]*dyNl[1] + x[2]*dyNl[2] + x[3]*dyNl[3] + x[4]*dyNl[4];
                 xjacm[2,2] = y[1]*dyNl[1] + y[2]*dyNl[2] + y[3]*dyNl[3] + y[4]*dyNl[4];
 
-                jpos = [ i*2-1  i*2 ];
+                jpos = [i*2-1  i*2];
 
                 c[jpos,jpos] = xjacm;
 
                 bmat_s1  = [ dxN[1] -N[1]    0
-                    dyN[1]     0 -N[1]];
+                             dyN[1]     0 -N[1]];
 
                     bmat_s2  = [ dxN[2] -N[2]    0
-                    dyN[2]     0 -N[2]];
+                                 dyN[2]     0 -N[2]];
 
                     bmat_s3  = [ dxN[3] -N[3]    0
-                    dyN[3]     0 -N[3]];
+                                 dyN[3]     0 -N[3]];
 
                     bmat_s4  = [ dxN[4] -N[4]    0
-                    dyN[4]     0 -N[4]];
+                                 dyN[4]     0 -N[4]];
 
                     bmat_s = [bmat_s1 bmat_s2 bmat_s3 bmat_s4];
 
@@ -454,31 +437,31 @@ function elem_stiffness(elem::ShellQuad4node)
                 end
                 #-----------------------------
                     T_mat = [ 1  0  0  0  0  0  0  0
-                    0  0  0  1  0  0  0  0
-                    0  0  0  0  1  0  0  0
-                    0  0  0  0  0  0  0  1 ];
+                              0  0  0  1  0  0  0  0
+                              0  0  0  0  1  0  0  0
+                              0  0  0  0  0  0  0  1 ];
 
                     P_mat = [ 1  -1   0   0
-                    0   0   1   1
-                    1   1   0   0
-                    0   0   1  -1 ];
+                              0   0   1   1
+                              1   1   0   0
+                              0   0   1  -1 ];
 
                     A_mat = [ 1  ygs  0    0
-                    0    0  1  xgs ];
+                              0    0  1  xgs ];
 
                     bmat_ss = xjaci * A_mat * inv(P_mat) * T_mat * c * b_bar
 
                     bmat_s1 = [0  0 bmat_ss[1, 1]
-                    0  0 bmat_ss[2, 1]];
+                               0  0 bmat_ss[2, 1]];
 
                     bmat_s2 = [0  0 bmat_ss[1, 4]
-                    0  0 bmat_ss[2, 4]];
+                               0  0 bmat_ss[2, 4]];
 
                     bmat_s3 = [0  0 bmat_ss[1, 7]
-                    0  0 bmat_ss[2, 7]];
+                               0  0 bmat_ss[2, 7]];
 
                     bmat_s4 = [0  0 bmat_ss[1,10]
-                    0  0 bmat_ss[2,10]];
+                               0  0 bmat_ss[2,10]];
 
                     bmat_s1 = [bmat_s1*Rot bmat_ss[:,2:3]];
 
@@ -497,13 +480,11 @@ function elem_stiffness(elem::ShellQuad4node)
 
                     K_elem += K_b + K_m + K_s
 
-
             end
         map = elem_map(elem)
 
     return K_elem, map, map
 end
-
 
 function elem_update!(elem::ShellQuad4node, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
