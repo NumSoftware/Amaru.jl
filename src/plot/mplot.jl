@@ -131,7 +131,7 @@ function mplot(items::Union{Block, Array}, filename::String=""; args...)
 end
 
 
-function get_main_edges(cells::Array{<:AbstractCell,1}, angle=30)
+function get_main_edges(cells::Array{<:AbstractCell,1}, angle=120)
     edge_dict  = Dict{UInt64,Cell}()
     faces_dict = Dict{UInt64,Int}( hash(f)=>i for (i,f) in enumerate(cells) )
     main_edges = Cell[]
@@ -152,8 +152,13 @@ function get_main_edges(cells::Array{<:AbstractCell,1}, angle=30)
                 n1 = normals[face_idx] # normal from face
                 face0_idx = faces_dict[hash(edge0.oelem)]
                 n2 = normals[face0_idx] # normal from edge0's parent
-                α =acos( abs(clamp(dot(n1,n2),-1,1)) )*180/pi
-                α>angle && push!(main_edges, edge)
+                α = 180 - acos( abs(clamp(dot(n1,n2),-1,1)) )*180/pi
+                α = round(α, digits=2)
+                #if α!=0
+                    #@show α
+                #end
+                #@show angle
+                angle<=α && push!(main_edges, edge)
             end
         end
     end
@@ -223,9 +228,6 @@ function get_surface_based_on_displacements(mesh::Mesh)
             end
         end
     end
-
-
-
 
     return [ face for face in values(surf_dict) ]
 
@@ -311,6 +313,7 @@ function mplot(
                fieldlims        = (),
                vectorfield      = nothing,
                arrowscale       = 0.0,
+               opacity          = 1.0,
                colormap         = nothing,
                colorbarscale    = 0.9,
                colorbarlabel    = "",
@@ -558,7 +561,7 @@ function mplot(
             end
             plt.plot(X, Y, Z, color=color, lw=1.0)
         end
-        cltn = @eval art3D[:Line3DCollection]($all_verts, cmap=$cmap, lw=1)
+        cltn = @eval art3D[:Line3DCollection]($all_verts, cmap=$cmap, lw=0.7, edgecolor="red")
         if has_field
             cltn.set_array(lfvals)
             cltn.set_clim(fieldlims)
@@ -581,7 +584,7 @@ function mplot(
         edgecolor = (0.4, 0.4, 0.4, 1.0)
 
         # Plot main edges
-        filename == "" && (outline = false)
+        filename == "" && (outline=false)
         if outline
             edges = get_main_edges(cells, outlineangle)
             θ, γ = (azim+0)*pi/180, elev*pi/180
@@ -590,7 +593,7 @@ function mplot(
             for edge in edges
                 #p1 = edge.nodes[1]
                 #p2 = edge.nodes[2]
-                #verts = [ [ p1.x, p1.y, p1.z ], [ p2.x, p2.y, p2.z ] ]
+                #verts = [ p1.coord, p2.coord ]
                 id1 = edge.nodes[1].id
                 id2 = edge.nodes[2].id
                 verts = [ XYZ[id_dict[id1],:], XYZ[id_dict[id2],:] ]
@@ -602,7 +605,8 @@ function mplot(
             edgecolor = [ fill((0.4, 0.4, 0.4, 1.0), ncells) ; fill((0.20, 0.20, 0.20, 1.0), length(edges)) ]
         end
 
-        cltn = @eval art3D[:Poly3DCollection]($all_verts, cmap=$cmap, facecolor="aliceblue", edgecolor=$edgecolor, lw=$lw, alpha=$alpha)
+        facecolor = (0.94, 0.97, 1.0, opacity)
+        cltn = @eval art3D[:Poly3DCollection]($all_verts, cmap=$cmap, facecolor=$facecolor, edgecolor=$edgecolor, lw=$lw, alpha=$alpha)
 
         if has_field
             if outline
@@ -695,9 +699,19 @@ function mplot(
     # Draw nodes
     if nodemarkers
         if ndim==3
-            ax.scatter(X, Y, Z, color="k", marker="o", s=1)
+            ax.scatter(X, Y, Z, color="black", marker="o", s=1)
         else
             plt.plot(X, Y, color="black", marker="o", markersize=3, lw=0)
+        end
+    end
+
+    # Node markers on line cells
+    ids = unique!([ id for i=1:ncells for id in connect[i] if cells[i].shape.family==LINE_SHAPE ])
+    if length(ids)>0
+        if ndim==3
+            ax.scatter(X[ids], Y[ids], Z[ids], color="black", marker="o", s=1)
+        else
+            plt.plot(X[ids], Y[ids], color="black", marker="o", markersize=3, lw=0)
         end
     end
 
