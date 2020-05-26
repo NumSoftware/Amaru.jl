@@ -1,8 +1,8 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export ShellQuad4node
+export ShellQUAD4
 
-mutable struct ShellQuad4node<:Mechanical
+mutable struct ShellQUAD4<:Mechanical
     id    ::Int
     shape ::ShapeType
     nodes ::Array{Node,1}
@@ -13,14 +13,14 @@ mutable struct ShellQuad4node<:Mechanical
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function ShellQuad4node()
+    function ShellQUAD4()
         return new()
     end
 end
 
-matching_shape_family(::Type{ShellQuad4node}) = SOLID_SHAPE
+matching_shape_family(::Type{ShellQUAD4}) = SOLID_SHAPE
 
-function distributed_bc(elem::ShellQuad4node, facet::Union{Facet, Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::ShellQUAD4, facet::Union{Facet, Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     th    = elem.env.thickness
     suitable_keys = (:tx, :ty, :tz, :tn)
@@ -95,7 +95,7 @@ function distributed_bc(elem::ShellQuad4node, facet::Union{Facet, Nothing}, key:
 end
 
 # the strain-displacement matrix for membrane forces
-function D_matrixm(elem::ShellQuad4node)
+function D_matrixm(elem::ShellQUAD4)
 
     coef1 = elem.mat.thick*elem.mat.E/(1-elem.mat.nu^2)
     coef2 = elem.mat.nu*coef1
@@ -108,7 +108,7 @@ function D_matrixm(elem::ShellQuad4node)
 end
 
 # the strain-displacement matrix for bending moments
-function D_matrixb(elem::ShellQuad4node)
+function D_matrixb(elem::ShellQUAD4)
 
     D_matm = D_matrixm(elem)
 
@@ -119,7 +119,7 @@ end
 
 # the strain-displacement matrix for shear forces
 
-function D_matrixs(elem::ShellQuad4node)
+function D_matrixs(elem::ShellQUAD4)
 
     coef = elem.mat.thick*(5/6)*elem.mat.E/(2*(1+elem.mat.nu))
 
@@ -131,7 +131,7 @@ end
 
 # Rotation Matrix
 
-function RotMatrix(elem::ShellQuad4node)
+function RotMatrix(elem::ShellQUAD4)
 
     v12 = zeros(3,1)
     v13 = zeros(3,1)
@@ -209,9 +209,9 @@ function RotMatrix(elem::ShellQuad4node)
 end
 
 
-function elem_config_dofs(elem::ShellQuad4node)
+function elem_config_dofs(elem::ShellQUAD4)
     ndim = elem.env.ndim
-    ndim == 1 && error("ShellQuad4node: Shell elements do not work in 1d analyses")
+    ndim == 1 && error("ShellQUAD4: Shell elements do not work in 1d analyses")
     #if ndim==2
         for node in elem.nodes
             add_dof(node, :ux, :fx)
@@ -221,7 +221,7 @@ function elem_config_dofs(elem::ShellQuad4node)
             add_dof(node, :ry, :my)
         end
     #else
-        #error("ShellQuad4node: Shell elements do not work in this analyses")
+        #error("ShellQUAD4: Shell elements do not work in this analyses")
         #=
         for node in elem.nodes
             add_dof(node, :ux, :fx)
@@ -235,7 +235,7 @@ function elem_config_dofs(elem::ShellQuad4node)
     #end
 end
 
-function elem_map(elem::ShellQuad4node)::Array{Int,1}
+function elem_map(elem::ShellQUAD4)::Array{Int,1}
 
     #if elem.env.ndim==2
     #    dof_keys = (:ux, :uy, :uz, :rx, :ry)
@@ -249,7 +249,7 @@ function elem_map(elem::ShellQuad4node)::Array{Int,1}
 
 end
 
-function elem_stiffness(elem::ShellQuad4node)
+function elem_stiffness(elem::ShellQUAD4)
 
     nnodes = length(elem.nodes)
 
@@ -486,7 +486,7 @@ function elem_stiffness(elem::ShellQuad4node)
     return K_elem, map, map
 end
 
-function elem_update!(elem::ShellQuad4node, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
+function elem_update!(elem::ShellQUAD4, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
     dU  = U[map]
     F[map] += K*dU

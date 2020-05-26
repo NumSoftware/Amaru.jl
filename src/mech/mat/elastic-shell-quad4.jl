@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export ElasticShellQuad4node
+export ElasticShellQUAD4
 
 mutable struct ElasticShellQuad4nodeIpState<:IpState
     env::ModelEnv
@@ -9,16 +9,16 @@ mutable struct ElasticShellQuad4nodeIpState<:IpState
     end
 end
 
-mutable struct ElasticShellQuad4node<:Material
+mutable struct ElasticShellQUAD4<:Material
     E::Float64
     nu::Float64
     thick::Float64
 
-    function ElasticShellQuad4node(prms::Dict{Symbol,Float64})
-        return  ElasticShellQuad4node(;prms...)
+    function ElasticShellQUAD4(prms::Dict{Symbol,Float64})
+        return  ElasticShellQUAD4(;prms...)
     end
 
-    function ElasticShellQuad4node(;E=NaN, nu=NaN, thick=0.1)
+    function ElasticShellQUAD4(;E=NaN, nu=NaN, thick=0.1)
         E>0.0 || error("Invalid value for E: $E")
         (0<=nu<0.5) || error("Invalid value for nu: $nu")
         thick >0.0 || error("Invalid value for thick: $thick")
@@ -27,11 +27,11 @@ mutable struct ElasticShellQuad4node<:Material
     end
 end
 
-matching_elem_type(::ElasticShellQuad4node) = ShellQuad4node
+matching_elem_type(::ElasticShellQUAD4) = ShellQUAD4
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticShellQuad4node) = ElasticShellQuad4nodeIpState
+ip_state_type(mat::ElasticShellQUAD4) = ElasticShellQuad4nodeIpState
 
-function ip_state_vals(mat::ElasticShellQuad4node, ipd::ElasticShellQuad4nodeIpState)
+function ip_state_vals(mat::ElasticShellQUAD4, ipd::ElasticShellQuad4nodeIpState)
     return OrderedDict{Symbol, Float64}()
 end
