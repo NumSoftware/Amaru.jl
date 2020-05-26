@@ -16,7 +16,7 @@ include("elem/mech-joint1d.jl")
 include("elem/mech-plate-mzc-quad4.jl")
 include("elem/mech-plate-rm-quad4.jl")
 include("elem/mech-plate-rm-quad8.jl")
-include("elem/mech-shell-quad-quad4.jl")
+include("elem/mech-shell-quad4.jl")
 
 # Models for bulk elements
 include("mat/elastic-solid.jl")
