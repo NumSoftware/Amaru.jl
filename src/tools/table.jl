@@ -357,7 +357,7 @@ function DataBook(filename::String)
                 continue
             end
             if header_expected # add new table
-                header = [ key for key in split(line, delim) ]
+                header = [ strip(key) for key in split(line, delim) ]
                 push!(book.tables, DataTable(header))
                 header_expected = false
                 continue
