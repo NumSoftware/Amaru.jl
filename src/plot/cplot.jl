@@ -350,9 +350,9 @@ Plots a pyplot line chart.
 
 `legendloc      = "best"` : legend location in plot
 
-`xbins          = 6` : number of bins in x
+`xbins          = 10` : number of bins in x
 
-`ybins          = 6` : number of bins in y
+`ybins          = 10` : number of bins in y
 
 `grid           = false` : grid
 
@@ -410,7 +410,7 @@ cplot([
       ],
       "plot.pdf",
       xlabel="\$x\$", ylabel="\$y\$", legendloc="best",
-      xbins=6, ybins=6, grid=false, figsize=(3,2), legendexpand=false, ncol=0,
+      xbins=6, ybins=6, grid=true, figsize=(3,2), legendexpand=false, ncol=0,
       xlim=(0,20), xscale="linear", yscale="log",
       fontsize=7, legendfontsize=0, labelspacing=0.5
      )
@@ -422,9 +422,9 @@ function cplot(data::Array{<:NamedTuple},
                xlabel           = L"x",
                ylabel           = L"y",
                legendloc        = "best",
-               xbins            = 6,
-               ybins            = 6,
-               grid             = false,
+               xbins            = 10,
+               ybins            = 10,
+               grid             = true,
                figsize          = (3,2),
                legendexpand     = false,
                ncol             = 0,
@@ -440,7 +440,7 @@ function cplot(data::Array{<:NamedTuple},
     if filename==""
         printstyled("cplot: generating plot\n", color=:cyan )
     else
-        printstyled("mplot: generating plot to file $filename\n", color=:cyan )
+        printstyled("cplot: generating plot to file $filename\n", color=:cyan )
     end
     wrap(str::String) = (str=replace(str, r"(\s|\n)+" => " "); replace(str, r".{1,60}( |$)" => s"    \0\n");)
     options = "xlabel, ylabel, legendloc, xbins, ybins, grid, figsize, legendexpand, ncol,
@@ -580,7 +580,7 @@ function cplot(data::Array{<:NamedTuple},
     end
 
 
-    grid && plt.grid( color="lightgrey", ls="dotted", lw=0.3)
+    grid && plt.grid(color="lightgrey", which="both", ls="dotted", lw=0.3)
     xscale=="linear" && plt.locator_params(axis="x", nbins=xbins)
     yscale=="linear" && plt.locator_params(axis="y", nbins=ybins)
 
