@@ -180,7 +180,7 @@ function solve!(
                 Ttol    :: Number  = 1e-9,
                 scheme  :: Symbol  = :FE,
                 nouts   :: Int     = 0,
-                outdir  :: String  = "",
+                outdir  :: String  = ".",
                 filekey :: String  = "out",
                 verbose :: Bool    = false,
                 silent  :: Bool    = false,
@@ -236,12 +236,11 @@ function solve!(
         end
     end
 
+    outdir = strip(outdir, ['/', '\\'])
+    isdir(outdir) || error("solve!: output directory <$outdir> not found")
+
     # Save initial file and loggers
     if env.cstage==1
-        outdir = strip(outdir, ['/', '\\'])
-        strip(outdir) == "" && (outdir = ".")
-        isdir(outdir) || error("solve!: output directory <$outdir> not found")
-
         update_output_data!(dom)
         update_single_loggers!(dom)
         update_composed_loggers!(dom)
@@ -270,11 +269,15 @@ function solve!(
     ΔUi  = zeros(ndofs)  # vector of essential values for current iteration
 
     # Get unbalanced forces
-    Fin = zeros(ndofs)
-    for elem in dom.elems
-        elem_internal_forces(elem, Fin)
+    if env.cstage==1
+        Fin = zeros(ndofs)
+        for elem in dom.elems
+            elem_internal_forces(elem, Fin)
+        end
+        Fex .-= Fin # add negative forces to external forces vector
+        #@show Fin
+        #@show maximum(abs.(Fin))
     end
-    Fex .-= Fin # add negative forces to external forces vector
 
     local K::SparseMatrixCSC{Float64,Int64}
 
