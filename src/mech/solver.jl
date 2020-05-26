@@ -275,8 +275,6 @@ function solve!(
             elem_internal_forces(elem, Fin)
         end
         Fex .-= Fin # add negative forces to external forces vector
-        #@show Fin
-        #@show maximum(abs.(Fin))
     end
 
     local K::SparseMatrixCSC{Float64,Int64}
