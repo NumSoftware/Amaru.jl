@@ -292,7 +292,7 @@ mutable struct SegmentLogger<:ComposedLogger
     # logger = [  (X1,X2) => SegmentLogger()  ]
     # logger = [  ([1,2,3],[1,2,3]) => SegmentLogger()  ]
 
-    function SegmentLogger(filename::String="", n=20)
+    function SegmentLogger(filename::String=""; n=20)
         return new(filename, ([0,0,0],[0,0,0]), DataBook(), n, [], [])
     end
 end
