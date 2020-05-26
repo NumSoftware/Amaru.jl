@@ -20,38 +20,40 @@ FILES = [
     "mesh/extrapolation.jl",
     "mesh/smoothing.jl",
     "mesh/revolve.jl",
-    "mesh/plotting.jl",
+
+    # Plotting
+    "plot/mplot.jl",
 
     # Tools
     "tools/show.jl",
     "tools/logger.jl",
 
-    # Static analysis: solid models
-    "mech/solid/elastic-elems.jl",
-    "mech/solid/elastic-hex8.jl",
-    "mech/solid/axisymmetric.jl",
-    "mech/solid/dp.jl",
-    "mech/solid/vm.jl",
-    "mech/solid/mazars.jl",
-    #"mech/solid/sc.jl",
-    #"mech/solid/sc-beam.jl",
+    # Static analysis: bulk elements
+    "mech/elem/elastic-elems.jl",
+    "mech/elem/elastic-hex8.jl",
+    "mech/elem/axisymmetric.jl",
+    "mech/mat/dp.jl",
+    "mech/mat/vm.jl",
+    "mech/mat/mazars.jl",
+    #"mech/mat/sc.jl",
+    #"mech/mat/sc-beam.jl",
 
     # Static analysis: rod models
-    "mech/rod/truss.jl",
-    "mech/rod/pprod.jl",
+    "mech/elem/rod/truss.jl",
+    "mech/elem/rod/pprod.jl",
 
     # Static analysis: beam models
     #"mech/beam/beam.jl",
 
     # Static analysis: joint models
-    "mech/joint/joint1d.jl",
-    "mech/joint/joint2d.jl",
+    "mech/elem/joint/joint1d.jl",
+    "mech/elem/joint/joint2d.jl",
     #"mech/joint/joint2d_tag.jl",
     #"mech/joint/joint3d_tag.jl",
 
     # Static analysis: embeddeed and semi-embedded elements
-    "mech/inset/embedded.jl",
-    "mech/inset/ceb.jl",
+    "mech/elem/inset/embedded.jl",
+    "mech/elem/inset/ceb.jl",
 
     # Dynamic analysis:
     "mech/dynamic/dyn-spring.jl",
