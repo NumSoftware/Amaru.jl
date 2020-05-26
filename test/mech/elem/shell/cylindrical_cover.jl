@@ -7,7 +7,7 @@ msh = revolve(msh, angle=180, n=40)
 
 # Finite element model
 
-mats = [ "shell" => ElasticShellQuad4node(E=300, nu=0.3, thick = 3) ]
+mats = [ "shell" => ElasticShellQUAD4(E=300, nu=0.3, thick = 3) ]
 
 dom = Domain(msh, mats)
 

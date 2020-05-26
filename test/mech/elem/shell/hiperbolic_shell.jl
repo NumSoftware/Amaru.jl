@@ -30,7 +30,7 @@ msh = Mesh(blt, silent=true)
 
 # Finite element model
 
-mats = [ "shell" => ElasticShellQuad4node(E=2.85E4, nu=0.4, thick = 0.8) ]
+mats = [ "shell" => ElasticShellQUAD4(E=2.85E4, nu=0.4, thick = 0.8) ]
 
 dom = Domain(msh, mats)
 
