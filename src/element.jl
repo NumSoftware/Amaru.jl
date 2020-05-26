@@ -215,6 +215,8 @@ end
 
 # Define the state at all integration points in a collection of elements
 function setstate!(elems::Array{<:Element,1}; args...)
+    length(elems)==0 && @warn "setstate!: Setting state to an empty array of elements."
+
     greek = Dict(
                  :sigma => :σ,
                  :epsilon => :ε,
