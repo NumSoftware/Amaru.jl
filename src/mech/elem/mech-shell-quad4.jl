@@ -474,11 +474,11 @@ function elem_stiffness(elem::ShellQUAD4)
                     bmat_s = [bmat_s1 bmat_s2 bmat_s3 bmat_s4]
 
                     #-----------------------------
-                    K_b = bmat_b'*D_matb*bmat_b*area*gauss_w[igaus];
-                    K_m = bmat_m'*D_matm*bmat_m*area*gauss_w[igaus];
-                    K_s = bmat_s'*D_mats*bmat_s*area*gauss_w[igaus];
+                     K_b = bmat_b'*D_matb*bmat_b*area*gauss_w[igaus];
+                     K_m = bmat_m'*D_matm*bmat_m*area*gauss_w[igaus];
+                     K_s = bmat_s'*D_mats*bmat_s*area*gauss_w[igaus];
 
-                    K_elem += K_b + K_m + K_s
+                     K_elem += K_b + K_m + K_s
 
             end
         map = elem_map(elem)
