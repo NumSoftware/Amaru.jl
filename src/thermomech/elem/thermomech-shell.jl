@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-mutable struct TMSolid<:Thermomechanical
+mutable struct TMShell<:Thermomechanical
     id    ::Int
     shape ::ShapeType
 
@@ -12,14 +12,14 @@ mutable struct TMSolid<:Thermomechanical
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function TMSolid();
+    function TMShell();
         return new()
     end
 end
 
-matching_shape_family(::Type{TMSolid}) = SOLID_SHAPE
+matching_shape_family(::Type{TMShell}) = SOLID_SHAPE
 
-function elem_config_dofs(elem::TMSolid)
+function elem_config_dofs(elem::TMShell)
     nbnodes = elem.shape.basic_shape.npoints
     for (i, node) in enumerate(elem.nodes)
             add_dof(node, :ux, :fx)
@@ -31,12 +31,12 @@ function elem_config_dofs(elem::TMSolid)
     end
 end
 
-function elem_init(elem::TMSolid)
+function elem_init(elem::TMShell)
     nothing
 end
 
 
-function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::TMShell, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     th    = elem.env.thickness
     suitable_keys = (:tx, :ty, :tz, :tn, :tq)
@@ -142,7 +142,7 @@ end
 end
 
 
-function elem_stiffness(elem::TMSolid)
+function elem_stiffness(elem::TMShell)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
@@ -181,7 +181,7 @@ end
 
 
 # matrix C
-function elem_coupling_matrix(elem::TMSolid)
+function elem_coupling_matrix(elem::TMShell)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
@@ -222,7 +222,7 @@ function elem_coupling_matrix(elem::TMSolid)
 end
 
 # thermal conductivity
-function elem_conductivity_matrix(elem::TMSolid)
+function elem_conductivity_matrix(elem::TMShell)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
@@ -256,7 +256,7 @@ function elem_conductivity_matrix(elem::TMSolid)
     return H, map, map
 end
 
-function elem_mass_matrix(elem::TMSolid)
+function elem_mass_matrix(elem::TMShell)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
@@ -288,7 +288,7 @@ function elem_mass_matrix(elem::TMSolid)
 end
 
 #=
-function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Float64,1})
+function elem_internal_forces(elem::TMShell, F::Array{Float64,1}, DU::Array{Float64,1})
     ndim   = elem.env.ndim
     th     = elem.env.thickness # VERIFICAR ESPESSURA
     nnodes = length(elem.nodes)
@@ -356,7 +356,7 @@ end
 =#
 
 
-function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::TMShell, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     T0     = elem.env.T0 + 273.15
