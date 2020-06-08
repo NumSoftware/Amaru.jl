@@ -59,15 +59,16 @@ function elem_config_dofs(elem::TMShell)
     #end
 end
 
+
 function elem_init(elem::TMShell)
     nothing
 end
 
 
-function distributed_bc(elem::TMShell, facet::Union{Facet, Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::TMShell, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     th    = elem.env.thickness
-    suitable_keys = (:tx, :ty, :tz, :tn)
+    suitable_keys = (:tx, :ty, :tz, :tn, :tq)
 
     # Check keys
     key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
@@ -91,6 +92,32 @@ function distributed_bc(elem::TMShell, facet::Union{Facet, Nothing}, key::Symbol
     F     = zeros(nnodes, ndim)
     shape = target.shape
     ips   = get_ip_coords(shape)
+
+    if key == :tq # energy per area
+        for i=1:size(ips,1)
+            R = vec(ips[i,:])
+            w = R[end]
+            N = shape.func(R)
+            D = shape.deriv(R)
+            J = D*C
+            nJ = norm2(J)
+            X = C'*N
+            if ndim==2
+                x, y = X
+                vip = eval_arith_expr(val, t=t, x=x, y=y)
+            else
+                x, y, z = X
+                vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
+            end
+            coef = vip*nJ*w
+            F .+= N*coef # F is a vector
+        end
+
+        # generate a map
+        map  = [ node.dofdict[:ut].eq_id for node in target.nodes ]
+
+        return F, map
+    end
 
     for i=1:size(ips,1)
         R = vec(ips[i,:])
@@ -739,6 +766,7 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, DF::Array{Float64,1},
         Nt = elem.shape.basic_shape.func(ip.R)
 
         # compute Δε
+        
         @gemv Δε = Bu*dU
 
         # compute Δut
