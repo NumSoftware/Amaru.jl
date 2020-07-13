@@ -75,9 +75,9 @@ function eigvals(T::Tensor2)::Vect
     s3 = i1/3 + r*cos(θ - 4*π/3)
 
     # sorting
-    if s1<s2 s1,s2 = s2,s1 end
-    if s2<s3 s2,s3 = s3,s2 end
-    if s1<s2 s1,s2 = s2,s1 end
+    if s1<s2; s1,s2 = s2,s1 end
+    if s2<s3; s2,s3 = s3,s2 end
+    if s1<s2; s1,s2 = s2,s1 end
 
     P = [ s1, s2, s3 ]
 
@@ -211,4 +211,3 @@ function tensor_rot(V::Array{Float64,2})
     tensor_rot!(V, T)
     return T
 end
-
