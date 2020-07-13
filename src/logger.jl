@@ -316,16 +316,19 @@ end
 
 
 function update_logger!(logger::SegmentLogger, domain)
+    ndim = domain.env.ndim
     data  = domain.node_data
+    coord_labels = ["x", "y", "z"][1:ndim]
     labels = [ k for (k,V) in data if size(V,2)==1 ]
-    table = DataTable(["s"; labels])
+    table = DataTable(["s"; coord_labels; labels])
     X1, X2 = logger.filter
     Δs = norm(X2-X1)/(logger.n-1)
     s = 0.0
     for (elem,R) in zip(logger.elems,logger.Rs)
         N = elem.shape.func(R)
+        X = get_coords(elem)'*N
         map = [ n.id for n in elem.nodes ]
-        vals = [ s ]
+        vals = [ s; X ]
         for (k,V) in data
             size(V,2)==1 || continue
             val = dot(V[map], N)
