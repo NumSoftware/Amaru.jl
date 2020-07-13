@@ -611,6 +611,9 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
             end
         end
     end
+    =#
+
+    #=
 
     # Fix linked_elems for embedded elements (line cells not connected to other elements)
     has_line = any(C->C.shape.family==LINE_SHAPE, mesh.elems)

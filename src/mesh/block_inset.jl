@@ -12,7 +12,6 @@ that represents the inset curve and can be:
 `closed=true` can be used if a closed inset curve is required.
 """
 mutable struct BlockInset <: AbstractBlock
-    #coords   ::Array{Float64,2}
     nodes::Array{Node,1}
     curvetype::Union{Int,AbstractString} # 0:polyline, 1:closed polyline, 2: lagrangian, 3:cubic Bezier with inner points
     closed   ::Bool
@@ -137,7 +136,7 @@ end
 
 
 function split_block(bl::BlockInset, msh::Mesh)
-    coords =get_coords(bl.nodes)
+    coords = get_coords(bl.nodes)
     n, ndim = size(coords)
 
     if n<2; error("At list two points are required in BlockInset") end
@@ -146,6 +145,8 @@ function split_block(bl::BlockInset, msh::Mesh)
     # Lagrangian or Bezier with inner points
     if bl.curvetype in (2,3)
         split_curve(coords, bl, false, msh)
+        bl._startpoint = nothing
+        bl._endpoint = nothing
         return
     end
 
@@ -161,6 +162,8 @@ function split_block(bl::BlockInset, msh::Mesh)
         coordsi = [ coords[n:n,:] ; coords[1:1,:] ]
         split_curve(coordsi, bl, true, msh)
     end
+    bl._startpoint = nothing
+    bl._endpoint = nothing
 end
 
 function get_point(s::Float64, coords::Array{Float64,2}, curvetype::Int)

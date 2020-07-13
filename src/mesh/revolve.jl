@@ -109,7 +109,7 @@ function revolve(mesh::Mesh;
 
                 for n in cell.nodes[1:3]
                     coord = base + Rhalf*(n.coord-base)*conj(Rhalf)
-                        coord = round.(coord, digits=8)
+                    coord = round.(coord, digits=8)
                     push!(nodes, Node(coord))
                 end
             elseif cell.shape==QUAD8

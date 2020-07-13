@@ -237,7 +237,6 @@ function cell_extent(c::AbstractCell)
         w    = IP[i,4]
         normJ = norm2(J)
         #if normJ<0
-            #@error "cell_extent: Negative Jacobian while calculating cell volume/area/length" id=c.id shape=c.shape.name
             #error("cell_extent: Negative Jacobian while calculating cell volume/area/length id=$(c.id) shape=$(c.shape.name) ")
         #end
         vol += normJ*w

@@ -113,7 +113,7 @@ function find_elem(X::Array{Float64,1}, cells::Array{<:AbstractCell,1}, cellpart
         lbin = cellpartition.lbin
 
         if any(X .< Cmin .- tol) || any(X .> Cmax .+ tol)
-            error("find_elem: point outside bounding box")
+            error("find_elem: point outside bounding box $X")
         end
 
         # Find bin index
