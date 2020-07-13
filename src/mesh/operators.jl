@@ -378,6 +378,17 @@ function rollaxes!(mesh::Mesh)
 end
 
 
+function changeaxes!(bl::AbstractBlock, order::String)
+    @assert length(order)==3
+    idxs = [ char-'w' for char in order ]
+    for p in bl.nodes
+        p.coord[1:3] = p.coord[idxs]
+    end
+end
+
+changeaxes!(bls::Array{<:AbstractBlock,1}, order::String) = (changeaxes!.(bls, order); nothing)
+
+
 """
     changeaxes!(mesh, order)
 
@@ -392,12 +403,98 @@ julia> changeaxes!(mesh, "zxy")
 """
 function changeaxes!(mesh::Mesh, order::String)
     @assert length(order)==3
+
+
     idxs = [ char-'w' for char in order ]
     for p in mesh.nodes
         p.coord[1:3] = p.coord[idxs]
     end
 
+
+    if !(order in ("xyz", "yzx", "zxy"))
+        for elem in mesh.elems
+            flip!(elem)
+        end
+    end
+
     if length(mesh.node_data)>0 || length(mesh.elem_data)>0
         @warn "changeaxes!: mesh associated data was not reordered according to new axes."
     end
+end
+
+
+function isinverted(elem::AbstractCell)
+    elem.shape.family==LINE_SHAPE && return false
+
+    if elem.shape.ndim==2
+        coords = get_coords(elem)
+        #dx, dy, dz = std(coords, dims=1)
+        dz = mean(abs, coords[:,3])
+        tol = 1e-8
+        dz>tol && return false
+
+        if elem.shape.basic_shape == TRI3
+            nidx = [1,2,3]
+        elseif elem.shape.basic_shape == QUAD4
+            nidx = [1,2,4]
+        else
+            error("isinverted: Cell shape $(cell.shape.name) is not supported")
+        end
+
+        X1, X2, X3 = getfield.(elem.nodes[nidx], :coord)
+        V1 = X2-X1
+        V2 = X3-X1
+        V3 = Vec3(0,0,1)
+    elseif elem.shape.ndim==3
+        if elem.shape.basic_shape in (TET4,WED6)
+            nidx = [1,2,3,4]
+        elseif elem.shape.basic_shape in (PYR5,HEX8)
+            nidx = [1,2,4,5]
+        else
+            error("isinverted: Cell shape $(cell.shape.name) is not supported")
+        end
+
+        X1, X2, X3, X4 = getfield.(elem.nodes[nidx], :coord)
+        V1 = X2-X1
+        V2 = X3-X1
+        V3 = X4-X1
+    end
+
+    return dot(cross(V1,V2),V3)<0
+end
+
+
+function flip!(elem::AbstractCell)
+    elem.shape.family==LINE_SHAPE && return elem
+
+    if elem.shape==TRI3
+        nidx = [1,3,2]
+    elseif elem.shape==QUAD4
+        nidx = [1,4,3,2]
+    elseif elem.shape==TRI6
+        nidx = [1,3,2,6,5,4]
+    elseif elem.shape==QUAD8
+        nidx = [1,4,3,2,8,7,6,5]
+    elseif elem.shape==QUAD9
+        nidx = [1,4,3,2,8,7,6,5,9]
+    elseif elem.shape==TET4
+        nidx = [1,3,2,4]
+    elseif elem.shape==PYR5
+        nidx = [1,4,3,2,5]
+    elseif elem.shape==WED6
+        nidx = [1,3,2,4,6,5]
+    elseif elem.shape==HEX8
+        nidx = [1,4,3,2,5,8,7,6]
+    elseif elem.shape==TET10
+        nidx = [1,3,2,4, 7,6,5, 8,10,9]
+    elseif elem.shape==WED15
+        nidx = [1,3,2,4,6,5,9,8,7,12,11,10,13,15,14]
+    elseif elem.shape==HEX20
+        nidx = [1,4,3,2,5,8,7,6, 12,11,10,9, 16,15,14,13, 17,20,19,18]
+    else
+        error("flip!: Cell shape $(cell.shape.name) is not supported")
+    end
+
+    elem.nodes = elem.nodes[nidx]
+    return elem
 end
