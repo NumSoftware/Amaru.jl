@@ -83,6 +83,9 @@ mutable struct Node
     end
 
     function Node(x::Real, y::Real=0, z::Real=0.0; tag::String="", id::Int=-1)
+        x = round(x, digits=8)
+        y = round(y, digits=8)
+        z = round(z, digits=8)
         this = new(id, Vec3(x,y,z), tag)
         this.dofs = Dof[]
         this.dofdict = OrderedDict{Symbol,Dof}()
@@ -93,6 +96,7 @@ mutable struct Node
         @assert length(X) in (1,2,3)
         this = new()
         this.id = id
+        X .= round.(X, digits=8)
         if length(X)==3
             this.coord = Vec3(X[1], X[2], X[3])
         elseif length(X)==2
