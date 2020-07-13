@@ -1,6 +1,331 @@
 using LaTeXStrings
 export newchart, savechart, showchart, cplot, cplot0
 
+
+"""
+    cplot(data, filename, kwargs...)
+
+Plots a pyplot line chart.
+
+# Arguments
+
+`data` : An array of named tuples with information for each line
+
+`filename` = "" : The chart filename
+
+# Keyword arguments
+
+`xlabel         = "\$x\$"` : x label
+
+`ylabel         = "\$y\$"` : y label
+
+`legendloc      = "best"` : legend location in plot
+
+`xbins          = 10` : number of bins in x
+
+`ybins          = 10` : number of bins in y
+
+`grid           = false` : grid
+
+`figsize        = (3,2)` : size of plot
+
+`legendexpand   = false` : expanded version
+
+`ncol           = 0` : number of columns in horizontal legend
+
+`xlim           = nothing` : x axis limits
+
+`ylim           = nothing` : y axis limits
+
+`xscale         = "linear"` : x axis scale
+
+`yscale         = "linear"` : y axis scale
+
+`ticksinside    = true` : put ticks inside plot
+
+`fontsize       = 7` : font size
+
+`legendfontsize = 0` : defaults to fontsize
+
+`labelspacing   = 0.5` : spacing between legend labels
+
+# Example
+
+```
+using Amaru
+X1 = collect(1:20)
+X2 = collect(1:20)
+Y1 = log.(X1)
+Y2 = log.(X2)*1.1
+
+cplot([
+       (x=X1, y=Y1, marker="o", color="r", label="curve 1")
+       (x=X2, y=Y2, marker="s", color="b", label="curve 2")
+      ],
+      "plot.pdf"
+     )
+```
+
+Extended example:
+
+```
+using Amaru
+X1 = collect(1:20)
+X2 = collect(1:20)
+Y1 = log.(X1)
+Y2 = log.(X2)*1.1
+
+cplot([
+       (x=X1, y=Y1, lw=0.5, ls="-", ms=2, mfc="w", marker="o", color="r", label="curve 1")
+       (x=X2, y=Y2, lw=0.5, ls="-", ms=2, mfc="w", marker="s", color="b", label="curve 2")
+      ],
+      "plot.pdf",
+      xlabel="\$x\$", ylabel="\$y\$", legendloc="best",
+      xbins=6, ybins=6, grid=true, figsize=(3,2), legendexpand=false, ncol=0,
+      xlim=(0,20), xscale="linear", yscale="log",
+      fontsize=7, legendfontsize=0, labelspacing=0.5
+     )
+```
+
+"""
+function cplot(data::Array{<:NamedTuple}, 
+               filename::String = "";
+               xlabel           = L"x",
+               ylabel           = L"y",
+               legendloc        = "best",
+               xbins            = 10,
+               ybins            = 10,
+               grid             = true,
+               figsize          = (3,2),
+               legendexpand     = false,
+               ncol             = 0,
+               xlim             = nothing,
+               ylim             = nothing,
+               xscale           = "linear",
+               yscale           = "linear",
+               xmult            = 1,
+               ymult            = 1,
+               ticksinside      = true,
+               fontsize         = 6,
+               legendfontsize   = 0,
+               labelspacing     = 0.5, 
+               textlist         = []
+              )
+
+    if filename==""
+        printstyled("cplot: generating plot\n", color=:cyan )
+    else
+        printstyled("cplot: generating plot to file $filename\n", color=:cyan )
+    end
+    wrap(str::String) = (str=replace(str, r"(\s|\n)+" => " "); replace(str, r".{1,60}( |$)" => s"    \0\n");)
+    options = "xlabel, ylabel, legendloc, xbins, ybins, grid, figsize, legendexpand, ncol,
+               xlim, ylim, xscale, yscale, fontsize, ticksinside, legendfontsize, labelspacing"
+    printstyled("  Options:\n", wrap(options), color=:light_black)
+    options = "x, y, color, ls, lw, marker, ms, mfc, label"
+    printstyled("  Options per curve:\n", wrap(options), color=:light_black)
+
+    @eval import PyPlot:plt, matplotlib, figure
+
+    line_styles = ("-", "--", "-.", ":", "", " ", "None", nothing)
+    markers     = (".", ",", "o", "v", "^", "<", ">", "1", "2", "3", "4", "8", "s", "p", "*", "h", "H", "+", "x", "D", "d", "|", "_", "P", "X", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, "None", nothing, " ", "")
+    colors      = ("C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9",
+                   "c", "b", "w", "g", "y", "k", "r", "m",
+                   "tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan",
+                   "indigo", "gold", "hotpink", "firebrick", "indianred", "yellow", "mistyrose", "darkolivegreen", "olive", "darkseagreen", "pink", "tomato", "lightcoral", "orangered", "navajowhite", "lime", "palegreen", "darkslategrey", "greenyellow", "burlywood", "seashell", "mediumspringgreen", "fuchsia", "papayawhip", "blanchedalmond", "chartreuse", "dimgray", "black", "peachpuff", "springgreen", "aquamarine", "white", "orange", "lightsalmon", "darkslategray", "brown", "ivory", "dodgerblue", "per", "lawngreen", "chocolate", "crimson", "forestgreen", "darkgrey", "lightseagreen", "cyan", "mintcream", "silver", "antiquewhite", "mediumorchid", "skyblue", "gray", "darkturquoise", "goldenrod", "darkgreen", "floralwhite", "darkviolet", "darkgray", "moccasin", "saddlebrown", "grey", "darkslateblue", "lightskyblue", "lightpink", "mediumvioletred", "slategrey", "red", "deeppink", "limegreen", "darkmagenta", "palegoldenrod", "plum", "turquoise", "lightgrey", "lightgoldenrodyellow", "darkgoldenrod", "lavender", "maroon", "yellowgreen", "sandybrown", "thistle", "violet", "navy", "magenta", "dimgrey", "tan", "rosybrown", "olivedrab", "blue", "lightblue", "ghostwhite", "honeydew", "cornflowerblue", "slateblue", "linen", "darkblue", "powderblue", "seagreen", "darkkhaki", "snow", "sienna", "mediumblue", "royalblue", "lightcyan", "green", "mediumpurple", "midnightblue", "cornsilk", "paleturquoise", "bisque", "slategray", "darkcyan", "khaki", "wheat", "teal", "darkorchid", "salmon", "deepskyblue", "rebeccapurple", "darkred", "steelblue", "palevioletred", "lightslategray", "aliceblue", "lightslategrey", "lightgreen", "orchid", "gainsboro", "mediumseagreen", "lightgray", "mediumturquoise", "lemonchiffon", "cadetblue", "lightyellow", "lavenderblush", "coral", "purple", "aqua", "whitesmoke", "mediumslateblue", "darkorange", "mediumaquamarine", "darksalmon", "beige", "blueviolet", "azure", "lightsteelblue", "oldlace")
+    scales      = ("linear", "log", "symlog", "logit")
+
+    # Fix labels
+    texlabels = Dict(
+                  "sxx" => L"\sigma_{xx}",
+                  "syy" => L"\sigma_{yy}",
+                  "szz" => L"\sigma_{zz}",
+                  "sxy" => L"\sigma_{xy}",
+                  "syz" => L"\sigma_{yz}",
+                  "sxz" => L"\sigma_{xz}",
+                  "exx" => L"\varepsilon_{xx}",
+                  "eyy" => L"\varepsilon_{yy}",
+                  "ezz" => L"\varepsilon_{zz}",
+                  "exy" => L"\varepsilon_{xy}",
+                  "eyz" => L"\varepsilon_{yz}",
+                  "exz" => L"\varepsilon_{xz}",
+                  "alpha"   => L"\alpha",
+                  "beta"    => L"\beta",
+                  "gamma"   => L"\gamma",
+                  "Gamma"   => L"\Gamma",
+                  "delta "  => L"\delta ",
+                  "Delta"   => L"\Delta",
+                  "epsilon" => L"\epsilon",
+                  "zeta"    => L"\zeta",
+                  "eta"     => L"\eta",
+                  "theta"   => L"\theta",
+                  "Theta"   => L"\Theta",
+                  "iota"    => L"\iota",
+                  "kappa"   => L"\kappa",
+                  "lambda"  => L"\lambda",
+                  "Lambda"  => L"\Lambda",
+                  "mu"      => L"\mu",
+                  "nu"      => L"\nu",
+                  "omicron" => L"\omicron",
+                  "pi"      => L"\pi",
+                  "Pi"      => L"\Pi",
+                  "rho"     => L"\rho",
+                  "sigma"   => L"\sigma",
+                  "Sigma"   => L"\Sigma",
+                  "tau"     => L"\tau",
+                  "upsilon" => L"\upsilon",
+                  "Upsilon" => L"\Upsilon",
+                  "phi"     => L"\phi",
+                  "Phi"     => L"\Phi",
+                  "chi"     => L"\chi",
+                  "psi"     => L"\psi",
+                  "Psi"     => L"\Psi",
+                  "omega"   => L"\omega",
+                  "Omega"   => L"\Omega",
+                 )
+
+    #=
+    import matplotlib.font_manager as font_manager
+
+    font_dirs = ['/my/custom/font/dir', ]
+    font_files = font_manager.findSystemFonts(fontpaths=font_dirs)
+    font_list = font_manager.createFontList(font_files)
+    font_manager.fontManager.ttflist.extend(font_list)
+
+    mpl.rcParams['font.family'] = 'My Custom Font'
+    =#
+
+    # Configure plot
+
+    plt.rc("font", family="STIXGeneral", size=fontsize)
+    plt.rc("mathtext", fontset="cm")
+    plt.rc("lines", scale_dashes=true)
+
+    if filename!=""
+        plt.close("all")
+        plt.ioff()
+        plt.rc("xtick", labelsize=fontsize)
+        plt.rc("ytick", labelsize=fontsize)
+        plt.rc("lines", lw=0.7)
+        plt.rc("lines", markersize=1.5)
+        plt.rc("axes" , linewidth=0.5)
+        plt.rc("figure", figsize=(3, 2))
+        legendfontsize==0 && (legendfontsize=fontsize)
+        plt.rc("legend", fontsize=legendfontsize)
+    else
+        plt.ion()
+    end
+
+    # Set axis limits
+    xlim!=nothing && plt.xlim(xlim) 
+    ylim!=nothing && plt.ylim(ylim) 
+
+    # Print axes labels
+    xlabel = get(texlabels, xlabel, xlabel)
+    ylabel = get(texlabels, ylabel, ylabel)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    
+    # Set axis scales
+    xscale in scales || error("cplot: xscale should be one of $scales.\n\"$xscale\" was provided.")
+    yscale in scales || error("cplot: yscale should be one of $scales.\n\"$yscale\" was provided.")
+    plt.xscale(xscale)
+    plt.yscale(yscale)
+
+    # Plot curves
+    haslegend = false
+    for (i, line) in enumerate(data)
+        X = get(line, :x, 0).*xmult
+        Y = get(line, :y, 0).*ymult
+        lw = get(line, :lw, 0.5)
+        ls = get(line, :ls, "-")
+        color = get(line, :color, "C$(i-1)")
+        marker = get(line, :marker, nothing)
+        ms = get(line, :ms, 2)
+        mfc = get(line, :mfc, color)
+        label = string(get(line, :label, ""))
+        label = get(texlabels, label, label)
+        label != "" && (haslegend=true)
+
+        (isa(lw, Number) && lw>0) || error("cplot: lw should be a number greater that zero. '$lw' was provided.")
+        (isa(ms, Number) && ms>0) || error("cplot: ms should be a number greater that zero. '$ms' was provided.")
+        ls in line_styles || error("cplot: ls should be one of $line_styles.\n\"$ls\" was provided.")
+        marker in markers || error("cplot: marker should be one of $markers. \n\"$markers\" was provided")
+        #(color isa Tuple || color in colors) || error("cplot: color should be one of $colors. \n\"$color\" was provided")
+
+        plt.plot(X, Y, marker=marker, ms=ms, mfc=mfc, mew=0.5, color=color, lw=lw, ls=ls, label=label)
+    end
+
+
+    grid && plt.grid(color="lightgrey", which="both", ls="dotted", lw=0.3)
+    xscale=="linear" && plt.locator_params(axis="x", nbins=xbins)
+    yscale=="linear" && plt.locator_params(axis="y", nbins=ybins)
+
+    # plot legend
+    if haslegend
+        mode = legendexpand ? "expand" : nothing
+        ncol = ncol==0 ? length(data) : ncol
+
+        if legendloc=="top"
+            leg = plt.legend(loc="lower left", bbox_to_anchor=(-0.02, 1.01, 1.04, 0.2), edgecolor="k", ncol=ncol, mode=mode)
+        elseif legendloc=="right"
+            leg = plt.legend(loc="upper left", bbox_to_anchor=(1.01, 1), edgecolor="k")
+        elseif legendloc=="bottom"
+            leg = plt.legend(loc="upper left", bbox_to_anchor=(-0.02, -0.02, 1.04, -0.2), edgecolor="k", ncol=ncol, mode=mode)
+        else
+            leg = plt.legend(loc=legendloc, edgecolor="k", labelspacing=labelspacing)
+        end
+
+        frame = leg.get_frame()
+        frame.set_linewidth(0.5)
+    end
+
+    # Tick parameters
+    ax = plt.gca()
+    ax.xaxis.set_tick_params(width=0.3)
+    ax.yaxis.set_tick_params(width=0.3)
+    ax.xaxis.set_tick_params(size=2.5)
+    ax.yaxis.set_tick_params(size=2.5)
+    if ticksinside
+        ax.tick_params(which="minor", axis="x", direction="in")
+        ax.tick_params(which="minor", axis="y", direction="in")
+        ax.tick_params(which="major", axis="x", direction="in")
+        ax.tick_params(which="major", axis="y", direction="in")
+    end
+
+    # print text
+    if length(textlist)>0
+        for line in textlist
+            x = get(line, :x, 0)
+            y = get(line, :y, 0)
+            text = string(get(line, :text, ""))
+            plt.text(x, y, text)
+        end
+    end
+
+    # show or save plot
+    if filename==""
+        plt.show()
+    else
+        plt.savefig(filename, bbox_inches="tight", pad_inches=0.01, format="pdf")
+        printstyled("  file $filename saved\n", color=:cyan)
+        plt.close("all")
+    end
+
+
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
 #const CHART_ARGS = Dict{String, Any}()
 #=
 """
@@ -293,6 +618,8 @@ function cplot0(X, Y, filename=""; xlabel="\$x\$", ylabel="\$y\$", lw=0.7, ls="-
     plt.locator_params(axis="y", nbins=ybins)
 
     # Set limits
+    xlim!=nothing && plt.xlim(xlim)
+    ylim!=nothing && plt.ylim(ylim)
     #!isnan(xmax) && plt.xlim(right=xmax)
     #!isnan(ymax) && plt.ylim(top=ymax)
 
@@ -331,299 +658,3 @@ end
 
 
 
-"""
-    cplot(data, filename, kwargs...)
-
-Plots a pyplot line chart.
-
-# Arguments
-
-`data` : An array of named tuples with information for each line
-
-`filename` = "" : The chart filename
-
-# Keyword arguments
-
-`xlabel         = "\$x\$"` : x label
-
-`ylabel         = "\$y\$"` : y label
-
-`legendloc      = "best"` : legend location in plot
-
-`xbins          = 10` : number of bins in x
-
-`ybins          = 10` : number of bins in y
-
-`grid           = false` : grid
-
-`figsize        = (3,2)` : size of plot
-
-`legendexpand   = false` : expanded version
-
-`ncol           = 0` : number of columns in horizontal legend
-
-`xlim           = nothing` : x axis limits
-
-`ylim           = nothing` : y axis limits
-
-`xscale         = "linear"` : x axis scale
-
-`yscale         = "linear"` : y axis scale
-
-`ticksinside    = true` : put ticks inside plot
-
-`fontsize       = 7` : font size
-
-`legendfontsize = 0` : defaults to fontsize
-
-`labelspacing   = 0.5` : spacing between legend labels
-
-# Example
-
-```
-using Amaru
-X1 = collect(1:20)
-X2 = collect(1:20)
-Y1 = log.(X1)
-Y2 = log.(X2)*1.1
-
-cplot([
-       (x=X1, y=Y1, marker="o", color="r", label="curve 1")
-       (x=X2, y=Y2, marker="s", color="b", label="curve 2")
-      ],
-      "plot.pdf"
-     )
-```
-
-Extended example:
-
-```
-using Amaru
-X1 = collect(1:20)
-X2 = collect(1:20)
-Y1 = log.(X1)
-Y2 = log.(X2)*1.1
-
-cplot([
-       (x=X1, y=Y1, lw=0.5, ls="-", ms=2, mfc="w", marker="o", color="r", label="curve 1")
-       (x=X2, y=Y2, lw=0.5, ls="-", ms=2, mfc="w", marker="s", color="b", label="curve 2")
-      ],
-      "plot.pdf",
-      xlabel="\$x\$", ylabel="\$y\$", legendloc="best",
-      xbins=6, ybins=6, grid=true, figsize=(3,2), legendexpand=false, ncol=0,
-      xlim=(0,20), xscale="linear", yscale="log",
-      fontsize=7, legendfontsize=0, labelspacing=0.5
-     )
-```
-
-"""
-function cplot(data::Array{<:NamedTuple}, 
-               filename::String = "";
-               xlabel           = L"x",
-               ylabel           = L"y",
-               legendloc        = "best",
-               xbins            = 10,
-               ybins            = 10,
-               grid             = true,
-               figsize          = (3,2),
-               legendexpand     = false,
-               ncol             = 0,
-               xlim             = nothing,
-               ylim             = nothing,
-               xscale           = "linear",
-               yscale           = "linear",
-               ticksinside      = true,
-               fontsize         = 6,
-               legendfontsize   = 0,
-               labelspacing     = 0.5)
-
-    if filename==""
-        printstyled("cplot: generating plot\n", color=:cyan )
-    else
-        printstyled("cplot: generating plot to file $filename\n", color=:cyan )
-    end
-    wrap(str::String) = (str=replace(str, r"(\s|\n)+" => " "); replace(str, r".{1,60}( |$)" => s"    \0\n");)
-    options = "xlabel, ylabel, legendloc, xbins, ybins, grid, figsize, legendexpand, ncol,
-               xlim, ylim, xscale, yscale, fontsize, ticksinside, legendfontsize, labelspacing"
-    printstyled("  Options:\n", wrap(options), color=:light_black)
-    options = "x, y, color, ls, lw, marker, ms, mfc, label"
-    printstyled("  Options per curve:\n", wrap(options), color=:light_black)
-
-    @eval import PyPlot:plt, matplotlib, figure
-
-    line_styles = ("-", "--", "-.", ":", "", " ", "None", nothing)
-    markers     = (".", ",", "o", "v", "^", "<", ">", "1", "2", "3", "4", "8", "s", "p", "*", "h", "H", "+", "x", "D", "d", "|", "_", "P", "X", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, "None", nothing, " ", "")
-    colors      = ("C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9",
-                   "c", "b", "w", "g", "y", "k", "r", "m",
-                   "tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:brown", "tab:pink", "tab:gray", "tab:olive", "tab:cyan",
-                   "indigo", "gold", "hotpink", "firebrick", "indianred", "yellow", "mistyrose", "darkolivegreen", "olive", "darkseagreen", "pink", "tomato", "lightcoral", "orangered", "navajowhite", "lime", "palegreen", "darkslategrey", "greenyellow", "burlywood", "seashell", "mediumspringgreen", "fuchsia", "papayawhip", "blanchedalmond", "chartreuse", "dimgray", "black", "peachpuff", "springgreen", "aquamarine", "white", "orange", "lightsalmon", "darkslategray", "brown", "ivory", "dodgerblue", "per", "lawngreen", "chocolate", "crimson", "forestgreen", "darkgrey", "lightseagreen", "cyan", "mintcream", "silver", "antiquewhite", "mediumorchid", "skyblue", "gray", "darkturquoise", "goldenrod", "darkgreen", "floralwhite", "darkviolet", "darkgray", "moccasin", "saddlebrown", "grey", "darkslateblue", "lightskyblue", "lightpink", "mediumvioletred", "slategrey", "red", "deeppink", "limegreen", "darkmagenta", "palegoldenrod", "plum", "turquoise", "lightgrey", "lightgoldenrodyellow", "darkgoldenrod", "lavender", "maroon", "yellowgreen", "sandybrown", "thistle", "violet", "navy", "magenta", "dimgrey", "tan", "rosybrown", "olivedrab", "blue", "lightblue", "ghostwhite", "honeydew", "cornflowerblue", "slateblue", "linen", "darkblue", "powderblue", "seagreen", "darkkhaki", "snow", "sienna", "mediumblue", "royalblue", "lightcyan", "green", "mediumpurple", "midnightblue", "cornsilk", "paleturquoise", "bisque", "slategray", "darkcyan", "khaki", "wheat", "teal", "darkorchid", "salmon", "deepskyblue", "rebeccapurple", "darkred", "steelblue", "palevioletred", "lightslategray", "aliceblue", "lightslategrey", "lightgreen", "orchid", "gainsboro", "mediumseagreen", "lightgray", "mediumturquoise", "lemonchiffon", "cadetblue", "lightyellow", "lavenderblush", "coral", "purple", "aqua", "whitesmoke", "mediumslateblue", "darkorange", "mediumaquamarine", "darksalmon", "beige", "blueviolet", "azure", "lightsteelblue", "oldlace")
-    scales      = ("linear", "log", "symlog", "logit")
-
-    # Fix labels
-    texlabels = Dict(
-                  "sxx" => L"\sigma_{xx}",
-                  "syy" => L"\sigma_{yy}",
-                  "szz" => L"\sigma_{zz}",
-                  "sxy" => L"\sigma_{xy}",
-                  "syz" => L"\sigma_{yz}",
-                  "sxz" => L"\sigma_{xz}",
-                  "exx" => L"\varepsilon_{xx}",
-                  "eyy" => L"\varepsilon_{yy}",
-                  "ezz" => L"\varepsilon_{zz}",
-                  "exy" => L"\varepsilon_{xy}",
-                  "eyz" => L"\varepsilon_{yz}",
-                  "exz" => L"\varepsilon_{xz}",
-                  "alpha"   => L"\alpha",
-                  "beta"    => L"\beta",
-                  "gamma"   => L"\gamma",
-                  "Gamma"   => L"\Gamma",
-                  "delta "  => L"\delta ",
-                  "Delta"   => L"\Delta",
-                  "epsilon" => L"\epsilon",
-                  "zeta"    => L"\zeta",
-                  "eta"     => L"\eta",
-                  "theta"   => L"\theta",
-                  "Theta"   => L"\Theta",
-                  "iota"    => L"\iota",
-                  "kappa"   => L"\kappa",
-                  "lambda"  => L"\lambda",
-                  "Lambda"  => L"\Lambda",
-                  "mu"      => L"\mu",
-                  "nu"      => L"\nu",
-                  "omicron" => L"\omicron",
-                  "pi"      => L"\pi",
-                  "Pi"      => L"\Pi",
-                  "rho"     => L"\rho",
-                  "sigma"   => L"\sigma",
-                  "Sigma"   => L"\Sigma",
-                  "tau"     => L"\tau",
-                  "upsilon" => L"\upsilon",
-                  "Upsilon" => L"\Upsilon",
-                  "phi"     => L"\phi",
-                  "Phi"     => L"\Phi",
-                  "chi"     => L"\chi",
-                  "psi"     => L"\psi",
-                  "Psi"     => L"\Psi",
-                  "omega"   => L"\omega",
-                  "Omega"   => L"\Omega",
-                 )
-
-    # Configure plot
-    plt.close("all")
-
-    #=
-    import matplotlib.font_manager as font_manager
-
-    font_dirs = ['/my/custom/font/dir', ]
-    font_files = font_manager.findSystemFonts(fontpaths=font_dirs)
-    font_list = font_manager.createFontList(font_files)
-    font_manager.fontManager.ttflist.extend(font_list)
-
-    mpl.rcParams['font.family'] = 'My Custom Font'
-    =#
-
-
-    plt.rc("font", family="STIXGeneral", size=fontsize)
-    plt.rc("mathtext", fontset="cm")
-    plt.rc("lines", scale_dashes=true)
-
-    if filename!=""
-        plt.ioff()
-        plt.rc("xtick", labelsize=fontsize)
-        plt.rc("ytick", labelsize=fontsize)
-        plt.rc("lines", lw=0.7)
-        plt.rc("lines", markersize=1.5)
-        plt.rc("axes" , linewidth=0.5)
-        plt.rc("figure", figsize=(3, 2))
-        legendfontsize==0 && (legendfontsize=fontsize)
-        plt.rc("legend", fontsize=legendfontsize)
-    end
-
-    # Set axis limits
-    xlim!=nothing && plt.xlim(xlim) 
-    ylim!=nothing && plt.ylim(ylim) 
-
-    # Print axes labels
-    xlabel = get(texlabels, xlabel, xlabel)
-    ylabel = get(texlabels, ylabel, ylabel)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    
-    # Set axis scales
-    xscale in scales || error("cplot: xscale should be one of $scales.\n\"$xscale\" was provided.")
-    yscale in scales || error("cplot: yscale should be one of $scales.\n\"$yscale\" was provided.")
-    plt.xscale(xscale)
-    plt.yscale(yscale)
-
-    # Plot curves
-    haslegend = false
-    for (i, line) in enumerate(data)
-        X = get(line, :x, 0)
-        Y = get(line, :y, 0)
-        lw = get(line, :lw, 0.5)
-        ls = get(line, :ls, "-")
-        color = get(line, :color, "C$(i-1)")
-        marker = get(line, :marker, nothing)
-        ms = get(line, :ms, 2)
-        mfc = get(line, :mfc, color)
-        label = string(get(line, :label, ""))
-        label = get(texlabels, label, label)
-        label != "" && (haslegend=true)
-
-        (isa(lw, Number) && lw>0) || error("cplot: lw should be a number greater that zero. '$lw' was provided.")
-        (isa(ms, Number) && ms>0) || error("cplot: ms should be a number greater that zero. '$ms' was provided.")
-        ls in line_styles || error("cplot: ls should be one of $line_styles.\n\"$ls\" was provided.")
-        marker in markers || error("cplot: marker should be one of $markers. \n\"$markers\" was provided")
-        color in colors || error("cplot: color should be one of $colors. \n\"$color\" was provided")
-
-        plt.plot(X, Y, marker=marker, ms=ms, mfc=mfc, mew=0.5, color=color, lw=lw, ls=ls, label=label)
-    end
-
-
-    grid && plt.grid(color="lightgrey", which="both", ls="dotted", lw=0.3)
-    xscale=="linear" && plt.locator_params(axis="x", nbins=xbins)
-    yscale=="linear" && plt.locator_params(axis="y", nbins=ybins)
-
-    # plot legend
-    if haslegend
-        mode = legendexpand ? "expand" : nothing
-        ncol = ncol==0 ? length(data) : ncol
-
-        if legendloc=="top"
-            leg = plt.legend(loc="lower left", bbox_to_anchor=(-0.02, 1.01, 1.04, 0.2), edgecolor="k", ncol=ncol, mode=mode)
-        elseif legendloc=="right"
-            leg = plt.legend(loc="upper left", bbox_to_anchor=(1.01, 1), edgecolor="k")
-        elseif legendloc=="bottom"
-            leg = plt.legend(loc="upper left", bbox_to_anchor=(-0.02, -0.02, 1.04, -0.2), edgecolor="k", ncol=ncol, mode=mode)
-        else
-            leg = plt.legend(loc=legendloc, edgecolor="k", labelspacing=labelspacing)
-        end
-
-        frame = leg.get_frame()
-        frame.set_linewidth(0.5)
-    end
-
-    # Tick parameters
-    ax = plt.axes()
-    ax.xaxis.set_tick_params(width=0.3)
-    ax.yaxis.set_tick_params(width=0.3)
-    ax.xaxis.set_tick_params(size=2.5)
-    ax.yaxis.set_tick_params(size=2.5)
-    if ticksinside
-        ax.tick_params(which="minor", axis="x", direction="in")
-        ax.tick_params(which="minor", axis="y", direction="in")
-        ax.tick_params(which="major", axis="x", direction="in")
-        ax.tick_params(which="major", axis="y", direction="in")
-    end
-
-    # show or save plot
-    if filename==""
-        plt.show()
-    else
-        plt.savefig(filename, bbox_inches="tight", pad_inches=0.01, format="pdf")
-        printstyled("  file $filename saved\n", color=:cyan)
-    end
-
-    plt.close("all")
-
-end
