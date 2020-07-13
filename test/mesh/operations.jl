@@ -14,14 +14,14 @@ println(TR)
 printstyled("\nMesh extrude Mesh\n", color=:blue, bold=true)
 bl = Block( [0 0; 1 1], nx=3, ny=3, cellshape=QUAD4)
 mesh = Mesh(bl, silent=true)
-mesh = extrude(mesh, len=4, n=10)
+mesh = extrude(mesh, length=4, n=10)
 save(mesh, "out.vtk", silent=true)
 TR = @test length(mesh.elems) == 90
 println(TR)
 
 printstyled("\nMesh extrude Block\n", color=:blue, bold=true)
 bl = Block( [0 0; 1 1], nx=3, ny=3, cellshape=TRI3)
-ble = extrude(bl, len=4, n=10)
+ble = extrude(bl, length=4, n=10)
 mesh = Mesh(ble, silent=true)
 save(mesh, "out.vtk", silent=true)
 TR = @test length(mesh.elems) == 90
