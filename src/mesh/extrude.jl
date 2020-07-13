@@ -82,6 +82,7 @@ function extrude(blocks::Array; axis=[0,0,1], len=1.0::Number, n=1::Int)::Array{
     return blocks3D
 end
 
+
 # Generates a new mesh obtained by extrusion of a 2D mesh
 """
     extrude(mesh, [axis=[0,0,1],] [len=1.0,] [n=1,] [verbose=true,] [genedges=false])
@@ -108,7 +109,6 @@ function extrude(mesh::Mesh; axis=[0,0,1], length::Number=1.0, n::Int=1, verbose
 
     for l in range(0, step=Δl, length=n)
         for cell in mesh.elems
-            nodes = Node[]
 
             if cell.shape==LIN2
                 newshape = QUAD4
@@ -149,12 +149,14 @@ function extrude(mesh::Mesh; axis=[0,0,1], length::Number=1.0, n::Int=1, verbose
                 error("extrude: Cell shape $(cell.shape.name) is not supported")
             end
 
+            nodes = Node[]
             for (node,li) in zip(cell.nodes[nidx], ls[lidx])
                 coord = node.coord + li*axis
                 push!(nodes, Node(coord))
             end
 
             newcell = Cell(newshape, nodes, tag=cell.tag)
+            isinverted(newcell) && flip!(newcell)
             push!(cells, newcell)
         end
     end
