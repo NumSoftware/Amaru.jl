@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export DataTable, DataBook, push!, save, loadtable, loadbook, randtable
+export DataTable, DataBook, push!, save, loadtable, loadbook, randtable, compress!
 
 
 # DataTable object
@@ -50,16 +50,6 @@ function DataTable(header::Array, matrix::Array{T,2} where T)
 end
 
 
-mutable struct DataBook
-    tables::Array{DataTable, 1}
-    function DataBook()
-        this = new()
-        this.tables = DataTable[]
-        return this
-    end
-end
-
-
 import Base.push!
 function push!(table::DataTable, row::Array{T,1} where T)
     @assert length(table.colindex)==length(row)
@@ -74,9 +64,6 @@ function push!(table::DataTable, row::Array{T,1} where T)
 end
 
 
-function push!(book::DataBook, table::DataTable)
-    push!(book.tables, table)
-end
 
 function Base.keys(table::DataTable)
     return keys(table.colindex)
@@ -136,6 +123,36 @@ function Base.lastindex(table::DataTable, idx::Int)
     length(table.columns)==0 && error("DataTable: use of 'end' in an empty table")
     return length(table.columns[1])
 end
+
+function compress!(table::DataTable, n::Int)
+    nrows = length(table.columns[1])
+    nrows<=n && return table
+
+    factor = (nrows-1)/(n-1)
+
+    idxs = [ round(Int, 1+factor*(i-1)) for i=1:n ] 
+
+    for i=1:length(table.columns)
+        table.columns[i] = table.columns[i][idxs]
+    end
+
+end
+
+
+mutable struct DataBook
+    tables::Array{DataTable, 1}
+    function DataBook()
+        this = new()
+        this.tables = DataTable[]
+        return this
+    end
+end
+
+
+function push!(book::DataBook, table::DataTable)
+    push!(book.tables, table)
+end
+
 
 function Base.getindex(book::DataBook, index::Int)
     return book.tables[index]
