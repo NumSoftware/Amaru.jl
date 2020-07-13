@@ -28,6 +28,7 @@ function elem_init(elem::MechSolid)
             dNdR = elem.shape.deriv(ip.R)
             J    = dNdR*C
             detJ = det(J)
+            @assert detJ>0
             V   += detJ*ip.w
         end
 
