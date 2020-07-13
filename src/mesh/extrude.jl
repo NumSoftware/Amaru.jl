@@ -1,11 +1,11 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 """
-`extrude(block, [axis=[0,0,1],] [len=1.0,] [n=1])`
+`extrude(block, [axis=[0,0,1],] [length=1.0,] [n=1])`
 
-Extrudes a 2D `block` generating a 3D block based on a direction `axis`, a lenght `len` and a number `n` of divisions.
+Extrudes a 2D `block` generating a 3D block based on a direction `axis`, a lenght `length` and a number `n` of divisions.
 """
-function extrude(block::Block2D; axis=[0,0,1], len::Number=1.0, n::Int=1)::Block3D
+function extrude(block::Block2D; axis=[0,0,1], length::Number=1.0, n::Int=1)::Block3D
 
     if axis==:x
         axis = Vec3(1,0,0)
@@ -16,7 +16,7 @@ function extrude(block::Block2D; axis=[0,0,1], len::Number=1.0, n::Int=1)::Block
     end
 
     V = axis/norm(axis)
-    δ = len/n
+    δ = length/n
     coords = get_coords(block.nodes)
 
     # check numbering order
@@ -27,7 +27,7 @@ function extrude(block::Block2D; axis=[0,0,1], len::Number=1.0, n::Int=1)::Block
 
     # generate extra points
     npoints = size(coords,1)
-    topcoords = coords .+ V'*len
+    topcoords = coords .+ V'*length
 
     local newcoords::Array{Float64,2}
 
@@ -40,7 +40,7 @@ function extrude(block::Block2D; axis=[0,0,1], len::Number=1.0, n::Int=1)::Block
     end
 
     if npoints==8
-        midcoords = coords[1:4,:] .+ V'*len*0.5
+        midcoords = coords[1:4,:] .+ V'*length*0.5
         if normal_order
             newcoords = vcat(coords[1:4,:], topcoords[1:4,:], coords[5:8,:], topcoords[5:8,:], midcoords)
         else
@@ -63,7 +63,7 @@ function extrude(block::Block2D; axis=[0,0,1], len::Number=1.0, n::Int=1)::Block
 
 end
 
-function extrude(blocks::Array; axis=[0,0,1], len=1.0::Number, n=1::Int)::Array{Block3D,1}
+function extrude(blocks::Array; axis=[0,0,1], length=1.0::Number, n=1::Int)::Array{Block3D,1}
     if axis==:x
         axis = Vec3(1,0,0)
     elseif axis==:y
@@ -75,7 +75,7 @@ function extrude(blocks::Array; axis=[0,0,1], len=1.0::Number, n=1::Int)::Array{
     blocks3D = []
 
     for bl in blocks
-        bl3D = extrude(bl, axis=axis, len=len, n=n)
+        bl3D = extrude(bl, axis=axis, length=length, n=n)
         push!(blocks3D, bl3D)
     end
 
@@ -85,7 +85,7 @@ end
 
 # Generates a new mesh obtained by extrusion of a 2D mesh
 """
-    extrude(mesh, [axis=[0,0,1],] [len=1.0,] [n=1,] [verbose=true,] [genedges=false])
+    extrude(mesh, [axis=[0,0,1],] [length=1.0,] [n=1,] [verbose=true,] [genedges=false])
 
 Generates a 3D mesh by extruding a planar `mesh` using 
 a direction `axis`, a `lenght` and a number of divisions `n`.

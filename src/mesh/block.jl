@@ -621,7 +621,7 @@ function split_block(bl::BlockCylinder, msh::Mesh)
 
     # extrude
     len      = norm(coords[1,:] - coords[2,:])
-    blocks3D = extrude(blocks, len=len, n=bl.n)
+    blocks3D = extrude(blocks, length=len, n=bl.n)
 
     # rotation
     zv    = [0.0, 0.0, 1.0]
