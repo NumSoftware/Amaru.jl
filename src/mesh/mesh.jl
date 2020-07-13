@@ -295,12 +295,13 @@ function fixup!(mesh::Mesh; verbose::Bool=false, genfacets::Bool=true, genedges:
     mesh.ndim = ndim
 
     # Numberig nodes
-    for (i,p) in enumerate(mesh.nodes) p.id = i end
+    for (i,p) in enumerate(mesh.nodes) 
+        p.id = i 
+    end
 
     # Numberig cells
     for (i,c) in enumerate(mesh.elems )
         c.id = i;
-        #c.ndim=ndim;
     end
 
     # Facets
@@ -563,25 +564,54 @@ end
 
 
 function Mesh(elems::Array{Cell,1})
-    mesh = Mesh()
-    
+    newmesh = Mesh()
+    newmesh.nodes = copy.(get_nodes(elems))
+    newmesh._pointdict = Dict{UInt64,Node}(hash(node)=>node for node in newmesh.nodes)
+
+    for elem in elems
+        newelemnodes = Node[ newmesh._pointdict[hash(node)] for node in elem.nodes ]
+        newelem = Cell(elem.shape, newelemnodes, tag=elem.tag)
+        push!(newmesh.elems, newelem)
+    end
+
+    fixup!(newmesh, reorder=false)
+
+    return newmesh
+end
+
+
+function Mesh(mesh::Mesh, filter::Union{String,Expr,Symbol})
+    elems = mesh.elems[filter]
+    elemids = [ elem.id for elem in elems ]
+
+    nodedict = OrderedDict{Int,Node}()
     for elem in elems
         for node in elem.nodes
-            mesh._pointdict[hash(node)] = node
+            nodedict[node.id] = copy(node)
         end
     end
+    nodeids  = collect(keys(nodedict))
 
-    mesh.nodes = collect(Node, values(mesh._pointdict))
+    newmesh = Mesh()
+    newmesh.nodes = collect(values(nodedict))
 
     for elem in elems
-        newelemnodes = Node[ mesh._pointdict[hash(node)] for node in elem.nodes ]
+        newelemnodes = Node[ nodedict[node.id] for node in elem.nodes ]
         newelem = Cell(elem.shape, newelemnodes, tag=elem.tag)
-        push!(mesh.elems, newelem)
+        push!(newmesh.elems, newelem)
     end
 
-    fixup!(mesh, reorder=true)
+    for (k,v) in mesh.elem_data
+        newmesh.elem_data[k] = v[elemids]
+    end
 
-    return mesh
+    for (k,v) in mesh.node_data
+        newmesh.node_data[k] = v[nodeids]
+    end
+
+    fixup!(newmesh, reorder=false)
+
+    return newmesh
 end
 
 
@@ -694,4 +724,73 @@ function randmesh(l::Real...)
         cellshape = rand((TET4, TET10, HEX8, HEX20))
         m = Mesh(Block3D([0.0 0.0 0.0; lx ly lz], nx=nx, ny=ny, nz=nz, cellshape=cellshape), verbose=false)
     end
+end
+
+export UMesh
+function UMesh(
+              coords     :: Array{<:Real,2},
+              conns      :: Array{Array{Int,1},1}=Array{Int,1}[];
+              tag        :: String="",
+              verbose    :: Bool=true,
+              silent     :: Bool=false
+             )
+
+    Sys.iswindows() && error("UMesh not supported on MS Windows")
+
+    if conns==[]
+        npoints = size(coords,1)
+        conns = [ Int[i, i+1] for i in 1:npoints ]
+        conns[end][end] = 1
+    end
+
+    @eval begin
+        coords = $coords
+        conns  = $conns
+        #h = $h
+        tag = $tag
+        verbose = $verbose
+        silent = $silent
+
+        import Gmsh.gmsh
+
+        gmsh.initialize()
+        gmsh.option.setNumber("General.Terminal", 1)
+        gmsh.model.add("model01")
+
+        nrows = size(coords,1)
+        #if typeof(h)<:Real
+            #h = repeat([h], nrows)
+        #end
+
+        # adding points
+        for i=1:nrows
+            gmsh.model.geo.addPoint(coords[i,1], coords[i,2], 0.0, coords[i,end], i)
+        end
+
+        # adding lines
+        nlines = length(conns)
+        for (i,conn) in enumerate(conns)
+            if length(conn)==2 # line
+                gmsh.model.geo.addLine(conn[1], conn[2], i)
+            else # circle arc
+                gmsh.model.geo.addCircleArc(conn[1], conn[2], conn[3], i)
+            end
+        end
+
+        gmsh.model.geo.addCurveLoop(collect(1:nlines), 1)
+        gmsh.model.geo.addPlaneSurface([1], 1)
+        gmsh.model.addPhysicalGroup(2, [1], 1) # ndim, entities, tag
+        gmsh.model.geo.synchronize()
+        gmsh.model.mesh.generate(2)
+        gmsh.model.mesh.smooth()
+
+        tempfile = "_temp.vtk"
+        gmsh.write(tempfile)
+        gmsh.finalize()
+    end
+
+    mesh = Mesh(tempfile)
+    tag!(mesh.elems, tag)
+    rm(tempfile)
+    return mesh
 end
