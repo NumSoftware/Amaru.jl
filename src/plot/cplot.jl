@@ -196,11 +196,11 @@ function cplot(data::Array{<:NamedTuple},
 
     # Configure plot
 
-    plt.rc("font", family="STIXGeneral", size=fontsize)
-    plt.rc("mathtext", fontset="cm")
-    plt.rc("lines", scale_dashes=true)
-
     if filename!=""
+        plt.rc("font", family="STIXGeneral", size=fontsize)
+        plt.rc("mathtext", fontset="cm")
+        plt.rc("lines", scale_dashes=true)
+
         plt.close("all")
         plt.ioff()
         plt.rc("xtick", labelsize=fontsize)
