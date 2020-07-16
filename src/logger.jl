@@ -40,7 +40,10 @@ function update_logger!(logger::NodeLogger, domain)
     domain.env.transient && (vals[:t] = domain.env.t)
     push!(logger.table, vals)
 
-    save(logger)
+    if logger.filename!="" 
+        filename = joinpath(domain.env.outdir, logger.filename)
+        save(logger, filename, verbose=false)
+    end
 end
 
 
@@ -79,7 +82,11 @@ function update_logger!(logger::IpLogger, domain)
     domain.env.transient && (vals[:t] = domain.env.t)
 
     push!(logger.table, vals)
-    save(logger)
+
+    if logger.filename!="" 
+        filename = joinpath(domain.env.outdir, logger.filename)
+        save(logger, filename, verbose=false)
+    end
 end
 
 
@@ -152,7 +159,11 @@ function update_logger!(logger::FacetLogger, domain)
     domain.env.transient && (vals[:t] = domain.env.t)
 
     push!(logger.table, vals)
-    save(logger)
+
+    if logger.filename!="" 
+        filename = joinpath(domain.env.outdir, logger.filename)
+        save(logger, filename, verbose=false)
+    end
 end
 
 
@@ -188,7 +199,11 @@ function update_logger!(logger::NodeGroupLogger, domain)
         push!(table, node_vals(node))
     end
     push!(logger.book, table)
-    save(logger)
+
+    if logger.filename!="" 
+        filename = joinpath(domain.env.outdir, logger.filename)
+        save(logger, filename, verbose=false)
+    end
 end
 
 
@@ -225,7 +240,11 @@ function update_logger!(logger::IpGroupLogger, domain)
     end
 
     push!(logger.book, table)
-    save(logger)
+
+    if logger.filename!="" 
+        filename = joinpath(domain.env.outdir, logger.filename)
+        save(logger, filename, verbose=false)
+    end
 end
 
 
@@ -273,7 +292,11 @@ function update_logger!(logger::PointLogger, domain)
     end
     domain.env.transient && (vals[:t] = domain.env.t)
     push!(logger.table, vals)
-    save(logger)
+
+    if logger.filename!="" 
+        filename = joinpath(domain.env.outdir, logger.filename)
+        save(logger, filename, verbose=false)
+    end
 end
 
 
@@ -339,7 +362,11 @@ function update_logger!(logger::SegmentLogger, domain)
     end
 
     push!(logger.book, table)
-    save(logger)
+
+    if logger.filename!="" 
+        filename = joinpath(domain.env.outdir, logger.filename)
+        save(logger, filename, verbose=false)
+    end
 end
 
 
@@ -352,13 +379,6 @@ function save(logger::AbstractLogger, filename::String; verbose=true)
         save(logger.table, filename, verbose=verbose)
     else
         save(logger.book, filename, verbose=verbose)
-    end
-end
-
-
-function save(logger::AbstractLogger)
-    if logger.filename != ""
-        save(logger, logger.filename, verbose=false)
     end
 end
 

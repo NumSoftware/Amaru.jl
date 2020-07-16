@@ -157,7 +157,7 @@ subjected to a set of boundary conditions `bcs`.
 
 `Ttol     = 1e-9` : Pseudo-time tolerance
 
-`scheme  = :FE` : Predictor-corrector scheme at each increment. Available schemes are `:FE` and `:ME`
+`scheme  = "FE"` : Predictor-corrector scheme at each increment. Available schemes are "FE", "ME" and "BE"
 
 `nouts   = 0` : Number of output files per analysis
 
@@ -178,7 +178,7 @@ function solve!(
                 maxincs :: Int     = 1000000,
                 tol     :: Number  = 1e-2,
                 Ttol    :: Number  = 1e-9,
-                scheme  :: Symbol  = :FE,
+                scheme  :: Union{String,Symbol} = "FE",
                 nouts   :: Int     = 0,
                 outdir  :: String  = ".",
                 filekey :: String  = "out",
@@ -190,6 +190,8 @@ function solve!(
     verbosity = 1
     verbose && (verbosity=2)
     silent && (verbosity=0)
+    scheme = string(scheme)
+    #autoinc && (maxits=4)
 
     tol>0 || error("solve! : tolerance should be greater than zero")
     Ttol>0 || error("solve! : tolerance `Ttol `should be greater than zero")
@@ -206,7 +208,7 @@ function solve!(
     verbosity>1 && println("  model type: ", env.modeltype)
 
     save_outs = nouts>0
-    if save_outs
+    if save_outs && !autoinc
         if nouts>nincs
             nincs = nouts
             @info "  nincs changed to $nincs to match nouts"
@@ -236,8 +238,12 @@ function solve!(
         end
     end
 
-    outdir = strip(outdir, ['/', '\\'])
-    isdir(outdir) || error("solve!: output directory <$outdir> not found")
+    outdir = rstrip(outdir, ['/', '\\'])
+    env.outdir = outdir
+    if !isdir(outdir)
+        @info "solve!: creating output directory <$outdir>"
+        mkpath(outdir)
+    end
 
     # Save initial file and loggers
     if env.cstage==1
@@ -254,10 +260,11 @@ function solve!(
     # Incremental analysis
     T  = 0.0
     ΔT = 1.0/nincs       # initial ΔT value
-    ΔT_bk = 0.0
+    autoinc && (ΔT=min(ΔT,0.01))
+    ΔTbk = 0.0
 
-    ΔTout = 1.0/nouts    # output time increment for saving output file
-    Tout  = ΔTout        # output time for saving the next output file
+    ΔTcheck = save_outs ? 1/nouts : 1.0
+    Tcheck = ΔTcheck
 
     inc  = 0             # increment counter
     iout = env.cout      # file output counter
@@ -279,7 +286,7 @@ function solve!(
 
     local K::SparseMatrixCSC{Float64,Int64}
 
-    while T < 1.0 - Ttol
+    while T < 1.0-Ttol
         # Update counters
         inc += 1
         env.cinc += 1
@@ -303,7 +310,10 @@ function solve!(
         converged = false
         maxfails  = 3  # maximum number of it. fails with residual change less than 90%
         nfails    = 0  # counter for iteration fails
+        nits      = 0
+        residue1  = 0
         for it=1:maxits
+            nits += 1
             if it>1; ΔUi .= 0.0 end # essential values are applied only at first iteration
             lastres = residue # residue from last iteration
 
@@ -330,15 +340,19 @@ function solve!(
 
             residue = maximum(abs, (ΔFex-ΔFin)[umap] )
 
-            # use ME scheme
-            if residue > tol && scheme == :ME
+            # use ME or BE scheme
+            if residue > tol && scheme in ("ME", "BE")
                 verbose && print("    assembling... \r")
                 K2 = mount_K(dom, ndofs)
-                K  = 0.5*(K + K2)
+                if scheme=="ME"
+                    K = 0.5*(K + K2)
+                elseif scheme=="BE"
+                    K = K2
+                end
                 verbose && print("    solving...   \r")
                 solve_step!(K, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
-                copyto!.(State, StateBk)
 
+                copyto!.(State, StateBk)
                 ΔFin .= 0.0
                 ΔUt   = ΔUa + ΔUi
                 for elem in dom.elems
@@ -360,9 +374,12 @@ function solve!(
                 @printf(" residue: %-10.4e\n", residue)
             end
 
+            it==1 && (residue1=residue)
+
             if residue < tol;        converged = true ; break end
             if isnan(residue);       converged = false; break end
             if it > maxits;          converged = false; break end
+            if it>1 && residue > lastres; converged = false; break end
             if residue > 0.9*lastres;  nfails += 1 end
             if nfails == maxfails;     converged = false; break end
         end
@@ -387,39 +404,46 @@ function solve!(
             T += ΔT
 
             # Check for saving output file
-            if abs(T - Tout) < Ttol && save_outs
+            if abs(T-Tcheck) < Ttol && save_outs
                 env.cout += 1
                 iout = env.cout
                 update_output_data!(dom)
                 update_composed_loggers!(dom)
                 save(dom, "$outdir/$filekey-$iout.vtu", silent=silent)
-                Tout += ΔTout # find the next output time
+                Tcheck += ΔTcheck # find the next output time
             end
 
             if autoinc
-                if ΔT_bk>0.0
-                    ΔT = ΔT_bk
+                if ΔTbk>0.0
+                    ΔT = ΔTbk
+                    ΔTbk = 0.0
                 else
-                    ΔT = min(1.5*ΔT, 1.0/nincs)
-                end
-            end
-            ΔT_bk = 0.0
+                    if nits==1
+                        q = (1+tanh(log10(tol/residue1)))
+                    else
+                        q = 1.0
+                    end
 
-            # Fix ΔT in case T+ΔT>Tout
-            if T+ΔT>Tout
-                ΔT_bk = ΔT
-                ΔT = Tout-T
+                    ΔTtr = min(q*ΔT, 1/nincs, 1-T)
+                    if T+ΔTtr>Tcheck
+                        ΔTbk = ΔT
+                        ΔT = Tcheck-T
+                    else
+                        ΔT = ΔTtr
+                        ΔTbk = 0.0
+                    end
+                end
             end
         else
             # Restore counters
             inc -= 1
             env.cinc -= 1
-            ΔT_bk = ΔT
 
-            # Restore the state to last converged increment
             if autoinc
                 verbosity>1 && println("    increment failed.")
-                ΔT *= 0.5
+                q = (1+tanh(log10(tol/residue1)))
+                q = clamp(q, 0.2, 0.9)
+                ΔT = q*ΔT
                 ΔT = round(ΔT, sigdigits=3)  # round to 3 significant digits
                 if ΔT < Ttol
                     printstyled("solve!: solver did not converge \033[K \n", color=:red)
@@ -439,7 +463,7 @@ function solve!(
 
     # time spent
     verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress 100%\033[K\n", bold=true, color=:blue) # color 111
-    verbosity==1 && println("  time spent: ", see(sw, format=:hms), "\033[K")
+    verbosity>1 && println("  time spent: ", see(sw, format=:hms), "\033[K")
     getlapse(sw)>60 && sound_alert()
 
     return true

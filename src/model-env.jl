@@ -10,6 +10,7 @@ mutable struct ModelEnv
     cstage::Int            # Current stage
     cinc::Int              # Current increment
     cout::Int              # Current output file number
+    outdir::String         # Output directory
     params::Dict{Symbol,Float64} # Global parameters (e.g. gammaw, T0, etc.)
     function ModelEnv()
         this = new()
