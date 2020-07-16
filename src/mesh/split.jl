@@ -16,8 +16,8 @@ Adds joint elements between bulk elements in `mesh`.  If `filter` is supplied
 only.  All generated joints get the supplied `tag`.  If `intertags` is
 `true`, joints are generated only between regions specified by bulk element
 tags.  In this case, the joints get specific tags according to the regions
-they are linking.  Joints can be generated with 2 or 3 `layers`. If provided, all
-middle points in three-layered joints receive a `midnodestag`.
+they are linking.  Joints can be generated with 2 or 3 `layers`. 
+For three layers, all middle points in joints receive a `midnodestag`, if provided.
 """
 function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing; intertags::Bool=false, layers::Int64=2, verbose::Bool=true, tag="", midnodestag="")
 
@@ -727,5 +727,58 @@ function generate_joints_by_tag_2!(mesh::Mesh; layers::Int64=2, verbose::Bool=tr
 end
 
 
+function cracksmesh(mesh::Mesh, opening)
+
+    # Get paired faces
+    facedict = Dict{UInt64, Cell}()
+    face_pairs = Tuple{Cell, Cell}[]
+    for cell in mesh.elems
+        for face in get_faces(cell)
+            hs = hash(face)
+            f  = get(facedict, hs, nothing)
+            if f==nothing
+                facedict[hs] = face
+            else
+                push!(face_pairs, (face, f))
+                delete!(facedict, hs)
+            end
+        end
+    end
+
+    # Get normals and distances
+    U = mesh.node_data["U"]
+    crack_faces = Cell[]
+    for pair in face_pairs
+        face1, face2 = pair
+        X1 = face1.nodes[1].coord
+        X2 = face1.nodes[2].coord
+        X3 = face1.nodes[3].coord
+        n = cross(X2-X1, X3-X1)
+        normalize!(n)
+        node_map = [node.id for node in face1.nodes]
+        nnodes = length(node_map)
+        U1 = mean(U[node_map,:], dims=1)
+
+        node_map = [node.id for node in face2.nodes]
+        U2 = mean(U[node_map,:], dims=1)
+
+        d = dot(U2-U1, n)
+        if d>=opening
+            push!(crack_faces, face1)
+        end
+    end
+
+    nodes = get_nodes(crack_faces)
+    ids = [ node.id for node in nodes ]
+
+    newsmesh = Mesh(crack_faces)
+
+    for (k,v) in mesh.node_data
+        k=="id" && continue
+        newsmesh.node_data[k] = v[ids]
+    end
+
+    return newsmesh
+end
 
 
