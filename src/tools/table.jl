@@ -100,7 +100,27 @@ function Base.push!(table::DataTable, dict::AbstractDict)
     end
 end
 
+
+function Base.setindex!(table::DataTable, column::ColType, key::KeyType)
+    if length(table.columns)>0
+        @assert length(column)==length(table.columns[1])
+    end
+
+    key = string(key)
+    if haskey(table.colindex, key)
+        idx = table.colindex[key]
+        table.columns[idx] = column
+    else
+        push!(table.columns, column)
+        push!(table.header, key)
+        table.colindex[key] = length(table.columns)
+    end
+    return column
+end
+
+
 function Base.getindex(table::DataTable, key::KeyType)
+    @assert string(key) in table.header
     return table.columns[table.colindex[string(key)]]
 end
 
@@ -108,6 +128,35 @@ function Base.getindex(table::DataTable, keys::Array{<:KeyType,1})
     columns = [ table[string(key)] for key in keys ]
     subtable = DataTable(keys, columns)
     return subtable
+end
+
+function Base.getindex(table::DataTable, rowindex::Int)
+    subtable = DataTable(table.header)
+    for i in 1:length(table.columns)
+        push!(subtable.columns[i], table.columns[i][rowindex])
+    end
+    return subtable
+end
+
+function Base.getindex(table::DataTable, idxs::Union{Colon,OrdinalRange{Int,Int},Array{Int,1}})
+    subtable = DataTable(table.header)
+    for i in 1:length(table.columns)
+        subtable.columns[i] = table.columns[i][idxs]
+    end
+    return subtable
+end
+
+function Base.getindex(table::DataTable, idxs::BitArray{1})
+    @assert length(idxs)==length(table.columns[1])
+    subtable = DataTable(table.header)
+    for i in 1:length(table.columns)
+        subtable.columns[i] = table.columns[i][idxs]
+    end
+    return subtable
+end
+
+function Base.getindex(table::DataTable, rowindex::Int, colindex::Int)
+    return table.columns[colindex][rowindex]
 end
 
 function Base.getindex(table::DataTable, rowindex::Int, colon::Colon)
