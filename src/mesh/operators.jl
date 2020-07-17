@@ -410,11 +410,8 @@ function changeaxes!(mesh::Mesh, order::String)
         p.coord[1:3] = p.coord[idxs]
     end
 
-
-    if !(order in ("xyz", "yzx", "zxy"))
-        for elem in mesh.elems
-            flip!(elem)
-        end
+    for elem in mesh.elems
+        isinverted(elem) && flip!(elem)
     end
 
     if length(mesh.node_data)>0 || length(mesh.elem_data)>0
