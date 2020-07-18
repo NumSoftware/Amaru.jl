@@ -236,8 +236,13 @@ function solve!(
         end
     end
 
-    outdir = strip(outdir, ['/', '\\'])
-    isdir(outdir) || error("solve!: output directory <$outdir> not found")
+    outdir = rstrip(outdir, ['/', '\\'])
+    env.outdir = outdir
+    if !isdir(outdir)
+        @info "solve!: creating output directory <$outdir>"
+        mkpath(outdir)
+    end
+
 
     # Save initial file and loggers
     if env.cstage==1
