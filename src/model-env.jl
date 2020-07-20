@@ -24,6 +24,7 @@ mutable struct ModelEnv
         this.cstage = 0 # current stage
         this.cinc   = 0 # current increment
         this.cout   = 0 # output files counter
+        this.outdir = ""
 
         this.params = Dict()
         return this
