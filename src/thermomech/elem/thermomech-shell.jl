@@ -764,9 +764,8 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, DF::Array{Float64,1},
 
         # compute Nt
         Nt = elem.shape.basic_shape.func(ip.R)
-
         # compute Δε
-        
+
         @gemv Δε = Bu*dU
 
         # compute Δut
