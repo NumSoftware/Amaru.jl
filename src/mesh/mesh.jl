@@ -709,7 +709,6 @@ function get_segment_data(msh::AbstractMesh, X1::Array{<:Real,1}, X2::Array{<:Re
     return table
 end
 
-
 export randmesh
 function randmesh(l::Real...)
     ndim = length(l)
@@ -726,30 +725,96 @@ function randmesh(l::Real...)
     end
 end
 
+
+
 export UMesh
+
 function UMesh(
-              coords     :: Array{<:Real,2},
-              conns      :: Array{Array{Int,1},1}=Array{Int,1}[];
-              tag        :: String="",
-              verbose    :: Bool=true,
-              silent     :: Bool=false
+               polym::Union{Polygon,PolygonMesh},
+               sizes::Array=[],
+               embedded=Array=[];
+               size::Real=NaN
              )
-
-    Sys.iswindows() && error("UMesh not supported on MS Windows")
-
-    if conns==[]
-        npoints = size(coords,1)
-        conns = [ Int[i, i+1] for i in 1:npoints ]
-        conns[end][end] = 1
+    if polym isa Polygon
+        polym = PolygonMesh([polym])
     end
 
+    coords = get_coords(polym)
+    ndim = sum(abs, coords[:,end])==0.0 ? 2 : 3
+    npoints = Base.size(coords,1)
+    pdict = Dict{Point, Int}( p=>i for (i,p) in enumerate(polym.points) )
+    ldict = Dict{UInt, Int}( hash(l)=>i for (i,l) in enumerate(polym.lines) )
+
+    if isnan(size)
+        bb = bounding_box(polym.points)
+        size = maximum(diff(bb, dims=1))/3
+    end
+
+    # Set sizes
+    _sizes = zeros(npoints)
+    _sizes .= size
+    for (filter,s) in sizes
+        points = polym.points[filter]
+        for p in points
+            _sizes[pdict[p]] = s
+        end
+    end
+
+    # Set embedded points in surfaces
+    _embed = Dict{Int,Int}()
+    polydict = Dict{UInt, Int}( hash(poly)=>i for (i,poly) in enumerate(polym.polygons) )
+    for (filter,X) in embedded
+        polygons = polym.polygons[filter]
+        length(polygons)==0 && break
+        poly = polygons[1]
+        coords = [coords; X']
+        push!(_sizes, size)
+        @show coords
+        #_embed[polydict[hash(poly)]] = Base.size(coords,2)
+        _embed[ Base.size(coords,1) ] = polydict[hash(poly)]
+    end
+
+    # Find point indexes for lines
+    pdict = Dict{Point, Int}( p=>i for (i,p) in enumerate(polym.points) )
+    lineindexes = Array{Int,1}[]
+    for line in polym.lines
+        idx = Int[ pdict[p] for p in line.points ]
+        push!(lineindexes, idx)
+    end
+
+    # Find line indexes for polygons
+    polyindexes = Array{Int,1}[]
+    for poly in polym.polygons
+        idx = Int[ ldict[hash(l)] for l in poly.lines]
+        push!(polyindexes, idx)
+    end
+
+    # Fix signal in line indexes for polygons
+    for loop in polyindexes
+        if !(lineindexes[loop[1]][end] in lineindexes[loop[2]])
+            loop[1] = -loop[1]
+        end
+
+        for i in 2:length(loop)
+            lineidx = loop[i]
+            line = lineidx>0 ? lineindexes[lineidx] : reverse(lineindexes[abs(lineidx)])
+            lastlineidx = loop[i-1]
+            lastline = lastlineidx>0 ? lineindexes[lastlineidx] : reverse(lineindexes[abs(lastlineidx)])
+            if line[1]!=lastline[end]
+                loop[i] = -lineidx
+            end
+        end
+    end
+
+    # Mesh generation
     @eval begin
         coords = $coords
-        conns  = $conns
-        #h = $h
-        tag = $tag
-        verbose = $verbose
-        silent = $silent
+        sizes = $_sizes
+        lines = $lineindexes
+        surfaces = $polyindexes
+        ndim = $ndim
+        npoints = $npoints
+        embedded = $_embed
 
         import Gmsh.gmsh
 
@@ -757,31 +822,59 @@ function UMesh(
         gmsh.option.setNumber("General.Terminal", 1)
         gmsh.model.add("model01")
 
-        nrows = size(coords,1)
-        #if typeof(h)<:Real
-            #h = repeat([h], nrows)
-        #end
+        npoints = size(coords,1)
 
         # adding points
-        for i=1:nrows
-            gmsh.model.geo.addPoint(coords[i,1], coords[i,2], 0.0, coords[i,end], i)
+        for i=1:npoints
+            #gmsh.model.geo.addPoint(coords[i,1], coords[i,2], ndim==2 ? 0.0 : coords[i,3], sizes[i], i)
+            gmsh.model.geo.addPoint(coords[i,1], coords[i,2], coords[i,3], sizes[i], i)
         end
 
         # adding lines
-        nlines = length(conns)
-        for (i,conn) in enumerate(conns)
-            if length(conn)==2 # line
-                gmsh.model.geo.addLine(conn[1], conn[2], i)
+        nlines = length(lines)
+        for (i,line) in enumerate(lines)
+            if length(line)==2 # line
+                gmsh.model.geo.addLine(line[1], line[2], i)
             else # circle arc
-                gmsh.model.geo.addCircleArc(conn[1], conn[2], conn[3], i)
+                gmsh.model.geo.addCircleArc(line[1], line[2], line[3], i)
             end
         end
 
-        gmsh.model.geo.addCurveLoop(collect(1:nlines), 1)
-        gmsh.model.geo.addPlaneSurface([1], 1)
-        gmsh.model.addPhysicalGroup(2, [1], 1) # ndim, entities, tag
+        #if ndim==2 && length(surfaces)==0
+            #surfaces = [ collect(1:nlines) ]
+        #end
+
+        # PhysicalGroup index
+        ipg = 0
+
+        # adding surfaces
+        nsurfs = length(surfaces)
+        for (i,loop) in enumerate(surfaces)
+            gmsh.model.geo.addCurveLoop(loop, i)
+            gmsh.model.geo.addPlaneSurface([i], i)
+            if ndim==2
+                global ipg += 1
+                gmsh.model.addPhysicalGroup(2, [i], ipg) # ndim, entities, tag
+            end
+        end
+        #if _2d
+            #gmsh.model.geo.addCurveLoop(collect(1:nlines), 1)
+            #gmsh.model.geo.addPlaneSurface([1], 1)
+            #gmsh.model.addPhysicalGroup(2, [1], 1) # ndim, entities, tag
+        #end
+
+        if ndim==3
+            gmsh.model.geo.addSurfaceLoop(collect(1:nsurfs), 1)
+            gmsh.model.geo.addVolume([1], 1)
+            global ipg += 1
+            gmsh.model.addPhysicalGroup(3, [1], ipg) # ndim, entities, tag
+        end
+
         gmsh.model.geo.synchronize()
-        gmsh.model.mesh.generate(2)
+        for (k,v) in embedded
+            gmsh.model.mesh.embed(0,[k],2,v)
+        end
+        gmsh.model.mesh.generate(ndim)
         gmsh.model.mesh.smooth()
 
         tempfile = "_temp.vtk"
@@ -790,7 +883,7 @@ function UMesh(
     end
 
     mesh = Mesh(tempfile)
-    tag!(mesh.elems, tag)
     rm(tempfile)
     return mesh
+
 end
