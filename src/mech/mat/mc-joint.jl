@@ -356,6 +356,7 @@ function stress_update(mat::MCJoint, ipd::MCJointIpState, Δw::Array{Float64,1})
 
     # Elastic and EP integration
     if σmax == 0.0 && ipd.w[1] >= 0.0
+        # Return to apex:
         if ndim==3
             r1 = [ σtr[1]/kn, σtr[2]/ks, σtr[3]/ks ]
             r = r1/norm(r1)
@@ -374,7 +375,8 @@ function stress_update(mat::MCJoint, ipd::MCJointIpState, Δw::Array{Float64,1})
         ipd.Δλ = 0.0
         ipd.σ  = copy(σtr) 
 
-    else    
+    else
+        # Plastic increment
         ipd.Δλ = calc_Δλ(mat, ipd, σtr) 
         ipd.σ, ipd.upa = calc_σ_upa(mat, ipd, σtr)
                       
@@ -383,8 +385,8 @@ function stress_update(mat::MCJoint, ipd::MCJointIpState, Δw::Array{Float64,1})
         F > 1e-3 && @warn "MCJoint: Yield function value outside tolerance:" F
 
     end
-        ipd.w += Δw
-        Δσ = ipd.σ - σini
+    ipd.w += Δw
+    Δσ = ipd.σ - σini
     return Δσ
 end
 
