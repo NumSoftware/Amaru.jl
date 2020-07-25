@@ -112,17 +112,17 @@ function cplot(data::Array{<:NamedTuple},
                textlist         = []
               )
 
-    if filename==""
-        printstyled("cplot: generating plot\n", color=:cyan )
-    else
-        printstyled("cplot: generating plot to file $filename\n", color=:cyan )
-    end
-    wrap(str::String) = (str=replace(str, r"(\s|\n)+" => " "); replace(str, r".{1,60}( |$)" => s"    \0\n");)
+    headline("Chart plotting")
+    message("generating plot $(strip(xlabel,'$')) vs $(strip(ylabel,'$'))")
+
+    hint("Optional arguments:", level=2)
     options = "xlabel, ylabel, legendloc, xbins, ybins, grid, figsize, legendexpand, ncol,
                xlim, ylim, xscale, yscale, fontsize, ticksinside, legendfontsize, labelspacing"
-    printstyled("  Options:\n", wrap(options), color=:light_black)
+    hint(options, level=3)
+
+    hint("Arguments and optional arguments per curve:", level=2)
     options = "x, y, color, ls, lw, marker, ms, mfc, label"
-    printstyled("  Options per curve:\n", wrap(options), color=:light_black)
+    hint(options, level=3)
 
     @eval import PyPlot:plt, matplotlib, figure
 
@@ -307,7 +307,7 @@ function cplot(data::Array{<:NamedTuple},
         plt.show()
     else
         plt.savefig(filename, bbox_inches="tight", pad_inches=0.01, format="pdf")
-        printstyled("  file $filename saved\n", color=:cyan)
+        info("file $filename saved")
         plt.close("all")
     end
 
