@@ -38,23 +38,27 @@ include("tools/include.jl")
 export max, min, sort, reset, getindex, sort, copy!, show
 
 
-# Fem module
+#include("abstract.jl")
+abstract type AbstractPoint end
+abstract type AbstractCell end
+abstract type AbstractMesh end
+
+
+# FEM
 include("model-env.jl")
 export ModelEnv
 
 include("node.jl")
 export Node, Dof, add_dof, get_data
 
+# Mesh
+include("mesh/include.jl")
+
 include("ip.jl")
 export Ip, ip_vals, maximum, minimum, sort
 
 include("material.jl")
 export Material, read_prms
-
-# Mesh
-abstract type AbstractCell end
-abstract type AbstractMesh end
-include("mesh/include.jl")
 
 include("element.jl")
 export Element
