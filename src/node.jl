@@ -66,7 +66,7 @@ vector that represents the node coordinates.
 `tag` : An int or string tag
 `dofs`: An array of `Dof` objects
 """
-mutable struct Node
+mutable struct Node<:AbstractPoint
     id      ::Int
     coord   ::Vec3
     tag     ::String
@@ -94,20 +94,7 @@ mutable struct Node
 
     function Node(X::AbstractArray{<:Real}; tag::String="", id::Int=-1)
         @assert length(X) in (1,2,3)
-        this = new()
-        this.id = id
-        X .= round.(X, digits=8)
-        if length(X)==3
-            this.coord = Vec3(X[1], X[2], X[3])
-        elseif length(X)==2
-            this.coord = Vec3(X[1], X[2], 0.0)
-        else
-            this.coord = Vec3(X[1], 0.0, 0.0)
-        end
-        this.tag = tag
-        this.dofs = []
-        this.dofdict = OrderedDict{Symbol,Dof}()
-        return this
+        return Node(X...; tag=tag, id=id)
     end
 end
 
@@ -116,7 +103,8 @@ const null_Node = Node(NaN, NaN, NaN)
 @inline null(::Type{Node}) = null_Node
 
 
-Base.hash(n::Node) = hash( (round(n.coord.x, digits=8), round(n.coord.y, digits=8), round(n.coord.z, digits=8)) )
+#Base.hash(n::Node) = hash( (round(n.coord.x, digits=8), round(n.coord.y, digits=8), round(n.coord.z, digits=8)) )
+Base.hash(n::Node) = hash( (n.coord.x, n.coord.y, n.coord.z) )
 
 function Base.copy(node::Node)
     newnode = Node(node.coord, tag=node.tag, id=node.id)
@@ -193,7 +181,7 @@ function Base.getindex(nodes::Array{Node,1}, filter_ex::Expr)
     return R
 end
 
-# Get node coordinates for an collection of nodes as a matrix
+# Get node coordinates for a collection of nodes as a matrix
 function get_coords(nodes::Array{Node,1}, ndim=3)
     nnodes = length(nodes)
     [ nodes[i].coord[j] for i=1:nnodes, j=1:ndim]
