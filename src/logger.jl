@@ -68,8 +68,8 @@ function setup_logger!(domain, filter, logger::IpLogger)
     #logger.filter==:() && return
     ips = domain.elems[:ips][filter]
     n = length(ips)
-    n == 0 && @warn "setup_logger: No ips found for expression:" filter=logger.filter
-    n >  1 && @info "setup_logger: More than one ip match expression:" filter=logger.filter
+    n == 0 && notify("setup_logger: No ips found for filter expression: $(logger.filter)")
+    n >  1 && notify("setup_logger: More than one ip match filter expression: $(logger.filter)")
     n >= 1 && (logger.ip = ips[1])
     return nothing
 end

@@ -58,7 +58,7 @@ end
 Creates an `Ip` object that represents an Integration Point in finite element analyses.
 `R` is a vector with the integration point local coordinates and `w` is the corresponding integration weight.
 """
-mutable struct Ip
+mutable struct Ip<:AbstractPoint
     R    ::Vec3
     w    ::Float64
     coord::Vec3
@@ -112,12 +112,14 @@ end
 
 # Get the maximum value of a given coordinate for the whole collection of ips
 function maximum(ips::Array{Ip,1}, dir::Symbol)
-    idx = findfisrt((:x, :y, :z), dir)
-    maximum([ip.coord[idx] for ip in ips])
+    idx = findfirst(isequal(dir), (:x, :y, :z))
+    _, idx = findmax([ip.coord[idx] for ip in ips])
+    return ips[idx]
 end
 
 function minimum(ips::Array{Ip,1}, dir::Symbol)
-    idx = findfisrt((:x, :y, :z), dir)
-    minimum([ip.coord[idx] for ip in ips])
+    idx = findfirst(isequal(dir), (:x, :y, :z))
+    _, idx = findmin([ip.coord[idx] for ip in ips])
+    return ips[idx]
 end
 
