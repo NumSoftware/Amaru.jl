@@ -33,7 +33,7 @@ end
 
 
 # Solves for a load/displacement increment
-function solve_system!(K::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu::Int)
+function dym_solve_system!(K::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu::Int)
     #  [  K11   K12 ]  [ U1? ]    [ F1  ]
     #  |            |  |     | =  |     |
     #  [  K21   K22 ]  [ U2  ]    [ F2? ]
@@ -285,7 +285,7 @@ function dynsolve!(
     sw = StopWatch()
 
     # Initial accelerations
-    K = mount_K(dom, ndofs)
+    K = mount_K(dom, ndofs, verbosity)
     M = mount_M(dom, ndofs)
     A = zeros(ndofs)
     V = zeros(ndofs)
@@ -296,7 +296,7 @@ function dynsolve!(
         #M = mount_M(dom,ndofs)
         Fex = sismic_force(dom, bcs, M, Fex, AS, keysis, 0.0, tds)
     end
-    solve_system!(M, A, Fex, nu)
+    dym_solve_system!(M, A, Fex, nu)
 
     # Initial values at nodes
     for (i,dof) in enumerate(dofs)
@@ -372,9 +372,9 @@ function dynsolve!(
             lastres = residue # residue from last iteration
 
             # Try FE step
-            verbosity>0 && print("    assembling K... \r")
+            #verbosity>0 && print("    assembling K... \r")
             #remountK && (K = mount_K(dom, ndofs))
-            K = mount_K(dom, ndofs)
+            K = mount_K(dom, ndofs, verbosity)
 
             C   = alpha*M + beta*K # Damping matrix
             Kp  = K + (4/(dt^2))*M + (2/dt)*C # pseudo-stiffness matrix
@@ -382,7 +382,7 @@ function dynsolve!(
 
             # Solve
             verbosity>0 && print("    solving...   \r")
-            solve_system!(Kp, ΔUi, ΔFp, nu)
+            dym_solve_system!(Kp, ΔUi, ΔFp, nu)
 
             # Update
             verbosity>0 && print("    updating... \r")
