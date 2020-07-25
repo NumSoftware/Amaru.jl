@@ -1,6 +1,6 @@
 
 function wrap(str::String, level=2)
-    width = displaysize(stdout)[2]-1
+    width = displaysize(stdout)[2]-2
     (level-1)*2+length(str)<=width && return "  "^(level-1)*str
 
     str = replace(str, r"(\s|\n)+" => " ")
