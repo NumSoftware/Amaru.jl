@@ -102,8 +102,12 @@ end
 
 
 function Base.setindex!(table::DataTable, column::ColType, key::KeyType)
+    col = column
+
     if length(table.columns)>0
-        @assert length(column)==length(table.columns[1])
+        n1 = length(table.columns[1])
+        n2 = length(column)
+        n1!=n2 && error("setindex! : length ($n2) for data ($key) is incompatible with DataTable rows ($n1)")
     end
 
     key = string(key)
