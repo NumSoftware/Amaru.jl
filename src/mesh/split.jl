@@ -51,6 +51,9 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
         lockedcells = setdiff(lockedcells, lockedcells[:joints])
     else
         targetcells = mesh.elems[filter].solids
+        if length(targetcells)==0
+            error("generate_joints!: no targetcells found for filter $filter")
+        end
         lockedcells = setdiff(mesh.elems, targetcells)
         # remove previous joints at filtered region
         lockedcells = setdiff(lockedcells, lockedcells[filter][:joints])
@@ -349,8 +352,6 @@ function generate_joints_by_tag!(mesh::Mesh; layers::Int64=2, verbose::Bool=true
             delete!(facedict, hs)
         end
     end
-
-
 
 end
 
@@ -727,7 +728,7 @@ function generate_joints_by_tag_2!(mesh::Mesh; layers::Int64=2, verbose::Bool=tr
 end
 
 
-function cracksmesh(mesh::Mesh, opening)
+function cracksmesh(mesh::Mesh, opening::Real)
 
     # Get paired faces
     facedict = Dict{UInt64, Cell}()

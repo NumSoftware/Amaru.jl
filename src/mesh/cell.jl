@@ -76,6 +76,7 @@ function Base.getproperty(c::AbstractCell, s::Symbol)
     s == :faces  && return get_faces(c)
     s == :edges  && return get_edges(c)
     s == :extent && return cell_extent(c)
+    s == :points && return c.nodes
     return getfield(c, s)
 end
 
@@ -108,6 +109,8 @@ end
 
 
 function Base.getindex(cells::Array{Cell,1}, filter_ex::Expr)
+    length(cells)==0 && return Cell[]
+
     # cells id must be set
     nodes = unique(p->p.id, p for c in cells for p in c.nodes )
     sort!(nodes, by=p->p.coord.x+p.coord.y+p.coord.z)
@@ -130,7 +133,7 @@ end
 
 
 # Gets the coordinates of a bounding box for an array of nodes
-function bounding_box(nodes::Array{Node,1})
+function bounding_box(nodes::Array{<:AbstractPoint,1})
     minx = miny = minz =  Inf
     maxx = maxy = maxz = -Inf
     for node in nodes
