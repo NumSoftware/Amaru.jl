@@ -26,8 +26,8 @@ function setup_logger!(domain, filter, logger::NodeLogger)
     logger.filter = filter
     nodes = domain.nodes[filter]
     n = length(nodes)
-    n == 0 && @warn "setup_logger: No nodes found for expression:" filter=logger.filter
-    n >  1 && @info "setup_logger: More than one node match expression:" filter=logger.filter
+    n == 0 && warn("setup_logger: No nodes found for filter expression: ", logger.filter)
+    n >  1 && notify("setup_logger: More than one node match filter expression: ", logger.filter)
     n >= 1 && (logger.node = nodes[1])
     logger.filter = filter
     return nothing
@@ -68,7 +68,7 @@ function setup_logger!(domain, filter, logger::IpLogger)
     #logger.filter==:() && return
     ips = domain.elems[:ips][filter]
     n = length(ips)
-    n == 0 && notify("setup_logger: No ips found for filter expression: $(logger.filter)")
+    n == 0 && warn("setup_logger: No ips found for filter expression: $(logger.filter)")
     n >  1 && notify("setup_logger: More than one ip match filter expression: $(logger.filter)")
     n >= 1 && (logger.ip = ips[1])
     return nothing
@@ -126,7 +126,7 @@ end
 function setup_logger!(domain, filter, logger::FaceLogger)
     logger.filter = filter
     logger.faces = domain.faces[logger.filter]
-    length(logger.faces) == 0 && @warn "setup_logger: No faces found for expression:" filter=logger.filter
+    length(logger.faces) == 0 && warn("setup_logger: No faces found for filter expression: ", logger.filter)
     logger.nodes = logger.faces[:nodes]
 end
 
@@ -134,7 +134,7 @@ end
 function setup_logger!(domain, filter, logger::EdgeLogger)
     logger.filter = filter
     logger.edges = domain.edges[logger.filter]
-    length(logger.edges) == 0 && @warn "setup_logger: No edges found for expression:" filter=logger.filter
+    length(logger.edges) == 0 && warn("setup_logger: No edges found for filter expression: ", logger.filter)
     logger.nodes = logger.edges[:nodes]
 end
 
@@ -186,7 +186,7 @@ end
 function setup_logger!(domain, filter, logger::NodeGroupLogger)
     logger.filter = filter
     logger.nodes = domain.nodes[filter]
-    length(logger.nodes) == 0 && @warn "setup_logger: No nodes found for expression:" filter=logger.filter
+    length(logger.nodes) == 0 && warn("setup_logger: No nodes found for filter expression: ", logger.filter)
     sort!(logger.nodes, by=n->sum(n.coord))
 end
 
@@ -226,7 +226,7 @@ end
 function setup_logger!(domain, filter, logger::IpGroupLogger)
     logger.filter = filter
     logger.ips = domain.elems[:ips][logger.filter]
-    length(logger.ips)==0 && @warn "setup_logger: No ips found for expression:" filter=logger.filter
+    length(logger.ips)==0 && warn("setup_logger: No ips found for filter expression: ", logger.filter)
     sort!(logger.ips, by=ip->sum(ip.coord))
 end
 
@@ -375,7 +375,7 @@ end
 
 
 function save(logger::AbstractLogger, filename::String; verbose=true)
-    if isdefined(logger, :(table))
+    if isdefined(logger, :table)
         save(logger.table, filename, verbose=verbose)
     else
         save(logger.book, filename, verbose=verbose)
@@ -384,7 +384,7 @@ end
 
 
 function reset!(logger::AbstractLogger)
-    if isdefined(logger, :(table))
+    if isdefined(logger, :table)
         logger.table = DataTable()
     else
         logger.book = DataBook()
