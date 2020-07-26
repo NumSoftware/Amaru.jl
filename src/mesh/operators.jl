@@ -373,7 +373,7 @@ function rollaxes!(mesh::Mesh)
     end
 
     if length(mesh.node_data)>0 || length(mesh.elem_data)>0
-        notity("rollaxes!: mesh associated data was not reordered according to new axes.")
+        notify("rollaxes!: mesh associated data was not reordered according to new axes.")
     end
 end
 
@@ -414,7 +414,7 @@ function changeaxes!(mesh::Mesh, order::String)
     end
 
     if length(mesh.node_data)>0 || length(mesh.elem_data)>0
-        notity("changeaxes!: mesh associated data was not reordered according to new axes.")
+        notify("changeaxes!: mesh associated data was not reordered according to new axes.")
     end
 end
 
