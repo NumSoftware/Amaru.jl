@@ -373,7 +373,7 @@ function rollaxes!(mesh::Mesh)
     end
 
     if length(mesh.node_data)>0 || length(mesh.elem_data)>0
-        @warn "rollaxes!: mesh associated data was not reordered according to new axes."
+        notity("rollaxes!: mesh associated data was not reordered according to new axes.")
     end
 end
 
@@ -404,7 +404,6 @@ julia> changeaxes!(mesh, "zxy")
 function changeaxes!(mesh::Mesh, order::String)
     @assert length(order)==3
 
-
     idxs = [ char-'w' for char in order ]
     for p in mesh.nodes
         p.coord[1:3] = p.coord[idxs]
@@ -415,7 +414,7 @@ function changeaxes!(mesh::Mesh, order::String)
     end
 
     if length(mesh.node_data)>0 || length(mesh.elem_data)>0
-        @warn "changeaxes!: mesh associated data was not reordered according to new axes."
+        notity("changeaxes!: mesh associated data was not reordered according to new axes.")
     end
 end
 
@@ -455,6 +454,8 @@ function isinverted(elem::AbstractCell)
         V1 = X2-X1
         V2 = X3-X1
         V3 = X4-X1
+    else
+        error("isinverted: Cell shape $(cell.shape.name) is not supported")
     end
 
     return dot(cross(V1,V2),V3)<0
