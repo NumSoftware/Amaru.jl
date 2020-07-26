@@ -247,7 +247,6 @@ function solve!(
     umap  = 1:nu         # map for unknown displacements
     pmap  = nu+1:ndofs   # map for prescribed displacements
     dom.ndofs = length(dofs)
-    #verbosity>0 && println("  unknown dofs: $nu")
     verbosity>0 && message("unknown dofs: $nu")
 
     # Get forces and displacements from boundary conditions
@@ -297,6 +296,7 @@ function solve!(
     ΔFin = zeros(ndofs)  # vector of internal natural values for current increment
     ΔUa  = zeros(ndofs)  # vector of essential values (e.g. displacements) for this increment
     ΔUi  = zeros(ndofs)  # vector of essential values for current iteration
+    maxF = 0.0
 
     # Get unbalanced forces
     if env.cstage==1
@@ -315,7 +315,7 @@ function solve!(
         env.cinc += 1
 
         if inc > maxincs
-            printstyled("  solver maxincs = $maxincs reached (try maxincs=0)\n", color=:red)
+            alert("solver maxincs = $maxincs reached (try maxincs=0)\n")
             return false
         end
 
@@ -337,7 +337,7 @@ function solve!(
         converged = false
         for it=1:maxits
             nits += 1
-            if it>1; ΔUi .= 0.0 end # essential values are applied only at first iteration
+            it>1 && (ΔUi.=0.0) # essential values are applied only at first iteration
             lastres = residue # residue from last iteration
 
             # Predictor step for FE, ME and BE
@@ -349,7 +349,7 @@ function solve!(
                 ΔUt   = ΔUa + ΔUi
                 update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
 
-                residue = maximum(abs, (ΔFex-ΔFin)[umap] )
+                residue = norm((ΔFex-ΔFin)[umap])
             end
 
             # Corrector step for ME and BE
@@ -366,7 +366,7 @@ function solve!(
                 ΔUt   = ΔUa + ΔUi
                 update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
 
-                residue = maximum(abs, (ΔFex-ΔFin)[umap] )
+                residue = norm((ΔFex-ΔFin)[umap])
             end
 
             if scheme=="Ralston"
@@ -388,7 +388,7 @@ function solve!(
                 ΔUt   = ΔUa + ΔUi
                 update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
 
-                residue = maximum(abs, (ΔFex-ΔFin)[umap] )
+                residue = norm((ΔFex-ΔFin)[umap])
             end
 
             # Update accumulated displacement
@@ -416,6 +416,7 @@ function solve!(
             # Update forces and displacement for the current stage
             U .+= ΔUa
             F .+= ΔFin
+            maxF = max(maxF, norm(F))
             Fex .+= 1/(1-T).*R # Modify Fex to include residual vector
 
             # Backup converged state at ips
@@ -444,11 +445,11 @@ function solve!(
 
             if autoinc
                 if ΔTbk>0.0
-                    ΔT = ΔTbk
+                    ΔT = min(ΔTbk, Tcheck-T)
                     ΔTbk = 0.0
                 else
                     if nits==1
-                        q = (1+tanh(log10(tol/residue1)))
+                        q = (1+tanh(log10(tol/residue1)))^1
                     else
                         q = 1.0
                     end
@@ -469,17 +470,17 @@ function solve!(
             env.cinc -= 1
 
             if autoinc
-                verbosity>1 && println("    increment failed.")
+                verbosity>1 && notify("increment failed", level=3)
                 q = (1+tanh(log10(tol/residue1)))
                 q = clamp(q, 0.2, 0.9)
                 ΔT = q*ΔT
                 ΔT = round(ΔT, sigdigits=3)  # round to 3 significant digits
                 if ΔT < Ttol
-                    printstyled("solve!: solver did not converge \033[K \n", color=:red)
+                    alert("solve!: solver did not converge")
                     return false
                 end
             else
-                printstyled("solve!: solver did not converge \033[K \n", color=:red)
+                alert("solve!: solver did not converge")
                 return false
             end
         end
@@ -491,9 +492,11 @@ function solve!(
     end
 
     # time spent
-    verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress 100%\033[K\n", bold=true, color=:blue) # color 111
+    progress = @sprintf("%4.2f", T*100)
+    verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)%\033[K\n", bold=true, color=:blue) # color 111
     if verbosity>0 
-        message("increments: ", inc)
+        message("valid increments: ", inc)
+        message("max norm(F): ", round(maxF, sigdigits=5))
         message("time spent: ", see(sw, format=:hms))
     end
     getlapse(sw)>60 && sound_alert()
