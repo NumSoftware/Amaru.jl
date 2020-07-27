@@ -297,6 +297,7 @@ function solve!(
     ΔUa  = zeros(ndofs)  # vector of essential values (e.g. displacements) for this increment
     ΔUi  = zeros(ndofs)  # vector of essential values for current iteration
     maxF = 0.0
+    Rc   = zeros(ndofs)    # vector of cumulated residues
 
     # Get unbalanced forces
     if env.cstage==1
@@ -324,9 +325,13 @@ function solve!(
         verbosity>1 && println()
 
         ΔUex, ΔFex = ΔT*Uex, ΔT*Fex     # increment of external vectors
-        R   .= ΔFex     # residual
+
+        ΔTcr = min(0.001, 1-T)    # time span to apply cumulated residues
+        αcr  = min(ΔT/ΔTcr, 1.0)  # fraction of cumulated residues to apply
+        ΔFex .+= αcr.*Rc
+        R   .= ΔFex
         ΔUa .= 0.0
-        ΔUi .= ΔUex    # essential values at iteration i
+        ΔUi .= ΔUex  # essential values at iteration i
 
         # Newton Rapshon iterations
         residue   = 0.0
@@ -417,7 +422,7 @@ function solve!(
             U .+= ΔUa
             F .+= ΔFin
             maxF = max(maxF, norm(F))
-            Fex .+= 1/(1-T).*R # Modify Fex to include residual vector
+            Rc .= (1.0-αcr).*Rc .+ R  # update cumulated residue
 
             # Backup converged state at ips
             copyto!.(StateBk, State)
