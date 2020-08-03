@@ -469,7 +469,7 @@ function mplot(
             #ax.set_proj_type("3d") # not necessary
             #axis("scaled") ?
         catch err
-            @alert("mplot: Could not set aspect ratio to equal")
+            alert("mplot: Could not set aspect ratio to equal")
 
             #dump(err)
         end

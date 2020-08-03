@@ -92,7 +92,7 @@ function setup_bc!(dom, filter, bc::Union{FaceBC,EdgeBC})
         bc.edges = dom.edges[bc.filter]
         facets = bc.edges
     end
-    length(facets)==0 && notify("setup_bc!: applying boundary conditions to empty array of faces/edges while evaluating expression " expr(bc.filter))
+    length(facets)==0 && notify("setup_bc!: applying boundary conditions to empty array of faces/edges while evaluating expression ", expr(bc.filter))
 
     not_found_keys = Set()
 
