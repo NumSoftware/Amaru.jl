@@ -106,7 +106,32 @@ function mirror(blocks::Array{<:AbstractBlock,1}; face=[0.0 0 0; 0 1 0; 0 0 1])
 end
 
 
-function mirror(mesh::Mesh; face=[0.0 0 0; 0 1 0; 0 0 1])
+function mirror(mesh::Mesh; axis=[0.0, 0, 1], base=[0.0, 0, 0])
+    axis = cross(p2-p1, p3-p1)
+    axis = normalize(axis)
+
+    # copy mesh
+    newmesh = copy(mesh)
+
+    # mirror
+    L = Vec3()
+    for node in newmesh.nodes
+        L .= node.coords .- base
+        dist = dot(L, axis) # dist = n^.(xi - xp)
+        node.coords .= node.coords .- (2*dist).*axis # xi = xi - 2*d*n^
+    end
+
+    for elem in mesh.elems
+        isinverted(elem) && flip!(elem)
+    end
+
+    fixup!(newmesh, reorder=false)
+    return newmesh
+end
+
+
+
+function mirror2(mesh::Mesh; face=[0.0 0 0; 0 1 0; 0 0 1])
     nr, nc = size(face)
     if nc==2
         face = [ face zeros(nr) ]
@@ -352,30 +377,30 @@ end
 # Roll Axes
 # =========
 
-function rollaxes!(bl::AbstractBlock)
-    for p in bl.nodes
-        p.coord.x, p.coord.y, p.coord.z = p.coord.z, p.coord.x, p.coord.y
-    end
-    return nothing
-end
-
-rollaxes!(bls::Array{<:AbstractBlock,1}) = (rollaxes!.(bls); nothing)
-
-function rollaxes!(mesh::Mesh)
-    if mesh.ndim==2
-        for p in mesh.nodes
-            p.coord.x, p.coord.y = p.coord.y, p.coord.x
-        end
-    else
-        for p in mesh.nodes
-            p.coord.x, p.coord.y, p.coord.z = p.coord.z, p.coord.x, p.coord.y
-        end
-    end
-
-    if length(mesh.node_data)>0 || length(mesh.elem_data)>0
-        notify("rollaxes!: mesh associated data was not reordered according to new axes.")
-    end
-end
+#function rollaxes!(bl::AbstractBlock)
+#    for p in bl.nodes
+#        p.coord.x, p.coord.y, p.coord.z = p.coord.z, p.coord.x, p.coord.y
+#    end
+#    return nothing
+#end
+#
+#rollaxes!(bls::Array{<:AbstractBlock,1}) = (rollaxes!.(bls); nothing)
+#
+#function rollaxes!(mesh::Mesh)
+#    if mesh.ndim==2
+#        for p in mesh.nodes
+#            p.coord.x, p.coord.y = p.coord.y, p.coord.x
+#        end
+#    else
+#        for p in mesh.nodes
+#            p.coord.x, p.coord.y, p.coord.z = p.coord.z, p.coord.x, p.coord.y
+#        end
+#    end
+#
+#    if length(mesh.node_data)>0 || length(mesh.elem_data)>0
+#        notify("rollaxes!: mesh associated data was not reordered according to new axes.")
+#    end
+#end
 
 
 function changeaxes!(bl::AbstractBlock, order::String)
@@ -412,6 +437,8 @@ function changeaxes!(mesh::Mesh, order::String)
     for elem in mesh.elems
         isinverted(elem) && flip!(elem)
     end
+
+    fixup!(mesh, reorder=false)
 
     if length(mesh.node_data)>0 || length(mesh.elem_data)>0
         notify("changeaxes!: mesh associated data was not reordered according to new axes.")
