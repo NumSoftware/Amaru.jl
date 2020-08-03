@@ -154,7 +154,7 @@ function setup_bc!(dom, filter, bc::ElemBC)
     bc.filter = filter
     # Filter objects according to bc criteria
     bc.elems = dom.elems[bc.filter]
-    length(bc.elems)==0 && notify("setup_bc!: applying boundary conditions to empty array of elements while evaluating expression " expr(bc.filter))
+    length(bc.elems)==0 && notify("setup_bc!: applying boundary conditions to empty array of elements while evaluating expression ", expr(bc.filter))
 
     # Find prescribed essential bcs
     for (key,val) in bc.conds  # e.g. key = tx, ty, tn, etc...
