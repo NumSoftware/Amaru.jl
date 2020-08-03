@@ -99,29 +99,12 @@ function LinearAlgebra.eigen(T::Tensor2)
           T[5]/SR2  T[4]/SR2  T[3]     ]
     L, V = eigen(F, permute=false, scale=false)
 
-    V[:,3] .= normalize(cross(V[:,1], V[:,2]))
-
-    #=
+    # put biggest eigenvalue first
     p = sortperm(L, rev=true)
-
     L = L[p]
     V = V[:,p]
-    V[:,3] = cross(V[:,1], V[:,2])
-    =#
+    V[:,3] .= normalize(cross(V[:,1], V[:,2]))
 
-    #=
-    # force a clockwise system
-    if norm( cross(V[:,2], V[:,3]) - V[:,1] ) > 1e-5
-        L[2], L[3] = L[3], L[2]
-        V[:,2], V[:,3] = V[:,3], V[:,2]
-    end
-
-    # find max value
-    val, idx = findmax(L)
-    shift = 1 - idx
-    L = circshift(L, shift)
-    V = circshift(V, (0,shift))
-    =#
     return L, V
 end
 
