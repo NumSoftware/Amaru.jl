@@ -990,7 +990,7 @@ function smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Float64=0
     end
 
     n_bad_cells = count(q -> q<=0, Q)
-    n_bad_cells>0 && @warn "Invalid cells found: " n=n_bad_cells
+    n_bad_cells>0 && warn("smooth!: $n_bad_cells invalid cells obtained")
 
     # Set forces to zero for the last step
     mesh.node_data["forces"] = zeros(length(mesh.nodes), 3)
@@ -1195,7 +1195,7 @@ function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, verbose::Bool=true, fixe
     end
 
     n_bad_cells = count(q -> q<=0, Q)
-    n_bad_cells>0 && @warn "Invalid cells found: " n=n_bad_cells
+    n_bad_cells>0 && warn("smooth!: $n_bad_cells invalid cells obtained")
 
     savedata && save(stats, "$filekey-stats.dat")
     savedata && save(hists, "$filekey-hists.dat")

@@ -22,7 +22,7 @@ function setup_bc!(dom, filter, bc::NodeBC)
 
     # Filter objects according to bc criteria
     bc.nodes  = dom.nodes[bc.filter]
-    length(bc.nodes)==0 && @warn "setup_bc!: applying boundary conditions to empty array of nodes while evaluating expression" bc.filter
+    length(bc.nodes)==0 && notify("setup_bc!: applying boundary conditions to empty array of nodes while evaluating expression ", expr(bc.filter))
     not_found_keys = Set()
 
     # Find prescribed essential bcs
@@ -92,7 +92,7 @@ function setup_bc!(dom, filter, bc::Union{FaceBC,EdgeBC})
         bc.edges = dom.edges[bc.filter]
         facets = bc.edges
     end
-    length(facets)==0 && @warn "setup_bc!: applying boundary conditions to empty array of faces/edges while evaluating expression" bc.filter
+    length(facets)==0 && notify("setup_bc!: applying boundary conditions to empty array of faces/edges while evaluating expression " expr(bc.filter))
 
     not_found_keys = Set()
 
@@ -154,7 +154,7 @@ function setup_bc!(dom, filter, bc::ElemBC)
     bc.filter = filter
     # Filter objects according to bc criteria
     bc.elems = dom.elems[bc.filter]
-    length(bc.elems)==0 && @warn "setup_bc!: applying boundary conditions to empty array of elements while evaluating expression" bc.filter
+    length(bc.elems)==0 && notify("setup_bc!: applying boundary conditions to empty array of elements while evaluating expression " expr(bc.filter))
 
     # Find prescribed essential bcs
     for (key,val) in bc.conds  # e.g. key = tx, ty, tn, etc...

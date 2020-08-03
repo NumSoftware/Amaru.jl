@@ -199,6 +199,7 @@ function solve!(
                 maxincs :: Int     = 1000000,
                 tol     :: Number  = 1e-2,
                 Ttol    :: Number  = 1e-9,
+                rspan   :: Number  = 1e-3,
                 scheme  :: Union{String,Symbol} = "FE",
                 nouts   :: Int     = 0,
                 outdir  :: String  = ".",
@@ -233,11 +234,11 @@ function solve!(
     if save_outs && !autoinc
         if nouts>nincs
             nincs = nouts
-            @info "  nincs changed to $nincs to match nouts"
+            info("nincs changed to $nincs to match nouts")
         end
         if nincs%nouts != 0
             nincs = nincs - (nincs%nouts) + nouts
-            @info "  nincs changed to $nincs to be a multiple of nouts"
+            info("nincs changed to $nincs to be a multiple of nouts")
         end
     end
 
@@ -263,7 +264,7 @@ function solve!(
     outdir = rstrip(outdir, ['/', '\\'])
     env.outdir = outdir
     if !isdir(outdir)
-        @info "solve!: creating output directory <$outdir>"
+        info("solve!: creating output directory ./$outdir")
         mkpath(outdir)
     end
 
@@ -326,9 +327,9 @@ function solve!(
 
         ΔUex, ΔFex = ΔT*Uex, ΔT*Fex     # increment of external vectors
 
-        ΔTcr = min(0.001, 1-T)    # time span to apply cumulated residues
+        ΔTcr = min(rspan, 1-T)    # time span to apply cumulated residues
         αcr  = min(ΔT/ΔTcr, 1.0)  # fraction of cumulated residues to apply
-        ΔFex .+= αcr.*Rc
+        T<1-rspan && (ΔFex .+= αcr.*Rc) # addition of residuals
         R   .= ΔFex
         ΔUa .= 0.0
         ΔUi .= ΔUex  # essential values at iteration i
@@ -417,6 +418,8 @@ function solve!(
             nfails==maxfails    && break
         end
 
+        q=0
+
         if converged
             # Update forces and displacement for the current stage
             U .+= ΔUa
@@ -488,6 +491,11 @@ function solve!(
                 alert("solve!: solver did not converge")
                 return false
             end
+        end
+
+        if ΔT<0
+            @show ΔT
+            @show q
         end
     end
 

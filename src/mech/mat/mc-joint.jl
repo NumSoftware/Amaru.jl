@@ -252,7 +252,7 @@ function calc_Δλ(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
         if ndim == 3
             f = sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*μ
             if (σ[2]==0 && σ[3]==0) 
-                dfdΔλ = (dσdΔλ[1] - dσmaxdΔλ)*μ              
+                dfdΔλ = (dσdΔλ[1] - dσmaxdΔλ)*μ
             else
                 dfdΔλ = 1/sqrt(σ[2]^2 + σ[3]^2) * (σ[2]*dσdΔλ[2] + σ[3]*dσdΔλ[3]) + (dσdΔλ[1] - dσmaxdΔλ)*μ
             end
@@ -346,7 +346,7 @@ function stress_update(mat::MCJoint, ipd::MCJointIpState, Δw::Array{Float64,1})
     σmax = calc_σmax(mat, ipd, ipd.upa)  
 
     if isnan(Δw[1]) || isnan(Δw[2])
-        @warn "MCJoint: Invalid value for joint displacement: Δw = $Δw"
+        alert("MCJoint: Invalid value for joint displacement: Δw = $Δw")
     end
 
     # σ trial and F trial
@@ -382,7 +382,7 @@ function stress_update(mat::MCJoint, ipd::MCJointIpState, Δw::Array{Float64,1})
                       
         # Return to surface:
         F  = yield_func(mat, ipd, ipd.σ)   
-        F > 1e-3 && @warn "MCJoint: Yield function value outside tolerance:" F
+        F > 1e-3 && alert("MCJoint: Yield function value ($F) outside tolerance")
 
     end
     ipd.w += Δw

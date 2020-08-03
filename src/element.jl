@@ -97,7 +97,7 @@ end
 function set_quadrature!(elem::Element, n::Int=0)
 
     if !(n in keys(elem.shape.quadrature))
-        @warn "set_quadrature!: cannot set $n integ. points for shape $(elem.shape.name)"
+        alert("set_quadrature!: cannot set $n integration points for shape $(elem.shape.name)")
         return
     end
 
@@ -146,7 +146,7 @@ function set_quadrature!(elems::Array{<:Element,1}, n::Int=0)
             set_quadrature!(elem, n)
         else
             if !(elem.shape in shapes)
-                @warn "setquadrature: cannot set $n integ. points for shape $(elem.shape.name)"
+                alert("setquadrature: cannot set $n integ. points for shape $(elem.shape.name)")
                 push!(shapes, elem.shape)
             end
         end
@@ -205,7 +205,7 @@ end
 Especifies the material model `mat` to be used to represent the behavior of a set of `Element` objects `elems`.
 """
 function setmat!(elems::Array{<:Element,1}, mat::Material)
-    length(elems)==0 && @warn "Defining material model $(typeof(mat)) for an empty array of elements."
+    length(elems)==0 && notify("setmat!: Defining material model $(typeof(mat)) for an empty array of elements.")
 
     for elem in elems
         setmat!(elem, mat)
@@ -215,7 +215,7 @@ end
 
 # Define the state at all integration points in a collection of elements
 function setstate!(elems::Array{<:Element,1}; args...)
-    length(elems)==0 && @warn "setstate!: Setting state to an empty array of elements."
+    length(elems)==0 && notify("setstate!: Setting state to an empty array of elements.")
 
     greek = Dict(
                  :sigma => :σ,
@@ -256,9 +256,9 @@ function setstate!(elems::Array{<:Element,1}; args...)
     for k in notfound
         if k in found
             msg1 = k in keys(greek) ? " ($(greek[k])) " : ""
-            @warn "Symbol '$k$msg1' was not found at some elements while setting state values"
+            alert("setstate!: field '$k$msg1' was not found at some elements while setting state values")
         else
-            error("setstate!: Symbol '$k$msg1' was not found at selected elements while setting state values")
+            error("setstate!: field '$k$msg1' was not found at selected elements while setting state values")
         end
     end
 end

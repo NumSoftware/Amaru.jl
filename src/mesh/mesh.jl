@@ -220,7 +220,7 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
 
     if mindeg == 0
         # Case of overlapping elements where edges have at least one point with the same coordinates
-        @warn "reorder!: Reordering nodes failed! Check for overlapping cells or non used nodes."
+        alert("reorder!: Reordering nodes failed! Check for overlapping cells or non used nodes")
         return
     end
 
@@ -328,7 +328,7 @@ function fixup!(mesh::Mesh; verbose::Bool=false, genfacets::Bool=true, genedges:
     reorder && reorder!(mesh)
 
     # Reset data
-    mesh.node_data["node-id"] = collect(1:length(mesh.nodes))
+    mesh.node_data["node-id"]   = collect(1:length(mesh.nodes))
     mesh.elem_data["quality"]   = Q
     mesh.elem_data["elem-id"]   = collect(1:length(mesh.elems))
     mesh.elem_data["cell-type"] = [ Int(cell.shape.vtk_type) for cell in mesh.elems ]
@@ -733,7 +733,8 @@ function UMesh(
                polym::Union{Polygon,PolygonMesh},
                sizes::Array=[],
                embedded=Array=[];
-               size::Real=NaN
+               size::Real=NaN,
+               recombine=false
              )
     if polym isa Polygon
         polym = PolygonMesh([polym])
@@ -815,6 +816,7 @@ function UMesh(
         ndim = $ndim
         npoints = $npoints
         embedded = $_embed
+        recombine = $recombine
 
         import Gmsh.gmsh
 
@@ -840,10 +842,6 @@ function UMesh(
             end
         end
 
-        #if ndim==2 && length(surfaces)==0
-            #surfaces = [ collect(1:nlines) ]
-        #end
-
         # PhysicalGroup index
         ipg = 0
 
@@ -857,11 +855,6 @@ function UMesh(
                 gmsh.model.addPhysicalGroup(2, [i], ipg) # ndim, entities, tag
             end
         end
-        #if _2d
-            #gmsh.model.geo.addCurveLoop(collect(1:nlines), 1)
-            #gmsh.model.geo.addPlaneSurface([1], 1)
-            #gmsh.model.addPhysicalGroup(2, [1], 1) # ndim, entities, tag
-        #end
 
         if ndim==3
             gmsh.model.geo.addSurfaceLoop(collect(1:nsurfs), 1)
@@ -874,7 +867,17 @@ function UMesh(
         for (k,v) in embedded
             gmsh.model.mesh.embed(0,[k],2,v)
         end
+
+        # Recombine
+        if recombine
+            for (i,loop) in enumerate(surfaces)
+                gmsh.model.mesh.setRecombine(2, i)
+            end
+            gmsh.model.mesh.recombine()
+        end
+
         gmsh.model.mesh.generate(ndim)
+
         gmsh.model.mesh.smooth()
 
         tempfile = "_temp.vtk"

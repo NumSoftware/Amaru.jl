@@ -238,7 +238,7 @@ function save(table::DataTable, filename::String; verbose::Bool=true, digits::Ar
     try
         f  = open(filename, "w")
     catch err
-        @warn "DataTable: File $filename could not be opened for writing."
+        warn("DataTable: File $filename could not be opened for writing.")
         return
     end
 
@@ -358,7 +358,7 @@ function save(book::DataBook, filename::String; verbose::Bool=true)
     try
         f = open(filename, "w")
     catch err
-        @warn "DataBook: File $filename could not be opened for writing."
+        warn("DataBook: File $filename could not be opened for writing.")
         return
     end
 

@@ -49,7 +49,7 @@ mutable struct Block <: AbstractBlock
 
     function Block(coords::Array{<:Real}; nx::Int=0, ny::Int=0, nz::Int=0, n::Int=0, cellshape=nothing, tag="", id=-1, shape=nothing)
         if shape != nothing
-            @warn "Block: argument shape was deprecated. Please use cellshape instead"
+            notify("Block: argument shape was deprecated. Please use cellshape instead")
             cellshape = shape
         end
 

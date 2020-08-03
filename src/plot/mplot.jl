@@ -445,7 +445,7 @@ function mplot(
         if haskey(node_data, "U")
             XYZ .+= warpscale.*node_data["U"]
         else
-            @warn "mplot: Vector field U not found for warp"
+            alert("mplot: Vector field U not found for warp")
         end
     end
     X = XYZ[:,1]
@@ -469,7 +469,7 @@ function mplot(
             #ax.set_proj_type("3d") # not necessary
             #axis("scaled") ?
         catch err
-            @warn "mplot: Could not set aspect ratio to equal"
+            @alert("mplot: Could not set aspect ratio to equal")
 
             #dump(err)
         end
@@ -530,8 +530,8 @@ function mplot(
             if colormap in colormaps
                 cmap = matplotlib.cm.get_cmap(colormap)
             else
-                @error "mplot: Invalid colormap $colormap"
-                error("  colormap should be one of:\n", colormaps)
+                error("mplot: Invalid colormap $colormap \n", 
+                      "colormap should be one of:\n", colormaps)
             end
         end
     end
@@ -884,7 +884,7 @@ function mplot(
                 close(out.in)
                 close(err.in)
             else
-                @warn "crop option is not available on $(Sys.KERNEL)"
+                alert("crop option is not available on $(Sys.KERNEL)")
             end
         end
 
@@ -976,7 +976,7 @@ function mplot_colorbar(
                 close(out.in)
                 close(err.in)
             else
-                @warn "crop option is not available on $(Sys.KERNEL)"
+                alert("crop option is not available on $(Sys.KERNEL)")
             end
         end
     end

@@ -132,11 +132,11 @@ function find_elem(X::Array{Float64,1}, cells::Array{<:AbstractCell,1}, cellpart
 
         # If not found in the first attempt try then rebuild cellpartition
         if attempt==1
-            @warn "find_elem: Bin search failed. Rebuilding cellpartition..."
+            notify("find_elem: Bin search failed. Rebuilding cellpartition...")
             build_bins(cells, cellpartition)
         end
     end
 
-    @warn "find_elem: Bin search failed"
+    alert("find_elem: Bin search failed")
     return nothing
 end

@@ -182,7 +182,7 @@ function Domain(
             cells = [ cells ]
         end
         if isempty(cells)
-            @warn "Domain: binding material model $(typeof(mat)) to an empty list of cells:" expr=filter
+            warn("Domain: binding material model $(typeof(mat)) to an empty list of cells using filter expression $(repr(filter))")
         end
 
         for cell in cells
