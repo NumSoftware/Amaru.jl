@@ -32,10 +32,10 @@ function elem_init(elem::MechSolid)
             V   += detJ*ip.w
         end
 
-        # Representative length size for an integration point
+        # Representative length size for the element
         nips = length(elem.ips)
         ndim = elem.env.ndim
-        h = (V/nips)^(1/ndim)
+        h = V^(1/ndim)
 
         for ip in elem.ips
             ip.state.h = h
