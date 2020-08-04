@@ -155,8 +155,6 @@ end
 
 function yield_deriv(mat::SmearedCrack, ipd::SmearedCrackIpState, ς::Array{Float64,1})
     σ = ς
-    τ = sqrt(ipd.σ[2]^2 + ipd.σ[3]^2)
-    τ==0.0 && return [ mat.μ, 0.0, 0.0 ]
     return [ mat.μ, ipd.σ[2]/sqrt(ipd.σ[2]^2 + ipd.σ[3]^2), ipd.σ[3]/sqrt(ipd.σ[2]^2 + ipd.σ[3]^2)]
 end
 
@@ -180,6 +178,74 @@ function calc_kn_ks(mat::SmearedCrack, ipd::SmearedCrackIpState)
     ks = G*mat.ζ/ipd.h
 
     return kn, ks
+end
+
+
+function calcD(mat::SmearedCrack, ipd::SmearedCrackIpState)
+    E, ν = mat.E, mat.ν
+    D = calcDe(E, ν, ipd.env.modeltype)
+
+    # If has no crack return complete elastic tensor
+    ipd.hascrack || return D
+
+    σmax = calc_σmax(mat, ipd, ipd.upa)
+    kn, ks = calc_kn_ks(mat, ipd)
+
+    if ipd.Δλ == 0.0  # Cracked but in elastic regime
+        #@show "elastic"
+        # Modify terms in the elastic tensor
+        z = kn*ipd.h/mat.ζ*1e-6
+        D[2,1] = D[3,1] = z
+        D[2,3] = D[3,2] = z
+        #D[2,2] = D[3,3] = z
+        D[1,:] .= ( kn*ipd.h/mat.ζ, 0.0, 0.0, 0.0, 0.0, 0.0 )
+        D[5,:] .= (        0.0, 0.0, 0.0, 0.0, ks*ipd.h/mat.ζ, 0.0 )
+        D[6,:] .= (        0.0, 0.0, 0.0, 0.0, 0.0, ks*ipd.h/mat.ζ )
+
+    else
+        if σmax == 0.0 && ipd.w[1] >= 0.0
+            #@show "fully cracked"
+            k = kn*ipd.h/mat.ζ*1e-6
+            z = kn*ipd.h/mat.ζ*1e-6
+            D[2,1] = D[3,1] = z
+            D[2,3] = D[3,2] = z
+            #D[2,2] = D[3,3] = z
+            D[1,:] .= (   k, 0.0, 0.0, 0.0, 0.0, 0.0 )
+            D[5,:] .= ( 0.0, 0.0, 0.0, 0.0,   k, 0.0 )
+            D[6,:] .= ( 0.0, 0.0, 0.0, 0.0, 0.0,   k )
+
+        else # Elastoplastic tensor D
+            #@show "partially cracked"
+            idx  = [1, 5, 6]          # indexes for components in the crack plane
+            mand = (1.0, SR2, SR2)    # Mandel's notation correction coefficients
+            ς = (ipd.T*ipd.σ)[idx]./mand  # stress components in the crack plane
+
+            v = yield_deriv(mat, ipd, ς)
+            r = potential_derivs(mat, ipd, ς)
+            y = -mat.μ # ∂F/∂σmax
+            m = σmax_deriv(mat, ipd, ipd.upa)  # ∂σmax/∂upa
+
+            den = kn*r[1]*v[1] + ks*r[2]*v[2] + ks*r[3]*v[3] - y*m*norm(r)
+            Dcr =  ipd.h*[  kn - kn^2*r[1]*v[1]/den    -kn*ks*r[1]*v[2]/den      -kn*ks*r[1]*v[3]/den
+                           -kn*ks*r[2]*v[1]/den         ks - ks^2*r[2]*v[2]/den  -ks^2*r[2]*v[3]/den
+                           -kn*ks*r[3]*v[1]/den        -ks^2*r[3]*v[2]/den        ks - ks^2*r[3]*v[3]/den ]
+
+            # Modify terms in the elastic tensor considering Mandel's notation
+
+            z = kn*ipd.h/mat.ζ*1e-6
+            D[2,1] = D[3,1] = z
+            D[2,3] = D[3,2] = z
+            #D[2,2] = D[3,3] = z
+            D[1,:] .= ( Dcr[1,1]    , 0.0, 0.0, 0.0, Dcr[1,2]*SR2, Dcr[1,3]*SR2 )
+            D[5,:] .= ( Dcr[2,1]*SR2, 0.0, 0.0, 0.0, Dcr[2,2]*2    , Dcr[2,3]*2 )
+            D[6,:] .= ( Dcr[3,1]*SR2, 0.0, 0.0, 0.0, Dcr[3,2]*2    , Dcr[3,3]*2 )
+
+        end
+    end
+
+    # Rotate modified D to the global xyz system
+    D = ipd.T'*D*ipd.T
+    return D
 end
 
 
@@ -250,114 +316,6 @@ function calc_σ_upa(mat::SmearedCrack, ipd::SmearedCrackIpState, σtr::Array{Fl
 end
 
 
-function calcD(mat::SmearedCrack, ipd::SmearedCrackIpState)
-    E, ν = mat.E, mat.ν
-    D = calcDe(E, ν, ipd.env.modeltype)
-
-    # If has no crack return complete elastic tensor
-    ipd.hascrack || return D
-
-    σmax = calc_σmax(mat, ipd, ipd.upa)
-    kn, ks = calc_kn_ks(mat, ipd)
-
-    if ipd.Δλ == 0.0 # Cracked but in elastic regime
-        #@show "elastic"
-        #if ipd.upa>mat.wc
-            #error("here")
-        #end
-        # Modify terms in the elastic tensor
-        #z = kn*ipd.h/mat.ζ*1e-6
-        #D[2,1] = D[3,1] = z  #!!!!!!!!!!!!!!!!
-        #D[2,3] = D[3,2] = z
-
-        Dcr =  ipd.h/mat.ζ*[  kn 0  0
-                              0  ks 0 
-                              0  0  ks ]
-        Dcr = inv(Dcr)
-
-            D[1,2] = D[1,3] = 0.0
-            D[2,1] = D[3,1] = 0.0
-            D[2,3] = D[3,2] = 0.0  # sometimes not conv if not zero
-            
-        #D = inv(D)
-        #D[1,1] = Dcr[1,1]
-        #D[5,5] = Dcr[2,2]*2
-        #D[6,6] = Dcr[3,3]*2
-
-        #return ipd.T'*inv(D)*ipd.T
-
-        D[1,:] .= ( kn*ipd.h/mat.ζ, 0.0, 0.0, 0.0, 0.0, 0.0 )
-        D[5,:] .= (        0.0, 0.0, 0.0, 0.0, 2*ks*ipd.h/mat.ζ, 0.0 )
-        D[6,:] .= (        0.0, 0.0, 0.0, 0.0, 0.0, 2*ks*ipd.h/mat.ζ )
-
-    else
-        if σmax == 0.0 && ipd.w[1] >= 0.0
-            #@show "fully cracked"
-            #error()
-            k = kn*ipd.h/mat.ζ*1e-6
-            z = kn*ipd.h/mat.ζ*1e-6
-                D[1,2] = D[1,3] = 0.0
-                D[2,1] = D[3,1] = 0.0
-                D[2,3] = D[3,2] = 0.0
-
-            #display(D)
-
-            D = inv(D)
-            k=1\k
-            D[1,:] .+= (   k, 0.0, 0.0, 0.0, 0.0, 0.0 )
-            D[5,:] .+= ( 0.0, 0.0, 0.0, 0.0,   k, 0.0 )
-            D[6,:] .+= ( 0.0, 0.0, 0.0, 0.0, 0.0,   k )
-            #display(inv(D))
-            #error()
-            return ipd.T'*inv(D)*ipd.T
-
-        else # Elastoplastic tensor D
-            #@show "partially cracked"
-            idx  = [1, 5, 6]          # indexes for components in the crack plane
-            mand = (1.0, SR2, SR2)    # Mandel's notation correction coefficients
-            ς = (ipd.T*ipd.σ)[idx]./mand  # stress components in the crack plane
-
-            v = yield_deriv(mat, ipd, ς)
-            r = potential_derivs(mat, ipd, ς)
-            y = -mat.μ # ∂F/∂σmax
-            m = σmax_deriv(mat, ipd, ipd.upa)  # ∂σmax/∂upa
-            #@show v
-
-            den = kn*r[1]*v[1] + ks*r[2]*v[2] + ks*r[3]*v[3] - y*m*norm(r)
-            Dcr =  ipd.h*[  kn - kn^2*r[1]*v[1]/den    -kn*ks*r[1]*v[2]/den      -kn*ks*r[1]*v[3]/den
-                           -kn*ks*r[2]*v[1]/den         ks - ks^2*r[2]*v[2]/den  -ks^2*r[2]*v[3]/den
-                           -kn*ks*r[3]*v[1]/den        -ks^2*r[3]*v[2]/den        ks - ks^2*r[3]*v[3]/den ]
-
-            # Modify terms in the elastic tensor considering Mandel's notation
-            #display(Dcr)
-            #display(D)
-            z = kn*ipd.h/mat.ζ*1e-6
-                D[1,2] = D[1,3] = 0.0
-                D[2,1] = D[3,1] = 0.0
-                D[2,3] = D[3,2] = 0.0
-            D = inv(D)
-            #@show Dcr
-            #@show den
-            Dcr = pinv(Dcr)
-
-            D[1,:] .+= ( Dcr[1,1]    , 0.0, 0.0, 0.0, Dcr[1,2]*SR2, Dcr[1,3]*SR2 )
-            D[5,:] .+= ( Dcr[2,1]*SR2, 0.0, 0.0, 0.0, Dcr[2,2]*2    , Dcr[2,3]*2 )
-            D[6,:] .+= ( Dcr[3,1]*SR2, 0.0, 0.0, 0.0, Dcr[3,2]*2    , Dcr[3,3]*2 )
-            #display(D)
-            #display(inv(D))
-            #error()
-
-            return ipd.T'*inv(D)*ipd.T
-
-        end
-    end
-
-    # Rotate modified D to the global xyz system
-    D = ipd.T'*D*ipd.T
-    return D
-end
-
-
 function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{Float64,1})
     # σ : stress tensor in the xyz system
     # ε : strain tensor in the xyz system
@@ -372,6 +330,7 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
     D = calcD(mat, ipd)
 
     σini  = ipd.σ
+
     # Check for cracks
     if !ipd.hascrack
         Δσtr  = D*Δε
@@ -401,14 +360,6 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
         ipd.upa += ipd.Δλ
         ς = ςtr - ipd.Δλ*Decr.*r
     elseif Ftr <= 0
-        #if ipd.upa > 0 
-            #println()
-            #Fini  = yield_func(mat, ipd, ςini)
-            #@show Fini
-            #@show ςtr
-            #@show Δw
-            #@show Δε
-        #end
         ipd.Δλ = 0.0
         ς = ςtr
     else
@@ -424,24 +375,13 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
     Δεcr = T*Δε
     Δσcr = D*Δεcr
 
-
     # Fix Δσcr using crack stresses
     Δσcr[idx] .= Δς.*mand
-    #@show Δς
-    #@show Δσcr
 
     # Update state
     ipd.ε += Δε
     ipd.w += Δw
-
     ipd.σ  = σini + T'*Δσcr
-
-    #if σmax == 0.0 && ipd.w[1] >= 0.0
-        #σcr = T*σini + Δσcr
-        #σcr[idx] .= 0.0
-        #ipd.σ  = T'*σcr
-    #end
-
     Δσ     = ipd.σ - σini
 
     return Δσ
