@@ -6,6 +6,7 @@ mutable struct ModelEnv
     thickness::Float64     # Model thickness
     transient::Bool        # Time dependent analysis
     t::Float64             # Time in time dependent analysis
+    T::Float64             # Pseudo time for current stage
     T0::Float64            # Ambient absolute temperature in Celsius
     cstage::Int            # Current stage
     cinc::Int              # Current increment
@@ -19,6 +20,7 @@ mutable struct ModelEnv
         this.thickness = 1.0
         this.transient = false
         this.t = 0.0
+        this.T = 0.0
         this.T0 = 0
 
         this.cstage = 0 # current stage
