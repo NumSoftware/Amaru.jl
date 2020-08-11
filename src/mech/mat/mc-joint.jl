@@ -267,7 +267,7 @@ function calc_Δλ(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
 
         if i == maxits || isnan(Δλ)
             @error """MCJoint: Could not find Δλ. This may happen when the system
-            becomes hypostatic and thus the global stiffness matrix is near syngular.
+            becomes hypostatic and thus the global stiffness matrix is near singular.
             Increasing the mesh refinement may result in a nonsingular matrix.
             """ iterations=i Δλ
             error()
@@ -387,7 +387,7 @@ function stress_update(mat::MCJoint, ipd::MCJointIpState, Δw::Array{Float64,1})
     end
     ipd.w += Δw
     Δσ = ipd.σ - σini
-    return Δσ
+    return Δσ, CallStatus(true)
 end
 
 

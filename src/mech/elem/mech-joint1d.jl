@@ -165,13 +165,14 @@ function elem_update!(elem::MechJoint1D, U::Array{Float64,1}, F::Array{Float64,1
         detJ = elem.cache_detJ[i]
         D    = calcD(mat, ip.state)
         @gemv Δu = B*dU
-        Δσ = stress_update(mat, ip.state, Δu)
+        Δσ, _ = stress_update(mat, ip.state, Δu)
         coef = detJ*ip.w
         Δσ[1]  *= mat.h
         @gemv dF += coef*B'*Δσ
     end
 
     F[map] += dF
+    return CallStatus(true)
 end
 
 

@@ -147,8 +147,10 @@ function update_state!(dom::Domain, ΔUt::Vect, ΔFin::Vect, t::Float64, verbosi
     # Get internal forces and update data at integration points (update ΔFin)
     ΔFin .= 0.0
     for elem in dom.elems
-        elem_update!(elem, ΔUt, ΔFin, 0.0)
+        status = elem_update!(elem, ΔUt, ΔFin, 0.0)
+        !status.success && return status
     end
+    return CallStatus(true)
 end
 
 
@@ -299,6 +301,7 @@ function solve!(
     ΔUi  = zeros(ndofs)  # vector of essential values for current iteration
     maxF = 0.0
     Rc   = zeros(ndofs)    # vector of cumulated residues
+    status = CallStatus()
 
     # Get unbalanced forces
     if env.cstage==1
@@ -315,6 +318,7 @@ function solve!(
         # Update counters
         inc += 1
         env.cinc += 1
+        env.T = T
 
         if inc > maxincs
             alert("solver maxincs = $maxincs reached (try maxincs=0)\n")
@@ -341,6 +345,7 @@ function solve!(
         nits      = 0
         residue1  = 0
         converged = false
+        errored   = false
         for it=1:maxits
             nits += 1
             it>1 && (ΔUi.=0.0) # essential values are applied only at first iteration
@@ -353,9 +358,11 @@ function solve!(
 
                 copyto!.(State, StateBk)
                 ΔUt   = ΔUa + ΔUi
-                update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
+                status = update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
+                !status.success && (errored=true; break)
 
-                residue = norm((ΔFex-ΔFin)[umap])
+                #residue = norm((ΔFex-ΔFin)[umap])
+                residue = maximum(abs, (ΔFex-ΔFin)[umap])
             end
 
             # Corrector step for ME and BE
@@ -370,9 +377,11 @@ function solve!(
 
                 copyto!.(State, StateBk)
                 ΔUt   = ΔUa + ΔUi
-                update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
+                status = update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
+                !status.success && (errored=true; break)
 
-                residue = norm((ΔFex-ΔFin)[umap])
+                #residue = norm((ΔFex-ΔFin)[umap])
+                residue = maximum(abs, (ΔFex-ΔFin)[umap])
             end
 
             if scheme=="Ralston"
@@ -383,7 +392,8 @@ function solve!(
 
                 copyto!.(State, StateBk)
                 ΔUt = ΔUa + ΔUit
-                update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
+                status = update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
+                !status.success && (errored=true; break)
 
                 # Corrector step
                 K2 = mount_K(dom, ndofs, verbosity)
@@ -392,9 +402,11 @@ function solve!(
 
                 copyto!.(State, StateBk)
                 ΔUt   = ΔUa + ΔUi
-                update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
+                status = update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
+                !status.success && (errored=true; break)
 
-                residue = norm((ΔFex-ΔFin)[umap])
+                #residue = norm((ΔFex-ΔFin)[umap])
+                residue = maximum(abs, (ΔFex-ΔFin)[umap])
             end
 
             # Update accumulated displacement
@@ -413,12 +425,17 @@ function solve!(
             residue < tol  && (converged=true; break)
             isnan(residue) && break
             it>maxits      && break
-            it>1 && residue>lastres && break
+            #it>1 && residue>lastres && break
             residue>0.9*lastres && (nfails+=1)
             nfails==maxfails    && break
         end
 
-        q=0
+        q = 0.0
+
+        if errored
+            verbosity>1 && notify(status.message, level=3)
+            converged = false
+        end
 
         if converged
             # Update forces and displacement for the current stage
@@ -481,6 +498,7 @@ function solve!(
                 verbosity>1 && notify("increment failed", level=3)
                 q = (1+tanh(log10(tol/residue1)))
                 q = clamp(q, 0.2, 0.9)
+                errored && (q=0.7)
                 ΔT = q*ΔT
                 ΔT = round(ΔT, sigdigits=3)  # round to 3 significant digits
                 if ΔT < Ttol

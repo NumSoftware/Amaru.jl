@@ -42,7 +42,7 @@ function stress_update(mat::ElasticRod, ipd::ElasticRodIpState, Δε::Float64)
     Δσ = mat.E*Δε
     ipd.ε += Δε
     ipd.σ += Δσ
-    return Δσ
+    return Δσ, CallStatus(true)
 end
 
 function ip_state_vals(mat::ElasticRod, ipd::ElasticRodIpState)

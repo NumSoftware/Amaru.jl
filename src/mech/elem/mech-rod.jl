@@ -251,12 +251,13 @@ function elem_update!(elem::MechRod, U::Array{Float64,1}, F::Array{Float64,1}, Î
         end
 
         deps = (B*dU)[1]
-        dsig = stress_update(elem.mat, ip.state, deps)
+        dsig, _ = stress_update(elem.mat, ip.state, deps)
         coef = A*detJ*ip.w
         dF  .+= coef*vec(B')*dsig
     end
 
     F[map] .+= dF
+    return CallStatus(true)
 end
 
 function elem_vals(elem::MechRod)

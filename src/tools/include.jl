@@ -1,5 +1,11 @@
+export @stop
+macro stop()
+    return :(error("Stopped here."))
+end
 
+include("callstatus.jl")
 include("iteration.jl")
+
 include("constants.jl")
 include("math.jl")
 

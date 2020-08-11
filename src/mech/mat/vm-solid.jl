@@ -102,7 +102,7 @@ function stress_update(mat::VonMises, ipd::VonMisesIpState, Δε::Array{Float64,
 
     ipd.ε += Δε
     Δσ     = ipd.σ - σini
-    return Δσ
+    return Δσ, CallStatus(true)
 end
 
 function ip_state_vals(mat::VonMises, ipd::VonMisesIpState)

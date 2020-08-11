@@ -180,12 +180,13 @@ function elem_update!(elem::MechJoint, U::Array{Float64,1}, F::Array{Float64,1},
 
         # internal force
         @gemv Δω = B*dU
-        Δσ   = stress_update(elem.mat, ip.state, Δω)
+        Δσ, _ = stress_update(elem.mat, ip.state, Δω)
         coef = detJ*ip.w*th
         @gemv dF += coef*B'*Δσ
     end
 
     F[map] += dF
+    return CallStatus(true)
 end
 
 function elem_extrapolated_node_vals(elem::MechJoint)

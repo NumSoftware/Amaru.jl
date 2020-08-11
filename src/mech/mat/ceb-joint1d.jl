@@ -58,7 +58,9 @@ mutable struct CEBJoint1D<:Material
         if isnan(TauM)
             TauM = ks*s1
         end
-        @assert TauM>TauR
+        @assert TauM>=TauR
+
+        @assert ks>=TauM/s1
 
         # Define alpha if not provided
         if isnan(alpha); alpha = 1.0 end
@@ -107,13 +109,13 @@ function deriv(mat::CEBJoint1D, ipd::CEBJoint1DIpState, sy::Float64)
     if sy<=mat.s1
         return mat.τmax/mat.s1*(sy/mat.s1)^(mat.α-1)
     elseif sy<mat.s2
-        return mat.ks/1000
-        #return 0.0
+        #return mat.ks/10000
+        return 1.0
     elseif sy<mat.s3
         return -(mat.τmax-mat.τres)/(mat.s3-mat.s2)*((sy-mat.s2)/(mat.s3-mat.s2))^(mat.β-1)
     else
-        #return 0.0
-        return mat.ks/1000
+        return 1.0
+        #return mat.ks/10000
     end
 end
 
@@ -170,7 +172,7 @@ function stress_update(mat::CEBJoint1D, ipd::CEBJoint1DIpState, Δu::Vect)
     ipd.u .+= Δu
     ipd.σ .+= Δσ
 
-    return Δσ
+    return Δσ, CallStatus(true)
 end
 
 function ip_state_vals(mat::CEBJoint1D, ipd::CEBJoint1DIpState)

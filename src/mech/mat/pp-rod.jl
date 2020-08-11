@@ -71,7 +71,7 @@ function stress_update(mat::PPRod, ipd::PPRodIpState, Δε::Float64)
     ipd.σ  = σtr - E*Δεp
     Δσ     = ipd.σ - σini
     ipd.ε += Δε
-    return Δσ
+    return Δσ, CallStatus(true)
 end
 
 function ip_state_vals(mat::PPRod, ipd::PPRodIpState)

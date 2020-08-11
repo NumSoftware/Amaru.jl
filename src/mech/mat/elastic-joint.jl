@@ -66,7 +66,7 @@ function stress_update(mat::ElasticJoint, ipd::JointIpState, Δu)
 
     ipd.w[1:ndim] += Δu
     ipd.σ[1:ndim] += Δσ
-    return Δσ
+    return Δσ, CallStatus(true)
 end
 
 function ip_state_vals(mat::ElasticJoint, ipd::JointIpState)

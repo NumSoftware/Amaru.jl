@@ -73,7 +73,7 @@ function stress_update(mat::ElasticJoint1D, ipd::Joint1DIpState, Δu)
 
     ipd.u .+= Δu
     ipd.σ .+= Δσ
-    return Δσ
+    return Δσ, CallStatus(true)
 end
 
 function ip_state_vals(mat::ElasticJoint1D, ipd::Joint1DIpState)

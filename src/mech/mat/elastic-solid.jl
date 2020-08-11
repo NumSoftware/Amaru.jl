@@ -75,7 +75,7 @@ function stress_update(mat::ElasticSolid, ipd::ElasticSolidIpState, dε::Array{F
     dσ = De*dε
     ipd.ε += dε
     ipd.σ += dσ
-    return dσ
+    return dσ, CallStatus(true)
 end
 
 function ip_state_vals(mat::ElasticSolid, ipd::ElasticSolidIpState)

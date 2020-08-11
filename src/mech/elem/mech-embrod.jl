@@ -118,12 +118,13 @@ function elem_update!(elem::MechEmbRod, U::Array{Float64,1}, F::Array{Float64,1}
         end
 
         deps = (B*dUr)[1]
-        dsig = stress_update(elem.mat, ip.state, deps)
+        dsig, _ = stress_update(elem.mat, ip.state, deps)
         coef = A*detJ*ip.w
         dF  += coef*B'*dsig
     end
 
     F[map] += NN*dF
+    return CallStatus(true)
 end
 
 

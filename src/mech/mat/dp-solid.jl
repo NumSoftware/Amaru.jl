@@ -123,7 +123,7 @@ function stress_update(mat::DruckerPrager, ipd::DruckerPragerIpState, Δε::Arra
 
     ipd.ε += Δε
     Δσ     = ipd.σ - σini
-    return Δσ
+    return Δσ, CallStatus(true)
 end
 
 

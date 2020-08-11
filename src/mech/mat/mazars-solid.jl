@@ -169,7 +169,7 @@ function stress_update(mat::Mazars, ipd::MazarsIpState, Δε::Array{Float64,1})
     end
 
     Δσ    = ipd.σ - σini
-    return Δσ
+    return Δσ, CallStatus(true)
 end
 
 function ip_state_vals(mat::Mazars, ipd::MazarsIpState)

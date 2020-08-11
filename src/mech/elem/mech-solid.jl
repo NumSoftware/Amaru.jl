@@ -36,6 +36,7 @@ function elem_init(elem::MechSolid)
         nips = length(elem.ips)
         ndim = elem.env.ndim
         h = V^(1/ndim)
+        #h *= 2
 
         for ip in elem.ips
             ip.state.h = h
@@ -307,12 +308,28 @@ function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1},
         setB(elem, ip, dNdX, B)
 
         @gemv Δε = B*dU
-        Δσ   = stress_update(elem.mat, ip.state, Δε)
+        Δσ, status = stress_update(elem.mat, ip.state, Δε)
+        !status.success && return CallStatus(false, "MechSolid: Error at integration point $(ip.id)")
+        #if !status.success
+            #status.message = "MechSolid: Error at integration point $(ip.id)\n" * status.message
+            #return status
+        #end
         coef = detJ*ip.w*th
         @gemv dF += coef*B'*Δσ
     end
 
+    if elem.env.cinc==2 && false
+        @show "test"
+        K, m, m = elem_stiffness(elem)
+        display( K*dU - dF )
+        #display( K*dU )
+        #display( dF )
+        #@show F
+        @stop
+    end
+
     F[map] += dF
+    return CallStatus(true)
 end
 
 function elem_vals(elem::MechSolid)

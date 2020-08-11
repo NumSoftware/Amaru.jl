@@ -121,7 +121,7 @@ function uniaxial_σ(mat::DamageConcrete, ipd::DamageConcreteIpState, εi::Float
         #γ = 1.0 + αc*((σ2c*σ3c+ σ1c*σ3c+ σ1c*σ2c)/mat.fc^2)^0.25 # suggested values for coef: 0.2
         #γ = 1.0 + αc*((σ2c*σ3c+ σ1c*σ3c+ σ1c*σ2c)/mat.fc^2) # suggested values for coef: 0.2
         γ = 1.0 - αc/mat.fc*( √(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c)) # suggested values for coef: 0.2
-        # γ = 1.0
+         #γ = 1.0
         fc = mat.fc*γ
 
         β = 1/(1-fc/(mat.εc0*mat.E0))
@@ -230,34 +230,43 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
     ipd.ε̅tmax = max(ε̅t, ipd.ε̅tmax)
     ipd.ε̅cmax = max(ε̅c, ipd.ε̅cmax)
 
-     #@show in_tension
+    # @show in_tension
 
     # estimate tangent Young modulus
     if in_tension
             #@show ε̅t
         if ε̅t < ipd.ε̅tmax
             #E = ε̅t==0 ? mat.E0 : min(mat.E0, σ̅t/ε̅t)
-            E = ε̅t==0 ? mat.E0 : min(ipd._E, σ̅t/ε̅t)
+            Et = ε̅t==0 ? mat.E0 : min(ipd._E, σ̅t/ε̅t)
             ipd.in_linear_range = true
         else
-            E = Efun(ε̅t)
+            Et = Efun(ε̅t)
             ipd.in_linear_range = false
         end
-        E = Efun(ε̅t)
+        Et = Efun(ε̅t)
         ν = mat.ν*(1-ipd.damt)
+        E = Et
+
         #ν = mat.ν
     else
         if ε̅c < ipd.ε̅cmax
-            E = ε̅c==0 ? mat.E0 : min(mat.E0, σ̅c/ε̅c)
+            Ec = ε̅c==0 ? mat.E0 : min(mat.E0, σ̅c/ε̅c)
             ipd.in_linear_range = true
         else
-            E = Efun(-ε̅c)
+            Ec = Efun(-ε̅c)
             ipd.in_linear_range = false
         end
-        E = Efun(-ε̅c)
+        Ec = Efun(-ε̅c)
         #ν = mat.ν*(1-ipd.damc)
         ν = mat.ν
+        E = Ec
     end
+    #E = (Et*σ̅t+Ec*σ̅c)/(σ̅t+σ̅c)
+    #E = (Et*ε̅t*10+Ec*ε̅c)/(ε̅t*10+ε̅c)
+    #E = sign(Et)*sign(Ec)√abs(Et*Ec)
+    #@show Et, Ec
+    #@show ε̅t, ε̅c
+    #@show E
 
     # Fix negative E values to avoid stress signal change in compression
     if E<0
@@ -273,7 +282,7 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
     end
 
     #@show E*1
-    Emin = mat.E0*1e-6
+    Emin = mat.E0*1e-3
     abs(E)<Emin && (E=Emin)
     #@show Emin
     #@show E
@@ -297,6 +306,7 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
         ipd.damc = 0.0
     end
 
+    #ipd.in_tension != in_tension && show(1)
     ipd.in_tension = in_tension
 
     #ipd.damt = 1.0 - σfun(ipd.ε̅tmax)/ipd.ε̅tmax/mat.E0
@@ -304,7 +314,7 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
 
     #ipd.env.cstage==1 && ipd.env.cinc==2 && error()
 
-    return Δσ
+    return Δσ, CallStatus(true)
 end
 
 function ip_state_vals(mat::DamageConcrete, ipd::DamageConcreteIpState)
