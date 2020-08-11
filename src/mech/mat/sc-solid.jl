@@ -230,7 +230,7 @@ function calc_Δλ(mat::SmearedCrack, ipd::SmearedCrackIpState, ςtr::Array{Floa
             return Δλ, σ, upa, CallStatus(false, "SmearedCrack: Could not find Δλ")
         end
     end
-    return Δλ, ς, upa
+    return Δλ, ς, upa, CallStatus(true)
 end
 
 function calcDe(mat::SmearedCrack, ipd::SmearedCrackIpState)
