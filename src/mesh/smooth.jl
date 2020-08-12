@@ -678,7 +678,7 @@ function fast_smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Floa
 
     # find normals for border nodes
     for snode in border_nodes
-        snode.normals = faces_normal(node.faces, facetol)
+        snode.normals = faces_normal(snode.faces, facetol)
     end
 
     # arrays of flags
@@ -728,7 +728,7 @@ function fast_smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Floa
         # Update mesh
         for node in mesh.nodes
             id = node.id
-            X0 = [node.x, node.y, node.z][1:ndim]
+            X0 = [node.coord.x, node.coord.y, node.coord.z][1:ndim]
             X  = X0 + vec(D[id,:])
 
             # skip surface nodes over non-flat locations
