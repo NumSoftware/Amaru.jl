@@ -37,7 +37,7 @@ mutable struct SmearedCrack<:Material
         return SmearedCrack(;prms...)
     end
 
-    function SmearedCrack(;E=NaN, nu=NaN, ft=NaN, mu=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear")
+    function SmearedCrack(;E=NaN, nu=NaN, ft=NaN, mu=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="hordijk")
         if isnan(wc)
             if softcurve == "linear"
                  wc = round(2*GF/ft, digits=10)
@@ -167,19 +167,26 @@ function potential_derivs(mat::SmearedCrack, ipd::SmearedCrackIpState, ς::Array
 end
 
 
+function calc_nu(mat::SmearedCrack, ipd::SmearedCrackIpState)
+    wc  = mat.wc
+    upa = ipd.upa
+    if upa < wc
+        z = (1 + 27*(upa/wc)^3)*exp(-6.93*upa/wc) - 28*(upa/wc)*exp(-6.93)
+    else
+        z = 0.0
+    end
+    return mat.ν*z
+end
+
 function calc_kn_ks(mat::SmearedCrack, ipd::SmearedCrackIpState)
     #kn = mat.E/ipd.h
     ν = mat.ν
     ν = ipd.upa==0 ? mat.ν : 0.0
-    kn = mat.E*(1-mat.ν)/(1+mat.ν)/(1-2*mat.ν)/ipd.h
+    ν = calc_nu(mat, ipd)
+    kn = mat.E*(1-mat.ν)/((1+mat.ν)*(1-2*mat.ν))/ipd.h
 
     G  = mat.E/(2.0*(1.0+mat.ν))
     ks = G/ipd.h
-
-    #De = calcDe(mat.E, mat.ν, ipd.env.modeltype)
-    #@show De[1,1]
-    #@show kn*ipd.h
-    #@stop
 
     return kn, ks
 end
@@ -227,7 +234,7 @@ function calc_Δλ(mat::SmearedCrack, ipd::SmearedCrackIpState, ςtr::Array{Floa
         abs(f) < tol && break
 
         if i == maxits || isnan(Δλ)
-            return Δλ, σ, upa, CallStatus(false, "SmearedCrack: Could not find Δλ")
+            return Δλ, ς, upa, CallStatus(false, "SmearedCrack: Could not find Δλ")
         end
     end
     return Δλ, ς, upa, CallStatus(true)
@@ -237,7 +244,9 @@ function calcDe(mat::SmearedCrack, ipd::SmearedCrackIpState)
     E = mat.E
     ν = mat.ν
     ν = ipd.upa==0 ? mat.ν : 0.0
+    ν = calc_nu(mat, ipd)
     De = calcDe(E, ν, ipd.env.modeltype)
+
     return De
 end
 
@@ -283,6 +292,7 @@ function calcD(mat::SmearedCrack, ipd::SmearedCrackIpState)
             y = -mat.μ # ∂F/∂ςmax
             m = ςmax_deriv(mat, ipd, ipd.upa)  # ∂ςmax/∂upa
 
+
             den = kn*r[1]*v[1] + ks*r[2]*v[2] + ks*r[3]*v[3] - y*m*norm(r)
             Dcr = ipd.h*[  kn-kn^2*r[1]*v[1]/den    -kn*ks*r[1]*v[2]/den    -kn*ks*r[1]*v[3]/den
                           -kn*ks*r[2]*v[1]/den       ks-ks^2*r[2]*v[2]/den  -ks^2*r[2]*v[3]/den
@@ -294,8 +304,7 @@ function calcD(mat::SmearedCrack, ipd::SmearedCrackIpState)
                   0.0          0.0    0.0    D[4,4] 0.0          0.0
                   Dcr[2,1]*SR2 0.0    0.0    0.0    Dcr[2,2]*2   Dcr[2,3]*2
                   Dcr[3,1]*SR2 0.0    0.0    0.0    Dcr[3,2]*2   Dcr[3,3]*2 ]
-            #D[2,2]*=0.
-            #D[3,3]*=0.
+
         end
     end
 
@@ -310,7 +319,6 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
     # ε : strain tensor in the xyz system
     # ς : stress vector at crack plane
 
-    T = ipd.T
     h = ipd.h
     kn, ks = calc_kn_ks(mat, ipd)
     M = (1.0, SR2, SR2)
@@ -324,9 +332,8 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
 
     # Check for cracks
     if ipd.upa==0
-        P = eigvals(σtr)
+        P, V = eigen(σtr)
         if P[1]>mat.ft
-            P, V = eigen(σtr)
             ipd.T = tensor_rot(V)
             ipd.upa = 1e-20
         else
@@ -335,17 +342,15 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
         end
     end
 
-    #@show ipd.upa
-    #@show kn*h
-    #@show D[1,1]
-
+    T = ipd.T
     ςtr  = (T*σtr)[idx]./M
     Δw   = (T*Δε)[idx]./M*ipd.h
     ipd.w += Δw
     Ftr  = yield_func(mat, ipd, ςtr)
-
     ςmax = calc_ςmax(mat, ipd, ipd.upa)
+
     if ςmax == 0.0 && ipd.w[1] >= 0.0
+        #@show "fully cracked"
         r1 = [ ςtr[1]/kn, ςtr[2]/ks, ςtr[3]/ks ]
         ipd.Δλ   = norm(r1)
         r = normalize!(r1)
@@ -357,15 +362,32 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
         end
         #ς = [0,0,0.]
     elseif Ftr <= 0
+        #@show "elastic"
         ipd.Δλ = 0.0
         ς = ςtr
     else
+        #@show "partially cracked"
         ipd.Δλ, ς, ipd.upa, status = calc_Δλ(mat, ipd, ςtr) 
-        !status.success && return σ, status
+        !status.success && return ς, status
     end
 
     σcr = T*σtr
     σcr[idx] .= ς.*M
+
+    wc  = mat.wc
+    upa = ipd.upa
+    if upa < wc
+        z = (1 + 27*(upa/wc)^3)*exp(-6.93*upa/wc) - 28*(upa/wc)*exp(-6.93)
+        dz = ((81*upa^2*exp(-6.93*upa/wc)/wc^3) - (6.93*(1 + 27*upa^3/wc^3)*exp(-6.93*upa/wc)/wc) - 0.02738402432/wc)
+    else
+        z = 0.0
+        dz = 0.0
+    end
+
+    σcr[2] *= z
+    σcr[3] *= z
+    σcr[4] *= z
+
     ipd.σ = T'*σcr
     Δσ    = ipd.σ - σini
 
