@@ -21,5 +21,5 @@ bcs = [
       ]
 
 
-@test solve!(dom, bcs, nincs=10, verbose=false)
+@test solve!(dom, bcs, nincs=10, verbose=false).success
 

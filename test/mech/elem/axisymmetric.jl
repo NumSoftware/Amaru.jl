@@ -22,7 +22,7 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
            #"solids" => FaceBC(ty=-10),
     ]
 
-    solve!(dom, bcs, nincs=1, verbose=false, nouts=0, silent=true)
+    solve!(dom, bcs, nincs=1, verbose=false, nouts=0, silent=true).success
 
     sample_node = dom.nodes[:(x==1 && y==1)][1]
     uxr = sample_node.dofs[:ux].vals[:ux]
@@ -42,7 +42,7 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
            #"solids" => FaceBC(ty=-10),
     ]
 
-    solve!(dom, bcs, nincs=1, verbose=false, nouts=0, silent=true)
+    solve!(dom, bcs, nincs=1, verbose=false, nouts=0, silent=true).success
     sample_node = dom.nodes[:(x==1 && y==1)][1]
     ux = sample_node.dofs[:ux].vals[:ux]
     uy = sample_node.dofs[:uy].vals[:uy]

@@ -103,7 +103,7 @@ function solve_system!(
     umap  = 1:nu
     pmap  = nu+1:ndofs
     if nu == ndofs
-        @warn "solve!: No essential boundary conditions."
+        warn("solve_system!: No essential boundary conditions")
     end
 
     # Global stifness matrix
@@ -139,7 +139,6 @@ function solve_system!(
 
     return CallStatus(true)
 end
-
 
 
 function update_state!(dom::Domain, ΔUt::Vect, ΔFin::Vect, t::Float64, verbosity::Int)
@@ -216,7 +215,6 @@ function solve!(
     verbosity = 1
     verbose && (verbosity=2)
     silent && (verbosity=0)
-    #autoinc && (maxits=4)
     scheme = string(scheme)
     scheme in ("FE", "ME", "BE", "Ralston") || error("solve! : invalid scheme \"$scheme\"")
 
@@ -254,8 +252,6 @@ function solve!(
     dom.ndofs = length(dofs)
     verbosity>0 && message("unknown dofs: $nu")
 
-    # Get forces and displacements from boundary conditions
-    Uex, Fex = get_bc_vals(dom, bcs)
 
     # Setup quantities at dofs
     if env.cstage==1
@@ -291,7 +287,7 @@ function solve!(
     ΔTbk = 0.0
 
     ΔTcheck = save_outs ? 1/nouts : 1.0
-    Tcheck = ΔTcheck
+    Tcheck  = ΔTcheck
 
     inc  = 0             # increment counter
     iout = env.cout      # file output counter
@@ -301,9 +297,13 @@ function solve!(
     ΔFin = zeros(ndofs)  # vector of internal natural values for current increment
     ΔUa  = zeros(ndofs)  # vector of essential values (e.g. displacements) for this increment
     ΔUi  = zeros(ndofs)  # vector of essential values for current iteration
-    maxF = 0.0
-    Rc   = zeros(ndofs)    # vector of cumulated residues
+    Rc   = zeros(ndofs)  # vector of cumulated residues
     status = CallStatus()
+
+    # Get forces and displacements from boundary conditions
+    Uex, Fex = get_bc_vals(dom, bcs)
+
+
 
     # Get unbalanced forces
     if env.cstage==1
@@ -336,6 +336,7 @@ function solve!(
         ΔTcr = min(rspan, 1-T)    # time span to apply cumulated residues
         αcr  = min(ΔT/ΔTcr, 1.0)  # fraction of cumulated residues to apply
         T<1-rspan && (ΔFex .+= αcr.*Rc) # addition of residuals
+
         R   .= ΔFex
         ΔUa .= 0.0
         ΔUi .= ΔUex  # essential values at iteration i
@@ -345,7 +346,7 @@ function solve!(
         maxfails  = 3  # maximum number of it. fails with residual change less than 90%
         nfails    = 0  # counter for iteration fails
         nits      = 0
-        residue1  = 0
+        residue1  = 0.0
         converged = false
         errored   = false
         for it=1:maxits
@@ -364,7 +365,6 @@ function solve!(
                 status = update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
                 !status.success && (errored=true; break)
 
-                #residue = norm((ΔFex-ΔFin)[umap])
                 residue = maximum(abs, (ΔFex-ΔFin)[umap])
             end
 
@@ -384,7 +384,6 @@ function solve!(
                 status = update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
                 !status.success && (errored=true; break)
 
-                #residue = norm((ΔFex-ΔFin)[umap])
                 residue = maximum(abs, (ΔFex-ΔFin)[umap])
             end
 
@@ -411,7 +410,6 @@ function solve!(
                 status = update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
                 !status.success && (errored=true; break)
 
-                #residue = norm((ΔFex-ΔFin)[umap])
                 residue = maximum(abs, (ΔFex-ΔFin)[umap])
             end
 
@@ -431,12 +429,12 @@ function solve!(
             residue < tol  && (converged=true; break)
             isnan(residue) && break
             it>maxits      && break
-            #it>1 && residue>lastres && break
+            it>1 && residue>lastres && break
             residue>0.9*lastres && (nfails+=1)
             nfails==maxfails    && break
         end
 
-        q = 0.0
+        q = 0.0 # increment size factor for autoinc
 
         if errored
             verbosity>1 && notify(status.message, level=3)
@@ -447,7 +445,6 @@ function solve!(
             # Update forces and displacement for the current stage
             U .+= ΔUa
             F .+= ΔFin
-            maxF = max(maxF, norm(F))
             Rc .= (1.0-αcr).*Rc .+ R  # update cumulated residue
 
             # Backup converged state at ips
@@ -517,10 +514,6 @@ function solve!(
             end
         end
 
-        if ΔT<0
-            @show ΔT
-            @show q
-        end
     end
 
     if !save_outs
@@ -533,10 +526,9 @@ function solve!(
     verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)%\033[K\n", bold=true, color=:blue) # color 111
     if verbosity>0 
         message("valid increments: ", inc)
-        message("max norm(F): ", round(maxF, sigdigits=5))
         message("time spent: ", see(sw, format=:hms))
     end
     getlapse(sw)>60 && sound_alert()
 
-    return true
+    return CallStatus(true)
 end

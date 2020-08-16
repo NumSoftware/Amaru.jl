@@ -29,10 +29,10 @@ bcs = [
     :(y==0 || y==1.0) => NodeBC(ux=0, uy=0),
 ]
 
-@test solve!(dom, bcs, autoinc=true, nincs=10, tol=1e-2, verbose=false)
+@test solve!(dom, bcs, autoinc=true, nincs=10, tol=1e-2, verbose=false).success
 
 # boundary conditions
 bcs[2] = :(z==0.5) => NodeBC(uz=+0.008)
-@test solve!(dom, bcs, autoinc=true, nincs=10, tol=1e-2)
+@test solve!(dom, bcs, autoinc=true, nincs=10, tol=1e-2).success
 
 

@@ -40,7 +40,7 @@ bcs = [
        #:(x==0.1 && y==0.1 && z==0.1) => NodeBC(ux=0.0001),
       ]
 
-solve!(dom, bcs, autoinc=true, scheme=:ME, nincs=nincs, nouts=5, tol=tol, maxits=2, verbose=false)
+solve!(dom, bcs, autoinc=true, scheme=:ME, nincs=nincs, nouts=5, tol=tol, maxits=2, verbose=false).success
 
 t = get_segment_data(dom, [0,0,0], [0.1,0.0,0.0], "data.dat")
 using PyPlot

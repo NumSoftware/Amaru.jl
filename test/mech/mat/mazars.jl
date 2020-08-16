@@ -33,7 +33,7 @@ bcs = [
        :(z==1) => FaceBC(uz=+2e-3),
       ]
 
-@test solve!(dom, bcs, autoinc=true, nincs=100, maxits=4, tol=0.002, nouts=10, verbose=false)
+@test solve!(dom, bcs, autoinc=true, nincs=100, maxits=4, tol=0.1, nouts=10, verbose=false).success
 
 if Amaru.config.makeplots
     using PyPlot

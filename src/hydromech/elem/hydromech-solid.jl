@@ -468,4 +468,6 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
 
     DF[map_u] += dF
     DF[map_w] += dFw
+
+    return CallStatus(true)
 end

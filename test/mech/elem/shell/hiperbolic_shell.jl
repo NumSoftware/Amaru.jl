@@ -48,7 +48,7 @@ setloggers!(dom, loggers)
             :(x==50 && y==50) => NodeBC(fz=-100),
             ]
 
-solve!(dom, bcs, tol = 0.1, nincs = 1,verbose=false)
+solve!(dom, bcs, tol = 0.1, nincs = 1,verbose=false).success
 save(dom, "shell4node_hiperbolic.vtu")
 save(log1, "shell4node_hiperbolic.dat")
 

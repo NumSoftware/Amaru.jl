@@ -27,7 +27,7 @@ dom = Domain(msh, mat)
 mon = NodeLogger(dom.edges[:(y==1 && z==0)])
 setlogger!(dom, mon)
 
-@test solve!(dom, bcs, autoinc=true, nincs=6, nouts=1, tol=1e-2, verbose=false)
+@test solve!(dom, bcs, autoinc=true, nincs=6, nouts=1, tol=1e-2, verbose=false).success
 
 if Amaru.config.makeplots
     using PyPlot

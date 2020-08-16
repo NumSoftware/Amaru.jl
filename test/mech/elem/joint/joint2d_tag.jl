@@ -28,6 +28,6 @@ bcs = [
        :(x==0.3) => FaceBC(ux=2.0*1.7e-4)
       ]
 
-@test solve!(dom, bcs, autoinc=true, nincs=20, maxits=3, tol=0.01, verbose=false, scheme=:ME, nouts=10)
+@test solve!(dom, bcs, autoinc=true, nincs=20, maxits=3, tol=0.01, verbose=false, scheme=:ME, nouts=10).success
 
 

@@ -22,5 +22,5 @@ bcs =
 #bc3 = ElemBC( dom.elems, gz=-25 )
 dom = Domain(msh, mats)
 
-@test solve!(dom, bcs, verbose=false)
+@test solve!(dom, bcs, verbose=false).success
 

@@ -4,7 +4,7 @@ using Test
 # Mesh:
 
 bls = [
-       Block( [0 0 0; 1.0 6.0 1.0], nx=1, ny=5, nz=1, tag="solids"),
+       Block( [0 0 0; 1.0 6.0 1.0], nx=1, ny=100, nz=1, tag="solids"),
        BlockInset( [0.5 3 0.5; 0.5 6.0 0.5], curvetype="polyline", tag="bars", jointtag="joints"),
       ]
 
@@ -42,27 +42,46 @@ bcs = [
        "tip"          => NodeBC(uy=0.0003),
       ]
 
+tol = 0.005*10
+#tol = 0.005
+scheme = "BE"
+scheme = "FE"
+scheme = "ME"
+scheme = "Ralston"
+nincs=1
+verbose=true
+#verbose=false
+#maxits=5
+maxits=4
+color="blue"
+#color="green"
+#color="red"
+#color="black"
 
-@test solve!(dom, bcs, nincs=10, autoinc=true, verbose=false)
+@test solve!(dom, bcs, nincs=nincs, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, verbose=verbose).success
 
 bcs[2] = "tip" => NodeBC(uy=-0.0001)
-@test solve!(dom, bcs, nincs=10, autoinc=true, verbose=false)
+@test solve!(dom, bcs, nincs=nincs, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, verbose=verbose).success
 
 bcs[2] = "tip" => NodeBC(uy=+0.0006)
-@test solve!(dom, bcs, nincs=10, autoinc=true, verbose=false)
+@test solve!(dom, bcs, nincs=nincs, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, verbose=verbose).success
 
 bcs[2] = "tip" => NodeBC(uy=-0.0005)
-@test solve!(dom, bcs, nincs=10, autoinc=true, verbose=false)
+@test solve!(dom, bcs, nincs=nincs, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, verbose=verbose).success
 
 bcs[2] = "tip" => NodeBC(uy=+0.005)
-@test solve!(dom, bcs, nincs=20, autoinc=true, verbose=false)
+@test solve!(dom, bcs, nincs=nincs, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, verbose=verbose).success
 
 if Amaru.config.makeplots
     using PyPlot
     log_jnt_ip = loggers[2].second
     tab = log_jnt_ip.table
-    plot(tab[:ur], tab[:tau], marker="o", color="blue")
-    show()
+
+    cplot([
+           (x= tab[:ur], y=tab[:tau], marker="o", color=color)
+          ],
+          #"test.pdf"
+         )
 
     #log_joint_ips = loggers[3].second
     #book = log_joint_ips.book

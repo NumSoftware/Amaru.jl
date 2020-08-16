@@ -95,35 +95,64 @@ function readtex(text::String, rng::UnitRange{Int})
 
     len = length(text)
     pos = rng.start
-    while i<=rng.stop
+    lastpos = rng.stop
+    while pos<=lastpos
         pos = nextind(text, pos-1)
         c = text[pos]
-        if !isprint(c) 
+        @show c
+        try
+            @show text[pos: pos+30]
+        catch
+        end
+        @show pos
+        if !isprint(c) && c!='\n'
+            pos += 1
             continue
         end
 
         newline = c=='\n' || pos==1
+        @show newline
+        @show c
 
         if newline
-            if match(r"^\s*$"m, line)!=nothing # blank line
-                if length(root.children)>0 && root.children[end].name!="blank"
-                    xnode = Xnode("blank", Dict(), "")
-                    push!(root.children, xnode)
-                end
-                pos = rng.stop
-            elseif match(r"^\s*%.*?$"m, line)!=nothing # comment
-                if length(root.children)>0 && root.children[end].name=="comment"
-                    root.children[end].content *= "\n"*line
-                else
-                    xnode = Xnode("comment", Dict(), line)
-                    push!(root.children, xnode)
-                end
-                pos = rng.stop
+
+            rng = findnext(r"^.*$"m, text, pos)
+            #rng==nothing && break
+            line = text[rng]
+            @show line
+            #@show rng
+
+            if line=="" 
+                pos +=1
+                continue
             end
+
+            if match(r"^\s*$"m, line)!=nothing # blank line
+                #@show 200
+                if length(children)>0 && children[end].name!="blank"
+                    xnode = Xnode("blank")
+                    push!(children, xnode)
+                end
+                pos = rng.stop+1
+                continue
+            end
+            if match(r"^\s*%.*?$"m, line)!=nothing # comment
+                if length(children)>0 && children[end].name=="comment"
+                    children[end].content *= "\n"*line
+                else
+                    xnode = Xnode("comment", content=line)
+                    push!(children, xnode)
+                end
+                pos = rng.stop+1
+                continue
+            end
+
+            pos +=1
             continue
         end
 
         if c=='\\' 
+            #@show 100
             if isletter(text[pos+1])
                 m = match(r"(\\[a-zA-Z]*\b)"m, text, pos)
                 pos += length(m.match)
@@ -142,33 +171,37 @@ function readtex(text::String, rng::UnitRange{Int})
                     push!(children, xtex)
                     pos = rng.stop+1
                 else
-                    children = Xnode[]
+                    cchildren = Xnode[]
                     while true
                         rng = findnext(r"\S", text, pos)
+                        #@show rng
+                        #@show text[rng]
                         if text[rng] == "["
                             rng = findclosure("[", "]", text, rng.start)
                             rng==nothing && break
-                            push!(children, Xnode("squarebraces", Dict(), text[rng]))
+                            push!(cchildren, Xnode("squarebraces", content=text[rng]))
                             pos = rng.stop+1
                         elseif text[rng] == "{"
+                            #@show 1000
                             rng = findclosure("{", "}", text, rng.start)
+                            #@show text[rng]
                             rng==nothing && break
                             xtex = readtex(text, rng.start+1:rng.stop-1)
                             xtex.name = "curlybraces"
-                            push!(children, xtex)
+                            push!(cchildren, xtex)
                             pos = rng.stop+1
                         #elseif text[rng] == "\$"
                             #rng = findnext(r"\$"m, text, pos)
                             #rng==nothing && error()
                             #xtex = readtex(text, pos:rng.stop-1)
-                            #xnode = Xnode("inline-equation", Dict(), xtex.children)
+                            #xnode = Xnode("inline-equation", Dict(), xtex.cchildren)
                         else
                             break
                             #rng = findnext(r"(\[|{|\\)", text, pos)
                         end
                         #pos = rng.stop
                     end
-                    xnode = Xnode("command", Dict("name"=>name))
+                    xnode = Xnode("command", attributes=("name"=>name,), children=cchildren)
                     push!(children, xnode)
 
                 end
@@ -178,6 +211,13 @@ function readtex(text::String, rng::UnitRange{Int})
             #m=match(r"(\\[a-zA-Z]*\b)"m, rof)
             #if m!=nothing && m.match.offset==0
             #end
+        elseif c=='%' # comment
+            m = match(r"%(.*?)$"m, text, pos)
+            pos += length(m.match)
+            content = m.captures[1]
+            xnode = Xnode("inline-comment", content=content)
+            push!(children, xnode)
+
         elseif c=='{' 
             rng = findclosure("{", "}", text, pos)
             rng==nothing && break
@@ -186,15 +226,20 @@ function readtex(text::String, rng::UnitRange{Int})
             push!(children, xnode)
             pos = rng.stop+1
 
-        else # raw text
-            #rex = r"( \( | \) | { | } | \\ | %"x
-            #rng = findnext(r"(\[|{|\\)", text, pos)
-            rng = findnext(pardelim, text, pos)
+        elseif isprint(c) # raw text
+            @show "raw"
+            rng = findnext(r".+?(?= ( \\ | % | { | } | \[ | \] ) )"x, text, pos)
+            @show rng
+            rng = rng.start:min(rng.stop, lastpos)
+            @show text[rng]
             rng==nothing && break
-            xtex = Xnode("paragraph", Dict(), [], text[pos:rng.start-1])
-            pos = rng.start
-
+            xtex = Xnode("paragraph", content=text[rng])
+            push!(children, xtex)
+            pos = rng.stop+1
+        else
+            pos +=1
         end
+
 
 
     end
@@ -202,6 +247,8 @@ function readtex(text::String, rng::UnitRange{Int})
     return Xnode("tex", Dict(), children)
 
 end
+
+
 function tex2xml2(filename::String)
     #xdoc = Xdoc()
     root = Xnode("latex")

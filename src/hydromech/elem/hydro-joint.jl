@@ -369,4 +369,5 @@ function elem_update!(elem::HydroJoint, U::Array{Float64,1}, F::Array{Float64,1}
     end
 
     F[map_w] .+= dFw
+    return CallStatus(true)
 end

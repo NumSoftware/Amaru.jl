@@ -31,5 +31,5 @@ bcs = [
        :(z==1) => FaceBC(tz=-1000),
       ]
 
-@test solve!(dom, bcs, nincs=20, verbose=false)
+@test solve!(dom, bcs, nincs=20, verbose=false).success
 save(dom, "dom1.vtk")

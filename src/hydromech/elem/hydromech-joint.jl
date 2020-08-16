@@ -626,4 +626,5 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
 
     F[map_u] .+= dF
     F[map_w] .+= dFw
+    return CallStatus(true)
 end

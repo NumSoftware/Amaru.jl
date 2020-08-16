@@ -47,6 +47,3 @@ println(dom)
 
 #println(table)
 #println(book)
-
-#dump(STDOUT, dom, 1, "")
-#dump(STDOUT, dom.elems[1:2], 3, "  ")

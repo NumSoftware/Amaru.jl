@@ -7,7 +7,6 @@ bl2 = BlockInset( [1.5 1.4; 0.001 0.001], curvetype="polyline", tag="drains", ce
 bls = [bl, bl1, bl2]
 
 mesh = Mesh(bls, verbose=true)
-#setquadrature!(mesh.elems[:lines],3)
 
 E  = 5000;
 nu = 0.25;
@@ -28,7 +27,7 @@ mats = [
 
 dom = Domain(mesh, mats, gammaw=10)
 
-set_quadrature!(dom.elems.lines, 3)
+changequadrature!(dom.elems.lines, 3)
 
 t0 = 100.0
 

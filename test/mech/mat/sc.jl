@@ -51,7 +51,7 @@ bcs = [
       ]
 
 
-@test solve!(dom, bcs, autoinc=true, nincs=100, maxits=4, tol=0.1, verbose=false, scheme=:FE, nouts=50, maxincs=0)
+@test solve!(dom, bcs, autoinc=true, nincs=100, maxits=4, tol=0.1, verbose=false, scheme=:FE, nouts=50, maxincs=0).success
 
 
 if Amaru.config.makeplots

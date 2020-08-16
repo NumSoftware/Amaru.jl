@@ -1,7 +1,7 @@
 *.jl.cov
 *.jl.*.cov
 *.jl.mem
-*.bk
+*.bk.jl
 *.vtk
 *.dat
 *.pdf

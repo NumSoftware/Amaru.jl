@@ -33,6 +33,6 @@ loggers = [
 
 setloggers!(dom, loggers)
 
-@test solve!(dom, bcs, nincs=20, verbose=false)
+@test solve!(dom, bcs, nincs=20, verbose=false).success
 
 save(dom, "dom1.vtk")

@@ -23,7 +23,7 @@ setloggers!(dom, loggers)
             :(y==300 && z==300) => NodeBC(fz=-1),
             ]
 
-solve!(dom, bcs, tol = 0.1, nincs = 1,verbose=false)
+solve!(dom, bcs, tol = 0.1, nincs = 1,verbose=false).success
 save(dom, "shell4node_coberta.vtu")
 save(log1, "shell4node_coberta.dat")
 
