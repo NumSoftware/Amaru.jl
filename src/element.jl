@@ -94,10 +94,10 @@ function get_coords(elem::Element)
 end
 
 
-function set_quadrature!(elem::Element, n::Int=0)
+function setquadrature!(elem::Element, n::Int=0)
 
     if !(n in keys(elem.shape.quadrature))
-        alert("set_quadrature!: cannot set $n integration points for shape $(elem.shape.name)")
+        alert("setquadrature!: cannot set $n integration points for shape $(elem.shape.name)")
         return
     end
 
@@ -136,79 +136,46 @@ function set_quadrature!(elem::Element, n::Int=0)
         N = shape.func(ip.R)
         ip.coord = C'*N
     end
+
 end
 
-function set_quadrature!(elems::Array{<:Element,1}, n::Int=0)
+function setquadrature!(elems::Array{<:Element,1}, n::Int=0)
     shapes = ShapeType[]
 
     for elem in elems
         if n in keys(elem.shape.quadrature)
-            set_quadrature!(elem, n)
+            setquadrature!(elem, n)
         else
             if !(elem.shape in shapes)
-                alert("setquadrature: cannot set $n integ. points for shape $(elem.shape.name)")
+                alert("setquadrature: cannot set $n integration points for shape $(elem.shape.name)")
                 push!(shapes, elem.shape)
             end
         end
     end
 end
 
-#=
-function elem_config_ips(elem::Element, nips::Int=0)
-    ipc = get_ip_coords(elem.shape, nips)
-    nips = size(ipc,1)
 
-    resize!(elem.ips, nips)
-    for i=1:nips
-        R = ipc[i,1:3]
-        w = ipc[i,4]
-        elem.ips[i] = Ip(R, w)
-        elem.ips[i].id = i
-        #elem.ips[i].state = new_ip_state(elem.mat, elem.env)
-        elem.ips[i].state = ip_state_type(elem.mat)(elem.env)
-        elem.ips[i].owner = elem
-    end
-
-    # finding ips global coordinates
-    C     = get_coords(elem)
-    shape = elem.shape
-
-    # fix for link elements
-    if shape.family==JOINT1D_SHAPE
-        bar   = elem.linked_elems[2]
-        C     = get_coords(bar)
-        shape = bar.shape
-    end
-
-    # fix for joint elements
-    if shape.family==JOINT_SHAPE
-        C     = C[1:shape.facet_shape.npoints, : ]
-        shape = shape.facet_shape
-    end
-
-    # interpolation
-    for ip in elem.ips
-        N = shape.func(ip.R)
-        ip.coord = C'*N
-    end
+function changequadrature!(elems::Array{<:Element,1}, n::Int=0)
+    setquadrature!(elems, n)
+    foreach(elem_init, elems)
 end
-=#
 
-function setmat!(elem::Element, mat::Material)
-    typeof(elem.mat) == typeof(mat) || error("setmat!: The same material type should be used.")
+
+function changemat!(elem::Element, mat::Material)
+    typeof(elem.mat) == typeof(mat) || error("changemat!: The same material type should be used.")
     elem.mat = mat
 end
 
 """
-`setmat(elems, mat)`
+`changemat(elems, mat)`
 
 Especifies the material model `mat` to be used to represent the behavior of a set of `Element` objects `elems`.
 """
-function setmat!(elems::Array{<:Element,1}, mat::Material)
-    length(elems)==0 && notify("setmat!: Defining material model $(typeof(mat)) for an empty array of elements.")
+function changemat!(elems::Array{<:Element,1}, mat::Material)
+    length(elems)==0 && notify("changemat!: Defining material model $(typeof(mat)) for an empty array of elements.")
 
     for elem in elems
-        setmat!(elem, mat)
+        changemat!(elem, mat)
     end
 end
 

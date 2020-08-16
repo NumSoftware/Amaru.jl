@@ -11,10 +11,6 @@ Amaru module implements functions and types to perform finite element analyses.
 
 Node, Element, Domain, Dof, Ip, NodeBC, FaceBC
 
-**Important functions**
-
-set_mat, set_bc, clear_bc, solve!, save
-
 """
 module Amaru
 using Printf, StatsBase, Statistics, LinearAlgebra, SparseArrays, DelimitedFiles, Arpack
@@ -62,7 +58,7 @@ export Material, read_prms
 
 include("element.jl")
 export Element
-export get_nodes, set_quadrature!, get_ips, elems_ip_vals, setmat!, setstate!
+export get_nodes, changequadrature!, get_ips, elems_ip_vals, changemat!, setstate!
 
 include("tag.jl")
 export tag!
@@ -81,7 +77,7 @@ export PointLogger, SegmentLogger
 export update_logger!
 
 include("domain.jl")
-export Domain, SubDomain, reset!, setloggers!, datafields
+export Domain, SubDomain, reset!, setloggers!
 
 include("io.jl")
 

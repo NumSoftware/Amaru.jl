@@ -102,30 +102,41 @@ end
 
 
 function prefine(mesh::Mesh; n=2, verbose=true)
-    newmesh = Mesh()
+    #newmesh = Mesh()
+
+    NS = Dict{ShapeType,ShapeType}(TRI3=>TRI6, TET4=>TET10)
+
+    # Generate new cells
+    cells = Cell[]
 
     for cell in mesh.elems
-        if cell.shape==TRI3
-            NS = TRI6 # new shape
-            coords =get_coords(cell.nodes)
-            points = Node[]
-            for i=1:NS.npoints
-                R = NS.nat_coords[i,:]
-                N = cell.shape.func(R)
-                C = coords'*N
-                C = round.(C, digits=8)
-                p =get_node(newmesh._pointdict, C)
-                if p==nothing
-                    p = Node(C);
-                    push!(newmesh.nodes, p)
-                    newmesh._pointdict[hash(p)] = p
-                end
-                push!(points, p)
-            end
-            newcell = Cell(NS, points, tag=cell.tag)
-            push!(newmesh.elems, newcell)
+        newshape = NS[cell.shape]
+        coords = get_coords(cell.nodes)
+        points = Node[]
+        for i=1:newshape.npoints
+            R = newshape.nat_coords[i,:]
+            N = cell.shape.func(R)
+            C = coords'*N
+            p = Node(C);
+            push!(points, p)
         end
+        newcell = Cell(newshape, points, tag=cell.tag)
+        push!(cells, newcell)
     end
+
+    # Merge points
+    node_dict = Dict{UInt64,Node}( hash(n) => n for c in cells for n in c.nodes )
+
+    for cell in cells
+        cell.nodes = Node[ node_dict[hash(n)] for n in cell.nodes ]
+    end
+    nodes = collect(values(node_dict))
+
+    # New mesh
+    newmesh = Mesh()
+    newmesh.nodes = nodes
+    newmesh.elems = cells
     fixup!(newmesh, reorder=true)
+
     return newmesh
 end

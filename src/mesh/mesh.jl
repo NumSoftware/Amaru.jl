@@ -59,13 +59,6 @@ function Base.copy(mesh::Mesh)
     return newmesh
 end
 
-function datafields(mesh::Mesh)
-    return [
-            collect(keys(mesh.node_data));
-            collect(keys(mesh.elem_data));
-           ]
-end
-
 
 function get_surface(cells::Array{<:AbstractCell,1})
     surf_dict = Dict{UInt64, Cell}()

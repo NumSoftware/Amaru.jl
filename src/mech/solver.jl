@@ -128,14 +128,16 @@ function solve_system!(
             U1  = LUfact\RHS
             F2 += K21*U1
         catch err
-            @warn "solve!: $err"
             U1 .= NaN
+            return CallStatus(false, "solve!: $err")
         end
     end
 
     # Completing vectors
     DU[1:nu]     .= U1
     DF[nu+1:end] .= F2
+
+    return CallStatus(true)
 end
 
 
@@ -354,7 +356,8 @@ function solve!(
             # Predictor step for FE, ME and BE
             if scheme in ("FE", "ME", "BE")
                 K = mount_K(dom, ndofs, verbosity)
-                solve_system!(K, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
+                status = solve_system!(K, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
+                !status.success && (errored=true; break)
 
                 copyto!.(State, StateBk)
                 ΔUt   = ΔUa + ΔUi
@@ -373,7 +376,8 @@ function solve!(
                 elseif scheme=="BE"
                     K = K2
                 end
-                solve_system!(K, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
+                status = solve_system!(K, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
+                !status.success && (errored=true; break)
 
                 copyto!.(State, StateBk)
                 ΔUt   = ΔUa + ΔUi
@@ -388,7 +392,8 @@ function solve!(
                 # Predictor step
                 K = mount_K(dom, ndofs, verbosity)
                 ΔUit = 2/3*ΔUi
-                solve_system!(K, ΔUit, 2/3*R, nu, verbosity)   # Changes unknown positions in ΔUi and R
+                status = solve_system!(K, ΔUit, 2/3*R, nu, verbosity)   # Changes unknown positions in ΔUi and R
+                !status.success && (errored=true; break)
 
                 copyto!.(State, StateBk)
                 ΔUt = ΔUa + ΔUit
@@ -398,7 +403,8 @@ function solve!(
                 # Corrector step
                 K2 = mount_K(dom, ndofs, verbosity)
                 K = 0.25*K + 0.75*K2
-                solve_system!(K, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
+                status = solve_system!(K, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
+                !status.success && (errored=true; break)
 
                 copyto!.(State, StateBk)
                 ΔUt   = ΔUa + ΔUi

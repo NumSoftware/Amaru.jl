@@ -36,7 +36,6 @@ function elem_init(elem::MechSolid)
         nips = length(elem.ips)
         ndim = elem.env.ndim
         h = V^(1/ndim)
-        #h *= 2
 
         for ip in elem.ips
             ip.state.h = h

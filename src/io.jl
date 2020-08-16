@@ -280,7 +280,7 @@ function Domain(filename::String)
         elem = domain.elems[i]
         nips = length(xelem.children)
 
-        set_quadrature!(elem, nips)
+        setquadrature!(elem, nips)
         elem_init(elem)
 
         for (i,xip) in enumerate(xelem.children)

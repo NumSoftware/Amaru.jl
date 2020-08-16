@@ -247,7 +247,7 @@ function Domain(
     ip_id = 0
     for elem in dom.elems
         elem_config_dofs(elem)  # dofs
-        set_quadrature!(elem)   # ips
+        setquadrature!(elem)   # ips
         for ip in elem.ips      # ip ids
             ip_id += 1
             ip.id = ip_id
@@ -373,7 +373,7 @@ function Domain(elems::Array{<:Element,1})
     # Setting quadrature
     ip_id = 0
     for (newelem, elem) in zip(domain.elems, elems)
-        set_quadrature!(newelem, length(elem.ips))   # ips
+        setquadrature!(newelem, length(elem.ips))   # ips
         for ip in newelem.ips      # ip ids
             ip_id += 1
             ip.id = ip_id
