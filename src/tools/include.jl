@@ -1,8 +1,3 @@
-export @stop
-macro stop()
-    return :(error("Stopped here."))
-end
-
 include("callstatus.jl")
 include("iteration.jl")
 
@@ -17,9 +12,8 @@ include("tensors.jl")
 include("table.jl")
 include("expr.jl")
 include("show.jl")
-include("message.jl")
+include("utils.jl")
 include("stopwatch.jl")
-include("sound.jl")
 include("xml.jl")
 
 include("tex.jl")

@@ -83,3 +83,54 @@ eval_arith_expr(expr::Symbol; vars...) = reduce_arith_expr!(expr; vars...)
 
 Returns the result of the arithmetic expression `expr` using values defined in `vars` if necessary.
 """ eval_arith_expr
+
+
+function get_vars(sym::Symbol)
+    return [ sym ]
+end
+
+function get_vars(sym::Any)
+    return []
+end
+
+function get_vars(expr::Expr)
+    symbols = Symbol[]
+    start = expr.head==:call ? 2 : 1
+    for arg in expr.args[start:end]
+        append!(symbols, get_vars(arg))
+    end
+    return symbols
+end
+
+export @check
+macro check(expr)
+    exprs = replace(string(expr), " "=>"")
+    vars = get_vars(expr)
+
+    return quote
+        if !$(esc(expr)) # Eval boolean expression
+            # Get function name
+            st = stacktrace(backtrace())
+            fname = ""
+            for frm in st
+                if frm.func != :backtrace && frm.func!= Symbol("macro expansion")
+                    fname = frm.func
+                    break
+                end
+            end
+
+            # Prepare message
+            if length($vars)==1
+                prm = $(string(vars[1]))
+                val = $(esc(vars[1]))
+                msg = "Invalid value for parameter $prm ($val) which must satisfy $($(exprs))"
+            else
+                prms = $(join(vars, ", ", " and "))
+                msg = "Parameters $prms must satisfy $($(exprs))"
+            end
+
+            fname != "" && (msg="$fname: $msg")
+            error(msg)
+        end
+    end
+end
