@@ -361,7 +361,6 @@ function hm_solve!(
     # Incremental analysis
     t    = env.t     # current time
     tend = t + time_span # end time
-    Δt = time_span/nincs # initial Δt value
 
     T  = 0.0
     ΔT = 1.0/nincs       # initial ΔT value
@@ -419,6 +418,7 @@ function hm_solve!(
         verbosity>1 && println()
 
         # Get forces and displacements from boundary conditions
+        Δt = time_span*ΔT
         env.t = t + Δt
         UexN, FexN = get_bc_vals(dom, bcs, t+Δt) # get values at time t+Δt
 
@@ -481,7 +481,7 @@ function hm_solve!(
             residue < tol  && (converged=true; break)
             isnan(residue) && break
             it>maxits      && break
-            it>1 && residue>lastres && break
+            #it>1 && residue>lastres && break
             residue>0.9*lastres && (nfails+=1)
             nfails==maxfails    && break
         end
