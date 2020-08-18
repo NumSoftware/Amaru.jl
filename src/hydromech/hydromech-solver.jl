@@ -524,8 +524,8 @@ function hm_solve!(
                 env.cout += 1
                 iout = env.cout
                 update_output_data!(dom)
-                update_composed_loggers!(dom)
                 complete_uw_h(dom)
+                update_composed_loggers!(dom)
                 save(dom, "$outdir/$filekey-$iout.vtu", silent=silent)
                 Tcheck += ΔTcheck # find the next output time
             end

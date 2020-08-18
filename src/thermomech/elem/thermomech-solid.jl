@@ -443,4 +443,5 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
 
     DF[map_u] += dF
     DF[mat_t] += dFt
+    return CallStatus(true)
 end

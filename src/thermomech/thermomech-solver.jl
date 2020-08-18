@@ -2,7 +2,12 @@
 
 
 # Assemble the global stiffness matrix
-function tm_mount_global_matrices(dom::Domain, ndofs::Int, Δt::Float64)
+function tm_mount_global_matrices(dom::Domain,
+                                  ndofs::Int,
+                                  Δt::Float64,
+                                  verbosity::Int
+                                 )
+    verbosity>1 && print("    assembling... \033[K \r")
 
     # Assembling matrix G
 
@@ -99,7 +104,15 @@ end
 
 
 # Solves for a load/displacement increment
-function tm_solve_step!(G::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu::Int)
+function tm_solve_system!(
+                          G  :: SparseMatrixCSC{Float64, Int},
+                          DU :: Vect,
+                          DF :: Vect,
+                          nu :: Int,
+                          verbosity :: Int
+                         )
+    verbosity>1 && print("    solving... \033[K \r")
+
     #  [  G11   G12 ]  [ U1? ]    [ F1  ]
     #  |            |  |     | =  |     |
     #  [  G21   G22 ]  [ U2  ]    [ F2? ]
@@ -108,7 +121,7 @@ function tm_solve_step!(G::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu
     umap  = 1:nu
     pmap  = nu+1:ndofs
     if nu == ndofs
-        @warn "solve!: No essential boundary conditions."
+        warn("tm_solve_system!: No essential boundary conditions")
     end
 
     # Global stifness matrix
@@ -133,14 +146,15 @@ function tm_solve_step!(G::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu
             U1  = LUfact\RHS
             F2 += G21*U1
         catch err
-            @warn "solve!: $err"
             U1 .= NaN
+            return CallStatus(false, "tm_solve!: $err")
         end
     end
 
     # Completing vectors
     DU[1:nu]     .= U1
     DF[nu+1:end] .= F2
+    return CallStatus(true)
 end
 
 
@@ -163,8 +177,21 @@ function complete_ut_T(dom::Domain)
             Ut[id] = dot(N,Ute)
         end
     end
-
     dom.node_data["T"] = Ut .+ dom.env.T0
+end
+
+
+function tm_update_state!(dom::Domain, ΔUt::Vect, ΔFin::Vect, Δt::Float64, verbosity::Int)
+    # Update
+    verbosity>1 && print("    updating... \r")
+
+    # Get internal forces and update data at integration points (update ΔFin)
+    ΔFin .= 0.0
+    for elem in dom.elems
+        status = elem_update!(elem, ΔUt, ΔFin, Δt)
+        !status.success && return status
+    end
+    return CallStatus(true)
 end
 
 
@@ -221,9 +248,10 @@ function tm_solve!(
                    maxincs   :: Int     = 1000000,
                    tol       :: Number  = 1e-2,
                    Ttol      :: Number  = 1e-9,
-                   scheme    :: Symbol  = :FE,
+                   rspan     :: Number  = 1e-3,
+                   scheme    :: Union{String,Symbol} = "FE",
                    nouts     :: Int     = 0,
-                   outdir    :: String  = "",
+                   outdir    :: String  = ".",
                    filekey   :: String  = "out",
                    verbose   :: Bool    = false,
                    silent    :: Bool    = false,
@@ -233,6 +261,8 @@ function tm_solve!(
     verbosity = 1
     verbose && (verbosity=2)
     silent && (verbosity=0)
+    scheme = string(scheme)
+    scheme in ("FE",) || error("tm_solve! : invalid scheme \"$scheme\"")
 
     tol>0 || error("tm_solve! : tolerance `tol `should be greater than zero")
     Ttol>0 || error("tm_solve! : tolerance `Ttol `should be greater than zero")
@@ -241,14 +271,13 @@ function tm_solve!(
     env.cstage += 1
     env.cinc    = 0
     env.transient = true
-
     sw = StopWatch() # timing
 
     if !isnan(end_time)
         end_time > env.t || error("tm_solve! : end_time ($end_time) is greater that current time ($(env.t))")
         time_span = end_time - env.t
     end
-    isnan(time_span) && error("hm_solve!: neither time_span nor end_time were set.")
+    isnan(time_span) && error("tm_solve!: neither time_span nor end_time were set.")
 
     if verbosity>0
         printstyled("Thermomechanical FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
@@ -258,19 +287,15 @@ function tm_solve!(
     verbosity>1 && println("  model type: ", env.modeltype)
 
     save_outs = nouts>0
-    if save_outs
+    if save_outs && !autoinc
         if nouts>nincs
             nincs = nouts
-            @info "  nincs changed to $nincs to match nouts"
+            info("nincs changed to $nincs to match nouts")
         end
         if nincs%nouts != 0
             nincs = nincs - (nincs%nouts) + nouts
-            @info "  nincs changed to $nincs to be a multiple of nouts"
+            info("nincs changed to $nincs to be a multiple of nouts")
         end
-
-        strip(outdir) == "" && (outdir = ".")
-        isdir(outdir) || error("tm_solve!: output directory <$outdir> not fount")
-        outdir[end] in ('/', '\\')  && (outdir = outdir[1:end-1])
     end
 
     # Get dofs organized according to boundary conditions
@@ -279,11 +304,10 @@ function tm_solve!(
     umap  = 1:nu         # map for unknown displacements and pw
     pmap  = nu+1:ndofs   # map for prescribed displacements and pw
     dom.ndofs = length(dofs)
-    verbosity>0 && println("  unknown dofs: $nu")
+    verbosity>0 && message("unknown dofs: $nu")
 
-    # Save initial file and loggers
+    # Setup quantities at dofs
     if env.cstage==1
-        # Setup initial quantities at dofs
         for (i,dof) in enumerate(dofs)
             dof.vals[dof.name]    = 0.0
             dof.vals[dof.natname] = 0.0
@@ -291,15 +315,22 @@ function tm_solve!(
                 dof.vals[:T] = env.T0 # real temperature
             end
         end
+    end
 
-        update_output_data!(dom) # Updates data arrays in domain
-        update_single_loggers!(dom)  # Tracking nodes, ips, elements, etc.
-        update_composed_loggers!(dom)
+    outdir = rstrip(outdir, ['/', '\\'])
+    env.outdir = outdir
+    if !isdir(outdir)
+        info("tm_solve!: creating output directory ./$outdir")
+        mkpath(outdir)
+    end
+
+    # Save initial file and loggers
+    if env.cstage==1
+        update_output_data!(dom)
         complete_ut_T(dom)
-
-        if save_outs
-            save(dom, "$outdir/$filekey-0.vtu", verbose=false)
-        end
+        update_single_loggers!(dom)
+        update_composed_loggers!(dom)
+        save_outs && save(dom, "$outdir/$filekey-0.vtu", silent=silent)
     end
 
     # Get the domain current state and backup
@@ -309,14 +340,14 @@ function tm_solve!(
     # Incremental analysis
     t    = env.t     # current time
     tend = t + time_span # end time
-    Δt = time_span/nincs # initial Δt value
 
     T  = 0.0
     ΔT = 1.0/nincs       # initial ΔT value
-    ΔT_bk = 0.0
+    autoinc && (ΔT=min(ΔT,0.01))
+    ΔTbk = 0.0
 
-    ΔTout = 1.0/nouts    # output time increment for saving output file
-    Tout  = ΔTout        # output time for saving the next output file
+    ΔTcheck = save_outs ? 1/nouts : 1.0
+    Tcheck  = ΔTcheck
 
     inc  = 0             # increment counter
     iout = env.cout      # file output counter
@@ -326,6 +357,8 @@ function tm_solve!(
     ΔFin = zeros(ndofs)  # vector of internal natural values for current increment
     ΔUa  = zeros(ndofs)  # vector of essential values (e.g. displacements) for this increment
     ΔUi  = zeros(ndofs)  # vector of essential values for current iteration
+    Rc   = zeros(ndofs)  # vector of cumulated residues
+    status = CallStatus()
 
     Fex  = zeros(ndofs)  # vector of external loads
     Uex  = zeros(ndofs)  # vector of external essential values
@@ -339,6 +372,7 @@ function tm_solve!(
     end
     Fex .-= Fin # add negative forces to external forces vector
 
+    # Get global vectors from values at dofs
     for (i,dof) in enumerate(dofs)
         U[i] = dof.vals[dof.name]
         F[i] = dof.vals[dof.natname]
@@ -347,13 +381,14 @@ function tm_solve!(
     local G::SparseMatrixCSC{Float64,Int64}
     local RHS::Array{Float64,1}
 
-    while T < 1.0 - Ttol
+    while T < 1.0-Ttol
         # Update counters
         inc += 1
         env.cinc += 1
+        env.T = T
 
         if inc > maxincs
-            printstyled("  solver maxincs = $maxincs reached (try maxincs=0)\n", color=:red)
+            alert("solver maxincs = $maxincs reached (try maxincs=0)\n")
             return false
         end
 
@@ -362,50 +397,50 @@ function tm_solve!(
         verbosity>1 && println()
 
         # Get forces and displacements from boundary conditions
+        Δt = time_span*ΔT
         env.t = t + Δt
         UexN, FexN = get_bc_vals(dom, bcs, t+Δt) # get values at time t+Δt
 
         ΔUex = UexN - U
         ΔFex = FexN - F
 
+        ΔTcr = min(rspan, 1-T)    # time span to apply cumulated residues
+        αcr  = min(ΔT/ΔTcr, 1.0)  # fraction of cumulated residues to apply
+        T<1-rspan && (ΔFex .+= αcr.*Rc) # addition of residuals
+
         ΔUex[umap] .= 0.0
         ΔFex[pmap] .= 0.0
 
-        R   .= ΔFex    # residual
+        R   .= ΔFex
         ΔUa .= 0.0
         ΔUi .= ΔUex    # essential values at iteration i
 
         # Newton Rapshon iterations
         residue   = 0.0
-        converged = false
         maxfails  = 3  # maximum number of it. fails with residual change less than 90%
         nfails    = 0  # counter for iteration fails
+        nits      = 0
+        residue1  = 0.0
+        converged = false
+        errored   = false
         for it=1:maxits
-            if it>1; ΔUi .= 0.0 end # essential values are applied only at first iteration
+            nits += 1
+            it>1 && (ΔUi.=0.0) # essential values are applied only at first iteration
             lastres = residue # residue from last iteration
 
             # Try FE step
-            verbosity>1 && print("    assembling... \r")
-            G, RHS = tm_mount_global_matrices(dom, ndofs, Δt)
+            G, RHS = tm_mount_global_matrices(dom, ndofs, Δt, verbosity)
 
             R .+= RHS
 
             # Solve
-            verbosity>1 && print("    solving...   \r")
-            tm_solve_step!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
+            status = tm_solve_system!(G, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
+            !status.success && (errored=true; break)
 
-            # Update
-            verbosity>1 && print("    updating... \r")
-
-            # Restore the state to last converged increment
             copyto!.(State, StateBk)
-
-            # Get internal forces and update data at integration points (update ΔFin)
-            ΔFin .= 0.0
-            ΔUt   = ΔUa + ΔUi
-            for elem in dom.elems
-                elem_update!(elem, ΔUt, ΔFin, Δt)
-            end
+            ΔUt = ΔUa + ΔUi
+            status = tm_update_state!(dom, ΔUt, ΔFin, Δt, verbosity)
+            !status.success && (errored=true; break)
 
             residue = maximum(abs, (ΔFex-ΔFin)[umap] )
 
@@ -413,7 +448,7 @@ function tm_solve!(
             ΔUa .+= ΔUi
 
             # Residual vector for next iteration
-            R = ΔFex - ΔFin
+            R .= ΔFex .- ΔFin
             R[pmap] .= 0.0  # zero at prescribed positions
 
             if verbosity>1
@@ -421,11 +456,20 @@ function tm_solve!(
                 @printf(" residue: %-10.4e\n", residue)
             end
 
-            if residue < tol;        converged = true ; break end
-            if isnan(residue);       converged = false; break end
-            if it > maxits;          converged = false; break end
-            if residue > 0.9*lastres;  nfails += 1 end
-            if nfails == maxfails;     converged = false; break end
+            it==1 && (residue1=residue)
+            residue < tol  && (converged=true; break)
+            isnan(residue) && break
+            it>maxits      && break
+            it>1 && residue>lastres && break
+            residue>0.9*lastres && (nfails+=1)
+            nfails==maxfails    && break
+        end
+
+        q = 0.0 # increment size factor for autoinc
+
+        if errored
+            verbosity>1 && notify(status.message, level=3)
+            converged = false
         end
 
         if converged
@@ -434,6 +478,7 @@ function tm_solve!(
             F .+= ΔFin
             Uex .= UexN
             Fex .= FexN
+            Rc .= (1.0-αcr).*Rc .+ R  # update cumulated residue
 
             # Backup converged state at ips
             copyto!.(StateBk, State)
@@ -447,71 +492,82 @@ function tm_solve!(
                 end
             end
 
-            update_single_loggers!(dom) # Tracking nodes, ips, etc.
+            update_single_loggers!(dom)
 
             # Update time
             t += Δt
             T += ΔT
 
             # Check for saving output file
-            if abs(T - Tout) < Ttol && save_outs
+            if T>Tcheck-Ttol && save_outs
                 env.cout += 1
                 iout = env.cout
                 update_output_data!(dom)
-                update_composed_loggers!(dom)
                 complete_ut_T(dom)
+                update_composed_loggers!(dom)
                 save(dom, "$outdir/$filekey-$iout.vtu", silent=silent)
-                Tout += ΔTout # find the next output time
+                Tcheck += ΔTcheck # find the next output time
             end
 
             if autoinc
-                if ΔT_bk>0.0
-                    ΔT = ΔT_bk
+                if ΔTbk>0.0
+                    ΔT = min(ΔTbk, Tcheck-T)
+                    ΔTbk = 0.0
                 else
-                    ΔT = min(1.5*ΔT, 1.0/nincs)
-                end
-            end
-            ΔT_bk = 0.0
+                    if nits==1
+                        q = (1+tanh(log10(tol/residue1)))^1
+                    else
+                        q = 1.0
+                    end
 
-            # Fix ΔT in case T+ΔT>Tout
-            if T+ΔT>Tout
-                ΔT_bk = ΔT
-                ΔT = Tout-T
+                    ΔTtr = min(q*ΔT, 1/nincs, 1-T)
+                    if T+ΔTtr>Tcheck-Ttol
+                        ΔTbk = ΔT
+                        ΔT = Tcheck-T
+                    else
+                        ΔT = ΔTtr
+                        ΔTbk = 0.0
+                    end
+                end
             end
         else
             # Restore counters
             inc -= 1
             env.cinc -= 1
-            ΔT_bk = ΔT
 
-            # Restore the state to last converged increment
             if autoinc
-                verbosity>1 && println("    increment failed.")
-                ΔT *= 0.5
+                verbosity>1 && notify("increment failed", level=3)
+                q = (1+tanh(log10(tol/residue1)))
+                q = clamp(q, 0.2, 0.9)
+                errored && (q=0.7)
+                ΔT = q*ΔT
                 ΔT = round(ΔT, sigdigits=3)  # round to 3 significant digits
                 if ΔT < Ttol
-                    printstyled("solve!: solver did not converge \033[K \n", color=:red)
+                    alert("tm_solve!: solver did not converge")
                     return false
                 end
             else
-                printstyled("solve!: solver did not converge \033[K \n", color=:red)
+                alert("tm_solve!: solver did not converge")
                 return false
             end
         end
 
-        # Set Δt according to ΔT
-        Δt = ΔT*time_span
     end
 
     if !save_outs
-	update_output_data!(dom)
-	complete_uw_h(dom)
-	update_composed_loggers!(dom)
+        update_output_data!(dom)
+        complete_ut_T(dom)
+        update_composed_loggers!(dom)
     end
 
     # time spent
-    verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress 100%\033[K\n", bold=true, color=:blue) # color 111
-    verbosity==1 && println("  time spent: ", see(sw, format=:hms), "\033[K")
+    progress = @sprintf("%4.2f", T*100)
+    verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)%\033[K\n", bold=true, color=:blue) # color 111
+    if verbosity>0 
+        message("valid increments: ", inc)
+        message("time spent: ", see(sw, format=:hms))
+    end
+    getlapse(sw)>60 && sound_alert()
 
-    return true
+    return CallStatus(true)
 end
