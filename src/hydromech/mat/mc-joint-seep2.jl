@@ -1,6 +1,6 @@
  #This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export MCJointSeep
+export MCJointSeep2
 
 mutable struct MCJointSeepIpState2<:IpState
     env::ModelEnv
