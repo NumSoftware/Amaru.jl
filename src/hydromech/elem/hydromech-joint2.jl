@@ -606,24 +606,8 @@ function elem_update!(elem::HydroMechJoint2, U::Array{Float64,1}, F::Array{Float
         dFw += coef*Nb'*Vt[2]
     end
 
-    dF2   = zeros(nnodes*ndim)
-    #dFw2   = zeros(2*nbsnodes)
-
-    #K, m, m = elem_stiffness(elem)
-    #Cup, m, m = elem_coupling_matrix(elem::HydroMechJoint2)
-
-    #dF2 += K*dU
-    #dF2 += Cup*dUw
-
-    #H, m, m = elem_conductivity_matrix(elem)
-
-    #dFw2 += Cup'*dU
-
-#    @show dFw2
-#    @show dFw
-#    @show dFw2 - dFw
-
     F[map_u] .+= dF
     F[map_w] .+= dFw
+    
     return CallStatus(true)
 end
