@@ -239,13 +239,13 @@ function elem_conductivity_matrix(elem::HydroMechJoint2)
 
         # compute NN matrix
         Np = elem.shape.basic_shape.func(ip.R)
-        Nb = [ Np' -Np']
-        Nt = [-Np'  Np']
+        Nb = [-Np'  Np']
+        Nt = [ Np' -Np']
 
         # compute H
         coef  = detJ*ip.w*th*elem.mat.kt
-        H += coef*Nb'*Nb
-        H += coef*Nt'*Nt
+        H -= coef*Nb'*Nb
+        H -= coef*Nt'*Nt
 
          # compute crack aperture
         if elem.mat.kl == 0.0
@@ -388,6 +388,7 @@ function elem_RHS_vector(elem::HydroMechJoint2)
     return Q, map
 end
 
+
 function elem_internal_forces(elem::HydroMechJoint2, F::Array{Float64,1})
     ndim     = elem.env.ndim
     th       = elem.env.thickness
@@ -445,8 +446,8 @@ function elem_internal_forces(elem::HydroMechJoint2, F::Array{Float64,1})
 
         # compute Np vector
         Np = elem.shape.basic_shape.func(ip.R)
-        Nb = [ Np' -Np']
-        Nt = [-Np'  Np']
+        Nb = [-Np' Np']
+        Nt = [ Np'  -Np']
         Nf = [ 0.5*Np' 0.5*Np']
 
         # compute NN matrix
@@ -483,8 +484,8 @@ function elem_internal_forces(elem::HydroMechJoint2, F::Array{Float64,1})
 
         # transverse flow
         D = ip.state.D
-        dFw += coef*Nt'*D[1]
-        dFw += coef*Nb'*D[2]
+        dFw -= coef*Nt'*D[1]
+        dFw -= coef*Nb'*D[2]
     end
 
     F[map_u] += dF
@@ -574,10 +575,7 @@ function elem_update!(elem::HydroMechJoint2, U::Array{Float64,1}, F::Array{Float
         @gemm Bu = T*NN
 
         # interpolation to the integ. point
-        uwb  = Np'*dUw[1:nbsnodes]
-        uwt  = Np'*dUw[nbsnodes+1:2*nbsnodes]
-        uwf  = (uwb + uwt)/2
-        Δuw  = [uwb; uwt; uwf]
+        Δuw  = [Np'*dUw[1:nbsnodes]; Np'*dUw[nbsnodes+1:2*nbsnodes]; Nf*dUw]
         G    = [ dot(Nt,Uw); dot(Nb,Uw)]
         BfUw = Bf*Uw + bf
 
@@ -585,7 +583,9 @@ function elem_update!(elem::HydroMechJoint2, U::Array{Float64,1}, F::Array{Float
 
         # internal force dF
         Δσ, Vt, L = stress_update(elem.mat, ip.state, Δω, Δuw, G, BfUw, Δt)
-        Δσ -= mf*uwf # get total stress
+        @show Δσ[1]
+        Δσ -= mf*Δuw[3] # get total stress
+        @show Δuw[3]
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*Δσ
 
@@ -595,16 +595,33 @@ function elem_update!(elem::HydroMechJoint2, U::Array{Float64,1}, F::Array{Float
         dFw -= coef*Nf'*mfΔω
 #=
         coef = detJ*ip.w*elem.mat.β*th
-        dFw -= coef*Nf'*uwf
+        dFw -= coef*Nf'*Δuw[3]
 =#
         # longitudinal flow
         coef = Δt*detJ*ip.w*th
         dFw -= coef*Bf'*L
 
         # transverse flow
-        dFw -= coef*Nt'*Vt[1]
-        dFw -= coef*Nb'*Vt[2]
+        dFw += coef*Nt'*Vt[1]
+        dFw += coef*Nb'*Vt[2]
     end
+
+    dF2   = zeros(nnodes*ndim)
+    #dFw2   = zeros(2*nbsnodes)
+
+    #K, m, m = elem_stiffness(elem)
+    #Cup, m, m = elem_coupling_matrix(elem::HydroMechJoint2)
+
+    #dF2 += K*dU
+    #dF2 += Cup*dUw
+
+    #H, m, m = elem_conductivity_matrix(elem)
+
+    #dFw2 += Cup'*dU
+
+#    @show dFw2
+#    @show dFw
+#    @show dFw2 - dFw
 
     F[map_u] .+= dF
     F[map_w] .+= dFw
