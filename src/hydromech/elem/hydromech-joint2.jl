@@ -583,9 +583,7 @@ function elem_update!(elem::HydroMechJoint2, U::Array{Float64,1}, F::Array{Float
 
         # internal force dF
         Δσ, Vt, L = stress_update(elem.mat, ip.state, Δω, Δuw, G, BfUw, Δt)
-        @show Δσ[1]
         Δσ -= mf*Δuw[3] # get total stress
-        @show Δuw[3]
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*Δσ
 
