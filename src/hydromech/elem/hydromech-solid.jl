@@ -60,11 +60,11 @@ function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol,
     Q = zeros(ndim)
 
     # Calculate the nodal values
-    F     = zeros(nnodes, ndim)
     shape = target.shape
     ips   = get_ip_coords(shape)
 
     if key == :tq # fluid volume per area
+        F = zeros(nnodes)
         for i=1:size(ips,1)
             R = vec(ips[i,:])
             w = R[end]
@@ -90,7 +90,9 @@ function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol,
         return F, map
     end
 
+    F = zeros(nnodes, ndim)
     for i=1:size(ips,1)
+
         R = vec(ips[i,:])
         w = R[end]
         N = shape.func(R)

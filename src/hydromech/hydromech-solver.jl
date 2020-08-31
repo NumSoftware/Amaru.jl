@@ -538,7 +538,7 @@ function hm_solve!(
                     if nits==1
                         q = (1+tanh(log10(tol/residue1)))^1
                     else
-                        q = 1.0
+                        q = 1.2
                     end
 
                     ΔTtr = min(q*ΔT, 1/nincs, 1-T)
