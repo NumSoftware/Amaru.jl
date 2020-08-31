@@ -85,7 +85,7 @@ function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol,
         end
 
         # generate a map
-        map  = [ node.dofdict[:ut].eq_id for node in target.nodes ]
+        map  = [ node.dofdict[:uw].eq_id for node in target.nodes ]
 
         return F, map
     end
