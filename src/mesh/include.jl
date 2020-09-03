@@ -39,7 +39,7 @@ include("revolve.jl")
 export revolve
 
 include("smooth.jl")
-export smooth!, laplacian_smooth!, fast_smooth!
+export smooth!, laplacian_smooth!, fast_smooth!, fast_smooth2!
 
 include("split.jl")
 export generate_joints!, cracksmesh

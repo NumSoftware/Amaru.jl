@@ -639,12 +639,260 @@ function find_disps(mesh::Mesh, patches, extended, α, qmin, in_border)
     return UU
 end
 
+# Mount a matrix with nodal displacements
+function find_weighted_pos(mesh::Mesh, patches, extended, α, qmin, in_border)
+    #final position is based in eq[8] paper Mesh smothing algorithm based on exterior angles split
+
+    n    = length(mesh.nodes)
+    m    = length(mesh.elems)
+    ndim = mesh.ndim
+    UU = zeros(n,ndim)
+    W  = ones(m) # area/volume
+    QQ  = ones(m) # qualities
+    X1X1 = zeros(n,ndim,m) #elements array for node positions of ideal element over original (C1)
+    XX = zeros(n,ndim) #new node coordinates after weighted positioning
+
+
+    for c in mesh.elems
+        # get coordinates matrix
+        np = length(c.nodes)
+        C0 = get_coords(c.nodes, ndim)
+        v  = abs(cell_extent(c)) # area or volume
+        W[c.id] = v
+	QQ[c.id] = c.quality
+
+        s = v^(1.0/ndim) # scale factor
+
+        extended && (s *= α)
+
+        BC = basic_coords(c.shape)*s
+        C = BC
+
+        # align C with cell orientation
+        pindexes = [ i for i=1:np if in_border[ c.nodes[i].id] ]
+        R, D = rigid_transform(C, C0, pindexes)
+        C1 = C*R' .+ D
+
+        # add to UU
+        dmap = [ p.id for p in c.nodes ]
+	X1X1[dmap,:,c.id] .= C1
+    end
+
+    # weighted positioning
+    for node in mesh.nodes
+        patch = patches[node.id]
+	
+	sumW = sum( W[c.id] for c in patch )
+	sumdeltaQQ = sum( 1.01 - QQ[c.id] for c in patch ) #deltaQQ -> chage in the element quality. As is placed an ideal element, final quality is 1. To avoid zero division 1.01
+
+	#test= [X1X1[node.id,:,c.id] for c in patch]
+	#println(test)	
+	
+	parcel1 = .5*sum(((1.01-QQ[c.id])./sumdeltaQQ).* X1X1[node.id,:,c.id] for c in patch)
+	#parcel2 = .5*sum((1-(W[c.id]/sumW)).* X1X1[node.id,:,c.id] for c in patch) #When node is a corner, parcel2=0. Knowing that corners do not move, it would not be a problem. XX apparently for 
+										#those nodes is incorrect though. Nevertheless, it does not matter. To be sure, in case of number of patches for the node
+										#is 1, make coefficient in parcel1 equal to 1. instead of .5 (see conditional commented)
+										#Maybe parcel2 equation is wrong. For points with 4 patches same area, parcel2 is bigger than it should be. For testing parcel2
+										#was slightly modyfied as next. With this, not only this problem is solved but the initial problem as well.
+
+	
+	parcel2 = .5*sum(((W[c.id]/sumW)).* X1X1[node.id,:,c.id] for c in patch)  
+
+	#if lenght(patch)==1
+		#parce1 *=2
+
+	XX[node.id, :] .= parcel1 + parcel2
+    end
+
+    return XX
+end
+
 
 function str_histogram(hist::Array{Int64,1})
     m = maximum(hist)
     H = round.(Int, hist./m*7)
     chars = [" ","_","▁","▂","▃","▄","▅","▆","▇","█"]
     return "["*join( hist[i]==0 ? " " : chars[H[i]+2] for i=1:length(H) )*"]"
+end
+
+function fast_smooth2!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Float64=0.97,
+                 fixed::Bool=false, maxit::Int64=30, mintol::Float64=1e-3, tol::Float64=1e-4,
+                 facetol=1e-4, savesteps::Bool=false, savedata::Bool=false, bin::Float64=0.05,
+                 filekey::String="smooth", conds=nothing, extended=false, smart=false)
+
+    # tol   : tolerance in change of mesh quality for succesive iterations
+    # mintol: tolerance in change of worst cell quality in a mesh for succesive iterations
+
+    #verbose && printstyled("Mesh smoothing:\n", bold=true, color=:cyan)
+    #verbose && printstyled("Mesh fast-$(smart ? "smart-" : "")cells-fitting smoothing:\n", bold=true, color=:cyan)
+
+    # check for not allowed cells
+    for c in mesh.elems
+        if c.shape.family != SOLID_SHAPE
+            error("smooth!: cells of family $(c.shape.family) are not allowed for smoothing: $(c.shape.name)")
+        end
+    end
+
+    ndim = mesh.ndim
+    nnodes = length(mesh.nodes)
+
+    nodes, patches = get_patches(mesh)  # key nodes and corresponding patches
+
+    # get a list of surface nodes (sNodes) that include a list of faces per node
+    surf_cells = get_surface(mesh.elems)
+    surf_nodes, surf_patches = get_patches(surf_cells)
+    border_nodes = [ sNode(node, patch, nothing) for (node,patch) in zip(surf_nodes,surf_patches)]
+
+    # find normals for border nodes
+    for snode in border_nodes
+        snode.normals = faces_normal(snode.faces, facetol)
+    end
+
+    # arrays of flags
+    in_border = falses(length(mesh.nodes))
+    border_idxs = [ n.node.id for n in border_nodes ]
+    in_border[border_idxs] .= true
+
+    # map vector for border nodes
+    map_pn = zeros(Int, length(mesh.nodes)) # map node-node
+    for (i,node) in enumerate(border_nodes)
+        map_pn[ node.node.id ] = i
+    end
+
+    # Stats
+    Q = Float64[ c.quality for c in mesh.elems]
+    q    = mean(Q)
+    qmin = minimum(Q)
+    qmax = maximum(Q)
+    dev  = stdm(Q, q)
+    q1, q2, q3 = quantile(Q, [0.25, 0.5, 0.75])
+
+    stats = DataTable()
+    hists = DataTable()
+    push!(stats, OrderedDict(:qavg=>q, :qmin=>qmin, :qmax=>qmax, :dev=>dev))
+
+    hist  = fit(Histogram, Q, 0.0:bin:1.0, closed=:right).weights
+    push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:bin:1-bin,hist)))
+
+    verbose && @printf("%4s  %5s  %5s  %5s  %5s  %5s  %5s  %7s  %9s  %10s\n", "it", "qmin", "q1", "q2", "q3", "qmax", "qavg", "sdev", "time", "histogram (0:$bin:1]")
+    verbose && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", 0, qmin, q1, q2, q3, qmax, q, dev, "-")
+    verbose && println("  ", str_histogram(hist))
+
+    #nits = 0
+    mesh.elem_data["quality"] = Q
+    savesteps && save(mesh, "$filekey-0.vtk", verbose=false)
+
+
+    
+    for i=1:maxit
+
+        sw = StopWatch()
+
+	# New nodal positions after applying least-squares fitting and weithed positioning using area/volume and quality of elements
+	XX = find_weighted_pos(mesh, patches, extended, alpha, qmin, in_border)
+
+        # Save last step file with current forces
+        #savesteps && save(mesh, "$filekey-$(i-1).vtk", verbose=false)
+
+        # Update mesh
+        for node in mesh.nodes
+            id = node.id
+            X0 = [node.coord.x, node.coord.y, node.coord.z][1:ndim]
+            X  = vec(XX[id,:])
+
+            # skip surface nodes over non-flat locations
+            if in_border[id]
+                snode = border_nodes[ map_pn[id] ]
+                normals = snode.normals
+                nnorm   = length(normals)
+
+                (nnorm == 1 && ndim==2) || (nnorm in (1,2) && ndim==3) || continue
+
+                ΔX = X - X0
+                if nnorm==1
+                    n1 = normals[1]
+                    X = X0 + ΔX - dot(ΔX,n1)*n1 # projection to surface plane
+                else
+                    n3 = normalize(cross(normals[1], normals[2]))
+                    X = X0 + dot(ΔX,n3)*n3 # projection to surface edge
+                end
+            end
+
+            # update key node coordinates
+            node.coord.x = X[1]
+            node.coord.y = X[2]
+            if ndim==3 node.coord.z = X[3] end
+
+            if smart
+                patch = patches[node.id]
+
+                patch_qmin0 = minimum( c.quality for c in patch )
+
+                # get patch new quality values
+                patch_q = [ cell_quality(c) for c in patch ]
+
+                patch_qmin = minimum(patch_q)
+                #γ = 0.8
+                γ = 1.0
+                if patch_qmin < γ*patch_qmin0
+                #if patch_qmin < patch_qmin0
+                    # restore node coordinates if no improvement
+                    node.coord.x = X0[1]
+                    node.coord.y = X0[2]
+                    if ndim==3; node.coord.z = X0[3] end
+                else
+                    # update quality values: important
+                    for (c,q) in zip(patch, patch_q)
+                        c.quality = q
+                    end
+                end
+            end
+
+        end
+
+        for c in mesh.elems
+            c.quality = cell_quality(c)
+        end
+
+        Q = Float64[ c.quality for c in mesh.elems]
+        new_q = mean(Q)
+        new_qmin = minimum(Q)
+        new_qmin <= 0.0 && error("smooth!: got negative quality value (qmin=$new_qmin).")
+
+        mesh.elem_data["quality"] = Q
+        savesteps && save(mesh, "$filekey-$i.vtk", verbose=false)
+
+        Δq    = abs(q - new_q)
+        Δqmin = new_qmin - qmin
+
+        q    = new_q
+        qmin = new_qmin
+        qmax = maximum(Q)
+        dev  = stdm(Q, q)
+        q1, q2, q3 = quantile(Q, [0.25, 0.5, 0.75])
+
+        push!(stats, OrderedDict(:qavg=>q, :qmin=>qmin, :qmax=>qmax, :dev=>dev))
+
+        hist = fit(Histogram, Q, 0.0:bin:1.0, closed=:right).weights
+        push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:bin:1-bin,hist)))
+
+        verbose && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", i, qmin, q1, q2, q3, qmax, q, dev, see(sw, format=:ms))
+        verbose && println("  ", str_histogram(hist))
+
+        if Δq<tol && Δqmin<mintol && i>1
+            break
+        end
+
+        #nits = i
+    end
+    # Set forces to zero for the last step
+    #mesh.node_data["forces"] = zeros(length(mesh.nodes), 3)
+    #savesteps && save(mesh, "$filekey-$nits.vtk", verbose=false)
+
+    savedata && save(stats, "$filekey-stats.dat")
+    savedata && save(hists, "$filekey-hists.dat")
+
+    return nothing
 end
 
 
@@ -896,10 +1144,8 @@ function smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Float64=0
 
         # Save last step file with current forces
         savesteps && save(mesh, "$filekey-$(i-1).vtk", verbose=false)
-
         # Augmented forces vector
         F   = vcat( F, zeros(nbc) )
-
         # global stiffness plus LM
         #verbose && print("\rmounting stiffness matrix...")
         K = mountKg(mesh, E, nu, A)
