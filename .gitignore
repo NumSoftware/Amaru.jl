@@ -2,6 +2,7 @@
 *.jl.*.cov
 *.jl.mem
 *.bk.jl
+*.swp
 *.vtk
 *.dat
 *.pdf
