@@ -51,14 +51,13 @@ mutable struct JointLinSeep<:Material
 
         k>0         || error("Invalid value for k: $k")
         gammaw>0    || error("Invalid value for gammaw: $gammaw")
-        0<alpha<=1.0|| error("Invalid value for alpha: $alpha")
         S>=0.0      || error("Invalid value for S: $S")
         beta>=0     || error("Invalid value for beta: $beta")
         eta>=0      || error("Invalid value for eta: $eta")
         kt>=0       || error("Invalid value for kt: $kt")
         kl>=0       || error("Invalid value for kl: $kl")
 
-        this = new(k, gammaw, alpha, S, beta, eta, kt, kl)
+        this = new(k, gammaw, S, beta, eta, kt, kl)
         return this
     end
 end
