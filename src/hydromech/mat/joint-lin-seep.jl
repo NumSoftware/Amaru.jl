@@ -79,5 +79,8 @@ function update_state!(mat::JointLinSeep, ipd::JointLinSeepIpState, Δuw::Array{
 end
 
 function ip_state_vals(mat::JointLinSeep, ipd::JointLinSeepIpState)
-
+    return OrderedDict(
+          :uwf => ipd.uw[3] ,
+          :vb  => ipd.V[1] ,
+          :vt  => ipd.V[2] )
 end
