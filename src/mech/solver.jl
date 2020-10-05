@@ -133,6 +133,9 @@ function solve_system!(
         end
     end
 
+    maxU = 1e10 # maximum essential value
+    maximum(abs, U1)>maxU && warn("solve_system!: Possible syngular matrix")
+
     # Completing vectors
     DU[1:nu]     .= U1
     DF[nu+1:end] .= F2
@@ -252,7 +255,6 @@ function solve!(
     dom.ndofs = length(dofs)
     verbosity>0 && message("unknown dofs: $nu")
 
-
     # Setup quantities at dofs
     if env.cstage==1
         for (i,dof) in enumerate(dofs)
@@ -302,8 +304,6 @@ function solve!(
 
     # Get forces and displacements from boundary conditions
     Uex, Fex = get_bc_vals(dom, bcs)
-
-
 
     # Get unbalanced forces
     if env.cstage==1
@@ -364,7 +364,7 @@ function solve!(
                 ΔUt   = ΔUa + ΔUi
                 status = update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
                 !status.success && (errored=true; break)
-
+                
                 residue = maximum(abs, (ΔFex-ΔFin)[umap])
             end
 

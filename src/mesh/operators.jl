@@ -199,7 +199,7 @@ end
 
 Rotate `block` according to the provided `base` point, `axis` vector and `angle`.
 """
-function rotate!(bl::AbstractBlock; base=[0.0,0,0], axis=[0.0,0,1], angle=90.0 )
+function LinearAlgebra.rotate!(bl::AbstractBlock; base=[0.0,0,0], axis=[0.0,0,1], angle=90.0 )
     # see also: https://lucidar.me/en/quaternions/quaternions-rotations/
 
     length(axis)==2 && ( axis=vcat(axis, 0.0) )
@@ -254,7 +254,7 @@ function rotate!(bl::AbstractBlock; base=[0.0,0,0], axis=[0.0,0,1], angle=90.0 )
     return bl
 end
 
-function rotate!(blocks::Array{T,1}; base=[0.0,0,0], axis=[0.0,0,1], angle=90.0 ) where T <: AbstractBlock
+function LinearAlgebra.rotate!(blocks::Array{T,1}; base=[0.0,0,0], axis=[0.0,0,1], angle=90.0 ) where T <: AbstractBlock
     for bl in blocks
         rotate!(bl, base=base, axis=axis, angle=angle)
     end
@@ -320,7 +320,7 @@ end
 
 Rotates a Mesh object `mesh` according to a `base` point, an `axis` vector and an `angle`.
 """
-function rotate!(mesh::Mesh; base=[0.0,0,0], axis=[0.0,0,1], angle=90.0 )
+function LinearAlgebra.rotate!(mesh::Mesh; base=[0.0,0,0], axis=[0.0,0,1], angle=90.0 )
 
     length(axis)==2 && ( axis=vcat(axis, 0.0) )
     length(base)==2 && ( base=vcat(base, 0.0) )

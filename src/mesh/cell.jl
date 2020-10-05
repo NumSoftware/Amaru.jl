@@ -386,10 +386,9 @@ end
 
 
 function cell_aspect_ratio(c::AbstractCell)::Float64
-    faces = get_faces(c)
-    len = [ cell_extent(f) for f in faces ]
-    c.quality = minimum(len)/maximum(len)
-    return c.quality
+    edges = get_edges(c)
+    L = [ cell_extent(e) for e in edges ]
+    return maximum(L)/minimum(L)
 end
 
 

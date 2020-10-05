@@ -64,7 +64,6 @@ function push!(table::DataTable, row::Array{T,1} where T)
 end
 
 
-
 function Base.keys(table::DataTable)
     return keys(table.colindex)
 end
@@ -150,6 +149,23 @@ function Base.getindex(table::DataTable, idxs::Union{Colon,OrdinalRange{Int,Int}
     return subtable
 end
 
+
+function Base.getindex(table::DataTable, rows::Union{Colon,OrdinalRange{Int,Int},Int,Array{Int,1}}, keys::KeyType)
+    if typeof(keys) <: KeyType
+        keys = [ keys ]
+    end
+    return table[keys][rows]
+end
+
+function Base.getindex(table::DataTable, rows, cols)
+    return table[cols][rows]
+end
+
+function Base.Array(table::DataTable)
+    return hcat(table.columns...)    
+end
+
+
 function Base.getindex(table::DataTable, idxs::BitArray{1})
     @assert length(idxs)==length(table.columns[1])
     subtable = DataTable(table.header)
@@ -172,7 +188,7 @@ function Base.getindex(table::DataTable, rowindex::Int, colon::Colon)
     return row
 end
 
-function Base.lastindex(table::DataTable, idx::Int)
+function Base.lastindex(table::DataTable)
     length(table.columns)==0 && error("DataTable: use of 'end' in an empty table")
     return length(table.columns[1])
 end
@@ -211,15 +227,16 @@ function Base.getindex(book::DataBook, index::Int)
     return book.tables[index]
 end
 
+
 function Base.lastindex(book::DataBook)
     return length(book.tables)
 end
 
-# TODO: Check this function
+
 function Base.iterate(book::DataBook, state=(nothing,1) )
     table, idx = state
     if idx<=length(book.tables)
-        return (book.tables[idx], (book.tables[i+1], idx+1))
+        return (book.tables[idx], (book.tables[idx+1], idx+1))
     else
         return nothing
     end
@@ -294,9 +311,12 @@ function save(table::DataTable, filename::String; verbose::Bool=true, digits::Ar
         end
 
         # printing header
-        println(f, raw"\begin{tabular}{", "c"^nc, "}" )
-        println(f, raw"    \toprule")
-        print(f, "    ")
+        level = 1
+        indent = "    "
+        println(f, indent^level, raw"\begin{tabular}{", "c"^nc, "}" )
+        level = 2
+        println(f, indent^level, raw"\toprule")
+        print(f, indent^level)
         for (i,key) in enumerate(header)
             etype = types[i]
             width = widths[i]
@@ -310,9 +330,9 @@ function save(table::DataTable, filename::String; verbose::Bool=true, digits::Ar
         println(f, raw" \\\\")
 
         # printing body
-        println(f, raw"    \hline")
+        println(f, indent^level, raw"\hline")
         for i=1:nr
-            print(f, "    ")
+            print(f, indent^level)
             for j=1:nc
                 etype = types[j]
                 item = table.columns[j][i]
@@ -330,7 +350,7 @@ function save(table::DataTable, filename::String; verbose::Bool=true, digits::Ar
                     item = @sprintf("%6d", item)
                     print(f, lpad(item, width))
                 elseif etype<:AbstractString
-                    print(f, rpad(item, width))
+                    print(f,rpad(item, width))
                 else
                     str = string(item)
                     print(f, rpad(item, width))
@@ -339,10 +359,11 @@ function save(table::DataTable, filename::String; verbose::Bool=true, digits::Ar
             end
             println(f, raw" \\\\")
         end
-        println(f, raw"    \bottomrule")
+        println(f, indent^level, raw"\bottomrule")
 
         # printing ending
-        println(f, raw"\end{tabular}")
+        level = 1
+        println(f, indent^level, raw"\end{tabular}")
     end
 
     close(f)
@@ -471,18 +492,33 @@ function Base.show(io::IO, table::DataTable)
     end
 
     header = keys(table.colindex)
-    widths = length.(header)
-    types  = eltype.(table.columns)
+    types  = typeof.(getindex.(table.columns,1))
+
+    hwidths = length.(header)
+    widths  = zeros(Int, length(header))
+    useformat   = falses(length(header))
+    shortformat = falses(length(header))
+
     for (i,col) in enumerate(table.columns)
         etype = types[i]
+        widths[i] = maximum(length.(string.(col)))
         if etype<:AbstractFloat
-            widths[i] = max(widths[i], 12)
-        elseif etype<:Integer
-            widths[i] = max(widths[i], 6)
-        elseif etype<:AbstractString
-            widths[i] = max(widths[i], maximum(length.(col)))
-        else
-            widths[i] = max(widths[i], maximum(length.(string.(col))))
+            if widths[i] >= 11
+                widths[i] = 11
+                useformat[i] = true
+            end
+        end
+        widths[i] = max(widths[i], hwidths[i])
+    end
+
+    total = sum(widths) + (length(header)+1)*3
+    if total>displaysize(stdout)[2]
+        for (i,col) in enumerate(table.columns)
+            etype = types[i]
+            if etype<:AbstractFloat && useformat[i] && hwidths[i]<=8
+                shortformat[i] = true
+                widths[i] = max(8, hwidths[i])
+            end
         end
     end
 
@@ -514,16 +550,15 @@ function Base.show(io::IO, table::DataTable)
             etype = types[j]
             item = table.columns[j][i]
             if etype<:AbstractFloat
-                item = @sprintf("%12.5e", item)
+                if useformat[j]
+                    if shortformat[j]
+                        item = @sprintf("%8.1e", item)
+                    else
+                        item = @sprintf("%11.4e", item)
+                    end
+                end
                 print(io, lpad(item, widths[j]))
-            elseif etype<:Integer
-                item = @sprintf("%6d", item)
-                print(io, lpad(item, widths[j]))
-            elseif etype<:AbstractString
-                str = item
-                print(io, rpad(item, widths[j]))
             else
-                str = string(item)
                 print(io, rpad(item, widths[j]))
             end
             print(io, " │ ")

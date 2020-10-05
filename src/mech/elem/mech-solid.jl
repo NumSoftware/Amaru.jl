@@ -270,6 +270,7 @@ function elem_internal_forces(elem::MechSolid, F::Array{Float64,1})
         coef = detJ*ip.w*th
         @gemv dF += coef*B'*σ
     end
+    
 
     F[map] += dF
 end

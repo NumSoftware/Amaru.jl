@@ -9,7 +9,6 @@ for (root, dirs, files) in walkdir(path)
         ext = split(file*".", ".")[2]
         if ext in ["vtk", "vtu", "dat"]
             fullname = joinpath(root, file)
-            #println("  deleting file $fullname")
             rm(fullname)
         end
     end

@@ -156,6 +156,9 @@ function hm_solve_system!(
         end
     end
 
+    maxU = 1e10 # maximum essential value
+    maximum(abs, U1)>maxU && warn("hm_solve_system!: Possible syngular matrix")
+
     # Completing vectors
     DU[1:nu]     .= U1
     DF[nu+1:end] .= F2
@@ -538,7 +541,7 @@ function hm_solve!(
                     if nits==1
                         q = (1+tanh(log10(tol/residue1)))^1
                     else
-                        q = 1.2
+                        q = 1.0
                     end
 
                     ΔTtr = min(q*ΔT, 1/nincs, 1-T)

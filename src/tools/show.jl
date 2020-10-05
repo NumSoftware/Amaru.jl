@@ -18,6 +18,22 @@ macro display(x)
     end
 end
 
+macro s(exs...)
+    blk = Expr(:block)
+    sf = basename(string(__source__.file))
+    sl = string(__source__.line)
+    for ex in exs
+        push!(blk.args, 
+        :(
+            printstyled($(sprint(Base.show_unquoted,ex)*" = "),
+            repr(begin value=$(esc(ex)) end), color=13);
+            printstyled("  ", $sf, ":", $sl, "\n", color=:light_black)
+        ))
+    end
+    isempty(exs) || push!(blk.args, :value)
+    return blk
+end
+
 
 export custom_dump
 

@@ -13,7 +13,7 @@ export Node, Cell, hash, get_x, get_y, get_z
 include("cell.jl")
 include("collapse.jl")
 
-export get_coords, get_node, get_nodes, get_faces, get_patches, cell_extent, cell_quality
+export get_coords, get_node, get_nodes, get_faces, get_patches, cell_extent, cell_quality, cell_aspect_ratio
 include("partition.jl")
 
 include("mesh.jl")
@@ -39,13 +39,15 @@ include("revolve.jl")
 export revolve
 
 include("smooth.jl")
-export smooth!, laplacian_smooth!, fast_smooth!, fast_smooth2!
+export smooth!, laplacian_smooth!, fast_smooth!
 
 include("split.jl")
 export generate_joints!, cracksmesh
 
 include("embedded.jl")
 export generate_embedded_cells!
+
+include("outline.jl")
 
 # show function for mesh related types
 Base.show(io::IO, obj::ShapeType) = custom_dump(io, obj, 2, "")
