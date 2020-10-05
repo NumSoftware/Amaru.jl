@@ -58,7 +58,8 @@ function plot_data_for_cell2d(points::Array{Array{Float64,1},1}, shape::ShapeTyp
     return verts, codes
 end
 
-function plot_data_for_cell3d(points::Array{Array{Float64,1},1}, shape::ShapeType)
+#function plot_data_for_cell3d(points::Array{Array{Float64,1},1}, shape::ShapeType)
+function plot_data_for_cell3d(points::Array{Vec3,1}, shape::ShapeType)
     if shape == LIN2
         verts = points
     elseif shape == LIN3
@@ -160,25 +161,6 @@ function get_main_edges(cells::Array{<:AbstractCell,1}, angle=120)
     end
 
     return main_edges
-end
-
-
-function get_facet_normal(face::AbstractCell)
-    ndim = 1 + face.shape.ndim
-    C = get_coords(face, ndim)
-
-    if ndim==2
-        C .+= [pi pi^1.1]
-    else
-        C .+= [pi pi^1.1 pi^1.2]
-    end
-
-    # calculate the normal
-    I = ones(size(C,1))
-    N = pinv(C)*I # best fit normal
-    normalize!(N) # get unitary vector
-
-    return N
 end
 
 
@@ -312,10 +294,11 @@ function mplot(
                filename::String = "";
                axis             = true,
                lw               = 0.3,
-               lineslw          = 1.0,
-               nodemarkers     = false,
-               ms              = 0.5,
-               nodelabels      = false,
+               linelw          = 1.0,
+               linecolor        = "red",
+               nodemarkers      = false,
+               ms               = 0.5,
+               nodelabels       = false,
                celllabels       = false,
                field            = nothing,
                fieldscale       = 1.0,
@@ -323,13 +306,14 @@ function mplot(
                vectorfield      = nothing,
                arrowscale       = 0.0,
                opacity          = 1.0,
+               lightvector      = nothing,
                colormap         = nothing,
                colormaplims     = (0.0,1.0),
-               shrinkcolors      = false,
-               darkcolors        = false,
-               lightcolors       = false,
-               vividcolors       = false,
-               divergingcolors   = false,
+               shrinkcolors     = false,
+               darkcolors       = false,
+               lightcolors      = false,
+               vividcolors      = false,
+               divergingcolors  = false,
                colorbarscale    = 0.9,
                colorbarlabel    = "",
                colorbarlocation = "right",
@@ -346,17 +330,35 @@ function mplot(
                leaveopen        = false,
                crop             = false,
                verbose          = true,
+               silent           = false,
               )
 
+    headline("Mesh plotting")
+    if filename!=""
+        message("generating plot to file $filename")
+    end
+
+    if verbose
+        hint("Optional arguments:", level=2)
+        options = "axis, lw, nodemarkers, nodelabels, celllabels, opacity, field,
+                   fieldscale, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
+                   colorbarlabel, colorbarlocation, colorbarorientation, colorbarpad, 
+                   warpscale, highlightcell, elev, azim, dist, outline, outlineangle,
+                   figsize, leaveopen, verbose"
+        hint(options, level=3)
+        hint("Available node fields:", level=2)
+        hint(join(keys(mesh.node_data), ", "), level=3)
+        hint("Available element fields:", level=2)
+        hint(join(keys(mesh.elem_data), ", "), level=3)
+    end
 
     # Get initial info from mesh
     ndim = mesh.ndim
     if ndim==2
         node_data = mesh.node_data
-        elem_data  = mesh.elem_data
-        nodes  = mesh.nodes
+        elem_data = mesh.elem_data
+        nodes   = mesh.nodes
         cells   = mesh.elems
-        connect = []
         connect = [ [ p.id for p in c.nodes ] for c in cells ] # Do not use type specifier inside comprehension to avoid problem with Revise
         id_dict = Dict{Int, Int}( p.id => i for (i,p) in enumerate(nodes) )
     else
@@ -365,24 +367,31 @@ function mplot(
 
         # get surface cells and update
         volume_cells = [ elem for elem in mesh.elems if elem.shape.ndim==3 ]
-        area_cells = [ elem for elem in mesh.elems if elem.shape.ndim==2 ]
-        scells = get_surface(volume_cells)
-        #if haskey(mesh.node_data, "U") && haskey(mesh.node_data, "wn")
-            # special case when using cohesive elements
-            #scells = get_surface_based_on_displacements(mesh)
-        #else
-            #scells = get_surface(mesh.elems)
-        #end
-        linecells = [ cell for cell in mesh.elems if cell.shape.family==LINE_SHAPE]
-
-        oc_ids = [ [c.oelem.id for c in scells]; [c.id for c in linecells]; [c.id for c in area_cells] ]
+        area_cells   = [ elem for elem in mesh.elems if elem.shape.ndim==2 ]
+        scells       = get_surface(volume_cells)
+        linecells    = [ cell for cell in mesh.elems if cell.shape.family==LINE_SHAPE]
+        outlinecells = outline ? get_outline_edges(scells) : Cell[]
 
         newcells = [ scells; area_cells; linecells ]
+        oc_ids = [ [c.oelem.id for c in scells]; [c.id for c in linecells]; [c.id for c in area_cells] ]
+
+        #if outline # move outline cells towards observer
+        #    θ, γ = (azim+0)*pi/180, elev*pi/180
+        #    ΔX = [ cos(θ)*cos(γ), sin(θ)*cos(γ), sin(γ) ]*0.015*L
+
+        #    for edge in outlinecells
+        #        edge.nodes[1] = Node(edge.nodes[1].coord + ΔX)
+        #        edge.nodes[2] = Node(edge.nodes[2].coord + ΔX)
+        #    end
+        #end
+
         newnodes = [ p for c in newcells for p in c.nodes ]
         pt_ids = [ p.id for p in newnodes ]
+        #@show pt_ids
 
         # update data
         for (field, data) in mesh.node_data
+            #@show field
             node_data[field] = data[pt_ids,:]
         end
         for (field, data) in mesh.elem_data
@@ -391,35 +400,71 @@ function mplot(
 
         # nodes and cells
         nodes = newnodes
-        cells  = newcells
+        cells = newcells
 
         # connectivities
         id_dict = Dict{Int, Int}( p.id => i for (i,p) in enumerate(nodes) )
         connect = [ [ id_dict[p.id] for p in c.nodes ] for c in cells ]
-    end
 
-    if verbose
-        if filename==""
-            printstyled("mplot: generating plot\n", color=:cyan )
+        # observer and light vectors
+        V = [ cosd(elev)*cosd(azim), cosd(elev)*sind(azim), sind(elev) ]
+
+        lightvector==nothing && (lightvector=V) 
+        if lightvector isa Array
+            L = lightvector
         else
-            printstyled("mplot: generating plot to file $filename\n", color=:cyan )
+            error("mplot: lightvector must be a vector.")
         end
-        wrap(str::String) = (str=replace(str, r"(\s|\n)+" => " "); replace(str, r".{1,60}( |$)" => s"    \0\n");)
-        options = "axis, lw, nodemarkers, nodelabels, celllabels, opacity, field,
-                   fieldscale, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
-                   colorbarlabel, colorbarlocation, colorbarorientation, colorbarpad, 
-                   warpscale, highlightcell, elev, azim, dist, outline, outlineangle,
-                   figsize, leaveopen, verbose"
-        printstyled("  Options:\n", wrap(options), color=:light_black)
-        printstyled("  Available node fields:\n", wrap(join(keys(node_data), ", ")), color=:light_black)
-        printstyled("  Available element fields:\n", wrap(join(keys(elem_data), ", ")), color=:light_black)
-
     end
 
-    ncells  = length(cells)
+    ncells = length(cells)
     nnodes = length(nodes)
-    pts = [ [p.coord.x, p.coord.y, p.coord.z] for p in nodes ]
-    XYZ = [ pts[i][j] for i=1:nnodes, j=1:3]
+    #pts = [ [p.coord.x, p.coord.y, p.coord.z] for p in nodes ]
+    #XYZ = [ pts[i][j] for i=1:nnodes, j=1:3]
+
+
+    # All nodes coordinates
+    if warpscale>0 
+        if haskey(node_data, "U")
+            U = node_data["U"]
+            coords = [ node.coord for node in nodes ]
+            #display(U)
+            #@show size(U)
+            #@show length(nodes)
+            for (i,node) in enumerate(nodes)
+                #@show size(node.coord)
+                #@show size(U[i,:]')
+                #@show node.coord 
+                node.coord = coords[i] + warpscale*U[i,:]
+                #@show warpscale.*U[i,:]
+                #@show node.coord 
+                #error()
+            end
+            #XYZ .+= warpscale.*node_data["U"]
+        else
+            alert("mplot: Vector field U not found for warp.")
+        end
+    end
+
+    limX = collect(extrema( node.coord.x for node in nodes ))
+    limY = collect(extrema( node.coord.y for node in nodes ))
+    limZ = collect(extrema( node.coord.z for node in nodes ))
+    #limX = limX + 0.05*[-1, 1]*norm(limX)
+    #limY = limY + 0.05*[-1, 1]*norm(limY)
+    #limZ = limZ + 0.05*[-1, 1]*norm(limZ)
+
+    #X = XYZ[:,1]
+    #Y = XYZ[:,2]
+    #Z = XYZ[:,3]
+
+    #limX = collect(extrema(X))
+    #limY = collect(extrema(Y))
+    #limZ = collect(extrema(Z))
+    #limX = limX + 0.05*[-1, 1]*norm(limX)
+    #limY = limY + 0.05*[-1, 1]*norm(limY)
+    #limZ = limZ + 0.05*[-1, 1]*norm(limZ)
+    ll = max(norm(limX), norm(limY), norm(limZ))
+
 
     # Lazy import of PyPlot
     @eval import PyPlot:plt, matplotlib, figure, art3D, Axes3D, ioff, ColorMap
@@ -440,92 +485,68 @@ function mplot(
     plt.rc("figure", figsize=figsize) # suggested size (4.5,3)
 
 
-    # All nodes coordinates
-    if warpscale>0 
-        if haskey(node_data, "U")
-            XYZ .+= warpscale.*node_data["U"]
-        else
-            alert("mplot: Vector field U not found for warp")
-        end
-    end
-    X = XYZ[:,1]
-    Y = XYZ[:,2]
-    Z = XYZ[:,3]
-
-    limX = collect(extrema(X))
-    limY = collect(extrema(Y))
-    limZ = collect(extrema(Z))
-    limX = limX + 0.05*[-1, 1]*norm(limX)
-    limY = limY + 0.05*[-1, 1]*norm(limY)
-    limZ = limZ + 0.05*[-1, 1]*norm(limZ)
-    L = max(norm(limX), norm(limY), norm(limZ))
 
     # Configure plot
     if ndim==3
         ax = @eval Axes3D(figure())
         try
             ax.set_aspect("equal")
-            #ax.set_proj_type("ortho") # do not ortho
-            #ax.set_proj_type("3d") # not necessary
-            #axis("scaled") ?
         catch err
             alert("mplot: Could not set aspect ratio to equal")
-
-            #dump(err)
         end
 
         # Set limits
         meanX = mean(limX)
         meanY = mean(limY)
         meanZ = mean(limZ)
-        limX = [meanX-L/2, meanX+L/2]
-        limY = [meanY-L/2, meanY+L/2]
-        limZ = [meanZ-L/2, meanZ+L/2]
-        ax.set_xlim( meanX-L/2, meanX+L/2)
-        ax.set_ylim( meanY-L/2, meanY+L/2)
-        ax.set_zlim( meanZ-L/2, meanZ+L/2)
-        #ax.scatter](limX, limY, limZ, color="w", marker="o", alpha=0.0)
+        limX = [meanX-ll/2, meanX+ll/2]
+        limY = [meanY-ll/2, meanY+ll/2]
+        limZ = [meanZ-ll/2, meanZ+ll/2]
+        ax.set_xlim( meanX-ll/2, meanX+ll/2)
+        ax.set_ylim( meanY-ll/2, meanY+ll/2)
+        ax.set_zlim( meanZ-ll/2, meanZ+ll/2)
 
         # Labels
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         ax.set_zlabel("z")
-
-        if axis == false
-            ax.set_axis_off()
-        end
+        axis == false && plt.axis("off")
     else
-        #ax = plt.gca()
-        #plt.axes().set_aspect("equal", "datalim")
         ax = plt.axes()
         ax.set_aspect("equal", "datalim")
 
         # Set limits
-        ax.set_xlim(limX[1], limX[2])
-        ax.set_ylim(limY[1], limY[2])
+        ax.set_xlim(limX...)
+        ax.set_ylim(limY...)
 
         # Labels
         ax.set_xlabel.("x")
         ax.set_ylabel.("y")
-        if axis == false
-            plt.axis("off")
-        end
+        axis == false && plt.axis("off")
     end
 
-    if colormap==nothing # colormap may be "bone", "plasma", "inferno", etc.
-        #cm = colors.ListedColormap([(1,0,0),(0,1,0),(0,0,1)],256)
-        #colors =  matplotlib.colors]
-        #cm = matplotlib.colors].ListedColormap]([(1,0,0),(0,1,0),(0,0,1)],256)
-
-        cdict = Dict("red"   => [(0.0,  0.8, 0.8), (0.5, 0.7, 0.7), (1.0, 0.0, 0.0)],
-                     "green" => [(0.0,  0.2, 0.2), (0.5, 0.7, 0.7), (1.0, 0.2, 0.2)],
-                     "blue"  => [(0.0,  0.0, 0.0), (0.5, 0.7, 0.7), (1.0, 0.6, 0.6)])
-
-        cmap = matplotlib.colors.LinearSegmentedColormap("my_colormap",cdict,256)
-    else
-        if colormap isa ColorMap
-            cmap = colormap
+    has_field = field != nothing
+    if has_field
+        colorbarlabel = colorbarlabel=="" ? field : colorbarlabel
+        field = string(field)
+        found = haskey(elem_data, field)
+        if found
+            fvals = elem_data[field]
         else
+            found = haskey(node_data, field)
+            found || error("mplot: field $field not found")
+            data  = node_data[field]
+            fvals = [ mean(data[connect[i]]) for i=1:ncells ]
+        end
+        fvals *= fieldscale
+        fieldlims==() && (fieldlims = extrema(fvals))
+
+        if !(fieldlims[1]<0 && fieldlims[2]>0)
+            divergingcolors = false
+        end
+
+        if colormap isa String
+            # colormap may be "coolwarm", "bone", "plasma", "inferno", etc.
             colormaps = matplotlib.pyplot.colormaps()
             if colormap in colormaps
                 cmap = matplotlib.cm.get_cmap(colormap)
@@ -533,11 +554,13 @@ function mplot(
                 error("mplot: Invalid colormap $colormap \n", 
                       "colormap should be one of:\n", colormaps)
             end
-        end
-    end
+        elseif !(colormap isa ColorMap)
+            cdict = Dict("red"   => [(0.0,  0.8, 0.8), (0.5, 0.7, 0.7), (1.0, 0.0, 0.0)],
+                         "green" => [(0.0,  0.2, 0.2), (0.5, 0.7, 0.7), (1.0, 0.2, 0.2)],
+                         "blue"  => [(0.0,  0.0, 0.0), (0.5, 0.7, 0.7), (1.0, 0.6, 0.6)])
 
-    has_field = field != nothing
-    if has_field
+            cmap = matplotlib.colors.LinearSegmentedColormap("custom_colormap", cdict, 256)
+        end
 
         if colormaplims!=(0.0,1.0)
             allcolors = [ cmap(p) for p in range(colormaplims[1], colormaplims[2], length=21) ]
@@ -547,7 +570,7 @@ function mplot(
                          "green" => [ (q, c[2], c[2]) for (q,c) in zip(Q,allcolors) ],
                          "blue"  => [ (q, c[3], c[3]) for (q,c) in zip(Q,allcolors) ])
 
-            cmap = matplotlib.colors.LinearSegmentedColormap("modified_colormap",cdict,256)
+            cmap = matplotlib.colors.LinearSegmentedColormap("modified_colormap", cdict, 256)
         end
 
         if shrinkcolors
@@ -558,8 +581,7 @@ function mplot(
                          "green" => [ (q, c[2], c[2]) for (q,c) in zip(Q,allcolors) ],
                          "blue"  => [ (q, c[3], c[3]) for (q,c) in zip(Q,allcolors) ])
 
-            cmap = matplotlib.colors.LinearSegmentedColormap("modified_colormap",cdict,256)
-
+            cmap = matplotlib.colors.LinearSegmentedColormap("modified_colormap", cdict, 256)
         end
 
         if darkcolors || lightcolors || vividcolors
@@ -584,26 +606,7 @@ function mplot(
                          "green" => [ (q, c[2], c[2]) for (q,c) in zip(Q,allcolors) ],
                          "blue"  => [ (q, c[3], c[3]) for (q,c) in zip(Q,allcolors) ])
 
-            cmap = matplotlib.colors.LinearSegmentedColormap("modified_colormap",cdict,256)
-        end
-
-
-        colorbarlabel = colorbarlabel=="" ? field : colorbarlabel
-        field = string(field)
-        found = haskey(elem_data, field)
-        if found
-            fvals = elem_data[field]
-        else
-            found = haskey(node_data, field)
-            found || error("mplot: field $field not found")
-            data  = node_data[field]
-            fvals = [ mean(data[connect[i]]) for i=1:ncells ]
-        end
-        fvals *= fieldscale
-        fieldlims==() && (fieldlims = extrema(fvals))
-
-        if !(fieldlims[1]<0 && fieldlims[2]>0)
-            divergingcolors = false
+            cmap = matplotlib.colors.LinearSegmentedColormap("modified_colormap", cdict, 256)
         end
 
         if divergingcolors
@@ -625,115 +628,99 @@ function mplot(
                          "green" => [ (q, c[2], c[2]) for (q,c) in zip(Q,allcolors) ],
                          "blue"  => [ (q, c[3], c[3]) for (q,c) in zip(Q,allcolors) ])
 
-            cmap = matplotlib.colors.LinearSegmentedColormap("modified_colormap",cdict,256)
+            cmap = matplotlib.colors.LinearSegmentedColormap("modified_colormap", cdict, 256)
         end
     end
 
+    # Check for line field
+    has_line_field = false
+    if has_field
+        for (i,cell) in enumerate(cells)
+            cell.shape.family == LINE_SHAPE || continue
+            if fvals[i]!=0.0
+                has_line_field = true
+                break
+            end
+        end
+    end
+
+    has_line_field = false
+
     # Plot cells
     if ndim==3
-        # Plot line cells
-        all_verts  = []
-        lfvals = Float64[]
-        for i=1:ncells
-            shape = cells[i].shape
-            shape.family == LINE_SHAPE || continue # only line cells
-            con = connect[i]
-            nodes = [ XYZ[i,1:3] for i in con ]
-            verts = plot_data_for_cell3d(nodes, shape)
-            push!(all_verts, verts)
-            if has_field
-                push!(lfvals, fvals[i])
-            end
-        end
-        has_line_field = sum(abs, lfvals)!=0.0
+        # Plot cells
+        all_verts = []
+        edgecolor = []
+        facecolor = []
+        lineweight = []
 
-        line_cltn = @eval art3D[:Line3DCollection]($all_verts, cmap=$cmap, lw=$lineslw, edgecolor="red")
-        if has_line_field
-            line_cltn.set_array(lfvals)
-            line_cltn.set_clim(fieldlims)
-        end
-        ax.add_collection3d(line_cltn)
-
-        # Plot main edges and surface cells
-        all_verts  = []
-
-        # Plot surface cells
-        sfvals = Float64[]
-        nsurf = 0
-        for i=1:ncells
-            shape = cells[i].shape
-            shape.family == SOLID_SHAPE || continue # only surface cells
-            con = connect[i]
-            points = [ XYZ[i,1:3] for i in con ]
+        for (i,cell) in enumerate(cells)
+            shape = cell.shape
+            points = [ node.coord for node in cell.nodes ]
             verts = plot_data_for_cell3d(points, shape)
             push!(all_verts, verts)
-            if has_field
-                push!(sfvals, fvals[i])
-            end
-            nsurf+=1
-        end
 
-        has_surf_field = sum(abs, sfvals)!=0.0
-        has_field && has_line_field==false && has_surf_field==false && (has_surf_field=true)
-
-        edgecolor = []
-        for i=1:ncells
-            shape = cells[i].shape
-            shape.family == SOLID_SHAPE || continue # only surface cells
-            if has_surf_field
-                v = (fvals[i]-fieldlims[1])/(fieldlims[2]-fieldlims[1])
-                col = Tuple( (cmap(v) .+ [0.2, 0.2, 0.2, opacity])./2 )
-            else
-                col = (0.4, 0.4, 0.4, 1-0.75*(1-opacity))
-            end
-            push!(edgecolor, col)
-        end
-
-        # Plot main edges
-        filename == "" && (outline=false)
-        if outline
-            edges = get_main_edges(cells, outlineangle)
-            θ, γ = (azim+0)*pi/180, elev*pi/180
-            ΔX = [ cos(θ)*cos(γ), sin(θ)*cos(γ), sin(γ) ]*0.015*L
-
-            for edge in edges
-                id1 = edge.nodes[1].id
-                id2 = edge.nodes[2].id
-                verts = [ XYZ[id_dict[id1],:], XYZ[id_dict[id2],:] ]
-                for v in verts
-                    v .+= ΔX
+            if shape.family==SOLID_SHAPE
+                if !has_field || has_line_field
+                    fc = (0.94, 0.97, 1.0, opacity)
+                    ec = (0.4, 0.4, 0.4, 1-0.75*(1-opacity))
+                else
+                    v = (fvals[i]-fieldlims[1])/(fieldlims[2]-fieldlims[1])
+                    fc = cmap(v)
+                    ec = Tuple( (fc .+ [0.2, 0.2, 0.2, opacity])./2 )
                 end
-                push!(all_verts, verts)
+                push!(lineweight, lw)
+
+                N = get_facet_normal(cell)
+                R = 2*N*dot(L,N) - L
+                #f = 0.6+0.2*abs(dot(L,N))+ 0.2*abs(dot(R,V))
+                #@show 0
+                #@show dot(L,N)
+                #@show (1-dot(V,R))/2
+                #f = 0.6+0.3*abs(dot(L,N))+ 0.1*(dot(R,V))
+                #f = 0.7+0.3*abs(dot(L,N)*(1-dot(V,R))/2)
+                #f = 0.6+0.3*abs(dot(L,N)) + 0.2*(1-dot(V,R))/2
+                f = 0.6+0.2*abs(dot(L,N)) + 0.2*(1+dot(V,R))/2
+                fc = (f*fc[1], f*fc[2], f*fc[3], opacity)
+            elseif shape.family==LINE_SHAPE
+                if has_line_field
+                    v = (fvals[i]-fieldlims[1])/(fieldlims[2]-fieldlims[1])
+                    ec = cmap(v)
+                else
+                    ec = linecolor
+                end
+                fc = (0.0, 0.0, 0.0, 0.0)
+                push!(lineweight, linelw)
             end
-            #edgecolor = [ fill((0.4, 0.4, 0.4, 1.0), ncells) ; fill((0.0, 0.0, 0.0, 1.0), length(edges)) ]
-            edgecolor = [ edgecolor ; fill((0.0, 0.0, 0.0, 1.0), length(edges)) ]
+            push!(edgecolor, ec)
+            push!(facecolor, fc)
         end
 
-        facecolor = (0.94, 0.97, 1.0, opacity)
-        surf_cltn = @eval art3D[:Poly3DCollection]($all_verts, cmap=$cmap, facecolor=$facecolor, edgecolor=$edgecolor, lw=$lw, alpha=$opacity)
+        for cell in outlinecells
+            ΔX = 0.01*ll*V
+            points = [ node.coord+ΔX for node in cell.nodes ]
+            verts = plot_data_for_cell3d(points, cell.shape)
+            push!(all_verts, verts)
 
-        if has_field
-            if outline
-                sfvals = [ sfvals; fill(mean(sfvals), length(edges)) ]
-            end
-
-            if has_surf_field
-            #if sum(abs, sfvals) != 0.0
-                surf_cltn.set_array(sfvals)
-                surf_cltn.set_clim(fieldlims)
-                #has_line_field = false
-            else
-                #has_line_field = true
-            end
+            ec = "black"
+            fc = (0.0, 0.0, 0.0, 0.0)
+            push!(lineweight, lw*1.0)
+            push!(edgecolor, ec)
+            push!(facecolor, fc)
         end
-        ax.add_collection3d(surf_cltn)
 
-        # plot colorbar
+
+        cltn = @eval art3D[:Poly3DCollection]($all_verts, facecolor=$facecolor, edgecolor=$edgecolor, lw=$lineweight, alpha=$opacity)
+        ax.add_collection3d(cltn)
+
         if has_field && colorbarscale>0
-            cltn = has_line_field ? line_cltn : surf_cltn
-            cbar = plt.colorbar(cltn, label=colorbarlabel, shrink=colorbarscale, aspect=10*colorbarscale*figsize[2], 
-                                #format="%.2f", 
+            normalized = matplotlib.colors.Normalize(fieldlims[1], fieldlims[2])
+            sm = plt.cm.ScalarMappable(cmap=cmap, norm=normalized)
+            sm.set_array([])
+
+            cbar = plt.colorbar(sm, label=colorbarlabel, shrink=colorbarscale, aspect=10*colorbarscale*figsize[2], 
                                 pad=colorbarpad, location=colorbarlocation)
+
             cbar.ax.tick_params(labelsize=6)
             cbar.outline.set_linewidth(0.0)
             cbar.locator = matplotlib.ticker.MaxNLocator(nbins=8)
@@ -744,126 +731,124 @@ function mplot(
 
     elseif ndim==2
 
-        # Plot line cells
-        for i=1:ncells
-            cells[i].shape.family == LINE_SHAPE || continue # only line cells
-            con = connect[i]
-            Xs = XYZ[con, 1]
-            Ys = XYZ[con, 2]
-            color = "red"
-
-            if has_field
-                v = fvals[i]
-                idx = (v-fieldlims[1])/(fieldlims[2]-fieldlims[1])
-                color = cmap(idx)
-            end
-            plt.plot(Xs, Ys, color=color, lw=lineslw)
-        end
-
-
         all_patches = []
-        for i=1:ncells
-            shape = cells[i].shape
-            shape.family == SOLID_SHAPE || continue # only surface cells
+        edgecolor = []
+        facecolor = []
+        lineweight = []
 
-            con = connect[i]
-            points = [ XYZ[i,1:2] for i in con ]
+        # for i=1:ncells
+        for (i,cell) in enumerate(cells)
+            shape = cell.shape
+            points = [ node.coord[1:2] for node in cell.nodes ]
             verts, codes = plot_data_for_cell2d(points, shape)
             path  = matplotlib.path.Path(verts, codes)
             patch = matplotlib.patches.PathPatch(path)
-            push!(all_patches, patch)
 
             if highlightcell==i
                 patch = matplotlib.patches.PathPatch(path, facecolor="cadetblue", edgecolor="black", lw=0.5)
-                ax.add_patch(patch)
             end
+            push!(all_patches, patch)
+
+            if shape.family==SOLID_SHAPE
+                if !has_field || has_line_field
+                    fc = (0.94, 0.97, 1.0, 1.0)
+                    ec = (0.4, 0.4, 0.4, 1.0)
+                else
+                    v = (fvals[i]-fieldlims[1])/(fieldlims[2]-fieldlims[1])
+                    fc = cmap(v)
+                    ec = Tuple( (fc .+ [0.3, 0.3, 0.3, 1.0])./2 )
+                end
+                push!(lineweight, lw)
+            elseif shape.family==LINE_SHAPE
+                if has_line_field
+                    v = (fvals[i]-fieldlims[1])/(fieldlims[2]-fieldlims[1])
+                    ec = cmap(v)
+                else
+                    ec = linecolor
+                end
+                fc = (0.0, 0.0, 0.0, 0.0)
+                push!(lineweight, linelw)
+            end
+            push!(edgecolor, ec)
+            push!(facecolor, fc)
         end
 
-        edgecolor = (0.4, 0.4 ,0.4, 1.0)
 
-        # find edgecolors
-        if has_field
-            edgecolor = []
-            for i=1:ncells
-                v = (fvals[i]-fieldlims[1])/(fieldlims[2]-fieldlims[1])
-                col = Tuple( (cmap(v) .+ [0.3, 0.3, 0.3, 1.0])./2 )
-                push!(edgecolor, col)
-            end
-        end
-
-        #edgecolor = (0.3, 0.3 ,0.3, 0.6)
-        cltn = matplotlib.collections.PatchCollection(all_patches, cmap=cmap, edgecolor=edgecolor, facecolor="aliceblue", lw=lw)
+        cltn = matplotlib.collections.PatchCollection(all_patches, edgecolor=edgecolor, facecolor=facecolor, lw=lineweight)
+        ax.add_collection(cltn)
+        
         if has_field && colorbarscale>0
-            cltn.set_array(fvals)
-            cltn.set_clim(fieldlims)
+            normalized = matplotlib.colors.Normalize(fieldlims[1], fieldlims[2])
+            sm = plt.cm.ScalarMappable(cmap=cmap, norm=normalized)
+            sm.set_array([])
+
             h = colorbarorientation=="vertical" ? figsize[2] : figsize[1]
             h = norm(figsize)
-            #cbar = plt.colorbar(cltn, label=colorbarlabel, shrink=colorbarscale, aspect=0.9*20*colorbarscale, format="%.1f", pad=colorbarpad, orientation=colorbarorientation)
-            #cbar = plt.colorbar(cltn, label=colorbarlabel, shrink=colorbarscale, aspect=15, format="%.1f", pad=colorbarpad, orientation=colorbarorientation)
-            cbar = plt.colorbar(cltn, label=colorbarlabel, shrink=colorbarscale, aspect=4*colorbarscale*h, 
-                                format="%.2f", pad=colorbarpad, orientation=colorbarorientation)
+            cbar = plt.colorbar(sm, label=colorbarlabel, shrink=colorbarscale, aspect=4*colorbarscale*h, 
+                                # format="%.2f", 
+                                pad=colorbarpad, orientation=colorbarorientation)
             cbar.ax.tick_params(labelsize=6)
             cbar.outline.set_linewidth(0.0)
             cbar.locator = matplotlib.ticker.MaxNLocator(nbins=8)
             cbar.update_ticks()
-        end
-        ax.add_collection(cltn)
-    end
-
-    # Draw nodes
-    if nodemarkers
-        if ndim==3
-            ax.scatter(X, Y, Z, color="black", marker="o", s=ms)
-        else
-            plt.plot(X, Y, color="black", marker="o", markersize=ms, lw=0)
+            cbar.solids.set_alpha(1)
         end
     end
 
-    # Node markers on line cells
-    ids = unique!([ id for i=1:ncells for id in connect[i] if cells[i].shape.family==LINE_SHAPE ])
-    if length(ids)>0
-        if ndim==3
-            ax.scatter(X[ids], Y[ids], Z[ids], marker="o", s=ms, facecolor="black", edgecolor="none", depthshade=false)
-        else
-            plt.plot(X[ids], Y[ids], color="black", marker="o", markersize=ms, lw=0)
-        end
-    end
+  #  # Draw nodes
+  #  if nodemarkers
+  #      if ndim==3
+  #          ax.scatter(X, Y, Z, color="black", marker="o", s=ms)
+  #      else
+  #          plt.plot(X, Y, color="black", marker="o", markersize=ms, lw=0)
+  #      end
+  #  end
 
-    # Draw arrows
-    if vectorfield!=nothing && ndim==2
-        data = node_data[vectorfield]
-        color = "blue"
-        if arrowscale==0
-            plt.quiver(X, Y, data[:,1], data[:,2], color=color)
-        else
-            plt.quiver(X, Y, data[:,1], data[:,2], color=color, scale=1.0/arrowscale)
-        end
-    end
+  #  # Node markers on line cells
+  #  ids = unique!([ id for i=1:ncells for id in connect[i] if cells[i].shape.family==LINE_SHAPE ])
+  #  if length(ids)>0
+  #      if ndim==3
+  #          ax.scatter(X[ids], Y[ids], Z[ids], marker="o", s=ms, facecolor="black", edgecolor="none", depthshade=false)
+  #      else
+  #          plt.plot(X[ids], Y[ids], color="black", marker="o", markersize=ms, lw=0)
+  #      end
+  #  end
 
-    # Draw node numbers
-    if nodelabels
-        nnodes = length(X)
-        for i=1:nnodes
-            x = X[i] + 0.01*L
-            y = Y[i] - 0.01*L
-            z = Z[i] - 0.01*L
-            if ndim==3
-                ax.text(x, y, z, i, va="center", ha="center", backgroundcolor="none")
-            else
-                ax.text(x, y, i, va="top", ha="left", backgroundcolor="none")
-            end
-        end
-    end
+  #  # Draw arrows
+  #  if vectorfield!=nothing && ndim==2
+  #      data = node_data[vectorfield]
+  #      color = "blue"
+  #      if arrowscale==0
+  #          plt.quiver(X, Y, data[:,1], data[:,2], color=color)
+  #      else
+  #          plt.quiver(X, Y, data[:,1], data[:,2], color=color, scale=1.0/arrowscale)
+  #      end
+  #  end
 
-    # Draw cell numbers
-    if celllabels && ndim==2
-        for i=1:ncells
-            coo = getcoords(cells[i])
-            x = mean(coo[:,1])
-            y = mean(coo[:,2])
-            ax.text(x, y, i, va="top", ha="left", color="blue", backgroundcolor="none", size=8)
-        end
-    end
+  #  # Draw node numbers
+  #  if nodelabels
+  #      nnodes = length(X)
+  #      for i=1:nnodes
+  #          x = X[i] + 0.01*L
+  #          y = Y[i] - 0.01*L
+  #          z = Z[i] - 0.01*L
+  #          if ndim==3
+  #              ax.text(x, y, z, i, va="center", ha="center", backgroundcolor="none")
+  #          else
+  #              ax.text(x, y, i, va="top", ha="left", backgroundcolor="none")
+  #          end
+  #      end
+  #  end
+
+  #  # Draw cell numbers
+  #  if celllabels && ndim==2
+  #      for i=1:ncells
+  #          coo = getcoords(cells[i])
+  #          x = mean(coo[:,1])
+  #          y = mean(coo[:,2])
+  #          ax.text(x, y, i, va="top", ha="left", color="blue", backgroundcolor="none", size=8)
+  #      end
+  #  end
 
     if ndim==3
         ax.view_init(elev=elev, azim=azim)
@@ -901,6 +886,7 @@ function mplot(
     return
 
 end
+
 
 
 function mplot_colorbar(
