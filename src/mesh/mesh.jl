@@ -844,7 +844,9 @@ function UMesh(
         embedded = $_embed
         recombine = $recombine
 
-        import Gmsh.gmsh
+        try import Gmsh.gmsh
+        catch
+        end
 
         gmsh.initialize()
         gmsh.option.setNumber("General.Terminal", 1)
