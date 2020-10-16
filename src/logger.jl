@@ -167,6 +167,57 @@ function update_logger!(logger::FacetLogger, domain)
 end
 
 
+# Logger for a pack of nodes
+# ===========================
+
+
+mutable struct NodeSumLogger<:SingleLogger
+    filename ::String
+    filter   ::Union{Symbol,String,Expr}
+    table    ::DataTable
+    nodes    ::Array{Node,1}
+
+    function NodeSumLogger(filename::String="")
+        return new(filename, :(), DataTable(), [])
+    end
+end
+
+
+function setup_logger!(domain, filter, logger::NodeSumLogger)
+    logger.filter = filter
+    logger.nodes = domain.nodes[filter]
+    length(logger.nodes) == 0 && warn("setup_logger: No nodes found for filter expression: ", logger.filter)
+end
+
+
+function update_logger!(logger::NodeSumLogger, domain)
+    length(logger.nodes) == 0 && return
+
+    tableU = DataTable()
+    tableF = DataTable()
+    for node in logger.nodes
+        # TODO: valsF may be improved by calculating the internal forces components
+        nvals = node_vals(node)
+        valsU  = OrderedDict( dof.name => nvals[dof.name] for dof in node.dofs )
+        valsF  = OrderedDict( dof.natname => nvals[dof.natname] for dof in node.dofs )
+        push!(tableF, valsF)
+        push!(tableU, valsU)
+    end
+
+    valsU = OrderedDict( key => mean(tableU[key]) for key in keys(tableU) ) # gets the average of essential values
+    valsF = OrderedDict( key => sum(tableF[key])  for key in keys(tableF) ) # gets the sum for each component
+    vals  = merge(valsU, valsF)
+    domain.env.transient && (vals[:t] = domain.env.t)
+
+    push!(logger.table, vals)
+
+    if logger.filename!="" 
+        filename = joinpath(domain.env.outdir, logger.filename)
+        save(logger, filename, verbose=false)
+    end
+end
+
+
 # Logger for a group of nodes
 # ===========================
 
