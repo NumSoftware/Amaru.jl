@@ -259,7 +259,7 @@ function hm_solve!(
                    maxincs   :: Int     = 1000000,
                    tol       :: Number  = 1e-2,
                    Ttol      :: Number  = 1e-9,
-                   rspan     :: Number  = 1e-3,
+                   rspan     :: Number  = 1e-2,
                    scheme    :: Union{String,Symbol} = "FE",
                    nouts     :: Int     = 0,
                    outdir    :: String  = ".",
@@ -367,7 +367,7 @@ function hm_solve!(
 
     T  = 0.0
     ΔT = 1.0/nincs       # initial ΔT value
-    autoinc && (ΔT=min(ΔT,0.01))
+    autoinc && nincs==1 && (ΔT=min(ΔT,0.01))
     ΔTbk = 0.0
 
     ΔTcheck = save_outs ? 1/nouts : 1.0

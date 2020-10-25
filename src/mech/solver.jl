@@ -36,7 +36,13 @@ function mount_K(dom::Domain,
     return K
 end
 
-function mount_K_threads(dom::Domain, ndofs::Int)
+function mount_K_threads(
+    dom::Domain, 
+    ndofs::Int,
+    verbosity::Int
+)
+
+    verbosity>1 && print("    assembling... \033[K \r")
 
     nelems = length(dom.elems)
     Rs = Array{Int64,1}[ [] for i=1:nelems  ]
@@ -205,7 +211,7 @@ function solve!(
                 maxincs :: Int     = 1000000,
                 tol     :: Number  = 1e-2,
                 Ttol    :: Number  = 1e-9,
-                rspan   :: Number  = 1e-3,
+                rspan   :: Number  = 1e-2,
                 scheme  :: Union{String,Symbol} = "FE",
                 nouts   :: Int     = 0,
                 outdir  :: String  = ".",
@@ -285,7 +291,7 @@ function solve!(
     # Incremental analysis
     T  = 0.0
     ΔT = 1.0/nincs       # initial ΔT value
-    autoinc && (ΔT=min(ΔT,0.01))
+    autoinc && nincs==1 && (ΔT=min(ΔT,0.01))
     ΔTbk = 0.0
 
     ΔTcheck = save_outs ? 1/nouts : 1.0
