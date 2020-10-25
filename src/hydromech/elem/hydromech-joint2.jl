@@ -388,7 +388,7 @@ function elem_RHS_vector(elem::HydroMechJoint2)
     return Q, map
 end
 
-
+#=
 function elem_internal_forces(elem::HydroMechJoint2, F::Array{Float64,1})
     ndim     = elem.env.ndim
     th       = elem.env.thickness
@@ -473,10 +473,10 @@ function elem_internal_forces(elem::HydroMechJoint2, F::Array{Float64,1})
         coef = detJ*ip.w*th
         mfw = mf'*w
         dFw-= coef*Nf'*mfw
-#=
+
         coef = detJ*ip.w*elem.mat.β*th
         dFw -= coef*Nf'*uwf
-=#
+
         # longitudinal flow
         coef = detJ*ip.w*th
         S = ip.state.S
@@ -491,7 +491,7 @@ function elem_internal_forces(elem::HydroMechJoint2, F::Array{Float64,1})
     F[map_u] += dF
     F[map_w] += dFw
 end
-
+=#
 
 function elem_update!(elem::HydroMechJoint2, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
     ndim     = elem.env.ndim
