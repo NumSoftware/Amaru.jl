@@ -140,7 +140,7 @@ function elem_conductivity_matrix(elem::HydroJoint)
     return H, map, map, nodes_p
 end
 
-
+#=
 function elem_compressibility_matrix(elem::HydroJoint)
     ndim     = elem.env.ndim
     th       = elem.env.thickness
@@ -184,7 +184,7 @@ function elem_compressibility_matrix(elem::HydroJoint)
 
     return Cpp, map, map
 end
-
+=#
 
 function elem_RHS_vector(elem::HydroJoint)
     ndim     = elem.env.ndim
@@ -245,7 +245,7 @@ function elem_RHS_vector(elem::HydroJoint)
 
     return Q, map
 end
-
+#=
 function elem_internal_forces(elem::HydroJoint, F::Array{Float64,1})
     ndim     = elem.env.ndim
     th       = elem.env.thickness
@@ -319,7 +319,7 @@ function elem_internal_forces(elem::HydroJoint, F::Array{Float64,1})
 
     F[map_w] += dFw
 end
-
+=#
 
 function elem_update!(elem::HydroJoint, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
     ndim     = elem.env.ndim
@@ -388,8 +388,8 @@ function elem_update!(elem::HydroJoint, U::Array{Float64,1}, F::Array{Float64,1}
         Vt, L = update_state!(elem.mat, ip.state, Δuw, G, BfUw, Δt)
 
         # internal volumes dFw
-        coef = detJ*ip.w*elem.mat.β*th
-        dFw -= coef*Nf'*Δuw[3]
+        #coef = detJ*ip.w*elem.mat.β*th
+        #dFw -= coef*Nf'*Δuw[3]
 
         # longitudinal flow
         coef = Δt*detJ*ip.w*th

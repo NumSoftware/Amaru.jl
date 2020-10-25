@@ -7,9 +7,9 @@ mutable struct MCJointSeepIpState2<:IpState
     σ   ::Array{Float64,1}  # stress
     w   ::Array{Float64,1}  # relative displacements
     Vt  ::Array{Float64,1}  # transverse fluid velocity
-    D   ::Array{Float64,1}  # distance traveled by the fluid
+    #D   ::Array{Float64,1}  # distance traveled by the fluid
     L   ::Array{Float64,1}
-    S   ::Array{Float64,1}
+    #S   ::Array{Float64,1}
     uw  ::Array{Float64,1}  # interface pore pressure
     upa ::Float64           # effective plastic relative displacement
     Δλ  ::Float64           # plastic multiplier
@@ -20,9 +20,9 @@ mutable struct MCJointSeepIpState2<:IpState
         this.σ   = zeros(ndim)
         this.w   = zeros(ndim)
         this.Vt  = zeros(2)
-        this.D   = zeros(2)
+        #this.D   = zeros(2)
         this.L   = zeros(ndim-1)
-        this.S   = zeros(ndim-1)
+        #this.S   = zeros(ndim-1)
         this.uw  = zeros(3)
         this.upa = 0.0
         this.Δλ  = 0.0
@@ -40,10 +40,7 @@ mutable struct MCJointSeep2<:Material
     wc ::Float64       # critical crack opening
     ws ::Float64       # openning at inflection (where the curve slope changes)
     softcurve::String  # softening curve model ("linear" or bilinear" or "hordijk")
-    k  ::Float64       # specific permeability
     γw ::Float64       # specific weight of the fluid
-    α  ::Float64       # Biot's coefficient
-    S  ::Float64       # Storativity coefficient
     η  ::Float64       # viscosity
     kt ::Float64       # transverse leak-off coefficient
     kl ::Float64       # initial fracture opening (longitudinal flow)
@@ -52,7 +49,7 @@ mutable struct MCJointSeep2<:Material
         return  MCJointSeep2(;prms...)
     end
 
-     function MCJointSeep2(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", k=NaN, kappa=NaN, gammaw=NaN, alpha=1.0, S=0.0, n=NaN, Ks=NaN, Kw=NaN, eta=NaN, kt=NaN, kl=0.0)
+     function MCJointSeep2(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", gammaw=NaN, eta=NaN, kt=NaN, kl=0.0)
 
         !(isnan(GF) || GF>0) && error("Invalid value for GF: $GF")
         !(isnan(Gf) || Gf>0) && error("Invalid value for Gf: $Gf")
@@ -73,16 +70,6 @@ mutable struct MCJointSeep2<:Material
             end
         end
 
-        !(isnan(kappa) || kappa>0) && error("Invalid value for kappa: $kappa")
-
-        if isnan(k)
-            k = (kappa*gammaw)/eta # specific permeability = (intrinsic permeability * fluid specific weight)/viscosity
-        end
-
-        if isnan(S)
-            S = (alpha - n)/Ks + n/Kw # S = (alpha - porosity)/(bulk module of the solid) + (porosity)/(bulk module of the fluid)
-        end
-
         E>0.0       || error("Invalid value for E: $E")
         0<=nu<0.5   || error("Invalid value for nu: $nu")
         ft>=0       || error("Invalid value for ft: $ft")
@@ -91,15 +78,12 @@ mutable struct MCJointSeep2<:Material
         wc>0        || error("Invalid value for wc: $wc")
         (isnan(ws)  || ws>0) || error("Invalid value for ws: $ws")
         (softcurve=="linear" || softcurve=="bilinear" || softcurve=="hordijk") || error("Invalid softcurve: softcurve must to be linear or bilinear or hordijk")
-        k>0         || error("Invalid value for k: $k")
         gammaw>0    || error("Invalid value for gammaw: $gammaw")
-        0<alpha<=1.0|| error("Invalid value for alpha: $alpha")
-        S>=0.0      || error("Invalid value for S: $S")
         eta>=0      || error("Invalid value for eta: $eta")
         kt>=0       || error("Invalid value for kt: $kt")
         kl>=0       || error("Invalid value for kl: $kl")
 
-        this = new(E, nu, ft, mu, zeta, wc, ws, softcurve, k, gammaw, alpha, S, eta, kt, kl)
+        this = new(E, nu, ft, mu, zeta, wc, ws, softcurve, gammaw, eta, kt, kl)
         return this
     end
 end
@@ -426,7 +410,7 @@ function stress_update(mat::MCJointSeep2, ipd::MCJointSeepIpState2, Δw::Array{F
 
     ipd.uw += Δuw
     ipd.Vt  = -mat.kt*G
-    ipd.D  +=  ipd.Vt*Δt
+    #ipd.D  +=  ipd.Vt*Δt
 
     # compute crack aperture
     if mat.kl == 0.0
@@ -444,7 +428,7 @@ function stress_update(mat::MCJointSeep2, ipd::MCJointSeepIpState2, Δw::Array{F
     end
 
     ipd.L  =  ((kl^3)/(12*mat.η))*BfUw
-    ipd.S +=  ipd.L*Δt
+    #ipd.S +=  ipd.L*Δt
 
     return Δσ, ipd.Vt, ipd.L
 end
