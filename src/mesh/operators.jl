@@ -107,8 +107,9 @@ end
 
 
 function mirror(mesh::Mesh; axis=[0.0, 0, 1], base=[0.0, 0, 0])
-    axis = cross(p2-p1, p3-p1)
-    axis = normalize(axis)
+    # axis = cross(p2-p1, p3-p1)
+    axis = normalize(Vec3(axis))
+    base = Vec3(base)
 
     # copy mesh
     newmesh = copy(mesh)
@@ -116,9 +117,10 @@ function mirror(mesh::Mesh; axis=[0.0, 0, 1], base=[0.0, 0, 0])
     # mirror
     L = Vec3()
     for node in newmesh.nodes
-        L .= node.coords .- base
+        L = node.coord .- base
         dist = dot(L, axis) # dist = n^.(xi - xp)
-        node.coords .= node.coords .- (2*dist).*axis # xi = xi - 2*d*n^
+
+        node.coord .= node.coord .- (2*dist).*axis # xi = xi - 2*d*n^
     end
 
     for elem in mesh.elems
