@@ -176,6 +176,10 @@ function revolve(mesh::Mesh;
         end
     end
 
+    for elem in cells
+        isinverted(elem) && flip!(elem)
+    end
+
     # New mesh
     newmesh = Mesh()
     newmesh.nodes = nodes
