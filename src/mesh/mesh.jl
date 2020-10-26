@@ -343,16 +343,26 @@ end
 
 function join_mesh!(mesh::Mesh, m2::Mesh)
 
-    for node in m2.nodes
-        push!(mesh.nodes, node)
-        mesh._pointdict[hash(node)] = node
+    pointdict = Dict{UInt, Node}()
+    for m in (mesh, m2)
+        for node in m.nodes
+            pointdict[hash(node)] = node
+        end    
+    end
+    nodes = collect(values(pointdict))
+
+    elems = Cell[]
+    for m in (mesh, m2)
+        for elem in m.elems
+            newelemnodes = Node[pointdict[hash(node)] for node in elem.nodes ]
+            newelem = Cell(elem.shape, newelemnodes, tag=elem.tag)
+            push!(elems, newelem)
+        end
     end
 
-    for elem in m2.elems
-        newelemnodes = Node[ mesh._pointdict[hash(node)] for node in elem.nodes ]
-        newelem = Cell(elem.shape, newelemnodes, tag=elem.tag)
-        push!(mesh.elems, newelem)
-    end
+    mesh.nodes = nodes
+    mesh.elems = elems
+    mesh._pointdict = pointdict
 
     fixup!(mesh, reorder=false)
 
@@ -609,6 +619,7 @@ end
 function Mesh(mesh::Mesh, filter::Union{String,Expr,Symbol})
     elems = mesh.elems[filter]
     elemids = [ elem.id for elem in elems ]
+    length(elems)==0 && warn("Mesh: no elements found using filter $(repr(filter))")
 
     nodedict = OrderedDict{Int,Node}()
     for elem in elems
