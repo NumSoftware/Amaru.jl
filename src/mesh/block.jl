@@ -44,10 +44,28 @@ mutable struct Block <: AbstractBlock
     nx::Int64
     ny::Int64
     nz::Int64
+    rx::Float64
+    ry::Float64
+    rz::Float64
     tag::String
     id::Int64
 
-    function Block(coords::Array{<:Real}; nx::Int=0, ny::Int=0, nz::Int=0, n::Int=0, cellshape=nothing, tag="", id=-1, shape=nothing)
+    function Block(
+        coords::Array{<:Real}; 
+        nx::Int  = 0,
+        ny::Int  = 0,
+        nz::Int  = 0,
+        n ::Int  = 0,
+        rx::Real = 1.0,
+        ry::Real = 1.0,
+        rz::Real = 1.0,
+        r ::Real = 0.0,
+        cellshape = nothing,
+        tag       = "",
+        id        = -1,
+        shape     = nothing,
+        )
+
         if shape != nothing
             notify("Block: argument shape was deprecated. Please use cellshape instead")
             cellshape = shape
@@ -66,6 +84,7 @@ mutable struct Block <: AbstractBlock
 
         ndim = 3
         n>0 && (nx=n)
+        r>0 && (rx=r)
         sumz==0 && (ndim=2)
         sumy+sumz==0 && (ndim=1)
 
@@ -79,7 +98,7 @@ mutable struct Block <: AbstractBlock
 
         if ndim==1 || chord
             ncoord in (2, 3) || error("Block: invalid coordinates matrix rows ($ncoord) for dimension $ndim or chord.")
-            cellshape==nothing && (cellshape=LIN2)
+            cellshape===nothing && (cellshape=LIN2)
             cellshape in shapes1d || error("Block: invalid cell type $(cellshape.name) for dimension $ndim.")
             nodes = [ Node(coords[i,:]) for i=1:ncoord ]
             shape = length(nodes)==2 ? LIN2 : LIN3
@@ -89,7 +108,7 @@ mutable struct Block <: AbstractBlock
                 ncoord = size(coords,1)
             end
             ncoord in (4, 8) || error("Block: invalid coordinates matrix rows ($ncoord) for dimension $ndim or surface.")
-            cellshape==nothing && (cellshape=QUAD4)
+            cellshape===nothing && (cellshape=QUAD4)
             cellshape in shapes2d || error("Block: invalid cell type $(cellshape.name) for dimension $ndim or surface.")
             nodes = [ Node(coords[i,:]) for i=1:ncoord ]
             shape = length(nodes)==4 ? QUAD4 : QUAD8
@@ -109,7 +128,7 @@ mutable struct Block <: AbstractBlock
             nodes[i].id = i
         end
 
-        return new(nodes, shape, cellshape, nx, ny, nz, tag, id)
+        return new(nodes, shape, cellshape, nx, ny, nz, rx, ry, rz, tag, id)
     end
 end
 
@@ -119,7 +138,7 @@ Block3D = Block
 
 
 function Base.copy(bl::Block; dx=0.0, dy=0.0, dz=0.0)
-    newbl = Block3D(copy(get_coords(bl.nodes)), nx=bl.nx, ny=bl.ny, nz=bl.nz, cellshape=bl.cellshape, tag=bl.tag)
+    newbl = Block(copy(get_coords(bl.nodes)), nx=bl.nx, ny=bl.ny, nz=bl.nz, cellshape=bl.cellshape, tag=bl.tag)
 end
 
 
@@ -127,6 +146,7 @@ end
 # TODO: optimize matrix products
 function split_block(bl::Block, msh::Mesh)
     nx, ny, nz = bl.nx, bl.ny, bl.nz
+    rx, ry, rz = bl.rx, bl.ry, bl.rz
     shape  = bl.shape # cell shape
     coords = get_coords(bl.nodes)
     cellshape = bl.cellshape
@@ -134,12 +154,13 @@ function split_block(bl::Block, msh::Mesh)
     if cellshape==LIN2
         p_arr = Array{Node}(undef, nx+1)
         for i = 1:nx+1
-            r = (2.0/nx)*(i-1) - 1.0
+            # r = (2.0/nx)*(i-1) - 1.0
+            r = -1.0 + 2.0*(rx==1 ? (1/nx)*(i-1) : (1-rx^(i-1))/(1-rx^nx))
             N = bl.shape.func([r])
             C = N'*coords
             C = round.(C, digits=8)
             p = get_node(msh._pointdict, C)
-            if p==nothing
+            if p===nothing
                 p = Node(C); 
                 push!(msh.nodes, p)
                 msh._pointdict[hash(p)] = p
@@ -160,12 +181,13 @@ function split_block(bl::Block, msh::Mesh)
     if cellshape==LIN3
         p_arr = Array{Node}(undef, 2*nx+1)
             for i = 1:2*nx+1
-                r = (1.0/nx)*(i-1) - 1.0
+                # r = (1.0/nx)*(i-1) - 1.0
+                r = -1.0 + 2.0*(rx==1 ? (1/(2*nx))*(i-1) : (1-rx^(i-1))/(1-rx^(2*nx)))
                 N = bl.shape.func([r])
                 C = N'*coords
                 C = round.(C, digits=8)
-                p =get_node(msh._pointdict, C)
-                if p==nothing
+                p = get_node(msh._pointdict, C)
+                if p===nothing
                     p = Node(C); 
                     push!(msh.nodes, p)
                     msh._pointdict[hash(p)] = p
@@ -188,15 +210,17 @@ function split_block(bl::Block, msh::Mesh)
         p_arr = Array{Node}(undef, nx+1, ny+1)
         for j = 1:ny+1
             for i = 1:nx+1
-                r = (2.0/nx)*(i-1) - 1.0
-                s = (2.0/ny)*(j-1) - 1.0
+                r = -1.0 + 2.0*(rx==1 ? (1/nx)*(i-1) : (1-rx^(i-1))/(1-rx^nx))
+                s = -1.0 + 2.0*(ry==1 ? (1/ny)*(j-1) : (1-ry^(j-1))/(1-ry^ny))
+                # r = (2.0/nx)*(i-1) - 1.0
+                # s = (2.0/ny)*(j-1) - 1.0 
                 N = bl.shape.func([r, s])
                 C = N'*coords
                 p::Any = nothing
                 if i in (1, nx+1) || j in (1, ny+1)
                     C = round.(C, digits=8)
                     p =get_node(msh._pointdict, C)
-                    if p==nothing
+                    if p===nothing
                         p = Node(C); push!(msh.nodes, p)
                         msh._pointdict[hash(p)] = p
                     end
@@ -228,15 +252,17 @@ function split_block(bl::Block, msh::Mesh)
             for i = 1:2*nx+1
                 if cellshape==QUAD8 && iseven(i) && iseven(j) continue end
 
-                r = (1.0/nx)*(i-1) - 1.0
-                s = (1.0/ny)*(j-1) - 1.0
+                # r = (1.0/nx)*(i-1) - 1.0
+                # s = (1.0/ny)*(j-1) - 1.0
+                r = -1.0 + 2.0*(rx==1 ? (1/(2*nx))*(i-1) : (1-rx^(i-1))/(1-rx^(2*nx)))
+                s = -1.0 + 2.0*(ry==1 ? (1/(2*ny))*(j-1) : (1-ry^(j-1))/(1-ry^(2*ny)))
                 N = bl.shape.func([r, s])
                 C = N'*coords
                 p::Any = nothing
                 if i in (1, 2*nx+1) || j in (1, 2*ny+1)
                     C = round.(C, digits=8)
                     p =get_node(msh._pointdict, C)
-                    if p==nothing
+                    if p===nothing
                         p = Node(C); push!(msh.nodes, p)
                         msh._pointdict[hash(p)] = p
                     end
@@ -285,7 +311,7 @@ function split_block(bl::Block, msh::Mesh)
                 if i in (1, 3*nx+1) || j in (1, 3*ny+1)
                     C = round.(C, digits=8)
                     p =get_node(msh._pointdict, C)
-                    if p==nothing
+                    if p===nothing
                         p = Node(C); push!(msh.nodes, p)
                         msh._pointdict[hash(p)] = p
                     end
@@ -332,7 +358,7 @@ function split_block(bl::Block, msh::Mesh)
                 if i in (1, nx+1) || j in (1, ny+1)
                     C = round.(C, digits=8)
                     p =get_node(msh._pointdict, C)
-                    if p==nothing
+                    if p===nothing
                         p = Node(C); push!(msh.nodes, p)
                         msh._pointdict[hash(p)] = p
                     end
@@ -382,7 +408,7 @@ function split_block(bl::Block, msh::Mesh)
                 if i in (1, 2*nx+1) || j in (1, 2*ny+1)
                     C = round.(C, digits=8)
                     p =get_node(msh._pointdict, C)
-                    if p==nothing
+                    if p===nothing
                         p = Node(C); push!(msh.nodes, p)
                         msh._pointdict[hash(p)] = p
                     end
@@ -430,7 +456,7 @@ function split_block(bl::Block, msh::Mesh)
                     if i in (1, nx+1) || j in (1, ny+1) || k in (1, nz+1)
                         C = round.(C, digits=8)
                         p =get_node(msh._pointdict, C)
-                        if p==nothing
+                        if p===nothing
                             p = Node(C); push!(msh.nodes, p)
                             msh._pointdict[hash(p)] = p
                         end
@@ -493,7 +519,7 @@ function split_block(bl::Block, msh::Mesh)
                     if i in (1, 2*nx+1) || j in (1, 2*ny+1) || k in (1, 2*nz+1)
                         C = round.(C, digits=8)
                         p =get_node(msh._pointdict, C)
-                        if p==nothing
+                        if p===nothing
                             p = Node(C); push!(msh.nodes, p)
                             msh._pointdict[hash(p)] = p
                         end
@@ -637,20 +663,21 @@ function split_block(bl::BlockCylinder, msh::Mesh)
 
 end
 
-
-mutable struct BlockGrid<: AbstractBlock
-    points::Array{Node,1}
-    shape::ShapeType # QUAD4
-    cellshape::ShapeType # QUAD4, QUAD8
-    r::Float64
-    nr::Int64
-    n::Int64
-    tag::String
-    id::Int64
-
-    function BlockGrid(coords::Array{<:Real}; r=1.0, nr=3, n=2, cellshape=HEX8, tag="", id=-1)
-        # TODO
-        #return new(points, LIN2, cellshape, r, nr, n, tag, id)
+function BlockGrid(X::Array{<:Real}, Y::Array{<:Real}, zcoords::Array{<:Real}=Float64[]; nx=[], ny=[], nz=[], rx=[], ry=[], rz=[], cellshape=QUAD4, tag="", id=-1)
+    length(rx)==0 && (rx = ones(length(nx)))
+    length(ry)==0 && (ry = ones(length(ny)))
+    length(rz)==0 && (rz = ones(length(nz)))
+    blocks = Block[]
+    for i in 1:length(nx)
+        for j in 1:length(ny)
+            coords = [
+                X[i] Y[j]
+                X[i+1] Y[j+1]
+            ]
+            bl = Block(coords, cellshape=cellshape, nx=nx[i], ny=ny[j], rx=rx[i], ry=ry[j])
+            push!(blocks, bl)
+        end
     end
+    return blocks
 end
 

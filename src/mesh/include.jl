@@ -21,7 +21,7 @@ include("io.jl")
 export Mesh, fixup!, quality!, reorder!, save, get_surface, get_neighbors, threshold, datafields
 
 include("block.jl")
-export Block, Block2D, Block3D, BlockTruss, BlockCoords, BlockCylinder
+export Block, Block2D, Block3D, BlockTruss, BlockCoords, BlockCylinder, BlockGrid
 
 include("block_inset.jl")
 export BlockInset
