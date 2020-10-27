@@ -34,6 +34,7 @@ mutable struct ElasticJointSeep<:Material
     nu ::Float64        # Poisson ration 
     ζ  ::Float64        # factor ζ controls the elastic relative displacements 
     γw ::Float64        # specific weight of the fluid
+    β  ::Float64        # compressibility of fluid
     η  ::Float64        # viscosity
     kt ::Float64        # leak-off coefficient
     kl ::Float64        # initial fracture opening (longitudinal flow)
@@ -42,17 +43,18 @@ mutable struct ElasticJointSeep<:Material
         return  ElasticJoint(;prms...)
     end
 
-    function ElasticJointSeep(;E=NaN, nu=NaN, zeta=NaN, gammaw=NaN, eta=NaN, kt=NaN, kl=0.0)
+    function ElasticJointSeep(;E=NaN, nu=NaN, zeta=NaN, gammaw=NaN, beta=0.0, eta=NaN, kt=NaN, kl=0.0)
     
         E>0.0       || error("Invalid value for E: $E")
         0<=nu<0.5   || error("Invalid value for nu: $nu") 
         zeta>=0     || error("Invalid value for zeta: $zeta")
         gammaw>0    || error("Invalid value for gammaw: $gammaw")
+        beta>= 0    || error("Invalid value for beta: $beta")
         eta>=0      || error("Invalid value for eta: $eta")
         kt>=0       || error("Invalid value for kt: $kt")
         kl>=0       || error("Invalid value for kl: $kl")
 
-        this = new(E, nu, zeta, gammaw, eta, kt, kl)
+        this = new(E, nu, zeta, gammaw, beta, eta, kt, kl)
         return this
     end
 end
