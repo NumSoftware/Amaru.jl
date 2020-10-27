@@ -283,7 +283,7 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
     return H, map, map, nodes_p
 end
 
-#=
+
 function elem_compressibility_matrix(elem::HydroMechJoint)
     ndim     = elem.env.ndim
     th       = elem.env.thickness
@@ -317,8 +317,23 @@ function elem_compressibility_matrix(elem::HydroMechJoint)
         N0 = 0*Np
         Nf = [N0' N0' Np']
 
+        # compute crack aperture
+        if elem.mat.kl == 0.0
+            if ip.state.upa == 0.0 || ip.state.w[1] <= 0.0  
+                kl = 0.0
+            else
+                kl = ip.state.w[1]
+            end
+        else
+            if elem.mat.kl >= ip.state.w[1]
+                kl = elem.mat.kl
+            else 
+                kl = ip.state.w[1]
+            end
+        end    
+
         # compute Cpp
-        coef = detJ*ip.w*elem.mat.β*th
+        coef = detJ*ip.w*elem.mat.β*kl*th
         Cpp -= coef*Nf'*Nf
     end
 
@@ -327,7 +342,7 @@ function elem_compressibility_matrix(elem::HydroMechJoint)
 
     return Cpp, map, map
 end
-=#
+
 
 function elem_RHS_vector(elem::HydroMechJoint)
     ndim     = elem.env.ndim
@@ -402,6 +417,7 @@ function elem_RHS_vector(elem::HydroMechJoint)
 
     return Q, map
 end
+
 #=
 function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
     ndim     = elem.env.ndim
@@ -611,10 +627,25 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
         coef = detJ*ip.w*th
         mfΔω = mf'*Δω
         dFw -= coef*Nf'*mfΔω 
-#=
-        coef = detJ*ip.w*elem.mat.β*th
+
+        # compute fluid compressibility
+        if elem.mat.kl == 0.0
+            if ip.state.upa == 0.0 || ip.state.w[1] <= 0.0 
+                kl = 0.0
+            else
+                kl = ip.state.w[1]
+            end 
+        else
+            if elem.mat.kl >= ip.state.w[1]
+                kl = elem.mat.kl
+            else 
+                kl = ip.state.w[1]
+            end
+        end    
+
+        coef = detJ*ip.w*elem.mat.β*kl*th
         dFw -= coef*Nf'*Δuw[3]
-=#
+
         # longitudinal flow
         coef = Δt*detJ*ip.w*th
         dFw -= coef*Bf'*L

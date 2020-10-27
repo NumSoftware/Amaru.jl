@@ -25,7 +25,7 @@ end
 
 mutable struct JointLinSeep<:Material
     γw ::Float64        # specific weight of the fluid
-    #β  ::Float64        # compressibility of fluid
+    β  ::Float64        # compressibility of fluid
     η  ::Float64        # viscosity
     kt ::Float64        # leak-off coefficient
     kl ::Float64        # initial fracture opening (longitudinal flow)
@@ -34,14 +34,15 @@ mutable struct JointLinSeep<:Material
         return  JointLinSeep(;prms...)
     end
 
-    function JointLinSeep(;gammaw=NaN, eta=NaN, kt=NaN, kl=0.0)
+    function JointLinSeep(;gammaw=NaN, beta=0.0, eta=NaN, kt=NaN, kl=0.0)
         
         gammaw>0    || error("Invalid value for gammaw: $gammaw")
+        beta>= 0    || error("Invalid value for beta: $beta")
         eta>=0      || error("Invalid value for eta: $eta")
         kt>=0       || error("Invalid value for kt: $kt")
         kl>=0       || error("Invalid value for kl: $kl")
 
-        this = new(gammaw, eta, kt, kl)
+        this = new(gammaw, beta, eta, kt, kl)
         return this
     end
 end

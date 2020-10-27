@@ -41,6 +41,7 @@ mutable struct MCJointSeep2<:Material
     ws ::Float64       # openning at inflection (where the curve slope changes)
     softcurve::String  # softening curve model ("linear" or bilinear" or "hordijk")
     γw ::Float64       # specific weight of the fluid
+    β  ::Float64       # compressibility of fluid
     η  ::Float64       # viscosity
     kt ::Float64       # transverse leak-off coefficient
     kl ::Float64       # initial fracture opening (longitudinal flow)
@@ -49,7 +50,7 @@ mutable struct MCJointSeep2<:Material
         return  MCJointSeep2(;prms...)
     end
 
-     function MCJointSeep2(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", gammaw=NaN, eta=NaN, kt=NaN, kl=0.0)
+     function MCJointSeep2(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", gammaw=NaN, beta=0.0, eta=NaN, kt=NaN, kl=0.0)
 
         !(isnan(GF) || GF>0) && error("Invalid value for GF: $GF")
         !(isnan(Gf) || Gf>0) && error("Invalid value for Gf: $Gf")
@@ -79,11 +80,12 @@ mutable struct MCJointSeep2<:Material
         (isnan(ws)  || ws>0) || error("Invalid value for ws: $ws")
         (softcurve=="linear" || softcurve=="bilinear" || softcurve=="hordijk") || error("Invalid softcurve: softcurve must to be linear or bilinear or hordijk")
         gammaw>0    || error("Invalid value for gammaw: $gammaw")
+        beta>= 0    || error("Invalid value for beta: $beta")
         eta>=0      || error("Invalid value for eta: $eta")
         kt>=0       || error("Invalid value for kt: $kt")
         kl>=0       || error("Invalid value for kl: $kl")
 
-        this = new(E, nu, ft, mu, zeta, wc, ws, softcurve, gammaw, eta, kt, kl)
+        this = new(E, nu, ft, mu, zeta, wc, ws, softcurve, gammaw, beta, eta, kt, kl)
         return this
     end
 end
