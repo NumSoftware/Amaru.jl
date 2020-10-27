@@ -161,7 +161,7 @@ function split_block(bl::Block, msh::Mesh)
             C = round.(C, digits=8)
             p = get_node(msh._pointdict, C)
             if p===nothing
-                p = Node(C); 
+                p = Node(C);
                 push!(msh.nodes, p)
                 msh._pointdict[hash(p)] = p
             end
@@ -212,10 +212,12 @@ function split_block(bl::Block, msh::Mesh)
             for i = 1:nx+1
                 r = -1.0 + 2.0*(rx==1 ? (1/nx)*(i-1) : (1-rx^(i-1))/(1-rx^nx))
                 s = -1.0 + 2.0*(ry==1 ? (1/ny)*(j-1) : (1-ry^(j-1))/(1-ry^ny))
+                
                 # r = (2.0/nx)*(i-1) - 1.0
                 # s = (2.0/ny)*(j-1) - 1.0 
                 N = bl.shape.func([r, s])
                 C = N'*coords
+                # @s typeof(C)
                 p::Any = nothing
                 if i in (1, nx+1) || j in (1, ny+1)
                     C = round.(C, digits=8)
@@ -303,8 +305,11 @@ function split_block(bl::Block, msh::Mesh)
             for i = 1:3*nx+1
                 if cellshape==QUAD12 && (i-1)%3>0 && (j-1)%3>0 continue end
 
-                r = ((2/3)/nx)*(i-1) - 1.0
-                s = ((2/3)/ny)*(j-1) - 1.0
+                # r = ((2/3)/nx)*(i-1) - 1.0
+                # s = ((2/3)/ny)*(j-1) - 1.0
+                r = -1.0 + 2.0*(rx==1 ? (1/(3*nx))*(i-1) : (1-rx^(i-1))/(1-rx^(3*nx)))
+                s = -1.0 + 2.0*(ry==1 ? (1/(3*ny))*(j-1) : (1-ry^(j-1))/(1-ry^(3*ny)))
+
                 N = bl.shape.func([r, s])
                 C = N'*coords
                 p::Any = nothing
@@ -350,8 +355,12 @@ function split_block(bl::Block, msh::Mesh)
         p_arr = Array{Node}(undef, nx+1, ny+1)
         for j = 1:ny+1
             for i = 1:nx+1
-                r = (2.0/nx)*(i-1) - 1.0
-                s = (2.0/ny)*(j-1) - 1.0
+
+                # r = (2.0/nx)*(i-1) - 1.0
+                # s = (2.0/ny)*(j-1) - 1.0
+                r = -1.0 + 2.0*(rx==1 ? (1/nx)*(i-1) : (1-rx^(i-1))/(1-rx^nx))
+                s = -1.0 + 2.0*(ry==1 ? (1/ny)*(j-1) : (1-ry^(j-1))/(1-ry^ny))
+                
                 N = bl.shape.func([r, s])
                 C = N'*coords
                 p::Any = nothing
@@ -447,9 +456,12 @@ function split_block(bl::Block, msh::Mesh)
         for k = 1:nz+1
             for j = 1:ny+1
                 for i = 1:nx+1
-                    r = (2.0/nx)*(i-1) - 1.0
-                    s = (2.0/ny)*(j-1) - 1.0
-                    t = (2.0/nz)*(k-1) - 1.0
+                    r = -1.0 + 2.0*(rx==1 ? (1/nx)*(i-1) : (1-rx^(i-1))/(1-rx^nx))
+                    s = -1.0 + 2.0*(ry==1 ? (1/ny)*(j-1) : (1-ry^(j-1))/(1-ry^ny))
+                    t = -1.0 + 2.0*(rz==1 ? (1/nz)*(k-1) : (1-rz^(k-1))/(1-rz^nz))
+                    # r = (2.0/nx)*(i-1) - 1.0
+                    # s = (2.0/ny)*(j-1) - 1.0
+                    # t = (2.0/nz)*(k-1) - 1.0
                     N = bl.shape.func([r, s, t])
                     C = N'*coords
                     p::Any = nothing
@@ -510,9 +522,12 @@ function split_block(bl::Block, msh::Mesh)
                         if iseven(k) && iseven(i) continue end
                     end
 
-                    r = (1.0/nx)*(i-1) - 1.0
-                    s = (1.0/ny)*(j-1) - 1.0
-                    t = (1.0/nz)*(k-1) - 1.0
+                    # r = (1.0/nx)*(i-1) - 1.0
+                    # s = (1.0/ny)*(j-1) - 1.0
+                    # t = (1.0/nz)*(k-1) - 1.0
+                    r = -1.0 + 2.0*(rx==1 ? (1/(2*nx))*(i-1) : (1-rx^(i-1))/(1-rx^(2*nx)))
+                    s = -1.0 + 2.0*(ry==1 ? (1/(2*ny))*(j-1) : (1-ry^(j-1))/(1-ry^(2*ny)))
+                    t = -1.0 + 2.0*(rz==1 ? (1/(2*nz))*(k-1) : (1-rz^(k-1))/(1-rz^(2*nz)))
                     N = bl.shape.func([r, s, t])
                     C = N'*coords
                     p::Any = nothing
@@ -663,7 +678,21 @@ function split_block(bl::BlockCylinder, msh::Mesh)
 
 end
 
-function BlockGrid(X::Array{<:Real}, Y::Array{<:Real}, zcoords::Array{<:Real}=Float64[]; nx=[], ny=[], nz=[], rx=[], ry=[], rz=[], cellshape=QUAD4, tag="", id=-1)
+function BlockGrid(
+    X::Array{<:Real},            # list of x coordinates
+    Y::Array{<:Real},            # list of y coordinates
+    Z::Array{<:Real}=Float64[];  # list of z coordinates
+    nx=[],  # list of divisions in the x direction
+    ny=[],  # list of divisions in the y direction
+    nz=[],  # list of divisions in the z direction
+    rx=[],  # list of divisions ratios in the x direction
+    ry=[],  # list of divisions ratios in the x direction
+    rz=[],  # list of divisions ratios in the x direction
+    cellshape=QUAD4, # element shape
+    tag="",          # elements tag
+    id=-1
+    )
+
     length(rx)==0 && (rx = ones(length(nx)))
     length(ry)==0 && (ry = ones(length(ny)))
     length(rz)==0 && (rz = ones(length(nz)))
