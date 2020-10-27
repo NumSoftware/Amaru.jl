@@ -94,7 +94,6 @@ mutable struct Node<:AbstractPoint
     end
 
     function Node(X::AbstractArray{<:Real}; tag::String="", id::Int=-1)
-
         @assert length(X) in (1,2,3)
         return Node(X...; tag=tag, id=id)
     end
