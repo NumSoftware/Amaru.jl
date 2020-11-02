@@ -109,7 +109,10 @@ function cplot(data::Array{<:NamedTuple},
                fontsize         = 6,
                legendfontsize   = 0,
                labelspacing     = 0.5, 
-               textlist         = []
+               textlist         = [],  # e.g. [ (x=4, y=2, text="C1"), ]
+               tagpos           = 0.5,
+               tagloc           = 1,   # e.g. 1,2,3,4
+               tagfontsize      = 6,
               )
 
     headline("Chart plotting")
@@ -160,7 +163,7 @@ function cplot(data::Array{<:NamedTuple},
                   "theta"   => L"\theta",
                   "Theta"   => L"\Theta",
                   "iota"    => L"\iota",
-                  "kappa"   => L"\kappa",
+                  "kappa"   => L"\kappa",, fontsize=tagfontsize
                   "lambda"  => L"\lambda",
                   "Lambda"  => L"\Lambda",
                   "mu"      => L"\mu",
@@ -212,6 +215,8 @@ function cplot(data::Array{<:NamedTuple},
         legendfontsize==0 && (legendfontsize=fontsize)
         plt.rc("legend", fontsize=legendfontsize)
     else
+        plt.rc("font", family="STIXGeneral", size=fontsize+3)
+        plt.rc("mathtext", fontset="cm")
         plt.ion()
     end
 
@@ -236,6 +241,7 @@ function cplot(data::Array{<:NamedTuple},
     for (i, line) in enumerate(data)
         X = get(line, :x, 0).*xmult
         Y = get(line, :y, 0).*ymult
+        @assert length(X) == length(Y)
         lw = get(line, :lw, 0.5)
         ls = get(line, :ls, "-")
         color = get(line, :color, "C$(i-1)")
@@ -302,26 +308,69 @@ function cplot(data::Array{<:NamedTuple},
         end
     end
 
+    # line labels
+    # from Axes to Data coords:  (ax.transAxes+ax.transData.inverted()).transform([x,y])
+    # from Data to Axes coords:  (ax.transData+ax.transAxes.inverted()).transform([x,y])
+
+
+    for (i, line) in enumerate(data)
+        tag = get(line, :tag, "")
+        tag != "" || continue
+
+        X = get(line, :x, 0).*xmult
+        Y = get(line, :y, 0).*ymult
+        pos = get(line, :tagpos, tagpos)
+        loc = get(line, :tagloc, tagloc)
+        XY = (ax.transData+ax.transAxes.inverted()).transform([X Y])
+        X = XY[:,1]
+        Y = XY[:,2]
+
+        len = 0.0
+        for i=2:length(X)
+            len += √((X[i]-X[i-1])^2 + (Y[i]-Y[i-1])^2)
+        end
+        lpos = pos*len
+        len = 0.0
+        x = y = 0.0
+        for i=2:length(X)
+            len += √((X[i]-X[i-1])^2 + (Y[i]-Y[i-1])^2)
+            if len>=lpos
+                x = (X[i]+X[i-1])/2
+                y = (Y[i]+Y[i-1])/2
+                break
+            end
+        end
+
+        ha = "left"; va = "bottom"
+        dx = dy = 0.01
+        if loc==2
+            ha = "right"; va = "bottom"
+            dx = -dx
+        elseif loc==3
+            ha = "right"; va = "top"
+            dx = -dx; dy = -dy
+        elseif loc==4
+            ha = "left"; va = "top"
+            dy = -dy
+        end
+        
+        xpos, ypos = x+dx, y+dy
+        plt.text(xpos, ypos, tag, ha=ha, va=va, transform=ax.transAxes, fontsize=tagfontsize)
+        # plt.text(xpos, ypos, tag, ha=ha, va=va, transform=ax.transAxes)
+        # plt.text(xpos, ypos, linetag[i])
+    end
+    # end   
+     
     # show or save plot
-    if filename==""
-        plt.show()
+    if filename=="" 
+        plt.fignum_exists(ax.figure.number) || plt.show()
     else
         plt.savefig(filename, bbox_inches="tight", pad_inches=0.01, format="pdf")
         info("file $filename saved")
         plt.close("all")
     end
 
-
 end
-
-
-
-
-
-
-
-
-
 
 
 
