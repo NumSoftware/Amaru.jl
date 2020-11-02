@@ -58,7 +58,7 @@ end
 
 
 function Base.copy(bl::BlockInset; dx=0.0, dy=0.0, dz=0.0)
-    newbl = BlockInset(get_coords(bl.nodes), curvetype=bl.curvetype, closed=bl.closed,
+    newbl = BlockInset(get_coords(bl.nodes) .+ [dx dy dz], curvetype=bl.curvetype, closed=bl.closed,
                        embedded=bl.embedded, cellshape=bl.cellshape, tag=bl.tag,
                        jointtag=bl.jointtag)
 end
@@ -82,7 +82,7 @@ function cubicBezier(s::Float64, PorQ::Array{Float64,2}, isQ::Bool=false)
     ib = floor(Int64, s/Ds) + 1    # index of Bezier
     if ib > nb; ib = nb end # fix index if s ~= 1+eps
     s0 = (ib-1) * Ds        # s @ left point
-    t  = (s - s0) / Ds      # local t
+    t  = (s - s0) / Ds      # local t for current Bezier
     if t > 1.0; t = 1.0 end # clean rubbish. e.g. 1.000000000000002
 
     # collect control points

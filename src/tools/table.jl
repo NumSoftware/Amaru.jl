@@ -250,7 +250,7 @@ function compress(table::DataTable, n::Int)
     return subtable
 end
 
-function filter(table::DataTable, expr::Expr)
+function Base.filter(table::DataTable, expr::Expr)
     fields = get_vars(expr)
     vars   = Dict{Symbol, Float64}()
     nrows  = length(table.columns[1])
