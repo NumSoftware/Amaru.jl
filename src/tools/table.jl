@@ -11,13 +11,6 @@ mutable struct DataTable
     columns ::Array{ColType,1}
     colindex::OrderedDict{String,Int} # Data index
     header::Array{String,1}
-    function DataTable()
-        this = new()
-        this.columns  = []
-        this.colindex = OrderedDict()
-        this.header   = []
-        return this
-    end
     function DataTable(header::Array)
         this = new()
         header = vec(header)
@@ -29,6 +22,7 @@ mutable struct DataTable
 end
 
 
+
 function DataTable(header::Array, columns::Array{<:ColType,1})
     this      = DataTable(header)
     nfields   = length(header)
@@ -38,6 +32,17 @@ function DataTable(header::Array, columns::Array{<:ColType,1})
     return this
 end
 
+function DataTable(; kwargs...)
+
+    columns = ColType[]
+    header  = KeyType[]
+    for (key, val) in kwargs
+        push!(header, string(key))
+        push!(columns, copy(val))
+    end
+
+    return DataTable(header, columns)
+end
 
 function DataTable(header::Array, matrix::Array{T,2} where T)
     this   = DataTable(header)
@@ -123,7 +128,7 @@ end
 
 
 function Base.getindex(table::DataTable, key::KeyType)
-    @assert string(key) in table.header
+    string(key) in table.header || error("getindex: key ($(repr(key))) not found in DataTable header. Available keys: $(keys(table))")
     return table.columns[table.colindex[string(key)]]
 end
 
@@ -193,20 +198,6 @@ function Base.lastindex(table::DataTable)
     return length(table.columns[1])
 end
 
-function compress!(table::DataTable, n::Int)
-    nrows = length(table.columns[1])
-    nrows<=n && return table
-
-    factor = (nrows-1)/(n-1)
-
-    idxs = [ round(Int, 1+factor*(i-1)) for i=1:n ] 
-
-    for i=1:length(table.columns)
-        table.columns[i] = table.columns[i][idxs]
-    end
-
-end
-
 
 mutable struct DataBook
     tables::Array{DataTable, 1}
@@ -243,6 +234,35 @@ function Base.iterate(book::DataBook, state=(nothing,1) )
 end
 
 sprintf(fmt, args...) = @eval @sprintf($fmt, $(args...))
+
+function compress(table::DataTable, n::Int)
+    nrows = length(table.columns[1])
+    nrows<=n && return table[:]
+
+    factor = (nrows-1)/(n-1)
+    idxs   = [ round(Int, 1+factor*(i-1)) for i=1:n ]
+    
+    subtable = DataTable(table.header)
+    for i=1:length(table.columns)
+        subtable.columns[i] = table.columns[i][idxs]
+    end
+
+    return subtable
+end
+
+function filter(table::DataTable, expr::Expr)
+    fields = get_vars(expr)
+    vars   = Dict{Symbol, Float64}()
+    nrows  = length(table.columns[1])
+    idx    = falses(nrows)
+    for i=1:nrows
+        for field in fields
+            vars[field] = table[field][i]
+        end
+        idx[i] = eval_arith_expr(expr; vars...)
+    end
+    return table[idx]
+end
 
 # TODO: Improve column width for string items
 function save(table::DataTable, filename::String; verbose::Bool=true, digits::Array=[])
@@ -479,6 +499,7 @@ loadbook(filename::String) = DataBook(filename)
 
 # TODO: Improve display. Include column datatype
 function Base.show(io::IO, table::DataTable)
+    println(io)
     if length(table.columns)==0
         print(io, "DataTable()")
         return
