@@ -163,7 +163,7 @@ function cplot(data::Array{<:NamedTuple},
                   "theta"   => L"\theta",
                   "Theta"   => L"\Theta",
                   "iota"    => L"\iota",
-                  "kappa"   => L"\kappa",, fontsize=tagfontsize
+                  "kappa"   => L"\kappa",
                   "lambda"  => L"\lambda",
                   "Lambda"  => L"\Lambda",
                   "mu"      => L"\mu",
