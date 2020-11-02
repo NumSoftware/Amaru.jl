@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export DataTable, DataBook, push!, save, loadtable, loadbook, randtable, compress!
+export DataTable, DataBook, push!, save, loadtable, loadbook, randtable, compress, resize, filter
 
 
 # DataTable object
