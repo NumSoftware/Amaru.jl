@@ -264,6 +264,55 @@ function filter(table::DataTable, expr::Expr)
     return table[idx]
 end
 
+function resize(table::DataTable, n::Int)
+
+    newtable = DataTable(table.header)
+    np = length(table.columns[1])
+    ns = np - 1          # number of spacings
+    nb   = floor(Int64, ns/3)    # number of bezier curves
+    Ds   = 1.0 / nb        # spacing between curves
+
+    for (j,field) in enumerate(table.header)
+        U = table[field]
+        V = zeros(n)
+
+        for (i,s) in enumerate(range(0.0, 1.0, length=n))
+            # find index of Bezier and local coordinate t
+            ib = floor(Int64, s/Ds) + 1   # index of Bezier
+            ib > nb && (ib = nb)          # fix index if s ~= 1+eps
+            s0 = (ib-1) * Ds              # s @ left point
+            t  = (s - s0) / Ds            # local t for current Bezier
+            t > 1.0 && (t = 1.0)          # clean rubbish. e.g. 1.00000000002
+        
+            # collect control points
+            k = 1 + (ib-1) * 3            # position of first point of bezier
+            
+            P1 = U[k  ]
+            P2 = U[k+1]
+            P3 = U[k+2]
+            P4 = U[k+3]
+
+            # control points
+            Q1 =         P1
+            Q2 = (-5.0 * P1 + 18.0 * P2 -  9.0 * P3 + 2.0 * P4) / 6.0
+            Q3 = ( 2.0 * P1 -  9.0 * P2 + 18.0 * P3 - 5.0 * P4) / 6.0
+            Q4 =                                            P4
+
+            a =       Q4 - 3.0 * Q3 + 3.0 * Q2 - Q1
+            b = 3.0 * Q3 - 6.0 * Q2 + 3.0 * Q1
+            c = 3.0 * Q2 - 3.0 * Q1
+            d =       Q1
+
+            V[i] = a*t*t*t + b*t*t + c*t + d
+        end
+
+        newtable.columns[j] = V
+    end
+
+    return newtable
+end
+
+
 # TODO: Improve column width for string items
 function save(table::DataTable, filename::String; verbose::Bool=true, digits::Array=[])
     suitable_formats = (".dat", ".tex")
