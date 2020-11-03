@@ -64,7 +64,6 @@ function revolve(mesh::Mesh;
 
                 for (n, R) in zip([n1, n2, n2, n1], [Rend, Rend, Rini, Rini])
                     coord = base + R*(n.coord-base)*conj(R)
-                    coord = round.(coord, digits=8)
                     push!(nodes, Node(coord))
                 end
             elseif cell.shape==LIN3
@@ -74,7 +73,6 @@ function revolve(mesh::Mesh;
 
                 for (n, R) in zip([n1, n2, n2, n1, n3, n2, n3, n1], [Rend, Rend, Rini, Rini, Rend, Rhalf, Rini, Rhalf])
                     coord = base + R*(n.coord-base)*conj(R)
-                    coord = round.(coord, digits=8)
                     push!(nodes, Node(coord))
                 end
             elseif cell.shape in (TRI3, QUAD4)
@@ -84,7 +82,6 @@ function revolve(mesh::Mesh;
                 for R in (Rend, Rini)
                     for n in cell.nodes[1:nnodes]
                         coord = base + R*(n.coord-base)*conj(R)
-                        coord = round.(coord, digits=8)
                         push!(nodes, Node(coord))
                     end
                 end
@@ -94,7 +91,6 @@ function revolve(mesh::Mesh;
                 for R in (Rend, Rini)
                     for n in cell.nodes[1:3]
                         coord = base + R*(n.coord-base)*conj(R)
-                        coord = round.(coord, digits=8)
                         push!(nodes, Node(coord))
                     end
                 end
@@ -102,14 +98,12 @@ function revolve(mesh::Mesh;
                 for R in (Rend, Rini)
                     for n in cell.nodes[4:6]
                         coord = base + R*(n.coord-base)*conj(R)
-                        coord = round.(coord, digits=8)
                         push!(nodes, Node(coord))
                     end
                 end
 
                 for n in cell.nodes[1:3]
                     coord = base + Rhalf*(n.coord-base)*conj(Rhalf)
-                    coord = round.(coord, digits=8)
                     push!(nodes, Node(coord))
                 end
             elseif cell.shape==QUAD8
@@ -118,7 +112,6 @@ function revolve(mesh::Mesh;
                 for R in (Rend, Rini)
                     for n in cell.nodes[1:4]
                         coord = base + R*(n.coord-base)*conj(R)
-                        coord = round.(coord, digits=8)
                         push!(nodes, Node(coord))
                     end
                 end
@@ -126,14 +119,12 @@ function revolve(mesh::Mesh;
                 for R in (Rend, Rini)
                     for n in cell.nodes[5:8]
                         coord = base + R*(n.coord-base)*conj(R)
-                        coord = round.(coord, digits=8)
                         push!(nodes, Node(coord))
                     end
                 end
 
                 for n in cell.nodes[1:4]
                     coord = base + Rhalf*(n.coord-base)*conj(Rhalf)
-                        coord = round.(coord, digits=8)
                     push!(nodes, Node(coord))
                 end
             else
