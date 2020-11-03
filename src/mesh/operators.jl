@@ -61,53 +61,74 @@ function scale!(blocks::Array{AbstractBlock,1}; factor=1.0, base=[0.0,0,0])
     return blocks
 end
 
-function mirror(block::AbstractBlock; face=[0.0 0 0; 0 1 0; 0 0 1])
-    nr, nc = size(face)
-    if nc==2
-        face = [ face zeros(nr) ]
+# function mirror(block::AbstractBlock; face=[0.0 0 0; 0 1 0; 0 0 1])
+#     nr, nc = size(face)
+#     if nc==2
+#         face = [ face zeros(nr) ]
+#     end
+#     if nr==2
+#         face = [ face; [face[1,1] face[1,2] 1.0] ]
+#     end
+
+#     p1 = face[1,:]
+#     p2 = face[2,:]
+#     p3 = face[3,:]
+#     normal = cross(p2-p1, p3-p1)
+#     normal = normal/norm(normal)
+
+#     bl = copy(block)
+#     coords =get_coords(bl.nodes)
+
+#     distances    = (coords .- p1')*normal       # d = n^.(xi - xp)
+#     coords = coords .- 2*distances.*normal'  # xi = xi - 2*d*n^
+
+#     # fix coordinates in bl to keep anti-clockwise numbering
+#     npts = size(coords)[1]
+#     ndim = typeof(bl)==Block2D ? 2 : 3
+
+#     if npts==8 && ndim==2
+#         idxs = [ 4, 3, 2, 1, 7, 6, 5, 8 ]
+#     elseif npts==8 && ndim==3
+#         idxs = [ 5:8; 1:4 ]
+#     elseif npts==20 && ndim==3
+#         idxs = [ 5:8; 1:4; 13:16; 9:12; 17:20 ]
+#     else
+#         idxs = [ npts:-1:1; ]  # reverse
+#     end
+#     coords = coords[idxs,:]
+#     bl.nodes = [ Node(coords[i,1], coords[i,2], coords[i,3]) for i=1:size(coords,1) ]
+
+#     return bl
+# end
+
+function mirror(block::AbstractBlock;  axis=[0.0, 0, 1], base=[0.0, 0, 0] )
+
+    newblock = copy(block)
+    axis = normalize(Vec3(axis))
+    base = Vec3(base)
+
+    # mirror
+    L = Vec3()
+    X = Vec3()
+    for node in newblock.nodes
+        L .= node.coord .- base
+        dist = dot(L, axis) # dist = n^.(xi - xp)
+
+        X .= node.coord .- (2*dist).*axis .+ 0.0 # xi = xi - 2*d*n^
+        node.coord .= round.(X, digits=8) 
     end
-    if nr==2
-        face = [ face; [face[1,1] face[1,2] 1.0] ]
-    end
 
-    p1 = face[1,:]
-    p2 = face[2,:]
-    p3 = face[3,:]
-    normal = cross(p2-p1, p3-p1)
-    normal = normal/norm(normal)
+    isinverted(newblock) && flip!(newblock)
 
-    bl = copy(block)
-    coords =get_coords(bl.nodes)
-
-    distances    = (coords .- p1')*normal       # d = n^.(xi - xp)
-    coords = coords .- 2*distances.*normal'  # xi = xi - 2*d*n^
-
-    # fix coordinates in bl to keep anti-clockwise numbering
-    npts = size(coords)[1]
-    ndim = typeof(bl)==Block2D ? 2 : 3
-
-    if npts==8 && ndim==2
-        idxs = [ 4, 3, 2, 1, 7, 6, 5, 8 ]
-    elseif npts==8 && ndim==3
-        idxs = [ 5:8; 1:4 ]
-    elseif npts==20 && ndim==3
-        idxs = [ 5:8; 1:4; 13:16; 9:12; 17:20 ]
-    else
-        idxs = [ npts:-1:1; ]  # reverse
-    end
-    coords = coords[idxs,:]
-    bl.nodes = [ Node(coords[i,1], coords[i,2], coords[i,3]) for i=1:size(coords,1) ]
-
-    return bl
+   return newblock
 end
 
-function mirror(blocks::Array{<:AbstractBlock,1}; face=[0.0 0 0; 0 1 0; 0 0 1])
-    return [ mirror(bl, face=face) for bl in blocks ]
+function mirror(blocks::Array{<:AbstractBlock,1}; axis=[0.0, 0, 1], base=[0.0, 0, 0] )
+    return [ mirror(bl, axis=axis, base=base) for bl in blocks ]
 end
 
 
 function mirror(mesh::Mesh; axis=[0.0, 0, 1], base=[0.0, 0, 0])
-    # axis = cross(p2-p1, p3-p1)
     axis = normalize(Vec3(axis))
     base = Vec3(base)
 
@@ -116,11 +137,13 @@ function mirror(mesh::Mesh; axis=[0.0, 0, 1], base=[0.0, 0, 0])
 
     # mirror
     L = Vec3()
+    X = Vec3()
     for node in newmesh.nodes
         L = node.coord .- base
         dist = dot(L, axis) # dist = n^.(xi - xp)
 
-        node.coord .= node.coord .- (2*dist).*axis # xi = xi - 2*d*n^
+        X .= node.coord .- (2*dist).*axis .+ 0.0 # xi = xi - 2*d*n^
+        node.coord .= round.(X, digits=8) 
     end
 
     for elem in mesh.elems
@@ -131,48 +154,46 @@ function mirror(mesh::Mesh; axis=[0.0, 0, 1], base=[0.0, 0, 0])
     return newmesh
 end
 
+# function mirror2(mesh::Mesh; face=[0.0 0 0; 0 1 0; 0 0 1])
+#     nr, nc = size(face)
+#     if nc==2
+#         face = [ face zeros(nr) ]
+#     end
+#     if nr==2
+#         face = [ face; [face[1,1] face[1,2] 1.0] ]
+#     end
+#     p1 = face[1,:]
+#     p2 = face[2,:]
+#     p3 = face[3,:]
+#     normal = cross(p2-p1, p3-p1)
+#     normal = normal/norm(normal)
 
+#     # copy mesh
+#     newmesh = copy(mesh)
 
-function mirror2(mesh::Mesh; face=[0.0 0 0; 0 1 0; 0 0 1])
-    nr, nc = size(face)
-    if nc==2
-        face = [ face zeros(nr) ]
-    end
-    if nr==2
-        face = [ face; [face[1,1] face[1,2] 1.0] ]
-    end
-    p1 = face[1,:]
-    p2 = face[2,:]
-    p3 = face[3,:]
-    normal = cross(p2-p1, p3-p1)
-    normal = normal/norm(normal)
+#     # mirror
+#     coords =get_coords(newmesh.nodes)
+#     distances = (coords .- p1')*normal       # d = n^.(xi - xp)
+#     coords    = coords .- 2*distances.*normal'  # xi = xi - 2*d*n^
 
-    # copy mesh
-    newmesh = copy(mesh)
+#     # updating points
+#     for (i,p) in enumerate(newmesh.nodes)
+#         p.coord.x = coords[i,1]
+#         p.coord.y = coords[i,2]
+#         p.coord.z = coords[i,3]
+#     end
 
-    # mirror
-    coords =get_coords(newmesh.nodes)
-    distances = (coords .- p1')*normal       # d = n^.(xi - xp)
-    coords    = coords .- 2*distances.*normal'  # xi = xi - 2*d*n^
+#     # fix connectivities
+#     for c in newmesh.elems
+#         if c.shape==HEX8
+#             idxs = [ 5:8; 1:4 ]
+#             c.nodes = c.nodes[idxs]
+#         end
+#     end
 
-    # updating points
-    for (i,p) in enumerate(newmesh.nodes)
-        p.coord.x = coords[i,1]
-        p.coord.y = coords[i,2]
-        p.coord.z = coords[i,3]
-    end
-
-    # fix connectivities
-    for c in newmesh.elems
-        if c.shape==HEX8
-            idxs = [ 5:8; 1:4 ]
-            c.nodes = c.nodes[idxs]
-        end
-    end
-
-    fixup!(newmesh)
-    return newmesh
-end
+#     fixup!(newmesh)
+#     return newmesh
+# end
 
 
 """
@@ -204,59 +225,71 @@ Rotate `block` according to the provided `base` point, `axis` vector and `angle`
 function LinearAlgebra.rotate!(bl::AbstractBlock; base=[0.0,0,0], axis=[0.0,0,1], angle=90.0 )
     # see also: https://lucidar.me/en/quaternions/quaternions-rotations/
 
-    length(axis)==2 && ( axis=vcat(axis, 0.0) )
-    length(base)==2 && ( base=vcat(base, 0.0) )
+    axis = normalize(Vec3(axis))
+    base = Vec3(base)
+    θ    = angle*pi/180
+    R    = Quaternion(cos(θ/2), axis[1]*sin(θ/2), axis[2]*sin(θ/2), axis[3]*sin(θ/2))
 
-    # unit vector
-    axis = axis/norm(axis)
-    a, b, c = axis
-    d = sqrt(b^2+c^2)
-
-    # unit vector for rotation
-    l = cos(angle*pi/180)
-    m = sin(angle*pi/180)
-
-    # Rotation matrices
-    if d != 0.0
-        Rx  = [  1.0   0.0   0.0
-                 0.0   c/d  -b/d
-                 0.0   b/d   c/d ]
-
-        Rxi = [  1.0   0.0   0.0
-                 0.0   c/d   b/d
-                 0.0  -b/d   c/d ]
+    X = Vec3()
+    for node in bl.nodes
+        X = base + R*(node.coord-base)*conj(R)
+        node.coord .= round.(X, digits=8) 
     end
 
-    Ry  = [   d    0.0  -a
-             0.0    1.0  0.0
-              a    0.0   d ]
-
-    Ryi = [   d    0.0   a
-             0.0    1.0  0.0
-             -a    0.0   d ]
-
-    Rz  = [   l   -m   0.0
-              m    l   0.0
-             0.0   0.0   1.0 ]
-
-    # all rotations matrix
-    if d != 0.0
-        R = Rxi*Ryi*Rz*Ry*Rx
-    else
-        R = Ryi*Rz*Ry
-    end
-
-    coords =get_coords(bl.nodes)
-
-    # equation: p2 = base + R*(p-base)
-    coords = ( base .+ R*(coords' .- base) )'
-
-    setcoords!(bl.nodes, coords)
+    isinverted(bl) && flip!(bl)
 
     return bl
+
+    # # unit vector
+    # axis = axis/norm(axis)
+    # a, b, c = axis
+    # d = sqrt(b^2+c^2)
+
+    # # unit vector for rotation
+    # l = cos(angle*pi/180)
+    # m = sin(angle*pi/180)
+
+    # # Rotation matrices
+    # if d != 0.0
+    #     Rx  = [  1.0   0.0   0.0
+    #              0.0   c/d  -b/d
+    #              0.0   b/d   c/d ]
+
+    #     Rxi = [  1.0   0.0   0.0
+    #              0.0   c/d   b/d
+    #              0.0  -b/d   c/d ]
+    # end
+
+    # Ry  = [   d    0.0  -a
+    #          0.0    1.0  0.0
+    #           a    0.0   d ]
+
+    # Ryi = [   d    0.0   a
+    #          0.0    1.0  0.0
+    #          -a    0.0   d ]
+
+    # Rz  = [   l   -m   0.0
+    #           m    l   0.0
+    #          0.0   0.0   1.0 ]
+
+    # # all rotations matrix
+    # if d != 0.0
+    #     R = Rxi*Ryi*Rz*Ry*Rx
+    # else
+    #     R = Ryi*Rz*Ry
+    # end
+
+    # coords =get_coords(bl.nodes)
+
+    # # equation: p2 = base + R*(p-base)
+    # coords = ( base .+ R*(coords' .- base) )'
+
+    # setcoords!(bl.nodes, coords)
+
+    # return bl
 end
 
-function LinearAlgebra.rotate!(blocks::Array{T,1}; base=[0.0,0,0], axis=[0.0,0,1], angle=90.0 ) where T <: AbstractBlock
+function LinearAlgebra.rotate!(blocks::Array{<:AbstractBlock,1}; base=[0.0,0,0], axis=[0.0,0,1], angle=90.0 ) where T <: AbstractBlock
     for bl in blocks
         rotate!(bl, base=base, axis=axis, angle=angle)
     end
@@ -270,7 +303,7 @@ end
 Creates `n-1` copies of a `block` and places them using polar distribution based on
 a `base` point, an `axis` vector, a total `angle`.
 """
-function polar(bl::T; base=[0.0,0,0], axis=[0.0,0,1], angle=360, n=2 ) where T <: AbstractBlock
+function polar(bl::T; base=[0.0,0,0], axis=[0.0,0,1], angle=360, n=2 ) where T<:AbstractBlock
     blocks::Array{T,1} = [ bl ]
     angle = angle/n
     for i=1:n-1
@@ -281,15 +314,15 @@ function polar(bl::T; base=[0.0,0,0], axis=[0.0,0,1], angle=360, n=2 ) where T <
     return blocks
 end
 
-function polar(blocks::Array{T,1}; base=[0.0,0,0], axis=[0.0,0,1], angle=360, n=2 ) where T <: AbstractBlock
-    rblocks::Array{T,1} = []
+function polar(blocks::Array{T,1}; base=[0.0,0,0], axis=[0.0,0,1], angle=360, n=2 ) where T<:AbstractBlock
+    allblocks::Array{T,1} = []
 
     for bl in blocks
         bls = polar(bl, base=base, axis=axis, angle=angle, n=n)
-        append!(rblocks, bls)
+        append!(allblocks, bls)
     end
 
-    return rblocks
+    return allblocks
 end
 
 
@@ -306,8 +339,6 @@ function move!(mesh::Mesh; dx=0.0, dy=0.0, dz=0.0)
     end
     return mesh
 end
-
-
 
 function scale!(msh::Mesh; factor=1.0, base=[0.0,0,0])
     for p in msh.nodes
