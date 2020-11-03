@@ -124,7 +124,7 @@ function cplot(data::Array{<:NamedTuple},
     hint(options, level=3)
 
     hint("Arguments and optional arguments per curve:", level=2)
-    options = "x, y, color, ls, lw, marker, ms, mfc, label"
+    options = "x, y, color, ls, lw, marker, ms, mfc, label, tag, tagpos, tagloc"
     hint(options, level=3)
 
     @eval import PyPlot:plt, matplotlib, figure
@@ -241,7 +241,7 @@ function cplot(data::Array{<:NamedTuple},
     for (i, line) in enumerate(data)
         X = get(line, :x, 0).*xmult
         Y = get(line, :y, 0).*ymult
-        @assert length(X) == length(Y)
+        length(X) == length(Y) || error("cplot: (line $i) x and y lengths do not match")
         lw = get(line, :lw, 0.5)
         ls = get(line, :ls, "-")
         color = get(line, :color, "C$(i-1)")
@@ -252,10 +252,10 @@ function cplot(data::Array{<:NamedTuple},
         label = get(texlabels, label, label)
         label != "" && (haslegend=true)
 
-        (isa(lw, Number) && lw>0) || error("cplot: lw should be a number greater that zero. '$lw' was provided.")
-        (isa(ms, Number) && ms>0) || error("cplot: ms should be a number greater that zero. '$ms' was provided.")
-        ls in line_styles || error("cplot: ls should be one of $line_styles.\n\"$ls\" was provided.")
-        marker in markers || error("cplot: marker should be one of $markers. \n\"$markers\" was provided")
+        (isa(lw, Number) && lw>0) || error("cplot: (line $i) lw should be a number greater that zero. '$lw' was provided.")
+        (isa(ms, Number) && ms>0) || error("cplot: (line $i) ms should be a number greater that zero. '$ms' was provided.")
+        ls in line_styles || error("cplot: (line $i) ls should be one of $line_styles.\n\"$ls\" was provided.")
+        marker in markers || error("cplot: (line $i) marker should be one of $markers. \n\"$markers\" was provided")
         #(color isa Tuple || color in colors) || error("cplot: color should be one of $colors. \n\"$color\" was provided")
 
         plt.plot(X, Y, marker=marker, ms=ms, mfc=mfc, mew=0.5, color=color, lw=lw, ls=ls, label=label)
@@ -303,16 +303,15 @@ function cplot(data::Array{<:NamedTuple},
         for line in textlist
             x = get(line, :x, 0)
             y = get(line, :y, 0)
+            fontsize = get(line, :fontsize, tagfontsize)
             text = string(get(line, :text, ""))
-            plt.text(x, y, text)
+            plt.text(x, y, text, fontsize=fontsize)
         end
     end
 
     # line labels
     # from Axes to Data coords:  (ax.transAxes+ax.transData.inverted()).transform([x,y])
     # from Data to Axes coords:  (ax.transData+ax.transAxes.inverted()).transform([x,y])
-
-
     for (i, line) in enumerate(data)
         tag = get(line, :tag, "")
         tag != "" || continue
@@ -333,33 +332,38 @@ function cplot(data::Array{<:NamedTuple},
         len = 0.0
         x = y = 0.0
         for i=2:length(X)
-            len += √((X[i]-X[i-1])^2 + (Y[i]-Y[i-1])^2)
+            dlen = √((X[i]-X[i-1])^2 + (Y[i]-Y[i-1])^2)
+            len += dlen
             if len>=lpos
-                x = (X[i]+X[i-1])/2
-                y = (Y[i]+Y[i-1])/2
+                x = X[i] - (len-lpos)/dlen*(X[i]-X[i-1])
+                y = Y[i] - (len-lpos)/dlen*(Y[i]-Y[i-1])
                 break
             end
         end
 
+        # Alignment default upper right
         ha = "left"; va = "bottom"
-        dx = dy = 0.01
-        if loc==2
+        dx = dy = 0.01 
+        if loc==2 # upper left
             ha = "right"; va = "bottom"
             dx = -dx
-        elseif loc==3
+        elseif loc==3 # lower left
             ha = "right"; va = "top"
             dx = -dx; dy = -dy
-        elseif loc==4
+        elseif loc==4 # lower right
             ha = "left"; va = "top"
             dy = -dy
+        elseif loc==8 # lower center
+            ha = "center"; va = "top"
+            dx = 0.0; dy = -dy
+        elseif loc==9 # upper center
+            ha = "center"; va = "bottom"
+            dx = 0.0
         end
         
         xpos, ypos = x+dx, y+dy
         plt.text(xpos, ypos, tag, ha=ha, va=va, transform=ax.transAxes, fontsize=tagfontsize)
-        # plt.text(xpos, ypos, tag, ha=ha, va=va, transform=ax.transAxes)
-        # plt.text(xpos, ypos, linetag[i])
     end
-    # end   
      
     # show or save plot
     if filename=="" 
