@@ -8,9 +8,10 @@ const KeyType = Union{Symbol,AbstractString}
 const ColType = Array{T,1} where T
 
 mutable struct DataTable
-    columns ::Array{ColType,1}
-    colindex::OrderedDict{String,Int} # Data index
-    header::Array{String,1}
+    columns  :: Array{ColType,1}
+    colindex :: OrderedDict{String,Int} # Data index
+    header   :: Array{String,1}
+    name     :: String
     function DataTable(header::Array)
         this = new()
         header = vec(header)
@@ -22,7 +23,6 @@ mutable struct DataTable
 end
 
 
-
 function DataTable(header::Array, columns::Array{<:ColType,1})
     this      = DataTable(header)
     nfields   = length(header)
@@ -31,6 +31,7 @@ function DataTable(header::Array, columns::Array{<:ColType,1})
     this.columns = deepcopy(columns)
     return this
 end
+
 
 function DataTable(; kwargs...)
 
@@ -264,24 +265,30 @@ function Base.filter(table::DataTable, expr::Expr)
     return table[idx]
 end
 
-function resize(table::DataTable, n::Int)
+function resize(table::DataTable, n::Int=0; ratio=1.0)
+    np = length(table.columns[1]) # current number of points
+    if n==0
+        ratio > 0.0 || error("resize: ratio should be greater than zero")
+        n = max(2, round(Int, np*ratio))
+    end
+    n > 0 || error("resize: number of rows should be greater than zero")
+    np >= 4 || error("resize: Table object should contain at least 4 rows")
+
+    ns = np - 1                # number of spacings
+    nb = floor(Int64, ns/3)    # number of bezier curves
+    ds = 1.0 / nb              # spacing between curves
 
     newtable = DataTable(table.header)
-    np = length(table.columns[1])
-    ns = np - 1          # number of spacings
-    nb   = floor(Int64, ns/3)    # number of bezier curves
-    Ds   = 1.0 / nb        # spacing between curves
-
     for (j,field) in enumerate(table.header)
         U = table[field]
         V = zeros(n)
 
         for (i,s) in enumerate(range(0.0, 1.0, length=n))
             # find index of Bezier and local coordinate t
-            ib = floor(Int64, s/Ds) + 1   # index of Bezier
+            ib = floor(Int64, s/ds) + 1   # index of Bezier
             ib > nb && (ib = nb)          # fix index if s ~= 1+eps
-            s0 = (ib-1) * Ds              # s @ left point
-            t  = (s - s0) / Ds            # local t for current Bezier
+            s0 = (ib-1) * ds              # s @ left point
+            t  = (s - s0) / ds            # local t for current Bezier
             t > 1.0 && (t = 1.0)          # clean rubbish. e.g. 1.00000000002
         
             # collect control points
