@@ -1,4 +1,4 @@
-export mplot
+export mplot, mplotcolorbar
 
 const MOVETO = 1
 const LINETO = 2
@@ -889,23 +889,25 @@ end
 
 
 
-function mplot_colorbar(
-                        filename::String = "";
-                        colormap         = nothing,
-                        fieldlims        = (0.0,1.0),
-                        #colormaplims     = (0.0,1.0),
-                        #shrinkcolor      = false,
-                        #darkcolor        = false,
-                        #lightcolor       = false,
-                        #vividcolor       = false,
-                        #divergingcolor   = false,
-                        colorbarscale    = 0.9,
-                        colorbarlabel    = "",
-                        colorbarlocation = "right",
-                        colorbarorientation = "vertical",
-                        figsize          = (3,2.5),
-                        crop             = false,
-                       )
+function mplotcolorbar(
+    filename :: String  = "";
+    colormap            = "coolwarm",
+    fieldlims           = (0.0,1.0),
+    nbins               = 0,
+    digits              = -5,
+    discrete            = false,
+    #colormaplims        = (0.0,1.0),
+    #shrinkcolor         = false,
+    #darkcolor           = false,
+    #lightcolor          = false,
+    #vividcolor          = false,
+    #divergingcolor      = false,
+    scale               = 0.9,
+    label               = "",
+    orientation         = "vertical",
+    figsize             = (3,2.5),
+    crop                = false,
+)    
 
     # Lazy import of PyPlot
     @eval import PyPlot:plt, matplotlib, figure, art3D, Axes3D, ioff, ColorMap
@@ -925,26 +927,38 @@ function mplot_colorbar(
     plt.rc("legend", fontsize=6)
     plt.rc("figure", figsize=figsize) # suggested size (4.5,3)
 
-
-    fig = plt.figure()
-    colorbarscale = 0.5
+    fig = @eval plt.figure()
+    scale  = 0.5
     aspect = 25
-    axes = fig.add_axes([0, 0, colorbarscale/aspect, colorbarscale])
+    axes = fig.add_axes([0, 0, scale/aspect, scale])
 
     cmap = matplotlib.cm.get_cmap(colormap)
+    if discrete
+        cmap = matplotlib.cm.get_cmap(colormap, nbins)
+    end
+
+    if nbins>0
+        ticks = collect(range(fieldlims[1], fieldlims[2], length=nbins+1))
+        if digits>-5
+            ticks = round.(ticks, digits=digits)
+        end
+    end
 
     cbar = matplotlib.colorbar.ColorbarBase(axes, 
-                                            label=colorbarlabel,
+                                            label=label,
                                             norm=matplotlib.colors.Normalize(fieldlims[1], fieldlims[2]),
                                             #values=fieldlims,
                                             drawedges=false,
                                             #boundaries=fieldlims,
-                                            orientation=colorbarorientation, 
-                                            cmap=cmap)
+                                            orientation=orientation, 
+                                            cmap=cmap,
+                                            # ticks=ticks,
+                                            )
 
     cbar.ax.tick_params(labelsize=7)
     cbar.outline.set_linewidth(0.0)
-    cbar.locator = matplotlib.ticker.MaxNLocator(nbins=8)
+    # cbar.locator = matplotlib.ticker.MaxNLocator(nbins=nbins)
+    cbar.set_ticks(ticks)
     cbar.update_ticks()
     cbar.solids.set_alpha(1)
 
@@ -1006,22 +1020,23 @@ Plots linear `elems` using `PyPlot` backend. If `filename` is provided it writes
 
 """
 
-function mplot_linear(
-                      elems,
-                      filename   = "";
-                      field      = nothing,
-                      fieldscale = 1.0,
-                      fieldunits = "",
-                      barscale   = 1.0,
-                      axis       = true,
-                      xlabel     = "",
-                      ylabel     = "",
-                      xlim       = nothing,
-                      ylim       = nothing,
-                      legendlabels = [],
-                      showscale = true,
-                      scalepos  = (0.6, 0.05)
-                     )
+function mplot(
+    elems::Array{Element,1},
+    filename   = "";
+    field      = nothing,
+    fieldscale = 1.0,
+    fieldunits = "",
+    barscale   = 1.0,
+    axis       = true,
+    xlabel     = "",
+    ylabel     = "",
+    xlim       = nothing,
+    ylim       = nothing,
+    legendlabels = [],
+    showscale = true,
+    scalepos  = (0.6, 0.05),
+)
+    
     @eval import PyPlot:plt, matplotlib, figure, gca, ioff
     @eval ioff()
 
