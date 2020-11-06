@@ -659,3 +659,23 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
     F[map_w] .+= dFw
     return CallStatus(true)
 end
+
+function elem_extrapolated_node_vals(elem::HydroMechJoint)
+    nips = length(elem.ips)
+
+    E  = extrapolator(elem.shape.facet_shape, nips)
+    Sn = E*[ ip.state.σ[1] for ip in elem.ips ]
+    Wn = E*[ ip.state.w[1] for ip in elem.ips ]
+    Uwn = E*[ ip.state.uw[3] for ip in elem.ips ]
+
+    S0 = Sn*0.0
+    W0 = Wn*0.0
+    Uw0 = Uwn*0.0
+
+    node_vals = OrderedDict{Symbol, Array{Float64,1}}()
+    node_vals[:sn] = [ Sn; Sn; S0 ]
+    node_vals[:wn] = [ Wn; Wn; W0]
+    node_vals[:uwn] = [ Uwn; Uwn; Uw0]
+
+    return node_vals
+end
