@@ -225,6 +225,10 @@ function Base.lastindex(book::DataBook)
 end
 
 
+function Base.length(book::DataBook)
+    return length(book.tables)
+end
+
 function Base.iterate(book::DataBook, state=(nothing,1) )
     table, idx = state
     if idx<=length(book.tables)
@@ -317,6 +321,23 @@ function resize(table::DataTable, n::Int=0; ratio=1.0)
     end
 
     return newtable
+end
+
+function denoise(table::DataTable, field; fraction=0.1)
+    n = length(table.columns[1]) # current number of points  
+    n >= 5 || error("denise: Table object should contain at least 5 rows to denoise")
+
+    V = zeros(n)
+
+    for i in 2:n-1
+        idx1 = max(1, i-2)
+        idx2 = min(n, i+2)
+        
+
+    end
+
+    newtable = table[:]
+    
 end
 
 

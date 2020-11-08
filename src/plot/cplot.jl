@@ -111,8 +111,11 @@ function cplot(data::Array{<:NamedTuple},
                labelspacing     = 0.5, 
                textlist         = [],  # e.g. [ (x=4, y=2, text="C1"), ]
                tagpos           = 0.5,
-               tagloc           = 1,   # e.g. 1,2,3,4
+               tagloc           = "top",   # e.g. 1,2,3,4
+               tagdist          = 0.005, 
                tagfontsize      = 6,
+               tagcolor         = "black",
+               tagalign         = true,
               )
 
     headline("Chart plotting")
@@ -124,7 +127,7 @@ function cplot(data::Array{<:NamedTuple},
     hint(options, level=3)
 
     hint("Arguments and optional arguments per curve:", level=2)
-    options = "x, y, color, ls, lw, marker, ms, mfc, label, tag, tagpos, tagloc"
+    options = "x, y, color, ls, lw, marker, ms, mfc, label, tag, tagpos, tagloc, tagdist, tagfontsize, tagcolor, tagalign"
     hint(options, level=3)
 
     @eval import PyPlot:plt, matplotlib, figure
@@ -211,7 +214,7 @@ function cplot(data::Array{<:NamedTuple},
         plt.rc("lines", lw=0.7)
         plt.rc("lines", markersize=1.5)
         plt.rc("axes" , linewidth=0.5)
-        plt.rc("figure", figsize=(3, 2))
+        plt.rc("figure", figsize=figsize)
         legendfontsize==0 && (legendfontsize=fontsize)
         plt.rc("legend", fontsize=legendfontsize)
     else
@@ -316,53 +319,126 @@ function cplot(data::Array{<:NamedTuple},
         tag = get(line, :tag, "")
         tag != "" || continue
 
-        X = get(line, :x, 0).*xmult
-        Y = get(line, :y, 0).*ymult
-        pos = get(line, :tagpos, tagpos)
-        loc = get(line, :tagloc, tagloc)
-        XY = (ax.transData+ax.transAxes.inverted()).transform([X Y])
-        X = XY[:,1]
-        Y = XY[:,2]
+        X     = get(line, :x, 0).*xmult
+        Y     = get(line, :y, 0).*ymult
+        color = get(line, :tagcolor, tagcolor)
+        color = color=="" ? get(line, :color, "C$(i-1)") : color
+        pos   = get(line, :tagpos, tagpos)
+        loc   = get(line, :tagloc, tagloc)
+        dist  = get(line, :tagdist, tagdist)
+        align = get(line, :tagalign, tagalign)
+        XY    = (ax.transData+ax.transAxes.inverted()).transform([X Y])
+        X     = XY[:,1]
+        Y     = XY[:,2]
 
-        len = 0.0
-        for i=2:length(X)
-            len += √((X[i]-X[i-1])^2 + (Y[i]-Y[i-1])^2)
-        end
-        lpos = pos*len
-        len = 0.0
         x = y = 0.0
-        for i=2:length(X)
-            dlen = √((X[i]-X[i-1])^2 + (Y[i]-Y[i-1])^2)
-            len += dlen
-            if len>=lpos
-                x = X[i] - (len-lpos)/dlen*(X[i]-X[i-1])
-                y = Y[i] - (len-lpos)/dlen*(Y[i]-Y[i-1])
-                break
+        dx = dy = 0.0
+        α = 0.0
+        # @show X
+        if pos isa Array
+            # X_ = pos[:,1]
+            # Y_ = pos[:,2]
+            n = length(X)
+            m = length(pos)
+            found = false # j
+            for j=2:m
+                # A1x, A1y = X_[j-1], Y_[j-1]
+                # A2x, A2y = X_[j], Y_[j]
+                A1x, A1y = pos[j-1]
+                A2x, A2y = pos[j] .+ 1e-3
+
+                for i=2:n
+                    B1x, B1y = X[i-1], Y[i-1]
+                    B2x, B2y = X[i], Y[i]
+
+                    max(A1x, A2x) < min(B1x, B2x)  && continue
+                    min(A1x, A2x) > max(B1x, B2x)  && continue
+
+                    M = [ A2x-A1x B1x-B2x
+                          A2y-A1y B1y-B2y ]
+                    r, s = inv(M)*[ B1x-A1x, B1y-A1y ]
+                    x, y = (A1x + r*(A2x-A1x), A1y + r*(A2y-A1y))
+                    # @s (A1x, A1y)
+                    # @s (B1x, B1y)
+                    # @s (r,s)
+                    # @s (x,y)
+
+                    # @s j
+
+                    if A1x <= x <= A2x && B1x <= x <= B2x
+                        α = atand(Y[i]-Y[i-1], X[i]-X[i-1])
+                        dx = dist*abs(cosd(α))
+                        dy = dist*abs(sind(α))
+                        found = true
+                        break
+                    end
+                end
+
+                found && break
+            end
+        else
+            len = 0.0
+            for i=2:length(X)
+                len += √((X[i]-X[i-1])^2 + (Y[i]-Y[i-1])^2)
+            end
+            lpos = pos*len
+            len = 0.0
+
+            for i=2:length(X)
+                dlen = √((X[i]-X[i-1])^2 + (Y[i]-Y[i-1])^2)
+                len += dlen
+                if len>=lpos
+                    x = X[i] - (len-lpos)/dlen*(X[i]-X[i-1])
+                    y = Y[i] - (len-lpos)/dlen*(Y[i]-Y[i-1])
+                    α = atand(Y[i]-Y[i-1], X[i]-X[i-1])
+                    dx = dist*abs(cosd(α))
+                    dy = dist*abs(sind(α))
+                    break
+                end
             end
         end
 
-        # Alignment default upper right
-        ha = "left"; va = "bottom"
-        dx = dy = 0.01 
-        if loc==2 # upper left
-            ha = "right"; va = "bottom"
-            dx = -dx
-        elseif loc==3 # lower left
-            ha = "right"; va = "top"
-            dx = -dx; dy = -dy
-        elseif loc==4 # lower right
-            ha = "left"; va = "top"
-            dy = -dy
-        elseif loc==8 # lower center
-            ha = "center"; va = "top"
-            dx = 0.0; dy = -dy
-        elseif loc==9 # upper center
-            ha = "center"; va = "bottom"
-            dx = 0.0
+
+        # Default location "top"
+        if loc in ("top", "t", 't')
+            if 0 < α <= 90 || -180 < α <= -90
+                ha = "right"; va = "bottom"
+                dx, dy = -dy, dx
+            elseif 90 < α <= 180 || -90 < α <= 0
+                ha = "left"; va = "bottom"
+                dx, dy = dy, dx
+            end
+        else
+            if 0 < α <= 90 || -180 < α <= -90
+                ha = "left"; va = "top"
+                dx, dy = dy, -dx*5
+            elseif 90 < α <= 180 || -90 < α <= 0
+                ha = "right"; va = "top"
+                dx, dy = -dy, -dx*5
+            end
         end
-        
+
         xpos, ypos = x+dx, y+dy
-        plt.text(xpos, ypos, tag, ha=ha, va=va, transform=ax.transAxes, fontsize=tagfontsize)
+
+        if align
+            align && (ha="center")
+            
+            # println()
+            # @s α
+            90<α<=180 && (α=α-180)
+            -180<α<=-90 && (α=α+180)
+            # @s α
+            angle = ax.transAxes.transform_angles([α], [1.0 1.0])[1]
+        else
+            angle = 0.0
+        end
+
+        # plt.text(xpos, ypos, tag, ha=ha, va=va, color=color, fontsize=tagfontsize, transform=ax.transAxes)
+        plt.text(
+            xpos, ypos, tag, ha=ha, va=va, color=color, fontsize=tagfontsize, 
+            rotation=angle, rotation_mode="anchor",
+            transform=ax.transAxes
+            )
     end
      
     # show or save plot
