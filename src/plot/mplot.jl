@@ -297,6 +297,7 @@ function mplot(
                linelw          = 1.0,
                linecolor        = "red",
                nodemarkers      = false,
+               linenodemarkers  = false,
                ms               = 0.5,
                nodelabels       = false,
                celllabels       = false,
@@ -357,10 +358,33 @@ function mplot(
     if ndim==2
         node_data = mesh.node_data
         elem_data = mesh.elem_data
-        nodes   = mesh.nodes
-        cells   = mesh.elems
-        connect = [ [ p.id for p in c.nodes ] for c in cells ] # Do not use type specifier inside comprehension to avoid problem with Revise
+
+        # filter bulk and line elements
+        area_cells = [ elem for elem in mesh.elems if elem.shape.ndim==2 ]
+        linecells  = [ cell for cell in mesh.elems if cell.shape.family==LINE_SHAPE]
+        newcells   = [ area_cells; linecells ]
+        c_ids      = [ [c.id for c in area_cells]; [c.id for c in linecells] ]
+        newnodes   = [ p for c in newcells for p in c.nodes ]
+        pt_ids     = [ p.id for p in newnodes ]
+
+        # update data
+        for (field, data) in mesh.node_data
+            node_data[field] = data[pt_ids,:]
+        end
+        for (field, data) in mesh.elem_data
+            elem_data[field] = data[c_ids]
+        end
+
+        # nodes and cells
+        nodes = newnodes
+        cells = newcells
+        
+        # connectivities
         id_dict = Dict{Int, Int}( p.id => i for (i,p) in enumerate(nodes) )
+        connect = [ [ id_dict[p.id] for p in c.nodes ] for c in cells ] # Do not use type specifier inside comprehension to avoid problem with Revise
+        
+        # connect = [ [ p.id for p in c.nodes ] for c in cells ] # Do not use type specifier inside comprehension to avoid problem with Revise
+        # id_dict = Dict{Int, Int}( p.id => i for (i,p) in enumerate(nodes) )
     else
         node_data = OrderedDict{String,Array}()
         elem_data  = OrderedDict{String,Array}()
@@ -387,11 +411,9 @@ function mplot(
 
         newnodes = [ p for c in newcells for p in c.nodes ]
         pt_ids = [ p.id for p in newnodes ]
-        #@show pt_ids
 
         # update data
         for (field, data) in mesh.node_data
-            #@show field
             node_data[field] = data[pt_ids,:]
         end
         for (field, data) in mesh.elem_data
@@ -409,7 +431,7 @@ function mplot(
         # observer and light vectors
         V = [ cosd(elev)*cosd(azim), cosd(elev)*sind(azim), sind(elev) ]
 
-        lightvector==nothing && (lightvector=V) 
+        lightvector===nothing && (lightvector=V) 
         if lightvector isa Array
             L = lightvector
         else
@@ -795,24 +817,30 @@ function mplot(
         end
     end
 
-  #  # Draw nodes
-  #  if nodemarkers
-  #      if ndim==3
-  #          ax.scatter(X, Y, Z, color="black", marker="o", s=ms)
-  #      else
-  #          plt.plot(X, Y, color="black", marker="o", markersize=ms, lw=0)
-  #      end
-  #  end
+    # Draw nodes
+    if nodemarkers
+        X = [ node.coord.x for node in nodes ]
+        Y = [ node.coord.y for node in nodes ]
+        if ndim==3
+            Z = [ node.coord.z for node in nodes ]
+            ax.scatter(X, Y, Z, color="black", marker="o", s=ms)
+        else
+            plt.plot(X, Y, color="black", marker="o", markersize=ms, lw=0)
+        end
+    end
 
-  #  # Node markers on line cells
-  #  ids = unique!([ id for i=1:ncells for id in connect[i] if cells[i].shape.family==LINE_SHAPE ])
-  #  if length(ids)>0
-  #      if ndim==3
-  #          ax.scatter(X[ids], Y[ids], Z[ids], marker="o", s=ms, facecolor="black", edgecolor="none", depthshade=false)
-  #      else
-  #          plt.plot(X[ids], Y[ids], color="black", marker="o", markersize=ms, lw=0)
-  #      end
-  #  end
+   # Node markers on line cells
+#    ids = unique!([ id for i=1:ncells for id in connect[i] if cells[i].shape.family==LINE_SHAPE ])
+    if linenodemarkers
+        X = [ node.coord.x for line in linecells for node in line.nodes ]
+        Y = [ node.coord.y for line in linecells for node in line.nodes ]
+        if ndim==3
+            Z = [ node.coord.z for line in linecells for node in line.nodes ]
+            ax.scatter(X, Y, Z, marker="o", s=ms, facecolor="black", edgecolor="none", depthshade=false)
+        else
+            plt.plot(X, Y, color="black", marker="o", markersize=ms, lw=0)
+        end
+    end
 
   #  # Draw arrows
   #  if vectorfield!=nothing && ndim==2
@@ -1022,7 +1050,7 @@ Plots linear `elems` using `PyPlot` backend. If `filename` is provided it writes
 
 function mplot(
     elems::Array{Element,1},
-    filename   = "";
+    filename::String = "";
     field      = nothing,
     fieldscale = 1.0,
     fieldunits = "",
@@ -1056,15 +1084,13 @@ function mplot(
     n = size(coords, 1)
     sumx = sum(coords[:,1])
     sumy = sum(coords[:,2])
-    #sumz = sum(coords[:,3])
+    sumz = sum(coords[:,3])
     avgx = sumx/n
     avgy = sumy/n
-    #avgz = sumz/n
+    avgz = sumz/n
     devx = sum((coords[:,1].-avgx).^2)/n
     devy = sum((coords[:,2].-avgy).^2)/n
-    #devz = sum((coords[:,3].-avgz)^2)
-    #@show devx
-    #@show devy
+    devz = sum((coords[:,3].-avgz).^2)/n
     tol = 1e-10
 
     if devy<tol
@@ -1077,11 +1103,16 @@ function mplot(
         yidx = 3
         xlabel=="" && (xlabel=raw"$y$")
         ylabel=="" && (ylabel=raw"$z$")
-    else
+    elseif devz<tol
         xidx = 1
         yidx = 2
         xlabel=="" && (xlabel=raw"$x$")
         ylabel=="" && (ylabel=raw"$y$")
+    else
+        xidx = 1
+        yidx = 3
+        xlabel=="" && (xlabel=raw"$x$")
+        ylabel=="" && (ylabel=raw"$z$")
     end
     
     #@show xidx
@@ -1149,7 +1180,7 @@ function mplot(
         xpos, ypos = scalepos
 
         plt.text(xpos, ypos, "$(refval*abs(fieldscale)) $fieldunits", transform = gca().transAxes)
-        dy = 0.05
+        dy = 0.06
         if vmin<0
             plt.plot([xpos, xpos+scalelen], [ypos+dy, ypos+dy], "tab:blue", ls="-", lw=1, solid_capstyle="round", zorder=1, transform = gca().transAxes)
             dy += 0.02
