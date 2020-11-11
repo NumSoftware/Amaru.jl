@@ -1,11 +1,12 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export DataTable, DataBook, push!, save, loadtable, loadbook, randtable, compress, resize, filter
+export DataTable, DataBook, push!, save, loadtable, loadbook, randtable, compress, resize, filter, cut, denoise
 
 
 # DataTable object
 const KeyType = Union{Symbol,AbstractString}
 const ColType = Array{T,1} where T
+# const ColType = Array{Any,1}
 
 mutable struct DataTable
     columns  :: Array{ColType,1}
@@ -15,7 +16,8 @@ mutable struct DataTable
     function DataTable(header::Array)
         this = new()
         header = vec(header)
-        this.columns  = [ [] for s in header ]
+        @assert length(header) == length(unique(header))
+        this.columns  = ColType[ [] for s in header ]
         this.colindex = OrderedDict( string(key)=>i for (i,key) in enumerate(header) )
         this.header   = string.(header)
         return this
@@ -51,17 +53,45 @@ function DataTable(header::Array, matrix::Array{T,2} where T)
     ncols  = size(matrix,2)
     nkeys != ncols && error("DataTable: header and number of data columns do not match")
     types = [ typeof(matrix[1,i]) for i=1:ncols ]
-    this.columns = [ convert(Array{types[i],1}, matrix[:,i]) for i=1:ncols ]
+    this.columns = ColType[ convert(Array{types[i],1}, matrix[:,i]) for i=1:ncols ]
     return this
 end
 
 
-import Base.push!
-function push!(table::DataTable, row::Array{T,1} where T)
+function Base.getproperty(table::DataTable, sym::Symbol)
+    key = string(sym)
+    # @s key
+    # @s getfield(table, :header)
+    if key in getfield(table, :header)
+        idx = getfield(table, :colindex)[key]
+        return getfield(table, :columns)[idx]
+    end
+
+    return getfield(table, sym)
+end
+
+
+function Base.setproperty!(table::DataTable, sym::Symbol, val)
+    key = string(sym)
+
+    if !isdefined(table, :header)
+        setfield!(table, sym, val)
+        return
+    end
+
+    if key in getfield(table, :header)
+        setindex!(table, val, key)
+    else
+        setfield!(table, sym, val)
+    end
+end
+
+
+function Base.push!(table::DataTable, row::Array{T,1} where T)
     @assert length(table.colindex)==length(row)
 
     if length(table.columns[1])==0
-        table.columns = [ typeof(v)[v] for v in row  ]
+        table.columns = ColType[ typeof(v)[v] for v in row  ]
     else
         for (i,val) in enumerate(row)
             push!(table.columns[i], val)
@@ -107,22 +137,24 @@ end
 
 
 function Base.setindex!(table::DataTable, column::ColType, key::KeyType)
-    col = column
+    columns  = table.columns
+    colindex = table.colindex
+    header   = table.header
 
-    if length(table.columns)>0
-        n1 = length(table.columns[1])
+    if length(columns)>0
+        n1 = length(columns[1])
         n2 = length(column)
         n1!=n2 && error("setindex! : length ($n2) for data ($key) is incompatible with DataTable rows ($n1)")
     end
 
     key = string(key)
-    if haskey(table.colindex, key)
-        idx = table.colindex[key]
-        table.columns[idx] = column
+    if haskey(colindex, key)
+        idx = colindex[key]
+        columns[idx] = column
     else
-        push!(table.columns, column)
-        push!(table.header, key)
-        table.colindex[key] = length(table.columns)
+        push!(columns, column)
+        push!(header, key)
+        colindex[key] = length(columns)
     end
     return column
 end
@@ -210,7 +242,7 @@ mutable struct DataBook
 end
 
 
-function push!(book::DataBook, table::DataTable)
+function Base.push!(book::DataBook, table::DataTable)
     push!(book.tables, table)
 end
 
@@ -255,6 +287,7 @@ function compress(table::DataTable, n::Int)
     return subtable
 end
 
+
 function Base.filter(table::DataTable, expr::Expr)
     fields = get_vars(expr)
     vars   = Dict{Symbol, Float64}()
@@ -268,6 +301,7 @@ function Base.filter(table::DataTable, expr::Expr)
     end
     return table[idx]
 end
+
 
 function resize(table::DataTable, n::Int=0; ratio=1.0)
     np = length(table.columns[1]) # current number of points
@@ -323,21 +357,85 @@ function resize(table::DataTable, n::Int=0; ratio=1.0)
     return newtable
 end
 
-function denoise(table::DataTable, field; fraction=0.1)
-    n = length(table.columns[1]) # current number of points  
-    n >= 5 || error("denise: Table object should contain at least 5 rows to denoise")
 
-    V = zeros(n)
-
-    for i in 2:n-1
-        idx1 = max(1, i-2)
-        idx2 = min(n, i+2)
-        
-
+function cut(table::DataTable, field, value=0.0; after=false)
+    table = table[:] # get a copy
+    V = table[field] .- value
+    for i=2:length(V)
+        if V[i-1]*V[i] <= 0
+            α = -V[i-1]/(V[i]-V[i-1]) 
+            for (j,field) in enumerate(table.header)
+                W = table[field]
+                W[i] = W[i-1] + α*(W[i]-W[i-1])
+            end
+            rng = 1:i
+            after && (rng=1:length(V))
+            return table[rng]
+        end
     end
 
+    return table
+end
+
+
+function denoise(table::DataTable, fieldx, fieldy=nothing; noise=0.05, npatch=4)
+    n = length(table.columns[1]) # current number of points  
+
+    if fieldy === nothing
+        X = range(0,1,length=n)
+        Y = table[fieldx]
+    else
+        X = table[fieldx]
+        Y = table[fieldy]
+    end
+
+    M  = ones(npatch,2)
+    A  = zeros(2)
+    ΔY = [ Float64[] for i=1:n ]
+
+    for i=1:n-npatch+1        
+        rng = i:i+npatch-1
+        Xp = X[rng]
+        Yp = Y[rng]
+
+        # Linear regression
+        M[:,2] .= Xp
+        A  = pinv(M)*Yp
+        ΔYp = abs.(Yp .- M*A)
+
+        for (j,k) in enumerate(rng)
+            push!(ΔY[k], ΔYp[j])
+        end
+    end
+
+    idxs = minimum.(ΔY) .<= noise*(maximum(Y)-minimum(Y))
+    idxs[1:npatch] .= 1
+    idxs[end-npatch+1:end] .= 1
+
     newtable = table[:]
-    
+    # for i in (1:n)[idxs]
+    #     j = findprev(!iszero, idxs, i-1)
+    #     k = findnext(!iszero, idxs, i+1)
+    #     r = (X[i]-X[j])/(X[k]-X[j])
+
+    #     for fieldx in table.header
+    #         V = newtable[fieldx]
+    #         V[i] = V[j] + r*(V[k]-V[j])
+    #     end
+    # end
+
+    # Linear interpolation of dropped points
+    for fieldx in table.header
+        V = newtable[fieldx]
+        for i in (1:n)[.!idxs]
+            j = findprev(!iszero, idxs, i-1)
+            k = findnext(!iszero, idxs, i+1)
+            r = (X[i]-X[j])/(X[k]-X[j])
+            V[i] = V[j] + r*(V[k]-V[j])
+        end
+    end
+
+    return newtable
 end
 
 
@@ -680,4 +778,4 @@ function Base.show(io::IO, book::DataBook)
 end
 
 
-randtable() = DataTable(["A","B","C"], [0:10 rand().*(sin.(0:10).+(0:10)) rand().*(cos.(0:10).+(0:10)) ])
+randtable() = DataTable(["x","y","z"], [0:10 rand().*(sin.(0:10).+(0:10)) rand().*(cos.(0:10).+(0:10)) ])
