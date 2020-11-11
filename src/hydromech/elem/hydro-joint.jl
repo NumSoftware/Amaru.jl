@@ -405,3 +405,15 @@ function elem_update!(elem::HydroJoint, U::Array{Float64,1}, F::Array{Float64,1}
     F[map_w] .+= dFw
     return CallStatus(true)
 end
+
+function elem_extrapolated_node_vals(elem::HydroJoint)
+    nips = length(elem.ips)
+
+    E  = extrapolator(elem.shape.facet_shape, nips)
+    Uwn = E*[ ip.state.uw[3] for ip in elem.ips ]
+
+    node_vals = OrderedDict{Symbol, Array{Float64,1}}()
+    node_vals[:uwn] = [ Uwn; Uwn; Uwn]
+
+    return node_vals
+end
