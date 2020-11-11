@@ -321,12 +321,17 @@ function cplot(data::Array{<:NamedTuple},
 
         X     = get(line, :x, 0).*xmult
         Y     = get(line, :y, 0).*ymult
-        color = get(line, :tagcolor, tagcolor)
-        color = color=="" ? get(line, :color, "C$(i-1)") : color
         pos   = get(line, :tagpos, tagpos)
         loc   = get(line, :tagloc, tagloc)
         dist  = get(line, :tagdist, tagdist)
         align = get(line, :tagalign, tagalign)
+        color = get(line, :tagcolor, tagcolor)
+        
+        if color==""
+            color = get(line, :color, "C$(i-1)")
+            color = 0.85.*matplotlib.colors.to_rgb(color)
+        end
+
         XY    = (ax.transData+ax.transAxes.inverted()).transform([X Y])
         X     = XY[:,1]
         Y     = XY[:,2]
@@ -336,14 +341,10 @@ function cplot(data::Array{<:NamedTuple},
         α = 0.0
         # @show X
         if pos isa Array
-            # X_ = pos[:,1]
-            # Y_ = pos[:,2]
             n = length(X)
             m = length(pos)
             found = false # j
             for j=2:m
-                # A1x, A1y = X_[j-1], Y_[j-1]
-                # A2x, A2y = X_[j], Y_[j]
                 A1x, A1y = pos[j-1]
                 A2x, A2y = pos[j] .+ 1e-3
 
@@ -358,12 +359,6 @@ function cplot(data::Array{<:NamedTuple},
                           A2y-A1y B1y-B2y ]
                     r, s = inv(M)*[ B1x-A1x, B1y-A1y ]
                     x, y = (A1x + r*(A2x-A1x), A1y + r*(A2y-A1y))
-                    # @s (A1x, A1y)
-                    # @s (B1x, B1y)
-                    # @s (r,s)
-                    # @s (x,y)
-
-                    # @s j
 
                     if A1x <= x <= A2x && B1x <= x <= B2x
                         α = atand(Y[i]-Y[i-1], X[i]-X[i-1])
@@ -432,6 +427,7 @@ function cplot(data::Array{<:NamedTuple},
         else
             angle = 0.0
         end
+
 
         # plt.text(xpos, ypos, tag, ha=ha, va=va, color=color, fontsize=tagfontsize, transform=ax.transAxes)
         plt.text(
