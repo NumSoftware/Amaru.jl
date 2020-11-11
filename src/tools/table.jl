@@ -6,7 +6,6 @@ export DataTable, DataBook, push!, save, loadtable, loadbook, randtable, compres
 # DataTable object
 const KeyType = Union{Symbol,AbstractString}
 const ColType = Array{T,1} where T
-# const ColType = Array{Any,1}
 
 mutable struct DataTable
     columns  :: Array{ColType,1}
