@@ -1,6 +1,8 @@
 include("callstatus.jl")
 include("iteration.jl")
 
+include("show.jl")
+
 include("constants.jl")
 include("math.jl")
 
@@ -11,7 +13,6 @@ include("tensors.jl")
 
 include("table.jl")
 include("expr.jl")
-include("show.jl")
 include("utils.jl")
 include("stopwatch.jl")
 include("xml.jl")
