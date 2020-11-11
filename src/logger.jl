@@ -53,7 +53,7 @@ end
 
 mutable struct IpLogger<:SingleLogger
     filename ::String
-    filter   ::Union{Symbol,String,Expr}
+    filter   ::Union{Int,Symbol,String,Expr}
     table    ::DataTable
     ip       ::Ip
 
@@ -65,6 +65,9 @@ end
 
 function setup_logger!(domain, filter, logger::IpLogger)
     logger.filter = filter
+    if filter isa Integer
+        return domain.elems[:ips][filter]
+    end
     #logger.filter==:() && return
     ips = domain.elems[:ips][filter]
     n = length(ips)
