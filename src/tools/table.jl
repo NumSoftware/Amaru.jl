@@ -29,7 +29,7 @@ function DataTable(header::Array, columns::Array{<:ColType,1})
     nfields   = length(header)
     ncols     = length(columns)
     nfields  != ncols && error("DataTable: header and number of data columns do not match")
-    this.columns = deepcopy(columns)
+    this.columns = ColType[ copy(col) for col in columns ]
     return this
 end
 
