@@ -105,9 +105,9 @@ end
 
 function Base.push!(table::DataTable, dict::AbstractDict)
     if length(table.columns)==0
-        table.columns  = [ typeof(v)[v] for (k,v) in dict ]
-        table.colindex = OrderedDict( string(key)=>i for (i,key) in enumerate(keys(dict)) )
-        table.header   = string.(keys(dict))
+        table.columns  = ColType[ typeof(v)[v] for (k,v) in dict ]
+        table.colindex = OrderedDict{String,Int}( string(key)=>i for (i,key) in enumerate(keys(dict)) )
+        table.header   = String[ string(key) for key in keys(dict) ]
     else
         nrows = length(table.columns[1])
         for (k,v) in dict
