@@ -17,8 +17,8 @@ mutable struct DataTable
         header = vec(header)
         @assert length(header) == length(unique(header))
         this.columns  = ColType[ [] for s in header ]
-        this.colindex = OrderedDict( string(key)=>i for (i,key) in enumerate(header) )
-        this.header   = string.(header)
+        this.colindex = OrderedDict{String,Int}( string(key)=>i for (i,key) in enumerate(header) )
+        this.header   = String[ string(key) for key in header ]
         return this
     end
 end
@@ -143,7 +143,7 @@ function Base.setindex!(table::DataTable, column::ColType, key::KeyType)
     if length(columns)>0
         n1 = length(columns[1])
         n2 = length(column)
-        n1!=n2 && error("setindex! : length ($n2) for data ($key) is incompatible with DataTable rows ($n1)")
+        n1>0 && n1!=n2 && error("setindex! : length ($n2) for data ($key) is incompatible with DataTable rows ($n1)")
     end
 
     key = string(key)
