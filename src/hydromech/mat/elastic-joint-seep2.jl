@@ -37,13 +37,13 @@ mutable struct ElasticJointSeep2<:Material
     β  ::Float64        # compressibility of fluid
     η  ::Float64        # viscosity
     kt ::Float64        # leak-off coefficient
-    kl ::Float64        # initial fracture opening (longitudinal flow)
+    w  ::Float64        # initial fracture opening (longitudinal flow)
 
     function ElasticJointSeep2(prms::Dict{Symbol,Float64})
         return  ElasticJoint2(;prms...)
     end
 
-    function ElasticJointSeep2(;E=NaN, nu=NaN, zeta=NaN, gammaw=NaN, eta=NaN, beta=0.0, kt=NaN, kl=0.0)
+    function ElasticJointSeep2(;E=NaN, nu=NaN, zeta=NaN, gammaw=NaN, eta=NaN, beta=0.0, kt=NaN, w=0.0)
 
         E>0.0       || error("Invalid value for E: $E")
         0<=nu<0.5   || error("Invalid value for nu: $nu")
@@ -52,9 +52,9 @@ mutable struct ElasticJointSeep2<:Material
         beta>= 0    || error("Invalid value for beta: $beta")
         eta>=0      || error("Invalid value for eta: $eta")
         kt>=0       || error("Invalid value for kt: $kt")
-        kl>=0       || error("Invalid value for kl: $kl")
+        w>=0        || error("Invalid value for w: $w")
 
-        this = new(E, nu, zeta, gammaw, beta, eta, kt, kl)
+        this = new(E, nu, zeta, gammaw, beta, eta, kt, w)
         return this
     end
 end
@@ -93,17 +93,17 @@ function stress_update(mat::ElasticJointSeep2, ipd::JointSeepIpState2, Δu::Arra
     #ipd.D +=  ipd.Vt*Δt
 
     # compute crack aperture
-    if mat.kl == 0.0
-        kl = 0.0
+    if mat.w == 0.0
+        w = 0.0
     else
-        if mat.kl >= ipd.w[1]
-            kl = mat.kl
+        if mat.w >= ipd.w[1]
+            w = mat.w
         else
-            kl = ipd.w[1]
+            w = ipd.w[1]
         end
     end
 
-    ipd.L  =  ((kl^3)/(12*mat.η))*BfUw
+    ipd.L  =  ((w^3)/(12*mat.η))*BfUw
     #ipd.S +=  ipd.L*Δt
 
     return Δσ, ipd.Vt, ipd.L

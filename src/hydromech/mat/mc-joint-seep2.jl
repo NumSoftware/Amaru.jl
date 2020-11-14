@@ -44,13 +44,13 @@ mutable struct MCJointSeep2<:Material
     β  ::Float64       # compressibility of fluid
     η  ::Float64       # viscosity
     kt ::Float64       # transverse leak-off coefficient
-    kl ::Float64       # initial fracture opening (longitudinal flow)
+    w  ::Float64       # initial fracture opening (longitudinal flow)
 
     function MCJointSeep2(prms::Dict{Symbol,Float64})
         return  MCJointSeep2(;prms...)
     end
 
-     function MCJointSeep2(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", gammaw=NaN, beta=0.0, eta=NaN, kt=NaN, kl=0.0)
+     function MCJointSeep2(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", gammaw=NaN, beta=0.0, eta=NaN, kt=NaN, w=0.0)
 
         !(isnan(GF) || GF>0) && error("Invalid value for GF: $GF")
         !(isnan(Gf) || Gf>0) && error("Invalid value for Gf: $Gf")
@@ -83,9 +83,9 @@ mutable struct MCJointSeep2<:Material
         beta>= 0    || error("Invalid value for beta: $beta")
         eta>=0      || error("Invalid value for eta: $eta")
         kt>=0       || error("Invalid value for kt: $kt")
-        kl>=0       || error("Invalid value for kl: $kl")
+        w>=0        || error("Invalid value for w: $w")
 
-        this = new(E, nu, ft, mu, zeta, wc, ws, softcurve, gammaw, beta, eta, kt, kl)
+        this = new(E, nu, ft, mu, zeta, wc, ws, softcurve, gammaw, beta, eta, kt, w)
         return this
     end
 end
@@ -415,21 +415,21 @@ function stress_update(mat::MCJointSeep2, ipd::MCJointSeepIpState2, Δw::Array{F
     #ipd.D  +=  ipd.Vt*Δt
 
     # compute crack aperture
-    if mat.kl == 0.0
+    if mat.w == 0.0
         if ipd.upa == 0.0 || ipd.w[1] <= 0.0 
-            kl = 0.0
+            w = 0.0
         else
-            kl = ipd.w[1]
+            w = ipd.w[1]
         end
     else
-        if mat.kl >= ipd.w[1]
-            kl = mat.kl
+        if mat.w >= ipd.w[1]
+            w = mat.w
         else
-            kl = ipd.w[1]
+            w = ipd.w[1]
         end
     end
 
-    ipd.L  =  ((kl^3)/(12*mat.η))*BfUw
+    ipd.L  =  ((w^3)/(12*mat.η))*BfUw
     #ipd.S +=  ipd.L*Δt
 
     return Δσ, ipd.Vt, ipd.L

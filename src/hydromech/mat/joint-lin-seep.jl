@@ -28,21 +28,21 @@ mutable struct JointLinSeep<:Material
     β  ::Float64        # compressibility of fluid
     η  ::Float64        # viscosity
     kt ::Float64        # leak-off coefficient
-    kl ::Float64        # initial fracture opening (longitudinal flow)
+    w ::Float64        # initial fracture opening (longitudinal flow)
 
     function JointLinSeep(prms::Dict{Symbol,Float64})
         return  JointLinSeep(;prms...)
     end
 
-    function JointLinSeep(;gammaw=NaN, beta=0.0, eta=NaN, kt=NaN, kl=0.0)
+    function JointLinSeep(;gammaw=NaN, beta=0.0, eta=NaN, kt=NaN, w=0.0)
         
         gammaw>0    || error("Invalid value for gammaw: $gammaw")
         beta>= 0    || error("Invalid value for beta: $beta")
         eta>=0      || error("Invalid value for eta: $eta")
         kt>=0       || error("Invalid value for kt: $kt")
-        kl>=0       || error("Invalid value for kl: $kl")
+        w>=0       || error("Invalid value for w: $w")
 
-        this = new(gammaw, beta, eta, kt, kl)
+        this = new(gammaw, beta, eta, kt, w)
         return this
     end
 end
@@ -57,7 +57,7 @@ function update_state!(mat::JointLinSeep, ipd::JointLinSeepIpState, Δuw::Array{
     ipd.uw +=  Δuw
     ipd.V   = -mat.kt*G
     #ipd.D  +=  ipd.V*Δt
-    ipd.L   =  ((mat.kl^3)/(12*mat.η))*BfUw
+    ipd.L   =  ((mat.w^3)/(12*mat.η))*BfUw
     #ipd.S  +=  ipd.L*Δt
 
     return ipd.V, ipd.L
