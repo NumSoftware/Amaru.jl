@@ -14,6 +14,10 @@ mutable struct DataBook
 end
 
 
+Base.length(book::DataBook) = length(book.tables)
+Base.size(book::DataBook)   = (length(book.tables),)
+
+
 function Base.push!(book::DataBook, table::DataTable)
     push!(book.tables, table)
 end
@@ -28,10 +32,6 @@ function Base.lastindex(book::DataBook)
     return length(book.tables)
 end
 
-
-function Base.length(book::DataBook)
-    return length(book.tables)
-end
 
 function Base.iterate(book::DataBook, state=(nothing,1) )
     table, idx = state
@@ -59,14 +59,19 @@ function save(book::DataBook, filename::String; verbose::Bool=true)
 
         for (k,table) in enumerate(book.tables)
 
-            nc = length(table.colindex)              # number of cols
-            nr = nc>0 ? length(table.columns[1]) : 0 # number of rows
+            columns = getcolumns(table)
+            colidx  = getcolidx(table)
+            header  = getheader(table)
+            nr, nc  = size(table)
+
+            # nc = length(colidx)              # number of cols
+            # nr = nc>0 ? length(columns[1]) : 0 # number of rows
 
             # print table label
             print(f, "Table (snapshot=$(k), rows=$nr)\n")
 
             # print header
-            for (i,key) in enumerate(keys(table.colindex))
+            for (i,key) in enumerate(keys(colidx))
                 @printf(f, "%12s", key)
                 print(f, i!=nc ? "\t" : "\n")
             end
@@ -74,7 +79,7 @@ function save(book::DataBook, filename::String; verbose::Bool=true)
             # print values
             for i=1:nr
                 for j=1:nc
-                    @printf(f, "%12.5e", table.columns[j][i])
+                    @printf(f, "%12.5e", columns[j][i])
                     print(f, j!=nc ? "\t" : "\n")
                 end
             end
@@ -134,7 +139,7 @@ function DataBook(filename::String)
 end
 
 
-# Functions for backwards compatibility
+# function for backwards compatibility
 loadbook(filename::String) = DataBook(filename)
 
 
@@ -143,7 +148,7 @@ function Base.show(io::IO, book::DataBook)
     n = length(book.tables)
     for (k,table) in enumerate(book.tables)
         # print table label
-        nitems = length(table.columns[1])
+        nitems = length(columns[1])
         print(io, " Table (snapshot=$(k), rows=$nitems):\n")
         str = string(table)
         k<n && print(io, str, "\n")
