@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export DataTable, DataBook, push!, save, loadtable, loadbook, randtable, compress, resize, filter, cut, denoise
+export DataTable, push!, save, loadtable, randtable, compress, resize, filter, cut, denoise
 
 
 # DataTable object
@@ -45,6 +45,7 @@ function DataTable(; kwargs...)
 
     return DataTable(header, columns)
 end
+
 
 function DataTable(header::Array, matrix::Array{T,2} where T)
     this   = DataTable(header)
@@ -194,9 +195,11 @@ function Base.getindex(table::DataTable, rows::Union{Colon,OrdinalRange{Int,Int}
     return table[keys][rows]
 end
 
+
 function Base.getindex(table::DataTable, rows, cols)
     return table[cols][rows]
 end
+
 
 function Base.Array(table::DataTable)
     return hcat(table.columns...)    
@@ -231,45 +234,8 @@ function Base.lastindex(table::DataTable)
 end
 
 
-mutable struct DataBook
-    tables::Array{DataTable, 1}
-    function DataBook()
-        this = new()
-        this.tables = DataTable[]
-        return this
-    end
-end
-
-
-function Base.push!(book::DataBook, table::DataTable)
-    push!(book.tables, table)
-end
-
-
-function Base.getindex(book::DataBook, index::Int)
-    return book.tables[index]
-end
-
-
-function Base.lastindex(book::DataBook)
-    return length(book.tables)
-end
-
-
-function Base.length(book::DataBook)
-    return length(book.tables)
-end
-
-function Base.iterate(book::DataBook, state=(nothing,1) )
-    table, idx = state
-    if idx<=length(book.tables)
-        return (book.tables[idx], (book.tables[idx+1], idx+1))
-    else
-        return nothing
-    end
-end
-
 sprintf(fmt, args...) = @eval @sprintf($fmt, $(args...))
+
 
 function compress(table::DataTable, n::Int)
     nrows = length(table.columns[1])
@@ -565,52 +531,6 @@ function save(table::DataTable, filename::String; verbose::Bool=true, digits::Ar
 end
 
 
-function save(book::DataBook, filename::String; verbose::Bool=true)
-    basename, format = splitext(filename)
-    format == ".dat" || error("DataBook: cannot save in \"$format\". Suitable format is \".dat\".")
-
-    local f::IOStream
-    try
-        f = open(filename, "w")
-    catch err
-        warn("DataBook: File $filename could not be opened for writing.")
-        return
-    end
-
-    if format==".dat"
-
-        for (k,table) in enumerate(book.tables)
-
-            nc = length(table.colindex)              # number of cols
-            nr = nc>0 ? length(table.columns[1]) : 0 # number of rows
-
-            # print table label
-            print(f, "Table (snapshot=$(k), rows=$nr)\n")
-
-            # print header
-            for (i,key) in enumerate(keys(table.colindex))
-                @printf(f, "%12s", key)
-                print(f, i!=nc ? "\t" : "\n")
-            end
-
-            # print values
-            for i=1:nr
-                for j=1:nc
-                    @printf(f, "%12.5e", table.columns[j][i])
-                    print(f, j!=nc ? "\t" : "\n")
-                end
-            end
-            print(f, "\n")
-        end
-
-        verbose && printstyled("  file $filename written\n", color=:cyan)
-    end
-    close(f)
-    return nothing
-
-end
-
-
 function DataTable(filename::String, delim='\t')
     basename, format = splitext(filename)
     format == ".dat" || error("DataTable: cannot read \"$format\". Suitable format is \".dat\".")
@@ -623,53 +543,9 @@ function DataTable(filename::String, delim='\t')
 end
 
 
-function DataBook(filename::String)
-    delim = "\t"
-    basename, format = splitext(filename)
-    format == ".dat" || error("DataBook: cannot read \"$format\". Suitable format is \".dat\".")
-
-    f      = open(filename, "r")
-    book   = DataBook()
-    if format==".dat"
-        lines = readlines(f)
-        header_expected = false
-        for (i,line) in enumerate(lines)
-            items = split(line)
-            length(items)==0 && strip(line)=="" && continue
-
-            if items[1]=="Table"
-                header_expected = true
-                continue
-            end
-            if header_expected # add new table
-                header = [ strip(key) for key in split(line, delim) ]
-                push!(book.tables, DataTable(header))
-                header_expected = false
-                continue
-            end
-
-            length(book.tables) == 0 && error("DataBook: Wrong file format. Use DataTable(filename) to read a table")
-            row = []
-            for item in items
-                try
-                    char1 = item[1]
-                    isnumeric(char1) || char1 in ('+','-') ?  push!(row, Meta.parse(item)) : push!(row, item)
-                catch err
-                    @error "DataBook: Error while reading value '$item' at line $i"
-                    throw(err)
-                end
-            end
-            push!(book.tables[end], row) # udpate newest table
-        end
-    end
-
-    close(f)
-    return book
-end
-
 # Functions for backwards compatibility
 loadtable(filename::String, delim='\t') = DataTable(filename, delim)
-loadbook(filename::String) = DataBook(filename)
+
 
 # TODO: Improve display. Include column datatype
 function Base.show(io::IO, table::DataTable)
@@ -761,19 +637,6 @@ function Base.show(io::IO, table::DataTable)
         i<nr && println(io)
     end
 
-end
-
-
-function Base.show(io::IO, book::DataBook)
-    print(io, "DataBook (tables=$(length(book.tables))):\n")
-    n = length(book.tables)
-    for (k,table) in enumerate(book.tables)
-        # print table label
-        nitems = length(table.columns[1])
-        print(io, " Table (snapshot=$(k), rows=$nitems):\n")
-        str = string(table)
-        k<n && print(io, str, "\n")
-    end
 end
 
 
