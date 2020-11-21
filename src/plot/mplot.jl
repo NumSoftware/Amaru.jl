@@ -695,14 +695,20 @@ function mplot(
 
                 N = get_facet_normal(cell)
                 R = 2*N*dot(L,N) - L
-                #f = 0.6+0.2*abs(dot(L,N))+ 0.2*abs(dot(R,V))
+                
                 #@show 0
                 #@show dot(L,N)
                 #@show (1-dot(V,R))/2
-                #f = 0.6+0.3*abs(dot(L,N))+ 0.1*(dot(R,V))
+                
                 #f = 0.7+0.3*abs(dot(L,N)*(1-dot(V,R))/2)
                 #f = 0.6+0.3*abs(dot(L,N)) + 0.2*(1-dot(V,R))/2
-                f = 0.6+0.2*abs(dot(L,N)) + 0.2*(1+dot(V,R))/2
+                
+                # f = 0.6+0.2*abs(dot(L,N)) + 0.2*(1+dot(V,R))/2
+                f = 0.8 + 0.1*abs(dot(L,N)) + 0.1*(1+dot(V,R))/2
+                f = min(f, 1.0)
+
+                # f = 0.9+0.05*abs(dot(L,N)) + 0.05*(1+dot(V,R))/2
+                # f = 1.0
                 fc = (f*fc[1], f*fc[2], f*fc[3], opacity)
             elseif shape.family==LINE_SHAPE
                 if has_line_field
@@ -938,7 +944,7 @@ function mplotcolorbar(
 )    
 
     # Lazy import of PyPlot
-    @eval import PyPlot:plt, matplotlib, figure, art3D, Axes3D, ioff, ColorMap
+    @eval import PyPlot:plt, matplotlib, figure, art3D, Axes3D, ioff, ColorMap, gca, gcf
     @eval ioff()
 
     # fix PyPlot
@@ -958,7 +964,7 @@ function mplotcolorbar(
     fig = @eval plt.figure()
     scale  = 0.5
     aspect = 25
-    axes = fig.add_axes([0, 0, scale/aspect, scale])
+    axes = @eval gcf().add_axes([0, 0, $scale/$aspect, $scale])
 
     cmap = matplotlib.cm.get_cmap(colormap)
     if discrete
