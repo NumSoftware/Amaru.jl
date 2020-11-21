@@ -5,7 +5,6 @@ export DataTable, push!, save, loadtable, randtable, compress, resize, filter, c
 
 # DataTable object
 const KeyType = Union{Symbol,AbstractString}
-# const AbstractVector = Array{T,1} where T
 
 mutable struct DataTable
     columns  :: Vector{AbstractVector}
@@ -30,8 +29,6 @@ getcolumns(table::DataTable) = getfield(table, :columns)
 getheader(table::DataTable) = getfield(table, :header)
 getcolidx(table::DataTable) = getfield(table, :colidx)
 getname(table::DataTable) = getfield(table, :name)
-# ncols(table::DataTable) = length(getcolumns(table))
-# nrows(table::DataTable) = length(getcolumns(table)[1])
 
 
 function DataTable(; pairs...)
@@ -48,7 +45,6 @@ end
 
 
 function DataTable(header::Array, matrix::Array{T,2} where T)
-    # this  = DataTable(header)
     nkeys = length(header)
     ncols = size(matrix,2)
     nkeys != ncols && error("DataTable: header and number of data columns do not match")
@@ -118,9 +114,6 @@ function Base.push!(table::DataTable, dict::AbstractDict)
             push!(columns, [v])
             colidx[key] = length(header)
         end
-        # columns  = AbstractVector[ typeof(v)[v] for (k,v) in dict ]
-        # colidx = OrderedDict{String,Int}( string(key)=>i for (i,key) in enumerate(keys(dict)) )
-        # header   = String[ string(key) for key in keys(dict) ]
     else
         nrows = length(columns[1])
         for (k,v) in dict
@@ -180,13 +173,6 @@ function Base.getindex(table::DataTable, key::KeyType)
 
     idx  = colidx[key]
     return getcolumns(table)[idx]
-
-    # columns  = getcolumns(table)
-    # colidx = getcolidx(table)
-    # header   = getheader(table)
-
-    # string(key) in header || error("getindex: key ($(repr(key))) not found in DataTable header. Available keys: $(keys(table))")
-    # return table.columns[table.colidx[string(key)]]
 end
 
 function Base.getindex(table::DataTable, keys::Array{<:KeyType,1})
@@ -206,23 +192,7 @@ function Base.getindex(table::DataTable, idxs::Union{Colon,OrdinalRange{Int,Int}
     cols = [ columns[i][idxs] for i=1:length(columns) ]
 
     return DataTable(getheader(table), cols)
-
-
-    # subtable = DataTable(table.header)
-    # for i in 1:length(table.columns)
-    #     subtable.columns[i] = table.columns[i][idxs]
-    # end
-    # return subtable
 end
-
-
-# function Base.getindex(table::DataTable, rows::Union{Colon,OrdinalRange{Int,Int},Int,Array{Int,1}}, keys::KeyType)
-#     @show keys
-#     if typeof(keys) <: KeyType
-#         keys = [ keys ]
-#     end
-#     return table[keys][rows]
-# end
 
 
 function Base.getindex(table::DataTable, rows, cols)
@@ -235,27 +205,12 @@ function Base.Array(table::DataTable)
 end
 
 
-# function Base.getindex(table::DataTable, idxs::BitArray{1})
-#     @assert length(idxs)==length(table.columns[1])
-#     subtable = DataTable(table.header)
-#     for i in 1:length(table.columns)
-#         subtable.columns[i] = table.columns[i][idxs]
-#     end
-#     return subtable
-# end
-
 function Base.getindex(table::DataTable, rowindex::Int, colidx::Int)
     return getcolumns(table)[colidx][rowindex]
 end
 
 function Base.getindex(table::DataTable, rowindex::Int, colon::Colon)
     return [ column[rowindex] for column in getcolumns(table)]
-    # row = []
-    # for j=1:length(table.header)
-    #     push!(row, table.columns[j][rowindex])
-    # end
-
-    # return row
 end
 
 
@@ -273,20 +228,12 @@ function compress(table::DataTable, n::Int)
     columns = getcolumns(table)
     nr, nc = size(table)
 
-    # nrows = length(columns[1])
     nr<=n && return table[:]
 
     factor = (nr-1)/(n-1)
     idxs   = [ round(Int, 1+factor*(i-1)) for i=1:n ]
     
     return table[idxs]
-    # # subtable = DataTable(header)
-    # cols = AbstractArray[]
-    # for i=1:length(columns)
-    #     subcolumns[i] = columns[i][idxs]
-    # end
-
-    # return subtable
 end
 
 
@@ -309,7 +256,6 @@ function resize(table::DataTable, n::Int=0; ratio=1.0)
     header = getheader(table)
     nr     = nrows(table)
     
-    # nr = length(table.columns[1]) # current number of points
     if n==0
         ratio > 0.0 || error("resize: ratio should be greater than zero")
         n = max(2, round(Int, nr*ratio))
@@ -357,7 +303,6 @@ function resize(table::DataTable, n::Int=0; ratio=1.0)
         end
 
         push!(cols, V)
-        # newtable.columns[j] = V
     end
     
     return DataTable(header, cols)
@@ -387,8 +332,6 @@ end
 function denoise(table::DataTable, fieldx, fieldy=nothing; noise=0.05, npatch=4)
     header = getheader(table)
     nr     = nrows(table)
-
-    # nr = length(table.columns[1]) # current number of points  
 
     if fieldy === nothing
         X = range(0,1,length=nr)
@@ -436,8 +379,6 @@ function denoise(table::DataTable, fieldx, fieldy=nothing; noise=0.05, npatch=4)
     # Linear interpolation of dropped points
     cols = Array{Any,1}[]
     for column in columns
-    # for fieldx in header
-        # V = copy(table[fieldx])
         V = copy(column)
         for i in (1:nr)[.!idxs]
             j = findprev(!iszero, idxs, i-1)
@@ -471,9 +412,6 @@ function save(table::DataTable, filename::String; verbose::Bool=true, digits::Ar
     colidx  = getcolidx(table)
     header  = getheader(table)
     nr, nc  = size(table)
-
-    # nc = length(table.colidx)              # number of cols
-    # nr = nc>0 ? length(table.columns[1]) : 0 # number of rows
 
     if format==".dat"
         for (i,key) in enumerate(header)
