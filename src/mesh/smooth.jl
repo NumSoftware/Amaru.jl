@@ -683,12 +683,12 @@ function find_weighted_pos(mesh::Mesh, patches, extended, α, qmin, in_border)
         patch = patches[node.id]
 	
 	sumW = sum( W[c.id] for c in patch )
-	sumdeltaQQ = sum( 1.01 - QQ[c.id] for c in patch ) #deltaQQ -> chage in the element quality. As is placed an ideal element, final quality is 1. To avoid zero division 1.01
+	sumdeltaQQ = sum( 1.0001 - QQ[c.id] for c in patch ) #deltaQQ -> chage in the element quality. As is placed an ideal element, final quality is 1. To avoid zero division 1.01
 
 	#test= [X1X1[node.id,:,c.id] for c in patch]
 	#println(test)	
 	
-	parcel1 = .5*sum(((1.01-QQ[c.id])./sumdeltaQQ).* X1X1[node.id,:,c.id] for c in patch)
+	parcel1 = .5*sum(((1.0001-QQ[c.id])./sumdeltaQQ).* X1X1[node.id,:,c.id] for c in patch)
 	#parcel2 = .5*sum((1-(W[c.id]/sumW)).* X1X1[node.id,:,c.id] for c in patch) #When node is a corner, parcel2=0. Knowing that corners do not move, it would not be a problem. XX apparently for 
 										#those nodes is incorrect though. Nevertheless, it does not matter. To be sure, in case of number of patches for the node
 										#is 1, make coefficient in parcel1 equal to 1. instead of .5 (see conditional commented)
