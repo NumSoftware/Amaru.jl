@@ -640,6 +640,75 @@ function find_disps(mesh::Mesh, patches, extended, α, qmin, in_border)
 end
 
 
+# Mount a matrix with nodal displacements
+function find_weighted_pos(mesh::Mesh, patches, extended, α, qmin, in_border)
+    #final position is based in eq[8] paper Mesh smothing algorithm based on exterior angles split
+
+    n    = length(mesh.nodes)
+    m    = length(mesh.elems)
+    ndim = mesh.ndim
+    UU = zeros(n,ndim)
+    W  = ones(m) # area/volume
+    QQ  = ones(m) # qualities
+    X1X1 = zeros(n,ndim,m) #elements array for node positions of ideal element over original (C1)
+    XX = zeros(n,ndim) #new node coordinates after weighted positioning
+
+
+    for c in mesh.elems
+        # get coordinates matrix
+        np = length(c.nodes)
+        C0 = get_coords(c.nodes, ndim)
+        v  = abs(cell_extent(c)) # area or volume
+        W[c.id] = v
+	QQ[c.id] = c.quality
+
+        s = v^(1.0/ndim) # scale factor
+
+        extended && (s *= α)
+
+        BC = basic_coords(c.shape)*s
+        C = BC
+
+        # align C with cell orientation
+        pindexes = [ i for i=1:np if in_border[ c.nodes[i].id] ]
+        R, D = rigid_transform(C, C0, pindexes)
+        C1 = C*R' .+ D
+
+        # add to UU
+        dmap = [ p.id for p in c.nodes ]
+	X1X1[dmap,:,c.id] .= C1
+    end
+
+    # weighted positioning
+    for node in mesh.nodes
+        patch = patches[node.id]
+	
+	sumW = sum( W[c.id] for c in patch )
+	sumdeltaQQ = sum( 1.0001 - QQ[c.id] for c in patch ) #deltaQQ -> chage in the element quality. As is placed an ideal element, final quality is 1. To avoid zero division 1.01
+
+	#test= [X1X1[node.id,:,c.id] for c in patch]
+	#println(test)	
+	
+	parcel1 = .5*sum(((1.0001-QQ[c.id])./sumdeltaQQ).* X1X1[node.id,:,c.id] for c in patch)
+	#parcel2 = .5*sum((1-(W[c.id]/sumW)).* X1X1[node.id,:,c.id] for c in patch) #When node is a corner, parcel2=0. Knowing that corners do not move, it would not be a problem. XX apparently for 
+										#those nodes is incorrect though. Nevertheless, it does not matter. To be sure, in case of number of patches for the node
+										#is 1, make coefficient in parcel1 equal to 1. instead of .5 (see conditional commented)
+										#Maybe parcel2 equation is wrong. For points with 4 patches same area, parcel2 is bigger than it should be. For testing parcel2
+										#was slightly modyfied as next. With this, not only this problem is solved but the initial problem as well.
+
+	
+	parcel2 = .5*sum(((W[c.id]/sumW)).* X1X1[node.id,:,c.id] for c in patch)  
+
+	#if lenght(patch)==1
+		#parce1 *=2
+
+	XX[node.id, :] .= parcel1 + parcel2
+    end
+
+    return XX
+end
+
+
 function str_histogram(hist::Array{Int64,1})
     m = maximum(hist)
     H = round.(Int, hist./m*7)
