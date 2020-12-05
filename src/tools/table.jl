@@ -1,6 +1,7 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 export DataTable, push!, save, loadtable, randtable, compress, resize, filter, cut, denoise
+export getheader
 
 
 # DataTable object
@@ -14,9 +15,7 @@ mutable struct DataTable
     function DataTable(header::Array, columns::Array{<:AbstractVector,1}=Array{Any,1}[]; name="")
         @assert length(header) == length(unique(header))
         if length(columns)==0
-            @show length(header) 
             columns = AbstractVector[ [] for i in 1:length(header) ]
-            @show columns
         end
 
         colidx = OrderedDict{String,Int}( string(key)=>i for (i,key) in enumerate(header) )
@@ -221,20 +220,19 @@ function Base.lastindex(table::DataTable)
 end
 
 
+function Base.lastindex(table::DataTable, idx::Int)
+    nr, nc = size(table)
+    nc==0 && error("lastindex: use of 'end' in an empty DataTable")
+    if idx==1
+        return nr
+    else
+        return nc
+    end
+end
+
+
 sprintf(fmt, args...) = @eval @sprintf($fmt, $(args...))
 
-
-function compress(table::DataTable, n::Int)
-    columns = getcolumns(table)
-    nr, nc = size(table)
-
-    nr<=n && return table[:]
-
-    factor = (nr-1)/(n-1)
-    idxs   = [ round(Int, 1+factor*(i-1)) for i=1:n ]
-    
-    return table[idxs]
-end
 
 
 function Base.filter(table::DataTable, expr::Expr)
@@ -248,6 +246,41 @@ function Base.filter(table::DataTable, expr::Expr)
         end
         idxs[i] = eval_arith_expr(expr; vars...)
     end
+    return table[idxs]
+end
+
+
+function Base.sort!(table::DataTable, options::NamedTuple...)
+    n, m = size(table)
+    idx = collect(1:n)
+    
+    for opt in options
+        field = get(opt, :field, "")
+        rev   = get(opt, :rev, false)
+
+        col  = table[field][idx]
+        idx_ = sortperm(col, rev=rev)
+        idx  = idx[idx_]
+    end
+
+    cols = getcolumns(table)
+    for i in 1:m
+        cols[i] = cols[i][idx]
+    end
+
+    return table
+end
+
+
+function compress(table::DataTable, n::Int)
+    columns = getcolumns(table)
+    nr, nc = size(table)
+
+    nr<=n && return table[:]
+
+    factor = (nr-1)/(n-1)
+    idxs   = [ round(Int, 1+factor*(i-1)) for i=1:n ]
+    
     return table[idxs]
 end
 
@@ -378,7 +411,7 @@ function denoise(table::DataTable, fieldx, fieldy=nothing; noise=0.05, npatch=4)
 
     # Linear interpolation of dropped points
     cols = Array{Any,1}[]
-    for column in columns
+    for column in getcolumns(table)
         V = copy(column)
         for i in (1:nr)[.!idxs]
             j = findprev(!iszero, idxs, i-1)
