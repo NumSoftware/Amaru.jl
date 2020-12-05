@@ -82,10 +82,11 @@ mutable struct Node<:AbstractPoint
         return this
     end
 
-    function Node(x::Real, y::Real=0, z::Real=0.0; tag::String="", id::Int=-1)
-        x = round(x, digits=8)
-        y = round(y, digits=8)
-        z = round(z, digits=8)
+    function Node(x::Real, y::Real=0.0, z::Real=0.0; tag::String="", id::Int=-1)
+        x = round(x, digits=8) + 0.0 # +0.0 required to drop negative bit
+        y = round(y, digits=8) + 0.0
+        z = round(z, digits=8) + 0.0
+        
         this = new(id, Vec3(x,y,z), tag)
         this.dofs = Dof[]
         this.dofdict = OrderedDict{Symbol,Dof}()

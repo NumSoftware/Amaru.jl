@@ -58,45 +58,45 @@ end
 
 
 function Base.copy(bl::BlockInset; dx=0.0, dy=0.0, dz=0.0)
-    newbl = BlockInset(get_coords(bl.nodes), curvetype=bl.curvetype, closed=bl.closed,
+    newbl = BlockInset(get_coords(bl.nodes) .+ [dx dy dz], curvetype=bl.curvetype, closed=bl.closed,
                        embedded=bl.embedded, cellshape=bl.cellshape, tag=bl.tag,
                        jointtag=bl.jointtag)
 end
 
 
-function cubicBezier(s::Float64, PorQ::Array{Float64,2}, isQ::Bool=false)
+function cubicBezier(s::Float64, coords::Array{Float64,2}, isQ::Bool=false)
     # check
-    if size(PorQ,1) < 4
-        println("PorQ = ", PorQ)
+    if size(coords,1) < 4
+        println("coords = ", coords)
         error("List of points must have at least 4 points for cubic Bezier.")
     end
 
     # input data
-    ndim = size(PorQ,2)    # space dimension
-    np   = size(PorQ,1)    # number of points
-    ns   = np - 1          # number of spacings
-    nb   = floor(Int64, ns/3)    # number of bezier curves
-    Ds   = 1.0 / nb        # spacing between curves
+    ndim = size(coords,2)     # space dimension
+    np   = size(coords,1)     # number of points
+    ns   = np - 1             # number of spacings
+    nb   = floor(Int64, ns/3) # number of bezier curves
+    ds   = 1.0 / nb           # spacing between curves
 
     # find index of Bezier and local coordinate t
-    ib = floor(Int64, s/Ds) + 1    # index of Bezier
+    ib = floor(Int64, s/ds) + 1    # index of Bezier
     if ib > nb; ib = nb end # fix index if s ~= 1+eps
-    s0 = (ib-1) * Ds        # s @ left point
-    t  = (s - s0) / Ds      # local t
-    if t > 1.0; t = 1.0 end # clean rubbish. e.g. 1.000000000000002
+    s0 = (ib-1) * ds        # s @ left point
+    t  = (s - s0) / ds      # local t for current Bezier
+    if t > 1.0; t = 1.0 end # clean rubbish. e.g. 1.00000000002
 
     # collect control points
     Q = zeros(4, ndim)    # control points
     k = 1 + (ib-1) * 3    # position of first point of bezier
     if isQ
         for i in 1:4
-            Q[i,:] = PorQ[k+i-1]
+            Q[i,:] = coords[k+i-1]
         end
     else
-        PQ1 = PorQ[k  ,:]
-        PQ2 = PorQ[k+1,:]
-        PQ3 = PorQ[k+2,:]
-        PQ4 = PorQ[k+3,:]
+        PQ1 = coords[k  ,:]
+        PQ2 = coords[k+1,:]
+        PQ3 = coords[k+2,:]
+        PQ4 = coords[k+3,:]
         Q[1,:] =         PQ1
         Q[2,:] = (-5.0 * PQ1 + 18.0 * PQ2 -  9.0 * PQ3 + 2.0 * PQ4) / 6.0
         Q[3,:] = ( 2.0 * PQ1 -  9.0 * PQ2 + 18.0 * PQ3 - 5.0 * PQ4) / 6.0

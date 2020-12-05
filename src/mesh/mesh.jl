@@ -213,7 +213,7 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
 
     if mindeg == 0
         # Case of overlapping elements where edges have at least one point with the same coordinates
-        alert("reorder!: Reordering nodes failed! Check for overlapping cells or non used nodes")
+        notify("reorder!: Reordering nodes failed. Possible causes: disconnected domain, non used nodes and overlapping cells.")
         return
     end
 
@@ -233,7 +233,8 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
             end
         end
         if length(A)==0
-            @error "reorder!: Reordering nodes failed! Possible error with cell connectivities."
+            #@error "reorder!: Reordering nodes failed! Possible error with cell connectivities."
+            notify("reorder!: Reordering nodes failed. Possible causes: disconnected domain, non used nodes and overlapping cells.")
             return
         end
 
@@ -342,16 +343,26 @@ end
 
 function join_mesh!(mesh::Mesh, m2::Mesh)
 
-    for node in m2.nodes
-        push!(mesh.nodes, node)
-        mesh._pointdict[hash(node)] = node
+    pointdict = Dict{UInt, Node}()
+    for m in (mesh, m2)
+        for node in m.nodes
+            pointdict[hash(node)] = node
+        end    
+    end
+    nodes = collect(values(pointdict))
+
+    elems = Cell[]
+    for m in (mesh, m2)
+        for elem in m.elems
+            newelemnodes = Node[pointdict[hash(node)] for node in elem.nodes ]
+            newelem = Cell(elem.shape, newelemnodes, tag=elem.tag)
+            push!(elems, newelem)
+        end
     end
 
-    for elem in m2.elems
-        newelemnodes = Node[ mesh._pointdict[hash(node)] for node in elem.nodes ]
-        newelem = Cell(elem.shape, newelemnodes, tag=elem.tag)
-        push!(mesh.elems, newelem)
-    end
+    mesh.nodes = nodes
+    mesh.elems = elems
+    mesh._pointdict = pointdict
 
     fixup!(mesh, reorder=false)
 
@@ -555,6 +566,38 @@ function Mesh(
     return mesh
 end
 
+export stats
+function stats(mesh::Mesh)
+    printstyled("Mesh stats:\n", bold=true, color=:cyan)
+
+    npoints = length(mesh.nodes)
+    ncells  = length(mesh.elems)
+    @printf "  %3dd mesh                             \n" mesh.ndim
+    @printf "  %4d nodes\n" npoints
+    @printf "  %4d cells\n" ncells
+
+    L = Float64[]
+    for elem in mesh.elems.solids
+        l = cell_extent(elem)^(1/mesh.ndim)
+        push!(L, l)
+    end
+    lavg = mean(L)
+    lmdn = quantile(L, 0.5)
+    minl = minimum(L)
+    maxl = maximum(L)
+
+    bin = (maxl-minl)/10
+    hist  = fit(Histogram, L, minl:bin:maxl, closed=:right).weights
+    @show hist
+    lmod = (findmax(hist)[2]-1)*bin + bin/2
+
+    @printf "  lmin = %7.5f\n" minl
+    @printf "  lmax = %7.5f\n" maxl
+    @printf "  lavg = %7.5f\n" lavg
+    @printf "  lmdn = %7.5f\n" lmdn
+    @printf "  lmod = %7.5f\n" lmod
+end
+
 
 function Mesh(elems::Array{Cell,1})
     newmesh = Mesh()
@@ -576,6 +619,7 @@ end
 function Mesh(mesh::Mesh, filter::Union{String,Expr,Symbol})
     elems = mesh.elems[filter]
     elemids = [ elem.id for elem in elems ]
+    length(elems)==0 && warn("Mesh: no elements found using filter $(repr(filter))")
 
     nodedict = OrderedDict{Int,Node}()
     for elem in elems
@@ -811,7 +855,9 @@ function UMesh(
         embedded = $_embed
         recombine = $recombine
 
-        import Gmsh.gmsh
+        try import Gmsh.gmsh
+        catch
+        end
 
         gmsh.initialize()
         gmsh.option.setNumber("General.Terminal", 1)

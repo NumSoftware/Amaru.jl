@@ -72,7 +72,9 @@ include("bc.jl")
 export NodeBC, FaceBC, EdgeBC, ElemBC
 
 include("logger.jl")
-export NodeLogger, IpLogger, FaceLogger, EdgeLogger, NodeGroupLogger, IpGroupLogger
+export NodeLogger, IpLogger
+export NodeSumLogger, FaceLogger, EdgeLogger
+export NodeGroupLogger, IpGroupLogger
 export PointLogger, SegmentLogger
 export update_logger!
 

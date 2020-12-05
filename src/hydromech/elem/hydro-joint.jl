@@ -77,91 +77,110 @@ end
 
 function elem_conductivity_matrix(elem::HydroJoint)
     ndim     = elem.env.ndim
+    th       = elem.env.thickness
     nnodes   = length(elem.nodes)
-    nlnodes  = div(nnodes, 3)
-    dnlnodes = 2*nlnodes
+    nbsnodes = elem.shape.basic_shape.npoints
+    nlnodes  = Int((nnodes-nbsnodes)/2) 
+    dnlnodes = nnodes-nbsnodes
     fshape   = elem.shape.facet_shape
 
-    C        = get_coords(elem)[1:nlnodes,:]
-    Cl       = zeros(nlnodes, ndim-1)
+    C        = get_coords(elem)[1:nbsnodes,:]
+    Cl       = zeros(nbsnodes, ndim-1)
     J        = Array{Float64}(undef, ndim-1, ndim)
     Jl       = zeros(ndim-1, ndim-1)
-    Bp       = zeros(ndim-1, nlnodes)
+    Bp       = zeros(ndim-1, nbsnodes)
 
-    H        = zeros(nnodes, nnodes)
+    H        = zeros(3*nbsnodes, 3*nbsnodes)
+
+    nodes_p  = []
+    
+    for (i, node) in enumerate(elem.nodes)
+        if  i<=(nbsnodes) || (nlnodes+nbsnodes)>=i>(nlnodes) || i>(dnlnodes)
+            push!(nodes_p, elem.nodes[i])
+        end
+    end
 
     for ip in elem.ips
 
         # compute shape Jacobian
-        N    = fshape.func(ip.R)
-        dNdR = fshape.deriv(ip.R)
+        dNpdR = elem.shape.basic_shape.deriv(ip.R)
 
-        @gemm J = dNdR*C
+        @gemm J = dNpdR*C 
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
-        # compute Bp matrix
+        # compute Bp matrix  
         T    = matrixT(J) # rotation matrix
         Cl   = C*T[(2:end), (1:end)]'  # new coordinate nodes
 
-        @gemm Jl = dNdR*Cl
-        Bp = inv(Jl)*dNdR
+        @gemm Jl = dNpdR*Cl
+        Bp = inv(Jl)*dNpdR
         B0 = 0*Bp
-        Bf = [B0 B0 Bp]
+        Bf = [B0 B0 Bp] 
 
-        Np = N'
-        N0 = 0*N'
-        Nb = [Np N0 -Np]
-        Nt = [N0 Np -Np]
+        # compute NN matrix
+        Np = elem.shape.basic_shape.func(ip.R)  
+        N0 = 0*Np
+        Nb = [-Np' N0' Np']
+        Nt = [N0' -Np' Np']
 
         # compute H
-        coef  = detJ*ip.w*elem.mat.kt/elem.mat.γw
-        H += coef*Nb'*Nb
-        H += coef*Nt'*Nt
+        coef  = detJ*ip.w*th*elem.mat.kt
+        H -= coef*Nb'*Nb
+        H -= coef*Nt'*Nt
 
-        coef = detJ*ip.w*(elem.mat.kl^3)/(12*elem.mat.η)
+         # compute crack aperture
+        coef = detJ*ip.w*th*(elem.mat.w^3)/(12*elem.mat.η) 
         H -= coef*Bf'*Bf
     end
-
+    
     # map
-    map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
+    map = [  node.dofdict[:uw].eq_id for node in nodes_p  ]
 
-    return H, map, map, elem.nodes
+    return H, map, map, nodes_p
 end
 
 
 function elem_compressibility_matrix(elem::HydroJoint)
     ndim     = elem.env.ndim
+    th       = elem.env.thickness
     nnodes   = length(elem.nodes)
-    nlnodes  = div(nnodes, 3)
-    dnlnodes = 2*nlnodes
+    nbsnodes = elem.shape.basic_shape.npoints
+    nlnodes  = Int((nnodes-nbsnodes)/2) 
+    dnlnodes = nnodes-nbsnodes
     fshape   = elem.shape.facet_shape
-    C        = get_coords(elem)[1:nlnodes,:]
+    C        = get_coords(elem)[1:nbsnodes,:]
 
     J   = Array{Float64}(undef, ndim-1, ndim)
-    Cpp = zeros(nnodes, nnodes)
+    Cpp = zeros(3*nbsnodes, 3*nbsnodes)
+
+    nodes_p  = []
+    
+    for (i, node) in enumerate(elem.nodes)
+        if  i<=(nbsnodes) || (nlnodes+nbsnodes)>=i>(nlnodes) || i>(dnlnodes)
+            push!(nodes_p, elem.nodes[i])
+        end
+    end 
 
     for ip in elem.ips
         # compute shape Jacobian
-        N    = fshape.func(ip.R)
-        dNdR = fshape.deriv(ip.R)
-
-        @gemm J = dNdR*C
+        dNpdR = elem.shape.basic_shape.deriv(ip.R)
+        @gemm J = dNpdR*C
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # compute Np matrix
-        Np = N'
-        N0 = 0*N'
-        Nf = [N0 N0 Np]
+        Np = elem.shape.basic_shape.func(ip.R)  
+        N0 = 0*Np
+        Nf = [N0' N0' Np']
 
         # compute Cpp
-        coef = detJ*ip.w*elem.mat.β
+        coef = detJ*ip.w*elem.mat.β*elem.mat.w*th
         Cpp -= coef*Nf'*Nf
     end
 
     # map
-    map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
+    map = [  node.dofdict[:uw].eq_id for node in nodes_p  ]
 
     return Cpp, map, map
 end
@@ -169,27 +188,37 @@ end
 
 function elem_RHS_vector(elem::HydroJoint)
     ndim     = elem.env.ndim
+    th       = elem.env.thickness
     nnodes   = length(elem.nodes)
-    nlnodes  = div(nnodes, 3)
-    dnlnodes = 2*nlnodes
+    nbsnodes = elem.shape.basic_shape.npoints
+    nlnodes  = Int((nnodes-nbsnodes)/2) 
+    dnlnodes = nnodes-nbsnodes
     fshape   = elem.shape.facet_shape
-    C        = get_coords(elem)[1:nlnodes,:]
+    C        = get_coords(elem)[1:nbsnodes,:]
 
     J        = Array{Float64}(undef, ndim-1, ndim)
-    Cl       = zeros(nlnodes, ndim-1)
+    Cl       = zeros(nbsnodes, ndim-1)
     Jl       = zeros(ndim-1, ndim-1)
-    Bp       = zeros(ndim-1, nlnodes)
-    Z        = zeros(ndim)
+    Bp       = zeros(ndim-1, nbsnodes)
+    Z        = zeros(ndim) 
     Z[end]   = 1.0
-    bf       = zeros(ndim-1)
-    Q        = zeros(nnodes)
+    bf       = zeros(ndim-1) 
+    Q        = zeros(3*nbsnodes)
 
+    nodes_p  = []
+
+    for (i, node) in enumerate(elem.nodes)
+        if  i<=(nbsnodes) || (nlnodes+nbsnodes)>=i>(nlnodes) || i>(dnlnodes)
+            push!(nodes_p, elem.nodes[i])
+        end
+    end 
+ 
     for ip in elem.ips
 
         # compute shape Jacobian
-        dNdR = fshape.deriv(ip.R)
+        dNpdR = elem.shape.basic_shape.deriv(ip.R)
 
-        @gemm J = dNdR*C
+        @gemm J = dNpdR*C 
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -197,28 +226,31 @@ function elem_RHS_vector(elem::HydroJoint)
         T    = matrixT(J) #rotation matrix
         Cl   = C*T[(2:end), (1:end)]'  #coordinate of new nodes
 
-        @gemm Jl = dNdR*Cl
-        Bp = inv(Jl)*dNdR
+        @gemm Jl = dNpdR*Cl
+        Bp = inv(Jl)*dNpdR
         B0 = 0*Bp
-        Bf = [B0 B0 Bp]
-
+        Bf = [B0 B0 Bp] 
+        
         # compute Q
-        coef = detJ*ip.w*(elem.mat.kl^3)/(12*elem.mat.η)
 
+        # compute crack aperture
+        coef = detJ*ip.w*th*(elem.mat.w^3)/(12*elem.mat.η)   
         bf = T[(2:end), (1:end)]*Z*elem.mat.γw
+        
         @gemm Q += coef*Bf'*bf
     end
 
     # map
-    map = [  node.dofdict[:uw].eq_id for node in elem.nodes  ]
+    map = [  node.dofdict[:uw].eq_id for node in nodes_p  ]
 
     return Q, map
 end
-
+#=
 function elem_internal_forces(elem::HydroJoint, F::Array{Float64,1})
     ndim     = elem.env.ndim
     th       = elem.env.thickness
     nnodes   = length(elem.nodes)
+    bsnodes  = elem.shape.basic_shape.npoints
     nlnodes  = div(nnodes, 3)
     dnlnodes = 2*nlnodes
     fshape   = elem.shape.facet_shape
@@ -242,7 +274,7 @@ function elem_internal_forces(elem::HydroJoint, F::Array{Float64,1})
     for ip in elem.ips
         # compute shape Jacobian
         N    = fshape.func(ip.R)
-        dNdR = fshape.deriv(ip.R)
+        dNdR = elem.shape.basic_shape.deriv(ip.R)
 
         @gemm J = dNdR*C
         detJ = norm2(J)
@@ -263,37 +295,39 @@ function elem_internal_forces(elem::HydroJoint, F::Array{Float64,1})
         bf = T[(2:end), (1:end)]*Z*elem.mat.γw
 
         # compute Bu matrix
-        N0 = 0*N'
-        Nb = [Np N0 -Np]
-        Nt = [N0 Np -Np]
-        Nf = [N0 N0 Np]
+        Np = elem.shape.basic_shape.func(ip.R)
+        N0 = 0*Np
+        Nb = [-Np' N0' Np']
+        Nt = [N0' -Np' Np']
+        Nf = [N0' N0'  Np']
 
         # internal volumes dFw
-        coef = detJ*ip.w*elem.mat.β
-        dFw -= coef*Nf'*ip.state.uw[3]
+        uwf  = ip.state.uw[3]
+        coef = detJ*ip.w*elem.mat.β*th
+        dFw -= coef*Nf'*uwf
 
         # longitudinal flow
-        coef = detJ*ip.w
+        coef = detJ*ip.w*th  
         S = ip.state.S
         dFw -= coef*Bf'*S
 
         # transverse flow
-        coef  = detJ*ip.w
         D = ip.state.D
-        dFw += coef*Nt'*D[1]
-        dFw += coef*Nb'*D[2]
+        dFw -= coef*Nt'*D[1]
+        dFw -= coef*Nb'*D[2]
     end
 
     F[map_w] += dFw
 end
-
+=#
 
 function elem_update!(elem::HydroJoint, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
     ndim     = elem.env.ndim
     th       = elem.env.thickness
     nnodes   = length(elem.nodes)
-    nlnodes  = div(nnodes, 3)
-    dnlnodes = 2*nlnodes
+    nbsnodes = elem.shape.basic_shape.npoints
+    nlnodes  = Int((nnodes-nbsnodes)/2) 
+    dnlnodes = nnodes-nbsnodes
     fshape   = elem.shape.facet_shape
 
 
@@ -304,16 +338,15 @@ function elem_update!(elem::HydroJoint, U::Array{Float64,1}, F::Array{Float64,1}
     Uw    += dUw # nodal pore-pressure at step n+1
 
     dFw    = zeros(nnodes)
-    dFw2    = zeros(nnodes)
 
     J      = Array{Float64}(undef, ndim-1, ndim)
     Δω     = zeros(ndim)
     Δuw    = zeros(3)
     Bu     = zeros(ndim, dnlnodes*ndim)
-    C      = get_coords(elem)[1:nlnodes,:]
+    C      = get_coords(elem)[1:nbsnodes,:]
     Cl     = zeros(nlnodes, ndim-1)
     Jl     = zeros(ndim-1, ndim-1)
-    Bp     = zeros(ndim-1, nlnodes)
+    Bp     = zeros(ndim-1, nbsnodes)
     mf     = [1.0, 0.0, 0.0][1:ndim]
     BpUwf  = zeros(ndim-1)
     Z      = zeros(ndim)
@@ -322,19 +355,18 @@ function elem_update!(elem::HydroJoint, U::Array{Float64,1}, F::Array{Float64,1}
     for ip in elem.ips
 
         # compute shape Jacobian
-        N    = fshape.func(ip.R)
-        dNdR = fshape.deriv(ip.R)
+        dNdR = elem.shape.basic_shape.deriv(ip.R)
 
         @gemm J = dNdR*C
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # compute Np vector
-        Np =  N'
-        N0 = 0*N'
-        Nb = [Np N0 -Np]
-        Nt = [N0 Np -Np]
-        Nf = [N0 N0 Np]
+        Np = elem.shape.basic_shape.func(ip.R)
+        N0 = 0*Np
+        Nb = [-Np' N0' Np']
+        Nt = [N0' -Np' Np']
+        Nf = [N0' N0'  Np']
 
         # compute Bp matrix
         T    = matrixT(J) # rotation matrix
@@ -349,25 +381,39 @@ function elem_update!(elem::HydroJoint, U::Array{Float64,1}, F::Array{Float64,1}
         bf = T[(2:end), (1:end)]*Z*elem.mat.γw
 
         # interpolation to the integ. point
-        Δuw  = [Np*dUw[1:nlnodes]; Np*dUw[nlnodes+1:dnlnodes]; Np*dUw[dnlnodes+1:end]]
-        G    = [dot(Nt,Uw)/(elem.mat.γw*1); dot(Nb,Uw)/(elem.mat.γw*1)]
+        Δuw  = [Np'*dUw[1:nbsnodes]; Np'*dUw[nbsnodes+1:2*nbsnodes]; Np'*dUw[2*nbsnodes+1:end]]
+        G    = [ dot(Nt,Uw); dot(Nb,Uw)]
         BfUw = Bf*Uw + bf
 
-        V, L = update_state!(elem.mat, ip.state, Δuw, G, BfUw, Δt)
+        Vt, L = update_state!(elem.mat, ip.state, Δuw, G, BfUw, Δt)
 
         # internal volumes dFw
-        coef = detJ*ip.w*elem.mat.β
+
+        # compute fluid compressibility
+        coef = detJ*ip.w*elem.mat.β*elem.mat.w*th
         dFw -= coef*Nf'*Δuw[3]
 
         # longitudinal flow
-        coef = Δt*detJ*ip.w
+        coef = Δt*detJ*ip.w*th
         dFw -= coef*Bf'*L
 
         # transverse flow
-        dFw -= coef*Nt'*V[1]
-        dFw -= coef*Nb'*V[2]
+        dFw += coef*Nt'*Vt[1]  
+        dFw += coef*Nb'*Vt[2] 
     end
 
     F[map_w] .+= dFw
     return CallStatus(true)
+end
+
+function elem_extrapolated_node_vals(elem::HydroJoint)
+    nips = length(elem.ips)
+
+    E  = extrapolator(elem.shape.facet_shape, nips)
+    Uwn = E*[ ip.state.uw[3] for ip in elem.ips ]
+
+    node_vals = OrderedDict{Symbol, Array{Float64,1}}()
+    node_vals[:uwn] = [ Uwn; Uwn; Uwn]
+
+    return node_vals
 end

@@ -1,98 +1,139 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export DataTable, DataBook, push!, save, loadtable, loadbook, randtable, compress!
+export DataTable, push!, save, loadtable, randtable, compress, resize, filter, cut, denoise
 
 
 # DataTable object
 const KeyType = Union{Symbol,AbstractString}
-const ColType = Array{T,1} where T
 
 mutable struct DataTable
-    columns ::Array{ColType,1}
-    colindex::OrderedDict{String,Int} # Data index
-    header::Array{String,1}
-    function DataTable()
-        this = new()
-        this.columns  = []
-        this.colindex = OrderedDict()
-        this.header   = []
-        return this
-    end
-    function DataTable(header::Array)
-        this = new()
-        header = vec(header)
-        this.columns  = [ [] for s in header ]
-        this.colindex = OrderedDict( string(key)=>i for (i,key) in enumerate(header) )
-        this.header   = string.(header)
-        return this
+    columns  :: Vector{AbstractVector}
+    colidx :: OrderedDict{String,Int} # Data index
+    header   :: Array{String,1}
+    name     :: String
+    function DataTable(header::Array, columns::Array{<:AbstractVector,1}=Array{Any,1}[]; name="")
+        @assert length(header) == length(unique(header))
+        if length(columns)==0
+            @show length(header) 
+            columns = AbstractVector[ [] for i in 1:length(header) ]
+            @show columns
+        end
+
+        colidx = OrderedDict{String,Int}( string(key)=>i for (i,key) in enumerate(header) )
+
+        return new(columns, colidx, string.(header), name)
     end
 end
 
+getcolumns(table::DataTable) = getfield(table, :columns)
+getheader(table::DataTable) = getfield(table, :header)
+getcolidx(table::DataTable) = getfield(table, :colidx)
+getname(table::DataTable) = getfield(table, :name)
 
-function DataTable(header::Array, columns::Array{<:ColType,1})
-    this      = DataTable(header)
-    nfields   = length(header)
-    ncols     = length(columns)
-    nfields  != ncols && error("DataTable: header and number of data columns do not match")
-    this.columns = deepcopy(columns)
-    return this
+
+function DataTable(; pairs...)
+
+    columns = AbstractVector[]
+    header  = KeyType[]
+    for (key, val) in pairs
+        push!(header, string(key))
+        push!(columns, copy(val))
+    end
+
+    return DataTable(header, columns)
 end
 
 
 function DataTable(header::Array, matrix::Array{T,2} where T)
-    this   = DataTable(header)
-    nkeys  = length(header)
-    ncols  = size(matrix,2)
+    nkeys = length(header)
+    ncols = size(matrix,2)
     nkeys != ncols && error("DataTable: header and number of data columns do not match")
     types = [ typeof(matrix[1,i]) for i=1:ncols ]
-    this.columns = [ convert(Array{types[i],1}, matrix[:,i]) for i=1:ncols ]
-    return this
+    columns = AbstractVector[ convert(Array{types[i],1}, matrix[:,i]) for i=1:ncols ]
+    return DataTable(header, columns)
 end
 
 
-import Base.push!
-function push!(table::DataTable, row::Array{T,1} where T)
-    @assert length(table.colindex)==length(row)
+function ncols(table::DataTable)
+    return length(getcolumns(table))
+end
 
-    if length(table.columns[1])==0
-        table.columns = [ typeof(v)[v] for v in row  ]
-    else
-        for (i,val) in enumerate(row)
-            push!(table.columns[i], val)
-        end
+
+function nrows(table::DataTable)
+    columns = getcolumns(table)
+    ncols   = length(columns)
+    ncols == 0 && return 0
+    return length(columns[1])
+end
+
+
+function Base.size(table::DataTable)
+    columns = getcolumns(table)
+    ncols   = length(columns)
+    ncols == 0 && return (0,0)
+    return (length(columns[1]), ncols)
+end
+
+
+function Base.getproperty(table::DataTable, sym::Symbol)
+    return getindex(table, sym)
+end
+
+
+function Base.setproperty!(table::DataTable, sym::Symbol, val)
+    key = string(sym)
+    setindex!(table, val, key)
+end
+
+
+function Base.push!(table::DataTable, row::Array{T,1} where T)
+    nr, nc = size(table)
+    @assert nc==length(row)
+    columns = getcolumns(table)
+
+    for (i,v) in enumerate(row)
+        push!(columns[i], v)
     end
 end
 
 
-
 function Base.keys(table::DataTable)
-    return keys(table.colindex)
+    return keys(getcolidx(table))
 end
 
+
 function Base.push!(table::DataTable, dict::AbstractDict)
-    if length(table.columns)==0
-        table.columns  = [ typeof(v)[v] for (k,v) in dict ]
-        table.colindex = OrderedDict( string(key)=>i for (i,key) in enumerate(keys(dict)) )
-        table.header   = string.(keys(dict))
-    else
-        nrows = length(table.columns[1])
+    columns = getcolumns(table)
+    colidx  = getcolidx(table)
+    header  = getheader(table)
+
+    if length(columns)==0
         for (k,v) in dict
+            key = string(k)
+            push!(header, key)
+            push!(columns, [v])
+            colidx[key] = length(header)
+        end
+    else
+        nrows = length(columns[1])
+        for (k,v) in dict
+            key = string(k)
             # Add data
-            colindex = get(table.colindex, string(k), 0)
-            if colindex==0
+            idx = get(colidx, key, 0)
+            if idx==0
                 # add new column
                 new_col = zeros(nrows)
                 push!(new_col, v)
-                push!(table.columns, new_col)
-                table.colindex[string(k)] = length(table.columns)
-                push!(table.header, string(k))
+                push!(columns, new_col)
+                colidx[string(k)] = length(columns)
+                push!(header, key)
             else
-                push!(table.columns[colindex], v)
+                push!(columns[idx], v)
             end
         end
 
-        # Add zero for missing values if any
-        for col in table.columns
+        # Add zero for missing values
+        for col in columns
             if length(col)==nrows
                 push!(col, 0.0)
             end
@@ -101,131 +142,256 @@ function Base.push!(table::DataTable, dict::AbstractDict)
 end
 
 
-function Base.setindex!(table::DataTable, column::ColType, key::KeyType)
-    col = column
+function Base.setindex!(table::DataTable, column::AbstractVector, key::KeyType)
+    columns  = getcolumns(table)
+    colidx = getcolidx(table)
+    header   = getheader(table)
 
-    if length(table.columns)>0
-        n1 = length(table.columns[1])
+    if length(columns)>0
+        n1 = length(columns[1])
         n2 = length(column)
-        n1!=n2 && error("setindex! : length ($n2) for data ($key) is incompatible with DataTable rows ($n1)")
+        n1>0 && n1!=n2 && error("setindex! : vector length ($n2) for data ($key) is incompatible with DataTable rows ($n1)")
     end
 
     key = string(key)
-    if haskey(table.colindex, key)
-        idx = table.colindex[key]
-        table.columns[idx] = column
+    if haskey(colidx, key)
+        idx = colidx[key]
+        columns[idx] = column
     else
-        push!(table.columns, column)
-        push!(table.header, key)
-        table.colindex[key] = length(table.columns)
+        push!(columns, column)
+        push!(header, key)
+        colidx[key] = length(columns)
     end
     return column
 end
 
 
 function Base.getindex(table::DataTable, key::KeyType)
-    @assert string(key) in table.header
-    return table.columns[table.colindex[string(key)]]
+    key    = string(key)
+    colidx = getcolidx(table)
+    haskey(colidx, key) || error("getindex: key $(repr(key)) not found in DataTable. The available keys are $(keys(table))")
+
+    idx  = colidx[key]
+    return getcolumns(table)[idx]
 end
 
 function Base.getindex(table::DataTable, keys::Array{<:KeyType,1})
     columns = [ table[string(key)] for key in keys ]
-    subtable = DataTable(keys, columns)
-    return subtable
+    return DataTable(keys, columns)
 end
 
 function Base.getindex(table::DataTable, rowindex::Int)
-    subtable = DataTable(table.header)
-    for i in 1:length(table.columns)
-        push!(subtable.columns[i], table.columns[i][rowindex])
-    end
-    return subtable
+    columns = getcolumns(table)
+    cols = [ [ columns[i][rowindex] ] for i=1:length(columns) ]
+
+    return DataTable(getheader(table), cols)
 end
 
-function Base.getindex(table::DataTable, idxs::Union{Colon,OrdinalRange{Int,Int},Array{Int,1}})
-    subtable = DataTable(table.header)
-    for i in 1:length(table.columns)
-        subtable.columns[i] = table.columns[i][idxs]
-    end
-    return subtable
+function Base.getindex(table::DataTable, idxs::Union{Colon,OrdinalRange{Int,Int},Array{Int,1},BitArray{1}})
+    columns = getcolumns(table)
+    cols = [ columns[i][idxs] for i=1:length(columns) ]
+
+    return DataTable(getheader(table), cols)
 end
 
-function Base.getindex(table::DataTable, idxs::BitArray{1})
-    @assert length(idxs)==length(table.columns[1])
-    subtable = DataTable(table.header)
-    for i in 1:length(table.columns)
-        subtable.columns[i] = table.columns[i][idxs]
-    end
-    return subtable
+
+function Base.getindex(table::DataTable, rows, cols)
+    return table[cols][rows]
 end
 
-function Base.getindex(table::DataTable, rowindex::Int, colindex::Int)
-    return table.columns[colindex][rowindex]
+
+function Base.Array(table::DataTable)
+    return hcat(getcolumns(table)...)    
+end
+
+
+function Base.getindex(table::DataTable, rowindex::Int, colidx::Int)
+    return getcolumns(table)[colidx][rowindex]
 end
 
 function Base.getindex(table::DataTable, rowindex::Int, colon::Colon)
-    row = []
-    for j=1:length(table.header)
-        push!(row, table.columns[j][rowindex])
-    end
-
-    return row
-end
-
-function Base.lastindex(table::DataTable, idx::Int)
-    length(table.columns)==0 && error("DataTable: use of 'end' in an empty table")
-    return length(table.columns[1])
-end
-
-function compress!(table::DataTable, n::Int)
-    nrows = length(table.columns[1])
-    nrows<=n && return table
-
-    factor = (nrows-1)/(n-1)
-
-    idxs = [ round(Int, 1+factor*(i-1)) for i=1:n ] 
-
-    for i=1:length(table.columns)
-        table.columns[i] = table.columns[i][idxs]
-    end
-
+    return [ column[rowindex] for column in getcolumns(table)]
 end
 
 
-mutable struct DataBook
-    tables::Array{DataTable, 1}
-    function DataBook()
-        this = new()
-        this.tables = DataTable[]
-        return this
-    end
+function Base.lastindex(table::DataTable)
+    nr, nc = size(table)
+    nc==0 && error("lastindex: use of 'end' in an empty DataTable")
+    return nr
 end
 
-
-function push!(book::DataBook, table::DataTable)
-    push!(book.tables, table)
-end
-
-
-function Base.getindex(book::DataBook, index::Int)
-    return book.tables[index]
-end
-
-function Base.lastindex(book::DataBook)
-    return length(book.tables)
-end
-
-# TODO: Check this function
-function Base.iterate(book::DataBook, state=(nothing,1) )
-    table, idx = state
-    if idx<=length(book.tables)
-        return (book.tables[idx], (book.tables[i+1], idx+1))
-    else
-        return nothing
-    end
-end
 
 sprintf(fmt, args...) = @eval @sprintf($fmt, $(args...))
+
+
+function compress(table::DataTable, n::Int)
+    columns = getcolumns(table)
+    nr, nc = size(table)
+
+    nr<=n && return table[:]
+
+    factor = (nr-1)/(n-1)
+    idxs   = [ round(Int, 1+factor*(i-1)) for i=1:n ]
+    
+    return table[idxs]
+end
+
+
+function Base.filter(table::DataTable, expr::Expr)
+    fields = get_vars(expr)
+    vars   = Dict{Symbol, Float64}()
+    nr     = nrows(table)
+    idxs   = falses(nr)
+    for i=1:nr
+        for field in fields
+            vars[field] = table[field][i]
+        end
+        idxs[i] = eval_arith_expr(expr; vars...)
+    end
+    return table[idxs]
+end
+
+
+function resize(table::DataTable, n::Int=0; ratio=1.0)
+    header = getheader(table)
+    nr     = nrows(table)
+    
+    if n==0
+        ratio > 0.0 || error("resize: ratio should be greater than zero")
+        n = max(2, round(Int, nr*ratio))
+    end
+    n > 0 || error("resize: number of rows should be greater than zero")
+    nr >= 4 || error("resize: Table object should contain at least 4 rows")
+
+    ns = nr - 1                # number of spacings
+    nb = floor(Int64, ns/3)    # number of bezier curves
+    ds = 1.0 / nb              # spacing between curves
+
+    cols = Array{Any,1}[]
+    for (j,field) in enumerate(header)
+        U = table[field]
+        V = zeros(n)
+
+        for (i,s) in enumerate(range(0.0, 1.0, length=n))
+            # find index of Bezier and local coordinate t
+            ib = floor(Int64, s/ds) + 1   # index of Bezier
+            ib > nb && (ib = nb)          # fix index if s ~= 1+eps
+            s0 = (ib-1) * ds              # s @ left point
+            t  = (s - s0) / ds            # local t for current Bezier
+            t > 1.0 && (t = 1.0)          # clean rubbish. e.g. 1.00000000002
+        
+            # collect control points
+            k = 1 + (ib-1) * 3            # position of first point of bezier
+            
+            P1 = U[k  ]
+            P2 = U[k+1]
+            P3 = U[k+2]
+            P4 = U[k+3]
+
+            # control points
+            Q1 =         P1
+            Q2 = (-5.0 * P1 + 18.0 * P2 -  9.0 * P3 + 2.0 * P4) / 6.0
+            Q3 = ( 2.0 * P1 -  9.0 * P2 + 18.0 * P3 - 5.0 * P4) / 6.0
+            Q4 =                                            P4
+
+            a =       Q4 - 3.0 * Q3 + 3.0 * Q2 - Q1
+            b = 3.0 * Q3 - 6.0 * Q2 + 3.0 * Q1
+            c = 3.0 * Q2 - 3.0 * Q1
+            d =       Q1
+
+            V[i] = a*t*t*t + b*t*t + c*t + d
+        end
+
+        push!(cols, V)
+    end
+    
+    return DataTable(header, cols)
+end
+
+
+function cut(table::DataTable, field, value=0.0; after=false)
+    table = table[:] # get a copy
+    V = table[field] .- value
+    for i=2:length(V)
+        if V[i-1]*V[i] <= 0
+            α = -V[i-1]/(V[i]-V[i-1]) 
+            for (j,field) in enumerate(table.header)
+                W = table[field]
+                W[i] = W[i-1] + α*(W[i]-W[i-1])
+            end
+            rng = 1:i
+            after && (rng=1:length(V))
+            return table[rng]
+        end
+    end
+
+    return table
+end
+
+
+function denoise(table::DataTable, fieldx, fieldy=nothing; noise=0.05, npatch=4)
+    header = getheader(table)
+    nr     = nrows(table)
+
+    if fieldy === nothing
+        X = range(0,1,length=nr)
+        Y = table[fieldx]
+    else
+        X = table[fieldx]
+        Y = table[fieldy]
+    end
+
+    M  = ones(npatch,2)
+    A  = zeros(2)
+    ΔY = [ Float64[] for i=1:nr ]
+
+    for i=1:nr-npatch+1        
+        rng = i:i+npatch-1
+        Xp = X[rng]
+        Yp = Y[rng]
+
+        # Linear regression
+        M[:,2] .= Xp
+        A  = pinv(M)*Yp
+        ΔYp = abs.(Yp .- M*A)
+
+        for (j,k) in enumerate(rng)
+            push!(ΔY[k], ΔYp[j])
+        end
+    end
+
+    idxs = minimum.(ΔY) .<= noise*(maximum(Y)-minimum(Y))
+    idxs[1:npatch] .= 1
+    idxs[end-npatch+1:end] .= 1
+
+    # newtable = table[:]
+    # for i in (1:nr)[idxs]
+    #     j = findprev(!iszero, idxs, i-1)
+    #     k = findnext(!iszero, idxs, i+1)
+    #     r = (X[i]-X[j])/(X[k]-X[j])
+
+    #     for fieldx in header
+    #         V = newtable[fieldx]
+    #         V[i] = V[j] + r*(V[k]-V[j])
+    #     end
+    # end
+
+    # Linear interpolation of dropped points
+    cols = Array{Any,1}[]
+    for column in columns
+        V = copy(column)
+        for i in (1:nr)[.!idxs]
+            j = findprev(!iszero, idxs, i-1)
+            k = findnext(!iszero, idxs, i+1)
+            r = (X[i]-X[j])/(X[k]-X[j])
+            V[i] = V[j] + r*(V[k]-V[j])
+        end
+        push!(cols, V)
+    end
+
+    return DataTable(header, cols)
+end
+
 
 # TODO: Improve column width for string items
 function save(table::DataTable, filename::String; verbose::Bool=true, digits::Array=[])
@@ -242,11 +408,13 @@ function save(table::DataTable, filename::String; verbose::Bool=true, digits::Ar
         return
     end
 
-    nc = length(table.colindex)              # number of cols
-    nr = nc>0 ? length(table.columns[1]) : 0 # number of rows
+    columns = getcolumns(table)
+    colidx  = getcolidx(table)
+    header  = getheader(table)
+    nr, nc  = size(table)
 
     if format==".dat"
-        for (i,key) in enumerate(keys(table.colindex))
+        for (i,key) in enumerate(header)
             @printf(f, "%12s", key)
             print(f, i!=nc ? "\t" : "\n")
         end
@@ -254,7 +422,7 @@ function save(table::DataTable, filename::String; verbose::Bool=true, digits::Ar
         # print values
         for i=1:nr
             for j=1:nc
-                item = table.columns[j][i]
+                item = columns[j][i]
                 if typeof(item)<:AbstractFloat
                     @printf(f, "%12.5e", item)
                 elseif typeof(item)<:Integer
@@ -271,16 +439,15 @@ function save(table::DataTable, filename::String; verbose::Bool=true, digits::Ar
 
     if format==".tex"
         # widths calculation
-        header = keys(table.colindex)
         widths = length.(header)
-        types  = eltype.(table.columns)
+        types  = eltype.(columns)
 
         if length(digits)==0
             digits = repeat([4], nc)
         end
         @assert length(digits)==nc
 
-        for (i,col) in enumerate(table.columns)
+        for (i,col) in enumerate(columns)
             etype = types[i]
             if etype<:AbstractFloat
                 widths[i] = max(widths[i], 12)
@@ -294,9 +461,12 @@ function save(table::DataTable, filename::String; verbose::Bool=true, digits::Ar
         end
 
         # printing header
-        println(f, raw"\begin{tabular}{", "c"^nc, "}" )
-        println(f, raw"    \toprule")
-        print(f, "    ")
+        level = 1
+        indent = "    "
+        println(f, indent^level, raw"\begin{tabular}{", "c"^nc, "}" )
+        level = 2
+        println(f, indent^level, raw"\toprule")
+        print(f, indent^level)
         for (i,key) in enumerate(header)
             etype = types[i]
             width = widths[i]
@@ -310,12 +480,12 @@ function save(table::DataTable, filename::String; verbose::Bool=true, digits::Ar
         println(f, raw" \\\\")
 
         # printing body
-        println(f, raw"    \hline")
+        println(f, indent^level, raw"\hline")
         for i=1:nr
-            print(f, "    ")
+            print(f, indent^level)
             for j=1:nc
                 etype = types[j]
-                item = table.columns[j][i]
+                item = columns[j][i]
                 width = widths[j]
                 if etype<:AbstractFloat
                     #item = @sprintf("%12.3f", item)
@@ -330,7 +500,7 @@ function save(table::DataTable, filename::String; verbose::Bool=true, digits::Ar
                     item = @sprintf("%6d", item)
                     print(f, lpad(item, width))
                 elseif etype<:AbstractString
-                    print(f, rpad(item, width))
+                    print(f,rpad(item, width))
                 else
                     str = string(item)
                     print(f, rpad(item, width))
@@ -339,60 +509,15 @@ function save(table::DataTable, filename::String; verbose::Bool=true, digits::Ar
             end
             println(f, raw" \\\\")
         end
-        println(f, raw"    \bottomrule")
+        println(f, indent^level, raw"\bottomrule")
 
         # printing ending
-        println(f, raw"\end{tabular}")
+        level = 1
+        println(f, indent^level, raw"\end{tabular}")
     end
 
     close(f)
     return nothing
-end
-
-
-function save(book::DataBook, filename::String; verbose::Bool=true)
-    basename, format = splitext(filename)
-    format == ".dat" || error("DataBook: cannot save in \"$format\". Suitable format is \".dat\".")
-
-    local f::IOStream
-    try
-        f = open(filename, "w")
-    catch err
-        warn("DataBook: File $filename could not be opened for writing.")
-        return
-    end
-
-    if format==".dat"
-
-        for (k,table) in enumerate(book.tables)
-
-            nc = length(table.colindex)              # number of cols
-            nr = nc>0 ? length(table.columns[1]) : 0 # number of rows
-
-            # print table label
-            print(f, "Table (snapshot=$(k), rows=$nr)\n")
-
-            # print header
-            for (i,key) in enumerate(keys(table.colindex))
-                @printf(f, "%12s", key)
-                print(f, i!=nc ? "\t" : "\n")
-            end
-
-            # print values
-            for i=1:nr
-                for j=1:nc
-                    @printf(f, "%12.5e", table.columns[j][i])
-                    print(f, j!=nc ? "\t" : "\n")
-                end
-            end
-            print(f, "\n")
-        end
-
-        verbose && printstyled("  file $filename written\n", color=:cyan)
-    end
-    close(f)
-    return nothing
-
 end
 
 
@@ -402,87 +527,63 @@ function DataTable(filename::String, delim='\t')
 
     if format==".dat"
         matrix, headstr = readdlm(filename, delim, header=true, use_mmap=false)
-        table = DataTable(strip.(headstr), matrix)
+        header = vec(strip.(headstr))
+        table = DataTable(header, matrix)
         return table
     end
 end
 
 
-function DataBook(filename::String)
-    delim = "\t"
-    basename, format = splitext(filename)
-    format == ".dat" || error("DataBook: cannot read \"$format\". Suitable format is \".dat\".")
-
-    f      = open(filename, "r")
-    book   = DataBook()
-    if format==".dat"
-        lines = readlines(f)
-        header_expected = false
-        for (i,line) in enumerate(lines)
-            items = split(line)
-            length(items)==0 && strip(line)=="" && continue
-
-            if items[1]=="Table"
-                header_expected = true
-                continue
-            end
-            if header_expected # add new table
-                header = [ strip(key) for key in split(line, delim) ]
-                push!(book.tables, DataTable(header))
-                header_expected = false
-                continue
-            end
-
-            length(book.tables) == 0 && error("DataBook: Wrong file format. Use DataTable(filename) to read a table")
-            row = []
-            for item in items
-                try
-                    char1 = item[1]
-                    isnumeric(char1) || char1 in ('+','-') ?  push!(row, Meta.parse(item)) : push!(row, item)
-                catch err
-                    @error "DataBook: Error while reading value '$item' at line $i"
-                    throw(err)
-                end
-            end
-            push!(book.tables[end], row) # udpate newest table
-        end
-    end
-
-    close(f)
-    return book
-end
-
 # Functions for backwards compatibility
 loadtable(filename::String, delim='\t') = DataTable(filename, delim)
-loadbook(filename::String) = DataBook(filename)
+
 
 # TODO: Improve display. Include column datatype
 function Base.show(io::IO, table::DataTable)
-    if length(table.columns)==0
+    columns = getcolumns(table)
+    colidx = getcolidx(table)
+
+    println(io)
+    if length(columns)==0
         print(io, "DataTable()")
         return
     end
-    nc = length(table.colindex)     # number of fields (columns)
-    nr = length(table.columns[1])   # number of rows
+
+    nr, nc = size(table)
 
     if nr==0
         print(io, "DataTable()")
         return
     end
 
-    header = keys(table.colindex)
-    widths = length.(header)
-    types  = eltype.(table.columns)
-    for (i,col) in enumerate(table.columns)
+    header = keys(colidx)
+    types  = typeof.(getindex.(columns,1))
+
+    hwidths = length.(header)
+    widths  = zeros(Int, length(header))
+    useformat   = falses(length(header))
+    shortformat = falses(length(header))
+
+    for (i,col) in enumerate(columns)
         etype = types[i]
+        widths[i] = maximum(length.(string.(col)))
         if etype<:AbstractFloat
-            widths[i] = max(widths[i], 12)
-        elseif etype<:Integer
-            widths[i] = max(widths[i], 6)
-        elseif etype<:AbstractString
-            widths[i] = max(widths[i], maximum(length.(col)))
-        else
-            widths[i] = max(widths[i], maximum(length.(string.(col))))
+            if widths[i] >= 11
+                widths[i] = 11
+                useformat[i] = true
+            end
+        end
+        widths[i] = max(widths[i], hwidths[i])
+    end
+
+    total = sum(widths) + (length(header)+1)*3
+    if total>displaysize(stdout)[2]
+        for (i,col) in enumerate(columns)
+            etype = types[i]
+            if etype<:AbstractFloat && useformat[i] && hwidths[i]<=8
+                shortformat[i] = true
+                widths[i] = max(8, hwidths[i])
+            end
         end
     end
 
@@ -512,18 +613,17 @@ function Base.show(io::IO, table::DataTable)
         print(io, " │ ")
         for j=1:nc
             etype = types[j]
-            item = table.columns[j][i]
+            item = columns[j][i]
             if etype<:AbstractFloat
-                item = @sprintf("%12.5e", item)
+                if useformat[j]
+                    if shortformat[j]
+                        item = @sprintf("%8.1e", item)
+                    else
+                        item = @sprintf("%11.4e", item)
+                    end
+                end
                 print(io, lpad(item, widths[j]))
-            elseif etype<:Integer
-                item = @sprintf("%6d", item)
-                print(io, lpad(item, widths[j]))
-            elseif etype<:AbstractString
-                str = item
-                print(io, rpad(item, widths[j]))
             else
-                str = string(item)
                 print(io, rpad(item, widths[j]))
             end
             print(io, " │ ")
@@ -534,17 +634,4 @@ function Base.show(io::IO, table::DataTable)
 end
 
 
-function Base.show(io::IO, book::DataBook)
-    print(io, "DataBook (tables=$(length(book.tables))):\n")
-    n = length(book.tables)
-    for (k,table) in enumerate(book.tables)
-        # print table label
-        nitems = length(table.columns[1])
-        print(io, " Table (snapshot=$(k), rows=$nitems):\n")
-        str = string(table)
-        k<n && print(io, str, "\n")
-    end
-end
-
-
-randtable() = DataTable(["A","B","C"], [0:10 rand().*(sin.(0:10).+(0:10)) rand().*(cos.(0:10).+(0:10)) ])
+randtable() = DataTable(["x","y","z"], [0:10 rand().*(sin.(0:10).+(0:10)) rand().*(cos.(0:10).+(0:10)) ])

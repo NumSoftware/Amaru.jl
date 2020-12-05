@@ -63,17 +63,17 @@ mesh = Mesh(bl, silent=true)
 TR = @test length(mesh.nodes) == 9261
 println(TR)
 
-println("\nGenerating mesh using HEX8 in BlockCylinder")
-bl = BlockCylinder( [0 0 0; 5 5 5], r=2.0, nr=6, n=4, cellshape=HEX8)
-mesh = Mesh(bl, silent=true)
-TR = @test length(mesh.nodes) == 445
-println(TR)
+# println("\nGenerating mesh using HEX8 in BlockCylinder")
+# bl = BlockCylinder( [0 0 0; 5 5 5], r=2.0, nr=6, n=4, cellshape=HEX8)
+# mesh = Mesh(bl, silent=true)
+# TR = @test length(mesh.nodes) == 445
+# println(TR)
 
-println("\nGenerating mesh using HEX20 in BlockCylinder")
-bl = BlockCylinder( [0 0 0; 5 5 5], r=2.0, nr=6, n=4, cellshape=HEX20)
-mesh = Mesh(bl, silent=true)
-TR = @test length(mesh.nodes) == 1641
-println(TR)
+# println("\nGenerating mesh using HEX20 in BlockCylinder")
+# bl = BlockCylinder( [0 0 0; 5 5 5], r=2.0, nr=6, n=4, cellshape=HEX20)
+# mesh = Mesh(bl, silent=true)
+# TR = @test length(mesh.nodes) == 1641
+# println(TR)
 
 printstyled("\nMesh generation for surfaces\n", color=:blue, bold=true)
 

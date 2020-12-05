@@ -36,7 +36,13 @@ function mount_K(dom::Domain,
     return K
 end
 
-function mount_K_threads(dom::Domain, ndofs::Int)
+function mount_K_threads(
+    dom::Domain, 
+    ndofs::Int,
+    verbosity::Int
+)
+
+    verbosity>1 && print("    assembling... \033[K \r")
 
     nelems = length(dom.elems)
     Rs = Array{Int64,1}[ [] for i=1:nelems  ]
@@ -133,6 +139,9 @@ function solve_system!(
         end
     end
 
+    maxU = 1e10 # maximum essential value
+    maximum(abs, U1)>maxU && warn("solve_system!: Possible syngular matrix")
+
     # Completing vectors
     DU[1:nu]     .= U1
     DF[nu+1:end] .= F2
@@ -202,7 +211,7 @@ function solve!(
                 maxincs :: Int     = 1000000,
                 tol     :: Number  = 1e-2,
                 Ttol    :: Number  = 1e-9,
-                rspan   :: Number  = 1e-3,
+                rspan   :: Number  = 1e-2,
                 scheme  :: Union{String,Symbol} = "FE",
                 nouts   :: Int     = 0,
                 outdir  :: String  = ".",
@@ -252,7 +261,6 @@ function solve!(
     dom.ndofs = length(dofs)
     verbosity>0 && message("unknown dofs: $nu")
 
-
     # Setup quantities at dofs
     if env.cstage==1
         for (i,dof) in enumerate(dofs)
@@ -283,7 +291,7 @@ function solve!(
     # Incremental analysis
     T  = 0.0
     ΔT = 1.0/nincs       # initial ΔT value
-    autoinc && (ΔT=min(ΔT,0.01))
+    autoinc && nincs==1 && (ΔT=min(ΔT,0.01))
     ΔTbk = 0.0
 
     ΔTcheck = save_outs ? 1/nouts : 1.0
@@ -302,8 +310,6 @@ function solve!(
 
     # Get forces and displacements from boundary conditions
     Uex, Fex = get_bc_vals(dom, bcs)
-
-
 
     # Get unbalanced forces
     if env.cstage==1
@@ -364,7 +370,7 @@ function solve!(
                 ΔUt   = ΔUa + ΔUi
                 status = update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
                 !status.success && (errored=true; break)
-
+                
                 residue = maximum(abs, (ΔFex-ΔFin)[umap])
             end
 

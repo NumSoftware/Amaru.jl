@@ -40,8 +40,8 @@ S = (alpha - n)/Ks + n/Kw
 for i=1:2
     materials = [
         "solids" => ElasticSolidLinSeep(E=E, nu=nu, k=k, gammaw=gw, alpha=alpha, S=S),
-        "joints" => ElasticJointSeep(E=E, nu=nu, zeta=100, k=k, gammaw=gw, alpha=alpha, S=S, eta=eta, kt=1),
-        "joints" => MCJointSeep(E=E, nu=nu, ft=2.4e3, mu=1.4, zeta=100, wc=1.7e-4, ws=1.85e-5, softcurve="hordijk", k=k, gammaw=gw, alpha=alpha, S=S, eta=eta, kt=1),
+        "joints" => ElasticJointSeep(E=E, nu=nu, zeta=100, gammaw=gw,eta=eta, kt=1),
+        "joints" => MCJointSeep(E=E, nu=nu, ft=2.4e3, mu=1.4, zeta=100, wc=1.7e-4, ws=1.85e-5, softcurve="hordijk", gammaw=gw, eta=eta, kt=1),
     ]
 
     if i==1

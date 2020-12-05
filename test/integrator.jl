@@ -12,5 +12,3 @@ stress_update(int, Δε, nincs=40)
 using PyPlot
 t = int.table
 plot(t[:ezz], t[:szz], "-o")
-
-

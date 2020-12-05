@@ -31,52 +31,47 @@ mutable struct CEBJoint1D<:Material
     β   :: Float64
     ks  :: Float64
     kn  :: Float64
-    h   :: Float64
+    p   :: Float64
 
     function CEBJoint1D(prms::Dict{Symbol,Float64})
         return  CEBJoint1D(;prms...)
     end
 
-    function CEBJoint1D(;TauM=NaN, TauR=NaN, s1=NaN, s2=NaN, s3=NaN, alpha=NaN, beta=NaN, kn=NaN, ks=NaN, h=NaN, A=NaN, dm=NaN)
-        @assert s1>0
-        @assert s2>s1
-        @assert s3>s2
-        @assert ks>0
+    function CEBJoint1D(;TauM=NaN, TauR=NaN, s1=NaN, s2=NaN, s3=NaN, alpha=NaN, beta=NaN, kn=NaN, ks=NaN, p=NaN, A=NaN, dm=NaN)
+        
+        @check s1>0
+        @check s2>s1
+        @check s3>s2
 
-        # Estimate the perimeter h
-        if isnan(h)
+        # Estimate the perimeter p
+        @check p>0 || A>0 || dm>0
+        if isnan(p)
             if A>0
-                h = 2.0*√(A*pi)
+                p = 2.0*√(A*pi)
             else
-                @assert dm>0
-                h = pi*dm
+                p = pi*dm
             end
         end
-        @assert h>0
 
         # Estimate TauM if not provided
-        if isnan(TauM)
-            TauM = ks*s1
-        end
-        @assert TauM>=TauR
-
-        @assert ks>=TauM/s1
+        @check ks>0
+        isnan(TauM) && (TauM = ks*s1)
+        @check TauM>=TauR
+        @check ks>=TauM/s1
 
         # Define alpha if not provided
-        if isnan(alpha); alpha = 1.0 end
-        @assert 0.0<=alpha<=1.0
+        isnan(alpha) && (alpha = 1.0)
+        @check 0.0<=alpha<=1.0
 
         # Define beta if not provided
-        if isnan(beta); beta= 1.0 end
-        @assert beta>=0.0
+        isnan(beta) && (beta = 1.0)
+        @assert beta>=0.0 beta=1
 
         # Estimate kn if not provided
-        if isnan(kn)
-            kn = ks
-        end
-        @assert kn>0
+        isnan(kn) && (kn = ks)
+        @check kn>0
 
-        this = new(TauM, TauR, s1, s2, s3, alpha, beta, ks, kn, h)
+        this = new(TauM, TauR, s1, s2, s3, alpha, beta, ks, kn, p)
         return this
     end
 end
@@ -96,7 +91,7 @@ function Tau(mat::CEBJoint1D, sy::Float64)
     elseif sy<mat.s3
         return mat.τmax - (mat.τmax-mat.τres)*((sy-mat.s2)/(mat.s3-mat.s2))^mat.β
     else
-        return mat.τres
+        return mat.τres  + 1*(sy-mat.s3)
     end
 end
 
@@ -119,12 +114,16 @@ function deriv(mat::CEBJoint1D, ipd::CEBJoint1DIpState, sy::Float64)
     end
 end
 
+
 function calcD(mat::CEBJoint1D, ipd::CEBJoint1DIpState)
     ndim = ipd.env.ndim
-    if ipd.elastic
-        ks = mat.ks
-    else
-        ks = deriv(mat, ipd, ipd.sy)
+    ks = mat.ks
+
+    if !ipd.elastic
+        dτydsy = deriv(mat, ipd, ipd.sy)
+        # ks = ks*dτydsy/(ks+dτydsy)
+        ks = dτydsy
+        # @s ks
     end
 
     kn = mat.kn
@@ -142,6 +141,98 @@ function yield_func(mat::CEBJoint1D, ipd::CEBJoint1DIpState, τ::Float64)
     return abs(τ) - ipd.τy
 end
 
+function stress_update_n(mat::CEBJoint1D, ipd::CEBJoint1DIpState, Δu::Vect)
+    ks = mat.ks
+    kn = mat.kn
+    Δs = Δu[1]      # relative displacement
+    τini = ipd.σ[1] # initial shear stress
+    τtr  = τini + ks*Δs # elastic trial
+
+    ftr  = yield_func(mat, ipd, τtr)
+
+    if ftr<0.0
+        τ = τtr
+        ipd.elastic = true
+    else
+        maxits = 30
+        Δλ     = 0.0
+        # Δλ     = abs(τtr)/ks
+        τy     = 0.0
+        tol    = 1e-4
+
+
+        for i in 1:maxits
+            # τ  = τtr - Δλ*ks*sign(τtr)
+            τy = Tau(mat, ipd.sy+Δλ)
+            # τ  = τy*sign(τtr)
+            dτydsy = deriv(mat, ipd, ipd.sy+Δλ)
+
+            # @s τ
+            # @s τy
+            # @s dτydsy
+
+            # f     = abs(τ) - τy
+            f = abs(τtr) - Δλ*ks - τy
+            # dfdΔλ = -sign(abs(τtr) - Δλ*ks)*ks - dτydsy
+            dfdΔλ = -ks - dτydsy
+            Δλ = Δλ - f/dfdΔλ
+            # Δλ = (abs(τtr)-τy)/mat.ks
+            # abs(f) < tol && @s i
+            abs(f) < tol && break
+
+            # @s f
+            # @s dfdΔλ
+
+            # @s Δλ
+            # if Δλ<0
+                # Δλ = (abs(τtr)-ipd.τy)/mat.ks
+                # break
+            # end
+
+            if i==maxits || isnan(Δλ)  
+                if Δλ<0.0
+                    @s Δλ
+                    Δλ = (abs(τtr)-ipd.τy)/mat.ks
+                    break
+                end
+
+                               
+                @s "Errorrrrr"
+                @s dτydsy
+
+                # error()
+                # @s f
+                # @s i
+                return ipd.σ, CallStatus(false, "CEBJoint1D: Could not find Δλ")
+                # break
+            end
+
+        end
+
+        if Δλ<0.0
+            Δλ = (abs(τtr)-ipd.τy)/mat.ks
+            @s Δλ
+        end
+
+        ipd.sy += Δλ
+        ipd.τy  = τy
+        τ  = ipd.τy*sign(τtr)
+        Δτ = τ - τini
+        ipd.elastic = false
+    end
+
+    # calculate Δσ
+    Δτ = τ - τini
+    Δσ = kn*Δu
+    Δσ[1] = Δτ
+
+    # update u and σ
+    ipd.u .+= Δu
+    ipd.σ .+= Δσ
+
+    return Δσ, CallStatus(true)
+end
+
 function stress_update(mat::CEBJoint1D, ipd::CEBJoint1DIpState, Δu::Vect)
     ks = mat.ks
     kn = mat.kn
@@ -155,7 +246,12 @@ function stress_update(mat::CEBJoint1D, ipd::CEBJoint1DIpState, Δu::Vect)
         τ = τtr
         ipd.elastic = true
     else
-        Δsy     = (abs(τtr)-ipd.τy)/mat.ks
+        dτydsy = deriv(mat, ipd, ipd.sy)
+        # @s ks
+        # @s dτydsy
+        # Δsy     = (abs(τtr)-ipd.τy)/(ks+dτydsy)
+        # Δsy     = (abs(τtr)-ipd.τy)/abs(ks+dτydsy)
+        Δsy     = (abs(τtr)-ipd.τy)/ks
         ipd.sy += Δsy
         ipd.τy  = Tau(mat, ipd.sy)
         τ  = ipd.τy*sign(τtr)

@@ -18,30 +18,30 @@ end
 mutable struct ElasticJoint1D<:Material
     ks::Float64
     kn::Float64
-    h ::Float64    # section perimeter
+    p ::Float64    # section perimeter
 
     function ElasticJoint1D(prms::Dict{Symbol,Float64})
         return  ElasticJoint1D(;prms...)
     end
 
-    function ElasticJoint1D(;ks=NaN, kn=NaN, h=NaN, A=NaN, dm=NaN)
+    function ElasticJoint1D(;ks=NaN, kn=NaN, p=NaN, A=NaN, dm=NaN)
         # A : section area
         # dm: section diameter
-        # h : section perimeter
-        ks>=0 || error("ks should be greater than zero")
-        kn>=0 || error("kn should be greater than zero")
-        (h>0 || A>0 || dm>0) || error("perimeter h, section area A or diameter dm should be provided")
+        # p : section perimeter
+        @check ks>=0
+        @check kn>=0
+        @check (p>0 || A>0 || dm>0)
 
-        if isnan(h)
+        if isnan(p)
             if A>0
-                h = 2.0*(A*pi)^0.5
+                p = 2.0*(A*pi)^0.5
             else
-                h = pi*dm
+                p = pi*dm
             end
         end
-        @assert h>0
+        @assert p>0
 
-        this = new(ks, kn, h)
+        this = new(ks, kn, p)
         return this
     end
 end

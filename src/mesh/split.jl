@@ -118,6 +118,7 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
             if f==nothing
                 facedict[hs] = face
             else # a matching face was found
+                
                 push!(ocells, face.oelem)
                 push!(ocells, f.oelem)
                 for node in face.nodes
@@ -751,20 +752,33 @@ function cracksmesh(mesh::Mesh, opening::Real)
     crack_faces = Cell[]
     for pair in face_pairs
         face1, face2 = pair
+
+        #error()
         X1 = face1.nodes[1].coord
         X2 = face1.nodes[2].coord
         X3 = face1.nodes[3].coord
         n = cross(X2-X1, X3-X1)
         normalize!(n)
+        nnodes = length(face1.nodes)
         node_map = [node.id for node in face1.nodes]
-        nnodes = length(node_map)
         U1 = mean(U[node_map,:], dims=1)
-
         node_map = [node.id for node in face2.nodes]
         U2 = mean(U[node_map,:], dims=1)
 
-        d = dot(U2-U1, n)
-        if d>=opening
+        #dn = maximum((U2-U1)*n) # normal distance
+        dn = dot(U2-U1,n) # normal distance
+        #d  = norm(mean(U2-U1, dims=1)) # total distance
+
+        #U2 = mean(U2, dims=1)
+        #U1 = mean(U1, dims=1)
+        d  = norm(U2-U1) # total distance
+        #d = maximum(norm.(eachrow(U2-U1)))
+        if dn>0
+            #display(U2-U1)
+            #error()
+        end
+
+        if dn>0 && d>=opening
             push!(crack_faces, face1)
         end
     end

@@ -355,7 +355,7 @@ function elem_internal_forces(elem::HMSolid, F::Array{Float64,1})
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = dNdR*C
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
+        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
         @gemm dNdX = inv(J)*dNdR
         setBu(elem, ip, dNdX, Bu)
 

@@ -266,14 +266,18 @@ function calc_Δλ(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
         abs(f) < tol && break
 
         if i == maxits || isnan(Δλ)
-            @error """MCJoint: Could not find Δλ. This may happen when the system
-            becomes hypostatic and thus the global stiffness matrix is near singular.
-            Increasing the mesh refinement may result in a nonsingular matrix.
-            """ iterations=i Δλ
+            return Δλ, CallStatus(false, "SmearedCrack: Could not find Δλ")
+
+            # alert("""MCJoint: Could not find Δλ. This may happen when the system
+            # becomes hypostatic and thus the global stiffness matrix is nearly singular.
+            # Increasing the mesh refinement may result in a nonsingular matrix.
+            # """)
+            # alert("iterations=$i Δλ=$Δλ")
+
             error()
         end
     end
-    return Δλ
+    return Δλ, CallStatus(true)
 end
 
 
@@ -377,7 +381,9 @@ function stress_update(mat::MCJoint, ipd::MCJointIpState, Δw::Array{Float64,1})
 
     else
         # Plastic increment
-        ipd.Δλ = calc_Δλ(mat, ipd, σtr) 
+        ipd.Δλ, status = calc_Δλ(mat, ipd, σtr)
+        !status.success && return ipd.σ, status
+
         ipd.σ, ipd.upa = calc_σ_upa(mat, ipd, σtr)
                       
         # Return to surface:

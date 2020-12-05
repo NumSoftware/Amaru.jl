@@ -136,7 +136,7 @@ function elem_stiffness(elem::MechJoint1D)
         B    = elem.cache_B[i]
         detJ = elem.cache_detJ[i]
         D    = calcD(mat, ip.state)
-        D[1,1]*=mat.h
+        D[1,1]*=mat.p
         coef = detJ*ip.w
         @gemm DB = D*B
         @gemm K += coef*B'*DB
@@ -167,7 +167,7 @@ function elem_update!(elem::MechJoint1D, U::Array{Float64,1}, F::Array{Float64,1
         @gemv Δu = B*dU
         Δσ, _ = stress_update(mat, ip.state, Δu)
         coef = detJ*ip.w
-        Δσ[1]  *= mat.h
+        Δσ[1]  *= mat.p
         @gemv dF += coef*B'*Δσ
     end
 

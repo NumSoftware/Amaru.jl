@@ -138,7 +138,7 @@ Uses a mesh and a list of meterial especifications to construct a finite element
 function Domain(
                 mesh      :: Mesh,
                 matbinds  :: Array{<:Pair,1};
-                modeltype :: String = "3d", # or "plane-stress", "plane-strain", "axysimmetric"
+                modeltype :: String = "", # or "plane-stress", "plane-strain", "axysimmetric"
                 thickness :: Real   = 1.0,
                 verbose   :: Bool   = false,
                 silent    :: Bool   = false,
@@ -148,6 +148,9 @@ function Domain(
     verbosity = 1
     verbose && (verbosity=2)
     silent && (verbosity=0)
+    if modeltype==""
+        modeltype = mesh.ndim==2 ? "2d" : "3d"
+    end
 
     dom  = Domain()
     dom.ndim = mesh.ndim

@@ -259,21 +259,21 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
         H -= coef*Nt'*Nt
 
          # compute crack aperture
-        if elem.mat.kl == 0.0
+        if elem.mat.w == 0.0
             if ip.state.upa == 0.0 || ip.state.w[1] <= 0.0  
-                kl = 0.0
+                w = 0.0
             else
-                kl = ip.state.w[1]
+                w = ip.state.w[1]
             end
         else
-            if elem.mat.kl >= ip.state.w[1]
-                kl = elem.mat.kl
+            if elem.mat.w >= ip.state.w[1]
+                w = elem.mat.w
             else 
-                kl = ip.state.w[1]
+                w = ip.state.w[1]
             end
         end    
 
-        coef = detJ*ip.w*th*(kl^3)/(12*elem.mat.η) 
+        coef = detJ*ip.w*th*(w^3)/(12*elem.mat.η) 
         H -= coef*Bf'*Bf
     end
     
@@ -283,7 +283,7 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
     return H, map, map, nodes_p
 end
 
-#=
+
 function elem_compressibility_matrix(elem::HydroMechJoint)
     ndim     = elem.env.ndim
     th       = elem.env.thickness
@@ -317,8 +317,23 @@ function elem_compressibility_matrix(elem::HydroMechJoint)
         N0 = 0*Np
         Nf = [N0' N0' Np']
 
+        # compute crack aperture
+        if elem.mat.w == 0.0
+            if ip.state.upa == 0.0 || ip.state.w[1] <= 0.0  
+                w = 0.0
+            else
+                w = ip.state.w[1]
+            end
+        else
+            if elem.mat.w >= ip.state.w[1]
+                w = elem.mat.w
+            else 
+                w = ip.state.w[1]
+            end
+        end    
+
         # compute Cpp
-        coef = detJ*ip.w*elem.mat.β*th
+        coef = detJ*ip.w*elem.mat.β*w*th
         Cpp -= coef*Nf'*Nf
     end
 
@@ -327,7 +342,7 @@ function elem_compressibility_matrix(elem::HydroMechJoint)
 
     return Cpp, map, map
 end
-=#
+
 
 function elem_RHS_vector(elem::HydroMechJoint)
     ndim     = elem.env.ndim
@@ -377,21 +392,21 @@ function elem_RHS_vector(elem::HydroMechJoint)
         # compute Q
 
         # compute crack aperture
-        if elem.mat.kl == 0.0
+        if elem.mat.w == 0.0
             if ip.state.upa == 0.0 || ip.state.w[1] <= 0.0 
-                kl = 0.0
+                w = 0.0
             else
-                kl = ip.state.w[1]
+                w = ip.state.w[1]
             end 
         else
-            if elem.mat.kl >= ip.state.w[1]
-                kl = elem.mat.kl
+            if elem.mat.w >= ip.state.w[1]
+                w = elem.mat.w
             else 
-                kl = ip.state.w[1]
+                w = ip.state.w[1]
             end
         end    
 
-        coef = detJ*ip.w*th*(kl^3)/(12*elem.mat.η)   
+        coef = detJ*ip.w*th*(w^3)/(12*elem.mat.η)   
         bf = T[(2:end), (1:end)]*Z*elem.mat.γw
         
         @gemm Q += coef*Bf'*bf
@@ -403,6 +418,7 @@ function elem_RHS_vector(elem::HydroMechJoint)
     return Q, map
 end
 
+#=
 function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
     ndim     = elem.env.ndim
     th       = elem.env.thickness
@@ -490,10 +506,10 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
         coef = detJ*ip.w*th
         mfw = mf'*w
         dFw-= coef*Nf'*mfw 
-#=
+
         coef = detJ*ip.w*elem.mat.β*th
         dFw -= coef*Nf'*uwf
-=#
+
         # longitudinal flow
         coef = detJ*ip.w*th  
         S = ip.state.S
@@ -508,7 +524,7 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
     F[map_u] += dF
     F[map_w] += dFw
 end
-
+=#
 
 function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
     ndim     = elem.env.ndim
@@ -611,10 +627,25 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
         coef = detJ*ip.w*th
         mfΔω = mf'*Δω
         dFw -= coef*Nf'*mfΔω 
-#=
-        coef = detJ*ip.w*elem.mat.β*th
+
+        # compute fluid compressibility
+        if elem.mat.w == 0.0
+            if ip.state.upa == 0.0 || ip.state.w[1] <= 0.0 
+                w = 0.0
+            else
+                w = ip.state.w[1]
+            end 
+        else
+            if elem.mat.w >= ip.state.w[1]
+                w = elem.mat.w
+            else 
+                w = ip.state.w[1]
+            end
+        end    
+
+        coef = detJ*ip.w*elem.mat.β*w*th
         dFw -= coef*Nf'*Δuw[3]
-=#
+
         # longitudinal flow
         coef = Δt*detJ*ip.w*th
         dFw -= coef*Bf'*L
@@ -627,4 +658,20 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
     F[map_u] .+= dF
     F[map_w] .+= dFw
     return CallStatus(true)
+end
+
+function elem_extrapolated_node_vals(elem::HydroMechJoint)
+    nips = length(elem.ips)
+
+    E  = extrapolator(elem.shape.facet_shape, nips)
+    Sn = E*[ ip.state.σ[1] for ip in elem.ips ]
+    Wn = E*[ ip.state.w[1] for ip in elem.ips ]
+    Uwn = E*[ ip.state.uw[3] for ip in elem.ips ]
+
+    node_vals = OrderedDict{Symbol, Array{Float64,1}}()
+    node_vals[:sn] = [ Sn; Sn; Sn ]
+    node_vals[:wn] = [ Wn; Wn; Wn]
+    node_vals[:uwn] = [ Uwn; Uwn; Uwn]
+
+    return node_vals
 end

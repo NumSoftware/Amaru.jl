@@ -7,9 +7,9 @@ mutable struct JointSeepIpState<:IpState
     σ    ::Array{Float64,1} # stress
     w    ::Array{Float64,1} # relative displacements
     Vt   ::Array{Float64,1} # transverse fluid velocity
-    D    ::Array{Float64,1} # distance traveled by the fluid
+    #D    ::Array{Float64,1} # distance traveled by the fluid
     L    ::Array{Float64,1} 
-    S    ::Array{Float64,1}
+    #S    ::Array{Float64,1}
     uw   ::Array{Float64,1} # interface pore pressure
     h    ::Float64          # characteristic length from bulk elements
     upa  ::Float64          # effective plastic relative displacement
@@ -19,9 +19,9 @@ mutable struct JointSeepIpState<:IpState
         this.σ   = zeros(3)
         this.w   = zeros(3)
         this.Vt  = zeros(2) 
-        this.D   = zeros(2) 
+        #this.D   = zeros(2) 
         this.L   = zeros(ndim-1)
-        this.S   = zeros(ndim-1)
+        #this.S   = zeros(ndim-1)
         this.uw  = zeros(3) 
         this.h   = 0.0
         this.upa = 0.0
@@ -33,42 +33,28 @@ mutable struct ElasticJointSeep<:Material
     E  ::Float64        # Young's modulus
     nu ::Float64        # Poisson ration 
     ζ  ::Float64        # factor ζ controls the elastic relative displacements 
-    k  ::Float64        # specific permeability
     γw ::Float64        # specific weight of the fluid
-    α  ::Float64        # Biot's coefficient
-    S  ::Float64        # Storativity coefficient
+    β  ::Float64        # compressibility of fluid
     η  ::Float64        # viscosity
     kt ::Float64        # leak-off coefficient
-    kl ::Float64        # initial fracture opening (longitudinal flow)
+    w  ::Float64        # initial fracture opening (longitudinal flow)
 
     function ElasticJointSeep(prms::Dict{Symbol,Float64})
         return  ElasticJoint(;prms...)
     end
 
-    function ElasticJointSeep(;E=NaN, nu=NaN, zeta=NaN, k=NaN, kappa=NaN, gammaw=NaN, alpha=NaN, S=NaN, n=NaN, Ks=NaN, Kw=NaN, eta=NaN, kt=NaN, kl=0.0)
-
-        !(isnan(kappa) || kappa>0) && error("Invalid value for kappa: $kappa")
-
-        if isnan(k) 
-            k = (kappa*gammaw)/eta # specific permeability = (intrinsic permeability * fluid specific weight)/viscosity
-        end
-
-        if isnan(S) 
-            S = (alpha - n)/Ks + n/Kw # S = (alpha - porosity)/(bulk module of the solid) + (porosity)/(bulk module of the fluid) 
-        end
-        
+    function ElasticJointSeep(;E=NaN, nu=NaN, zeta=NaN, gammaw=NaN, beta=0.0, eta=NaN, kt=NaN, w=0.0)
+    
         E>0.0       || error("Invalid value for E: $E")
         0<=nu<0.5   || error("Invalid value for nu: $nu") 
         zeta>=0     || error("Invalid value for zeta: $zeta")
-        k>0         || error("Invalid value for k: $k")
         gammaw>0    || error("Invalid value for gammaw: $gammaw")
-        0<alpha<=1.0|| error("Invalid value for alpha: $alpha")
-        S>=0.0      || error("Invalid value for S: $S")
+        beta>= 0    || error("Invalid value for beta: $beta")
         eta>=0      || error("Invalid value for eta: $eta")
         kt>=0       || error("Invalid value for kt: $kt")
-        kl>=0       || error("Invalid value for kl: $kl")
+        w>=0        || error("Invalid value for w: $w")
 
-        this = new(E, nu, zeta, k, gammaw, alpha, S, eta, kt, kl)
+        this = new(E, nu, zeta, gammaw, beta, eta, kt, w)
         return this
     end
 end
@@ -104,21 +90,21 @@ function stress_update(mat::ElasticJointSeep, ipd::JointSeepIpState, Δu::Array{
 
     ipd.uw += Δuw
     ipd.Vt = -mat.kt*G
-    ipd.D +=  ipd.Vt*Δt
+    #ipd.D +=  ipd.Vt*Δt
 
     # compute crack aperture
-    if mat.kl == 0.0
-        kl = 0.0
+    if mat.w == 0.0
+        w = 0.0
     else
-        if mat.kl >= ipd.w[1]
-            kl = mat.kl
+        if mat.w >= ipd.w[1]
+            w = mat.w
         else 
-            kl = ipd.w[1]
+            w = ipd.w[1]
         end
     end 
 
-    ipd.L  =  ((kl^3)/(12*mat.η))*BfUw
-    ipd.S +=  ipd.L*Δt
+    ipd.L  =  ((w^3)/(12*mat.η))*BfUw
+    #ipd.S +=  ipd.L*Δt
 
     return Δσ, ipd.Vt, ipd.L
 end
