@@ -39,4 +39,4 @@ solve!(dom, bcs, nincs=20, verbose=true)
 save(dom, "domain.vtk")
 
 #println("Available data fields: \n", datafields(dom))
-mplot(dom, "beam.pdf", field="sa", fieldscale=1e-3, axis=false, alpha=0.1, dist=6, colorbarlabel="axial stress in bars")
+mplot(dom, "beam.pdf", field="sa", fieldmult=1e-3, axis=false, opacity=0.1, dist=6, colorbarlabel="axial stress in bars")
