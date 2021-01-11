@@ -118,7 +118,7 @@ mutable struct Block <: AbstractBlock
                 ncoord = size(coords,1)
             end
             ncoord in (8, 20) || error("Block: invalid coordinates matrix rows ($ncoord) for dimension $ndim.")
-            cellshape==nothing && (cellshape=HEX8)
+            cellshape===nothing && (cellshape=HEX8)
             cellshape in shapes3d || error("Block: invalid cell type $(cellshape.name) for dimension $ndim.")
             nodes = [ Node(coords[i,:]) for i=1:ncoord ]
             shape = length(nodes)==8 ? HEX8 : HEX20

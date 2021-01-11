@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-mutable struct MechJoint1D<:Mechanical
+mutable struct MechLineJoint<:Mechanical
     id    ::Int
     shape ::ShapeType
 
@@ -16,13 +16,13 @@ mutable struct MechJoint1D<:Mechanical
     cache_B   ::Array{Array{Float64,2}}
     cache_detJ::Array{Float64}
 
-    MechJoint1D() = new()
+    MechLineJoint() = new()
 end
 
-matching_shape_family(::Type{MechJoint1D}) = JOINT1D_SHAPE
+matching_shape_family(::Type{MechLineJoint}) = JOINT1D_SHAPE
 
 
-function elem_init(elem::MechJoint1D)
+function elem_init(elem::MechLineJoint)
     hook = elem.linked_elems[1]
     bar  = elem.linked_elems[2]
     Ch = get_coords(hook)
@@ -68,7 +68,7 @@ function mount_T(J::Matx)
 end
 
 
-function mountB(elem::MechJoint1D, R, Ch, Ct)
+function mountB(elem::MechLineJoint, R, Ch, Ct)
     # Calculates the matrix that relates nodal displacements with relative displacements
     # ==================================================================================
 
@@ -122,7 +122,7 @@ function mountB(elem::MechJoint1D, R, Ch, Ct)
     return B, detJ
 end
 
-function elem_stiffness(elem::MechJoint1D)
+function elem_stiffness(elem::MechLineJoint)
     ndim = elem.env.ndim
     nnodes = length(elem.nodes)
     mat    = elem.mat
@@ -147,7 +147,7 @@ function elem_stiffness(elem::MechJoint1D)
     return K, map, map
 end
 
-function elem_update!(elem::MechJoint1D, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::MechLineJoint, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     mat    = elem.mat
@@ -172,11 +172,11 @@ function elem_update!(elem::MechJoint1D, U::Array{Float64,1}, F::Array{Float64,1
     end
 
     F[map] += dF
-    return CallStatus(true)
+    return success()
 end
 
 
-function elem_extrapolated_node_vals(elem::MechJoint1D)
+function elem_extrapolated_node_vals(elem::MechLineJoint)
     all_ip_vals = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
     nips        = length(elem.ips)
     fields      = keys(all_ip_vals[1])

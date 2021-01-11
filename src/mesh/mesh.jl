@@ -53,7 +53,11 @@ function Base.copy(mesh::Mesh)
         push!(newmesh.elems, newelem)
     end
 
+    # todo: fix references for linked elements
+
     newmesh._pointdict = Dict( hash(node) => node for node in newmesh.nodes )
+    newmesh.node_data = copy(mesh.node_data)
+    newmesh.elem_data = copy(mesh.elem_data)
 
     fixup!(newmesh)
     return newmesh

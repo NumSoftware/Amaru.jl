@@ -181,7 +181,7 @@ end
 function calc_kn_ks(mat::SmearedCrack, ipd::SmearedCrackIpState)
     #kn = mat.E/ipd.h
     ν = mat.ν
-    ν = ipd.upa==0 ? mat.ν : 0.0
+    #ν = ipd.upa==0 ? mat.ν : 0.0
     ν = calc_nu(mat, ipd)
     kn = mat.E*(1-mat.ν)/((1+mat.ν)*(1-2*mat.ν))/ipd.h
 
@@ -234,16 +234,16 @@ function calc_Δλ(mat::SmearedCrack, ipd::SmearedCrackIpState, ςtr::Array{Floa
         abs(f) < tol && break
 
         if i == maxits || isnan(Δλ)
-            return Δλ, ς, upa, CallStatus(false, "SmearedCrack: Could not find Δλ")
+            return Δλ, ς, upa, failure("SmearedCrack: Could not find Δλ")
         end
     end
-    return Δλ, ς, upa, CallStatus(true)
+    return Δλ, ς, upa, success()
 end
 
 function calcDe(mat::SmearedCrack, ipd::SmearedCrackIpState)
     E = mat.E
     ν = mat.ν
-    ν = ipd.upa==0 ? mat.ν : 0.0
+    #ν = ipd.upa==0 ? mat.ν : 0.0
     ν = calc_nu(mat, ipd)
     De = calcDe(E, ν, ipd.env.modeltype)
 
@@ -263,23 +263,25 @@ function calcD(mat::SmearedCrack, ipd::SmearedCrackIpState)
     if ipd.Δλ == 0.0 # Cracked but in elastic regime
         #@show "elastic"
 
-        D = [ kn*h 0.0    0.0    0.0    0.0    0.0
-              0.0  D[2,2] D[2,3] 0.0    0.0    0.0 
-              0.0  D[3,2] D[3,3] 0.0    0.0    0.0
+        D = [ kn*h  D[1,2] D[1,3] 0.0    0.0    0.0
+              D[2,1] D[2,2] D[2,3] 0.0    0.0    0.0 
+              D[3,1] D[3,2] D[3,3] 0.0    0.0    0.0
               0.0  0.0    0.0    D[4,4] 0.0    0.0
               0.0  0.0    0.0    0.0    2*ks*h 0.0
               0.0  0.0    0.0    0.0    0.0    2*ks*h ]
     else
-        if ςmax == 0.0 && ipd.w[1] >= 0.0
+        #if ςmax == 0.0 && ipd.w[1] >= 0.0
+        if ςmax == 0.0
             #@show "fully cracked"
-            z = kn*ipd.h*1e-10
+            return D*1e-5
+            #z = kn*ipd.h*1e-10
 
-            D = [ z    0.0    0.0    0.0    0.0    0.0
-                  0.0  D[2,2] D[2,3] 0.0    0.0    0.0 
-                  0.0  D[3,2] D[3,3] 0.0    0.0    0.0
-                  0.0  0.0    0.0    D[4,4] 0.0    0.0
-                  0.0  0.0    0.0    0.0    2*z    0.0
-                  0.0  0.0    0.0    0.0    0.0    2*z ]
+            #D = [ z    0.0    0.0    0.0    0.0    0.0
+                  #0.0  D[2,2] D[2,3] 0.0    0.0    0.0 
+                  #0.0  D[3,2] D[3,3] 0.0    0.0    0.0
+                  #0.0  0.0    0.0    D[4,4] 0.0    0.0
+                  #0.0  0.0    0.0    0.0    2*z    0.0
+                  #0.0  0.0    0.0    0.0    0.0    2*z ]
 
         else # Elastoplastic tensor D
             #@show "partially cracked"
@@ -299,6 +301,12 @@ function calcD(mat::SmearedCrack, ipd::SmearedCrackIpState)
                           -kn*ks*r[3]*v[1]/den      -ks^2*r[3]*v[2]/den      ks-ks^2*r[3]*v[3]/den ]
 
             D = [ Dcr[1,1]     0.0    0.0    0.0    Dcr[1,2]*SR2 Dcr[1,3]*SR2
+                  #D[2,1] D[2,2] D[2,3] 0.0    0.0    0.0 
+                  #D[3,1] D[3,2] D[3,3] 0.0    0.0    0.0
+                  #0.0  0.0    0.0    D[4,4] 0.0    0.0
+                  #0.0  kn*h   0.0    0.0    0.0    0.0 
+                  #0.0  0.0    kn*h   0.0    0.0    0.0  
+                  #0.0  0.0    0.0    2*ks*h  0.0    0.0
                   0.0          D[2,2] D[2,3] 0.0    0.0          0.0 
                   0.0          D[3,2] D[3,3] 0.0    0.0          0.0
                   0.0          0.0    0.0    D[4,4] 0.0          0.0
@@ -338,7 +346,7 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
             ipd.upa = 1e-20
         else
             ipd.σ = σtr
-            return Δσtr, CallStatus(true)
+            return Δσtr, success()
         end
     end
 
@@ -349,7 +357,10 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
     Ftr  = yield_func(mat, ipd, ςtr)
     ςmax = calc_ςmax(mat, ipd, ipd.upa)
 
-    if ςmax == 0.0 && ipd.w[1] >= 0.0
+    w1 = (ipd.T*ipd.ε)[1]*ipd.h
+
+    #if ςmax == 0.0 && ipd.w[1] >= 0.0
+    if ςmax == 0.0 && w1>=0
         #@show "fully cracked"
         r1 = [ ςtr[1]/kn, ςtr[2]/ks, ςtr[3]/ks ]
         ipd.Δλ   = norm(r1)
@@ -360,7 +371,7 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
         if norm(ς)>1e-2
             @show ς
         end
-        #ς = [0,0,0.]
+        σtr = zeros(6)
     elseif Ftr <= 0
         #@show "elastic"
         ipd.Δλ = 0.0
@@ -368,7 +379,7 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
     else
         #@show "partially cracked"
         ipd.Δλ, ς, ipd.upa, status = calc_Δλ(mat, ipd, ςtr) 
-        !status.success && return ς, status
+        failed(status) && return ς, status
     end
 
     σcr = T*σtr
@@ -384,21 +395,21 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackIpState, Δε::Array{
         dz = 0.0
     end
 
-    σcr[2] *= z
-    σcr[3] *= z
-    σcr[4] *= z
+    #σcr[2] *= z
+    #σcr[3] *= z
+    #σcr[4] *= z
 
     ipd.σ = T'*σcr
     Δσ    = ipd.σ - σini
 
-    return Δσ, CallStatus(true)
+    return Δσ, success()
 end
 
 function ip_state_vals(mat::SmearedCrack, ipd::SmearedCrackIpState)
     ndim  = ipd.env.ndim
     σ, ε  = ipd.σ, ipd.ε
 
-    D = stress_strain_dict(σ, ε, ipd.env)
+    D = stress_strain_dict(σ, ε, ipd.env.modeltype)
     mand = (1.0, SR2, SR2)
     T    = ipd.T
     if ipd.upa>0

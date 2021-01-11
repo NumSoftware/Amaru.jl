@@ -276,6 +276,6 @@ function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1
     end
 
     DF[map_w] += dFw
-    return CallStatus(true)
+    return success()
 end
 

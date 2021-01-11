@@ -152,7 +152,7 @@ function elem_update!(elem::SeepJoint1D, DU::Array{Float64,1}, DF::Array{Float64
     end
 
     DF[map_w] += dFw
-    return CallStatus(true)
+    return success()
 end
 
 function elem_extrapolated_node_vals(elem::SeepJoint1D)

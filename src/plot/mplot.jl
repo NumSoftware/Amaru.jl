@@ -52,24 +52,65 @@ function plot_data_for_cell2d(points::Array{Array{Float64,1},1}, shape::ShapeTyp
             append!(codes, [CURVE4, CURVE4, CURVE4])
         end
     else
-        error("plot_data_for_cell2d: Not implemented for ", shape)
+        error("plot_data_for_cell2d: Not implemented for ", shape.name)
     end
 
     return verts, codes
 end
 
 #function plot_data_for_cell3d(points::Array{Array{Float64,1},1}, shape::ShapeType)
-function plot_data_for_cell3d(points::Array{Vec3,1}, shape::ShapeType)
+function plot_data_for_cell3d(points::Array{Vec3,1}, shape::ShapeType, V::Vec3=Vec3(1,0,0), width::Float64=0.0)
     if shape == LIN2
-        verts = points
+        
+        W = normalize(cross(V, points[2]-points[1]))
+        verts = [
+            points[1] - width/2*W,
+            points[2] - width/2*W,
+            points[2] + width/2*W,
+            points[1] + width/2*W,
+        ]
     elseif shape == LIN3
-        verts = points[[1,3,2]]
+        n = 7
+        X = [ p[i] for p in points, i in 1:3 ]
+        verts = Array{Amaru.Vec3}(undef, 2*n)
+        for (i,r) in enumerate(range(-1.0, 1.0, length=n))
+            R = [r]
+            N = shape.func(R)
+            D = shape.deriv(R)
+            J = Vec3(D*X)
+            W = normalize(cross(V, J))
+            Xi = Vec3(N'*X)
+            verts[i] = Xi + width/2*W
+            verts[2*n-i+1] = Xi - width/2*W
+        end
     elseif shape in (TRI3, QUAD4)
         verts = points
     elseif shape == TRI6
         verts = points[[1,4,2,5,3,6]]
     elseif shape in (QUAD8, QUAD9)
-        verts = points[[1,5,2,6,3,7,4,8]]
+        # verts = points[[1,5,2,6,3,7,4,8]]
+        n       = 7
+        X       = [ p[i] for p in points, i in 1:3 ]
+        verts   = Vec3[]
+        corners = [[-1.0,-1.0], [1.0,-1.0], [1.0,1.0], [-1.0,1.0], [-1.0,-1.0]]
+        
+        for k=1:4
+            for r in range(0.0, 1.0, length=n)[1:n-1]
+                R = corners[k] + r*(corners[k+1]-corners[k])
+                N = shape.func(R)
+                push!(verts, Vec3(N'*X))
+            end
+        end
+    end
+    return verts
+end
+
+function plot_data_for_marker3d(point::Vec3, V2, V3, d::Float64)
+    n = 12
+    verts = Vec3[]
+    for θ in range(0, 2*π, length=n)
+        vert = point + d/2*cos(θ)*V2 + d/2*sin(θ)*V3
+        push!(verts, vert)
     end
     return verts
 end
@@ -146,7 +187,7 @@ function get_main_edges(cells::Array{<:AbstractCell,1}, angle=120)
         for edge in get_edges(face)
             hs = hash(edge)
             edge0 = get(edge_dict, hs, nothing)
-            if edge0==nothing
+            if edge0===nothing
                 edge_dict[hs] = edge
             else
                 delete!(edge_dict, hs)
@@ -161,54 +202,6 @@ function get_main_edges(cells::Array{<:AbstractCell,1}, angle=120)
     end
 
     return main_edges
-end
-
-
-function get_surface_based_on_displacements(mesh::Mesh)
-
-    surf_dict = Dict{UInt64, Cell}()
-    W = mesh.node_data["wn"]
-    #U = mesh.node_data["U"]
-    maxW = maximum(W)
-
-    disp(face) = begin
-        map = [p.id for p in face.nodes]
-        #d=mean(W[map])
-        d=max(maximum(W[map]), 0)
-
-        return d
-    end
-    #disp(face) = mean( W[p.id] for p in face.nodes )
-    #disp(face) = begin
-        #map = [p.id for p in face.nodes]
-        #mean(U[map,:])
-    #end
-
-    # Get only unique faces. If dup, original and dup are deleted
-    for cell in mesh.elems
-        for face in get_faces(cell)
-            hs = hash(face)
-            dface = disp(face)
-            #dface < 0.0000000*maxW && continue
-            if haskey(surf_dict, hs)
-                d = norm(dface-disp(surf_dict[hs]))
-                #d = disp(face)
-                #d = abs(disp(face)-disp(surf_dict[hs]))
-                #if d<0.1*maxW
-                #if d<0.0000
-                if false
-                    delete!(surf_dict, hs)
-                else
-                    surf_dict[hs] = face
-                end
-            else
-                surf_dict[hs] = face
-            end
-        end
-    end
-
-    return [ face for face in values(surf_dict) ]
-
 end
 
 
@@ -231,7 +224,7 @@ Plots a `mesh` using `PyPlot` backend. If `filename` is provided it writes a pdf
 
 `lw            = 0.5` : Line width
 
-`nodemarkers  = false` : If true, shows node markers
+`markers  = false` : If true, shows node markers
 
 `nodelabels   = false` : If true, shows node labels
 
@@ -241,7 +234,7 @@ Plots a `mesh` using `PyPlot` backend. If `filename` is provided it writes a pdf
 
 `field         = nothing` : If provided, plots corresponding field
 
-`fieldscale    = 1.0` : Factor multiplied to `field` values
+`fieldmult    = 1.0` : Factor multiplied to `field` values
 
 `fieldlims     = ()` : Tuple `(min, max)` with field limits
 
@@ -273,7 +266,7 @@ Plots a `mesh` using `PyPlot` backend. If `filename` is provided it writes a pdf
 
 `warpscale     = 0.0` : Factor multiplied to "U" field when available
 
-`highlightcell = 0` : Cell number to be highlighted
+`hicells       = 0` : Cell number to be highlighted
 
 `elev          = 30.0` : 3D plot elevation
 
@@ -285,53 +278,56 @@ Plots a `mesh` using `PyPlot` backend. If `filename` is provided it writes a pdf
 
 `outlineangle  = 100` : Limit angle to identify main edges
 
-`figsize       = (3,2.5)` : Figure size
+`figsize       = (3,3.0)` : Figure size
 
 `leaveopen     = false` : If true, leaves the plot open so other drawings can be added
 """
 function mplot(
-               mesh::AbstractMesh,
-               filename::String = "";
-               axis             = true,
-               lw               = 0.3,
-               linelw          = 1.0,
-               linecolor        = "red",
-               nodemarkers      = false,
-               linenodemarkers  = false,
-               ms               = 0.5,
-               nodelabels       = false,
-               celllabels       = false,
-               field            = nothing,
-               fieldscale       = 1.0,
-               fieldlims        = (),
-               vectorfield      = nothing,
-               arrowscale       = 0.0,
-               opacity          = 1.0,
-               lightvector      = nothing,
-               colormap         = nothing,
-               colormaplims     = (0.0,1.0),
-               shrinkcolors     = false,
-               darkcolors       = false,
-               lightcolors      = false,
-               vividcolors      = false,
-               divergingcolors  = false,
-               colorbarscale    = 0.9,
-               colorbarlabel    = "",
-               colorbarlocation = "right",
+               mesh    ::AbstractMesh,
+               filename::String    = "";
+               axis                = true,
+               lw                  = 0.4,
+               rodlw               = 1.0,
+               rodcolor            = "indianred",
+               markers             = false,
+               ms                  = 1.5,
+               rodmarkers          = false,
+               rodms               = 1.5,
+               nodelabels          = false,
+               celllabels          = false,
+               field               = nothing,
+               fieldmult           = 1.0,
+               fieldlims           = (),
+               vectorfield         = nothing,
+               arrowscale          = 0.0,
+               opacity             = 1.0,
+               lightvector         = nothing,
+               colormap            = nothing,
+               colormaplims        = (0.0,1.0),
+               shrinkcolors        = false,
+               darkcolors          = false,
+               lightcolors         = false,
+               vividcolors         = false,
+               divergingcolors     = false,
+               colorbarscale       = 0.9,
+               colorbarlabel       = "",
+               colorbarlocation    = "right",
                colorbarorientation = "vertical",
-               colorbarpad      = 0.0,
-               warpscale        = 0.0,
-               highlightcell    = 0,
-               elev             = 30.0,
-               azim             = 45.0,
-               dist             = 10.0,
-               outline          = true,
-               outlineangle     = 100,
-               figsize          = (3,2.5),
-               leaveopen        = false,
-               crop             = false,
-               verbose          = true,
-               silent           = false,
+               colorbarpad         = 0.0,
+               warpscale           = 0.0,
+               hicells             = 0,
+               hicolor             = "ivory",
+               elev                = 30.0,
+               azim                = 45.0,
+               dist                = 10.0,
+               outline             = true,
+               outlineangle        = 100,
+               figsize             = (3,3.0),
+               leaveopen           = false,
+               crop                = false,
+               verbose             = true,
+               silent              = false,
+               copypath            = ""
               )
 
     headline("Mesh plotting")
@@ -341,16 +337,23 @@ function mplot(
 
     if verbose
         hint("Optional arguments:", level=2)
-        options = "axis, lw, nodemarkers, nodelabels, celllabels, opacity, field,
-                   fieldscale, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
+        options = "axis, lw, markers, nodelabels, celllabels, opacity, field,
+                   fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
                    colorbarlabel, colorbarlocation, colorbarorientation, colorbarpad, 
-                   warpscale, highlightcell, elev, azim, dist, outline, outlineangle,
+                   warpscale, hicells      , elev, azim, dist, outline, outlineangle,
                    figsize, leaveopen, verbose"
         hint(options, level=3)
         hint("Available node fields:", level=2)
         hint(join(keys(mesh.node_data), ", "), level=3)
         hint("Available element fields:", level=2)
         hint(join(keys(mesh.elem_data), ", "), level=3)
+    end
+
+    # Get a copy
+    mesh = copy(mesh)
+
+    if hicells       isa Int 
+        hicells       = [ hicells       ]
     end
 
     # Get initial info from mesh
@@ -360,10 +363,10 @@ function mplot(
         elem_data = mesh.elem_data
 
         # filter bulk and line elements
-        area_cells = [ elem for elem in mesh.elems if elem.shape.ndim==2 ]
+        areacells  = [ elem for elem in mesh.elems if elem.shape.ndim==2 ]
         linecells  = [ cell for cell in mesh.elems if cell.shape.family==LINE_SHAPE]
-        newcells   = [ area_cells; linecells ]
-        c_ids      = [ [c.id for c in area_cells]; [c.id for c in linecells] ]
+        newcells   = [ areacells; linecells ]
+        c_ids      = [ [c.id for c in areacells]; [c.id for c in linecells] ]
         newnodes   = [ p for c in newcells for p in c.nodes ]
         pt_ids     = [ p.id for p in newnodes ]
 
@@ -382,6 +385,8 @@ function mplot(
         # connectivities
         id_dict = Dict{Int, Int}( p.id => i for (i,p) in enumerate(nodes) )
         connect = [ [ id_dict[p.id] for p in c.nodes ] for c in cells ] # Do not use type specifier inside comprehension to avoid problem with Revise
+
+
         
         # connect = [ [ p.id for p in c.nodes ] for c in cells ] # Do not use type specifier inside comprehension to avoid problem with Revise
         # id_dict = Dict{Int, Int}( p.id => i for (i,p) in enumerate(nodes) )
@@ -391,23 +396,17 @@ function mplot(
 
         # get surface cells and update
         volume_cells = [ elem for elem in mesh.elems if elem.shape.ndim==3 ]
-        area_cells   = [ elem for elem in mesh.elems if elem.shape.ndim==2 ]
+        areacells    = [ elem for elem in mesh.elems if elem.shape.ndim==2 ]
         scells       = get_surface(volume_cells)
         linecells    = [ cell for cell in mesh.elems if cell.shape.family==LINE_SHAPE]
         outlinecells = outline ? get_outline_edges(scells) : Cell[]
 
-        newcells = [ scells; area_cells; linecells ]
-        oc_ids = [ [c.oelem.id for c in scells]; [c.id for c in linecells]; [c.id for c in area_cells] ]
+        # linecells = []
 
-        #if outline # move outline cells towards observer
-        #    θ, γ = (azim+0)*pi/180, elev*pi/180
-        #    ΔX = [ cos(θ)*cos(γ), sin(θ)*cos(γ), sin(γ) ]*0.015*L
+        newcells = [ scells; areacells; linecells ]
+        oc_ids = [ [c.oelem.id for c in scells]; [c.id for c in linecells]; [c.id for c in areacells] ]
 
-        #    for edge in outlinecells
-        #        edge.nodes[1] = Node(edge.nodes[1].coord + ΔX)
-        #        edge.nodes[2] = Node(edge.nodes[2].coord + ΔX)
-        #    end
-        #end
+
 
         newnodes = [ p for c in newcells for p in c.nodes ]
         pt_ids = [ p.id for p in newnodes ]
@@ -429,14 +428,16 @@ function mplot(
         connect = [ [ id_dict[p.id] for p in c.nodes ] for c in cells ]
 
         # observer and light vectors
-        V = [ cosd(elev)*cosd(azim), cosd(elev)*sind(azim), sind(elev) ]
+        V = Vec3( cosd(elev)*cosd(azim), cosd(elev)*sind(azim), sind(elev) )
 
         lightvector===nothing && (lightvector=V) 
-        if lightvector isa Array
+        if lightvector isa AbstractArray
             L = lightvector
         else
             error("mplot: lightvector must be a vector.")
         end
+
+
     end
 
     ncells = length(cells)
@@ -486,6 +487,18 @@ function mplot(
     #limY = limY + 0.05*[-1, 1]*norm(limY)
     #limZ = limZ + 0.05*[-1, 1]*norm(limZ)
     ll = max(norm(limX), norm(limY), norm(limZ))
+
+    # if ndim==3 && outline # move outline cells towards observer
+    #     θ, γ = (azim+0)*pi/180, elev*pi/180
+    #     ΔX = [ cos(θ)*cos(γ), sin(θ)*cos(γ), sin(γ) ]*0.015*ll
+
+    #     for edge in outlinecells
+    #         for node in edge.nodes
+    #             node = Node(edge.nodes[1].coord + ΔX)
+    #         end
+    #         # edge.nodes[2] = Node(edge.nodes[2].coord + ΔX)
+    #     end
+    #  end
 
 
     # Lazy import of PyPlot
@@ -538,6 +551,8 @@ function mplot(
         ax.set_aspect("equal", "datalim")
 
         # Set limits
+        # limX .+= [ -0.01*ll, 0.1*ll]
+        # limY .+= [ -0.01*ll, 0.1*ll]
         ax.set_xlim(limX...)
         ax.set_ylim(limY...)
 
@@ -560,7 +575,7 @@ function mplot(
             data  = node_data[field]
             fvals = [ mean(data[connect[i]]) for i=1:ncells ]
         end
-        fvals *= fieldscale
+        fvals *= fieldmult
         fieldlims==() && (fieldlims = extrema(fvals))
 
         if !(fieldlims[1]<0 && fieldlims[2]>0)
@@ -597,7 +612,7 @@ function mplot(
 
         if shrinkcolors
             allcolors = [ cmap(p) for p in range(0,1,length=21) ]
-            Q = [ 0.5+0.5*(abs((p-0.5)/0.5))^2.5*sign(p-0.5) for p in range(0,1,length=21) ]
+            Q = [ 0.5+0.5*(abs((p-0.5)/0.5))^3.0*sign(p-0.5) for p in range(0,1,length=21) ]
 
             cdict = Dict("red"   => [ (q, c[1], c[1]) for (q,c) in zip(Q,allcolors) ],
                          "green" => [ (q, c[2], c[2]) for (q,c) in zip(Q,allcolors) ],
@@ -666,7 +681,7 @@ function mplot(
         end
     end
 
-    has_line_field = false
+    # has_line_field = false
 
     # Plot cells
     if ndim==3
@@ -679,10 +694,10 @@ function mplot(
         for (i,cell) in enumerate(cells)
             shape = cell.shape
             points = [ node.coord for node in cell.nodes ]
-            verts = plot_data_for_cell3d(points, shape)
-            push!(all_verts, verts)
 
             if shape.family==SOLID_SHAPE
+                verts = plot_data_for_cell3d(points, shape)
+
                 if !has_field || has_line_field
                     fc = (0.94, 0.97, 1.0, opacity)
                     ec = (0.4, 0.4, 0.4, 1-0.75*(1-opacity))
@@ -691,7 +706,8 @@ function mplot(
                     fc = cmap(v)
                     ec = Tuple( (fc .+ [0.2, 0.2, 0.2, opacity])./2 )
                 end
-                push!(lineweight, lw)
+                # push!(lineweight, lw)
+                ew = lw
 
                 N = get_facet_normal(cell)
                 R = 2*N*dot(L,N) - L
@@ -711,34 +727,58 @@ function mplot(
                 # f = 1.0
                 fc = (f*fc[1], f*fc[2], f*fc[3], opacity)
             elseif shape.family==LINE_SHAPE
+                verts = plot_data_for_cell3d(points, shape, V, 0.0075*ll*rodlw)
+
                 if has_line_field
                     v = (fvals[i]-fieldlims[1])/(fieldlims[2]-fieldlims[1])
                     ec = cmap(v)
                 else
-                    ec = linecolor
+                    ec = rodcolor 
                 end
                 fc = (0.0, 0.0, 0.0, 0.0)
-                push!(lineweight, linelw)
+                fc = ec
+                ew = rodlw  #! lineweight is not working in Poly3DCollection
+                ew = lw
+                # ew = 0.0
             end
+            
+            push!(all_verts, verts)
             push!(edgecolor, ec)
             push!(facecolor, fc)
+            push!(lineweight, ew)
         end
 
         for cell in outlinecells
             ΔX = 0.01*ll*V
             points = [ node.coord+ΔX for node in cell.nodes ]
-            verts = plot_data_for_cell3d(points, cell.shape)
-            push!(all_verts, verts)
+            # verts = plot_data_for_cell3d(points, cell.shape)
+            verts = plot_data_for_cell3d(points, cell.shape, V, 0.001)
 
-            ec = "black"
+            # ec = "black"
+            ec = "dimgray"
             fc = (0.0, 0.0, 0.0, 0.0)
+
+            push!(all_verts, verts)
             push!(lineweight, lw*1.0)
             push!(edgecolor, ec)
             push!(facecolor, fc)
         end
+        
+        if rodmarkers && filename!=""
+            V2 = normalize(cross(V, rand(3)))
+            V3 = normalize(cross(V, V2))
+            ΔX = 0.01*ll*V
+            for line in linecells, node in line.nodes
+                verts = plot_data_for_marker3d(node.coord+4*ΔX, V2, V3,  0.015*ll*rodlw)
+                ec = (0.0, 0.0, 0.0, 0.0)
+                fc = "black"
+                push!(all_verts, verts)
+                push!(edgecolor, ec)
+                push!(facecolor, fc)
+            end
+        end
 
-
-        cltn = @eval art3D[:Poly3DCollection]($all_verts, facecolor=$facecolor, edgecolor=$edgecolor, lw=$lineweight, alpha=$opacity)
+        cltn = @eval art3D[:Poly3DCollection]($all_verts, facecolor=$facecolor, edgecolor=$edgecolor, lw=$lineweight, alpha=$opacity) # ! lineweight is not working in Poly3DCollection
         ax.add_collection3d(cltn)
 
         if has_field && colorbarscale>0
@@ -772,15 +812,16 @@ function mplot(
             path  = matplotlib.path.Path(verts, codes)
             patch = matplotlib.patches.PathPatch(path)
 
-            if highlightcell==i
-                patch = matplotlib.patches.PathPatch(path, facecolor="cadetblue", edgecolor="black", lw=0.5)
-            end
-            push!(all_patches, patch)
 
             if shape.family==SOLID_SHAPE
                 if !has_field || has_line_field
                     fc = (0.94, 0.97, 1.0, 1.0)
                     ec = (0.4, 0.4, 0.4, 1.0)
+
+                    if cell.id in hicells      
+                        ec = "black"
+                        fc = hicolor
+                    end
                 else
                     v = (fvals[i]-fieldlims[1])/(fieldlims[2]-fieldlims[1])
                     fc = cmap(v)
@@ -792,13 +833,14 @@ function mplot(
                     v = (fvals[i]-fieldlims[1])/(fieldlims[2]-fieldlims[1])
                     ec = cmap(v)
                 else
-                    ec = linecolor
+                    ec = rodcolor 
                 end
                 fc = (0.0, 0.0, 0.0, 0.0)
-                push!(lineweight, linelw)
+                push!(lineweight, rodlw )
             end
             push!(edgecolor, ec)
             push!(facecolor, fc)
+            push!(all_patches, patch)
         end
 
 
@@ -824,28 +866,31 @@ function mplot(
     end
 
     # Draw nodes
-    if nodemarkers
-        X = [ node.coord.x for node in nodes ]
-        Y = [ node.coord.y for node in nodes ]
+    if markers
         if ndim==3
+            X = [ node.coord.x for node in nodes ]
+            Y = [ node.coord.y for node in nodes ]
             Z = [ node.coord.z for node in nodes ]
             ax.scatter(X, Y, Z, color="black", marker="o", s=ms)
         else
-            plt.plot(X, Y, color="black", marker="o", markersize=ms, lw=0)
+            X = [ node.coord.x for cell in areacells for node in cell.nodes ]
+            Y = [ node.coord.y for cell in areacells for node in cell.nodes ]
+            plt.plot(X, Y, color="black", marker="o", mfc="black", fillstyle="full", markersize=ms, mew=0, lw=0, clip_on=false)
         end
     end
 
    # Node markers on line cells
-#    ids = unique!([ id for i=1:ncells for id in connect[i] if cells[i].shape.family==LINE_SHAPE ])
-    if linenodemarkers
+    if rodmarkers && ndim==2
         X = [ node.coord.x for line in linecells for node in line.nodes ]
         Y = [ node.coord.y for line in linecells for node in line.nodes ]
-        if ndim==3
-            Z = [ node.coord.z for line in linecells for node in line.nodes ]
-            ax.scatter(X, Y, Z, marker="o", s=ms, facecolor="black", edgecolor="none", depthshade=false)
-        else
-            plt.plot(X, Y, color="black", marker="o", markersize=ms, lw=0)
-        end
+        plt.plot(X, Y, color="black", marker="o", markersize=rodms, lw=0, mew=0, clip_on=false)
+
+        # if ndim==3
+        #     Z = [ node.coord.z for line in linecells for node in line.nodes ]
+        #     ax.scatter(X, Y, Z, marker="o", s=ms, facecolor="black", edgecolor="none", depthshade=false)
+        # else
+            # plt.plot(X, Y, color="black", marker="o", markersize=ms, lw=0)
+        # end
     end
 
   #  # Draw arrows
@@ -907,7 +952,17 @@ function mplot(
             end
         end
 
-        verbose && printstyled("  file $filename saved\n", color=:cyan)
+        verbose && info("file $filename saved")
+
+        if copypath!=""
+            if isdir(copypath)
+                copyfile = joinpath(copypath, basename(filename))
+            else
+                copyfile = copypath
+            end
+            cp(filename, copyfile, force=true)
+            verbose && info("file $copyfile saved")
+        end
     end
 
     # Do not close if in IJulia
@@ -924,23 +979,25 @@ end
 
 
 function mplotcolorbar(
-    filename :: String  = "";
-    colormap            = "coolwarm",
-    fieldlims           = (0.0,1.0),
-    nbins               = 0,
-    digits              = -5,
-    discrete            = false,
+    filename::String = "";
+    colormap         = "coolwarm",
+    fieldlims        = (0.0,1.0),
+    nbins            = 0,
+    digits           = -5,
+    discrete         = false,
+    fontsize         = 6.5,
+    scale            = 0.9,
+    label            = "",
+    orientation      = "vertical",
+    figsize          = (3,3.0),
+    crop             = false,
+    aspect           = 20,
     #colormaplims        = (0.0,1.0),
     #shrinkcolor         = false,
     #darkcolor           = false,
     #lightcolor          = false,
     #vividcolor          = false,
     #divergingcolor      = false,
-    scale               = 0.9,
-    label               = "",
-    orientation         = "vertical",
-    figsize             = (3,2.5),
-    crop                = false,
 )    
 
     # Lazy import of PyPlot
@@ -955,16 +1012,15 @@ function mplotcolorbar(
 
     plt.close("all")
 
-    plt.rc("font", family="STIXGeneral", size=6)
+    plt.rc("font", family="STIXGeneral", size=fontsize)
     plt.rc("mathtext", fontset="cm")
     plt.rc("lines", lw=0.5)
-    plt.rc("legend", fontsize=6)
+    plt.rc("legend", fontsize=fontsize)
     plt.rc("figure", figsize=figsize) # suggested size (4.5,3)
 
-    fig = @eval plt.figure()
-    scale  = 0.5
-    aspect = 25
-    axes = @eval gcf().add_axes([0, 0, $scale/$aspect, $scale])
+    fig   = @eval plt.figure()
+    scale = 0.5
+    axes  = @eval gcf().add_axes([0, 0, $scale/$aspect, $scale])
 
     cmap = matplotlib.cm.get_cmap(colormap)
     if discrete
@@ -978,22 +1034,29 @@ function mplotcolorbar(
         end
     end
 
-    cbar = matplotlib.colorbar.ColorbarBase(axes, 
-                                            label=label,
-                                            norm=matplotlib.colors.Normalize(fieldlims[1], fieldlims[2]),
-                                            #values=fieldlims,
-                                            drawedges=false,
-                                            #boundaries=fieldlims,
-                                            orientation=orientation, 
-                                            cmap=cmap,
-                                            # ticks=ticks,
-                                            )
+    format = nothing
+    if digits>-5
+        format = "%0."*string(digits)*"f"
+    end
 
-    cbar.ax.tick_params(labelsize=7)
+    cbar = matplotlib.colorbar.ColorbarBase(
+        axes,
+        label       = label,
+        norm        = matplotlib.colors.Normalize(fieldlims[1], fieldlims[2]),
+        drawedges   = false,
+        orientation = orientation,
+        cmap        = cmap,
+        format      = format,
+        #values=fieldlims,
+        #boundaries=fieldlims,
+        # ticks=ticks,
+    )
+
+    cbar.ax.tick_params(labelsize=fontsize)
     cbar.outline.set_linewidth(0.0)
     # cbar.locator = matplotlib.ticker.MaxNLocator(nbins=nbins)
-    cbar.set_ticks(ticks)
-    cbar.update_ticks()
+    # cbar.set_ticks(ticks) # forces ticks
+    # cbar.update_ticks()
     cbar.solids.set_alpha(1)
 
     if filename==""
@@ -1024,7 +1087,7 @@ function round_for_scale(x)
     n = round(x/10^ex, sigdigits=1) # first significant digit
     if n>=3 
         if n==3
-            n=2.5
+            n=3.0
         elseif n<=7
             n=5
         else
@@ -1055,20 +1118,25 @@ Plots linear `elems` using `PyPlot` backend. If `filename` is provided it writes
 """
 
 function mplot(
-    elems::Array{Element,1},
+    elems   ::Array{Element,1},
     filename::String = "";
-    field      = nothing,
-    fieldscale = 1.0,
-    fieldunits = "",
-    barscale   = 1.0,
-    axis       = true,
-    xlabel     = "",
-    ylabel     = "",
-    xlim       = nothing,
-    ylim       = nothing,
-    legendlabels = [],
-    showscale = true,
-    scalepos  = (0.6, 0.05),
+    field            = nothing,
+    fieldmult        = 1.0,
+    fieldunits       = "",
+    barscale         = 1.0,
+    axis             = true,
+    xlabel           = "",
+    ylabel           = "",
+    xlim             = nothing,
+    ylim             = nothing,
+    legendlabels     = [],
+    showscale        = true,
+    scalepos         = (0.55, 0.2),
+    fullscale        = false,
+    fontsize         = 6.5,
+    copypath         = "",
+    figsize          = (3.0, 3.0),
+    minmax           = false
 )
     
     @eval import PyPlot:plt, matplotlib, figure, gca, ioff
@@ -1076,9 +1144,9 @@ function mplot(
 
     @assert barscale>0
 
-    plt.rc("font", family="STIXGeneral", size=6)
+    plt.rc("font", family="STIXGeneral", size=fontsize)
     plt.rc("mathtext", fontset="cm")
-    plt.rc("figure", figsize=(2.5, 2.5))
+    plt.rc("figure", figsize=figsize)
     maxv = 0.0
 
     lines = [ elem.shape.family==LINE_SHAPE ? elem : elem.linked_elems[2] for elem in elems ]
@@ -1140,16 +1208,17 @@ function mplot(
         end
     end
 
-    if field == nothing 
+    if field === nothing 
         printstyled("mplot_linear:\n", color=:cyan )
     else
         printstyled("mplot_linear: plotting field $field\n", color=:cyan )
-        printstyled("  (min,max): ($(vmin*abs(fieldscale)), $(vmax*abs(fieldscale)))\n", color=:light_black)
+        printstyled("  (min,max): ($(vmin*abs(fieldmult)), $(vmax*abs(fieldmult)))\n", color=:light_black)
     end
 
     maxv = max(abs(vmin), abs(vmax))
     xwidth = 1.3*(xmax-xmin) # estimative of xwidth
-    fieldmult = 0.2*xwidth/maxv
+    fieldtrans = 0.2*xwidth/maxv
+    dn = 0.01*xwidth
 
     for elem in elems
         line = elem.shape.family==LINE_SHAPE ? elem : elem.linked_elems[2]
@@ -1157,7 +1226,7 @@ function mplot(
         Y = [ node.coord[yidx] for node in line.nodes ]
         plt.plot(X, Y, "tab:gray", lw=3, solid_capstyle="round", zorder=2) # plot line
 
-        field==nothing && continue
+        field===nothing && continue
 
         V = [ X[2]-X[1], Y[2]-Y[1] ]
         normalize!(V)
@@ -1167,12 +1236,16 @@ function mplot(
         for ip in ips
             x = ip.coord[xidx]
             y = ip.coord[yidx]
-            v = ip_state_vals(elem.mat, ip.state)[Symbol(field)]*sign(fieldscale)
-            X = [ x, x+N[1]*v*fieldmult*barscale ]
-            Y = [ y, y+N[2]*v*fieldmult*barscale ]
+            v = ip_state_vals(elem.mat, ip.state)[Symbol(field)]*sign(fieldmult)
+            X = [ x, x+N[1]*v*fieldtrans*barscale ]
+            Y = [ y, y+N[2]*v*fieldtrans*barscale ]
+            X .+= dn*sign(v)*N[1]
+            Y .+= dn*sign(v)*N[2]
+
             color = v>0 ? "tab:red" : "tab:blue"
-            plt.plot(X,Y, color, ls="-", lw=1, solid_capstyle="round", zorder=1)
-            plt.plot(x,y,"k+", ms=3, mew=0.5, zorder=3)
+            plt.plot(X,Y, color, ls="-", lw=1, solid_capstyle="round", zorder=1) # normal bar
+            # plt.plot(x,y,"k+", ms=3, mew=0.5, zorder=3) # cross symbol
+            plt.plot(x,y,"k.", ms=2, mew=0.5, zorder=3) # cross symbol
         end
     end
 
@@ -1181,29 +1254,53 @@ function mplot(
         xwidth = xmax-xmin # recalculate xwidth according to plot
 
         refval = round_for_scale(maxv)
-        scalelen = refval*fieldmult*barscale*1.0/xwidth
+        scalelen = refval*fieldtrans*barscale*1.0/xwidth
 
         xpos, ypos = scalepos
 
-        plt.text(xpos, ypos, "$(refval*abs(fieldscale)) $fieldunits", transform = gca().transAxes)
-        dy = 0.06
+        scaletitle = "Scale"
+        if fullscale
+            scaletitle *= fieldunits!="" ? " [$fieldunits]" : "" 
+        end
+        plt.text(xpos, ypos, scaletitle, transform = gca().transAxes, ha="left", va="top")
+        
+        ypos -= 0.06
+        ypos0 = ypos
         if vmin<0
-            plt.plot([xpos, xpos+scalelen], [ypos+dy, ypos+dy], "tab:blue", ls="-", lw=1, solid_capstyle="round", zorder=1, transform = gca().transAxes)
-            dy += 0.02
+            plt.plot([xpos, xpos+scalelen], [ypos, ypos], "tab:blue", ls="-", lw=1, solid_capstyle="butt", zorder=1, transform = gca().transAxes)
+            ypos -= 0.02
         end
         if vmax>0
-            plt.plot([xpos, xpos+scalelen], [ypos+dy, ypos+dy], "tab:red", ls="-", lw=1, solid_capstyle="round", zorder=1, transform = gca().transAxes)
-            dy += 0.02
+            plt.plot([xpos, xpos+scalelen], [ypos, ypos], "tab:red", ls="-", lw=1, solid_capstyle="butt", zorder=1, transform = gca().transAxes)
+            ypos -= 0.02
         end
-        plt.text(xpos, ypos+dy, "Scale", transform = gca().transAxes)
+        
+
+        if fullscale
+            ticks = (0.0, 0.5, 1.0)
+        else
+            ticks = (0.0, 1.0)
+        end
+        for f in ticks
+            plt.plot([xpos+f*scalelen, xpos+f*scalelen], [ypos+0.01, ypos], "black", ls="-", lw=0.5, zorder=1, transform = gca().transAxes)
+        end
+
+        ypos -= 0.01
+        if fullscale
+            for f in ticks
+                plt.text(xpos+f*scalelen, ypos, "$(f*refval*abs(fieldmult))", transform=gca().transAxes, ha="center", va="top")
+            end
+        else
+            plt.text(xpos+0.5*scalelen, ypos, "$(refval*abs(fieldmult)) $fieldunits", transform=gca().transAxes, ha="center", va="top")
+        end
     end
 
-    #gca().set_aspect("equal", "datalim")
+    # gca().set_aspect("equal", "datalim")
     gca().set_aspect("equal", "box")
 
     # Set axis limits
-    xlim!=nothing && plt.xlim(xlim) 
-    ylim!=nothing && plt.ylim(ylim) 
+    xlim!==nothing && plt.xlim(xlim)
+    ylim!==nothing && plt.ylim(ylim)
 
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
@@ -1216,27 +1313,43 @@ function mplot(
             push!(lines, matplotlib.lines.Line2D([0],[0], lw=1, color="tab:blue", label="-"))
             push!(idxs, 1)
         end
+
         if vmax>0
             push!(lines, matplotlib.lines.Line2D([0],[0], lw=1, color="tab:red", label="+"))
             push!(idxs, 2)
         end
 
+        ncol = 1
         if length(legendlabels)==2
             legendlabels = legendlabels[idxs]
+            ncol = 2
         end
 
-        plt.legend(lines, legendlabels,
-               loc="lower left", bbox_to_anchor=(-0.02, 1.01, 1.04, 0.2), 
-               edgecolor="k", ncol=2, 
-              )
+        legend = plt.legend(lines, legendlabels,
+            loc            = "lower left",
+            bbox_to_anchor = (-0.02, 1.01, 1.04, 0.2),
+            edgecolor      = "k",
+            ncol           = ncol,
+        )
+
+        if minmax
+            vrmin = round(vmin*fieldmult, sigdigits=4)
+            vrmax = round(vmax*fieldmult, sigdigits=4)
+            if fieldmult<0
+                vrmin, vrmax = vrmax, vrmin
+            end
+
+            tmin  = "\$$(vrmin>0 ? "+" : "" )$vrmin\$ $fieldunits"
+            tmax  = "\$$(vrmax>0 ? "+" : "" )$vrmax\$ $fieldunits"
+            plt.text(0.5, 0.98, "min: $tmin   max: $tmax", transform = gca().transAxes, ha="center", va="top")
+        end
     end
     
-
     ax = plt.axes()
     ax.xaxis.set_tick_params(width=0.3)
     ax.yaxis.set_tick_params(width=0.3)
-    ax.xaxis.set_tick_params(size=2.5)
-    ax.yaxis.set_tick_params(size=2.5)
+    ax.xaxis.set_tick_params(size=3.0)
+    ax.yaxis.set_tick_params(size=3.0)
     #if ticksinside
         ax.tick_params(which="minor", axis="x", direction="in")
         ax.tick_params(which="minor", axis="y", direction="in")
@@ -1252,6 +1365,15 @@ function mplot(
         plt.savefig(filename, bbox_inches="tight", pad_inches=0.01, format="pdf")
         plt.close("all")
         printstyled("  file $filename saved\n", color=:cyan)
+        if copypath!=""
+            if isdir(copypath)
+                copyfile = joinpath(copypath, basename(filename))
+            else
+                copyfile = copypath
+            end
+            cp(filename, copyfile, force=true)
+            printstyled("  file $copyfile saved\n", color=:cyan)
+        end
     end
 
 end

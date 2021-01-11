@@ -78,8 +78,13 @@ export NodeGroupLogger, IpGroupLogger
 export PointLogger, SegmentLogger
 export update_logger!
 
+include("monitor.jl")
+export NodeMonitor
+export IpMonitor
+export IpGroupMonitor
+
 include("domain.jl")
-export Domain, SubDomain, reset!, setloggers!
+export Domain, SubDomain, reset!, setloggers!, setmonitors!
 
 include("io.jl")
 

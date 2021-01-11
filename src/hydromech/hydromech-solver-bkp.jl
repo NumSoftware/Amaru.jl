@@ -7,7 +7,7 @@ function hm_mount_global_matrices(dom::Domain,
                                   Δt::Float64,
                                   verbosity::Int
                                  )
-    verbosity>1 && print("    assembling... \033[K \r")
+    verbosity>1 && print("    assembling... \e[K \r")
 
     # Assembling matrix G
 
@@ -116,7 +116,7 @@ function hm_solve_system!(
                           nu :: Int,
                           verbosity :: Int
                          )
-    verbosity>1 && print("    solving... \033[K \r")
+    verbosity>1 && print("    solving... \e[K \r")
 
     #  [  G11   G12 ]  [ U1? ]    [ F1  ]
     #  |            |  |     | =  |     |
@@ -200,7 +200,7 @@ function hm_update_state!(dom::Domain, ΔUt::Vect, ΔFin::Vect, Δt::Float64, ve
     ΔFin .= 0.0
     for elem in dom.elems
         status = elem_update!(elem, ΔUt, ΔFin, Δt)
-        !status.success && return status
+        failed(status) && return status
     end
     return CallStatus(true)
 end
@@ -417,7 +417,7 @@ function hm_solve!(
         end
 
         progress = @sprintf("%4.2f", T*100)
-        verbosity>0 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)% increment $inc dT=$(round(ΔT,sigdigits=4))\033[K\r", bold=true, color=:blue) # color 111
+        verbosity>0 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)% increment $inc dT=$(round(ΔT,sigdigits=4))\e[K\r", bold=true, color=:blue) # color 111
         verbosity>1 && println()
 
         # Get forces and displacements from boundary conditions
@@ -459,12 +459,12 @@ function hm_solve!(
 
             # Solve
             status = hm_solve_system!(G, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
-            !status.success && (errored=true; break)
+            failed(status) && (errored=true; break)
 
             copyto!.(State, StateBk)
             ΔUt = ΔUa + ΔUi
             status = hm_update_state!(dom, ΔUt, ΔFin, Δt, verbosity)
-            !status.success && (errored=true; break)
+            failed(status) && (errored=true; break)
 
             residue = maximum(abs, (ΔFex-ΔFin)[umap] )
 
@@ -586,7 +586,7 @@ function hm_solve!(
 
     # time spent
     progress = @sprintf("%4.2f", T*100)
-    verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)%\033[K\n", bold=true, color=:blue) # color 111
+    verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)%\e[K\n", bold=true, color=:blue) # color 111
     if verbosity>0 
         message("valid increments: ", inc)
         message("time spent: ", see(sw, format=:hms))

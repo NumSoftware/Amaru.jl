@@ -44,7 +44,7 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
 
     # Target and locked cells
     # locked cells include solids, lines, beams, etc.
-    if filter==nothing
+    if filter===nothing
         targetcells = mesh.elems.solids
         lockedcells = setdiff(mesh.elems, targetcells)
         # remove previous joints at filtered region
@@ -76,7 +76,7 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
             for face in get_faces(cell)
                 hs = hash(face)
                 f  = get(facedict, hs, nothing)
-                if f==nothing
+                if f===nothing
                     facedict[hs] = face
                 else
                     push!(face_pairs, (face, f))
@@ -89,7 +89,7 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
         for face in get_surface(lockedcells)
             hs = hash(face)
             f  = get(facedict, hs, nothing)
-            f==nothing && continue
+            f===nothing && continue
             push!(face_pairs, (face, f))
             delete!(facedict, hs)
         end
@@ -115,7 +115,7 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
         for face in trial_faces
             hs = hash(face)
             f  = get(facedict, hs, nothing)
-            if f==nothing
+            if f===nothing
                 facedict[hs] = face
             else # a matching face was found
                 
@@ -146,7 +146,7 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
                 for (i,node) in enumerate(cell.nodes)
                     hs = hash(node)
                     n  = get(nodedict, hs, nothing)
-                    if n==nothing
+                    if n===nothing
                         nodedict[hs] = node
                     else
                         cell.nodes[i] = n
@@ -170,7 +170,7 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
         for face in trial_faces
             hs = hash(face)
             f  = get(facedict, hs, nothing)
-            if f==nothing
+            if f===nothing
                 facedict[hs] = face
             else
                 push!(face_pairs, (face, f))
@@ -346,7 +346,7 @@ function generate_joints_by_tag!(mesh::Mesh; layers::Int64=2, verbose::Bool=true
     for face in joint_faces
         hs = hash(face)
         f  = get(facedict, hs, nothing)
-        if f==nothing
+        if f===nothing
             facedict[hs] = face
         else
             push!(face_pairs, (face, f))
@@ -381,7 +381,7 @@ function generate_joints_candidate!(mesh::Mesh, expr::Expr, tag::String="") # TO
         for (i,face) in enumerate(get_faces(cell))
             hs = hash(face)
             fp = get(fp_dict, hs, nothing)
-            if fp==nothing # fill first face in fp
+            if fp===nothing # fill first face in fp
                 fp = FacePair()
                 fp.face1 = face
                 fp.idxs1 = faces_idxs[i]
@@ -500,7 +500,7 @@ function generate_joints_by_tag_2!(mesh::Mesh; layers::Int64=2, verbose::Bool=tr
         for face in get_faces(cell)
             hs = hash(face)
             f  = get(facedict, hs, nothing)
-            if f==nothing
+            if f===nothing
                 facedict[hs] = face
             else
                 if f.tag != face.tag #add to face_pairs only if are different materials. Delete of dictionary of faces them.
@@ -532,7 +532,7 @@ function generate_joints_by_tag_2!(mesh::Mesh; layers::Int64=2, verbose::Bool=tr
         for (i,p) in enumerate(c.nodes)
             hs = hash(p)
             f = get(pointsdict_fp,hs,nothing)
-            if f==nothing
+            if f===nothing
                 pointsdict_fp[hs] = p
                 newp =Node([p.coord.x, p.coord.y, p.coord.z])
                 push!(newpoints, newp)
@@ -594,15 +594,15 @@ function generate_joints_by_tag_2!(mesh::Mesh; layers::Int64=2, verbose::Bool=tr
                 pointsdict_1[hs] = p
             else
                 f = get(pointsdict_2,hs,nothing)
-                if f==nothing
+                if f===nothing
                     pointsdict_2[hs] = p
                 else
                     f = get(pointsdict_3,hs,nothing)
-                    if f==nothing
+                    if f===nothing
                         pointsdict_3[hs] = p
                     else
                         f = get(pointsdict_4,hs,nothing)
-                        if f==nothing
+                        if f===nothing
                             pointsdict_4[hs] = p
                         end
                     end
@@ -622,15 +622,15 @@ function generate_joints_by_tag_2!(mesh::Mesh; layers::Int64=2, verbose::Bool=tr
                 pointsdict_1bk[hs] = p
             else
                 f = get(pointsdict_2bk,hs,nothing)
-                if f==nothing
+                if f===nothing
                     pointsdict_2bk[hs] = p
                 else
                     f = get(pointsdict_3bk,hs,nothing)
-                    if f==nothing
+                    if f===nothing
                         pointsdict_3bk[hs] = p
                     else
                         f = get(pointsdict_4bk,hs,nothing)
-                        if f==nothing
+                        if f===nothing
                             pointsdict_4bk[hs] = p
                         end
                     end
@@ -738,7 +738,7 @@ function cracksmesh(mesh::Mesh, opening::Real)
         for face in get_faces(cell)
             hs = hash(face)
             f  = get(facedict, hs, nothing)
-            if f==nothing
+            if f===nothing
                 facedict[hs] = face
             else
                 push!(face_pairs, (face, f))

@@ -165,7 +165,7 @@ function save(domain::Domain, filename::String; verbose::Bool=true, silent::Bool
 
     if format=="xml"; 
         save_xml(domain, filename)
-        verbosity>0 && printstyled( "  file $filename written \033[K \n", color=:cyan)
+        verbosity>0 && printstyled( "  file $filename written \e[K \n", color=:cyan)
     else
         invoke(save, Tuple{AbstractMesh,String}, domain, filename, verbose=verbose, silent=silent)
     end

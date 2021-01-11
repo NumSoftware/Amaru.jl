@@ -12,14 +12,14 @@ mutable struct DamageConcrete<:Material
     ρ::Float64
 
     function DamageConcrete(; E=NaN, nu=0.2, ft=NaN, GF=NaN, fc=NaN, epsc=NaN, rho=0.0)
-        E >0.0 || error("Invalid value for rho: $E")
-        ft>0.0 || error("Invalid value for ft: $ft")
-        GF>0.0 || error("Invalid value for GF: $GF")
-        fc<0.0 || error("Invalid value for fc: $fc")
-        nu>=0.0 || error("Invalid value for nu: $nu")
-        epsc<0.0 || error("Invalid value for epsc: $epsc")
-        rho>=0.0 || error("Invalid value for rho: $rho")
-        epsc/(fc/E)>1.0 || error("epsc should be greater in magnitude than fc/E")
+        @check E >0.0  
+        @check ft>0.0  
+        @check GF>0.0  
+        @check fc<0.0  
+        @check nu>=0.0 
+        @check epsc<0.0
+        @check rho>=0.0
+        @check epsc/(fc/E)>1.0
 
         this = new(E, nu, ft, GF, fc, epsc, rho)
         return this
@@ -28,31 +28,31 @@ end
 
 
 mutable struct DamageConcreteIpState<:IpState
-    env::ModelEnv
-    σ::Array{Float64,1}  # current stress
-    ε::Array{Float64,1}  # current strain
-    ε̅cmax::Float64
-    ε̅tmax::Float64
-    h::Float64        # characteristic length
-    in_linear_range::Bool
-    damt::Float64
-    damc::Float64
-    _E::Float64
-    _ν::Float64
-    in_tension::Bool
+    env        ::ModelEnv
+    σ          ::Array{Float64,1}  # current stress
+    ε          ::Array{Float64,1}  # current strain
+    ε̅cmax      ::Float64
+    ε̅tmax      ::Float64
+    h          ::Float64           # characteristic length
+    lin_range  ::Bool
+    damt       ::Float64
+    damc       ::Float64
+    _E         ::Float64
+    _ν         ::Float64
+    in_tension ::Bool
 
     function DamageConcreteIpState(env::ModelEnv=ModelEnv())
-        this = new(env)
-        this.σ = zeros(6)
-        this.ε = zeros(6)
-        this.ε̅cmax = 0.0
-        this.ε̅tmax = 0.0
-        this.h  = 0.0 # will be set by elem_init
-        this.in_linear_range = false
-        this.damt = 0.0
-        this.damc = 0.0
-        this._E = 0.0
-        this._ν = 0.0
+        this           = new(env)
+        this.σ         = zeros(6)
+        this.ε         = zeros(6)
+        this.ε̅cmax     = 0.0
+        this.ε̅tmax     = 0.0
+        this.h         = 0.0 # will be set by elem_init
+        this.lin_range = false
+        this.damt      = 0.0
+        this.damc      = 0.0
+        this._E        = 0.0
+        this._ν        = 0.0
 
         return this
     end
@@ -199,8 +199,8 @@ end
 #function calcDsec(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Array{Float64,1}, modeltype::Symbol)
 function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Array{Float64,1})
     # special functions
-    pos(x) = (abs(x)+x)/2.0
-    neg(x) = (-abs(x)+x)/2.0
+    pos(x)   = (abs(x)+x)/2.0
+    neg(x)   = (-abs(x)+x)/2.0
     σfun(εi) = uniaxial_σ(mat, ipd, εi)
     Efun(εi) = uniaxial_E(mat, ipd, εi)
 
@@ -211,6 +211,7 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
     εp = eigvals(ipd.ε)
     ε̅c = norm(neg.(εp), 2)
     ε̅t = norm(pos.(εp), 2)
+    
     # principal stresses
     σp = eigvals(ipd.σ)
     σ̅c = norm(neg.(σp), 2)
@@ -238,10 +239,10 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
         if ε̅t < ipd.ε̅tmax
             #E = ε̅t==0 ? mat.E0 : min(mat.E0, σ̅t/ε̅t)
             Et = ε̅t==0 ? mat.E0 : min(ipd._E, σ̅t/ε̅t)
-            ipd.in_linear_range = true
+            ipd.lin_range = true
         else
             Et = Efun(ε̅t)
-            ipd.in_linear_range = false
+            ipd.lin_range = false
         end
         Et = Efun(ε̅t)
         ν = mat.ν*(1-ipd.damt)
@@ -251,10 +252,10 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
     else
         if ε̅c < ipd.ε̅cmax
             Ec = ε̅c==0 ? mat.E0 : min(mat.E0, σ̅c/ε̅c)
-            ipd.in_linear_range = true
+            ipd.lin_range = true
         else
             Ec = Efun(-ε̅c)
-            ipd.in_linear_range = false
+            ipd.lin_range = false
         end
         Ec = Efun(-ε̅c)
         #ν = mat.ν*(1-ipd.damc)
@@ -314,11 +315,11 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
 
     #ipd.env.cstage==1 && ipd.env.cinc==2 && error()
 
-    return Δσ, CallStatus(true)
+    return Δσ, success()
 end
 
 function ip_state_vals(mat::DamageConcrete, ipd::DamageConcreteIpState)
-    dict = stress_strain_dict(ipd.σ, ipd.ε, ipd.env)
+    dict = stress_strain_dict(ipd.σ, ipd.ε, ipd.env.modeltype)
     dict[:damt] = ipd.damt
     dict[:damc] = ipd.damc
     dict[:E] = ipd._E

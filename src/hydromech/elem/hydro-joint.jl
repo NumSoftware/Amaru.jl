@@ -403,7 +403,7 @@ function elem_update!(elem::HydroJoint, U::Array{Float64,1}, F::Array{Float64,1}
     end
 
     F[map_w] .+= dFw
-    return CallStatus(true)
+    return success()
 end
 
 function elem_extrapolated_node_vals(elem::HydroJoint)

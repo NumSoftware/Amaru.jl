@@ -6,7 +6,7 @@ function mount_K(dom::Domain,
                  ndofs::Int,
                  verbosity::Int
                 )
-    verbosity>1 && print("    assembling... \033[K \r")
+    verbosity>1 && print("    assembling... \e[K \r")
 
     Threads.nthreads()>1 && return mount_K_threads(dom, ndofs)
 
@@ -42,7 +42,7 @@ function mount_K_threads(
     verbosity::Int
 )
 
-    verbosity>1 && print("    assembling... \033[K \r")
+    verbosity>1 && print("    assembling... \e[K \r")
 
     nelems = length(dom.elems)
     Rs = Array{Int64,1}[ [] for i=1:nelems  ]
@@ -99,7 +99,7 @@ function solve_system!(
                        nu :: Int,
                        verbosity :: Int
                       )
-    verbosity>1 && print("    solving... \033[K \r")
+    verbosity>1 && print("    solving... \e[K \r")
 
     #  [  K11   K12 ]  [ U1? ]    [ F1  ]
     #  |            |  |     | =  |     |
@@ -135,7 +135,7 @@ function solve_system!(
             F2 += K21*U1
         catch err
             U1 .= NaN
-            return CallStatus(false, "solve!: $err")
+            return failure("solve!: $err")
         end
     end
 
@@ -146,7 +146,7 @@ function solve_system!(
     DU[1:nu]     .= U1
     DF[nu+1:end] .= F2
 
-    return CallStatus(true)
+    return success()
 end
 
 
@@ -158,9 +158,9 @@ function update_state!(dom::Domain, ΔUt::Vect, ΔFin::Vect, t::Float64, verbosi
     ΔFin .= 0.0
     for elem in dom.elems
         status = elem_update!(elem, ΔUt, ΔFin, 0.0)
-        !status.success && return status
+        failed(status) && return status
     end
-    return CallStatus(true)
+    return success()
 end
 
 
@@ -190,7 +190,7 @@ subjected to a set of boundary conditions `bcs`.
 
 `Ttol     = 1e-9` : Pseudo-time tolerance
 
-`scheme  = "FE"` : Predictor-corrector scheme at each increment. Available schemes are "FE", "ME" and "BE"
+`scheme  = "FE"` : Predictor-corrector scheme at each increment. Available schemes are "FE", "ME", "BE", "Ralston"
 
 `nouts   = 0` : Number of output files per analysis
 
@@ -219,7 +219,6 @@ function solve!(
                 verbose :: Bool    = false,
                 silent  :: Bool    = false,
                )
-
     # Arguments checking
     verbosity = 1
     verbose && (verbosity=2)
@@ -236,7 +235,7 @@ function solve!(
     sw = StopWatch() # timing
 
     if verbosity>0
-        printstyled("Mechanical FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
+        printstyled("Mechanical FE analysis: Stage $(env.cstage)\e[K\n", bold=true, color=:cyan)
     end
 
     verbosity>1 && println("  model type: ", env.modeltype)
@@ -281,6 +280,7 @@ function solve!(
         update_output_data!(dom)
         update_single_loggers!(dom)
         update_composed_loggers!(dom)
+        update_monitors!(dom)
         save_outs && save(dom, "$outdir/$filekey-0.vtu", silent=silent)
     end
 
@@ -306,7 +306,7 @@ function solve!(
     ΔUa  = zeros(ndofs)  # vector of essential values (e.g. displacements) for this increment
     ΔUi  = zeros(ndofs)  # vector of essential values for current iteration
     Rc   = zeros(ndofs)  # vector of cumulated residues
-    status = CallStatus()
+    status = ReturnStatus()
 
     # Get forces and displacements from boundary conditions
     Uex, Fex = get_bc_vals(dom, bcs)
@@ -326,16 +326,30 @@ function solve!(
         # Update counters
         inc += 1
         env.cinc += 1
-        env.T = T
+        # env.T = T
 
         if inc > maxincs
             alert("solver maxincs = $maxincs reached (try maxincs=0)\n")
             return false
         end
 
+        # Print status
         progress = @sprintf("%4.2f", T*100)
-        verbosity>0 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)% increment $inc dT=$(round(ΔT,sigdigits=4))\033[K\r", bold=true, color=:blue) # color 111
-        verbosity>1 && println()
+        verbosity>0 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)% increment $inc dT=$(round(ΔT,sigdigits=4))\e[K\n", bold=true, color=:blue) # color 111
+        # verbosity>1 && println()
+
+        # Print monitors
+        # @s output.(dom.monitors)
+        monouts = align(output.(dom.monitors), "  ")
+        for str in monouts
+            printstyled("    $str\e[K\n", color=:blue)
+        end
+
+        # for mon in dom.monitors
+        #     printstyled("    ", output(mon), "\e[K\n", color=:blue)
+        # end
+        verbosity==1 && length(dom.monitors)>0 && print("\e[$(length(dom.monitors))A")
+        verbosity==1 && print("\e[A")
 
         ΔUex, ΔFex = ΔT*Uex, ΔT*Fex     # increment of external vectors
 
@@ -364,12 +378,12 @@ function solve!(
             if scheme in ("FE", "ME", "BE")
                 K = mount_K(dom, ndofs, verbosity)
                 status = solve_system!(K, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
-                !status.success && (errored=true; break)
+                failed(status) && (errored=true; break)
 
                 copyto!.(State, StateBk)
                 ΔUt   = ΔUa + ΔUi
                 status = update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
-                !status.success && (errored=true; break)
+                failed(status) && (errored=true; break)
                 
                 residue = maximum(abs, (ΔFex-ΔFin)[umap])
             end
@@ -383,12 +397,12 @@ function solve!(
                     K = K2
                 end
                 status = solve_system!(K, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
-                !status.success && (errored=true; break)
+                failed(status) && (errored=true; break)
 
                 copyto!.(State, StateBk)
                 ΔUt   = ΔUa + ΔUi
                 status = update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
-                !status.success && (errored=true; break)
+                failed(status) && (errored=true; break)
 
                 residue = maximum(abs, (ΔFex-ΔFin)[umap])
             end
@@ -398,23 +412,23 @@ function solve!(
                 K = mount_K(dom, ndofs, verbosity)
                 ΔUit = 2/3*ΔUi
                 status = solve_system!(K, ΔUit, 2/3*R, nu, verbosity)   # Changes unknown positions in ΔUi and R
-                !status.success && (errored=true; break)
+                failed(status) && (errored=true; break)
 
                 copyto!.(State, StateBk)
                 ΔUt = ΔUa + ΔUit
                 status = update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
-                !status.success && (errored=true; break)
+                failed(status) && (errored=true; break)
 
                 # Corrector step
                 K2 = mount_K(dom, ndofs, verbosity)
                 K = 0.25*K + 0.75*K2
                 status = solve_system!(K, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
-                !status.success && (errored=true; break)
+                failed(status) && (errored=true; break)
 
                 copyto!.(State, StateBk)
                 ΔUt   = ΔUa + ΔUi
                 status = update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
-                !status.success && (errored=true; break)
+                failed(status) && (errored=true; break)
 
                 residue = maximum(abs, (ΔFex-ΔFin)[umap])
             end
@@ -461,11 +475,13 @@ function solve!(
                 dof.vals[dof.name]    += ΔUa[i]
                 dof.vals[dof.natname] += ΔFin[i]
             end
-
-            update_single_loggers!(dom)
-
+            
             # Update time
             T += ΔT
+            env.T = T
+            
+            update_single_loggers!(dom)
+            update_monitors!(dom)
 
             # Check for saving output file
             if T>Tcheck-Ttol && save_outs
@@ -529,12 +545,12 @@ function solve!(
 
     # time spent
     progress = @sprintf("%4.2f", T*100)
-    verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)%\033[K\n", bold=true, color=:blue) # color 111
+    verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)%\e[K\n", bold=true, color=:blue) # color 111
     if verbosity>0 
         message("valid increments: ", inc)
         message("time spent: ", see(sw, format=:hms))
     end
     getlapse(sw)>60 && sound_alert()
 
-    return CallStatus(true)
+    return success()
 end

@@ -186,7 +186,7 @@ end
 
 
 function inverse_map(shape::ShapeType, coords::Array{Float64,2}, X0::AbstractArray{Float64,1}, tol=1.0e-7)
-    MAXIT = 20
+    maxits = 20
     ndim  = shape.ndim
     R = zeros(ndim)
     C = coords
@@ -198,7 +198,7 @@ function inverse_map(shape::ShapeType, coords::Array{Float64,2}, X0::AbstractArr
     end
 
     k = 0
-    for k=1:MAXIT
+    for k=1:maxits
         # calculate Jacobian
         D = shape.deriv(R)
         J = D*C
@@ -217,7 +217,7 @@ function inverse_map(shape::ShapeType, coords::Array{Float64,2}, X0::AbstractArr
     end
 
     # TODO: Improve accuracy of inverse_map function in elements with non regular shape
-    #k==MAXIT && println("Warning: max iterations (MAXIT=$MAXIT) reached in inverse mapping. norm(ΔX)=$(norm(ΔX))")
+    #k==maxits && println("Warning: max iterations (maxits=$maxits) reached in inverse mapping. norm(ΔX)=$(norm(ΔX))")
 
     if ndim==2
         R = vcat( R, 0.0 )

@@ -75,3 +75,62 @@ function cubic_roots(a,b,c,d)
         return Float64[ x ]
     end
 end
+
+
+
+function spline_coefficients(Y::Array{Float64,1})
+    n   = length(Y)
+    neq = n
+    M   = zeros(neq, neq)
+    B   = zeros(neq)
+    
+    M[1,1:2]         = [2, 1]
+    M[end,end-1:end] = [1, 2]
+    B[1]             = 3*(Y[2]-Y[1])
+    B[end]           = 3*(Y[n]-Y[n-1])
+
+    v141 = [1, 4, 1]
+    for i=2:n-1
+        M[i, i-1:i+1] .= v141
+        B[i]           = 3*(Y[i+1]-Y[i-1])
+    end
+
+    return M\B
+end
+
+
+# Parametric spline
+struct Spline
+    X::Array{Float64,1}  # y values
+    Y::Array{Float64,1}  # y values
+    D::Array{Float64,1}  # parametric spline coefficients
+    function Spline(X, Y)
+        D = spline_coefficients(Y)
+        return new(X, Y, D)
+    end
+end
+
+
+# Overloading () operator to be used with the ParamSpline structure
+function (spline::Spline)(x::Real)
+    X = spline.X
+    Y = spline.Y
+    D = spline.D
+
+    @assert X[1] <= x <= X[end]
+    
+    # Find polynomial function
+    n = length(Y)
+    i = max(1, findfirst(xi->x<=xi, X) - 1)
+
+    # Parametric coordinate
+    t = (x-X[i])/(X[i+1]-X[i])
+    
+    # Spline coefficients
+    a = Y[i]
+    b = D[i]
+    c = 3*(Y[i+1]-Y[i]) - 2*D[i] - D[i+1]
+    d = 2*(Y[i]-Y[i+1]) + D[i] + D[i+1]
+
+    return a + b*t + c*t^2 + d*t^3
+end

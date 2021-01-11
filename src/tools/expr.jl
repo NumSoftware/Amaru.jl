@@ -31,7 +31,7 @@ function reduce_arith_expr!(arg::Symbol; vars...)
     # should not be called on operators
     arg == :pi && return pi
     val = get(vars, arg, nothing)
-    val == nothing && error("variable $arg not defined for this context")
+    val === nothing && error("variable $arg not defined for this context")
     return val
 end
 

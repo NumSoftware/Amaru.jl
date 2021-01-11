@@ -169,14 +169,14 @@ function stress_update(mat::Mazars, ipd::MazarsIpState, Δε::Array{Float64,1})
     end
 
     Δσ    = ipd.σ - σini
-    return Δσ, CallStatus(true)
+    return Δσ, success()
 end
 
 function ip_state_vals(mat::Mazars, ipd::MazarsIpState)
     ndim  = ipd.env.ndim
     σ, ε  = ipd.σ, ipd.ε
 
-    D = stress_strain_dict(σ, ε, ipd.env)
+    D = stress_strain_dict(σ, ε, ipd.env.modeltype)
     D[:dam]  = ipd.φ
     D[:damt] = ipd.φt
     D[:damc] = ipd.φc

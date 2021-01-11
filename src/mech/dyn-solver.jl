@@ -352,7 +352,7 @@ function dynsolve!(
             Fex = sismic_force(dom, bcs, M,Fex,AS,keysis,t+dt,tds)
         end
 
-        silent || printstyled("  stage $(env.cstage)  increment $inc from t=$(round(t,digits=10)) to t=$(round(t+dt,digits=10)) (dt=$(round(dt,digits=10)))\033[K\r", bold=true, color=:blue) # color 111
+        silent || printstyled("  stage $(env.cstage)  increment $inc from t=$(round(t,digits=10)) to t=$(round(t+dt,digits=10)) (dt=$(round(dt,digits=10)))\e[K\r", bold=true, color=:blue) # color 111
         verbosity>0 && println()
         #R   .= FexN - F    # residual
         Fex_Fin = Fex-Fina    # residual
@@ -502,7 +502,7 @@ function dynsolve!(
     end
 
     # time spent
-    verbosity==1 && println("  time spent: ", see(sw, format=:hms), "\033[K")
+    verbosity==1 && println("  time spent: ", see(sw, format=:hms), "\e[K")
 
     return true
 end

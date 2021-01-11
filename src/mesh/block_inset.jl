@@ -273,7 +273,7 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
         bl.icount += end_reached ? 0 : 1
 
         # Getting line cell nodes
-        if bl._endpoint==nothing
+        if bl._endpoint===nothing
             P1 = Node(X1)
             push!(msh.nodes, P1)
         else

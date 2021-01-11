@@ -66,9 +66,9 @@ end
 function setup_logger!(domain, filter, logger::IpLogger)
     logger.filter = filter
     if filter isa Integer
-        return domain.elems[:ips][filter]
+        logger.ip = domain.elems[:ips][filter]
+        return
     end
-    #logger.filter==:() && return
     ips = domain.elems[:ips][filter]
     n = length(ips)
     n == 0 && warn("setup_logger: No ips found for filter expression: $(logger.filter)")
@@ -328,7 +328,7 @@ function setup_logger!(domain, filter, logger::PointLogger)
     X = filter
     # find elem and R
     elem = find_elem(X, domain.elems, domain._elempartition)
-    elem==nothing && error("setup_logger!: Cannot set PointLogger. Coordinate ($X) outside mesh.")
+    elem===nothing && error("setup_logger!: Cannot set PointLogger. Coordinate ($X) outside mesh.")
     logger.elem = elem
     logger.R = inverse_map(elem, X)
 end
@@ -384,7 +384,7 @@ function setup_logger!(domain, filter, logger::SegmentLogger)
     # find cells and Rs
     for X in Xs
         elem = find_elem(X, domain.elems, domain._elempartition)
-        elem==nothing && error("setup_logger!: Cannot set SegmentLogger. Coordinate ($X) outside mesh.")
+        elem===nothing && error("setup_logger!: Cannot set SegmentLogger. Coordinate ($X) outside mesh.")
         R = inverse_map(elem, X)
         push!(logger.elems, elem)
         push!(logger.Rs, R)

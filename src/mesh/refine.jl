@@ -17,7 +17,7 @@ function hrefine(mesh::Mesh; n=2, verbose=true)
                     C = round.(N'*coords, digits=8)
                     if i==1 || j==1 || i+j==n+2
                         p = get_node(newmesh._pointdict, C)
-                        if p==nothing
+                        if p===nothing
                             p = Node(C); push!(newmesh.nodes, p)
                             newmesh._pointdict[hash(p)] = p
                         end
@@ -60,7 +60,7 @@ function hrefine(mesh::Mesh; n=2, verbose=true)
                         C = round.(N'*coords, digits=8)
                         if i in (1, n+1) || j in (1, n+1) || k in (1, n+1)
                             p =get_node(newmesh._pointdict, C)
-                            if p==nothing
+                            if p===nothing
                                 p = Node(C); push!(newmesh.nodes, p)
                                 newmesh._pointdict[hash(p)] = p
                             end

@@ -429,6 +429,6 @@ end
 
 
 function inverse_map(cell::AbstractCell, X::AbstractArray{Float64,1}, tol=1.0e-7)
-    return inverse_map(cell.shape,get_coords(cell), X, tol)
+    return inverse_map(cell.shape, get_coords(cell), X, tol)
 end
 

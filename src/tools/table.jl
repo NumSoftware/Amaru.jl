@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export DataTable, push!, save, loadtable, randtable, compress, resize, filter, cut, denoise
+export DataTable, push!, save, loadtable, randtable, compress, resize, filter, cut!, clamp!, denoise!
 export getheader
 
 
@@ -8,10 +8,10 @@ export getheader
 const KeyType = Union{Symbol,AbstractString}
 
 mutable struct DataTable
-    columns  :: Vector{AbstractVector}
-    colidx :: OrderedDict{String,Int} # Data index
-    header   :: Array{String,1}
-    name     :: String
+    columns::Vector{AbstractVector}
+    colidx ::OrderedDict{String,Int} # Data index
+    header ::Array{String,1}
+    name   ::String
     function DataTable(header::Array, columns::Array{<:AbstractVector,1}=Array{Any,1}[]; name="")
         @assert length(header) == length(unique(header))
         if length(columns)==0
@@ -168,7 +168,7 @@ end
 function Base.getindex(table::DataTable, key::KeyType)
     key    = string(key)
     colidx = getcolidx(table)
-    haskey(colidx, key) || error("getindex: key $(repr(key)) not found in DataTable. The available keys are $(keys(table))")
+    haskey(colidx, key) || error("getindex: key $(repr(key)) not found in DataTable. Available keys are $(keys(table))")
 
     idx  = colidx[key]
     return getcolumns(table)[idx]
@@ -194,9 +194,15 @@ function Base.getindex(table::DataTable, idxs::Union{Colon,OrdinalRange{Int,Int}
 end
 
 
-function Base.getindex(table::DataTable, rows, cols)
-    return table[cols][rows]
+function Base.getindex(table::DataTable, rows, col::KeyType)
+    return table[rows][col][1]
 end
+
+function Base.getindex(table::DataTable, rows, cols::Array{<:KeyType,1})
+    return table[rows][cols]
+end
+
+
 
 
 function Base.Array(table::DataTable)
@@ -204,13 +210,22 @@ function Base.Array(table::DataTable)
 end
 
 
-function Base.getindex(table::DataTable, rowindex::Int, colidx::Int)
+# function Base.getindex(table::DataTable, rowindex::Int, colidx::Int)
+#     return getcolumns(table)[colidx][rowindex]
+# end
+
+function Base.getindex(table::DataTable, rowindex::Union{Int,Colon,OrdinalRange{Int,Int},Array{Int,1}}, colidx::Int)
     return getcolumns(table)[colidx][rowindex]
 end
+
 
 function Base.getindex(table::DataTable, rowindex::Int, colon::Colon)
     return [ column[rowindex] for column in getcolumns(table)]
 end
+
+# function Base.getindex(table::DataTable, rows, cols::Union{Colon,OrdinalRange{Int,Int},Array{Int,1}})
+#     return return getcolumns(table)[colidx][rows]
+# end
 
 
 function Base.lastindex(table::DataTable)
@@ -272,7 +287,7 @@ function Base.sort!(table::DataTable, options::NamedTuple...)
 end
 
 
-function compress(table::DataTable, n::Int)
+function compress!(table::DataTable, n::Int)
     columns = getcolumns(table)
     nr, nc = size(table)
 
@@ -280,8 +295,12 @@ function compress(table::DataTable, n::Int)
 
     factor = (nr-1)/(n-1)
     idxs   = [ round(Int, 1+factor*(i-1)) for i=1:n ]
+
+    for i in 1:length(columns)
+        columns[i] = columns[i][idxs]
+    end
     
-    return table[idxs]
+    return table
 end
 
 
@@ -342,19 +361,28 @@ function resize(table::DataTable, n::Int=0; ratio=1.0)
 end
 
 
-function cut(table::DataTable, field, value=0.0; after=false)
-    table = table[:] # get a copy
-    V = table[field] .- value
+function cut!(table::DataTable, field, value=0.0; after=false)
+    V   = table[field] .- value
+    idx = 0
     for i=2:length(V)
         if V[i-1]*V[i] <= 0
-            α = -V[i-1]/(V[i]-V[i-1]) 
-            for (j,field) in enumerate(table.header)
-                W = table[field]
-                W[i] = W[i-1] + α*(W[i]-W[i-1])
-            end
-            rng = 1:i
-            after && (rng=1:length(V))
-            return table[rng]
+            idx = i
+        end
+    end
+
+    if idx>0
+        α = -V[idx-1]/(V[idx]-V[idx-1]) 
+        header = getheader(table)
+        for field in header
+            W      = table[field]
+            W[idx] = W[idx-1] + α*(W[idx]-W[idx-1])
+        end
+        rng = 1:idx
+        after && (rng=1:length(V))
+
+        columns = getcolumns(table)
+        for (i,col) in enumerate(columns)
+            columns[i] = col[rng]
         end
     end
 
@@ -362,7 +390,38 @@ function cut(table::DataTable, field, value=0.0; after=false)
 end
 
 
-function denoise(table::DataTable, fieldx, fieldy=nothing; noise=0.05, npatch=4)
+function clamp!(table::DataTable, field, lo, hi)
+    clamp!(table[field], lo, hi)
+    return table
+end
+
+export smooth!
+function smooth!(table::DataTable, fieldx, fieldy=nothing; knots=[0.0, 1.0])
+    nr     = nrows(table)
+
+    if fieldy === nothing
+        fieldy = fieldx
+        X = range(0,1,length=nr)
+        Y = table[fieldx]
+    else
+        X = table[fieldx]
+        Y = table[fieldy]
+    end
+
+    Idxs = split(X, X[1] .+ knots.*(X[end]-X[1]))
+
+    for i in 1:length(Idxs)
+        Xi = X[Idxs[i]]
+        Yi = Y[Idxs[i]]
+        M = Float64[ ones(length(Xi)) Xi Xi.^3 ]
+        a, b, d = inv(M'*M)*M'*Yi
+        Y[Idxs[i]] .= a .+ b*Xi .+ d*Xi.^3
+    end
+
+    table[fieldy] = Y
+end
+
+function denoise!(table::DataTable, fieldx, fieldy=nothing; noise=0.05, npatch=4)
     header = getheader(table)
     nr     = nrows(table)
 
@@ -374,6 +433,7 @@ function denoise(table::DataTable, fieldx, fieldy=nothing; noise=0.05, npatch=4)
         Y = table[fieldy]
     end
 
+    # Regression along patches
     M  = ones(npatch,2)
     A  = zeros(2)
     ΔY = [ Float64[] for i=1:nr ]
@@ -385,7 +445,7 @@ function denoise(table::DataTable, fieldx, fieldy=nothing; noise=0.05, npatch=4)
 
         # Linear regression
         M[:,2] .= Xp
-        A  = pinv(M)*Yp
+        A   = pinv(M)*Yp
         ΔYp = abs.(Yp .- M*A)
 
         for (j,k) in enumerate(rng)
@@ -393,9 +453,10 @@ function denoise(table::DataTable, fieldx, fieldy=nothing; noise=0.05, npatch=4)
         end
     end
 
+    # Get indexes to keep
     idxs = minimum.(ΔY) .<= noise*(maximum(Y)-minimum(Y))
-    idxs[1:npatch] .= 1
-    idxs[end-npatch+1:end] .= 1
+    # idxs[1:npatch] .= 1
+    # idxs[end-npatch+1:end] .= 1
 
     # newtable = table[:]
     # for i in (1:nr)[idxs]
@@ -412,17 +473,27 @@ function denoise(table::DataTable, fieldx, fieldy=nothing; noise=0.05, npatch=4)
     # Linear interpolation of dropped points
     cols = Array{Any,1}[]
     for column in getcolumns(table)
-        V = copy(column)
+        # V = copy(column)
+        V = column
         for i in (1:nr)[.!idxs]
             j = findprev(!iszero, idxs, i-1)
             k = findnext(!iszero, idxs, i+1)
+            if j===nothing
+                j = k
+                k = findnext(!iszero, idxs, j+1)
+            end
+            if k===nothing
+                k = j
+                j = findprev(!iszero, idxs, k-1)
+            end
             r = (X[i]-X[j])/(X[k]-X[j])
             V[i] = V[j] + r*(V[k]-V[j])
         end
         push!(cols, V)
     end
 
-    return DataTable(header, cols)
+    return table
+    # return DataTable(header, cols)
 end
 
 

@@ -28,9 +28,10 @@ mutable struct Domain<:AbstractDomain
     _elempartition::ElemPartition
 
     #mats::Array{Material,1}
-    loggers::Array{AbstractLogger,1}
-    ndofs::Integer
-    env::ModelEnv
+    loggers ::Array{AbstractLogger,1}
+    monitors::Array{AbstractMonitor,1}
+    ndofs   ::Integer
+    env     ::ModelEnv
 
     # Data
     node_data::OrderedDict{String,Array}
@@ -46,6 +47,7 @@ mutable struct Domain<:AbstractDomain
         this.ndim  = 0
 
         this.loggers = []
+        this.monitors = []
         this.ndofs   = 0
         this.env = ModelEnv()
 
@@ -56,64 +58,7 @@ mutable struct Domain<:AbstractDomain
     end
 end
 
-#=
-mutable struct SubDomain<:AbstractDomain
-    nodes::Array{Node,1}
-    elems::Array{Element,1}
-    faces::Array{Face,1}
 
-    env::ModelEnv
-end
-
-
-function SubDomain(dom::Domain, expr::Expr)
-    elems = dom.elems[expr]
-    node_ids = unique( node.id for elem in elems for node in elem.nodes )
-    nodes = dom.nodes[node_ids]
-
-    cells  = [ elem.cell for elem in elems ]
-    scells = get_surface(cells)
-
-    # Setting faces
-    faces = Array{Face}(0)
-    for (i,cell) in enumerate(scells)
-        conn = [ p.id for p in cell.nodes ]
-        face = Face(cell.shape, dom.nodes[conn], ndim, cell.tag)
-        face.oelem = dom.elems[cell.oelem.id]
-        face.id = i
-        push!(faces, face)
-    end
-
-    return SubDomain(nodes, elems, faces, dom.env)
-end
-
-
-function SubDomain(elems::Array{<:Element,1})
-    nodesset = OrderedSet(node for elem in elems for node in elem.nodes)
-    nodes    = collect(nodesset)
-
-    nodemap = zeros(maximum(node.id for node in nodes))
-    for (i,node) in enumerate(nodes); nodemap[node.id] = i end
-
-    elemmap = zeros(maximum(elem.id for elem in elems))
-    for (i,elem) in enumerate(elems); elemmap[elem.id] = i end
-
-    cells  = [ elem.cell for elem in elems ]
-    scells = get_surface(cells)
-
-    # Setting faces
-    faces = Array{Face}(0)
-    for (i,cell) in enumerate(scells)
-        conn = [ nodemap[p.id] for p in cell.nodes ]
-        face = Face(cell.shape, nodes[conn], ndim, cell.tag)
-        face.oelem = elems[elemmap[cell.oelem.id]]
-        face.id = i
-        push!(faces, face)
-    end
-
-    return SubDomain(nodes, elems, faces, ModelEnv())
-end
-=#
 
 
 """
@@ -138,7 +83,7 @@ Uses a mesh and a list of meterial especifications to construct a finite element
 function Domain(
                 mesh      :: Mesh,
                 matbinds  :: Array{<:Pair,1};
-                modeltype :: String = "", # or "plane-stress", "plane-strain", "axysimmetric"
+                modeltype :: String = "", # or "plane-stress", "plane-strain", "axysimmetric", "3d"
                 thickness :: Real   = 1.0,
                 verbose   :: Bool   = false,
                 silent    :: Bool   = false,
@@ -149,8 +94,9 @@ function Domain(
     verbose && (verbosity=2)
     silent && (verbosity=0)
     if modeltype==""
-        modeltype = mesh.ndim==2 ? "2d" : "3d"
+        modeltype = mesh.ndim==2 ? "plane-strain" : "3d"
     end
+    modeltype in ("plane-stress", "plane-strain", "axisymmetric", "3d") || error("Domain: Invalid modeltype $modeltype")
 
     dom  = Domain()
     dom.ndim = mesh.ndim
@@ -288,7 +234,6 @@ function Domain(
 end
 
 
-# Function for setting loggers
 """
     setloggers!(domain, loggers)
 
@@ -301,9 +246,22 @@ function setloggers!(dom::Domain, loggers::Array{<:Pair,1})
         push!(dom.loggers, logger)
         setup_logger!(dom, filter, logger)
     end
-    #setup_logger!.(Ref(dom), dom.loggers)
 end
 
+
+"""
+    setmonitors!(domain, loggers)
+
+Register monitors from the array `loggers` into `domain`.
+
+"""
+function setmonitors!(dom::Domain, monitors::Array{<:Pair,1})
+    dom.monitors = []
+    for (filter,monitor) in monitors
+        push!(dom.monitors, monitor)
+        setup_monitor!(dom, filter, monitor)
+    end
+end
 
 # Functions for updating loggers
 
@@ -317,6 +275,12 @@ end
 function update_composed_loggers!(domain::Domain)
     for logger in domain.loggers
         isa(logger, ComposedLogger) && update_logger!(logger, domain)
+    end
+end
+
+function update_monitors!(domain::Domain)
+    for monitor in domain.monitors
+        update_monitor!(monitor, domain)
     end
 end
 

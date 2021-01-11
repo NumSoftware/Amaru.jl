@@ -376,7 +376,7 @@ function hm_solve!(
         end
 
         progress = @sprintf("%4.2f", T*100)
-        verbosity>0 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)% increment $inc dT=$(round(ΔT,sigdigits=4))\033[K\r", bold=true, color=:blue) # color 111
+        verbosity>0 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)% increment $inc dT=$(round(ΔT,sigdigits=4))\e[K\r", bold=true, color=:blue) # color 111
         verbosity>1 && println()
 
         # Get forces and displacements from boundary conditions
@@ -508,11 +508,11 @@ function hm_solve!(
                 ΔT *= 0.5
                 ΔT = round(ΔT, sigdigits=3)  # round to 3 significant digits
                 if ΔT < Ttol
-                    printstyled("solve!: solver did not converge \033[K \n", color=:red)
+                    printstyled("solve!: solver did not converge \e[K \n", color=:red)
                     return false
                 end
             else
-                printstyled("solve!: solver did not converge \033[K \n", color=:red)
+                printstyled("solve!: solver did not converge \e[K \n", color=:red)
                 return false
             end
         end
@@ -528,8 +528,8 @@ function hm_solve!(
     end
 
     # time spent
-    verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress 100%\033[K\n", bold=true, color=:blue) # color 111
-    verbosity==1 && println("  time spent: ", see(sw, format=:hms), "\033[K")
+    verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress 100%\e[K\n", bold=true, color=:blue) # color 111
+    verbosity==1 && println("  time spent: ", see(sw, format=:hms), "\e[K")
 
     return true
 end

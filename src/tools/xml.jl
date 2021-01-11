@@ -93,7 +93,7 @@ function readnode(text, pos)
     apos = 1
     while true
         m = match(r" (\w+)=\"(.*?)\"", str, apos)
-        m==nothing && break
+        m===nothing && break
         _,apos = findnext(r" \w+=\".*?\"", str, apos)
         att = m.captures[1]
         val = m.captures[2]
@@ -156,7 +156,7 @@ function Xdoc(filename::String)
     apos = 1
     while true
         m = match(r" (\w+)=\"(.*?)\"", str, apos)
-        m==nothing && break
+        m===nothing && break
         _,apos = findnext(r" \w+=\".*?\"", str, apos)
         att = m.captures[1]
         val = m.captures[2]

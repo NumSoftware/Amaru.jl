@@ -55,7 +55,7 @@ function distributed_bc(elem::MechSolid, facet::Union{Facet, Nothing}, key::Symb
     key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
     (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
 
-    target = facet!=nothing ? facet : elem
+    target = facet!==nothing ? facet : elem
     nodes  = target.nodes
     nnodes = length(nodes)
     t      = elem.env.t
@@ -309,8 +309,8 @@ function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1},
 
         @gemv Δε = B*dU
         Δσ, status = stress_update(elem.mat, ip.state, Δε)
-        !status.success && return CallStatus(false, "MechSolid: Error at integration point $(ip.id)")
-        #if !status.success
+        failed(status) && return failure("MechSolid: Error at integration point $(ip.id)")
+        #if failed(status)
             #status.message = "MechSolid: Error at integration point $(ip.id)\n" * status.message
             #return status
         #end
@@ -329,7 +329,7 @@ function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1},
     end
 
     F[map] += dF
-    return CallStatus(true)
+    return success()
 end
 
 function elem_vals(elem::MechSolid)

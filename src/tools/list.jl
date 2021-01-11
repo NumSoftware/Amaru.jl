@@ -97,7 +97,7 @@ end
 
 function Base.iterate(list::List{T}, state=(nothing,0)) where T
     node, count = state
-    if node==nothing
+    if node===nothing
         return (list.first, (list.first.next, 1))
     elseif node.prev!=list.last
         return (node, (node.next, count+1))

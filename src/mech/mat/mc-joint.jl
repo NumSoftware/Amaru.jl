@@ -53,14 +53,14 @@ mutable struct MCJoint<:Material
             end    
         end
 
-        E>0.0       || error("Invalid value for E: $E")
-        0<=nu<0.5   || error("Invalid value for nu: $nu")
-        ft>=0       || error("Invalid value for ft: $ft")
-        mu>0     || error("Invalid value for mu: $mu")
-        zeta>0      || error("Invalid value for zeta: $zeta")
-        wc>0        || error("Invalid value for wc: $wc")
-        (isnan(ws)  || ws>0) || error("Invalid value for ws: $ws")
-        (softcurve=="linear" || softcurve=="bilinear" || softcurve=="hordijk") || error("Invalid softcurve: softcurve must to be linear or bilinear or hordijk")
+        E>0.0      || error("Invalid value for E: $E")
+        0<=nu<0.5  || error("Invalid value for nu: $nu")
+        ft>=0      || error("Invalid value for ft: $ft")
+        mu>0       || error("Invalid value for mu: $mu")
+        zeta>0     || error("Invalid value for zeta: $zeta")
+        wc>0       || error("Invalid value for wc: $wc")
+        (isnan(ws) || ws>0) || error("Invalid value for ws: $ws")
+        softcurve in ("linear", "bilinear", "hordijk") || error("Invalid softcurve: softcurve must to be linear or bilinear or hordijk")
 
         this = new(E, nu, ft, mu, zeta, wc, ws, softcurve)
         return this
@@ -100,21 +100,21 @@ end
 function potential_derivs(mat::MCJoint, ipd::MCJointIpState, σ::Array{Float64,1})
     ndim = ipd.env.ndim
     if ndim == 3
-            if σ[1] >= 0.0 
-                # G1:
-                r = [ 2.0*σ[1]*mat.μ^2, 2.0*σ[2], 2.0*σ[3]]
-            else
-                # G2:
-                r = [ 0.0, 2.0*σ[2], 2.0*σ[3] ]
-            end
+        if σ[1] >= 0.0 
+            # G1:
+            r = [ 2.0*σ[1]*mat.μ^2, 2.0*σ[2], 2.0*σ[3]]
+        else
+            # G2:
+            r = [ 0.0, 2.0*σ[2], 2.0*σ[3] ]
+        end
     else
-            if σ[1] >= 0.0 
-                # G1:
-                r = [ 2*σ[1]*mat.μ^2, 2*σ[2]]
-            else
-                # G2:
-                r = [ 0.0, 2*σ[2] ]
-            end
+        if σ[1] >= 0.0 
+            # G1:
+            r = [ 2*σ[1]*mat.μ^2, 2*σ[2]]
+        else
+            # G2:
+            r = [ 0.0, 2*σ[2] ]
+        end
     end
     return r
 end
@@ -266,7 +266,7 @@ function calc_Δλ(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
         abs(f) < tol && break
 
         if i == maxits || isnan(Δλ)
-            return Δλ, CallStatus(false, "SmearedCrack: Could not find Δλ")
+            return Δλ, failure("SmearedCrack: Could not find Δλ")
 
             # alert("""MCJoint: Could not find Δλ. This may happen when the system
             # becomes hypostatic and thus the global stiffness matrix is nearly singular.
@@ -277,7 +277,7 @@ function calc_Δλ(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
             error()
         end
     end
-    return Δλ, CallStatus(true)
+    return Δλ, success()
 end
 
 
@@ -382,7 +382,7 @@ function stress_update(mat::MCJoint, ipd::MCJointIpState, Δw::Array{Float64,1})
     else
         # Plastic increment
         ipd.Δλ, status = calc_Δλ(mat, ipd, σtr)
-        !status.success && return ipd.σ, status
+        failed(status) && return ipd.σ, status
 
         ipd.σ, ipd.upa = calc_σ_upa(mat, ipd, σtr)
                       
@@ -393,7 +393,7 @@ function stress_update(mat::MCJoint, ipd::MCJointIpState, Δw::Array{Float64,1})
     end
     ipd.w += Δw
     Δσ = ipd.σ - σini
-    return Δσ, CallStatus(true)
+    return Δσ, success()
 end
 
 

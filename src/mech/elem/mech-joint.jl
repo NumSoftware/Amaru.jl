@@ -186,7 +186,7 @@ function elem_update!(elem::MechJoint, U::Array{Float64,1}, F::Array{Float64,1},
     end
 
     F[map] += dF
-    return CallStatus(true)
+    return success()
 end
 
 function elem_extrapolated_node_vals(elem::MechJoint)

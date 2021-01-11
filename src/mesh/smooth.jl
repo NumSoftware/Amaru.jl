@@ -646,11 +646,11 @@ function find_weighted_pos(mesh::Mesh, patches, extended, α, qmin, in_border)
     n    = length(mesh.nodes)
     m    = length(mesh.elems)
     ndim = mesh.ndim
-    UU = zeros(n,ndim)
-    W  = ones(m) # area/volume
-    QQ  = ones(m) # qualities
+    UU   = zeros(n,ndim)
+    W    = ones(m) # area/volume
+    QQ   = ones(m) # qualities
     X1X1 = zeros(n,ndim,m) #elements array for node positions of ideal element over original (C1)
-    XX = zeros(n,ndim) #new node coordinates after weighted positioning
+    XX   = zeros(n,ndim) #new node coordinates after weighted positioning
 
 
     for c in mesh.elems
@@ -659,7 +659,7 @@ function find_weighted_pos(mesh::Mesh, patches, extended, α, qmin, in_border)
         C0 = get_coords(c.nodes, ndim)
         v  = abs(cell_extent(c)) # area or volume
         W[c.id] = v
-	QQ[c.id] = c.quality
+	    QQ[c.id] = c.quality
 
         s = v^(1.0/ndim) # scale factor
 
@@ -688,7 +688,7 @@ function find_weighted_pos(mesh::Mesh, patches, extended, α, qmin, in_border)
 	#test= [X1X1[node.id,:,c.id] for c in patch]
 	#println(test)	
 	
-	parcel1 = .5*sum(((1.01-QQ[c.id])./sumdeltaQQ).* X1X1[node.id,:,c.id] for c in patch)
+	parcel1 = 0.5*sum(((1.01-QQ[c.id])./sumdeltaQQ).* X1X1[node.id,:,c.id] for c in patch)
 	#parcel2 = .5*sum((1-(W[c.id]/sumW)).* X1X1[node.id,:,c.id] for c in patch) #When node is a corner, parcel2=0. Knowing that corners do not move, it would not be a problem. XX apparently for 
 										#those nodes is incorrect though. Nevertheless, it does not matter. To be sure, in case of number of patches for the node
 										#is 1, make coefficient in parcel1 equal to 1. instead of .5 (see conditional commented)
@@ -696,7 +696,7 @@ function find_weighted_pos(mesh::Mesh, patches, extended, α, qmin, in_border)
 										#was slightly modyfied as next. With this, not only this problem is solved but the initial problem as well.
 
 	
-	parcel2 = .5*sum(((W[c.id]/sumW)).* X1X1[node.id,:,c.id] for c in patch)  
+	parcel2 = 0.5*sum(((W[c.id]/sumW)).* X1X1[node.id,:,c.id] for c in patch)  
 
 	#if lenght(patch)==1
 		#parce1 *=2
@@ -790,8 +790,8 @@ function fast_smooth2!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Flo
 
         sw = StopWatch()
 
-	# New nodal positions after applying least-squares fitting and weithed positioning using area/volume and quality of elements
-	XX = find_weighted_pos(mesh, patches, extended, alpha, qmin, in_border)
+        # New nodal positions after applying least-squares fitting and weithed positioning using area/volume and quality of elements
+        XX = find_weighted_pos(mesh, patches, extended, alpha, qmin, in_border)
 
         # Save last step file with current forces
         #savesteps && save(mesh, "$filekey-$(i-1).vtk", verbose=false)

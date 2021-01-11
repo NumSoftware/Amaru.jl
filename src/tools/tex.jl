@@ -16,7 +16,7 @@ function findclosing(opening::AbstractString, closing::AbstractString, str::Abst
     depth = 1
     while true
         rng = findnext(Regex(pattern), str, pos)
-        rng==nothing && return nothing
+        rng===nothing && return nothing
         if str[rng]==opening
             depth += 1
         else
@@ -48,7 +48,7 @@ function findclosure(opening::AbstractString, closing::AbstractString, str::Abst
     while true
 
         rng = findnext(Regex(pattern), str, pos)
-        rng==nothing && return nothing
+        rng===nothing && return nothing
         if str[rng]==opening
             depth==0 && (start=rng.start)
             depth += 1
@@ -117,7 +117,7 @@ function readtex(text::String, rng::UnitRange{Int})
         if newline
 
             rng = findnext(r"^.*$"m, text, pos)
-            #rng==nothing && break
+            #rng===nothing && break
             line = text[rng]
             @show line
             #@show rng
@@ -178,21 +178,21 @@ function readtex(text::String, rng::UnitRange{Int})
                         #@show text[rng]
                         if text[rng] == "["
                             rng = findclosure("[", "]", text, rng.start)
-                            rng==nothing && break
+                            rng===nothing && break
                             push!(cchildren, Xnode("squarebraces", content=text[rng]))
                             pos = rng.stop+1
                         elseif text[rng] == "{"
                             #@show 1000
                             rng = findclosure("{", "}", text, rng.start)
                             #@show text[rng]
-                            rng==nothing && break
+                            rng===nothing && break
                             xtex = readtex(text, rng.start+1:rng.stop-1)
                             xtex.name = "curlybraces"
                             push!(cchildren, xtex)
                             pos = rng.stop+1
                         #elseif text[rng] == "\$"
                             #rng = findnext(r"\$"m, text, pos)
-                            #rng==nothing && error()
+                            #rng===nothing && error()
                             #xtex = readtex(text, pos:rng.stop-1)
                             #xnode = Xnode("inline-equation", Dict(), xtex.cchildren)
                         else
@@ -220,7 +220,7 @@ function readtex(text::String, rng::UnitRange{Int})
 
         elseif c=='{' 
             rng = findclosure("{", "}", text, pos)
-            rng==nothing && break
+            rng===nothing && break
             xtex = readtex(text, rng.start+1:rng.stop-1)
             xnode = Xnode("curlybraces", Dict(), xtex.children)
             push!(children, xnode)
@@ -232,7 +232,7 @@ function readtex(text::String, rng::UnitRange{Int})
             @show rng
             rng = rng.start:min(rng.stop, lastpos)
             @show text[rng]
-            rng==nothing && break
+            rng===nothing && break
             xtex = Xnode("paragraph", content=text[rng])
             push!(children, xtex)
             pos = rng.stop+1
@@ -261,7 +261,7 @@ function tex2xml2(filename::String)
     while true
         # current line
         rng = findnext(r"^.*?$"m, text, pos)
-        rng==nothing && break
+        rng===nothing && break
         line = text[rng]
 
         match(r"^\s*\\begin{document}", line)!=nothing && break
@@ -290,12 +290,12 @@ function tex2xml2(filename::String)
                 rng = findnext(r"\S", text, pos)
                 if text[rng] == "["
                     rng = findclosure("[", "]", text, rng.start)
-                    rng==nothing && break
+                    rng===nothing && break
                     push!(xnode.children, Xnode("arg", Dict(), text[rng]))
                     pos = rng.stop+1
                 elseif text[rng] == "{"
                     rng = findclosure("{", "}", text, rng.start)
-                    rng==nothing && break
+                    rng===nothing && break
                     push!(xnode.children, Xnode("part", Dict(), text[rng]))
                     pos = rng.stop+1
                 else
@@ -343,7 +343,7 @@ function tex2xml2(filename::String)
     while true
         # current line
         rng = findnext(r"^.*?$"m, text, pos)
-        rng==nothing && break
+        rng===nothing && break
         line = text[rng]
         #match(r"^\s*\\begin{end}", line)!=nothing && break
 
@@ -368,7 +368,7 @@ function tex2xml2(filename::String)
             pos = rng.stop+1
         end
         #rng = findnext(newlineregex, text, pos)
-        #rng==nothing && break
+        #rng===nothing && break
         #@show text[rng]
         #pos = rng.stop+1
     end

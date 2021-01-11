@@ -102,7 +102,7 @@ function stress_update(mat::VonMises, ipd::VonMisesIpState, Δε::Array{Float64,
 
     ipd.ε += Δε
     Δσ     = ipd.σ - σini
-    return Δσ, CallStatus(true)
+    return Δσ, success()
 end
 
 function ip_state_vals(mat::VonMises, ipd::VonMisesIpState)
@@ -111,7 +111,7 @@ function ip_state_vals(mat::VonMises, ipd::VonMisesIpState)
     j1    = tr(σ)
     srj2d = √J2D(σ)
 
-    D = stress_strain_dict(σ, ε, ipd.env)
+    D = stress_strain_dict(σ, ε, ipd.env.modeltype)
     D[:epa]   = ipd.εpa
     D[:j1]    = j1
     D[:srj2d] = srj2d

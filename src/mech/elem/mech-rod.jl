@@ -257,7 +257,7 @@ function elem_update!(elem::MechRod, U::Array{Float64,1}, F::Array{Float64,1}, Î
     end
 
     F[map] .+= dF
-    return CallStatus(true)
+    return success()
 end
 
 function elem_vals(elem::MechRod)

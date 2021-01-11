@@ -181,3 +181,33 @@ macro axpy(expr)
 end
 
 
+function Base.split(A::Array, knots::Array)
+    # @s A
+    # @s knots
+
+    R = Array{eltype(A),1}[]
+    n = length(A)
+
+    knots = unique(knots)
+
+    if knots[end] == A[end]
+        knots = knots[1:end-1]
+    end
+    
+    if knots[1] != A[1]
+        knots = [A[1]; knots]
+    end
+
+    idx = 0
+    for i in 1:n
+        for j in idx+1:length(knots)
+            if A[i]>=knots[j]
+                push!(R, Int[])
+                idx += 1
+            end
+        end
+        # push!(R[idx], A[i])
+        push!(R[idx], i)
+    end
+    return R
+end

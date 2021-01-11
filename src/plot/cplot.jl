@@ -19,17 +19,19 @@ Plots a pyplot line chart.
 
 `ylabel         = "\$y\$"` : y label
 
-`legendloc      = "best"` : legend location in plot
-
 `xbins          = 10` : number of bins in x
 
 `ybins          = 10` : number of bins in y
 
 `grid           = false` : grid
 
-`figsize        = (3,2)` : size of plot
+`figsize        = (3.2,2.2)` : size of plot
+
+`legendloc      = "best"` : legend location in plot
 
 `legendexpand   = false` : expanded version
+
+`bbox_to_anchor   = nothing` : legend anchor
 
 `ncol           = 0` : number of columns in horizontal legend
 
@@ -41,6 +43,10 @@ Plots a pyplot line chart.
 
 `yscale         = "linear"` : y axis scale
 
+`xmult          = 1.0` : x data multiplier
+
+`ymult          = 1.0` : y data multiplier
+
 `ticksinside    = true` : put ticks inside plot
 
 `fontsize       = 7` : font size
@@ -48,6 +54,22 @@ Plots a pyplot line chart.
 `legendfontsize = 0` : defaults to fontsize
 
 `labelspacing   = 0.5` : spacing between legend labels
+
+`textlist       = []` : e.g. [ (text="text", pos=(x,y)), ]
+
+`tagpos         = 0.5` : tag position along data
+
+`tagloc         = "top"` :  tag location relative to curve
+
+`tagdist        = 0.005` :  tag distance from curve
+
+`tagfontsize    = 0` : default to fontsize
+
+`tagcolor       = "black"` :  "" uses the data color
+
+`tagalign       = true` : if true the tag is aligned to the curve
+
+`copypath       = ""` : path to copy ouput file
 
 # Example
 
@@ -92,12 +114,13 @@ function cplot(data::Array{<:NamedTuple},
                filename::String = "";
                xlabel           = L"x",
                ylabel           = L"y",
-               legendloc        = "best",
                xbins            = 10,
                ybins            = 8,
                grid             = true,
-               figsize          = (3,2),
+               figsize          = (3.2,2.2),
+               legendloc        = "best",
                legendexpand     = false,
+               bbox_to_anchor   = nothing,
                ncol             = 0,
                xlim             = nothing,
                ylim             = nothing,
@@ -106,14 +129,16 @@ function cplot(data::Array{<:NamedTuple},
                xmult            = 1.0,
                ymult            = 1.0,
                ticksinside      = true,
-               fontsize         = 6,
+               fontsize         = 6.5,
                legendfontsize   = 0,
                labelspacing     = 0.5, 
-               textlist         = [],  # e.g. [ (x=4, y=2, text="C1"), ]
+            #    textlist         = [],  # e.g. [ (text="C1", pos=(x,y)), ]
+               annotations      = [],  # e.g. [ (text="C1", pos=(x,y)), ]
+
                tagpos           = 0.5,
                tagloc           = "top",   # e.g. 1,2,3,4
                tagdist          = 0.005, 
-               tagfontsize      = 6,
+               tagfontsize      = 0,
                tagcolor         = "black",
                tagalign         = true,
                
@@ -121,6 +146,8 @@ function cplot(data::Array{<:NamedTuple},
                y2lim            = nothing,
                y2scale          = "linear",
                y2mult           = 1.0,
+
+               copypath         = ""
               )
 
     headline("Chart plotting")
@@ -197,15 +224,17 @@ function cplot(data::Array{<:NamedTuple},
     #=
     import matplotlib.font_manager as font_manager
 
-    font_dirs = ['/my/custom/font/dir', ]
+    font_dirs  = ['/my/custom/font/dir', ]
     font_files = font_manager.findSystemFonts(fontpaths=font_dirs)
-    font_list = font_manager.createFontList(font_files)
+    font_list  = font_manager.createFontList(font_files)
     font_manager.fontManager.ttflist.extend(font_list)
 
     mpl.rcParams['font.family'] = 'My Custom Font'
     =#
 
     # Configure plot
+    legendfontsize==0 && (legendfontsize=fontsize)
+    tagfontsize==0 && (tagfontsize=fontsize)
 
     if filename!=""
         plt.rc("font", family="STIXGeneral", size=fontsize)
@@ -220,7 +249,6 @@ function cplot(data::Array{<:NamedTuple},
         plt.rc("lines", markersize=1.5)
         plt.rc("axes" , linewidth=0.5)
         plt.rc("figure", figsize=figsize)
-        legendfontsize==0 && (legendfontsize=fontsize)
         plt.rc("legend", fontsize=legendfontsize)
     else
         plt.rc("font", family="STIXGeneral", size=fontsize+3)
@@ -229,8 +257,8 @@ function cplot(data::Array{<:NamedTuple},
     end
 
     # Set axis limits
-    xlim!=nothing && plt.xlim(xlim) 
-    ylim!=nothing && plt.ylim(ylim) 
+    xlim!==nothing && plt.xlim(xlim) 
+    ylim!==nothing && plt.ylim(ylim) 
 
     # Print axes labels
     xlabel = get(texlabels, xlabel, xlabel)
@@ -277,7 +305,13 @@ function cplot(data::Array{<:NamedTuple},
     # plot legend
     if haslegend
         mode = legendexpand ? "expand" : nothing
-        ncol = ncol==0 ? length(data) : ncol
+        if ncol==0
+            if legendloc in ("top", "right", "bottom")
+                ncol = length(data)
+            else
+                ncol = 1
+            end
+        end
 
         if legendloc=="top"
             leg = plt.legend(loc="lower left", bbox_to_anchor=(-0.02, 1.01, 1.04, 0.2), edgecolor="k", ncol=ncol, mode=mode)
@@ -286,7 +320,7 @@ function cplot(data::Array{<:NamedTuple},
         elseif legendloc=="bottom"
             leg = plt.legend(loc="upper left", bbox_to_anchor=(-0.02, -0.02, 1.04, -0.2), edgecolor="k", ncol=ncol, mode=mode)
         else
-            leg = plt.legend(loc=legendloc, edgecolor="k", labelspacing=labelspacing)
+            leg = plt.legend(loc=legendloc, bbox_to_anchor=bbox_to_anchor, edgecolor="k", labelspacing=labelspacing, ncol=ncol)
         end
 
         frame = leg.get_frame()
@@ -307,13 +341,30 @@ function cplot(data::Array{<:NamedTuple},
     end
 
     # print text
-    if length(textlist)>0
-        for line in textlist
-            x = get(line, :x, 0)
-            y = get(line, :y, 0)
+    if length(annotations)>0
+        for line in annotations
+            x, y     = get(line, :pos, (0.5, 0.5))
             fontsize = get(line, :fontsize, tagfontsize)
-            text = string(get(line, :text, ""))
-            plt.text(x, y, text, fontsize=fontsize)
+            text     = string(get(line, :text, ""))
+            arrowcoord = get(line, :arrowcoord, nothing)
+            
+            if arrowcoord===nothing
+                plt.text(x, y, text, fontsize=fontsize, transform=ax.transAxes, ha="center", va="center")
+            else
+                plt.annotate(text, 
+                    xytext     = (x,y), 
+                    textcoords = "figure fraction",
+                    xy         = (arrowcoord[1]*xmult, arrowcoord[2]*ymult),
+                    arrowprops = Dict(
+                        "lw"              => 0.3,
+                        "arrowstyle"      => "->",
+                        "facecolor"       => "black",
+                        "connectionstyle" => "angle,angleA=0,angleB=90,rad=3"
+                    ),
+
+                )
+            end
+            
         end
     end
 
@@ -376,7 +427,7 @@ function cplot(data::Array{<:NamedTuple},
 
                 found && break
             end
-        else
+        else # pos is a scalar
             len = 0.0
             for i=2:length(X)
                 len += √((X[i]-X[i-1])^2 + (Y[i]-Y[i-1])^2)
@@ -436,10 +487,12 @@ function cplot(data::Array{<:NamedTuple},
 
         # plt.text(xpos, ypos, tag, ha=ha, va=va, color=color, fontsize=tagfontsize, transform=ax.transAxes)
         plt.text(
-            xpos, ypos, tag, ha=ha, va=va, color=color, fontsize=tagfontsize, 
+            xpos, ypos, tag, ha=ha, va=va, color=color, 
+            # backgroundcolor="white",
+            fontsize=tagfontsize, 
             rotation=angle, rotation_mode="anchor",
             transform=ax.transAxes
-            )
+        )
     end
 
     # second axis
@@ -456,6 +509,20 @@ function cplot(data::Array{<:NamedTuple},
         plt.savefig(filename, bbox_inches="tight", pad_inches=0.01, format="pdf")
         info("file $filename saved")
         plt.close("all")
+
+        if copypath!=""
+            if isdir(copypath)
+                copyfile = joinpath(copypath, basename(filename))
+            else
+                copyfile = copypath
+            end
+            try
+                cp(filename, copyfile, force=true)
+                info("file $copyfile saved")
+            catch err
+                notify("cplot: $filename could not be copied to $copypath")
+            end
+        end
     end
 
 end

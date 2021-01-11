@@ -96,7 +96,7 @@ function stress_update(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState, 
 end
 
 function ip_state_vals(mat::ElasticSolidThermo, ipd::ElasticSolidThermoIpState)
-    D = stress_strain_dict(ipd.σ, ipd.ε, ipd.env)
+    D = stress_strain_dict(ipd.σ, ipd.ε, ipd.env.modeltype)
 
     #D[:qx] = ipd.QQ[1] # VERIFICAR NECESSIDADE
     #D[:qy] = ipd.QQ[2] # VERIFICAR NECESSIDADE

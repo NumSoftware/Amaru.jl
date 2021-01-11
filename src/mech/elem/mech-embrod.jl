@@ -124,7 +124,7 @@ function elem_update!(elem::MechEmbRod, U::Array{Float64,1}, F::Array{Float64,1}
     end
 
     F[map] += NN*dF
-    return CallStatus(true)
+    return success()
 end
 
 

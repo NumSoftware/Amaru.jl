@@ -23,10 +23,11 @@ mutable struct ElasticRod<:Material
         return  ElasticRod(;prms...)
     end
 
-    function ElasticRod(;E::Number=NaN, A::Number=NaN, rho::Number=0.0)
-        E<=0.0 && error("Invalid value for E: $E")
-        A<=0.0 && error("Invalid value for A: $A")
-        rho<0.0 && error("Invalid value for rho: $rho")
+    function ElasticRod(;E::Number=NaN, A::Number=NaN, dm::Number=NaN, rho::Number=0.0)
+        @check E>0.0
+        @check A>0.0 || dm>0.0
+        @check rho>=0.0
+        dm>0 && (A=π*dm^2/4)
         return new(E, A, rho)
     end
 end
@@ -42,7 +43,7 @@ function stress_update(mat::ElasticRod, ipd::ElasticRodIpState, Δε::Float64)
     Δσ = mat.E*Δε
     ipd.ε += Δε
     ipd.σ += Δσ
-    return Δσ, CallStatus(true)
+    return Δσ, success()
 end
 
 function ip_state_vals(mat::ElasticRod, ipd::ElasticRodIpState)

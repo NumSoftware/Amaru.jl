@@ -241,5 +241,5 @@ function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64
     end
 
     DF[map_t] += dFt
-    return CallStatus(true)
+    return success()
 end

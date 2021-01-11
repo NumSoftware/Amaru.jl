@@ -62,7 +62,7 @@ function get_outline_edges(cells::Array{<:AbstractCell,1}; angle=150)
         for edge in get_edges(face)
             hs = hash(edge)
             edge0 = get(edge_dict, hs, nothing)
-            if edge0==nothing
+            if edge0===nothing
                 edge_dict[hs] = edge
             else
                 delete!(edge_dict, hs)
