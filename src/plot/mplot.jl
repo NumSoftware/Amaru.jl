@@ -6,7 +6,10 @@ const CURVE3 = 3
 const CURVE4 = 4
 const CLOSEPOLY = 79
 
-function plot_data_for_cell2d(points::Array{Array{Float64,1},1}, shape::ShapeType)
+# function plot_data_for_cell2d(points::Array{Array{Float64,1},1}, shape::ShapeType)
+function plot_data_for_cell2d(points::Array{Vec3,1}, shape::ShapeType)
+
+    points = [ p[1:2] for p in points ]
 
     if shape==LIN2
         verts = points
@@ -349,11 +352,8 @@ function mplot(
         hint(join(keys(mesh.elem_data), ", "), level=3)
     end
 
-    # Get a copy
-    mesh = copy(mesh)
-
-    if hicells       isa Int 
-        hicells       = [ hicells       ]
+    if hicells isa Int 
+        hicells  = [ hicells ]
     end
 
     # Get initial info from mesh
@@ -386,10 +386,6 @@ function mplot(
         id_dict = Dict{Int, Int}( p.id => i for (i,p) in enumerate(nodes) )
         connect = [ [ id_dict[p.id] for p in c.nodes ] for c in cells ] # Do not use type specifier inside comprehension to avoid problem with Revise
 
-
-        
-        # connect = [ [ p.id for p in c.nodes ] for c in cells ] # Do not use type specifier inside comprehension to avoid problem with Revise
-        # id_dict = Dict{Int, Int}( p.id => i for (i,p) in enumerate(nodes) )
     else
         node_data = OrderedDict{String,Array}()
         elem_data  = OrderedDict{String,Array}()
@@ -400,8 +396,6 @@ function mplot(
         scells       = get_surface(volume_cells)
         linecells    = [ cell for cell in mesh.elems if cell.shape.family==LINE_SHAPE]
         outlinecells = outline ? get_outline_edges(scells) : Cell[]
-
-        # linecells = []
 
         newcells = [ scells; areacells; linecells ]
         oc_ids = [ [c.oelem.id for c in scells]; [c.id for c in linecells]; [c.id for c in areacells] ]
@@ -437,55 +431,43 @@ function mplot(
             error("mplot: lightvector must be a vector.")
         end
 
-
     end
 
     ncells = length(cells)
     nnodes = length(nodes)
-    #pts = [ [p.coord.x, p.coord.y, p.coord.z] for p in nodes ]
-    #XYZ = [ pts[i][j] for i=1:nnodes, j=1:3]
 
 
-    # All nodes coordinates
+    # Nodal coordinates
+    coords = [ node.coord for node in nodes ]
+
+    # Map for nodal coordinates
+    nodemap = zeros(Int, maximum(n.id for n in nodes))
+    for (i,node) in enumerate(nodes)
+        nodemap[node.id] = i
+    end
+    
+    # Change coords if warping
     if warpscale>0 
         if haskey(node_data, "U")
             U = node_data["U"]
-            coords = [ node.coord for node in nodes ]
-            #display(U)
-            #@show size(U)
-            #@show length(nodes)
             for (i,node) in enumerate(nodes)
-                #@show size(node.coord)
-                #@show size(U[i,:]')
-                #@show node.coord 
-                node.coord = coords[i] + warpscale*U[i,:]
-                #@show warpscale.*U[i,:]
-                #@show node.coord 
-                #error()
+                coords[i] = node.coord + warpscale*U[i,:] 
             end
-            #XYZ .+= warpscale.*node_data["U"]
         else
-            alert("mplot: Vector field U not found for warp.")
+            alert("mplot: Vector field U not found for warping.")
         end
     end
 
+    # Cell nodal coordinates
+    # cellcoords(cell, ndim) = [ coords[ nodemap[n.id] ][1:ndim] for n in cell.nodes ] 
+    cellcoords(cell, ndim) = [ coords[ nodemap[n.id] ] for n in cell.nodes ] 
+    cellconnects(cell) = [ nodemap[n.id] for n in cell.nodes ] 
+    
+    # Data limits
     limX = collect(extrema( node.coord.x for node in nodes ))
     limY = collect(extrema( node.coord.y for node in nodes ))
     limZ = collect(extrema( node.coord.z for node in nodes ))
-    #limX = limX + 0.05*[-1, 1]*norm(limX)
-    #limY = limY + 0.05*[-1, 1]*norm(limY)
-    #limZ = limZ + 0.05*[-1, 1]*norm(limZ)
 
-    #X = XYZ[:,1]
-    #Y = XYZ[:,2]
-    #Z = XYZ[:,3]
-
-    #limX = collect(extrema(X))
-    #limY = collect(extrema(Y))
-    #limZ = collect(extrema(Z))
-    #limX = limX + 0.05*[-1, 1]*norm(limX)
-    #limY = limY + 0.05*[-1, 1]*norm(limY)
-    #limZ = limZ + 0.05*[-1, 1]*norm(limZ)
     ll = max(norm(limX), norm(limY), norm(limZ))
 
     # if ndim==3 && outline # move outline cells towards observer
@@ -505,11 +487,6 @@ function mplot(
     @eval import PyPlot:plt, matplotlib, figure, art3D, Axes3D, ioff, ColorMap
     @eval ioff()
 
-    # fix PyPlot
-    @eval import PyPlot:getproperty, LazyPyModule
-    if ! @eval hasmethod(getproperty, (LazyPyModule, AbstractString))
-        @eval Base.getproperty(lm::LazyPyModule, s::AbstractString) = getproperty(PyObject(lm), s)
-    end
 
     plt.close("all")
 
@@ -518,7 +495,6 @@ function mplot(
     plt.rc("lines", lw=0.5)
     plt.rc("legend", fontsize=6)
     plt.rc("figure", figsize=figsize) # suggested size (4.5,3)
-
 
 
     # Configure plot
@@ -562,7 +538,7 @@ function mplot(
         axis == false && plt.axis("off")
     end
 
-    has_field = field != nothing
+    has_field = field !== nothing
     if has_field
         colorbarlabel = colorbarlabel=="" ? field : colorbarlabel
         field = string(field)
@@ -681,8 +657,6 @@ function mplot(
         end
     end
 
-    # has_line_field = false
-
     # Plot cells
     if ndim==3
         # Plot cells
@@ -693,7 +667,8 @@ function mplot(
 
         for (i,cell) in enumerate(cells)
             shape = cell.shape
-            points = [ node.coord for node in cell.nodes ]
+            points = cellcoords(cell,3)
+
 
             if shape.family==SOLID_SHAPE
                 verts = plot_data_for_cell3d(points, shape)
@@ -706,15 +681,10 @@ function mplot(
                     fc = cmap(v)
                     ec = Tuple( (fc .+ [0.2, 0.2, 0.2, opacity])./2 )
                 end
-                # push!(lineweight, lw)
                 ew = lw
 
                 N = get_facet_normal(cell)
                 R = 2*N*dot(L,N) - L
-                
-                #@show 0
-                #@show dot(L,N)
-                #@show (1-dot(V,R))/2
                 
                 #f = 0.7+0.3*abs(dot(L,N)*(1-dot(V,R))/2)
                 #f = 0.6+0.3*abs(dot(L,N)) + 0.2*(1-dot(V,R))/2
@@ -739,7 +709,6 @@ function mplot(
                 fc = ec
                 ew = rodlw  #! lineweight is not working in Poly3DCollection
                 ew = lw
-                # ew = 0.0
             end
             
             push!(all_verts, verts)
@@ -800,14 +769,15 @@ function mplot(
     elseif ndim==2
 
         all_patches = []
-        edgecolor = []
-        facecolor = []
-        lineweight = []
+        edgecolor   = []
+        facecolor   = []
+        lineweight  = []
 
         # for i=1:ncells
         for (i,cell) in enumerate(cells)
             shape = cell.shape
-            points = [ node.coord[1:2] for node in cell.nodes ]
+            # points = [ node.coord[1:2] for node in cell.nodes ]
+            points = cellcoords(cell, 2)
             verts, codes = plot_data_for_cell2d(points, shape)
             path  = matplotlib.path.Path(verts, codes)
             patch = matplotlib.patches.PathPatch(path)
@@ -868,21 +838,25 @@ function mplot(
     # Draw nodes
     if markers
         if ndim==3
-            X = [ node.coord.x for node in nodes ]
-            Y = [ node.coord.y for node in nodes ]
-            Z = [ node.coord.z for node in nodes ]
+            X = getindex.(coords,1)
+            Y = getindex.(coords,2)
+            Z = getindex.(coords,3)
             ax.scatter(X, Y, Z, color="black", marker="o", s=ms)
         else
-            X = [ node.coord.x for cell in areacells for node in cell.nodes ]
-            Y = [ node.coord.y for cell in areacells for node in cell.nodes ]
+            subcoords = [ coords[i] for cell in areacells for i in cellconnects(cell) ]
+
+            X = getindex.(coords,1)
+            Y = getindex.(coords,2)
             plt.plot(X, Y, color="black", marker="o", mfc="black", fillstyle="full", markersize=ms, mew=0, lw=0, clip_on=false)
         end
     end
 
    # Node markers on line cells
     if rodmarkers && ndim==2
-        X = [ node.coord.x for line in linecells for node in line.nodes ]
-        Y = [ node.coord.y for line in linecells for node in line.nodes ]
+        subcoords = [ coords[i] for cell in linecells for i in cellconnects(cell) ]
+        X = getindex.(coords,1)
+        Y = getindex.(coords,2)
+
         plt.plot(X, Y, color="black", marker="o", markersize=rodms, lw=0, mew=0, clip_on=false)
 
         # if ndim==3
