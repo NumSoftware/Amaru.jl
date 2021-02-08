@@ -81,7 +81,7 @@ function ip_state_vals(mat::PPRod, ipd::PPRodIpState)
         :sa  => ipd.σ,
         :ea  => ipd.ε,
         :eap => ipd.εp,
-        :Fa  => ipd.σ*mat.A,
+        :fa  => ipd.σ*mat.A,
         :A   => mat.A
     )
 end

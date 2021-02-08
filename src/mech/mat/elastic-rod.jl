@@ -50,7 +50,7 @@ function ip_state_vals(mat::ElasticRod, ipd::ElasticRodIpState)
     return OrderedDict(
       :sa => ipd.σ,
       :ea => ipd.ε,
-      :Fa => ipd.σ*mat.A,
+      :fa => ipd.σ*mat.A,
       :A  => mat.A )
 end
 

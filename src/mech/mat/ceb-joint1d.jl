@@ -100,8 +100,8 @@ end
 
 function deriv(mat::CEBLineJoint, ipd::CEBLineJointIpState, sy::Float64)
     if sy==0.0
-        S1_FACTOR = 0.01
-        sy = S1_FACTOR*mat.s1   # to avoid undefined derivative
+        s1_factor = 0.01
+        sy = s1_factor*mat.s1   # to avoid undefined derivative
     end
 
     if sy<=mat.s1
