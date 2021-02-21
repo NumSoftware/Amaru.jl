@@ -19,7 +19,7 @@ mutable struct MechLineJoint<:Mechanical
     MechLineJoint() = new()
 end
 
-matching_shape_family(::Type{MechLineJoint}) = JOINT1D_SHAPE
+matching_shape_family(::Type{MechLineJoint}) = LINEJOINT_SHAPE
 
 
 function elem_init(elem::MechLineJoint)

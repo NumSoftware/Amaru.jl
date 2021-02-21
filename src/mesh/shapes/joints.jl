@@ -65,7 +65,7 @@ J3TRI3.quadrature[0] = TRI_IP3
 function MakeJLINK2()
     shape             = ShapeType()
     shape.name        = "JLINK2"
-    shape.family      = JOINT1D_SHAPE
+    shape.family      = LINEJOINT_SHAPE
     shape.ndim        = 1
     shape.npoints     = 2
     shape.basic_shape = LIN2
@@ -93,7 +93,7 @@ export JLINK2
 function MakeJLINK3()
     shape             = ShapeType()
     shape.name        = "JLINK3"
-    shape.family      = JOINT1D_SHAPE
+    shape.family      = LINEJOINT_SHAPE
     shape.ndim        = 1
     shape.npoints     = 3
     shape.basic_shape = LIN3

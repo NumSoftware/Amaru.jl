@@ -243,3 +243,22 @@ function get_data(nodes::Array{Node,1})
     end
     return table
 end
+
+
+function Base.getproperty(nodes::Array{Node,1}, s::Symbol)
+    s == :dofs && return [ dof for node in nodes for dof in node.dofs ]
+    error("type Array{Node,1} has no property $s")
+end
+
+function setvalue!(dof::Dof, sym_val::Pair)
+    sym, val = sym_val
+    if haskey(dof.vals, sym)
+        dof.vals[sym] = val
+    end
+end
+
+function setvalue!(dofs::Array{Dof,1}, sym_val::Pair)
+    for dof in dofs
+        setvalue!(dof, sym_val)
+    end
+end

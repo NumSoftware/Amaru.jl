@@ -119,7 +119,7 @@ function setquadrature!(elem::Element, n::Int=0)
     shape = elem.shape
 
     # fix for link elements
-    if shape.family==JOINT1D_SHAPE
+    if shape.family==LINEJOINT_SHAPE
         bar   = elem.linked_elems[2]
         C     = get_coords(bar)
         shape = bar.shape
@@ -161,8 +161,8 @@ function changequadrature!(elems::Array{<:Element,1}, n::Int=0)
 end
 
 
-function changemat!(elem::Element, mat::Material)
-    typeof(elem.mat) == typeof(mat) || error("changemat!: The same material type should be used.")
+function updatemat!(elem::Element, mat::Material)
+    typeof(elem.mat) == typeof(mat) || error("updatemat!: The same material type should be used.")
     elem.mat = mat
 end
 
@@ -171,11 +171,11 @@ end
 
 Especifies the material model `mat` to be used to represent the behavior of a set of `Element` objects `elems`.
 """
-function changemat!(elems::Array{<:Element,1}, mat::Material)
-    length(elems)==0 && notify("changemat!: Defining material model $(typeof(mat)) for an empty array of elements.")
+function updatemat!(elems::Array{<:Element,1}, mat::Material)
+    length(elems)==0 && notify("updatemat!: Defining material model $(typeof(mat)) for an empty array of elements.")
 
     for elem in elems
-        changemat!(elem, mat)
+        updatemat!(elem, mat)
     end
 end
 
@@ -262,7 +262,7 @@ function Base.getproperty(elems::Array{<:Element,1}, s::Symbol)
     s == :solids && return filter(elem -> elem.shape.family==SOLID_SHAPE, elems)
     s == :lines && return filter(elem -> elem.shape.family==LINE_SHAPE, elems)
     s == :embedded && return filter(elem -> elem.shape.family==LINE_SHAPE && length(elem.linked_elems)>0, elems)
-    s in (:joints1d, :joints1D) && return filter(elem -> elem.shape.family==JOINT1D_SHAPE, elems)
+    s in (:linejoints, :joints1d, :joints1D) && return filter(elem -> elem.shape.family==LINEJOINT_SHAPE, elems)
     s == :joints && return filter(elem -> elem.shape.family==JOINT_SHAPE, elems)
     s == :nodes && return get_nodes(elems)
     s == :ips   && return get_ips(elems)
@@ -276,7 +276,7 @@ function Base.getindex(elems::Array{<:Element,1}, s::Symbol)
     s == :solids && return filter(elem -> elem.shape.family==SOLID_SHAPE, elems)
     s == :lines && return filter(elem -> elem.shape.family==LINE_SHAPE, elems)
     s == :embedded && return filter(elem -> elem.shape.family==LINE_SHAPE && length(elem.linked_elems)>0, elems)
-    s in (:joints1d, :joints1D) && return filter(elem -> elem.shape.family==JOINT1D_SHAPE, elems)
+    s in (:linejoints, :joints1d, :joints1D) && return filter(elem -> elem.shape.family==LINEJOINT_SHAPE, elems)
     s == :joints && return filter(elem -> elem.shape.family==JOINT_SHAPE, elems)
     s == :nodes && return get_nodes(elems)
     s == :ips && return get_ips(elems)

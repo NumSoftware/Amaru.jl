@@ -363,7 +363,7 @@ function mplot(
         elem_data = mesh.elem_data
 
         # filter bulk and line elements
-        areacells  = [ elem for elem in mesh.elems if elem.shape.ndim==2 ]
+        areacells  = [ elem for elem in mesh.elems if elem.shape.family==SOLID_SHAPE && elem.shape.ndim==2 ]
         linecells  = [ cell for cell in mesh.elems if cell.shape.family==LINE_SHAPE]
         newcells   = [ areacells; linecells ]
         c_ids      = [ [c.id for c in areacells]; [c.id for c in linecells] ]
@@ -391,8 +391,8 @@ function mplot(
         elem_data  = OrderedDict{String,Array}()
 
         # get surface cells and update
-        volume_cells = [ elem for elem in mesh.elems if elem.shape.ndim==3 ]
-        areacells    = [ elem for elem in mesh.elems if elem.shape.ndim==2 ]
+        volume_cells = [ elem for elem in mesh.elems if elem.shape.family==SOLID_SHAPE && elem.shape.ndim==3 ]
+        areacells    = [ elem for elem in mesh.elems if elem.shape.family==SOLID_SHAPE && elem.shape.ndim==2 ]
         scells       = get_surface(volume_cells)
         linecells    = [ cell for cell in mesh.elems if cell.shape.family==LINE_SHAPE]
         outlinecells = outline ? get_outline_edges(scells) : Cell[]
@@ -500,6 +500,7 @@ function mplot(
     # Configure plot
     if ndim==3
         ax = @eval Axes3D(figure())
+        # ax = @eval plt.axes(projection="3d")
         try
             ax.set_aspect("equal")
         catch err
@@ -710,7 +711,7 @@ function mplot(
                 ew = rodlw  #! lineweight is not working in Poly3DCollection
                 ew = lw
             end
-            
+
             push!(all_verts, verts)
             push!(edgecolor, ec)
             push!(facecolor, fc)

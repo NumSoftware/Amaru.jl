@@ -228,9 +228,9 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
         end
     end
 
-    # Fix JOINT1D_SHAPE cells connectivities
+    # Fix LINEJOINT_SHAPE cells connectivities
     for c in lockedcells
-        c.shape.family == JOINT1D_SHAPE || continue
+        c.shape.family == LINEJOINT_SHAPE || continue
         scell = c.linked_elems[1]
         nspts = length(scell.nodes)
         c.nodes[1:nspts] .= scell.nodes
@@ -274,6 +274,7 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
             joint_data[i,3] = cell.linked_elems[2].id
         end
     end
+
     mesh.elem_data["joint-data"] = joint_data
 
     if verbose
@@ -566,7 +567,7 @@ function generate_joints_by_tag_2!(mesh::Mesh; layers::Int64=2, verbose::Bool=tr
     points_dict = Dict{UInt64, Node}()
     for c in mesh.elems
         c.shape.family == SOLID_SHAPE && continue # skip because they have points with same coordinates
-        c.shape.family == JOINT1D_SHAPE && continue # skip because their points were already considered
+        c.shape.family == LINEJOINT_SHAPE && continue # skip because their points were already considered
         for p in c.nodes
             points_dict[hash(p)] = p
         end

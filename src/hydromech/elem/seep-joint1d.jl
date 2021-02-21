@@ -20,7 +20,7 @@ mutable struct SeepJoint1D<:Hydromechanical
     SeepJoint1D() = new()
 end
 
-matching_shape_family(::Type{SeepJoint1D}) = JOINT1D_SHAPE
+matching_shape_family(::Type{SeepJoint1D}) = LINEJOINT_SHAPE
 
 function elem_config_dofs(elem::SeepJoint1D)
     # No need to add dofs since they will be added by linked elements

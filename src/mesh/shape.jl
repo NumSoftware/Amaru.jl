@@ -1,12 +1,12 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 @enum(ShapeFamily,
-LINE_SHAPE    = 1,
-SOLID_SHAPE   = 2,
-JOINT_SHAPE   = 3,
-JOINT1D_SHAPE = 4,
-VERTEX_SHAPE  = 5,
-EMBEDDED      = 6
+LINE_SHAPE      = 1,
+SOLID_SHAPE     = 2,
+JOINT_SHAPE     = 3,
+LINEJOINT_SHAPE = 4,
+VERTEX_SHAPE    = 5,
+EMBEDDED        = 6
 )
 
 # Export
@@ -39,9 +39,9 @@ include("shapes/solids3d.jl")
 include("shapes/joints.jl")
 
 # Shape for unknown polyvertex
-function MakePOLIV()
+function MakePOLYVERTEX()
     shape             = ShapeType()
-    shape.name        = "POLYV"
+    shape.name        = "POLYVERTEX"
     shape.family      = VERTEX_SHAPE
     shape.ndim        = 0
     shape.npoints     = 0
@@ -51,8 +51,8 @@ function MakePOLIV()
     shape.quadrature  = Dict( 0 => [] )
     return shape
 end
-const POLYV = MakePOLIV()
-export POLYV
+const POLYVERTEX = MakePOLYVERTEX()
+export POLYVERTEX
 
 
 function get_ip_coords(shape::ShapeType, nips=0)
@@ -63,7 +63,7 @@ end
 
 # Available VTK shapes
 const VTK2SHAPE = Dict{VTKCellType,ShapeType}(
-    VTK_POLY_VERTEX             => POLYV,
+    VTK_POLY_VERTEX             => POLYVERTEX,
     VTK_LINE                    => LIN2,
     VTK_TRIANGLE                => TRI3,
     VTK_QUAD                    => QUAD4,
@@ -159,7 +159,7 @@ function get_shape_from_ndim_npoints(npoints::Int64, ndim::Int64)::ShapeType
         npoints==12 && return QUAD12
     end
 
-    npoints==1 && return POLYV
+    npoints==1 && return POLYVERTEX
 
     error("get_shape_from_ndim_npoints: Cannot get the cell shape from npoints=$npoints and ndim=$ndim")
 end

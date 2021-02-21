@@ -45,7 +45,7 @@ include("model-env.jl")
 export ModelEnv
 
 include("node.jl")
-export Node, Dof, add_dof, get_data
+export Node, Dof, add_dof, get_data, setvalue!
 
 # Mesh
 include("mesh/include.jl")
@@ -58,7 +58,7 @@ export Material, read_prms
 
 include("element.jl")
 export Element
-export get_nodes, changequadrature!, get_ips, elems_ip_vals, changemat!, setstate!
+export get_nodes, changequadrature!, get_ips, elems_ip_vals, updatemat!, setstate!
 
 include("tag.jl")
 export tag!

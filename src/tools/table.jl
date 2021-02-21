@@ -367,6 +367,7 @@ function cut!(table::DataTable, field, value=0.0; after=false)
     for i=2:length(V)
         if V[i-1]*V[i] <= 0
             idx = i
+            break
         end
     end
 

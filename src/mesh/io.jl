@@ -46,7 +46,7 @@ function save_vtk(mesh::AbstractMesh, filename::String; desc::String="")
     println(f)
 
     has_node_data = !isempty(mesh.node_data)
-    has_elem_data  = !isempty(mesh.elem_data)
+    has_elem_data = !isempty(mesh.elem_data)
 
     # Write node data
     if has_node_data
@@ -456,7 +456,7 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
         conn = mesh.nodes[ connects[i] ]
         vtk_shape = VTKCellType(vtk_types[i])
         if vtk_shape == VTK_POLY_VERTEX
-            shape = POLYV
+            shape = POLYVERTEX
             has_polyvertex = true
         else
             shape = get_shape_from_vtk( vtk_shape, length(conn), ndim )
@@ -476,7 +476,7 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
     if haskey(mesh.elem_data, "inset-data")
         inset_data = mesh.elem_data["inset-data"]
         for (i,cell) in enumerate(mesh.elems)
-            if cell.shape.family==JOINT1D_SHAPE
+            if cell.shape==POLYVERTEX && joint_data[i,1] == 0
                 linked_ids = inset_data[i,2:3]
                 cell.linked_elems = mesh.elems[linked_ids]
                 cells.linked_elems[1].crossed = true # host cell is crossed
@@ -488,7 +488,7 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
     if haskey(mesh.elem_data, "joint-data")
         joint_data = mesh.elem_data["joint-data"]
         for (i,cell) in enumerate(mesh.elems)
-            if cell.shape.family==JOINT_SHAPE
+            if cell.shape==POLYVERTEX && joint_data[i,1] in (2,3)
                 nlayers    = joint_data[i,1]
                 linked_ids = joint_data[i,2:3]
                 cell.linked_elems = mesh.elems[linked_ids]
@@ -513,7 +513,7 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
 
         # check cells
         for cell in mesh.elems
-            if cell.shape == POLYV
+            if cell.shape == POLYVERTEX
                 n = length(cell.nodes)
                 # look for joints1D and fix shape
                 if n>=5

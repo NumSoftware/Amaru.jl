@@ -150,16 +150,16 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
 
             #check for lagrangian elements
             if cell.shape==QUAD9
-                edge = Cell(POLYV, [ cell.nodes[1], cell.nodes[end] ] )
+                edge = Cell(POLYVERTEX, [ cell.nodes[1], cell.nodes[end] ] )
                 hs   = hash(edge)
                 all_edges[hs] = edge
             end
             if cell.shape==HEX27
-                edge = Cell(POLYV, [ cell.nodes[1], cell.nodes[end] ] )
+                edge = Cell(POLYVERTEX, [ cell.nodes[1], cell.nodes[end] ] )
                 hs   = hash(edge)
                 all_edges[hs] = edge
                 for i in (21,22,23,24,25,26)
-                    edge = Cell(POLYV, [ cell.nodes[i], cell.nodes[end] ] )
+                    edge = Cell(POLYVERTEX, [ cell.nodes[i], cell.nodes[end] ] )
                     hs   = hash(edge)
                     all_edges[hs] = edge
                 end
@@ -170,7 +170,7 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
         # joint1D cells (semi-embedded approach)
         if cell.shape in (JLINK2, JLINK3)
             npts = cell.shape.npoints
-            edge = Cell(POLYV, [ cell.nodes[1]; cell.nodes[end-npts+1:end] ])
+            edge = Cell(POLYVERTEX, [ cell.nodes[1]; cell.nodes[end-npts+1:end] ])
             hs = hash(edge)
             all_edges[hs] = edge
             continue
@@ -528,12 +528,12 @@ function Mesh(
     fixup!(mesh, verbose=verbose, genfacets=genfacets, genedges=genedges, reorder=reorder)
 
     # Add field for embedded nodes
-    if any( c.shape.family==JOINT1D_SHAPE for c in mesh.elems )
+    if any( c.shape.family==LINEJOINT_SHAPE for c in mesh.elems )
         ncells = length(mesh.elems)
         inset_data = zeros(Int, ncells, 3) # npoints, first link id, second link id
         for i=1:ncells
             cell = mesh.elems[i]
-            if cell.shape.family==JOINT1D_SHAPE
+            if cell.shape.family==LINEJOINT_SHAPE
                 inset_data[i,1] = cell.shape.npoints
                 inset_data[i,2] = cell.linked_elems[1].id
                 inset_data[i,3] = cell.linked_elems[2].id

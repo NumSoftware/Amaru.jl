@@ -2,6 +2,7 @@
 
 export elem_config_dofs, elem_init, elem_stiffness, elem_mass, elem_update!, elem_vals
 export set_state
+export solve!
 
 include("elem/mech.jl")
 
@@ -65,4 +66,13 @@ include("mat/integrator.jl")
 include("solver.jl")
 include("dyn-solver.jl")
 include("modal-solver.jl")
-export solve!
+
+function reset_displacements(dom::Domain)
+    for n in dom.nodes
+        for dof in n.dofs
+            for key in (:ux, :uy: :uz)
+                haskey!(dof.vals, key) && (dof.vals[key]=0.0)
+            end
+        end
+    end
+end
