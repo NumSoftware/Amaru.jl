@@ -299,7 +299,7 @@ function elem_stiffness(elem::ShellQUAD4)
         end
 
 
-    ctxy = cxyz*Rot';    # Rotate coordinates to element mid plane
+    ctxy = cxyz*Rot'; # Rotate coordinates to element mid plane
 
     x = ctxy[1:4,1]; # Local X coordinate of the element
     y = ctxy[1:4,2];  # Local Y coordinate of the element
