@@ -490,4 +490,5 @@ function elem_update!(elem::ShellQUAD4, U::Array{Float64,1}, F::Array{Float64,1}
     K, map, map = elem_stiffness(elem)
     dU  = U[map]
     F[map] += K*dU
+    return success()
 end
