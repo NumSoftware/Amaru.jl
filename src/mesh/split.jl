@@ -97,7 +97,7 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
         # Get tags
         tag_set = Set{String}()
         for cell in targetcells
-            push!(tag_set, cell.tag)
+            cell.tag != "" && push!(tag_set, cell.tag)
         end
 
         # Get joint faces
@@ -184,15 +184,18 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
     for (f1, f2) in face_pairs
         n   = length(f1.nodes)
         con = Array{Node}(undef, 2*n)
+        k = 0
         for (i,p1) in enumerate(f1.nodes)
             for p2 in f2.nodes
                 if hash(p1)==hash(p2)
+                    k += 1
                     con[i]   = p1
                     con[n+i] = p2
                     break
                 end
             end
         end
+        k==n || error("generate_joints!: faces f1 and f2 are not coincident.")
 
         #jshape = joint_shape(f1.shape)
         jshape = joint_shape_dict[(f1.shape,layers)]
