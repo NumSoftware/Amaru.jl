@@ -326,6 +326,8 @@ function fixup!(mesh::Mesh; verbose::Bool=false, genfacets::Bool=true, genedges:
     reorder && reorder!(mesh)
 
     # Reset data
+    empty!(mesh.node_data)
+    empty!(mesh.elem_data)
     mesh.node_data["node-id"]   = collect(1:length(mesh.nodes))
     mesh.elem_data["quality"]   = Q
     mesh.elem_data["elem-id"]   = collect(1:length(mesh.elems))
