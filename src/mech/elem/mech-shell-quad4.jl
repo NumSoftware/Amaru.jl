@@ -95,41 +95,6 @@ function distributed_bc(elem::ShellQUAD4, facet::Union{Facet, Nothing}, key::Sym
 end
 
 
-# the strain-displacement matrix for membrane forces
-function D_matrixm(elem::ShellQUAD4)
-
-    coef1 = elem.mat.thick*elem.mat.E/(1-elem.mat.nu^2)
-    coef2 = elem.mat.nu*coef1
-    coef3 = coef1*(1-elem.mat.nu)/2
-
-        D_matm = [coef1  coef2 0
-                  coef2  coef1 0
-                  0      0     coef3];
-    return D_matm
-end
-
-# the strain-displacement matrix for bending moments
-function D_matrixb(elem::ShellQUAD4)
-
-    D_matm = D_matrixm(elem)
-
-    D_matb = D_matm*(elem.mat.thick^2/12)
-
-    return D_matb
-end
-
-# the strain-displacement matrix for shear forces
-
-function D_matrixs(elem::ShellQUAD4)
-
-    coef = elem.mat.thick*(5/6)*elem.mat.E/(2*(1+elem.mat.nu))
-
-            D_mats = [coef    0
-                        0     coef];
-    return D_mats
-end
-
-
 function RotMatrix(elem::ShellQUAD4)
 
     C = get_coords(elem)
@@ -194,37 +159,57 @@ end
 
 function setB(elem::ShellQUAD4, N::Vect, dNdX::Matx, B::Matx)
     ndim, nnodes = size(dNdX)
+    ndof = 5
     B .= 0.0
 
     for i in 1:nnodes
         dNdx = dNdX[1,i]
         dNdy = dNdX[2,i]
-        Ni = N[i]
 
         j    = i-1
 
         # matrix Bm
-        B[1,1+j*ndim] = dNdx
-        B[2,2+j*ndim] = dNdy
-        B[3,1+j*ndim] = dNdy
-        B[3,2+j*ndim] = dNdx
+        B[1,1+j*ndof] = dNdx
+        B[2,2+j*ndof] = dNdy
+        B[3,1+j*ndof] = dNdy
+        B[3,2+j*ndof] = dNdx
 
         # matrix Bb
-        B[4,4+j*ndim] = -dNdx
-        B[5,5+j*ndim] = -dNdy
-        B[6,4+j*ndim] = -dNdy
-        B[7,5+j*ndim] =  dNdx
+        B[4,4+j*ndof] = -dNdx
+        B[5,5+j*ndof] = -dNdy
+        B[6,4+j*ndof] = -dNdy
+        B[7,5+j*ndof] =  dNdx
 
         # matrix Bs
-        B[7,3+j*ndim] = dNdx
-        B[7,4+j*ndim] = -Ni
-        B[8,3+j*ndim] = dNdy
-        B[8,4+j*ndim] = -Ni
+        B[7,3+j*ndof] = dNdx
+        B[7,4+j*ndof] = -N[i]
+        B[8,3+j*ndof] = dNdy
+        B[8,4+j*ndof] = -N[i]
 
     end
 end
 
+function setD(elem::ShellQUAD4, D::Matx)
+    E  = elem.mat.E
+    nu = elem.mat.nu
+    t  = elem.mat.t
+    α  = 5/6
 
+    d11 = d22 = E/(1-nu^2)
+    d12 = d21 = E*nu/(1-nu^2)
+    d33 = E/(1-nu^2)*(1-nu)/2
+    d44 = d55 = E/2/(1+nu)*α
+
+    D .= [ d11*t d12*t 0     0 0 0 0 0
+          d21*t d22*t 0     0 0 0 0 0
+          0     0     d33*t 0 0 0 0 0
+          0     0     0     d11*t^3/12 d12*t^3/12 0          0 0
+          0     0     0     d21*t^3/12 d22*t^3/12 0          0 0
+          0     0     0     0          0          d33*t^3/12 0 0
+          0     0     0     0          0          0          d44*t 0
+          0     0     0     0          0          0          0     d55*t ]
+
+end
 
 function elem_stiffness(elem::ShellQUAD4)
     ndim   = elem.env.ndim
@@ -235,47 +220,40 @@ function elem_stiffness(elem::ShellQUAD4)
     C = get_coords(elem)
     R = RotMatrix(elem)
     C = (C*R')[:,1:2]
-    # B = zeros(ndim, nnodes*ndim)
+    B = zeros(8, nnodes*ndof)
+    D = zeros(8, 8)
     K = zeros(nnodes*ndof, nnodes*ndof)
 
-    # DB = zeros(ndim, nnodes*ndim)
-    # J  = zeros(ndim-1, ndim)
 
-    D_matm = D_matrixm(elem)
-    D_matb = D_matrixb(elem)
-    D_mats = D_matrixs(elem)
+    for ip in elem.ips
+    
+        # compute shape Jacobian
+        N    = elem.shape.func(ip.R)
+        dNdR = elem.shape.deriv(ip.R)
 
-        for ip in elem.ips
-        
-            # compute shape Jacobian
-            N    = elem.shape.func(ip.R)
-            dNdR = elem.shape.deriv(ip.R)
+        J = dNdR*C
+        detJ = norm2(J)
+        dNdX = inv(J)*dNdR
 
-            J = dNdR*C
-            detJ = norm2(J)
-            dNdX = inv(J)*dNdR
+        setB(elem, N, dNdX, B)
+        setD(elem, D)
 
-            B = zeros(8,ndof*nnodes)
-            setB(elem, N, dNdX, B)
+        coef = detJ*ip.w
+        # @show size(K)
+        # @show size(B)
+        # @show size(D)
 
+        K += B'*D*B*coef
 
-            # COMO MONTAR A MATRIZ D?
+    end
 
-            #D = [D_matm D_matb D_mats]
-            println(B)
-            
-        
-         end
+    K = R*D*R'
 
-        
+    keys = (:ux, :uy, :uz, :rx, :ry)
 
-        #keys = (:ux, :uy, :uz, :rx, :ry)[1:ndim]
-         keys = (:ux, :uy, :uz, :rx, :ry)
-
-        map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-        #map  = elem_map(elem)
+    map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
      
-        return K, map, map
+    return K, map, map
 end
 
 function elem_update!(elem::ShellQUAD4, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
