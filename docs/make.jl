@@ -8,6 +8,7 @@ makedocs(
          pages=[
                 "Home" => "index.md"
                ])
+               
 deploydocs(;
-    repo="github.com/NumSoftware/Amaru",
+    repo="github.com/NumSoftware/Amaru.jl.git",
 )
