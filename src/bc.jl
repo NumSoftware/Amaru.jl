@@ -8,7 +8,7 @@ abstract type BC end
 
 mutable struct NodeBC<:BC
     conds::AbstractDict
-    filter::Union{Symbol,String,Expr}
+    filter::Union{Array{Int,1},Symbol,String,Expr}
     nodes::Array{Node,1}
 
     function NodeBC(;conds...)
@@ -18,12 +18,13 @@ end
 
 
 function setup_bc!(dom, filter, bc::NodeBC)
+    isa(filter, Int) && (filter = [filter])
     bc.filter = filter
 
     # Filter objects according to bc criteria
     bc.nodes  = dom.nodes[bc.filter]
     length(bc.nodes)==0 && notify("setup_bc!: applying boundary conditions to empty array of nodes while evaluating expression ", string(bc.filter))
-    not_found_keys = Set()
+    # not_found_keys = Set()
 
     # Find prescribed essential bcs
     for (key,cond) in bc.conds
@@ -139,7 +140,7 @@ end
 
 mutable struct ElemBC<:BC
     conds::AbstractDict
-    filter::Union{Symbol,String,Expr}
+    filter::Union{Array{Int,1},Symbol,String,Expr}
     elems::Array{Element,1}
 
     function ElemBC(;conds...)
@@ -150,6 +151,7 @@ end
 
 # Return a vector with all domain dofs and the number of unknown dofs according to bcs
 function setup_bc!(dom, filter, bc::ElemBC)
+    isa(filter, Int) && (filter = [filter])
     bc.filter = filter
     # Filter objects according to bc criteria
     bc.elems = dom.elems[bc.filter]
