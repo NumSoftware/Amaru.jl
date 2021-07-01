@@ -105,7 +105,8 @@ const null_Node = Node(NaN, NaN, NaN)
 
 
 #Base.hash(n::Node) = hash( (round(n.coord.x, digits=8), round(n.coord.y, digits=8), round(n.coord.z, digits=8)) )
-Base.hash(n::Node) = hash( (n.coord.x, n.coord.y, n.coord.z) )
+# Base.hash(n::Node) = hash( (n.coord.x, n.coord.y, n.coord.z) )
+Base.hash(n::Node) = hash( (n.coord.x+1, n.coord.y+2, n.coord.z+3) ) # 1,2,3 aim to avoid clash in some arrays of nodes.
 
 function Base.copy(node::Node)
     newnode = Node(node.coord, tag=node.tag, id=node.id)
