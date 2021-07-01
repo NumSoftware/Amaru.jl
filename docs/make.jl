@@ -16,8 +16,10 @@ makedocs(
 # ENV["GITHUB_TOKEN"]      = raw"${{ secrets.GITHUB_TOKEN }}"
 
 
-
 deploydocs(;
-    devbranch="main",
-    repo="github.com/NumSoftware/Amaru.jl.git",
+    devbranch = "main",
+    target    = "build",
+    branch    = "gh-pages",
+    repo      = "github.com/NumSoftware/Amaru.jl.git",
+    push_preview = true,
 )
