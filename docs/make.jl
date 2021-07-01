@@ -8,7 +8,16 @@ makedocs(
          pages=[
                 "Home" => "index.md"
                ])
-               
+            
+# ENV["GITHUB_REPOSITORY"] = "NumSoftware/Amaru.jl"
+# ENV["GITHUB_EVENT_NAME"] = "push"
+# ENV["GITHUB_REF"]        = "main"
+# ENV["GITHUB_ACTOR"]      = "usr"
+# ENV["GITHUB_TOKEN"]      = raw"${{ secrets.GITHUB_TOKEN }}"
+
+
+
 deploydocs(;
+    devbranch="main",
     repo="github.com/NumSoftware/Amaru.jl.git",
 )
