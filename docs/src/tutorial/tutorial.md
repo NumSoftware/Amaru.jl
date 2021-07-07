@@ -64,7 +64,7 @@ mplot(block, "block.svg", markers=true)
 
 nothing # hide
 ```
-![](block.svg)
+![](./block.svg)
 
 Blocks can be combined to define a complex geometry.
 To manipulate blocks, Amaru provides several operators as
@@ -94,7 +94,7 @@ block1 = Block(
 mplot(block1, "block1.svg", markers=true)
 nothing # hide
 ```
-![](block1.svg)
+![](./block1.svg)
 
 A mirror operation can be applyed to this block to get a second one.
 Then, both blocks can be grouped in an array for further manipulation.
@@ -104,7 +104,7 @@ blocks = [block1, block2]
 mplot(blocks, "blocks.svg", markers=true)
 nothing # hide
 ```
-![](blocks.svg)
+![](./blocks.svg)
 
 To get the centre of the circle that is represented by the arc at the origin, 
 we perform a `move!` operation.
@@ -113,7 +113,7 @@ move!(blocks, dx=-1.0, dy=-1.0)
 mplot(blocks, "moved.svg", markers=true, axis=true)
 nothing # hide
 ```
-![](moved.svg)
+![](./moved.svg)
 
 Now we can apply a `polar` operation to the current geometry to 
 obtain a square region with a central hole.
@@ -124,7 +124,7 @@ hole = polar(blocks, base=[0, 0], axis=[0, 0, 1], angle=360, n=4)
 mplot(hole, "hole.svg", markers=true)
 nothing # hide
 ```
-![](hole.svg)
+![](./hole.svg)
 
 Then, the `extrude` operation is used to obtain a volume following a defined axis and length.
 The number 4 here represents the number of divisions inteded along the new dimension.
@@ -134,7 +134,7 @@ solid = extrude(hole, axis=[0, 0, 1], length=1, n=4)
 mplot(solid, "solid.svg", markers=true, dist=13)
 nothing # hide
 ```
-![](solid.svg)
+![](./solid.svg)
 
 Note that, the `solid` variable contains a list of blocks as shown in the figure. This list is
 used to generate the structured mesh.
@@ -143,7 +143,7 @@ mesh = Mesh(solid)
 mplot(mesh, "mesh.svg", dist=13)
 nothing # hide
 ```
-![](mesh.svg)
+![](./mesh.svg)
 
 Finally, a `smooth` operation can be applied to improve the cells quality.
 ```@example 2
@@ -151,7 +151,7 @@ smooth_mesh = smooth!(mesh)
 mplot(smooth_mesh, "smooth_mesh.svg", dist=13)
 nothing # hide
 ```
-![](smooth_mesh.svg)
+![](./smooth_mesh.svg)
 
 
 
@@ -168,7 +168,7 @@ mesh  = Mesh(block)
 mplot(mesh, "mesh-quad4.svg", markers=true)
 nothing # hide
 ```
-![](mesh-quad4.svg)
+![](./mesh-quad4.svg)
 
 Mesh with quadratic cells:
 ```@example
@@ -179,7 +179,7 @@ mesh  = Mesh(block)
 mplot(mesh, "mesh-quad8.svg", markers=true)
 nothing # hide
 ```
-![](mesh-quad8.svg)
+![](./mesh-quad8.svg)
 
 Simple 3D mesh:
 ```@example
@@ -189,7 +189,7 @@ mesh = Mesh(block)
 mplot(mesh, "mesh-hex8.svg", markers=true)
 nothing # hide
 ```
-![](mesh-hex8.svg)
+![](./mesh-hex8.svg)
 
 2D mesh constructed from two quadratic blocks:
 ```@example
@@ -212,7 +212,7 @@ mesh = Mesh(block1, block2)
 mplot(mesh, "mesh-2d.svg", markers=true)
 nothing # hide
 ```
-![](mesh-2d.svg)
+![](./mesh-2d.svg)
 
 
 Mesh with cells growing in the ``x`` direction.
@@ -234,7 +234,7 @@ mesh = Mesh(block)
 mplot(mesh, "mesh-rate.svg", markers=true)
 nothing # hide
 ```
-![](mesh-rate.svg)
+![](./mesh-rate.svg)
 
 3D mesh obtained revolving the last example:
 ```@example x
@@ -244,7 +244,7 @@ rotate!(mesh, axis=[0,0,1], angle=90)
 mplot(mesh, "mesh-rev.svg", azim=-45) 
 nothing # hide
 ```
-![](mesh-rev.svg)
+![](./mesh-rev.svg)
 
 
 Wire mesh:
@@ -258,7 +258,7 @@ mesh = Mesh(block1, block2)
 mplot(mesh, "mesh-arc.svg", azim=-90, elev=0, markers=true)
 nothing # hide
 ```
-![](mesh-arc.svg)
+![](./mesh-arc.svg)
 
 3D mesh obtained revolving the last example:
 ```@example y
@@ -266,7 +266,7 @@ mesh = revolve(mesh, n=24, axis=[0,0,1]) # surface by revolution
 mplot(mesh, "mesh-surf.svg", elev=15)
 nothing # hide
 ```
-![](mesh-surf.svg)
+![](./mesh-surf.svg)
 
 
 ## Finite element model
@@ -380,7 +380,7 @@ nothing # hide
 mplot(model, "beam.svg", warpscale=100, field=:uz, colorbarlabel=raw"u_z", colorbarscale=0.4, azim=-90, dist=7)
 nothing # hide
 ```
-![](beam.svg)
+![](./beam.svg)
 
  
 ## Nonlinear analysis
@@ -415,7 +415,7 @@ nothing # hide
 mplot(model, "beam-vm.svg", warpscale=10, field=:sxx, fieldmult=1e-3, colorbarlabel=raw"$\sigma_{xx}$", colorbarscale=0.4, azim=-90, dist=7)
 nothing # hide
 ```
-![](beam-vm.svg)
+![](./beam-vm.svg)
 
 
 ### Loggers
@@ -524,8 +524,8 @@ cplot(
 nothing # hide
 ```
 
-![](uz_vs_fz.svg)
+![](./uz_vs_fz.svg)
 
-![](x_vs_uz.svg)
+![](./x_vs_uz.svg)
 
-![](x_vs_sxx.svg)
+![](./x_vs_sxx.svg)
