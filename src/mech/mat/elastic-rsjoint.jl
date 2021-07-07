@@ -1,12 +1,12 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export ElasticLineJoint
+export ElasticRSJoint
 
-mutable struct ElasticLineJointIpState<:IpState
+mutable struct ElasticRSJointIpState<:IpState
     env::ModelEnv
     σ ::Array{Float64,1}
     u ::Array{Float64,1}
-    function ElasticLineJointIpState(env::ModelEnv=ModelEnv())
+    function ElasticRSJointIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(env.ndim)
         this.u = zeros(env.ndim)
@@ -15,16 +15,16 @@ mutable struct ElasticLineJointIpState<:IpState
 end
 
 
-mutable struct ElasticLineJoint<:Material
+mutable struct ElasticRSJoint<:Material
     ks::Float64
     kn::Float64
     p ::Float64    # section perimeter
 
-    function ElasticLineJoint(prms::Dict{Symbol,Float64})
-        return  ElasticLineJoint(;prms...)
+    function ElasticRSJoint(prms::Dict{Symbol,Float64})
+        return  ElasticRSJoint(;prms...)
     end
 
-    function ElasticLineJoint(;ks=NaN, kn=NaN, p=NaN, A=NaN, dm=NaN)
+    function ElasticRSJoint(;ks=NaN, kn=NaN, p=NaN, A=NaN, dm=NaN)
         # A : section area
         # dm: section diameter
         # p : section perimeter
@@ -46,17 +46,17 @@ mutable struct ElasticLineJoint<:Material
     end
 end
 
-ElasticJoint1D = ElasticLineJoint #! deprecated
+ElasticJoint1D = ElasticRSJoint #! deprecated
 export ElasticJoint1D
 
 
 # Returns the element type that works with this material
-matching_elem_type(::ElasticLineJoint) = MechLineJoint
+matching_elem_type(::ElasticRSJoint) = MechRodSolidJoint
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticLineJoint) = ElasticLineJointIpState
+ip_state_type(mat::ElasticRSJoint) = ElasticRSJointIpState
 
-function calcD(mat::ElasticLineJoint, ipd::ElasticLineJointIpState)
+function calcD(mat::ElasticRSJoint, ipd::ElasticRSJointIpState)
     ks = mat.ks
     kn = mat.kn
     if ipd.env.ndim==2
@@ -70,7 +70,7 @@ function calcD(mat::ElasticLineJoint, ipd::ElasticLineJointIpState)
 end
 
 
-function stress_update(mat::ElasticLineJoint, ipd::ElasticLineJointIpState, Δu)
+function stress_update(mat::ElasticRSJoint, ipd::ElasticRSJointIpState, Δu)
     D = calcD(mat, ipd)
     Δσ = D*Δu
 
@@ -79,7 +79,7 @@ function stress_update(mat::ElasticLineJoint, ipd::ElasticLineJointIpState, Δu)
     return Δσ, success()
 end
 
-function ip_state_vals(mat::ElasticLineJoint, ipd::ElasticLineJointIpState)
+function ip_state_vals(mat::ElasticRSJoint, ipd::ElasticRSJointIpState)
     return OrderedDict(
       :ur   => ipd.u[1] ,
       :tau  => ipd.σ[1] )

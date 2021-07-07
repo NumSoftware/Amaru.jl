@@ -12,14 +12,16 @@ that represents the inset curve and can be:
 `closed=true` can be used if a closed inset curve is required.
 """
 mutable struct BlockInset <: AbstractBlock
-    nodes::Array{Node,1}
+    nodes    ::Array{Node,1}
     curvetype::Union{Int,AbstractString} # 0:polyline, 1:closed polyline, 2: lagrangian, 3:cubic Bezier with inner points
     closed   ::Bool
     embedded ::Bool
-    shape    ::ShapeType
-    cellshape::ShapeType
+    shape    ::CellShape
+    cellshape::CellShape
     tag      ::String
     jointtag ::String
+    tipjointtag::String
+    tipjoint::Symbol
     ε        ::Float64 # bisection tolerance
     εn       ::Float64 # increment to find next cell
     εc       ::Float64 # tolerance to find cells
@@ -29,7 +31,22 @@ mutable struct BlockInset <: AbstractBlock
     _endpoint  ::Union{Node, Nothing}
     _startpoint::Union{Node, Nothing}
 
-    function BlockInset(coords::Array{<:Real,2}; curvetype=0, closed=false, embedded=false, cellshape=LIN3, tag="", jointtag="", tol=1e-9, toln=1e-4, tolc=1e-9, lam=1.0, id=-1)
+    function BlockInset(
+        coords::Array{<:Real,2}; 
+        curvetype = 0,
+        closed::Bool    = false,
+        embedded::Bool  = false,
+        cellshape = LIN3,
+        tag     ::String  = "",
+        jointtag::String  = "",
+        tipjointtag::String  = "",
+        tipjoint::Symbol = :none,
+        tol     ::Float64 = 1e-9,
+        toln    ::Float64 = 1e-4,
+        tolc    ::Float64 = 1e-9,
+        lam     ::Float64 = 1.0,
+        id      ::Int     = -1,
+    )
         # TODO: add option: merge_points
         # TODO: add case: endpoints outside mesh
         if typeof(curvetype)<:Integer
@@ -44,7 +61,9 @@ mutable struct BlockInset <: AbstractBlock
         nrows  = size(coords,1)
         nodes = [ Node(coords[i,:]) for i=1:nrows ]
 
-        this = new(nodes, ctype, closed, embedded, LIN2, cellshape, tag, jointtag, tol, toln, tolc, lam, id)
+        closed && (tipjoint=:none)
+        embedded && (tipjoint=:none)
+        this = new(nodes, ctype, closed, embedded, LIN2, cellshape, tag, jointtag, tipjointtag, tipjoint, tol, toln, tolc, lam, id)
         this.icount = 0
         this.ε  = tol
         this.εn = toln
@@ -58,9 +77,9 @@ end
 
 
 function Base.copy(bl::BlockInset; dx=0.0, dy=0.0, dz=0.0)
-    newbl = BlockInset(get_coords(bl.nodes) .+ [dx dy dz], curvetype=bl.curvetype, closed=bl.closed,
+    BlockInset(getcoords(bl.nodes) .+ [dx dy dz], curvetype=bl.curvetype, closed=bl.closed,
                        embedded=bl.embedded, cellshape=bl.cellshape, tag=bl.tag,
-                       jointtag=bl.jointtag)
+                       jointtag=bl.jointtag, tipjointtag=bl.tipjointtag, tipjoint=bl.tipjoint)
 end
 
 
@@ -135,33 +154,50 @@ function interLagrange(s::Float64, coords::Array{Float64,2})
 end
 
 
-function split_block(bl::BlockInset, msh::Mesh)
-    coords = get_coords(bl.nodes)
+function split_block(bl::BlockInset, mesh::Mesh)
+    coords = getcoords(bl.nodes)
     n, ndim = size(coords)
 
     if n<2; error("At list two points are required in BlockInset") end
     # 0:polyline, 1:closed polyline, 2: lagrangian, 3:cubic Bezier, 4:Bezier with control points
 
-    # Lagrangian or Bezier with inner points
-    if bl.curvetype in (2,3)
-        split_curve(coords, bl, false, msh)
-        bl._startpoint = nothing
+    ncells = length(mesh.elems) # initial number of cells in mesh
+
+    if bl.curvetype in (2,3) # Lagrangian or Bezier with inner points
+        split_curve(coords, bl, false, mesh)
+    else # Polyline
+        if bl.closed && n<3; error("At least three points are required for closed polyline in BlockInset") end
+
         bl._endpoint = nothing
-        return
+        for i=1:n-1
+            coordsi = coords[i:i+1,:]
+            split_curve(coordsi, bl, false, mesh)
+        end
+        if bl.closed
+            coordsi = [ coords[n:n,:] ; coords[1:1,:] ]
+            split_curve(coordsi, bl, true, mesh)
+        end
     end
 
-    # Polyline
-    if bl.closed && n<3; error("At least three points are required for closed polyline in BlockInset") end
+    newjoints = mesh.elems[ncells+1:end].linejoints
 
-    bl._endpoint = nothing
-    for i=1:n-1
-        coordsi = coords[i:i+1,:]
-        split_curve(coordsi, bl, false, msh)
+    if bl.tipjoint in (:front, :both)
+        joint = newjoints[1]
+        tip = joint.linked_elems[2].nodes[1]
+        tipjointpts  = vcat(joint.linked_elems[1].nodes, tip)
+        tipjointcell = Cell(TIPJOINT, tipjointpts, tag=bl.tipjointtag)
+        tipjointcell.linked_elems = joint.linked_elems
+        push!(mesh.elems, tipjointcell)
     end
-    if bl.closed
-        coordsi = [ coords[n:n,:] ; coords[1:1,:] ]
-        split_curve(coordsi, bl, true, msh)
+    if bl.tipjoint in (:end, :both)
+        joint = newjoints[end]
+        tip = joint.linked_elems[2].nodes[2]
+        tipjointpts  = vcat(joint.linked_elems[1].nodes, tip )
+        tipjointcell = Cell(TIPJOINT, tipjointpts, tag=bl.tipjointtag)
+        tipjointcell.linked_elems = joint.linked_elems
+        push!(mesh.elems, tipjointcell)
     end
+
     bl._startpoint = nothing
     bl._endpoint = nothing
 end
@@ -191,7 +227,7 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
     curvetype = bl.curvetype
 
     # Initial conditions
-    bdist = 0.0     # boundary function initial value
+    bdist = 0.0  # boundary function initial value
     len   = 1.0
 
     # Defining required vectors
@@ -200,16 +236,16 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
 
     # Find the initial and final element
     ecells = Cell[]
-    s0 =get_point(εn,coords,curvetype)
+    s0 = get_point(εn, coords, curvetype)
     icell = find_elem(s0, msh.elems, msh._elempartition, εc, exclude=ecells) # The first tresspased cell
 
-    if icell == nothing
+    if icell === nothing
         error("Inset point $(s0) outside the mesh")
     end
 
     # Initializing more variables
     ccell  = icell
-    nodes = Array{Node}(undef, npoints)
+    # nodes = Array{Node}(undef, npoints)
 
     # Do not set _endpoint to nothing ( bl._endpoint = nothing ) to allow connectivity between segments!
 
@@ -218,12 +254,11 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
     sp = 0.0
     nits = round(Int, 1.0/λ)
 
-
     # Splitting inset
     k = 0
     while true
         k +=1
-        ccell_coords =get_coords(ccell)
+        ccell_coords = getcoords(ccell)
         # Default step
         step  = 0.50*(1.0-s)
 
@@ -241,7 +276,7 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
         end
 
         s += step
-        X  =get_point(s, coords, curvetype)
+        X  = get_point(s, coords, curvetype)
         n  = floor(Int, log(2, step/ε)) + 1  # number of required iterations to find intersection
 
         itcount+=n ##
@@ -295,12 +330,14 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
             Ps = [P1, P2, P3]
         end
 
-        if bl._startpoint == nothing; bl._startpoint = P1 end
-        bl._endpoint = P2
-
         # Saving line cell
         lcell = Cell(shape, Ps, tag=bl.tag)
         push!(msh.elems, lcell)
+
+        if bl._startpoint === nothing; 
+            bl._startpoint = P1 
+        end
+        bl._endpoint = P2
 
         if bl.embedded
             # Set line as embedded
@@ -322,7 +359,7 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
 
         # Preparing for the next iteration
         ncell  = find_elem(get_point(s + εn, coords, curvetype), msh.elems, msh._elempartition, εc, exclude=[ccell])
-        if ncell == nothing
+        if ncell === nothing
             error("Hole found while searching for next tresspassed cell")
         end
 

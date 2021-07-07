@@ -5,11 +5,11 @@ using Test
 bls = [
        Block( [0 0 0; 1 1 0.5], nx=2, ny=2, nz=2, tag="solids"),
       ]
-msh= Mesh(bls, silent=true)
+msh= Mesh(bls, verbosity=0)
 
 # fem domain
 mats = [
-        "solids" => VonMises(E=2.0e8, nu=0.28, σy=5.0e5)
+        "solids" => VonMises(E=2.0e8, nu=0.28, fy=5.0e5)
        ]
 
 dom = Domain(msh, mats)

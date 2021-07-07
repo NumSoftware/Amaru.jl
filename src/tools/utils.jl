@@ -79,10 +79,18 @@ function sound_alert()
 end
 
 
-export @stop
-macro stop()
-    return :(error("Stopped here."))
+# export @stop
+# macro stop()
+#     return :(error("Stopped here."))
+# end
+
+struct Stop <: Exception 
 end
+
+Base.display_error(io::IO, ::Stop, _) = println(io, "STOP POINT")
+stop() = throw(Stop())
+export stop
+
 
 
 function align(arr::Array{<:AbstractString,1}, pat::AbstractString)

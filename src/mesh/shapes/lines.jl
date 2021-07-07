@@ -25,7 +25,7 @@ end
 
 # constructor
 function MakeLIN2()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "LIN2"
     shape.family      = LINE_SHAPE
     shape.ndim        = 1
@@ -77,7 +77,7 @@ end
 
 # constructor
 function MakeLIN3()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "LIN3"
     shape.family      = LINE_SHAPE
     shape.ndim        = 1
@@ -135,7 +135,7 @@ end
 
 # constructor
 function MakeLIN4()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "LIN4"
     shape.family      = LINE_SHAPE
     shape.ndim        = 1

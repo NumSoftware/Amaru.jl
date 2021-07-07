@@ -1,6 +1,7 @@
 include("returnstatus.jl")
 include("iteration.jl")
 
+include("color.jl")
 include("show.jl")
 
 include("constants.jl")
@@ -20,5 +21,5 @@ include("xml.jl")
 
 include("tex.jl")
 
-Base.show(io::IO, obj::Xnode) = custom_dump(io, obj, 3, "")
-Base.show(io::IO, obj::Xdoc)  = custom_dump(io, obj, 3, "")
+Base.show(io::IO, obj::Xnode) = _show(io, obj, 3, "")
+Base.show(io::IO, obj::Xdoc)  = _show(io, obj, 3, "")

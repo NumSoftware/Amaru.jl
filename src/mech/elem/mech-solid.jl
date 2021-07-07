@@ -1,15 +1,20 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
+"""
+    MechSolid
+
+A bulk finite element for mechanical equilibrium analyses.
+"""
 mutable struct MechSolid<:Mechanical
     id    ::Int
-    shape ::ShapeType
+    shape ::CellShape
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
     mat   ::Material
     active::Bool
     linked_elems::Array{Element,1}
-    env::ModelEnv
+    env   ::ModelEnv
 
     function MechSolid();
         return new()
@@ -23,7 +28,7 @@ function elem_init(elem::MechSolid)
     if :h in fieldnames(ipdata_ty)
         # Element volume/area
         V = 0.0
-        C = get_coords(elem)
+        C = getcoords(elem)
         for ip in elem.ips
             dNdR = elem.shape.deriv(ip.R)
             J    = dNdR*C
@@ -52,7 +57,7 @@ function distributed_bc(elem::MechSolid, facet::Union{Facet, Nothing}, key::Symb
     suitable_keys = (:tx, :ty, :tz, :tn)
 
     # Check keys
-    key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
+    key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
     (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
 
     target = facet!==nothing ? facet : elem
@@ -64,7 +69,7 @@ function distributed_bc(elem::MechSolid, facet::Union{Facet, Nothing}, key::Symb
     nnodes = length(nodes)
 
     # Calculate the target coordinates matrix
-    C = get_coords(nodes, ndim)
+    C = getcoords(nodes, ndim)
 
     # Vector with values to apply
     Q = zeros(ndim)
@@ -167,7 +172,7 @@ function elem_stiffness(elem::MechSolid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
-    C = get_coords(elem)
+    C = getcoords(elem)
     K = zeros(nnodes*ndim, nnodes*ndim)
     B = zeros(6, nnodes*ndim)
 
@@ -205,7 +210,7 @@ function elem_mass(elem::MechSolid)
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
     ρ = elem.mat.ρ
-    C = get_coords(elem)
+    C = getcoords(elem)
     M = zeros(nnodes*ndim, nnodes*ndim)
     N = zeros(ndim, nnodes*ndim)
     J = Array{Float64}(undef, ndim, ndim)
@@ -252,7 +257,7 @@ function elem_internal_forces(elem::MechSolid, F::Array{Float64,1})
     J  = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, ndim, nnodes)
 
-    C = get_coords(elem)
+    C = getcoords(elem)
     for ip in elem.ips
         if elem.env.modeltype=="axisymmetric"
             th = 2*pi*ip.coord.x
@@ -293,7 +298,7 @@ function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1},
     dNdX = Array{Float64}(undef, ndim, nnodes)
     Δε = zeros(6)
 
-    C = get_coords(elem)
+    C = getcoords(elem)
     for ip in elem.ips
         if elem.env.modeltype=="axisymmetric"
             th = 2*pi*ip.coord.x
@@ -316,16 +321,6 @@ function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1},
         #end
         coef = detJ*ip.w*th
         @gemv dF += coef*B'*Δσ
-    end
-
-    if elem.env.cinc==2 && false
-        @show "test"
-        K, m, m = elem_stiffness(elem)
-        display( K*dU - dF )
-        #display( K*dU )
-        #display( dF )
-        #@show F
-        @stop
     end
 
     F[map] += dF

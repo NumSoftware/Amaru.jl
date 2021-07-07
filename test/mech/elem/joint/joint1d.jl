@@ -8,7 +8,7 @@ bl2 = move!( copy(bl1), dx=0.6)
 bl3 = move!( copy(bl1), dx=0.3)
 bls = [bl, bl1, bl2, bl3 ]
 
-mesh = Mesh(bls, silent=true)
+mesh = Mesh(bls, verbosity=0)
 
 # FEM analysis
 
@@ -33,6 +33,6 @@ loggers = [
 
 setloggers!(dom, loggers)
 
-@test solve!(dom, bcs, nincs=20, verbose=false).success
+@test solve!(dom, bcs, nincs=20, verbosity=0).success
 
 save(dom, "dom1.vtk")

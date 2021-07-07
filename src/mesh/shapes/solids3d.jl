@@ -42,7 +42,7 @@ end
 
 # constructor
 function MakeTET4()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "TET4"
     shape.family      = SOLID_SHAPE
     shape.ndim        = 3
@@ -190,7 +190,7 @@ end
 
 # constructor
 function MakeTET10()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "TET10"
     shape.family      = SOLID_SHAPE
     shape.ndim        = 3
@@ -259,7 +259,7 @@ end
 
 # constructor
 function MakePYR5()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "PYR5"
     shape.family      = SOLID_SHAPE
     shape.ndim        = 3
@@ -394,7 +394,7 @@ end
 
 # constructor
 function MakePYR13()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "PYR13"
     shape.family      = SOLID_SHAPE
     shape.ndim        = 3
@@ -488,7 +488,7 @@ end
 
 # constructor
 function MakeHEX8()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "HEX8"
     shape.family      = SOLID_SHAPE
     shape.ndim        = 3
@@ -674,7 +674,7 @@ end
 
 # constructor
 function MakeHEX20()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "HEX20"
     shape.family      = SOLID_SHAPE
     shape.ndim        = 3
@@ -939,7 +939,7 @@ end
 
 # constructor
 function MakeHEX27()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "HEX27"
     shape.family      = SOLID_SHAPE
     shape.ndim        = 3
@@ -1005,7 +1005,7 @@ end
 
 # constructor
 function MakeWED6()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "WED6"
     shape.family      = SOLID_SHAPE
     shape.ndim        = 3
@@ -1136,7 +1136,7 @@ end
 
 # constructor
 function MakeWED15()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "WED15"
     shape.family      = SOLID_SHAPE
     shape.ndim        = 3

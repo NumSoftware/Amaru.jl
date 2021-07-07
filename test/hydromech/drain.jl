@@ -7,7 +7,7 @@ bl1 = BlockInset( [1.0 1.0 1.0; 0.0 0.0 0.0], curvetype="polyline", tag="drains"
 bl2 = BlockInset( [1.0 1.0 1.0; 2.0 2.0 0.0], curvetype="polyline", tag="drains", jointtag="joints")
 bls = [bl, bl1, bl2]
 
-mesh = Mesh(bls, silent=true)
+mesh = Mesh(bls, verbosity=0)
 
 gw = 10.0     # water specific weight
 A  = 0.01
@@ -31,7 +31,7 @@ bcs = [
        :(z==1.0) => NodeBC(uw=0),
       ]
 
-hm_solve!(dom, bcs, end_time=100.0, nincs=1, tol=1e-2, nouts=1, verbose=false)
+hm_solve!(dom, bcs, end_time=100.0, nincs=1, tol=1e-2, nouts=1, verbosity=0)
 
 dom.env.t = 0.0
 
@@ -44,6 +44,6 @@ bcs = [
        "input" => NodeBC(fw=:($Q*t/100)),
       ]
 
-hm_solve!(dom, bcs, end_time=100.0, nincs=2, tol=1e-2, nouts=2, verbose=false)
+hm_solve!(dom, bcs, end_time=100.0, nincs=2, tol=1e-2, nouts=2, verbosity=0)
 
 save(dom, "dom1.vtk")

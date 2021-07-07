@@ -1,8 +1,14 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-mutable struct MechLineJoint<:Mechanical
+"""
+    MechRodSolidJoint
+
+An interface element to link `MechRod` elements to bulk elements
+in mechanical equilibrium analyses.
+"""
+mutable struct MechRodSolidJoint<:Mechanical
     id    ::Int
-    shape ::ShapeType
+    shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
@@ -16,17 +22,17 @@ mutable struct MechLineJoint<:Mechanical
     cache_B   ::Array{Array{Float64,2}}
     cache_detJ::Array{Float64}
 
-    MechLineJoint() = new()
+    MechRodSolidJoint() = new()
 end
 
-matching_shape_family(::Type{MechLineJoint}) = LINEJOINT_SHAPE
+matching_shape_family(::Type{MechRodSolidJoint}) = LINEJOINT_SHAPE
 
 
-function elem_init(elem::MechLineJoint)
+function elem_init(elem::MechRodSolidJoint)
     hook = elem.linked_elems[1]
     bar  = elem.linked_elems[2]
-    Ch = get_coords(hook)
-    Ct = get_coords(bar)
+    Ch = getcoords(hook)
+    Ct = getcoords(bar)
     elem.cache_B = []
     elem.cache_detJ = []
     for ip in elem.ips
@@ -68,7 +74,7 @@ function mount_T(J::Matx)
 end
 
 
-function mountB(elem::MechLineJoint, R, Ch, Ct)
+function mountB(elem::MechRodSolidJoint, R, Ch, Ct)
     # Calculates the matrix that relates nodal displacements with relative displacements
     # ==================================================================================
 
@@ -94,7 +100,7 @@ function mountB(elem::MechLineJoint, R, Ch, Ct)
     ndim = elem.env.ndim
     hook = elem.linked_elems[1]
     bar  = elem.linked_elems[2]
-    nnodes  = length(elem.nodes)
+    # nnodes  = length(elem.nodes)
     nbnodes = length(bar.nodes)
     nsnodes = length(hook.nodes)
     D = bar.shape.deriv(R)
@@ -117,12 +123,12 @@ function mountB(elem::MechLineJoint, R, Ch, Ct)
     end
     MM = hvcat(nsnodes, stack...)
 
-    B = -T*[ NN*MM  -NN ]
+    B = T*[ -NN*MM  NN ]
     detJ = norm(J)
     return B, detJ
 end
 
-function elem_stiffness(elem::MechLineJoint)
+function elem_stiffness(elem::MechRodSolidJoint)
     ndim = elem.env.ndim
     nnodes = length(elem.nodes)
     mat    = elem.mat
@@ -136,8 +142,8 @@ function elem_stiffness(elem::MechLineJoint)
         B    = elem.cache_B[i]
         detJ = elem.cache_detJ[i]
         D    = calcD(mat, ip.state)
-        D[1,1]*=mat.p
-        coef = detJ*ip.w
+        # D[1,1]*=mat.p
+        coef = mat.p*detJ*ip.w
         @gemm DB = D*B
         @gemm K += coef*B'*DB
     end
@@ -147,7 +153,7 @@ function elem_stiffness(elem::MechLineJoint)
     return K, map, map
 end
 
-function elem_update!(elem::MechLineJoint, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::MechRodSolidJoint, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     mat    = elem.mat
@@ -166,8 +172,8 @@ function elem_update!(elem::MechLineJoint, U::Array{Float64,1}, F::Array{Float64
         D    = calcD(mat, ip.state)
         @gemv Δu = B*dU
         Δσ, _ = stress_update(mat, ip.state, Δu)
-        coef = detJ*ip.w
-        Δσ[1]  *= mat.p
+        coef = mat.p*detJ*ip.w
+        # Δσ[1]  *= mat.p
         @gemv dF += coef*B'*Δσ
     end
 
@@ -176,7 +182,7 @@ function elem_update!(elem::MechLineJoint, U::Array{Float64,1}, F::Array{Float64
 end
 
 
-function elem_extrapolated_node_vals(elem::MechLineJoint)
+function elem_extrapolated_node_vals(elem::MechRodSolidJoint)
     all_ip_vals = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
     nips        = length(elem.ips)
     fields      = keys(all_ip_vals[1])

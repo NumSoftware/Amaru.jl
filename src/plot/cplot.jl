@@ -69,6 +69,8 @@ Plots a pyplot line chart.
 
 `tagalign       = true` : if true the tag is aligned to the curve
 
+`verbosity           = 0` : verbosity level from 0 (silent) to 2 (verbose)
+
 `copypath       = ""` : path to copy ouput file
 
 # Example
@@ -101,7 +103,7 @@ cplot([
        (x=X1, y=Y1, lw=0.5, ls="-", ms=2, mfc="w", marker="o", color="r", label="curve 1")
        (x=X2, y=Y2, lw=0.5, ls="-", ms=2, mfc="w", marker="s", color="b", label="curve 2")
       ],
-      "plot.pdf",
+      filename = "plot.pdf",
       xlabel="\$x\$", ylabel="\$y\$", legendloc="best",
       xbins=6, ybins=6, grid=true, figsize=(3,2), legendexpand=false, ncol=0,
       xlim=(0,20), xscale="linear", yscale="log",
@@ -110,59 +112,66 @@ cplot([
 ```
 
 """
-function cplot(data::Array{<:NamedTuple}, 
-               filename::String = "";
-               xlabel           = L"x",
-               ylabel           = L"y",
-               xbins            = 10,
-               ybins            = 8,
-               grid             = true,
-               figsize          = (3.2,2.2),
-               legendloc        = "best",
-               legendexpand     = false,
-               bbox_to_anchor   = nothing,
-               ncol             = 0,
-               xlim             = nothing,
-               ylim             = nothing,
-               xscale           = "linear",
-               yscale           = "linear",
-               xmult            = 1.0,
-               ymult            = 1.0,
-               ticksinside      = true,
-               fontsize         = 6.5,
-               legendfontsize   = 0,
-               labelspacing     = 0.5, 
-            #    textlist         = [],  # e.g. [ (text="C1", pos=(x,y)), ]
-               annotations      = [],  # e.g. [ (text="C1", pos=(x,y)), ]
+function cplot(
+    data::Array{<:NamedTuple}, 
+    fname::String = "";
+    filename::String = "",
+    xlabel           = L"x",
+    ylabel           = L"y",
+    xbins            = 10,
+    ybins            = 8,
+    grid             = true,
+    figsize          = (3.2,2.2),
+    legendloc        = "best",
+    legendexpand     = false,
+    bbox_to_anchor   = nothing,
+    ncol             = 0,
+    xlim             = nothing,
+    ylim             = nothing,
+    xscale           = "linear",
+    yscale           = "linear",
+    xmult            = 1.0,
+    ymult            = 1.0,
+    ticksinside      = true,
+    fontsize         = 6.5,
+    legendfontsize   = 0,
+    labelspacing     = 0.5, 
+    annotations      = [],  # e.g. [ (text="C1", pos=(x,y)), ]
 
-               tagpos           = 0.5,
-               tagloc           = "top",   # e.g. 1,2,3,4
-               tagdist          = 0.005, 
-               tagfontsize      = 0,
-               tagcolor         = "black",
-               tagalign         = true,
-               
-               y2bins           = 8,
-               y2lim            = nothing,
-               y2scale          = "linear",
-               y2mult           = 1.0,
+    tagpos           = 0.5,
+    tagloc           = "top",   # e.g. 1,2,3,4
+    tagdist          = 0.005, 
+    tagfontsize      = 0,
+    tagcolor         = "black",
+    tagalign         = true,
+    
+    y2bins           = 8,
+    y2lim            = nothing,
+    y2scale          = "linear",
+    y2mult           = 1.0,
 
-               copypath         = ""
-              )
+    copypath         = "",
+    verbosity             = false
+)
 
-    headline("Chart plotting")
-    message("generating plot $(strip(xlabel,'$')) vs $(strip(ylabel,'$'))")
+    isempty(filename) && (filename=fname)
+    verbosity = clamp(verbosity, 0,2)
 
-    hint("Optional arguments:", level=2)
-    options = "xlabel, ylabel, legendloc, xbins, ybins, grid, figsize, legendexpand, ncol,
-               xlim, ylim, xscale, yscale, fontsize, ticksinside, legendfontsize, labelspacing"
-    hint(options, level=3)
+    verbosity>0 && headline("Chart plotting")
+    verbosity>0 && message("generating plot $(strip(xlabel,'$')) vs $(strip(ylabel,'$'))")
 
-    hint("Arguments and optional arguments per curve:", level=2)
-    options = "x, y, color, ls, lw, marker, ms, mfc, label, tag, tagpos, tagloc, tagdist, tagfontsize, tagcolor, tagalign, at_y2"
-    hint(options, level=3)
+    if verbosity>0
+        hint("Optional arguments:", level=2)
+        options = "xlabel, ylabel, legendloc, xbins, ybins, grid, figsize, legendexpand, ncol,
+                xlim, ylim, xscale, yscale, fontsize, ticksinside, legendfontsize, labelspacing"
+        hint(options, level=3)
 
-    @eval import PyPlot:plt, matplotlib, figure
+        hint("Arguments and optional arguments per curve:", level=2)
+        options = "x, y, color, ls, lw, marker, ms, mfc, label, tag, tagpos, tagloc, tagdist, tagfontsize, tagcolor, tagalign, at_y2"
+        hint(options, level=3)
+    end
+
+    @eval import PyPlot:plt, matplotlib, figure, ioff, gcf
 
     line_styles = ("-", "--", "-.", ":", "", " ", "None", nothing)
     markers     = (".", ",", "o", "v", "^", "<", ">", "1", "2", "3", "4", "8", "s", "p", "*", "h", "H", "+", "x", "D", "d", "|", "_", "P", "X", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, "None", nothing, " ", "")
@@ -256,6 +265,9 @@ function cplot(data::Array{<:NamedTuple},
         plt.ion()
     end
 
+    # Newx axes
+    # ax = plt.axes()
+
     # Set axis limits
     xlim!==nothing && plt.xlim(xlim) 
     ylim!==nothing && plt.ylim(ylim) 
@@ -278,14 +290,14 @@ function cplot(data::Array{<:NamedTuple},
         X = get(line, :x, 0).*xmult
         Y = get(line, :y, 0).*ymult
         length(X) == length(Y) || error("cplot: (line $i) x and y lengths do not match")
-        lw = get(line, :lw, 0.5)
-        ls = get(line, :ls, "-")
-        color = get(line, :color, "C$(i-1)")
+        lw     = get(line, :lw, 0.5)
+        ls     = get(line, :ls, "-")
+        color  = get(line, :color, "C$(i-1)")
         marker = get(line, :marker, nothing)
-        ms = get(line, :ms, 2)
-        mfc = get(line, :mfc, color)
-        label = string(get(line, :label, ""))
-        label = get(texlabels, label, label)
+        ms     = get(line, :ms, 2)
+        mfc    = get(line, :mfc, color)
+        label  = string(get(line, :label, ""))
+        label  = get(texlabels, label, label)
         label != "" && (haslegend=true)
 
         (isa(lw, Number) && lw>0) || error("cplot: (line $i) lw should be a number greater that zero. '$lw' was provided.")
@@ -506,8 +518,9 @@ function cplot(data::Array{<:NamedTuple},
     if filename=="" 
         plt.fignum_exists(ax.figure.number) || plt.show()
     else
-        plt.savefig(filename, bbox_inches="tight", pad_inches=0.01, format="pdf")
-        info("file $filename saved")
+        _, format = splitext(filename)
+        plt.savefig(filename, bbox_inches="tight", pad_inches=0.01, format=format[2:end])
+        verbosity>0 && info("file $filename saved")
         plt.close("all")
 
         if copypath!=""
@@ -518,11 +531,13 @@ function cplot(data::Array{<:NamedTuple},
             end
             try
                 cp(filename, copyfile, force=true)
-                info("file $copyfile saved")
+                verbosity>0 && info("file $copyfile saved")
             catch err
                 notify("cplot: $filename could not be copied to $copypath")
             end
         end
     end
+
+    return @eval gcf()
 
 end

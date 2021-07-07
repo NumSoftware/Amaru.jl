@@ -35,14 +35,13 @@ macro s(exs...)
 end
 
 
-export custom_dump
+export _show
 
+_show(x; maxdepth=2) = _show(stdout, x, maxdepth, "", "    ")
 
-custom_dump(x; maxdepth=2) = custom_dump(stdout, x, maxdepth, "")
+const not_unrolling_typenames_in_show = [ "CellShape", "ModelEnv"  ]
 
-not_unrolling_typenames_in_custom_dump = [ "ShapeType" ]
-
-function custom_dump(io::IO, x, maxdepth::Int, indent::String)
+function _show(io::IO, x, maxdepth::Int, indent::String="", tab::String="    ")
     T = typeof(x)
 
     nf = nfields(x)
@@ -77,18 +76,18 @@ function custom_dump(io::IO, x, maxdepth::Int, indent::String)
         println(io)
 
 
-        print(io, indent, "  ", fname, ": ")
+        print(io, indent*tab, fname, ": ")
 
 
         if isdefined(x, field)
             fieldvalue = getfield(x, field)
 
-            if string(typeof(fieldvalue)) in not_unrolling_typenames_in_custom_dump
-                custom_dump(io, fieldvalue, 0, indent*"  ")
+            if string(typeof(fieldvalue)) in not_unrolling_typenames_in_show
+                _show(io, fieldvalue, 0, indent*tab, tab)
                 continue
             end
 
-            custom_dump(io, fieldvalue, maxdepth-1, indent*"  ")
+            _show(io, fieldvalue, maxdepth-1, indent*tab)
         else
             print(io, "#undef")
         end
@@ -99,10 +98,11 @@ function custom_dump(io::IO, x, maxdepth::Int, indent::String)
 end
 
 
-custom_dump(io::IO, x::Function, maxdepth::Int, indent::String) = print(io, "Function ", x)
+_show(io::IO, x::Function, maxdepth::Int, indent::String, tab::String) = print(io, "Function ", x)
+_show(io::IO, x::Expr, maxdepth::Int, indent::String, tab::String) = print(io, "Expr ", x)
 
 
-function custom_dump(io::IO, x::AbstractDict, maxdepth::Int, indent::String)
+function _show(io::IO, x::AbstractDict, maxdepth::Int, indent::String="", tab::String="    ")
     if valtype(x)<:Real || valtype(x)<:AbstractString
         n = length(x)
         if n<8 
@@ -121,14 +121,14 @@ function custom_dump(io::IO, x::AbstractDict, maxdepth::Int, indent::String)
 
     for (k,v) in x
         println(io)
-        print(io, indent*"  ", repr(k), " => ")
-        custom_dump(io, v, 0, indent*"  ")
+        print(io, indent*tab, repr(k), " => ")
+        _show(io, v, 0, indent*tab)
     end
 end
 
 
 # Print arrays of objects
-function custom_dump(io::IO, x::AbstractArray, maxdepth::Int, indent::String="")
+function _show(io::IO, x::AbstractArray, maxdepth::Int, indent::String="", tab::String="    ")
     n = length(x)
     if n==0
         print(io, summary(x))
@@ -157,16 +157,16 @@ function custom_dump(io::IO, x::AbstractArray, maxdepth::Int, indent::String="")
     idx = n<=maxn ? [1:n;] : [1:half; n-half+1:n]
     for i in idx
         println(io)
-        print(io, indent*"  ", i, ": ")
+        print(io, indent*tab, i, ": ")
         ety = eltype(x)
         if nfields(x[i])==0
             show(io, x[i])
         else
-            custom_dump(io, x[i], maxdepth-1, indent*"  ")
+            _show(io, x[i], maxdepth-1, indent*tab)
         end
         if n>maxn && i==half
             println(io)
-            print(io, indent*"  ", "⋮")
+            print(io, indent*tab, "⋮")
         end
     end
     return

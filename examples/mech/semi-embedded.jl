@@ -10,7 +10,7 @@ bl2 = copy(bl1)
 move!(bl2, dx=0.6)
 bls = [ bl, bl1, bl2 ]
 
-msh = Mesh(bls, verbose=true)
+msh = Mesh(bls, verbosity=1)
 
 # FEM analysis
 # ============
@@ -30,7 +30,7 @@ bcs = [
        :(z==1) => FaceBC(tz=-1000),
       ]
 
-solve!(dom, bcs, nincs=20, verbose=true)
+solve!(dom, bcs, nincs=20, verbosity=1)
 save(dom, "domain.vtk")
 
 mplot(dom, "beam.pdf", field="sa", fieldmult=1e-3, axis=false, opacity=0.1, dist=6, colorbarlabel="axial stress in bars")

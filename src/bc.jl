@@ -114,7 +114,7 @@ function compute_bc_vals!(bc::Union{FaceBC,EdgeBC}, t::Float64, U::Array{Float64
     essential_keys = Set( dof.name for facet in facets for node in facet.nodes for dof in node.dofs )
 
     for facet in facets
-        elem = facet.oelem
+        elem = facet.owner
 
         for (key,val) in bc.conds
             if key in essential_keys

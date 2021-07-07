@@ -1,6 +1,5 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-
 function box_coords(C1::Array{<:Real,1}, C2::Array{<:Real,1}, ndim::Int)
     x1 = C1[1]
     y1 = C1[2]
@@ -31,27 +30,57 @@ function box_coords(C1::Array{<:Real,1}, C2::Array{<:Real,1}, ndim::Int)
 end
 
 
-"""
-`Block(coords, [nx=1,] [ny=1,] [cellshape=QUAD4,] [tag=""] )`
+# """
+# `Block(coords, [nx=1,] [ny=1,] [cellshape=QUAD4,] [tag=""] )`
 
-Generates a block object for the mesh generation of 2D meshes.
-`shape` can be TRI3, TRI6, QUAD4, QUAD8.
+# Generates a block object for the mesh generation of 2D meshes.
+# `shape` can be TRI3, TRI6, QUAD4, QUAD8.
+# """
+
+"""
+    Block
+
+A type that represents a segment, area or volume and is used to
+aid the generation of structured meshes by subdivision.
+
+# Fields
+$(FIELDS)
 """
 mutable struct Block <: AbstractBlock
+    "array of vertices"
     nodes::Array{Node,1}
-    shape::ShapeType
-    cellshape::ShapeType
+    "block shape"
+    shape::CellShape
+    "shape for the resulting cells"
+    cellshape::CellShape
+    "number of divisions in the ``x`` direction"
     nx::Int64
+    "number of divisions in the ``y`` direction"
     ny::Int64
+    "number of divisions in the ``z`` direction"
     nz::Int64
+    "growing rate in the ``x`` direction"
     rx::Float64
+    "growing rate in the ``y`` direction"
     ry::Float64
+    "growing rate in the ``z`` direction"
     rz::Float64
+    "string tag to group blocks"
     tag::String
-    id::Int64
+    # id::Int64
 
+    @doc """
+        $(TYPEDSIGNATURES)
+
+    Creates a 1D, 2D, 3D or surface `Block` using a coordinates matrix `coords` for the vertices and 
+    sets the number of divisions (`nx`, `ny`, `nz`) in the ``x``, ``y`` and ``z`` directions of a local system.
+    The ratios `rx`, `ry` and `rz` set the resulting cells growing rates in the corresponding directions.
+    At the mesh generation stage, the shape of cells will be set according to `cellshape` (e.g. `LIN2`, `TRI3`, `QUAD8`, `HEX8`, `WED15`, etc.).
+    If `cellshape` is not provided, the cells shape will be set to the lowest degree shape available.
+    A `tag` string can be provided optionally. This tag will be inherinted by the cells generated from the block. 
+    """
     function Block(
-        coords::Array{<:Real}; 
+        coords::Array; 
         nx::Int  = 0,
         ny::Int  = 0,
         nz::Int  = 0,
@@ -62,7 +91,7 @@ mutable struct Block <: AbstractBlock
         r ::Real = 0.0,
         cellshape = nothing,
         tag       = "",
-        id        = -1,
+        # id        = -1,
         shape     = nothing,
         )
 
@@ -128,17 +157,28 @@ mutable struct Block <: AbstractBlock
             nodes[i].id = i
         end
 
-        return new(nodes, shape, cellshape, nx, ny, nz, rx, ry, rz, tag, id)
+        return new(nodes, shape, cellshape, nx, ny, nz, rx, ry, rz, tag)
     end
 end
 
-# For backward compatibility
-Block2D = Block
-Block3D = Block
+
+"""
+    $(TYPEDSIGNATURES)
+
+Creates a copy of `block`.
+"""
+function Base.copy(block::Block)
+    return Block(copy(getcoords(block.nodes)), nx=block.nx, ny=block.ny, nz=block.nz, cellshape=block.cellshape, tag=block.tag)
+end
 
 
-function Base.copy(bl::Block; dx=0.0, dy=0.0, dz=0.0)
-    newbl = Block(copy(get_coords(bl.nodes)), nx=bl.nx, ny=bl.ny, nz=bl.nz, cellshape=bl.cellshape, tag=bl.tag)
+"""
+    $(SIGNATURES)
+
+Creates a copy of the array `blocks` containing `Block` objects.
+"""
+function Base.copy(blocks::Array{<:AbstractBlock,1})
+    return [ copy(obj) for obj in blocks ]
 end
 
 
@@ -147,8 +187,8 @@ end
 function split_block(bl::Block, msh::Mesh)
     nx, ny, nz = bl.nx, bl.ny, bl.nz
     rx, ry, rz = bl.rx, bl.ry, bl.rz
-    shape  = bl.shape # cell shape
-    coords = get_coords(bl.nodes)
+    # shape  = bl.shape # cell shape
+    coords = getcoords(bl.nodes)
     cellshape = bl.cellshape
 
     if cellshape==LIN2
@@ -609,8 +649,8 @@ end
 
 # mutable struct BlockCylinder <: AbstractBlock
 #     nodes::Array{Node,1}
-#     shape::ShapeType # LIN2
-#     cellshape::ShapeType # HEX8, HEX20
+#     shape::CellShape # LIN2
+#     cellshape::CellShape # HEX8, HEX20
 #     r::Float64
 #     nr::Int64
 #     n::Int64
@@ -628,7 +668,7 @@ end
 
 
 # function Base.copy(bl::BlockCylinder)
-#     newbl = BlockCylinder(copy(get_coords(bl.nodes)), r=bl.r, nr=bl.nr, n=bl.n, cellshape=bl.cellshape, tag=bl.tag)
+#     newbl = BlockCylinder(copy(getcoords(bl.nodes)), r=bl.r, nr=bl.nr, n=bl.n, cellshape=bl.cellshape, tag=bl.tag)
 # end
 
 
@@ -657,7 +697,7 @@ end
 
 #     # polar and move
 #     blocks = polar(blocks, n=4)
-#     coords =get_coords(bl.nodes)
+#     coords =getcoords(bl.nodes)
 #     move!(blocks, dx=coords[1,1], dy=coords[1,2], dz=coords[1,3])
 
 #     # extrude

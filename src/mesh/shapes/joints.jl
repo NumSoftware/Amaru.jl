@@ -63,7 +63,7 @@ J3TRI3.quadrature[0] = TRI_IP3
 
 # constructor
 function MakeJLINK2()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "JLINK2"
     shape.family      = LINEJOINT_SHAPE
     shape.ndim        = 1
@@ -91,7 +91,7 @@ export JLINK2
 
 # constructor
 function MakeJLINK3()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "JLINK3"
     shape.family      = LINEJOINT_SHAPE
     shape.ndim        = 1
@@ -114,3 +114,35 @@ const JLINK3 = MakeJLINK3()
 export JLINK3
 
 
+# TIPJOINT shape
+# ==============
+function shape_func_TIPJOINT(R::AbstractArray{<:Float64,1})
+    return [ 1.0 ]
+end
+
+function shape_deriv_TIPJOINT(R::AbstractArray{<:Float64,1})
+    return [ 0.0 ]
+end
+
+# constructor
+function MakeTIPJOIN()
+    shape             = CellShape()
+    shape.name        = "TIPJOINT"
+    shape.family      = TIPJOINT_SHAPE
+    shape.ndim        = 0
+    shape.npoints     = 1
+    shape.basic_shape = LIN2
+    shape.vtk_type    = VTK_POLY_VERTEX
+    shape.facet_idxs  = []
+    shape.edge_idxs   = []
+    shape.facet_shape = ()
+    shape.nat_coords  = [ ]
+    shape.quadrature  = Dict(0 => ALL_IP1, 1 => ALL_IP1)
+    shape.func        = shape_func_TIPJOINT
+    shape.deriv       = shape_deriv_TIPJOINT
+    return shape
+end
+
+# Registration
+const TIPJOINT = MakeTIPJOIN()
+export TIPJOINT

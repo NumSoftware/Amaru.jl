@@ -306,7 +306,7 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
     else
         ipd.damc = 0.0
     end
-
+    
     #ipd.in_tension != in_tension && show(1)
     ipd.in_tension = in_tension
 

@@ -4,7 +4,7 @@ export MechBeam
 
 mutable struct MechBeam<:Mechanical
     id    ::Int
-    shape ::ShapeType
+    shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
@@ -21,17 +21,15 @@ end
 
 matching_shape_family(::Type{MechBeam}) = LINE_SHAPE
 
-function beam_shape_func(ξ::Float64, nnodes::Int)
-    if nnodes==2
-        N = Array{Float64}(undef,4)
-        x = (ξ+1)/2
-        N[1] = 1 - 3*x^2 + 2*x^3
-        N[2] = x - 2*x^2 + x^3
-        N[3] = 3*x^2 - 2*x^3
-        N[4] = x^3 - x^2
-    else
-        N = Array{Float64}(undef,4)
-    end
+function beam_shape_func(x::Float64, L::Float64)
+    N = Array{Float64}(undef,6)
+    N[1] = 1 - x/L
+    N[2] = 1 - 3*x^2/L^2 + 2*x^3/L^3
+    N[3] = x - 2*x^2/L + x^3/L^2
+    N[4] = x/L
+    N[5] = 3*x^2/L^2 - 2*x^3/L^3
+    N[6] = x^3/L^2 - x^2/L
+
     return N
 end
 
@@ -81,11 +79,99 @@ function calcT(elem::MechBeam, C)
     c = (C[2,1] - C[1,1])/L
     s = (C[2,2] - C[1,1])/L
     return
-
 end
 
+function distributed_bc(elem::MechBeam, facet::Nothing, key::Symbol, val::Union{Real,Symbol,Expr})
+    ndim  = elem.env.ndim
+
+    # Check bcs
+    (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
+    !(key in (:tx, :ty, :tl, :tn)) && error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
+
+    # target = facet!=nothing ? facet : elem
+    nodes  = elem.nodes
+    nnodes = length(nodes)
+    t      = elem.env.t
+    A      = elem.mat.A
+    
+
+    # Force boundary condition
+    nnodes = length(nodes)
+
+    # Calculate the target coordinates matrix
+    C = getcoords(nodes, ndim)
+    L = norm(C[2,:]-C[1,:])
+
+    # Vector with values to apply
+    Q = zeros(ndim)
+
+    # Calculate the nodal values
+    F     = zeros(6)
+    shape = LIN2
+    ips   = get_ip_coords(shape)
+
+    for i in 1:size(ips,1)
+        R = vec(ips[i,:])
+        w = R[end]
+        X = C'*LIN2.func(R)
+
+        l = (C[2,:]-C[1,:])./L
+        n = [-l[2], l[1]]
+
+        if ndim==2
+            x, y = X
+            vip = eval_arith_expr(val, t=t, x=x, y=y)
+
+            if key == :tx
+                tl = vip*l[1]
+                tn = vip*n[1]
+                # tl = vip*dot([1,0], l)
+                # tn = vip*dot([1,0], n)
+            elseif key == :ty
+                tl = vip*l[2]
+                tn = vip*n[2]
+                # tl = vip*dot([0,1], l)
+                # tn = vip*dot([0,1], n)
+            elseif key == :tl
+                tl = vip
+                tn = 0.0
+            elseif key == :tn
+                tl = 0.0
+                tn = vip
+            end
+        else
+            error("This beam element is for 2D only")
+        end
+
+        N = beam_shape_func(R[1]*L/2+L/2, L)
+        Nl = [ N[1], 0, 0, N[4], 0, 0 ]
+        Nn = [ 0, N[2], N[3], 0, N[5], N[6] ]
+        
+        F += (Nl*tl + Nn*tn)*L/2*w # F is a vector
+    end
+
+    # Rotation matrix
+    c = (C[2,1] - C[1,1])/L
+    s = (C[2,2] - C[1,2])/L
+    T = [ c s 0  0 0 0
+          -s c 0  0 0 0
+          0 0 1  0 0 0
+          0 0 0  c s 0
+          0 0 0 -s c 0
+          0 0 0  0 0 1 ]
+            
+    F = T'*F
+
+    # generate a map
+    keys = [:ux, :uy, :rz]
+    map  = Int[ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
+
+    return F, map
+end
+
+
 function elem_stiffness(elem::MechBeam)
-    C  = get_coords(elem)
+    C  = getcoords(elem)
     L  = norm(C[2,:]-C[1,:])
     L2 = L*L
     L3 = L*L*L
@@ -100,6 +186,7 @@ function elem_stiffness(elem::MechBeam)
            0      -12*EI/L3  -6*EI/L2    0      12*EI/L3  -6*EI/L2
            0        6*EI/L2   2*EI/L     0      -6*EI/L2   4*EI/L  ]
 
+    display(K0)
 
     # Rotation matrix
     c = (C[2,1] - C[1,1])/L
@@ -113,11 +200,12 @@ function elem_stiffness(elem::MechBeam)
            0 0 0  0 0 1 ]
 
     map = elem_map(elem)
+
     return T'*K0*T, map, map
 end
 
 function elem_mass(elem::MechBeam)
-    C  = get_coords(elem)
+    C  = getcoords(elem)
     L  = norm(C[2,:]-C[1,:])
     L2 = L*L
     mat = elem.mat
@@ -151,5 +239,6 @@ function elem_update!(elem::MechBeam, U::Array{Float64,1}, F::Array{Float64,1}, 
     K, map, map = elem_stiffness(elem)
     dU  = U[map]
     F[map] += K*dU
+    return success()
 end
 

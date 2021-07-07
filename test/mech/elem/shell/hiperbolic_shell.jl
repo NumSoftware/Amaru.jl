@@ -26,11 +26,11 @@ blt = [Block(coord1, nx = 1, ny =1, cellshape = QUAD4, tag="shell"),
        Block(coord4, nx = 1, ny =1, cellshape = QUAD4, tag="shell"),
        ]
 
-msh = Mesh(blt, silent=true)
+msh = Mesh(blt, verbosity=0)
 
 # Finite element model
 
-mats = [ "shell" => ElasticShellQUAD4(E=2.85E4, nu=0.4, thick = 0.8) ]
+mats = [ "shell" => ElasticShellQUAD4(E=2.85E4, nu=0.4, thickness = 0.8) ]
 
 dom = Domain(msh, mats)
 
@@ -48,7 +48,7 @@ setloggers!(dom, loggers)
             :(x==50 && y==50) => NodeBC(fz=-100),
             ]
 
-solve!(dom, bcs, tol = 0.1, nincs = 1,verbose=true)
+solve!(dom, bcs, tol = 0.1, nincs = 1,verbosity=1)
 save(dom, "shell4node_hiperbolic.vtu")
 save(log1, "shell4node_hiperbolic.dat")
 

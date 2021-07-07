@@ -27,7 +27,7 @@ function collapse!(elem::AbstractCell)
             end
         elseif shape==QUAD8
             if nunodes==6
-                validfaces = filter(face -> face.nodes[1]!=face.nodes[2], get_faces(elem))
+                validfaces = filter(face -> face.nodes[1]!=face.nodes[2], getfaces(elem))
                 elem.nodes = [ 
                             validfaces[1].nodes[1],
                             validfaces[2].nodes[1],
@@ -46,7 +46,7 @@ function collapse!(elem::AbstractCell)
         end
 
     elseif shape.ndim==3
-        faces = get_faces(elem)
+        faces = getfaces(elem)
         validfaces = Face[]
         for face in faces
             funiquenodes = unique(face.nodes)
@@ -61,7 +61,7 @@ function collapse!(elem::AbstractCell)
         if shape==HEX8 && nunodes==6 # => WED6
             bottom = filter(f -> length(f.nodes)==3, validfaces)[1]
             bottom.nodes = bottom.nodes[[1,3,2]]
-            edges = get_edges(elem)
+            edges = getedges(elem)
 
             sideedges = Edge[]
             for node in bottom.nodes
@@ -91,7 +91,7 @@ function collapse!(elem::AbstractCell)
             bottom = bases[1]
             top    = bases[2]
             bottom.nodes = bottom.nodes[[1,3,2,6,5,4]]
-            edges  = get_edges(elem)
+            edges  = getedges(elem)
 
             sideedges = Edge[]
             for node in bottom.nodes[1:3]
@@ -112,7 +112,7 @@ function collapse!(elem::AbstractCell)
             topcornernodes = [ sideedges[1].nodes[2],
                                sideedges[2].nodes[2],
                                sideedges[3].nodes[2] ]
-            topedges = get_edges(top)
+            topedges = getedges(top)
             topmiddlenodes = Node[]
             for (i,j) in ((1,2),(2,3),(3,1))
                 node1 = topcornernodes[i]
@@ -153,7 +153,7 @@ function collapse!(elem::AbstractCell)
         elseif shape==WED15 && nunodes==10 # => TET10
             bottom = filter(f -> length(f.nodes)==6, validfaces)[1]
             bottom.nodes = bottom.nodes[[1,3,2,6,5,4]]
-            edges = get_edges(elem)
+            edges = getedges(elem)
 
             sideedges = Edge[]
             for node in bottom.nodes[1:3]
@@ -202,7 +202,7 @@ function collapse!(elem::AbstractCell)
         elseif shape==WED15 && nunodes==13 # => PYR13
             bottom = filter(f -> length(f.nodes)==8, validfaces)[1]
             bottom.nodes = bottom.nodes[[1,4,3,2,8,7,6,5]]
-            edges = get_edges(elem)
+            edges = getedges(elem)
 
             sideedges = Edge[]
             for node in bottom.nodes[1:4]

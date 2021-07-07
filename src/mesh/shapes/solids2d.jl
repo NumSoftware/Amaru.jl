@@ -48,7 +48,7 @@ end
 
 # constructor
 function MakeTRI3()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "TRI3"
     shape.family      = SOLID_SHAPE
     shape.ndim        = 2
@@ -123,7 +123,7 @@ function shape_deriv_TRI6(R::AbstractArray{<:Float64,1})
 
     D = Array{Float64}(undef,2, 6)
     D[1,1] = -3.0 + 4.0 * (r + s);       D[2,1] = -3.0 + 4.0*(r + s)
-    D[1,2] =  4.0 * r - 1.0;              D[2,2] =  0.0
+    D[1,2] =  4.0 * r - 1.0;             D[2,2] =  0.0
     D[1,3] =  0.0;                       D[2,3] =  4.0 * s - 1.0
     D[1,4] =  4.0 - 8.0 * r - 4.0 * s;   D[2,4] = -4.0 * r
     D[1,5] =  4.0 * s;                   D[2,5] =  4.0 * r
@@ -134,7 +134,7 @@ end
 
 # constructor
 function MakeTRI6()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "TRI6"
     shape.family      = SOLID_SHAPE
     shape.ndim        = 2
@@ -186,7 +186,7 @@ end
 
 # constructor
 function MakeTRI9()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "TRI9"
     shape.family      = SOLID_SHAPE
     shape.ndim        = 2
@@ -238,7 +238,7 @@ end
 
 # constructor
 function MakeTRI10()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "TRI10"
     shape.family      = SOLID_SHAPE
     shape.ndim        = 2
@@ -310,7 +310,7 @@ end
 
 # constructor
 function MakeQUAD4()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "QUAD4"
     shape.family      = SOLID_SHAPE
     shape.ndim        = 2
@@ -409,7 +409,7 @@ end
 
 # constructor
 function MakeQUAD8()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "QUAD8"
     shape.family      = SOLID_SHAPE
     shape.ndim        = 2
@@ -513,7 +513,7 @@ end
 
 # constructor
 function MakeQUAD9()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "QUAD9"
     shape.family      = SOLID_SHAPE
     shape.ndim        = 2
@@ -635,7 +635,7 @@ end
 
 # constructor
 function MakeQUAD12()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "QUAD12"
     shape.family      = SOLID_SHAPE
     shape.ndim        = 2
@@ -685,7 +685,7 @@ end
 
 # constructor
 function MakeQUAD16()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "QUAD16"
     shape.family      = SOLID_SHAPE
     shape.ndim        = 2

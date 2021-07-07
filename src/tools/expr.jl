@@ -14,6 +14,7 @@ const op_dict = Dict{Symbol,Function}(
     :(>=) => (a,b) -> a>b-arith_tol,
     :(<=) => (a,b) -> a<b+arith_tol,
     :(==) => (a,b) -> abs(a-b)<arith_tol,
+    :(!=) => (a,b) -> abs(a-b)>=arith_tol,
     :abs => (a,) -> abs(a),
     :sin => (a,) -> sin(a),
     :cos => (a,) -> cos(a),
@@ -134,3 +135,47 @@ macro check(expr)
         end
     end
 end
+
+
+export SymEx
+mutable struct SymEx
+    root::Symbol
+    args::Array{Any,1}
+
+    function SymEx(symbol::Symbol)
+        return new(symbol, [])
+    end
+
+    function SymEx(op::Symbol, args...)
+        return new(op, collect(args))
+    end
+end
+
+function Base.show(io::IO, ex::SymEx)
+    nargs = length(ex.args)
+    if nargs==0
+        print(io, ex.root)
+    elseif nargs==1
+        op = ex.root
+        if op==:^
+            print(io, "(", ex.args[1], ",", op)
+        else
+            print(io, "(", ex.args[1], ex.root, ex.args[2], ")")
+        end
+    else
+        print(io, "(", ex.args[1], ex.root, ex.args[2], ")")
+    end
+end
+
+Base.:+(x::SymEx, y::SymEx) = SymEx(:+, x, y)
+Base.:+(x::SymEx, y) = SymEx(:+, x, y)
+Base.:+(x, y::SymEx) = SymEx(:+, x, y)
+Base.:-(x::SymEx, y::SymEx) = SymEx(:-, x, y)
+Base.:-(x::SymEx, y) = SymEx(:-, x, y)
+Base.:-(x, y::SymEx) = SymEx(:-, x, y)
+
+Base.:^(x::SymEx, y) = SymEx(:^, x, y)
+
+test(g) = @eval(Main, g(2))
+# test(g) = eval(:(g(2)))
+# test(g) = eval(Main, f(2))

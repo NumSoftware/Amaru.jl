@@ -4,7 +4,7 @@ include("vtk.jl")
 include("quadrature.jl")
 
 include("shape.jl")
-export ShapeType, ALL_ISO_SHAPES, ShapeFamily
+export CellShape, ALL_ISO_SHAPES, ShapeFamily
 export get_ip_coords, get_shape_from_vtk
 export inverse_map, extrapolator
 
@@ -13,7 +13,7 @@ export Node, Cell, hash, get_x, get_y, get_z
 include("cell.jl")
 include("collapse.jl")
 
-export get_coords, get_node, get_nodes, get_faces, get_patches, cell_extent, cell_quality, cell_aspect_ratio
+export get_coords, get_node, getnodes, getfaces, get_patches, cell_extent, cell_quality, cell_aspect_ratio
 include("partition.jl")
 
 include("mesh.jl")
@@ -21,7 +21,7 @@ include("io.jl")
 export Mesh, fixup!, quality!, reorder!, save, get_surface, get_neighbors, threshold, datafields
 
 include("block.jl")
-export Block, Block2D, Block3D, BlockTruss, BlockCoords, BlockCylinder, BlockGrid
+export Block, BlockTruss, BlockCoords, BlockCylinder, BlockGrid
 
 include("block_inset.jl")
 export BlockInset
@@ -50,6 +50,6 @@ export generate_embedded_cells!
 include("outline.jl")
 
 # show function for mesh related types
-Base.show(io::IO, obj::ShapeType) = custom_dump(io, obj, 2, "")
-Base.show(io::IO, obj::Block) = custom_dump(io, obj, 2, "")
-Base.show(io::IO, obj::Mesh) = custom_dump(io, obj, 2, "")
+Base.show(io::IO, obj::CellShape) = _show(io, obj, 2)
+Base.show(io::IO, obj::Block) = _show(io, obj, 2)
+Base.show(io::IO, obj::Mesh) = _show(io, obj, 2)

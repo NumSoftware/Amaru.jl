@@ -2,7 +2,7 @@
 
 mutable struct SeepSolid<:Hydromechanical
     id    ::Int
-    shape ::ShapeType
+    shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
@@ -47,7 +47,7 @@ function distributed_bc(elem::SeepSolid, facet::Union{Facet,Nothing}, key::Symbo
     nnodes = length(nodes)
 
     # Calculate the target coordinates matrix
-    C = get_coords(nodes, ndim)
+    C = getcoords(nodes, ndim)
 
     # Calculate the nodal values
     F     = zeros(nnodes)
@@ -89,7 +89,7 @@ function elem_conductivity_matrix(elem::SeepSolid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
-    C      = get_coords(elem)
+    C      = getcoords(elem)
     H      = zeros(nnodes, nnodes)
     Bw     = zeros(ndim, nnodes)
     KBw    = zeros(ndim, nnodes)
@@ -123,7 +123,7 @@ function elem_compressibility_matrix(elem::SeepSolid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
-    C      = get_coords(elem)
+    C      = getcoords(elem)
     Cpp    = zeros(nnodes, nnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
@@ -153,7 +153,7 @@ function elem_RHS_vector(elem::SeepSolid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
-    C      = get_coords(elem)
+    C      = getcoords(elem)
     Q      = zeros(nnodes)
     Bw     = zeros(ndim, nnodes)
     KZ     = zeros(ndim)
@@ -190,7 +190,7 @@ function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
-    C   = get_coords(elem)
+    C   = getcoords(elem)
 
     map_w  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
 
@@ -235,7 +235,7 @@ function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1
 
     map_w  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
 
-    C   = get_coords(elem)
+    C   = getcoords(elem)
 
     dUw = DU[map_w] # nodal pore-pressure increments
     Uw  = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes ]

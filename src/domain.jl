@@ -2,40 +2,60 @@
 
 abstract type AbstractDomain<:AbstractMesh end
 
+# """
+# `Domain(mesh, [filekey="out"])`
+
+# Creates an `Domain` object based on a Mesh object `mesh` and represents the geometric domain to be analysed by the finite element analysis.
+
+# **Fields**
+
+# `nodes`: An array of nodes
+
+# `elems`: An array of finite elements
+
+# `faces`: An array of `Face` objects containing the boundary faces
+
+# `edges`: An array of `Edge` objects containing all the boundary faces
+
+# """
+
 """
-`Domain(mesh, [filekey="out"])`
+    Domain
 
-Creates an `Domain` object based on a Mesh object `mesh` and represents the geometric domain to be analysed by the finite element analysis.
+A type that represents a finite element model.    
 
-**Fields**
-
-`nodes`: An array of nodes
-
-`elems`: An array of finite elements
-
-`faces`: An array of `Face` objects containing the boundary faces
-
-`edges`: An array of `Edge` objects containing all the boundary faces
-
+# Fields
+$(FIELDS)
 """
 mutable struct Domain<:AbstractDomain
+    "domain dimensions"
     ndim ::Int
+    "array of nodes"
     nodes::Array{Node,1}
+    "arrat of cells"
     elems::Array{Element,1}
+    "array of faces"
     faces::Array{Face,1}
+    "array of edges"
     edges::Array{Edge,1}
 
-    _elempartition::ElemPartition
-
     #mats::Array{Material,1}
+    "array of loggers"
     loggers ::Array{AbstractLogger,1}
+    "array of monitors"
     monitors::Array{AbstractMonitor,1}
+    "number of degrees of freedom"
     ndofs   ::Integer
+    "environment struct with global information"
     env     ::ModelEnv
-
+    
     # Data
+    "nodal data dictionary"
     node_data::OrderedDict{String,Array}
+    "element data dictionary"
     elem_data::OrderedDict{String,Array}
+
+    _elempartition::ElemPartition
 
     function Domain()
         this = new()
@@ -59,8 +79,6 @@ mutable struct Domain<:AbstractDomain
 end
 
 
-
-
 """
     Domain(mesh, mats, options...)
 
@@ -77,22 +95,19 @@ Uses a mesh and a list of meterial especifications to construct a finite element
 `modeltype`
 `thickness`
 `filekey = ""` : File key for output files
-`verbose = false` : If true, provides information of the domain construction
+`verbosity = 0` : If true, provides information of the domain construction
 
 """
 function Domain(
-                mesh      :: Mesh,
-                matbinds  :: Array{<:Pair,1};
-                modeltype :: String = "", # or "plane-stress", "plane-strain", "axysimmetric", "3d"
-                thickness :: Real   = 1.0,
-                verbose   :: Bool   = false,
-                silent    :: Bool   = false,
-                params... # extra parameters required for specific solvers
-               )
+    mesh      :: Mesh,
+    matbinds  :: Array{<:Pair,1};
+    modeltype :: String = "", # or "plane-stress", "plane-strain", "axysimmetric", "3d"
+    thickness :: Real   = 1.0,
+    verbosity = 0,
+    params... # extra parameters required for specific solvers
+)
+    verbosity = clamp(verbosity, 0,2)
 
-    verbosity = 1
-    verbose && (verbosity=2)
-    silent && (verbosity=0)
     if modeltype==""
         modeltype = mesh.ndim==2 ? "plane-strain" : "3d"
     end
@@ -116,13 +131,13 @@ function Domain(
     # Save a mesh reference
     #dom.mesh = mesh
 
-    verbosity>0 && printstyled("Domain setup:\n", bold=true, color=:cyan)
+    verbosity >0 && printstyled("Domain setup:\n", bold=true, color=:cyan)
 
     # Setting nodes
     dom.nodes = copy.(mesh.nodes)
 
     # Setting new elements
-    verbosity>0 && print("  setting elements...\r")
+    verbosity >0 && print("  setting elements...\r")
     ncells    = length(mesh.elems)
     dom.elems = Array{Element,1}(undef, ncells)
     for (filter, mat) in matbinds
@@ -177,7 +192,7 @@ function Domain(
     for (i,cell) in enumerate(mesh.faces)
         conn = [ p.id for p in cell.nodes ]
         face = Face(cell.shape, dom.nodes[conn], tag=cell.tag)
-        face.oelem = dom.elems[cell.oelem.id]
+        face.owner = dom.elems[cell.owner.id]
         face.id = i
         push!(dom.faces, face)
     end
@@ -187,7 +202,7 @@ function Domain(
     for (i,cell) in enumerate(mesh.edges)
         conn = [ p.id for p in cell.nodes ]
         edge = Edge(cell.shape, dom.nodes[conn], tag=cell.tag)
-        edge.oelem = dom.elems[cell.oelem.id]
+        edge.owner = dom.elems[cell.owner.id]
         edge.id = i
         push!(dom.edges, edge)
     end
@@ -208,13 +223,13 @@ function Domain(
         elem_init(elem)
     end
 
-    if verbosity>0
+    if verbosity >0
         print("  ", dom.ndim, "D domain $modeltype model      \n")
         @printf "  %5d nodes\n" length(dom.nodes)
         @printf "  %5d elements\n" length(dom.elems)
     end
 
-    if verbosity>1
+    if verbosity >1
         if dom.ndim==2
             @printf "  %5d edges\n" length(dom.faces)
         else
@@ -357,7 +372,7 @@ function Domain(elems::Array{<:Element,1})
 
     # Setting faces and edges
     domain.faces = get_surface(domain.elems)
-    domain.edges = get_edges(domain.faces)
+    domain.edges = getedges(domain.faces)
 
     # Setting data
     update_output_data!(domain)

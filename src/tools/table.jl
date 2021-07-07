@@ -402,14 +402,16 @@ function smooth!(table::DataTable, fieldx, fieldy=nothing; knots=[0.0, 1.0])
 
     if fieldy === nothing
         fieldy = fieldx
-        X = range(0,1,length=nr)
+        X = collect(range(0, 1, length=nr))
         Y = table[fieldx]
-    else
+    else 
         X = table[fieldx]
         Y = table[fieldy]
     end
 
     Idxs = split(X, X[1] .+ knots.*(X[end]-X[1]))
+    # @show X
+    # @show Idxs
 
     for i in 1:length(Idxs)
         Xi = X[Idxs[i]]
@@ -499,8 +501,9 @@ end
 
 
 # TODO: Improve column width for string items
-function save(table::DataTable, filename::String; verbose::Bool=true, digits::Array=[])
-    suitable_formats = (".dat", ".tex")
+function save(table::DataTable, filename::String; verbosity=0, digits::Array=[])
+    verbosity = clamp(verbosity, 0, 1)
+    suitable_formats = (".dat", ".table", ".tex")
 
     basename, format = splitext(filename)
     format in suitable_formats || error("DataTable: cannot save in \"$format\" format. Suitable formats $suitable_formats.")
@@ -518,7 +521,7 @@ function save(table::DataTable, filename::String; verbose::Bool=true, digits::Ar
     header  = getheader(table)
     nr, nc  = size(table)
 
-    if format==".dat"
+    if format in (".dat", ".table")
         for (i,key) in enumerate(header)
             @printf(f, "%12s", key)
             print(f, i!=nc ? "\t" : "\n")
@@ -539,7 +542,7 @@ function save(table::DataTable, filename::String; verbose::Bool=true, digits::Ar
             end
         end
 
-        verbose && printstyled("  file $filename written\n", color=:cyan)
+        verbosity>0 && printstyled("  file $filename written\n", color=:cyan)
     end
 
     if format==".tex"
@@ -628,9 +631,10 @@ end
 
 function DataTable(filename::String, delim='\t')
     basename, format = splitext(filename)
-    format == ".dat" || error("DataTable: cannot read \"$format\". Suitable format is \".dat\".")
+    formats = (".dat", ".table")
+    format in formats || error("DataTable: cannot read \"$format\". Suitable formats are $formats")
 
-    if format==".dat"
+    if format in (".dat", ".table")
         matrix, headstr = readdlm(filename, delim, header=true, use_mmap=false)
         header = vec(strip.(headstr))
         table = DataTable(header, matrix)

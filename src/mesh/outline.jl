@@ -1,7 +1,7 @@
 
 function get_facet_normal(face::AbstractCell)
     ndim = 1 + face.shape.ndim
-    C = get_coords(face, ndim)
+    C = getcoords(face, ndim)
 
     if ndim==2
         C .+= [pi pi^1.1]
@@ -39,7 +39,7 @@ function get_outline_edges(cells::Array{<:AbstractCell,1}; angle=150)
             continue
         end
 
-        for face in get_faces(cell)
+        for face in getfaces(cell)
             hs = hash(face)
             if haskey(faces_dict, hs)
                 delete!(faces_dict, hs)
@@ -59,14 +59,14 @@ function get_outline_edges(cells::Array{<:AbstractCell,1}; angle=150)
     # Get edges with non-coplanar adjacent faces
     for face in faces
         n1 = normals[face]
-        for edge in get_edges(face)
+        for edge in getedges(face)
             hs = hash(edge)
             edge0 = get(edge_dict, hs, nothing)
             if edge0===nothing
                 edge_dict[hs] = edge
             else
                 delete!(edge_dict, hs)
-                n2 = normals[edge0.oelem]
+                n2 = normals[edge0.owner]
                 α = 180 - acos( abs(clamp(dot(n1,n2),-1,1)) )*180/pi
                 α = round(α, digits=2)
                 α<=angle && push!(outline, edge)

@@ -13,7 +13,7 @@ abstract type ComposedLogger<:AbstractLogger end
 
 mutable struct NodeLogger<:SingleLogger
     filename ::String
-    filter   ::Union{Symbol,String,Expr}
+    filter   ::Union{AbstractArray,Symbol,String,Expr}
     table    ::DataTable
     node     ::Node
 
@@ -24,6 +24,22 @@ end
 
 function setup_logger!(domain, filter, logger::NodeLogger)
     logger.filter = filter
+
+    if filter isa AbstractArray
+        X = Vec3(filter)
+        x, y, z = X
+        nodes = domain.nodes[:(x==$x && y==$y && z==$z)]
+        n = length(nodes)
+
+        if n==0
+            logger.node = nearest(domain.nodes, X)
+            notify("setup_logger: No node found at $(logger.filter). Picking the nearest at $(logger.node.coord)")
+        else
+            logger.node = nodes[1]
+        end
+        return
+    end
+
     nodes = domain.nodes[filter]
     n = length(nodes)
     n == 0 && warn("setup_logger: No nodes found for filter expression: ", logger.filter)
@@ -42,7 +58,7 @@ function update_logger!(logger::NodeLogger, domain)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, verbose=false)
+        save(logger, filename, verbosity=false)
     end
 end
 
@@ -53,7 +69,7 @@ end
 
 mutable struct IpLogger<:SingleLogger
     filename ::String
-    filter   ::Union{Int,Symbol,String,Expr}
+    filter   ::Union{AbstractArray,Int,Symbol,String,Expr}
     table    ::DataTable
     ip       ::Ip
 
@@ -69,6 +85,22 @@ function setup_logger!(domain, filter, logger::IpLogger)
         logger.ip = domain.elems[:ips][filter]
         return
     end
+    if filter isa AbstractArray
+        X = Vec3(filter)
+        x, y, z = X
+        ips = domain.elems[:ips][:(x==$x && y==$y && z==$z)]
+        n = length(ips)
+
+        if n==0
+            logger.ip = nearest(domain.elems.ips, X)
+            X = round.(logger.ip.coord, sigdigits=5)
+            notify("setup_logger: No ip found at $(logger.filter). Picking the nearest at $X")
+        else
+            logger.ip = ips[1]
+        end
+        return
+    end
+
     ips = domain.elems[:ips][filter]
     n = length(ips)
     n == 0 && warn("setup_logger: No ips found for filter expression: $(logger.filter)")
@@ -88,7 +120,7 @@ function update_logger!(logger::IpLogger, domain)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, verbose=false)
+        save(logger, filename, verbosity=false)
     end
 end
 
@@ -124,6 +156,11 @@ mutable struct EdgeLogger<:FacetLogger
         return new(filename, :(), DataTable())
     end
 end
+
+FacesSumLogger = FaceLogger
+EdgesSumLogger = EdgeLogger
+
+export FacesSumLogger, EdgesSumLogger, NodesSumLogger
 
 
 function setup_logger!(domain, filter, logger::FaceLogger)
@@ -165,7 +202,7 @@ function update_logger!(logger::FacetLogger, domain)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, verbose=false)
+        save(logger, filename, verbosity=false)
     end
 end
 
@@ -185,6 +222,7 @@ mutable struct NodeSumLogger<:SingleLogger
     end
 end
 
+NodesSumLogger = NodeSumLogger
 
 function setup_logger!(domain, filter, logger::NodeSumLogger)
     logger.filter = filter
@@ -216,7 +254,7 @@ function update_logger!(logger::NodeSumLogger, domain)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, verbose=false)
+        save(logger, filename, verbosity=false)
     end
 end
 
@@ -256,7 +294,7 @@ function update_logger!(logger::NodeGroupLogger, domain)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, verbose=false)
+        save(logger, filename, verbosity=false)
     end
 end
 
@@ -297,7 +335,7 @@ function update_logger!(logger::IpGroupLogger, domain)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, verbose=false)
+        save(logger, filename, verbosity=false)
     end
 end
 
@@ -349,7 +387,7 @@ function update_logger!(logger::PointLogger, domain)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, verbose=false)
+        save(logger, filename, verbosity=false)
     end
 end
 
@@ -360,7 +398,7 @@ end
 
 mutable struct SegmentLogger<:ComposedLogger
     filename ::String
-    filter   ::Tuple{Array{Float64,1},Array{Float64,1}}
+    filter   ::Array{Float64,2}
     book     ::DataBook
     n        ::Int # resolution
     elems    ::Array{Element,1}
@@ -370,14 +408,15 @@ mutable struct SegmentLogger<:ComposedLogger
     # logger = [  ([1,2,3],[1,2,3]) => SegmentLogger()  ]
 
     function SegmentLogger(filename::String=""; n=20)
-        return new(filename, ([0,0,0],[0,0,0]), DataBook(), n, [], [])
+        return new(filename, [0.0 0 0; 0 0 0], DataBook(), n, [], [])
     end
 end
 
 
 function setup_logger!(domain, filter, logger::SegmentLogger)
     logger.filter = filter
-    X1, X2 = filter
+    X1 = filter[1,:]
+    X2 = filter[2,:]
     Δ = (X2-X1)/(logger.n-1)
     Xs = [ X1.+ Δ*i for i=0:logger.n-1]
 
@@ -403,7 +442,7 @@ function update_logger!(logger::SegmentLogger, domain)
     s = 0.0
     for (elem,R) in zip(logger.elems,logger.Rs)
         N = elem.shape.func(R)
-        X = get_coords(elem)'*N
+        X = getcoords(elem)'*N
         map = [ n.id for n in elem.nodes ]
         vals = [ s; X ]
         for (k,V) in data
@@ -419,7 +458,7 @@ function update_logger!(logger::SegmentLogger, domain)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, verbose=false)
+        save(logger, filename, verbosity=0)
     end
 end
 
@@ -428,11 +467,11 @@ end
 # =========================
 
 
-function save(logger::AbstractLogger, filename::String; verbose=true)
+function save(logger::AbstractLogger, filename::String; verbosity=0)
     if isdefined(logger, :table)
-        save(logger.table, filename, verbose=verbose)
+        save(logger.table, filename, verbosity=verbosity)
     else
-        save(logger.book, filename, verbose=verbose)
+        save(logger.book, filename, verbosity=verbosity)
     end
 end
 

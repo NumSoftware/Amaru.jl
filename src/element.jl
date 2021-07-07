@@ -3,10 +3,16 @@
 # Abstract Element type
 # =====================
 
+"""
+    Element
+
+An abstract type to represent a finite element.
+Concrete types are specific to a certain analysis type.
+"""
 abstract type Element<:AbstractCell
     #Element subtypes must have the following fields:
     #id    ::Int
-    #shape ::ShapeType
+    #shape ::CellShape
     #cell  ::Cell
     #nodes ::Array{Node,1}
     #ips   ::Array{Ip,1}
@@ -19,7 +25,7 @@ end
 
 # Function to create new concrete types filled with relevant information
 
-function new_element(etype::Type{<:Element}, shape::ShapeType, nodes::Array{Node,1}, tag::String, env::ModelEnv)
+function new_element(etype::Type{<:Element}, shape::CellShape, nodes::Array{Node,1}, tag::String, env::ModelEnv)
     elem = etype()
     elem.id     = 0
     elem.shape  = shape
@@ -87,7 +93,7 @@ end
 # ================================
 
 # Get the element coordinates matrix
-function get_coords(elem::Element)
+function getcoords(elem::Element)
     nnodes = length(elem.nodes)
     ndim   = elem.env.ndim
     return [ elem.nodes[i].coord[j] for i=1:nnodes, j=1:ndim]
@@ -115,14 +121,17 @@ function setquadrature!(elem::Element, n::Int=0)
     end
 
     # finding ips global coordinates
-    C     = get_coords(elem)
+    C     = getcoords(elem)
     shape = elem.shape
 
     # fix for link elements
     if shape.family==LINEJOINT_SHAPE
         bar   = elem.linked_elems[2]
-        C     = get_coords(bar)
+        C     = getcoords(bar)
         shape = bar.shape
+    end
+    if shape.family==TIPJOINT_SHAPE
+        C = reshape(elem.nodes[1].coord, (1,3))
     end
 
     # fix for joint elements
@@ -140,7 +149,7 @@ function setquadrature!(elem::Element, n::Int=0)
 end
 
 function setquadrature!(elems::Array{<:Element,1}, n::Int=0)
-    shapes = ShapeType[]
+    shapes = CellShape[]
 
     for elem in elems
         if n in keys(elem.shape.quadrature)
@@ -232,7 +241,7 @@ end
 
 
 # Get all nodes from a collection of elements
-function get_nodes(elems::Array{<:Element,1})
+function getnodes(elems::Array{<:Element,1})
     nodes = Set{Node}()
     for elem in elems
         for node in elem.nodes
@@ -263,8 +272,10 @@ function Base.getproperty(elems::Array{<:Element,1}, s::Symbol)
     s == :lines && return filter(elem -> elem.shape.family==LINE_SHAPE, elems)
     s == :embedded && return filter(elem -> elem.shape.family==LINE_SHAPE && length(elem.linked_elems)>0, elems)
     s in (:linejoints, :joints1d, :joints1D) && return filter(elem -> elem.shape.family==LINEJOINT_SHAPE, elems)
+    s == :tipjoints && return filter(elem -> elem.shape.family==TIPJOINT_SHAPE, elems)
+    s == :linked && return Element[ lnk_elem for elem in elems for lnk_elem in elem.linked_elems]
     s == :joints && return filter(elem -> elem.shape.family==JOINT_SHAPE, elems)
-    s == :nodes && return get_nodes(elems)
+    s == :nodes && return getnodes(elems)
     s == :ips   && return get_ips(elems)
     error("type Array{Element,1} has no property $s")
 end
@@ -276,9 +287,11 @@ function Base.getindex(elems::Array{<:Element,1}, s::Symbol)
     s == :solids && return filter(elem -> elem.shape.family==SOLID_SHAPE, elems)
     s == :lines && return filter(elem -> elem.shape.family==LINE_SHAPE, elems)
     s == :embedded && return filter(elem -> elem.shape.family==LINE_SHAPE && length(elem.linked_elems)>0, elems)
+    s == :linked && return Element[ lnk_elem for elem in elems for lnk_elem in elem.linked_elems]
     s in (:linejoints, :joints1d, :joints1D) && return filter(elem -> elem.shape.family==LINEJOINT_SHAPE, elems)
+    s == :tipjoints && return filter(elem -> elem.shape.family==TIPJOINT_SHAPE, elems)
     s == :joints && return filter(elem -> elem.shape.family==JOINT_SHAPE, elems)
-    s == :nodes && return get_nodes(elems)
+    s == :nodes && return getnodes(elems)
     s == :ips && return get_ips(elems)
     error("Element getindex: Invalid symbol $s")
 end
@@ -315,10 +328,10 @@ function Base.sort!(elems::Array{<:Element,1})
     length(elems)==0 && return
 
     # General sorting
-    sorted = sort(elems, by=elem->sum(get_coords(elem.nodes)))
+    sorted = sort(elems, by=elem->sum(getcoords(elem.nodes)))
 
     # Check type of elements
-    shapes = [ elem.shapetype for elem in elems ]
+    shapes = [ elem.shape for elem in elems ]
     shape  = shapes[1]
 
     if all(shapes.==shape)

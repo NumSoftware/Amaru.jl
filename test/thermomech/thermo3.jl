@@ -4,7 +4,7 @@ using Amaru
 # Mesh generation
 blocks = [Block([0 0; 1 2], nx = 4, ny = 8, tag = "solids"),]
 
-msh = Mesh(blocks, silent=true)
+msh = Mesh(blocks, verbosity=0)
 
 # Finite element analysis
 
@@ -32,7 +32,7 @@ bcs = [
 
 ]
 
-tm_solve!(dom, bcs, end_time = 500000.0, tol = 0.1, nincs = 40, verbose=false)
+tm_solve!(dom, bcs, end_time = 500000.0, tol = 0.1, nincs = 40, verbosity=0)
 # Output
 save(dom, "dom10.vtk")
 save(log1, "book3y.dat")

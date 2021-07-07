@@ -8,8 +8,8 @@ bl2 = copy(bl1)
 move!(bl2, dx=0.6)
 bls = [ bl, bl1, bl2 ]
 
-msh = Mesh(bls, silent=true)
-#msh = Mesh(bl, silent=true)
+msh = Mesh(bls, verbosity=0)
+#msh = Mesh(bl, verbosity=0)
 
 #save(msh, "msh.vtk")
 
@@ -31,5 +31,5 @@ bcs = [
        :(z==1) => FaceBC(tz=-1000),
       ]
 
-@test solve!(dom, bcs, nincs=20, verbose=false).success
+@test solve!(dom, bcs, nincs=20, verbosity=0).success
 save(dom, "dom1.vtk")

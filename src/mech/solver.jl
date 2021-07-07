@@ -8,7 +8,7 @@ function mount_K(dom::Domain,
                 )
     verbosity>1 && print("    assembling... \e[K \r")
 
-    Threads.nthreads()>1 && return mount_K_threads(dom, ndofs)
+    Threads.nthreads()>1 && return mount_K_threads(dom, ndofs, verbosity)
 
     R, C, V = Int64[], Int64[], Float64[]
 
@@ -110,7 +110,7 @@ function solve_system!(
     pmap  = nu+1:ndofs
     if nu == ndofs
         warn("solve_system!: No essential boundary conditions")
-    end
+    end 
 
     # Global stifness matrix
     if nu>0
@@ -135,12 +135,17 @@ function solve_system!(
             F2 += K21*U1
         catch err
             U1 .= NaN
+            warn("solve_system!: $err")
             return failure("solve!: $err")
         end
     end
 
-    maxU = 1e10 # maximum essential value
-    maximum(abs, U1)>maxU && warn("solve_system!: Possible syngular matrix")
+    maxU = 1e5 # maximum essential value
+    # maximum(abs, U1)>maxU && warn("solve_system!: Possible syngular matrix")
+    if maximum(abs, U1)>maxU 
+         warn("solve_system!: Possible syngular matrix")
+        #  return failure("solve!: Possible syngular matrix")
+    end
 
     # Completing vectors
     DU[1:nu]     .= U1
@@ -161,6 +166,47 @@ function update_state!(dom::Domain, ΔUt::Vect, ΔFin::Vect, t::Float64, verbosi
         failed(status) && return status
     end
     return success()
+end
+
+function update_embedded_disps!(dom::Domain)
+    for elem in dom.elems.embedded
+        Ue, nodemap, dimmap = elem_displacements(elem)
+        U = dom.node_data["U"]
+        U[nodemap, dimmap] .= Ue
+    end
+end
+
+function update_status(dom::Domain, sw::StopWatch, inc::Int, T::Float64, ΔT::Float64, verbosity::Int)
+    verbosity==0 && return
+    env = dom.env
+
+    # Print status
+    progress = @sprintf("%4.2f", T*100)
+    printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)% increment $inc dT=$(round(ΔT,sigdigits=4))\e[K\n", bold=true, color=:light_blue) # color 111
+
+    # Print monitors
+    nlines = 1
+    for mon in dom.monitors
+        str = output(mon)
+        printstyled(str, color=:light_blue)
+        verbosity==1 && (nlines+=count("\n", str))
+    end
+    verbosity==1 && print("\e[$(nlines)A")
+end
+
+function clean_status(dom::Domain, verbosity::Int)
+    verbosity!=1 && return
+    println("\e[K")
+    nlines = 1
+    for mon in dom.monitors
+        str = output(mon)
+        monlines = count("\n", str)
+        for i in 1:monlines
+            println("\e[K")
+        end
+        nlines+=count("\n", str)
+    end
+    print("\e[$(nlines)A")
 end
 
 
@@ -198,9 +244,8 @@ subjected to a set of boundary conditions `bcs`.
 
 `filekey = ""` : File key for output files
 
-`verbose = true` : If true, provides information of the analysis steps
+`verbosity = 0` : verbosity level from 0 (silent) to 2 (verbose)
 
-`silent = false` : If true, no information is printed
 """
 function solve!(
                 dom     :: Domain,
@@ -216,13 +261,11 @@ function solve!(
                 nouts   :: Int     = 0,
                 outdir  :: String  = ".",
                 filekey :: String  = "out",
-                verbose :: Bool    = false,
-                silent  :: Bool    = false,
+                verbosity = 0,
                )
     # Arguments checking
-    verbosity = 1
-    verbose && (verbosity=2)
-    silent && (verbosity=0)
+    verbosity = clamp(verbosity, 0, 2)
+
     scheme = string(scheme)
     scheme in ("FE", "ME", "BE", "Ralston") || error("solve! : invalid scheme \"$scheme\"")
 
@@ -241,12 +284,12 @@ function solve!(
     verbosity>1 && println("  model type: ", env.modeltype)
 
     save_outs = nouts>0
-    if save_outs && !autoinc
+    if save_outs #&& !autoinc
         if nouts>nincs
             nincs = nouts
             info("nincs changed to $nincs to match nouts")
         end
-        if nincs%nouts != 0
+        if nincs%nouts != 0 && !autoinc
             nincs = nincs - (nincs%nouts) + nouts
             info("nincs changed to $nincs to be a multiple of nouts")
         end
@@ -281,7 +324,7 @@ function solve!(
         update_single_loggers!(dom)
         update_composed_loggers!(dom)
         update_monitors!(dom)
-        save_outs && save(dom, "$outdir/$filekey-0.vtu", silent=silent)
+        save_outs && save(dom, "$outdir/$filekey-0.vtu", verbosity=verbosity)
     end
 
     # Get the domain current state and backup
@@ -291,7 +334,14 @@ function solve!(
     # Incremental analysis
     T  = 0.0
     ΔT = 1.0/nincs       # initial ΔT value
-    autoinc && nincs==1 && (ΔT=min(ΔT,0.01))
+    # autoinc && nincs==1 && (ΔT=min(ΔT,0.01))
+    # @show ΔT
+    # @show autoinc
+    autoinc && (ΔT=min(ΔT,0.01))
+    # @show ΔT
+
+    # autoinc && error()
+
     ΔTbk = 0.0
 
     ΔTcheck = save_outs ? 1/nouts : 1.0
@@ -326,30 +376,25 @@ function solve!(
         # Update counters
         inc += 1
         env.cinc += 1
-        # env.T = T
 
         if inc > maxincs
             alert("solver maxincs = $maxincs reached (try maxincs=0)\n")
-            return false
+            return failure("$maxincs reached")
         end
 
-        # Print status
-        progress = @sprintf("%4.2f", T*100)
-        verbosity>0 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)% increment $inc dT=$(round(ΔT,sigdigits=4))\e[K\n", bold=true, color=:blue) # color 111
-        # verbosity>1 && println()
+        # # Print status
+        # progress = @sprintf("%4.2f", T*100)
+        # verbosity>0 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)% increment $inc dT=$(round(ΔT,sigdigits=4))\e[K\n", bold=true, color=:blue) # color 111
+        # # verbosity>1 && println()
 
-        # Print monitors
-        # @s output.(dom.monitors)
-        monouts = align(output.(dom.monitors), "  ")
-        for str in monouts
-            printstyled("    $str\e[K\n", color=:blue)
-        end
-
-        # for mon in dom.monitors
-        #     printstyled("    ", output(mon), "\e[K\n", color=:blue)
+        # # Print monitors
+        # monouts = align(output.(dom.monitors), "  ")
+        # for str in monouts
+        #     printstyled("    $str\e[K\n", color=:blue)
         # end
-        verbosity==1 && length(dom.monitors)>0 && print("\e[$(length(dom.monitors))A")
-        verbosity==1 && print("\e[A")
+
+        # verbosity==1 && length(dom.monitors)>0 && print("\e[$(length(dom.monitors))A")
+        # verbosity==1 && print("\e[A")
 
         ΔUex, ΔFex = ΔT*Uex, ΔT*Fex     # increment of external vectors
 
@@ -370,6 +415,7 @@ function solve!(
         converged = false
         errored   = false
         for it=1:maxits
+            update_status(dom, sw, inc, T, ΔT, verbosity)
             nits += 1
             it>1 && (ΔUi.=0.0) # essential values are applied only at first iteration
             lastres = residue # residue from last iteration
@@ -390,6 +436,8 @@ function solve!(
 
             # Corrector step for ME and BE
             if residue > tol && scheme in ("ME", "BE")
+                update_status(dom, sw, inc, T, ΔT, verbosity)
+
                 K2 = mount_K(dom, ndofs, verbosity)
                 if scheme=="ME"
                     K = 0.5*(K + K2)
@@ -408,6 +456,8 @@ function solve!(
             end
 
             if scheme=="Ralston"
+                update_status(dom, sw, inc, T, ΔT, verbosity)
+
                 # Predictor step
                 K = mount_K(dom, ndofs, verbosity)
                 ΔUit = 2/3*ΔUi
@@ -489,7 +539,10 @@ function solve!(
                 iout = env.cout
                 update_output_data!(dom)
                 update_composed_loggers!(dom)
-                save(dom, "$outdir/$filekey-$iout.vtu", silent=silent)
+                update_embedded_disps!(dom)
+
+                rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
+                save(dom, "$outdir/$filekey-$iout.vtu", verbosity=verbosity)
                 Tcheck += ΔTcheck # find the next output time
             end
 
@@ -508,6 +561,7 @@ function solve!(
                     if T+ΔTtr>Tcheck-Ttol
                         ΔTbk = ΔT
                         ΔT = Tcheck-T
+                        @assert ΔT>=0.0
                     else
                         ΔT = ΔTtr
                         ΔTbk = 0.0
@@ -528,11 +582,13 @@ function solve!(
                 ΔT = round(ΔT, sigdigits=3)  # round to 3 significant digits
                 if ΔT < Ttol
                     alert("solve!: solver did not converge")
-                    return false
+                    clean_status(dom, verbosity)
+                    return failure("solver did not converge")
                 end
             else
+                clean_status(dom, verbosity)
                 alert("solve!: solver did not converge")
-                return false
+                return failure("solver did not converge")
             end
         end
 
@@ -543,7 +599,9 @@ function solve!(
         update_composed_loggers!(dom)
     end
 
-    # time spent
+    clean_status(dom, verbosity)
+    # update_status(dom, sw, inc, T, ΔT, verbosity)
+
     progress = @sprintf("%4.2f", T*100)
     verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)%\e[K\n", bold=true, color=:blue) # color 111
     if verbosity>0 

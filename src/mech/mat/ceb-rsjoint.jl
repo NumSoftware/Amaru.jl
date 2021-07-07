@@ -1,15 +1,15 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export CEBLineJoint
+export CebRSJoint
 
-mutable struct CEBLineJointIpState<:IpState
+mutable struct CebRSJointIpState<:IpState
     env::ModelEnv
     σ  ::Array{Float64,1}
     u  ::Array{Float64,1}
     τy ::Float64      # max stress
     sy ::Float64      # accumulated relative displacement
     elastic::Bool
-    function CEBLineJointIpState(env::ModelEnv=ModelEnv())
+    function CebRSJointIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         ndim = env.ndim
         this.σ = zeros(ndim)
@@ -21,7 +21,7 @@ mutable struct CEBLineJointIpState<:IpState
     end
 end
 
-mutable struct CEBLineJoint<:Material
+mutable struct CebRSJoint<:Material
     τmax:: Float64
     τres:: Float64
     s1  :: Float64
@@ -33,11 +33,11 @@ mutable struct CEBLineJoint<:Material
     kn  :: Float64
     p   :: Float64
 
-    function CEBLineJoint(prms::Dict{Symbol,Float64})
-        return  CEBLineJoint(;prms...)
+    function CebRSJoint(prms::Dict{Symbol,Float64})
+        return  CebRSJoint(;prms...)
     end
 
-    function CEBLineJoint(;TauM=NaN, TauR=NaN, s1=NaN, s2=NaN, s3=NaN, alpha=NaN, beta=NaN, kn=NaN, ks=NaN, p=NaN, A=NaN, dm=NaN)
+    function CebRSJoint(;TauM=NaN, TauR=NaN, s1=NaN, s2=NaN, s3=NaN, alpha=NaN, beta=NaN, kn=NaN, ks=NaN, p=NaN, A=NaN, dm=NaN)
         
         @check s1>0
         @check s2>s1
@@ -77,15 +77,15 @@ mutable struct CEBLineJoint<:Material
 end
 
 # Returns the element type that works with this material
-matching_elem_type(::CEBLineJoint) = MechLineJoint
+matching_elem_type(::CebRSJoint) = MechRodSolidJoint
 
 # Creates a new instance of Ip data
-ip_state_type(mat::CEBLineJoint) = CEBLineJointIpState
+ip_state_type(mat::CebRSJoint) = CebRSJointIpState
 
-CEBJoint1D = CEBLineJoint #! deprecated
+CEBJoint1D = CebRSJoint #! deprecated
 export CEBJoint1D
 
-function Tau(mat::CEBLineJoint, sy::Float64)
+function Tau(mat::CebRSJoint, sy::Float64)
     if sy<mat.s1
         return mat.τmax*(sy/mat.s1)^mat.α
     elseif sy<mat.s2
@@ -98,7 +98,7 @@ function Tau(mat::CEBLineJoint, sy::Float64)
 end
 
 
-function deriv(mat::CEBLineJoint, ipd::CEBLineJointIpState, sy::Float64)
+function deriv(mat::CebRSJoint, ipd::CebRSJointIpState, sy::Float64)
     if sy==0.0
         s1_factor = 0.01
         sy = s1_factor*mat.s1   # to avoid undefined derivative
@@ -118,7 +118,7 @@ function deriv(mat::CEBLineJoint, ipd::CEBLineJointIpState, sy::Float64)
 end
 
 
-function calcD(mat::CEBLineJoint, ipd::CEBLineJointIpState)
+function calcD(mat::CebRSJoint, ipd::CebRSJointIpState)
     ndim = ipd.env.ndim
     ks = mat.ks
 
@@ -141,12 +141,12 @@ function calcD(mat::CEBLineJoint, ipd::CEBLineJointIpState)
 end
 
 
-function yield_func(mat::CEBLineJoint, ipd::CEBLineJointIpState, τ::Float64)
+function yield_func(mat::CebRSJoint, ipd::CebRSJointIpState, τ::Float64)
     return abs(τ) - ipd.τy
 end
 
 
-function stress_update_n(mat::CEBLineJoint, ipd::CEBLineJointIpState, Δu::Vect)
+function stress_update_n(mat::CebRSJoint, ipd::CebRSJointIpState, Δu::Vect)
     ks = mat.ks
     kn = mat.kn
     Δs = Δu[1]      # relative displacement
@@ -239,7 +239,7 @@ function stress_update_n(mat::CEBLineJoint, ipd::CEBLineJointIpState, Δu::Vect)
 end
 
 
-function stress_update(mat::CEBLineJoint, ipd::CEBLineJointIpState, Δu::Vect)
+function stress_update(mat::CebRSJoint, ipd::CebRSJointIpState, Δu::Vect)
     ks = mat.ks
     kn = mat.kn
     Δs = Δu[1]      # relative displacement
@@ -277,7 +277,7 @@ function stress_update(mat::CEBLineJoint, ipd::CEBLineJointIpState, Δu::Vect)
     return Δσ, success()
 end
 
-function ip_state_vals(mat::CEBLineJoint, ipd::CEBLineJointIpState)
+function ip_state_vals(mat::CebRSJoint, ipd::CebRSJointIpState)
     return OrderedDict(
       :ur   => ipd.u[1] ,
       :tau  => ipd.σ[1] ,

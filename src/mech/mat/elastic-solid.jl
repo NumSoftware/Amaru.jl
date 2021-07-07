@@ -2,16 +2,37 @@
 
 export ElasticSolid
 
+"""
+    ElasticSolid
 
+A type for linear elastic materials.
+
+# Fields
+
+$(TYPEDFIELDS)
+"""
 mutable struct ElasticSolid<:Material
+    "Young Modulus"
     E ::Float64
+    "Poisson ratio"
     nu::Float64
+    "Density"
     ρ::Float64
 
     function ElasticSolid(prms::Dict{Symbol,Float64})
         return  ElasticSolid(;prms...)
     end
 
+    @doc """
+        $(SIGNATURES)
+
+    Creates an `ElasticSolid` material type
+
+    # Arguments
+    - `E`: Young modulus
+    - `nu`: Poisson ratio
+    - `rho`: Density
+    """
     function ElasticSolid(;E=1.0, nu=0.0, rho=0.0)
         E<=0.0       && error("Invalid value for E: $E")
         !(0<=nu<0.5) && error("Invalid value for nu: $nu")
@@ -21,11 +42,23 @@ mutable struct ElasticSolid<:Material
     end
 end
 
+"""
+    ElasticSolidIpState
 
+A type for the state data of a `ElasticSolid` type.
+
+# Fields
+
+$(TYPEDFIELDS)
+"""
 mutable struct ElasticSolidIpState<:IpState
+    "Environment information"
     env::ModelEnv
+    "Stress tensor"
     σ::Array{Float64,1}
+    "Strain tensor"
     ε::Array{Float64,1}
+
     function ElasticSolidIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(6)

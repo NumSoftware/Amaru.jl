@@ -1,11 +1,38 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 """
-`extrude(block, [axis=[0,0,1],] [length=1.0,] [n=1])`
+    $(TYPEDSIGNATURES)
 
-Extrudes a 2D `block` generating a 3D block based on a direction `axis`, a lenght `length` and a number `n` of divisions.
+Gets a 3D `Block` by extruding a 2D `block` in the direction given by `axis` and a distance `length`.
+It also sets the number of divisions `n` in the extruded direction.
+
+# Examples
+
+```julia
+julia> block2d = Block([ 0 0; 1 1 ], nx=3, ny=4, cellshape=QUAD8);
+julia> block3d = extrude(block2d, axis=[0,0,1], length=1, n=5)
+Block
+  nodes: 8-element Vector{Node}:
+    1: Node  id=1
+    2: Node  id=2
+    3: Node  id=3
+    4: Node  id=4
+    5: Node  id=5
+    6: Node  id=6
+    7: Node  id=7
+    8: Node  id=8
+  shape: CellShape  name="HEX8"
+  cellshape: CellShape  name="HEX20"
+  nx: 3
+  ny: 4
+  nz: 5
+  rx: 1.0
+  ry: 1.0
+  rz: 1.0
+  tag: ""
+```
 """
-function extrude(block::Block2D; axis=[0,0,1], length::Number=1.0, n::Int=1)::Block3D
+function extrude(block::Block; axis=[0,0,1], length::Number=1.0, n::Int=1)::Block
 
     if axis==:x
         axis = Vec3(1,0,0)
@@ -15,80 +42,45 @@ function extrude(block::Block2D; axis=[0,0,1], length::Number=1.0, n::Int=1)::Bl
         axis = Vec3(0,0,1)
     end
 
-    V = axis/norm(axis)
-    δ = length/n
-    coords = get_coords(block.nodes)
+    axis = Vec3(normalize(axis))
+    Δl = length
+    l = 0.0
 
-    # check numbering order
-    v1 = vec(coords[1,:])
-    v2 = vec(coords[2,:])
-    v3 = vec(coords[3,:])
-    normal_order = dot(cross(v2-v1, v3-v2), axis) > 0.0
-
-    # generate extra points
-    npoints = size(coords,1)
-    topcoords = coords .+ V'*length
-
-    local newcoords::Array{Float64,2}
-
-    if npoints==4
-        if normal_order
-            newcoords = vcat(coords, topcoords)
-        else
-            newcoords = vcat(topcoords, coords)
-        end
+    if block.shape==QUAD4
+        newshape = HEX8
+        ls = [l, l+Δl]
+        nidx = [1:4;1:4]
+        lidx = [1,1,1,1,2,2,2,2]
+    elseif block.shape==QUAD8
+        newshape = HEX20
+        ls = [l, l+Δl/2, l+Δl]
+        nidx = [1:4;1:4;5:8;5:8;1:4]
+        lidx = [1,1,1,1,3,3,3,3,1,1,1,1,3,3,3,3,2,2,2,2]
+    else
+        error("extrude: Block shape $(block.shape.name) is not supported")
     end
 
-    if npoints==8
-        midcoords = coords[1:4,:] .+ V'*length*0.5
-        if normal_order
-            newcoords = vcat(coords[1:4,:], topcoords[1:4,:], coords[5:8,:], topcoords[5:8,:], midcoords)
-        else
-            newcoords = vcat(coords[5:8,:], topcoords[5:8,:], coords[1:4,:], topcoords[1:4,:], midcoords)
-        end
+    nodes = Node[]
+    for (node,li) in zip(block.nodes[nidx], ls[lidx])
+        coord = node.coord + li*axis
+        push!(nodes, Node(coord))
     end
 
-    #shape = HEX8
-    #if block.shape==TRI3
-        #shape = WED6
-    #elseif block.shape==TRI6
-        #shape = WED15
-    #elseif block.shape==QUAD8
-        #shape = HEX20
-    #end
-
-    shape = block.cellshape==QUAD8 ? HEX20 : HEX8
-
-    return Block3D( newcoords, nx=block.nx, ny=block.ny, nz=n, cellshape=shape)
+    return Block(getcoords(nodes), nx=block.nx, ny=block.ny, nz=n, cellshape=newshape)
 
 end
 
-function extrude(blocks::Array; axis=[0,0,1], length=1.0::Number, n=1::Int)::Array{Block3D,1}
-    if axis==:x
-        axis = Vec3(1,0,0)
-    elseif axis==:y
-        axis = Vec3(0,1,0)
-    elseif axis==:z
-        axis = Vec3(0,0,1)
-    end
-
-    blocks3D = []
-
-    for bl in blocks
-        bl3D = extrude(bl, axis=axis, length=length, n=n)
-        push!(blocks3D, bl3D)
-    end
-
-    return blocks3D
+function extrude(blocks::Array; axis=[0,0,1], length=1.0::Number, n=1::Int)
+    return extrude.(blocks, axis=axis, length=length, n=n)
 end
 
 
 # Generates a new mesh obtained by extrusion of a 2D mesh
 """
-    extrude(mesh, [axis=[0,0,1],] [length=1.0,] [n=1,] [verbose=true,] [genedges=false])
+    extrude(mesh, [axis=[0,0,1],] [length=1.0,] [n=1,] [verbosity=1,] [genedges=false])
 
 Generates a 3D mesh by extruding a planar `mesh` using 
-a direction `axis`, a `lenght` and a number of divisions `n`.
+a direction `axis`, a `length` and a number of divisions `n`.
 """
 function extrude(mesh::Mesh; axis=[0,0,1], length::Number=1.0, n::Int=1, verbose::Bool=true)
     if axis==:x

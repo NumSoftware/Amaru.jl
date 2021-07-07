@@ -2,7 +2,7 @@
 
 mutable struct SeepJoint1D<:Hydromechanical
     id    ::Int
-    shape ::ShapeType
+    shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
@@ -32,8 +32,8 @@ function elem_init(elem::SeepJoint1D)
 
     hook = elem.linked_elems[1]
     bar  = elem.linked_elems[2]
-    Ch = get_coords(hook)
-    Ct = get_coords(bar)
+    Ch = getcoords(hook)
+    Ct = getcoords(bar)
     elem.cache_B = []
     elem.cache_detJ = []
     for ip in elem.ips

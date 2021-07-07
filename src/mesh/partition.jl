@@ -124,7 +124,7 @@ function find_elem(X::Array{Float64,1}, cells::Array{<:AbstractCell,1}, cellpart
         # Search cell in bin
         bin = cellpartition.partition[ix, iy, iz]
         for cell in bin
-            coords =get_coords(cell)
+            coords =getcoords(cell)
             if is_inside(cell.shape, coords, X, tol) && !(cell in exclude)
                 return cell
             end

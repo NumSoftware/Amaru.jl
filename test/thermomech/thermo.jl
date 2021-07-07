@@ -7,7 +7,7 @@ blocks = [
     Block( [0 0; 1 2], nx=1, ny=4, tag="solids"),
 ]
 
-msh = Mesh(blocks, silent=true)
+msh = Mesh(blocks, verbosity=0)
 
 # Finite element analysis
 
@@ -33,7 +33,7 @@ bcs = [
        :(y==2) => NodeBC(ut=20.0),
 ]
 
-tm_solve!(dom, bcs, end_time=10000.0, tol=0.1, nincs=5, verbose=false)
+tm_solve!(dom, bcs, end_time=10000.0, tol=0.1, nincs=5, verbosity=0)
 
 # Output
 

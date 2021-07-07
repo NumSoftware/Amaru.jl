@@ -4,7 +4,7 @@ export PlateRM
 
 mutable struct PlateRM<:Mechanical
     id    ::Int
-    shape ::ShapeType
+    shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
@@ -77,7 +77,7 @@ function elem_stiffness(elem::PlateRM)
 
     nnodes = length(elem.nodes)
     th     = 0.15 # COLOCAR AUTOMÁTICO
-    C  = get_coords(elem)
+    C  = getcoords(elem)
 
     a  = abs(C[2,1]-C[1,1])  # element length in X direction
     b  = abs(C[2,1]-C[1,1]) # ALTERAR element length in Y direction

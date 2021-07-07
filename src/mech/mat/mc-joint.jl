@@ -152,6 +152,7 @@ function calc_σmax(mat::MCJoint, ipd::MCJointIpState, upa::Float64)
         end
         σmax = z*mat.σmax0
     end
+
     return σmax
 end
 
@@ -184,6 +185,11 @@ function σmax_deriv(mat::MCJoint, ipd::MCJointIpState, upa::Float64)
         end
         dσmax = dz*mat.σmax0
     end
+
+    # if dσmax==0.0
+    #     dσmax = mat.E*mat.ζ/ipd.h*1e-2
+    # end
+
     return dσmax
 end
 
@@ -314,7 +320,10 @@ function mountD(mat::MCJoint, ipd::MCJointIpState)
     if ipd.Δλ == 0.0  # Elastic 
         return De
     elseif σmax == 0.0 
-        Dep  = De*1e-10 
+        # Dep  = De*1e-10 
+        # Dep  = De*1e-5
+        # Dep  = De*1e-4
+        Dep  = De*1e-3
         return Dep
     else
         v    = yield_deriv(mat, ipd)

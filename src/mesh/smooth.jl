@@ -1,24 +1,33 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-# This file contains the code for smoothing meshes
+function smooth!(
+    mesh::Mesh; 
+    verbosity = 0,
+    scheme  = "laplacian",
+    tol     = 1e-3,
+    maxit   = 10,
+    binsize = 0.05,
+    filekey = "",
+    extraargs...
+)
+    verbosity = clamp(verbosity, 0, 2)
 
-# Returns a matrix with the cell coordinates
-#function cellcoords(c::Cell)
-    #ndim = c.shape.ndim
-    #C = Array{Float64}(undef, length(c.nodes), ndim)
-    #for (i,node) in enumerate(c.nodes)
-        #C[i,1] = node.x
-        #C[i,2] = node.y
-        #if ndim>2
-            #C[i,3] = point.z
-        #end
-    #end
-    #return C
-#end
+    if scheme=="laplacian"
+        laplacian_smooth!(mesh; verbosity=verbosity, tol=tol, maxit=maxit, binsize=binsize, filekey=filekey, extraargs...)
+    elseif scheme=="fitting"
+        fitting_smooth!(mesh; smart=false, verbosity=verbosity, tol=tol, maxit=maxit, binsize=binsize, filekey=filekey, extraargs...)
+    elseif scheme=="smartfitting"
+        fitting_smooth!(mesh; smart=true, extended=true, verbosity=verbosity, tol=tol, maxit=maxit, binsize=binsize, filekey=filekey, extraargs...)
+    end
+
+    return mesh
+end
+
+
 
 # Basic coordinates are defined considering an area/volume equal to 1.0
 # TODO: change to reference_coords
-function basic_coords(shape::ShapeType) #check
+function basic_coords(shape::CellShape) #check
     if shape == TRI3
         #return √2*[0.0 0; 1 0 ; 0 1]
         a = 2.0/3.0^0.25
@@ -192,7 +201,7 @@ end
 function matrixK(cell::Cell, ndim::Int64, E::Float64, nu::Float64)
     nnodes = length(cell.nodes)
 
-    C = get_coords(cell.nodes, ndim)
+    C = getcoords(cell.nodes, ndim)
     K = zeros(nnodes*ndim, nnodes*ndim)
     B = zeros(6, nnodes*ndim)
 
@@ -229,7 +238,7 @@ end
 function matrixK2(cell::Cell, ndim::Int64, E::Float64, nu::Float64)
     nnodes = length(cell.nodes)
 
-    C = get_coords(cell.nodes, ndim)
+    C = getcoords(cell.nodes, ndim)
     K = zeros(nnodes*ndim, nnodes*ndim)
     B = zeros(6, nnodes*ndim)
     DB = Array{Float64}(undef, 6, nnodes*ndim)
@@ -339,7 +348,7 @@ function faces_normal(faces::Array{Cell,1}, facetol)
 
     for f in faces
 
-        C =get_coords(f, ndim)
+        C =getcoords(f, ndim)
 
         # move the coordinates to avoid singular case
         # when the regression line/planes crosses the origin
@@ -536,7 +545,7 @@ function force_bc(mesh::Mesh, E::Float64, nu::Float64, α::Float64, extended::Bo
     for c in mesh.elems
         # get coordinates matrix
         np = length(c.nodes)
-        C0 = get_coords(c.nodes, ndim)
+        C0 = getcoords(c.nodes, ndim)
         V  = abs(cell_extent(c)) # area or volume
 
         #extended || (V = α*V)
@@ -597,7 +606,7 @@ function find_disps(mesh::Mesh, patches, extended, α, qmin, in_border)
     for c in mesh.elems
         # get coordinates matrix
         np = length(c.nodes)
-        C0 = get_coords(c.nodes, ndim)
+        C0 = getcoords(c.nodes, ndim)
         v  = abs(cell_extent(c)) # area or volume
         W[c.id] = v
         #W[c.id] = 1.0
@@ -656,7 +665,7 @@ function find_weighted_pos(mesh::Mesh, patches, extended, α, qmin, in_border)
     for c in mesh.elems
         # get coordinates matrix
         np = length(c.nodes)
-        C0 = get_coords(c.nodes, ndim)
+        C0 = getcoords(c.nodes, ndim)
         v  = abs(cell_extent(c)) # area or volume
         W[c.id] = v
 	    QQ[c.id] = c.quality
@@ -717,16 +726,16 @@ end
 
 
 export fast_smooth2!
-function fast_smooth2!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Float64=0.97,
+function fast_smooth2!(mesh::Mesh; verbosity=0, alpha::Float64=1.0, target::Float64=0.97,
                  fixed::Bool=false, maxit::Int64=30, mintol::Float64=1e-3, tol::Float64=1e-4,
-                 facetol=1e-4, savesteps::Bool=false, savedata::Bool=false, bin::Float64=0.05,
+                 facetol=1e-4, savesteps::Bool=false, savedata::Bool=false, binsize::Float64=0.05,
                  filekey::String="smooth", conds=nothing, extended=false, smart=false)
 
     # tol   : tolerance in change of mesh quality for succesive iterations
     # mintol: tolerance in change of worst cell quality in a mesh for succesive iterations
 
-    #verbose && printstyled("Mesh smoothing:\n", bold=true, color=:cyan)
-    #verbose && printstyled("Mesh fast-$(smart ? "smart-" : "")cells-fitting smoothing:\n", bold=true, color=:cyan)
+    #verbosity>0 && printstyled("Mesh smoothing:\n", bold=true, color=:cyan)
+    #verbosity>0 && printstyled("Mesh fast-$(smart ? "smart-" : "")cells-fitting smoothing:\n", bold=true, color=:cyan)
 
     # check for not allowed cells
     for c in mesh.elems
@@ -773,16 +782,16 @@ function fast_smooth2!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Flo
     hists = DataTable()
     push!(stats, OrderedDict(:qavg=>q, :qmin=>qmin, :qmax=>qmax, :dev=>dev))
 
-    hist  = fit(Histogram, Q, 0.0:bin:1.0, closed=:right).weights
-    push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:bin:1-bin,hist)))
+    hist  = fit(Histogram, Q, 0.0:binsize:1.0, closed=:right).weights
+    push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:binsize:1-binsize,hist)))
 
-    verbose && @printf("%4s  %5s  %5s  %5s  %5s  %5s  %5s  %7s  %9s  %10s\n", "it", "qmin", "q1", "q2", "q3", "qmax", "qavg", "sdev", "time", "histogram (0:$bin:1]")
-    verbose && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", 0, qmin, q1, q2, q3, qmax, q, dev, "-")
-    verbose && println("  ", str_histogram(hist))
+    verbosity>0 && @printf("%4s  %5s  %5s  %5s  %5s  %5s  %5s  %7s  %9s  %10s\n", "it", "qmin", "q1", "q2", "q3", "qmax", "qavg", "sdev", "time", "histogram (0:$binsize:1]")
+    verbosity>0 && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", 0, qmin, q1, q2, q3, qmax, q, dev, "-")
+    verbosity>0 && println("  ", str_histogram(hist))
 
     #nits = 0
     mesh.elem_data["quality"] = Q
-    savesteps && save(mesh, "$filekey-0.vtk", verbose=false)
+    savesteps && save(mesh, "$filekey-0.vtk", verbosity=0)
 
 
     
@@ -794,7 +803,7 @@ function fast_smooth2!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Flo
         XX = find_weighted_pos(mesh, patches, extended, alpha, qmin, in_border)
 
         # Save last step file with current forces
-        #savesteps && save(mesh, "$filekey-$(i-1).vtk", verbose=false)
+        #savesteps && save(mesh, "$filekey-$(i-1).vtk", verbosity=0)
 
         # Update mesh
         for node in mesh.nodes
@@ -862,7 +871,7 @@ function fast_smooth2!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Flo
         new_qmin <= 0.0 && error("smooth!: got negative quality value (qmin=$new_qmin).")
 
         mesh.elem_data["quality"] = Q
-        savesteps && save(mesh, "$filekey-$i.vtk", verbose=false)
+        savesteps && save(mesh, "$filekey-$i.vtk", verbosity=0)
 
         Δq    = abs(q - new_q)
         Δqmin = new_qmin - qmin
@@ -875,11 +884,11 @@ function fast_smooth2!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Flo
 
         push!(stats, OrderedDict(:qavg=>q, :qmin=>qmin, :qmax=>qmax, :dev=>dev))
 
-        hist = fit(Histogram, Q, 0.0:bin:1.0, closed=:right).weights
-        push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:bin:1-bin,hist)))
+        hist = fit(Histogram, Q, 0.0:binsize:1.0, closed=:right).weights
+        push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:binsize:1-binsize,hist)))
 
-        verbose && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", i, qmin, q1, q2, q3, qmax, q, dev, see(sw, format=:ms))
-        verbose && println("  ", str_histogram(hist))
+        verbosity>0 && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", i, qmin, q1, q2, q3, qmax, q, dev, see(sw, format=:ms))
+        verbosity>0 && println("  ", str_histogram(hist))
 
         if Δq<tol && Δqmin<mintol && i>1
             break
@@ -889,25 +898,25 @@ function fast_smooth2!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Flo
     end
     # Set forces to zero for the last step
     #mesh.node_data["forces"] = zeros(length(mesh.nodes), 3)
-    #savesteps && save(mesh, "$filekey-$nits.vtk", verbose=false)
+    #savesteps && save(mesh, "$filekey-$nits.vtk", verbosity=0)
 
     savedata && save(stats, "$filekey-stats.dat")
     savedata && save(hists, "$filekey-hists.dat")
 
-    return nothing
+    return mesh
 end
 
 
-function fast_smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Float64=0.97,
+function fast_smooth!(mesh::Mesh; verbosity=0, alpha::Float64=1.0, target::Float64=0.97,
                  fixed::Bool=false, maxit::Int64=30, mintol::Float64=1e-3, tol::Float64=1e-4,
-                 facetol=1e-4, savesteps::Bool=false, savedata::Bool=false, bin::Float64=0.05,
+                 facetol=1e-4, savesteps::Bool=false, savedata::Bool=false, binsize::Float64=0.05,
                  filekey::String="smooth", conds=nothing, extended=false, smart=false)
 
     # tol   : tolerance in change of mesh quality for succesive iterations
     # mintol: tolerance in change of worst cell quality in a mesh for succesive iterations
 
-    #verbose && printstyled("Mesh smoothing:\n", bold=true, color=:cyan)
-    verbose && printstyled("Mesh fast-$(smart ? "smart-" : "")cells-fitting smoothing:\n", bold=true, color=:cyan)
+    #verbosity>0 && printstyled("Mesh smoothing:\n", bold=true, color=:cyan)
+    verbosity>0 && printstyled("Mesh fast-$(smart ? "smart-" : "")cells-fitting smoothing:\n", bold=true, color=:cyan)
 
     # check for not allowed cells
     for c in mesh.elems
@@ -954,16 +963,16 @@ function fast_smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Floa
     hists = DataTable()
     push!(stats, OrderedDict(:qavg=>q, :qmin=>qmin, :qmax=>qmax, :dev=>dev))
 
-    hist  = fit(Histogram, Q, 0.0:bin:1.0, closed=:right).weights
-    push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:bin:1-bin,hist)))
+    hist  = fit(Histogram, Q, 0.0:binsize:1.0, closed=:right).weights
+    push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:binsize:1-binsize,hist)))
 
-    verbose && @printf("%4s  %5s  %5s  %5s  %5s  %5s  %5s  %7s  %9s  %10s\n", "it", "qmin", "q1", "q2", "q3", "qmax", "qavg", "sdev", "time", "histogram (0:$bin:1]")
-    verbose && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", 0, qmin, q1, q2, q3, qmax, q, dev, "-")
-    verbose && println("  ", str_histogram(hist))
+    verbosity>0 && @printf("%4s  %5s  %5s  %5s  %5s  %5s  %5s  %7s  %9s  %10s\n", "it", "qmin", "q1", "q2", "q3", "qmax", "qavg", "sdev", "time", "histogram (0:$binsize:1]")
+    verbosity>0 && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", 0, qmin, q1, q2, q3, qmax, q, dev, "-")
+    verbosity>0 && println("  ", str_histogram(hist))
 
     #nits = 0
     mesh.elem_data["quality"] = Q
-    savesteps && save(mesh, "$filekey-0.vtk", verbose=false)
+    savesteps && save(mesh, "$filekey-0.vtk", verbosity=0)
 
     for i=1:maxit
 
@@ -973,7 +982,7 @@ function fast_smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Floa
         D = find_disps(mesh, patches, extended, alpha, qmin, in_border)
 
         # Save last step file with current forces
-        #savesteps && save(mesh, "$filekey-$(i-1).vtk", verbose=false)
+        #savesteps && save(mesh, "$filekey-$(i-1).vtk", verbosity=0)
 
         # Update mesh
         for node in mesh.nodes
@@ -1041,7 +1050,7 @@ function fast_smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Floa
         new_qmin <= 0.0 && error("smooth!: got negative quality value (qmin=$new_qmin).")
 
         mesh.elem_data["quality"] = Q
-        savesteps && save(mesh, "$filekey-$i.vtk", verbose=false)
+        savesteps && save(mesh, "$filekey-$i.vtk", verbosity=0)
 
         Δq    = abs(q - new_q)
         Δqmin = new_qmin - qmin
@@ -1054,11 +1063,11 @@ function fast_smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Floa
 
         push!(stats, OrderedDict(:qavg=>q, :qmin=>qmin, :qmax=>qmax, :dev=>dev))
 
-        hist = fit(Histogram, Q, 0.0:bin:1.0, closed=:right).weights
-        push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:bin:1-bin,hist)))
+        hist = fit(Histogram, Q, 0.0:binsize:1.0, closed=:right).weights
+        push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:binsize:1-binsize,hist)))
 
-        verbose && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", i, qmin, q1, q2, q3, qmax, q, dev, see(sw, format=:ms))
-        verbose && println("  ", str_histogram(hist))
+        verbosity>0 && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", i, qmin, q1, q2, q3, qmax, q, dev, see(sw, format=:ms))
+        verbosity>0 && println("  ", str_histogram(hist))
 
         if Δq<tol && Δqmin<mintol && i>1
             break
@@ -1068,25 +1077,25 @@ function fast_smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Floa
     end
     # Set forces to zero for the last step
     #mesh.node_data["forces"] = zeros(length(mesh.nodes), 3)
-    #savesteps && save(mesh, "$filekey-$nits.vtk", verbose=false)
+    #savesteps && save(mesh, "$filekey-$nits.vtk", verbosity=0)
 
     savedata && save(stats, "$filekey-stats.dat")
     savedata && save(hists, "$filekey-hists.dat")
 
-    return nothing
+    return mesh
 end
 
 
 
-function smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Float64=0.97,
+function fitting_smooth!(mesh::Mesh; verbosity=0, alpha::Float64=1.0, target::Float64=0.97,
                  fixed::Bool=false, maxit::Int64=10, mintol::Float64=2e-2, tol::Float64=1e-3,
-                 facetol=1e-4, savesteps::Bool=false, savedata::Bool=false, bin::Float64=0.05,
+                 facetol=1e-4, savesteps::Bool=false, savedata::Bool=false, binsize::Float64=0.05,
                  filekey::String="smooth", conds=nothing, extended=false, smart=false)
 
     # tol   : tolerance in change of mesh quality for succesive iterations
     # mintol: tolerance in change of worst cell quality in a mesh for succesive iterations
 
-    verbose && printstyled("Mesh $(smart ? "smart-" : "")cells-fitting smoothing:\n", bold=true, color=:cyan)
+    verbosity>0 && printstyled("Mesh $(smart ? "smart-" : "")cells-fitting smoothing:\n", bold=true, color=:cyan)
 
     # check for not allowed cells
     for c in mesh.elems
@@ -1115,12 +1124,12 @@ function smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Float64=0
     hists = DataTable()
     push!(stats, OrderedDict(:qavg=>q, :qmin=>qmin, :qmax=>qmax, :dev=>dev))
 
-    hist  = fit(Histogram, Q, 0.0:bin:1.0, closed=:right).weights
-    push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:bin:1-bin,hist)))
+    hist  = fit(Histogram, Q, 0.0:binsize:1.0, closed=:right).weights
+    push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:binsize:1-binsize,hist)))
 
-    verbose && @printf("%4s  %5s  %5s  %5s  %5s  %5s  %5s  %7s  %9s  %10s\n", "it", "qmin", "q1", "q2", "q3", "qmax", "qavg", "sdev", "time", "histogram (0:$bin:1]")
-    verbose && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", 0, qmin, q1, q2, q3, qmax, q, dev, "-")
-    verbose && println("  ", str_histogram(hist))
+    verbosity>0 && @printf("%4s  %5s  %5s  %5s  %5s  %5s  %5s  %7s  %9s  %10s\n", "it", "qmin", "q1", "q2", "q3", "qmax", "qavg", "sdev", "time", "histogram (0:$binsize:1]")
+    verbosity>0 && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", 0, qmin, q1, q2, q3, qmax, q, dev, "-")
+    verbosity>0 && println("  ", str_histogram(hist))
 
 
     # Lagrange multipliers matrix
@@ -1135,7 +1144,7 @@ function smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Float64=0
         sw = StopWatch()
 
         # Forces vector needed for smoothing
-        #verbose && print("calculating forces...")
+        #verbosity>0 && print("calculating forces...")
         F   = force_bc(mesh, E, nu, alpha, extended)
 
         if ndim==2
@@ -1145,21 +1154,21 @@ function smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Float64=0
         end
 
         # Save last step file with current forces
-        savesteps && save(mesh, "$filekey-$(i-1).vtk", verbose=false)
+        savesteps && save(mesh, "$filekey-$(i-1).vtk", verbosity=0)
         # Augmented forces vector
         F   = vcat( F, zeros(nbc) )
         # global stiffness plus LM
-        #verbose && print("\rmounting stiffness matrix...")
+        #verbosity>0 && print("\rmounting stiffness matrix...")
         K = mountKg(mesh, E, nu, A)
-        #verbose && println("\r")
+        #verbosity>0 && println("\r")
 
         # Solve system
-        #verbose && print("\rsolving system...         ")
+        #verbosity>0 && print("\rsolving system...         ")
         LUf = lu(K)
         U = LUf\F
 
         # Update mesh
-        #verbose && print("\rupdating mesh...  ")
+        #verbosity>0 && print("\rupdating mesh...  ")
         for node in mesh.nodes
             id = node.id
             X0 = [node.coord.x, node.coord.y, node.coord.z][1:ndim]
@@ -1224,11 +1233,11 @@ function smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Float64=0
 
         push!(stats, OrderedDict(:qavg=>q, :qmin=>qmin, :qmax=>qmax, :dev=>dev))
 
-        hist = fit(Histogram, Q, 0.0:bin:1.0, closed=:right).weights
-        push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:bin:1-bin,hist)))
+        hist = fit(Histogram, Q, 0.0:binsize:1.0, closed=:right).weights
+        push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:binsize:1-binsize,hist)))
 
-        verbose && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", i, qmin, q1, q2, q3, qmax, q, dev, see(sw, format=:ms))
-        verbose && println("  ", str_histogram(hist))
+        verbosity>0 && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", i, qmin, q1, q2, q3, qmax, q, dev, see(sw, format=:ms))
+        verbosity>0 && println("  ", str_histogram(hist))
 
         nits = i
 
@@ -1242,7 +1251,7 @@ function smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Float64=0
 
     # Set forces to zero for the last step
     mesh.node_data["forces"] = zeros(length(mesh.nodes), 3)
-    savesteps && save(mesh, "$filekey-$nits.vtk", verbose=false)
+    savesteps && save(mesh, "$filekey-$nits.vtk", verbosity=0)
 
     savedata && save(stats, "$filekey-stats.dat")
     savedata && save(hists, "$filekey-hists.dat")
@@ -1250,10 +1259,8 @@ function smooth!(mesh::Mesh; verbose=true, alpha::Float64=1.0, target::Float64=0
     # update data at current mesh structure
     #mesh.elem_data["quality"] = Q
 
-    return nothing
+    return mesh
 end
-
-
 
 
 
@@ -1262,12 +1269,12 @@ laplacian_smooth!(mesh; maxit, verbose, mintol, tol, savesteps, savedata, fileke
 
 Smooths a finite element mesh using Laplacian smoothing (standard, weighted, smart).
 """
-function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, verbose::Bool=true, fixed=false,
+function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, verbosity=0, fixed=false,
     mintol::Float64=1e-2, tol::Float64=1e-4, facetol::Float64=1e-5,
-    savesteps::Bool=false, savedata::Bool=false, bin::Float64=0.05,
+    savesteps::Bool=false, savedata::Bool=false, binsize::Float64=0.05,
     filekey::String="smooth", smart=false, weighted=false)
 
-    verbose && printstyled("Mesh $(smart ? "smart-" : "")$(weighted ? "weighted-" : "")Laplacian smoothing:\n", bold=true, color=:cyan)
+    verbosity>0 && printstyled("Mesh $(smart ? "smart-" : "")$(weighted ? "weighted-" : "")Laplacian smoothing:\n", bold=true, color=:cyan)
 
     ndim = mesh.ndim
 
@@ -1277,7 +1284,7 @@ function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, verbose::Bool=true, fixe
     # list of nodes per patch (without key node)
     P = Array{Node,1}[]
     for (node, patch) in zip(nodes, patches)
-        patch_nodes =get_nodes(patch)
+        patch_nodes =getnodes(patch)
         idx = findfirst( p -> hash(p) == hash(node), patch_nodes)
         splice!(patch_nodes, idx) # remove key node
         push!(P, patch_nodes)
@@ -1304,7 +1311,7 @@ function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, verbose::Bool=true, fixe
         map_pn[ snode.node.id ] = i
     end
 
-    savesteps && save(mesh, "$filekey-0.vtk", verbose=false)
+    savesteps && save(mesh, "$filekey-0.vtk", verbosity=0)
 
     # stats
     Q    = Float64[ c.quality for c in mesh.elems]
@@ -1318,16 +1325,16 @@ function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, verbose::Bool=true, fixe
     hists = DataTable()
     push!(stats, OrderedDict(:qavg=>q, :qmin=>qmin, :qmax=>qmax, :dev=>dev))
 
-    hist  = fit(Histogram, Q, 0.0:bin:1.0, closed=:right).weights
-    push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:bin:1-bin,hist)))
+    hist  = fit(Histogram, Q, 0.0:binsize:1.0, closed=:right).weights
+    push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:binsize:1-binsize,hist)))
 
-    #verbose && @printf("  it: %2d  qmin: %7.5f  qavg: %7.5f  dev: %7.5f", 0, qmin, q, dev)
-    #verbose && @printf("  it: %2d  q-range: %5.3f…%5.3f  qavg: %5.3f  dev: %7.5f", 0, qmin, qmax, q, dev)
-    #verbose && println("  hist: ", fit(Histogram, Q, 0.5:bin:1.0, closed=:right).weights)
-    verbose && @printf("%4s  %5s  %5s  %5s  %5s  %5s  %5s  %7s  %9s  %10s\n", "it", "qmin", "q1", "q2", "q3", "qmax", "qavg", "sdev", "time", "histogram (0:$bin:1]")
-    verbose && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", 0, qmin, q1, q2, q3, qmax, q, dev, "-")
-    #verbose && println("  ", fit(Histogram, Q, 0.3:bin:1.0, closed=:right).weights)
-    verbose && println("  ", str_histogram(hist))
+    #verbosity>0 && @printf("  it: %2d  qmin: %7.5f  qavg: %7.5f  dev: %7.5f", 0, qmin, q, dev)
+    #verbosity>0 && @printf("  it: %2d  q-range: %5.3f…%5.3f  qavg: %5.3f  dev: %7.5f", 0, qmin, qmax, q, dev)
+    #verbosity>0 && println("  hist: ", fit(Histogram, Q, 0.5:binsize:1.0, closed=:right).weights)
+    verbosity>0 && @printf("%4s  %5s  %5s  %5s  %5s  %5s  %5s  %7s  %9s  %10s\n", "it", "qmin", "q1", "q2", "q3", "qmax", "qavg", "sdev", "time", "histogram (0:$binsize:1]")
+    verbosity>0 && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", 0, qmin, q1, q2, q3, qmax, q, dev, "-")
+    #verbosity>0 && println("  ", fit(Histogram, Q, 0.3:binsize:1.0, closed=:right).weights)
+    verbosity>0 && println("  ", str_histogram(hist))
 
     # find center node and update node position
     for i=1:maxit
@@ -1349,11 +1356,11 @@ function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, verbose::Bool=true, fixe
 
             # Weighed Laplacian smoothing
             if weighted
-                Xcs = [ mean(get_coords(c,ndim),dims=1)[1:ndim] for c in patch ] # centroidal coordinates for each cell in patch
+                Xcs = [ mean(getcoords(c,ndim),dims=1)[1:ndim] for c in patch ] # centroidal coordinates for each cell in patch
                 Vs  = [ c.extent for c in patch ] # areas or volumes
                 X = X0 + sum( Vs[j]*(Xcs[j]-X0) for j=1:length(patch) ) / sum(Vs)
             else # simplest Laplacian smoothing
-                X  = mean(get_coords(patch_nodes),dims=1)[1:ndim]
+                X  = mean(getcoords(patch_nodes),dims=1)[1:ndim]
             end
 
             # fix coordinates for surface nodes
@@ -1411,7 +1418,7 @@ function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, verbose::Bool=true, fixe
         new_qmin    = minimum(Q)
 
         mesh.elem_data["quality"] = Q
-        savesteps && save(mesh, "$filekey-$i.vtk", verbose=false)
+        savesteps && save(mesh, "$filekey-$i.vtk", verbosity=0)
 
         #if any(Q .== 0.0)
             #error("smooth!: Smooth procedure got invalid element(s).")
@@ -1428,12 +1435,12 @@ function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, verbose::Bool=true, fixe
 
         push!(stats, OrderedDict(:qavg=>q, :qmin=>qmin, :qmax=>qmax, :dev=>dev))
 
-        hist = fit(Histogram, Q, 0.0:bin:1.0, closed=:right).weights
-        push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:bin:1-bin,hist)))
+        hist = fit(Histogram, Q, 0.0:binsize:1.0, closed=:right).weights
+        push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:binsize:1-binsize,hist)))
 
-        verbose && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", i, qmin, q1, q2, q3, qmax, q, dev, see(sw, format=:ms))
-        #verbose && println("  ", fit(Histogram, Q, 0.3:bin:1.0, closed=:right).weights)
-        verbose && println("  ", str_histogram(hist))
+        verbosity>0 && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", i, qmin, q1, q2, q3, qmax, q, dev, see(sw, format=:ms))
+        #verbosity>0 && println("  ", fit(Histogram, Q, 0.3:binsize:1.0, closed=:right).weights)
+        verbosity>0 && println("  ", str_histogram(hist))
 
         #Δqmin<0.0 && break
 

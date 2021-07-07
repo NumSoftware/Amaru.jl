@@ -190,15 +190,10 @@ function dynsolve!(
                    beta      :: Real    = 0.0,
                    outdir    :: String  = "",
                    filekey   :: String  = "out",
-                   verbose   :: Bool    = true,
-                   silent    :: Bool    = false,
+                   verbosity = 0,
                   )
 
     # Arguments checking
-    verbosity = 1
-    verbose && (verbosity=2)
-    silent && (verbosity=0)
-
     tol>0 || error("solve! : tolerance should be greater than zero")
     Ttol>0 || error("solve! : tolerance `Ttol `should be greater than zero")
 
@@ -220,7 +215,7 @@ function dynsolve!(
     end
 
     tol>0 || error("solve! : tolerance should be greater than zero.")
-    silent || println("  model type: ", env.modeltype)
+    verbosity>0 || println("  model type: ", env.modeltype)
 
     save_outs = nouts>0
     if save_outs
@@ -311,7 +306,7 @@ function dynsolve!(
         update_output_data!(dom)
         update_single_loggers!(dom)
         update_composed_loggers!(dom)
-        save(dom, "$outdir/$filekey-0.vtu", verbose=false)
+        save(dom, "$outdir/$filekey-0.vtu", verbosity=0)
     end
 
     # Incremental analysis
@@ -352,7 +347,7 @@ function dynsolve!(
             Fex = sismic_force(dom, bcs, M,Fex,AS,keysis,t+dt,tds)
         end
 
-        silent || printstyled("  stage $(env.cstage)  increment $inc from t=$(round(t,digits=10)) to t=$(round(t+dt,digits=10)) (dt=$(round(dt,digits=10)))\e[K\r", bold=true, color=:blue) # color 111
+        verbosity>0 || printstyled("  stage $(env.cstage)  increment $inc from t=$(round(t,digits=10)) to t=$(round(t+dt,digits=10)) (dt=$(round(dt,digits=10)))\e[K\r", bold=true, color=:blue) # color 111
         verbosity>0 && println()
         #R   .= FexN - F    # residual
         Fex_Fin = Fex-Fina    # residual
@@ -462,7 +457,7 @@ function dynsolve!(
                 iout = env.cout
                 update_output_data!(dom)
                 update_composed_loggers!(dom)
-                save(dom, "$outdir/$filekey-$iout.vtu", verbose=false)
+                save(dom, "$outdir/$filekey-$iout.vtu", verbosity=0)
                 T += dT # find the next output time
             end
 

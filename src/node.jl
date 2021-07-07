@@ -51,28 +51,32 @@ end
 const null_Dof = Dof(:null, :null)
 @inline null(::Type{Dof}) = null_Dof
 
-# Node
-# ====
 
 """
-`Node(X)`
+    Node
 
-Creates an object that represents a Node in a finite element analysis. The `coord` parameter is a
-vector that represents the node coordinates.
+A type that represents a finite element node.
 
-**Important fields are**
-`id`    : Id number
-`coord` : A vector of coordinates
-`tag` : An int or string tag
-`dofs`: An array of `Dof` objects
+# Fields
+$(TYPEDFIELDS)
 """
 mutable struct Node<:AbstractPoint
+    "identification number"
     id      ::Int
+    "coordinates vector"
     coord   ::Vec3
+    "string tag used to group nodes"
     tag     ::String
+    "array of degrees of freedom"
     dofs    ::Array{Dof,1}
+    "dictionary of degrees of freedom"
     dofdict ::OrderedDict{Symbol,Dof}
 
+    @doc """
+        $(TYPEDSIGNATURES)
+
+    Constructs an uninitiallised `Node`.
+    """
     function Node()
         this = new()
         this.id = -1
@@ -82,6 +86,25 @@ mutable struct Node<:AbstractPoint
         return this
     end
 
+    @doc """
+        $(TYPEDSIGNATURES)
+
+    Constructs an `Node` with coordinates `x`, `y` and `z`. 
+    A `tag` string can be provided optionally.
+
+    # Examples
+    
+    ```jldoctest
+    julia> using Amaru;
+    julia> Node(1.0, 2.0, 3.0, tag="vertex")
+    Node
+      id: -1
+      coord: [1.0, 2.0, 3.0]
+      tag: "vertex"
+      dofs: 0-element Vector{Dof}
+      dofdict: OrderedDict{Symbol, Dof} with 0 entries
+    ```
+    """
     function Node(x::Real, y::Real=0.0, z::Real=0.0; tag::String="", id::Int=-1)
         x = round(x, digits=8) + 0.0 # +0.0 required to drop negative bit
         y = round(y, digits=8) + 0.0
@@ -93,7 +116,26 @@ mutable struct Node<:AbstractPoint
         return this
     end
 
-    function Node(X::AbstractArray{<:Real}; tag::String="", id::Int=-1)
+    @doc """
+        $(TYPEDSIGNATURES)
+
+    Constructs an `Node` with coordinates privided in the `X` vector. 
+    A `tag` string can be provided optionally.
+
+    # Examples
+    
+    ```jldoctest
+    julia> using Amaru;
+    julia> Node([1.0, 2.0, 3.0], tag="vertex")
+    Node
+      id: -1
+      coord: [1.0, 2.0, 3.0]
+      tag: "vertex"
+      dofs: 0-element Vector{Dof}
+      dofdict: OrderedDict{Symbol, Dof} with 0 entries
+    ```
+    """
+    function Node(X::AbstractArray; tag::String="", id::Int=-1)
         @assert length(X) in (1,2,3)
         return Node(X...; tag=tag, id=id)
     end
@@ -106,8 +148,13 @@ const null_Node = Node(NaN, NaN, NaN)
 
 #Base.hash(n::Node) = hash( (round(n.coord.x, digits=8), round(n.coord.y, digits=8), round(n.coord.z, digits=8)) )
 # Base.hash(n::Node) = hash( (n.coord.x, n.coord.y, n.coord.z) )
-Base.hash(n::Node) = hash( (n.coord.x+1, n.coord.y+2, n.coord.z+3) ) # 1,2,3 aim to avoid clash in some arrays of nodes.
+Base.hash(n::Node) = hash( (n.coord.x+1.0, n.coord.y+2.0, n.coord.z+3.0) ) # 1,2,3 aim to avoid clash in some arrays of nodes.
 
+"""
+    $(TYPEDSIGNATURES)
+
+Creates a copy of `node`.
+"""
 function Base.copy(node::Node)
     newnode = Node(node.coord, tag=node.tag, id=node.id)
     for dof in node.dofs
@@ -125,8 +172,12 @@ get_x(node::Node) = node.coord[1]
 get_y(node::Node) = node.coord[2]
 get_z(node::Node) = node.coord[3]
 
+"""
+    $(TYPEDSIGNATURES)
 
-# Add a new degree of freedom to a node
+Adds to `node` a new degree of freedom called `name`
+with associated natural variable `natname`.
+"""
 function add_dof(node::Node, name::Symbol, natname::Symbol)
     if !haskey(node.dofdict, name)
         dof = Dof(name, natname)
@@ -134,6 +185,7 @@ function add_dof(node::Node, name::Symbol, natname::Symbol)
         node.dofdict[name] = dof
         node.dofdict[natname] = dof
     end
+    return nothing
 end
 
 
@@ -184,7 +236,7 @@ function Base.getindex(nodes::Array{Node,1}, filter_ex::Expr)
 end
 
 # Get node coordinates for a collection of nodes as a matrix
-function get_coords(nodes::Array{Node,1}, ndim=3)
+function getcoords(nodes::Array{Node,1}, ndim=3)
     nnodes = length(nodes)
     [ nodes[i].coord[j] for i=1:nnodes, j=1:ndim]
 end

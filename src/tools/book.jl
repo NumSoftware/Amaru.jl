@@ -43,9 +43,10 @@ function Base.iterate(book::DataBook, state=(nothing,1) )
 end
 
 
-function save(book::DataBook, filename::String; verbose::Bool=true)
-    basename, format = splitext(filename)
-    format == ".dat" || error("DataBook: cannot save in \"$format\". Suitable format is \".dat\".")
+function save(book::DataBook, filename::String; verbosity=0)
+    _, format = splitext(filename)
+    formats = (".dat", ".book")
+    format in formats || error("DataBook: cannot save in  \"$format\". Suitable formats are $formats")
 
     local f::IOStream
     try
@@ -55,7 +56,7 @@ function save(book::DataBook, filename::String; verbose::Bool=true)
         return
     end
 
-    if format==".dat"
+    if format in formats
 
         for (k,table) in enumerate(book.tables)
 
@@ -86,7 +87,7 @@ function save(book::DataBook, filename::String; verbose::Bool=true)
             print(f, "\n")
         end
 
-        verbose && printstyled("  file $filename written\n", color=:cyan)
+        verbosity>0 && printstyled("  file $filename written\n", color=:cyan)
     end
     close(f)
     return nothing
@@ -97,11 +98,12 @@ end
 function DataBook(filename::String)
     delim = "\t"
     basename, format = splitext(filename)
-    format == ".dat" || error("DataBook: cannot read \"$format\". Suitable format is \".dat\".")
+    formats = (".dat", ".book")
+    format in formats || error("DataBook: cannot read \"$format\". Suitable formats are $formats")
 
     f      = open(filename, "r")
     book   = DataBook()
-    if format==".dat"
+    if format in (".dat", ".book")
         lines = readlines(f)
         header_expected = false
         for (i,line) in enumerate(lines)

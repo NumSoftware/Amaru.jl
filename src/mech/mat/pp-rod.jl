@@ -2,6 +2,67 @@
 
 export PPRod
 
+
+"""
+    PPRod
+
+A type for linear elastic perfectly plastic materials in rods.
+
+# Fields
+
+$(TYPEDFIELDS)
+"""
+mutable struct PPRod<:Material
+    "Young modulus"
+    E::Float64
+    "Section area"
+    A::Float64
+    "Yielding stress"
+    σy0::Float64
+    "Hardening parameter"
+    H::Float64
+    "Density"
+    ρ::Float64
+
+    function PPRod(prms::Dict{Symbol,Float64})
+        return  PPRod(;prms...)
+    end
+
+    @doc """
+        $(SIGNATURES)
+
+    Creates an `PPRod` material type
+
+    # Arguments
+    - `E`: Young modulus
+    - `A`: Section area
+    - `dm`: Diameter (only if `A` is not provided)
+    - `fy`: Yielding stress
+    - `H`: Hardening parameter
+    - `rho`: Density
+    """
+    function PPRod(;E=NaN, A=NaN, fy=NaN, sig_y=NaN, H=0.0, rho=0.0, dm=NaN)
+        !isnan(dm) && (A=pi*dm^2/4)
+        isnan(fy) && (fy=sig_y)
+        @check E>0.0     
+        @check A>0.0     
+        @check fy>0
+        @check rho>=0.0
+
+
+        return new(E, A, fy, H, rho)
+    end
+end
+
+"""
+    ElasticRodIpState
+
+A type for the state data of a PPRod type.
+
+# Fields
+
+$(TYPEDFIELDS)
+"""
 mutable struct PPRodIpState<:IpState
     env::ModelEnv
     σ::Float64
@@ -16,29 +77,6 @@ mutable struct PPRodIpState<:IpState
         this.εp = 0.0
         this.Δγ = 0.0
         return this
-    end
-end
-
-mutable struct PPRod<:Material
-    E::Float64
-    A::Float64
-    σy0::Float64
-    H::Float64
-    ρ::Float64
-
-    function PPRod(prms::Dict{Symbol,Float64})
-        return  PPRod(;prms...)
-    end
-
-    function PPRod(;E=NaN, A=NaN, fy=NaN, sig_y=NaN, H=0.0, rho=0.0)
-        @check E>0.0     
-        @check A>0.0     
-        @check sig_y>0.0 || fy>0
-        @check rho>=0.0
-
-        isnan(fy) && (fy=sig_y)
-
-        return new(E, A, fy, H, rho)
     end
 end
 

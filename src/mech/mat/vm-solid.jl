@@ -1,10 +1,74 @@
 export VonMises
 
+
+"""
+    VonMises
+
+A type for linear elastic materials with Von Mises failure criterion.
+
+# Fields
+
+$(TYPEDFIELDS)
+"""
+mutable struct VonMises<:Material
+    "Young modulus"
+    E ::Float64
+    "Poisson ratio"
+    ν ::Float64
+    "Yielding stress"
+    σy::Float64
+    "Hardening parameter"
+    H ::Float64
+    "Density"
+    ρ::Float64
+
+    function VonMises(prms::Dict{Symbol,Float64})
+        return VonMises(;prms...)
+    end
+
+    @doc """
+        $(SIGNATURES)
+
+    Creates an `VonMises` material type
+
+    # Arguments
+    - `E`: Young modulus
+    - `nu`: Poisson ratio
+    - `fy`: Yielding stress
+    - `H`: Hardening parameter
+    - `rho`: Density
+    """
+    function VonMises(;E=NaN, nu=0.0, fy=0.0, H=0.0, rho=0.0)
+        @assert E>0.0
+        @assert 0.0<=nu<0.5
+        @assert fy>0.0
+        @assert H>=0.0
+
+        this    = new(E, nu, fy, H)
+        #this.De = calcDe(E, nu)
+        return this
+    end
+end
+
+"""
+    DruckerPragerIpState
+
+A type for the state data of a `DruckerPrager` type.
+
+# Fields
+
+$(TYPEDFIELDS)
+"""
 mutable struct VonMisesIpState<:IpState
+    "Environment information"
     env::ModelEnv
+    "Stress tensor"
     σ::Tensor2
+    "Strain tensor"
     ε::Tensor2
+    "Accumulated plastic strain"
     εpa::Float64
+    "Plastic multiplier"
     Δγ::Float64
     function VonMisesIpState(env::ModelEnv=ModelEnv())
         this = new(env)
@@ -16,32 +80,7 @@ mutable struct VonMisesIpState<:IpState
     end
 end
 
-mutable struct VonMises<:Material
-    E ::Float64
-    ν ::Float64
-    σy::Float64
-    H ::Float64
-    #De::Tensor4
-
-    function VonMises(prms::Dict{Symbol,Float64})
-        return VonMises(;prms...)
-    end
-
-    function VonMises(;E=NaN, nu=0.0, σy=0.0, H=0.0)
-        @assert E>0.0
-        @assert 0.0<=nu<0.5
-        @assert σy>0.0
-        @assert H>=0.0
-
-        this    = new(E, nu, σy, H)
-        #this.De = calcDe(E, nu)
-        return this
-    end
-end
-
 matching_elem_type(::VonMises) = MechSolid
-
-# Type of corresponding state structure
 ip_state_type(mat::VonMises) = VonMisesIpState
 
 function yield_func(mat::VonMises, ipd::VonMisesIpState, σ::Tensor2)

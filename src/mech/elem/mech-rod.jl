@@ -1,8 +1,13 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
+"""
+    MechRod
+
+A line finite element for mechanical equilibrium analyses.
+"""
 mutable struct MechRod<:Mechanical
     id    ::Int
-    shape ::ShapeType
+    shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
@@ -26,7 +31,7 @@ function elem_stiffness(elem::MechRod)
     nnodes = length(elem.nodes)
 
     A = elem.mat.A
-    C = get_coords(elem)
+    C = getcoords(elem)
     K = zeros(nnodes*ndim, nnodes*ndim)
     B = zeros(1, nnodes*ndim)
     J = Array{Float64}(undef, 1, ndim)
@@ -62,16 +67,15 @@ function elem_mass(elem::MechRod)
     ρ = elem.mat.ρ
     A = elem.mat.A
 
-    C = get_coords(elem)
+    C = getcoords(elem)
     M = zeros(nnodes*ndim, nnodes*ndim)
     J  = Array{Float64}(undef, 1, ndim)
     N = zeros(ndim, ndim*nnodes)
-    #N = Array{Float64}(undef, ndim, ndim*nnodes)
 
     for ip in elem.ips
 
         dNdR = elem.shape.deriv(ip.R)
-        Ni = elem.shape.func(ip.R) #encontrei em shape.jl FemMesh
+        Ni = elem.shape.func(ip.R)
         setNt(ndim,Ni,N)
 
         @gemm J = dNdR*C
@@ -115,7 +119,6 @@ function setNt(ndim::Int,Ni::Vect, N::Matx)
 
 end
 
-#function distributed_bc(elem::MechRod, facet::Union{Facet, Nothing}, key::Symbol, fun::Functor)
 function distributed_bc(elem::MechRod, facet::Union{Facet, Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
 
@@ -133,7 +136,7 @@ function distributed_bc(elem::MechRod, facet::Union{Facet, Nothing}, key::Symbol
     nnodes = length(nodes)
 
     # Calculate the target coordinates matrix
-    C = get_coords(nodes, ndim)
+    C = getcoords(nodes, ndim)
 
     # Vector with values to apply
     Q = zeros(ndim)
@@ -196,7 +199,7 @@ function elem_internal_forces(elem::MechRod, F::Array{Float64,1})
     map    = Int[ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
 
     dF = zeros(nnodes*ndim)
-    C = get_coords(elem)
+    C = getcoords(elem)
     B = zeros(1, nnodes*ndim)
     J = Array{Float64}(undef, 1, ndim)
 
@@ -232,7 +235,7 @@ function elem_update!(elem::MechRod, U::Array{Float64,1}, F::Array{Float64,1}, �
 
     dU = U[map]
     dF = zeros(nnodes*ndim)
-    C  = get_coords(elem)
+    C  = getcoords(elem)
     B  = zeros(1, nnodes*ndim)
     J  = Array{Float64}(undef, 1, ndim)
 

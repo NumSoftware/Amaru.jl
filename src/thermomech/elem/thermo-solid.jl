@@ -3,7 +3,7 @@
 
 mutable struct ThermoSolid<:Thermomechanical
     id    ::Int
-    shape ::ShapeType
+    shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
@@ -48,7 +48,7 @@ function distributed_bc(elem::ThermoSolid, facet::Union{Facet,Nothing}, key::Sym
     nnodes = length(nodes)
 
     # Calculate the target coordinates matrix
-    C = get_coords(nodes, ndim)
+    C = getcoords(nodes, ndim)
 
     # Calculate the nodal values
     F     = zeros(nnodes)
@@ -90,7 +90,7 @@ function elem_conductivity_matrix(elem::ThermoSolid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
-    C      = get_coords(elem)
+    C      = getcoords(elem)
     H      = zeros(nnodes, nnodes)
     Bt     = zeros(ndim, nnodes)
     KBt    = zeros(ndim, nnodes)
@@ -122,7 +122,7 @@ function elem_mass_matrix(elem::ThermoSolid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
-    C      = get_coords(elem)
+    C      = getcoords(elem)
     M      = zeros(nnodes, nnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
@@ -152,7 +152,7 @@ end
 function elem_internal_forces(elem::ThermoSolid, F::Array{Float64,1})
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
-    C   = get_coords(elem)
+    C   = getcoords(elem)
     th     = elem.env.thickness
     θ0     = elem.env.T0 + 273.15
     map_p  = [ node.dofdict[:ut].eq_id for node in elem.nodes ]
@@ -201,7 +201,7 @@ function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64
 
     map_t  = [ node.dofdict[:ut].eq_id for node in elem.nodes ]
 
-    C   = get_coords(elem)
+    C   = getcoords(elem)
 
     dUt = DU[map_t] # nodal temperature increments
     Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes ]

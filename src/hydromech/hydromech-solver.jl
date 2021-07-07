@@ -217,28 +217,24 @@ subjected to a list of boundary conditions `bcs`.
 `silent = false` : If true, no information is printed
 """
 function hm_solve!(
-                   dom       :: Domain,
-                   bcs       :: Array;
-                   time_span :: Real    = NaN,
-                   end_time  :: Real    = NaN,
-                   nincs     :: Int     = 1,
-                   maxits    :: Int     = 5,
-                   autoinc   :: Bool    = false,
-                   maxincs   :: Int     = 1000000,
-                   tol       :: Number  = 1e-2,
-                   Ttol      :: Number  = 1e-9,
-                   scheme    :: Symbol  = :FE,
-                   nouts     :: Int     = 0,
-                   outdir    :: String  = "",
-                   filekey   :: String  = "out",
-                   verbose   :: Bool    = false,
-                   silent    :: Bool    = false,
-                  )
+    dom       :: Domain,
+    bcs       :: Array;
+    time_span :: Real    = NaN,
+    end_time  :: Real    = NaN,
+    nincs     :: Int     = 1,
+    maxits    :: Int     = 5,
+    autoinc   :: Bool    = false,
+    maxincs   :: Int     = 1000000,
+    tol       :: Number  = 1e-2,
+    Ttol      :: Number  = 1e-9,
+    scheme    :: Symbol  = :FE,
+    nouts     :: Int     = 0,
+    outdir    :: String  = "",
+    filekey   :: String  = "out",
+    verbosity = 0
+)
 
     # Arguments checking
-    verbosity = 1
-    verbose && (verbosity=2)
-    silent && (verbosity=0)
 
     tol>0 || error("hm_solve! : tolerance `tol `should be greater than zero")
     Ttol>0 || error("hm_solve! : tolerance `Ttol `should be greater than zero")
@@ -316,7 +312,7 @@ function hm_solve!(
         complete_uw_h(dom)
 
         if save_outs
-            save(dom, "$outdir/$filekey-0.vtu", verbose=false)
+            save(dom, "$outdir/$filekey-0.vtu", verbosity=0)
         end
     end
 
@@ -478,7 +474,7 @@ function hm_solve!(
                 update_output_data!(dom)
                 update_composed_loggers!(dom)
                 complete_uw_h(dom)
-                save(dom, "$outdir/$filekey-$iout.vtu", silent=silent)
+                save(dom, "$outdir/$filekey-$iout.vtu", verbosity=verbosity)
                 Tout += ΔTout # find the next output time
             end
 

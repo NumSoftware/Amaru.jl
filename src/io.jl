@@ -150,35 +150,33 @@ function save_xml(dom::Domain, filename::String)
 end
 
 """
-    save(domain, filename, verbose=true)
+    save(domain, filename, verbosity=0)
 
 Saves a domain object into a file. Available formats are vtu, vtk and xml.
 """
-function save(domain::Domain, filename::String; verbose::Bool=true, silent::Bool=false)
-    verbosity = 1
-    verbose && (verbosity=2)
-    silent && (verbosity=0)
+function save(domain::Domain, filename::String; verbosity=0)
+    verbosity = clamp(verbosity, 0,2)
 
-    formats = ("vtk", "vtu", "xml")
-    format = split(filename, ".")[end]
+    formats = (".vtk", ".vtu", ".xml")
+    _, format = splitext(filename)
     format in formats || error("save: Cannot save Domain to $filename. Available formats are $formats.")
 
-    if format=="xml"; 
+    if format==".xml"; 
         save_xml(domain, filename)
         verbosity>0 && printstyled( "  file $filename written \e[K \n", color=:cyan)
     else
-        invoke(save, Tuple{AbstractMesh,String}, domain, filename, verbose=verbose, silent=silent)
+        invoke(save, Tuple{AbstractMesh,String}, domain, filename, verbosity=verbosity)
     end
 end
 
 
-function save(elems::Array{<:Element,1}, filename::String; verbose::Bool=true, silent::Bool=false)
-    save(Domain(elems), filename, verbose=verbose, silent=silent)
+function save(elems::Array{<:Element,1}, filename::String; verbosity=0)
+    save(Domain(elems), filename, verbosity=verbosity)
 end
 
 
-function setfields!(obj, dict::AbstractDict; exclude::Tuple{Vararg{Symbol}}=())
-    for (k,v) in dict
+function setfields!(obj, keys, vals; exclude::Tuple{Vararg{Symbol}}=())
+    for (k,v) in zip(keys,vals)
         field = Symbol(k)
         field in exclude && continue
         ty = fieldtype(typeof(obj), field)
@@ -193,18 +191,36 @@ function setfields!(obj, dict::AbstractDict; exclude::Tuple{Vararg{Symbol}}=())
         elseif ty<:AbstractString
             setfield!(obj, field, v)
         elseif ty==Vec3
-            setfield!(obj, field, Vec3(eval(Meta.parse(v))...))
+            setfield!(obj, field, Vec3(parse.(Float64, split(v, ","))))
+        elseif ty<:AbstractArray
+            setfield!(obj, field, parse.(Float64, split(v, (',','[',']'), keepempty=false)))
         else
+            # Avoid Meta.parse as much as possible. It spends too much time.
             setfield!(obj, field, eval(Meta.parse(v)))
         end
     end
 end
 
+function setfields!(obj, dict; exclude::Tuple{Vararg{Symbol}}=())
+    setfields!(obj, keys(dict), values(dict), exclude=exclude)
+end
 
-function Domain(filename::String)
+
+function Domain(filename::String; verbosity=0)
+    verbosity = clamp(verbosity, 0, 2)
+    suitable_formats = (".xml",)
+    
+
+    verbosity>1 && printstyled("Loading Domain: filename $filename\n", bold=true, color=:cyan)
+
+    basename, format = splitext(filename)
+
+    format in suitable_formats || error("Domain: cannot read format \"$format\". Suitable formats are $suitable_formats.")
+
     domain = Domain()
     env = ModelEnv()
 
+    verbosity>1 && printstyled("  loading xml file...\r", color=:cyan)
     xdoc = Xdoc(filename)
     xdomain = xdoc.root
     setfields!(env, xdomain.attributes)
@@ -212,16 +228,18 @@ function Domain(filename::String)
     domain.env = env
     domain.ndim = env.ndim
 
+    verbosity>1 && printstyled("  setting materials...\e[K\r", color=:cyan)
     materials = Material[]
     xmats = xdomain("Materials")
     for xmat in xmats.children
-        T = eval(Meta.parse(xmat.name))
+        T = eval(Symbol(xmat.name))
         mat = ccall(:jl_new_struct_uninit, Any, (Any,), T)
         setfields!(mat, xmat.attributes)
 
         push!(materials, mat)
     end
 
+    verbosity>1 && printstyled("  setting nodes...\e[K\r", color=:cyan)
     xnodes = xdomain("Nodes")
     for xnode in xnodes.children
         node = Node()
@@ -231,7 +249,7 @@ function Domain(filename::String)
             dof = ccall(:jl_new_struct_uninit, Any, (Any,), Dof)
             setfields!(dof, xdof.attributes, exclude=(:keys, :vals))
             keys = Symbol.(split(xdof.attributes["keys"], ","))
-            vals = eval(Meta.parse(xdof.attributes["vals"]))
+            vals = parse.(Float64, split(xdof.attributes["vals"], ","))
             dof.vals = OrderedDict(keys .=> vals)
             push!(node.dofs, dof)
         end
@@ -239,43 +257,36 @@ function Domain(filename::String)
         push!(domain.nodes, node)
     end
 
+    verbosity>1 && printstyled("  setting elements...\e[K\r", color=:cyan)
     xelems = xdomain("Elements")
     for xelem in xelems.children
-        T = eval(Meta.parse(xelem.name))
+        T = eval(Symbol(xelem.name))
 
         shape = eval(Symbol(xelem.attributes["shape"]))
-        nodesidx = collect(eval(Meta.parse(xelem.attributes["nodes"])))
+        nodesidx = parse.(Int, split(xelem.attributes["nodes"],","))
         nodes = domain.nodes[nodesidx]
 
         elem = new_element(T, shape, nodes, "", domain.env)
         setfields!(elem, xelem.attributes, exclude=(:shape, :material, :nodes, :linked_elems))
 
-        matidx = eval(parse(Int,xelem.attributes["material"]))
+        matidx = parse(Int,xelem.attributes["material"])
         elem.mat = materials[matidx]
         nips = length(xelem.children)
-
-        #for (i,xip) in enumerate(xelem.children)
-            #ip = elem.ips[i]
-            #setfields!(ip, xip.attributes, exclude=(:keys, :vals))
-            #keys = Symbol.(split(xip.attributes["keys"], ","))
-            #vals = eval(Meta.parse(xip.attributes["vals"]))
-            #for (fld,val) in zip(keys,vals)
-                #setfield!(elem.ips[i].state, fld, val)
-            #end
-        #end
-        
+      
         push!(domain.elems, elem)
     end
 
     # Setting linked elements
+    verbosity>1 && printstyled("  setting linked elements...\e[K\r", color=:cyan)
     for (i,xelem) in enumerate(xelems.children)
         linked_str = xelem.attributes["linked_elems"]
         linked_str == "" && continue
-        linked_idx = collect(eval(Meta.parse(linked_str)))
+        linked_idx = parse.(Int, split(linked_str,","))
         domain.elems[i].linked_elems = domain.elems[linked_idx]
     end
 
     # Quadrature and initialization
+    verbosity>1 && printstyled("  setting integration points...\e[K\r", color=:cyan)
     for (i,xelem) in enumerate(xelems.children)
         elem = domain.elems[i]
         nips = length(xelem.children)
@@ -286,19 +297,18 @@ function Domain(filename::String)
         for (i,xip) in enumerate(xelem.children)
             ip = elem.ips[i]
             setfields!(ip, xip.attributes, exclude=(:keys, :vals))
-            keys = Symbol.(split(xip.attributes["keys"], ","))
-            vals = eval(Meta.parse(xip.attributes["vals"]))
-            for (fld,val) in zip(keys,vals)
-                setfield!(elem.ips[i].state, fld, val)
-            end
+            keys = Symbol.(split(xip.attributes["keys"], ",")) 
+            vals = split(xip.attributes["vals"], r",(?! )")
+            setfields!(elem.ips[i].state, keys, vals)
         end
         
         push!(domain.elems, elem)
     end
 
-
     domain.faces = get_surface(domain.elems)
-    domain.edges = get_edges(domain.faces)
+    domain.edges = getedges(domain.faces)
+
+    verbosity>1 && printstyled("  setting additional data...\e[K\r", color=:cyan)
 
     TYPES = Dict("Float32"=>Float32, "Float64"=>Float64, "Int32"=>Int32, "Int64"=>Int64)
     nnodes = length(domain.nodes)
@@ -317,7 +327,7 @@ function Domain(filename::String)
     end
 
     xelemdata = xdomain("ElemData")
-    if xelemdata!=nothing
+    if xelemdata!==nothing
         for arr in xelemdata.children
             ncomps = parse(Int, arr.attributes["ncomps"])
             dtype = TYPES[arr.attributes["type"]]
@@ -329,6 +339,8 @@ function Domain(filename::String)
             end
         end
     end
+
+    verbosity>0 && printstyled( "  file $filename loaded \e[K \n", color=:cyan)
 
     return domain
 

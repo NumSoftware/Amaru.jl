@@ -9,7 +9,7 @@ blocks = [
     Block( [0 0 0; 1 1 10], nx=1, ny=1, nz=10, cellshape=HEX8, tag="solids"),
 ]
 
-msh = Mesh(blocks, silent=true)
+msh = Mesh(blocks, verbosity=0)
 
 
 # Finite element analysis
@@ -52,7 +52,7 @@ bcs = [
     :(z==10) => NodeBC(uw=0.),
 ]
 
-hm_solve!(dom, bcs, end_time=tlong, nincs=2, tol=1e-2, nouts=1, verbose=false)
+hm_solve!(dom, bcs, end_time=tlong, nincs=2, tol=1e-2, nouts=1, verbosity=0)
 
 dom.env.t = 0.0
 
@@ -71,7 +71,7 @@ bcs = [
     :(z==10) => NodeBC(uw=0.),
 ]
 
-hm_solve!(dom, bcs, end_time=t1, nincs=4, tol=1e-2, nouts=1, verbose=false)
+hm_solve!(dom, bcs, end_time=t1, nincs=4, tol=1e-2, nouts=1, verbosity=0)
 
 
 # Stage 3: draining
@@ -86,7 +86,7 @@ bcs = [
 
 Uw_vals = [] # A list with porepressure vectors
 for t in times[1:end]
-    hm_solve!(dom, bcs, end_time=t, nincs=20, tol=1e-2, nouts=1, verbose=false)
+    hm_solve!(dom, bcs, end_time=t, nincs=20, tol=1e-2, nouts=1, verbosity=0)
     push!( Uw_vals, log1.book[end][:uw] )
 end
 

@@ -4,7 +4,7 @@ export PlateMZC
 
 mutable struct PlateMZC<:Mechanical
     id    ::Int
-    shape ::ShapeType
+    shape ::CellShape
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -73,7 +73,7 @@ end
 function elem_stiffness(elem::PlateMZC)
 
     nnodes = length(elem.nodes)
-    C  = get_coords(elem)
+    C  = getcoords(elem)
     a  = abs(C[2,1]-C[1,1])/2 # element length in X direction
     b  = abs(C[2,1]-C[1,1])/2# element length in Y direction
 

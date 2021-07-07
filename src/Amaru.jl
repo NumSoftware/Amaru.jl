@@ -14,7 +14,7 @@ Node, Element, Domain, Dof, Ip, NodeBC, FaceBC
 """
 module Amaru
 using Printf, StatsBase, Statistics, LinearAlgebra, SparseArrays, DelimitedFiles, Arpack
-using DataStructures
+using DataStructures, Glob, DocStringExtensions
 import DataStructures.OrderedDict, DataStructures.OrderedSet
 
 # Debug
@@ -37,6 +37,7 @@ export max, min, sort, reset, getindex, sort, copy!, show
 #include("abstract.jl")
 abstract type AbstractPoint end
 abstract type AbstractCell end
+abstract type AbstractBlock<:AbstractCell end
 abstract type AbstractMesh end
 
 
@@ -49,6 +50,7 @@ export Node, Dof, add_dof, get_data, setvalue!
 
 # Mesh
 include("mesh/include.jl")
+export getcoords
 
 include("ip.jl")
 export Ip, ip_vals, maximum, minimum, sort
@@ -58,7 +60,7 @@ export Material, read_prms
 
 include("element.jl")
 export Element
-export get_nodes, changequadrature!, get_ips, elems_ip_vals, updatemat!, setstate!
+export getnodes, changequadrature!, get_ips, elems_ip_vals, updatemat!, setstate!
 
 include("tag.jl")
 export tag!
@@ -98,15 +100,15 @@ include("hydromech/include.jl")
 include("thermomech/include.jl")
 
 # show function for FE related types
-Base.show(io::IO, obj::Dof) = custom_dump(io, obj, 2, "")
-Base.show(io::IO, obj::Node) = custom_dump(io, obj, 2, "")
-Base.show(io::IO, obj::Ip) = custom_dump(io, obj, 2, "")
-Base.show(io::IO, obj::IpState) = custom_dump(io, obj, 2, "")
-Base.show(io::IO, obj::Element) = custom_dump(io, obj, 2, "")
-Base.show(io::IO, obj::Material) = custom_dump(io, obj, 2, "")
-Base.show(io::IO, obj::BC) = custom_dump(io, obj, 2, "")
-Base.show(io::IO, obj::Facet) = custom_dump(io, obj, 2, "")
-Base.show(io::IO, obj::AbstractLogger) = custom_dump(io, obj, 2, "")
-Base.show(io::IO, obj::Domain) = custom_dump(io, obj, 2, "")
+Base.show(io::IO, obj::Dof) = _show(io, obj, 2, "")
+Base.show(io::IO, obj::Node) = _show(io, obj, 2, "")
+Base.show(io::IO, obj::Ip) = _show(io, obj, 2, "")
+Base.show(io::IO, obj::IpState) = _show(io, obj, 2, "")
+Base.show(io::IO, obj::Element) = _show(io, obj, 2, "")
+Base.show(io::IO, obj::Material) = _show(io, obj, 2, "")
+Base.show(io::IO, obj::BC) = _show(io, obj, 2, "")
+Base.show(io::IO, obj::Facet) = _show(io, obj, 2, "")
+Base.show(io::IO, obj::AbstractLogger) = _show(io, obj, 2, "")
+Base.show(io::IO, obj::Domain) = _show(io, obj, 2, "")
 
 end#module

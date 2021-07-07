@@ -47,7 +47,7 @@ function mount_Mf(dom::Domain, ndofs::Int)
 end
 
 
-function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemods=true, verbose=true, scheme::Symbol =
+function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemods=true, verbosity=1, scheme::Symbol =
 :FE)
 
     if verbose
@@ -73,7 +73,7 @@ function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemo
 
     #Delete columns and rows that corresponding at bars and joint elements
 
-    nodesbars=get_nodes(dom.elems[:lines]) #nodes of bars
+    nodesbars=getnodes(dom.elems[:lines]) #nodes of bars
 
     idsd = Array{Int64,1}() #idsd ids for delete
 
@@ -145,7 +145,7 @@ function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemo
 
         #Modals Deformed
 
-        nodessolids = get_nodes(dom.elems[:solids]) #nodes of solids
+        nodessolids = getnodes(dom.elems[:solids]) #nodes of solids
 
         idss = Array{Int64,1}() #idss ids of dof solids
 
@@ -171,7 +171,7 @@ function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemo
                 dof.vals[dof.name] = Umod[k]
             end
 
-            save(dom, dom.filekey * "-defmod$idefmod.vtk", verbose=false) # saves current domain state for modal deformated
+            save(dom, dom.filekey * "-defmod$idefmod.vtk", verbosity=0) # saves current domain state for modal deformated
             verbose && printstyled("  ", dom.filekey * "-defmod$idefmod.vtk file written (Domain)\n", color=:green)
             idefmod += 1
         end

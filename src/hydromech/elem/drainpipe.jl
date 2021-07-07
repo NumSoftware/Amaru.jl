@@ -2,7 +2,7 @@
 
 mutable struct DrainPipe<:Hydromechanical
     id    ::Int
-    shape ::ShapeType
+    shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
@@ -32,7 +32,7 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
     nnodes = length(elem.nodes)
 
     A  = elem.mat.A
-    C  = get_coords(elem)
+    C  = getcoords(elem)
     H  = zeros(nnodes, nnodes)
     Bw = zeros(1, nnodes)
     J  = Array{Float64}(undef, 1, ndim)
@@ -64,7 +64,7 @@ function elem_RHS_vector(elem::DrainPipe)
     nnodes = length(elem.nodes)
 
     A  = elem.mat.A
-    C  = get_coords(elem)
+    C  = getcoords(elem)
     Q  = zeros(nnodes)
     Bw = zeros(1, nnodes)
     dNdX = Array{Float64}(undef, 1, nnodes)
@@ -98,7 +98,7 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
     nnodes = length(elem.nodes)
 
     A  = elem.mat.A
-    C  = get_coords(elem)
+    C  = getcoords(elem)
     H  = zeros(nnodes, nnodes)
     Bw = zeros(1, nnodes)
     dNdX = Array{Float64}(undef, 1, nnodes)
@@ -134,7 +134,7 @@ function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1
     nnodes = length(elem.nodes)
 
     A  = elem.mat.A
-    C  = get_coords(elem)
+    C  = getcoords(elem)
     Bw = zeros(1, nnodes)
 
     map_w  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]

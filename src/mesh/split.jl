@@ -9,7 +9,7 @@ export generate_joints_by_tag!
 
 
 """
-    generate_joints!(mesh, filter=nothing; layers=2, tag="", midnodestag="", intertags=false, verbose=true)
+    generate_joints!(mesh, filter=nothing; layers=2, tag="", midnodestag="", intertags=false, verbosity=1)
 
 Adds joint elements between bulk elements in `mesh`.  If `filter` is supplied
 (element tag or expression), the joints are generated over a specific region
@@ -73,7 +73,7 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
         facedict = Dict{UInt64, Cell}()
         face_pairs = Tuple{Cell, Cell}[]
         for cell in targetcells
-            for face in get_faces(cell)
+            for face in getfaces(cell)
                 hs = hash(face)
                 f  = get(facedict, hs, nothing)
                 if f===nothing
@@ -119,8 +119,8 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
                 facedict[hs] = face
             else # a matching face was found
                 
-                push!(ocells, face.oelem)
-                push!(ocells, f.oelem)
+                push!(ocells, face.owner)
+                push!(ocells, f.owner)
                 for node in face.nodes
                     push!(nodes_to_dup, node)
                 end
@@ -202,10 +202,10 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
         if !intertags
             thetag = tag
         else
-            thetag = join( sort([f1.oelem.tag, f2.oelem.tag]), "-" )
+            thetag = join( sort([f1.owner.tag, f2.owner.tag]), "-" )
         end
         cell = Cell(jshape, con, tag=thetag)
-        cell.linked_elems = [f1.oelem, f2.oelem]
+        cell.linked_elems = [f1.owner, f2.owner]
         push!(jointcells, cell)
     end
 
@@ -231,9 +231,9 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
         end
     end
 
-    # Fix LINEJOINT_SHAPE cells connectivities
+    # Fix cells connectivities for special interface elements
     for c in lockedcells
-        c.shape.family == LINEJOINT_SHAPE || continue
+        c.shape.family in (TIPJOINT_SHAPE, LINEJOINT_SHAPE) || continue
         scell = c.linked_elems[1]
         nspts = length(scell.nodes)
         c.nodes[1:nspts] .= scell.nodes
@@ -325,7 +325,7 @@ function generate_joints_by_tag!(mesh::Mesh; layers::Int64=2, verbose::Bool=true
     end
 
     # List of owner cells
-    ocells = Cell[ f.oelem for f in joint_faces ]
+    ocells = Cell[ f.owner for f in joint_faces ]
 
     # Duplicate nodes
     for cell in ocells
@@ -382,7 +382,7 @@ function generate_joints_candidate!(mesh::Mesh, expr::Expr, tag::String="") # TO
     # Get paired faces
     for cell in solids
         faces_idxs = cell.shape.facet_idxs # vertex connectivities of all faces from cell
-        for (i,face) in enumerate(get_faces(cell))
+        for (i,face) in enumerate(getfaces(cell))
             hs = hash(face)
             fp = get(fp_dict, hs, nothing)
             if fp===nothing # fill first face in fp
@@ -410,14 +410,14 @@ function generate_joints_candidate!(mesh::Mesh, expr::Expr, tag::String="") # TO
     # Generating new points
     for fp in face_pairs[in_idxs]
         for i in fp.idxs1
-            p = fp.face1.oelem.nodes[i]
+            p = fp.face1.owner.nodes[i]
             newp = Node(p.coord.x, p.coord.y, p.coord.z)
-            fp.face1.oelem.nodes[i] = newp
+            fp.face1.owner.nodes[i] = newp
         end
         for i in fp.idxs2
-            p = fp.face2.oelem.nodes[i]
+            p = fp.face2.owner.nodes[i]
             newp = Node(p.coord.x, p.coord.y, p.coord.z)
-            fp.face2.oelem.nodes[i] = newp
+            fp.face2.owner.nodes[i] = newp
         end
     end
 
@@ -425,23 +425,23 @@ function generate_joints_candidate!(mesh::Mesh, expr::Expr, tag::String="") # TO
     points_dict = Dict{UInt64,Node}()
     for fp in face_pairs[out_idxs]
         for i in fp.idxs1
-            p = fp.face1.oelem.nodes[i]
+            p = fp.face1.owner.nodes[i]
             points_dict[hash(p)] = p
         end
         for i in fp.idxs2
-            p = fp.face2.oelem.nodes[i]
+            p = fp.face2.owner.nodes[i]
             points_dict[hash(p)] = p
         end
     end
 
     for fp in face_pairs[out_idxs]
         for i in fp.idxs1
-            p = fp.face1.oelem.nodes[i]
-            fp.face1.oelem.nodes[i] = points_dict[hash(p)]
+            p = fp.face1.owner.nodes[i]
+            fp.face1.owner.nodes[i] = points_dict[hash(p)]
         end
         for i in fp.idxs2
-            p = fp.face2.oelem.nodes[i]
-            fp.face2.oelem.nodes[i] = points_dict[hash(p)]
+            p = fp.face2.owner.nodes[i]
+            fp.face2.owner.nodes[i] = points_dict[hash(p)]
         end
     end
 
@@ -453,10 +453,10 @@ function generate_joints_candidate!(mesh::Mesh, expr::Expr, tag::String="") # TO
         k   = 0
         for i in fp.idxs1
             k += 1
-            p1 = fp.face1.oelem.nodes[i]
+            p1 = fp.face1.owner.nodes[i]
             h1 = hash(p1)
             for j in fp.idxs2
-                p2 = fp.face2.oelem.nodes[j]
+                p2 = fp.face2.owner.nodes[j]
                 if h1==hash(p2)
                     con[k]   = p1
                     con[n+k] = p2
@@ -467,7 +467,7 @@ function generate_joints_candidate!(mesh::Mesh, expr::Expr, tag::String="") # TO
 
         jshape = joint_shape(fp.face1.shape)
         cell = Cell(jshape, con, tag="")
-        cell.linked_elems = [fp.face1.oelem, fp.face2.oelem]
+        cell.linked_elems = [fp.face1.owner, fp.face2.owner]
         push!(jcells, cell)
     end
 
@@ -501,7 +501,7 @@ function generate_joints_by_tag_2!(mesh::Mesh; layers::Int64=2, verbose::Bool=tr
 
     # Get paired faces
     for cell in solids
-        for face in get_faces(cell)
+        for face in getfaces(cell)
             hs = hash(face)
             f  = get(facedict, hs, nothing)
             if f===nothing
@@ -561,7 +561,7 @@ function generate_joints_by_tag_2!(mesh::Mesh; layers::Int64=2, verbose::Bool=tr
 
         jshape = joint_shape(f1.shape)
         cell = Cell(jshape, con, tag=tag)
-        cell.linked_elems = [f1.oelem, f2.oelem]
+        cell.linked_elems = [f1.owner, f2.owner]
         push!(jcells, cell)
     end
 
@@ -739,7 +739,7 @@ function cracksmesh(mesh::Mesh, opening::Real)
     facedict = Dict{UInt64, Cell}()
     face_pairs = Tuple{Cell, Cell}[]
     for cell in mesh.elems
-        for face in get_faces(cell)
+        for face in getfaces(cell)
             hs = hash(face)
             f  = get(facedict, hs, nothing)
             if f===nothing
@@ -787,7 +787,7 @@ function cracksmesh(mesh::Mesh, opening::Real)
         end
     end
 
-    nodes = get_nodes(crack_faces)
+    nodes = getnodes(crack_faces)
     ids = [ node.id for node in nodes ]
 
     newsmesh = Mesh(crack_faces)

@@ -8,7 +8,7 @@ using Test
 # Mesh generation
 
 block = Block( [0 0; 1 1], nx=1, ny=1, cellshape=QUAD4, tag="solid")
-mesh = Mesh(block, silent=true, reorder=false)
+mesh = Mesh(block, verbosity=0, reorder=false)
 
 # Domain definition
 
@@ -24,7 +24,7 @@ bcs = [
     :(y==1.) => FaceBC(ty=-1.),
 ]
 
-solve!(dom, bcs, verbose=true)
+solve!(dom, bcs, verbosity=1)
 
 
 dis = 

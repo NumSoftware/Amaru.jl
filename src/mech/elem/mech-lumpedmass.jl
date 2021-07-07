@@ -2,7 +2,7 @@
 
 mutable struct MechLumpedMass<:Mechanical
     id    ::Int
-    shape ::ShapeType
+    shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}

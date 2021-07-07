@@ -4,7 +4,7 @@ export PlateRM8node
 
 mutable struct PlateRM8node<:Mechanical
     id    ::Int
-    shape ::ShapeType
+    shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
@@ -77,7 +77,7 @@ function elem_stiffness(elem::PlateRM8node)
 
     nnodes = length(elem.nodes)
     th     = 0.15 # COLOCAR AUTOMÁTICO
-    C  = get_coords(elem)
+    C  = getcoords(elem)
     Area = cell_extent(Area)
 
     a  = abs(C[2,1]-C[1,1]) # element length in X direction

@@ -1,9 +1,9 @@
-function hrefine(mesh::Mesh; n=2, verbose=true)
+function hrefine(mesh::Mesh; n=2, verbosity=1)
     n==1 && return copy(mesh)
     newmesh = Mesh()
 
     for cell in mesh.elems
-        coords =get_coords(cell.nodes)
+        coords =getcoords(cell.nodes)
 
         if cell.shape==TRI3
             p_arr = Array{Node}(undef, n+1, n+1)
@@ -101,17 +101,17 @@ function hrefine(mesh::Mesh; n=2, verbose=true)
 end
 
 
-function prefine(mesh::Mesh; n=2, verbose=true)
+function prefine(mesh::Mesh; n=2, verbosity=1)
     #newmesh = Mesh()
 
-    NS = Dict{ShapeType,ShapeType}(TRI3=>TRI6, TET4=>TET10)
+    NS = Dict{CellShape,CellShape}(TRI3=>TRI6, TET4=>TET10)
 
     # Generate new cells
     cells = Cell[]
 
     for cell in mesh.elems
         newshape = NS[cell.shape]
-        coords = get_coords(cell.nodes)
+        coords = getcoords(cell.nodes)
         points = Node[]
         for i=1:newshape.npoints
             R = newshape.nat_coords[i,:]

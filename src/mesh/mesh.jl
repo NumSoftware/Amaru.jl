@@ -1,26 +1,39 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 """
-    Mesh()
+    Mesh
 
-Constructs an unitialized mesh object to be used in finite element analyses.
+A type that represents a finite element mesh. 
 It contains geometric fields as: nodes, elems, faces, edges, ndim, quality, etc.
+
+# Fields
+$(FIELDS)
 """
 mutable struct Mesh<:AbstractMesh
+    "mesh dimensions"
     ndim ::Int
-    nodes::Array{Node,1}
+    " array of nodes"
+    nodes::Array{Node,1} 
+    " array of elements (cells)"
     elems::Array{Cell,1}
-
+    "array of faces (cells)"
     faces::Array{Cell,1}
+    "array of edges (cells)"
     edges::Array{Cell,1}
+    "nodal data dictionary"
+    node_data::OrderedDict{String,Array}
+    "element data dictionary"
+    elem_data ::OrderedDict{String,Array}
 
     _pointdict::Dict{UInt64,Node}
     _elempartition::ElemPartition
 
-    # Data
-    node_data::OrderedDict{String,Array}
-    elem_data ::OrderedDict{String,Array}
+    """
+    Mesh()
 
+    Constructs an unitialized mesh object to be used in finite element analyses.
+    It contains geometric fields as: nodes, elems, faces, edges, ndim, quality, etc.
+    """
     function Mesh()
         this = new()
         this.nodes = []
@@ -43,7 +56,8 @@ end
 
 function Base.copy(mesh::Mesh)
     newmesh = Mesh()
-    newmesh.ndim = mesh.ndim
+    ndim = mesh.ndim
+    newmesh.ndim = ndim
     newmesh.nodes = copy.(mesh.nodes)
 
     for elem in mesh.elems
@@ -53,13 +67,22 @@ function Base.copy(mesh::Mesh)
         push!(newmesh.elems, newelem)
     end
 
-    # todo: fix references for linked elements
-
+    mesh.faces = get_surface(mesh.elems)
+    ndim==2 && (mesh.edges=mesh.faces)
+    ndim==3 && (mesh.edges=getedges(mesh.faces))
+    
     newmesh._pointdict = Dict( hash(node) => node for node in newmesh.nodes )
     newmesh.node_data = copy(mesh.node_data)
     newmesh.elem_data = copy(mesh.elem_data)
+    
+    # fixing references for linked elements #todo check
+    for elem in newmesh.elems
+        if length(elem.linked_elems)>0
+            idxs = [ e.id for e in elem.linked_elems ]
+            elem.linked_elems = newmesh.elems[idxs]
+        end
+    end
 
-    fixup!(newmesh)
     return newmesh
 end
 
@@ -69,7 +92,7 @@ function get_surface(cells::Array{<:AbstractCell,1})
 
     # Get only unique faces. If dup, original and dup are deleted
     for cell in cells
-        for face in get_faces(cell)
+        for face in getfaces(cell)
             #conns = [ pt.id for pt in face.nodes ]
             #hs = hash(conns)
             hs = hash(face)
@@ -84,13 +107,32 @@ function get_surface(cells::Array{<:AbstractCell,1})
     return Face[ face for face in values(surf_dict) ]
 end
 
-function get_edges(surf_cells::Array{<:AbstractCell,1})
+# function get_surface(mesh::Mesh)
+#     newmesh = Mesh()
+#     elems = get_surface(mesh)
+#     newmesh.nodes = copy.(getnodes(elems))
+#     newmesh._pointdict = Dict{UInt64,Node}(hash(node)=>node for node in newmesh.nodes)
+
+
+
+#     for elem in elems
+#         newelemnodes = Node[ newmesh._pointdict[hash(node)] for node in elem.nodes ]
+#         newelem = Cell(elem.shape, newelemnodes, tag=elem.tag)
+#         push!(newmesh.elems, newelem)
+#     end
+
+#     fixup!(newmesh, reorder=false)
+
+#     return newmesh    
+# end
+
+function getedges(surf_cells::Array{<:AbstractCell,1})
     edges_dict = Dict{UInt64, Cell}()
 
     # Get only unique edges
     for cell in surf_cells
-        for edge in get_faces(cell)
-            edge.oelem = cell.oelem
+        for edge in getfaces(cell)
+            edge.owner = cell.owner
             edges_dict[hash(edge)] = edge
         end
     end
@@ -105,14 +147,14 @@ function get_neighbors(cells::Array{Cell,1})::Array{Cell,1}
 
     # Get cell faces. If dup, original and dup are deleted but neigh info saved
     for cell in cells
-        for face in get_faces(cell)
+        for face in getfaces(cell)
             hs = hash(face)
             other = get(faces_dict, hs, nothing)
             if other == nothing
                 faces_dict[hs] = face
             else
-                push!(neighbors[face.oelem.id], other.oelem)
-                push!(neighbors[other.oelem.id], face.oelem)
+                push!(neighbors[face.owner.id], other.owner)
+                push!(neighbors[other.owner.id], face.owner)
                 delete!(faces_dict, hs)
             end
         end
@@ -143,7 +185,7 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
 
         # adding cell edges
         if cell.shape.family == SOLID_SHAPE #is_solid(cell.shape)
-            for edge in get_edges(cell)
+            for edge in getedges(cell)
                 hs = hash(edge)
                 all_edges[hs] = edge
             end
@@ -282,7 +324,7 @@ end
 
 
 # Updates numbering, faces and edges in a Mesh object
-function fixup!(mesh::Mesh; verbose::Bool=false, genfacets::Bool=true, genedges::Bool=true, reorder::Bool=false)
+function fixup!(mesh::Mesh; verbosity=0, genfacets::Bool=true, genedges::Bool=true, reorder::Bool=false)
 
     # Get ndim
     ndim = 1
@@ -304,15 +346,15 @@ function fixup!(mesh::Mesh; verbose::Bool=false, genfacets::Bool=true, genedges:
 
     # Facets
     if genfacets
-        verbose && print("  finding facets...   \r")
+        verbosity>0 && print("  finding facets...   \r")
         mesh.faces = get_surface(mesh.elems)
     end
     ndim==2 && (mesh.edges=mesh.faces)
 
     # Edges
     if genedges && ndim==3
-        verbose && print("  finding edges...   \r")
-        mesh.edges = get_edges(mesh.faces)
+        verbosity>0 && print("  finding edges...   \r")
+        mesh.edges = getedges(mesh.faces)
     end
 
     # Quality
@@ -384,35 +426,70 @@ end
 
 
 """
-    Mesh(coords, conns, cellshapes=[])
+    $(SIGNATURES)
 
-# Arguments
+Creates a `Mesh` from a nodal `coordinates` matrix,
+an array of `connectivities` and a list of `cellshapes`.
+If `cellshapes` are not provided, they are computed based on the geometry.
+A `tag` string for all generated cells can be provided optionally.
 
-`coords` : Matrix with point coordinates
+# Examples
+    
+```jldoctest
+julia> using Amaru;
+julia> C = [ 0 0; 1 0; 1 1; 0 1 ];
+julia> L = [ [ 1, 2, 3 ], [ 1, 3, 4 ] ];
+julia> S = [ TRI3, TRI3 ];
+julia> Mesh(C, L, S, tag="triangle")
 
-`conns`  : Array of connectivities for each cell
-
-`cellshapes=[]` : Array of cell shapes
+Mesh
+  ndim: 2
+  nodes: 4-element Vector{Node}:
+    1: Node  id=1
+    2: Node  id=2
+    3: Node  id=3
+    4: Node  id=4
+  elems: 2-element Vector{Cell}:
+    1: Cell  id=1  tag="triangle"
+    2: Cell  id=2  tag="triangle"
+  faces: 4-element Vector{Cell}:
+    1: Cell  id=-1  tag="triangle"
+    2: Cell  id=-1  tag="triangle"
+    3: Cell  id=-1  tag="triangle"
+    4: Cell  id=-1  tag="triangle"
+  edges: 4-element Vector{Cell}:
+    1: Cell  id=-1  tag="triangle"
+    2: Cell  id=-1  tag="triangle"
+    3: Cell  id=-1  tag="triangle"
+    4: Cell  id=-1  tag="triangle"
+  node_data: OrderedDict{String, Array} with 1 entry
+    "node-id" => [1, 2, 3, 4]
+  elem_data: OrderedDict{String, Array} with 3 entries
+    "quality" => [0.8915188114208271, 0.8915188114208271]
+    "elem-id" => [1, 2]
+    "cell-type" => [5, 5]
+```
 """
 function Mesh(
-              coords     :: Array{<:Real},
+              coordinates:: Array{<:Real},
               conns      :: Array{Array{Int64,1},1},
-              cellshapes :: Array{ShapeType,1}=ShapeType[];
+              cellshapes :: Array{CellShape,1}=CellShape[];
               tag        :: String="",
-              verbose    :: Bool=true,
-              silent     :: Bool=false
+              verbosity=0,
              )
-    n = size(coords, 1) # number of nodes
+    verbosity = clamp(verbosity, 0,2)
+
+    n = size(coordinates, 1) # number of nodes
     m = size(conns , 1) # number of cells
 
     nodes = Node[]
     for i=1:n
-        C = coords[i,:]
+        C = coordinates[i,:]
         push!(nodes, Node(C))
     end
 
     # Get ndim
-    ndim = size(coords,2)
+    ndim = size(coordinates,2)
 
     cells = Cell[]
     for i=1:m
@@ -451,41 +528,101 @@ end
 flatten(x)=flatten(x, [])
 
 
+# """
+#     Mesh(items, kwargs...)
+
+# Generates a mesh based on an array of geometrical objects.
+
+# # Arguments
+
+# `items`     : Array of objects used to generate a `Mesh` object.
+# These objects can be of type `Block` or `Mesh`.
+# Subarrays of these type of objects are also supported.
+
+# # Keyword arguments
+
+# `genfacets = true` : If true, generates facet cells
+
+# `genedges  = true` : If true, generates edge cells
+
+# `reorder   = true` : If true, reorder nodes numbering
+
+# `verbosity      = 0`    : Verbosity level from 0 (silent) to 2 (verbose)
+# """
 """
-    Mesh(items, kwargs...)
+    $(SIGNATURES)
 
-Generates a mesh based on an array of geometrical objects.
+Generates a `Mesh` based from a set of `items` that can be 
+`Block` or `Mesh` objects, or a combination of both.
+If `reorder` is `true` (default), the nodes are ordered using the Cuthill–McKee algorithm.
+The mesh generation steps are printed in `stdout`.
+The printed output can be set to `verbose` or `silent`.
 
-# Arguments
-
-`items`     : Array of objects used to generate a `Mesh` object.
-These objects can be of type `Block` or `Mesh`.
-Subarrays of these type of objects are also supported.
-
-# Keyword arguments
-
-`genfacets = true` : If true, generates facet cells
-
-`genedges  = true` : If true, generates edge cells
-
-`reorder   = true` : If true, reorder nodes numbering
-
-`verbose   = false` : If true, prints extra information
-
-`silent    = false` : If true, does not print anything
+# Examples
+    
+```@example
+julia> using Amaru;
+julia> B1 = Block([0 0; 1 1], nx=2, ny=2);
+julia> B2 = Block([1 0; 2 1], nx=3, ny=2);
+julia> Mesh(B1, B2, verbosity=0)
+Mesh
+  ndim: 2
+  nodes: 18-element Vector{Node}:
+    1: Node  id=1
+    2: Node  id=2
+    3: Node  id=3
+    4: Node  id=4
+    ⋮
+    15: Node  id=15
+    16: Node  id=16
+    17: Node  id=17
+    18: Node  id=18
+  elems: 10-element Vector{Cell}:
+    1: Cell  id=1
+    2: Cell  id=2
+    3: Cell  id=3
+    4: Cell  id=4
+    ⋮
+    7: Cell  id=7
+    8: Cell  id=8
+    9: Cell  id=9
+    10: Cell  id=10
+  faces: 14-element Vector{Cell}:
+    1: Cell  id=-1
+    2: Cell  id=-1
+    3: Cell  id=-1
+    4: Cell  id=-1
+    ⋮
+    11: Cell  id=-1
+    12: Cell  id=-1
+    13: Cell  id=-1
+    14: Cell  id=-1
+  edges: 14-element Vector{Cell}:
+    1: Cell  id=-1
+    2: Cell  id=-1
+    3: Cell  id=-1
+    4: Cell  id=-1
+    ⋮
+    11: Cell  id=-1
+    12: Cell  id=-1
+    13: Cell  id=-1
+    14: Cell  id=-1
+  node_data: OrderedDict{String, Array} with 1 entry
+    "node-id" => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+  elem_data: OrderedDict{String, Array} with 3 entries
+    "quality" => 10-element Vector{Float64}
+    "elem-id" => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    "cell-type" => [9, 9, 9, 9, 9, 9, 9, 9, 9, 9]
+```
 """
 function Mesh(
-              items     :: Union{Mesh, AbstractBlock, Array{<:Union{AbstractBlock, Array},1}}...;
-              genfacets :: Bool = true,
-              genedges  :: Bool = true,
-              reorder   :: Bool = true,
-              verbose   :: Bool = false,
-              silent    :: Bool = false,
-             )
-
-    verbosity = 1
-    verbose && (verbosity=2)
-    silent && (verbosity=0)
+    items     :: Union{Mesh, AbstractBlock, Array{<:Union{AbstractBlock, Array},1}}...;
+    genfacets :: Bool = true,
+    genedges  :: Bool = true,
+    reorder   :: Bool = true,
+    verbosity=0,
+)
+    verbosity = clamp(verbosity, 0,2)             
 
     # Flatten items list
     fitems = flatten(items)
@@ -521,13 +658,13 @@ function Mesh(
 
     # Split blocks: generates nodes and cells
     for (i,b) in enumerate(blocks)
-        b.id = i
+        # b.id = i
         split_block(b, mesh)
         verbosity>1 && print("  spliting block ", i, "...    \r")
     end
 
     # Updates numbering, quality, facets and edges
-    fixup!(mesh, verbose=verbose, genfacets=genfacets, genedges=genedges, reorder=reorder)
+    fixup!(mesh, verbosity=verbosity, genfacets=genfacets, genedges=genedges, reorder=reorder)
 
     # Add field for embedded nodes
     if any( c.shape.family==LINEJOINT_SHAPE for c in mesh.elems )
@@ -607,7 +744,12 @@ end
 
 function Mesh(elems::Array{Cell,1})
     newmesh = Mesh()
-    newmesh.nodes = copy.(get_nodes(elems))
+    newmesh.nodes = copy.(getnodes(elems))
+    digs = 8
+    for node in newmesh.nodes
+        round!(node.coord, digits=digs)
+    end
+
     newmesh._pointdict = Dict{UInt64,Node}(hash(node)=>node for node in newmesh.nodes)
 
     for elem in elems
@@ -693,7 +835,7 @@ function threshold(mesh::Mesh, field::Union{Symbol,String}, minval::Float64, max
     end
 
     # get nodes
-    nodes = get_nodes(cells)
+    nodes = getnodes(cells)
 
     # ids from selected cells and nodes
     cids = [ c.id for c in cells ]
@@ -735,7 +877,7 @@ function get_segment_data(msh::AbstractMesh, X1::Array{<:Real,1}, X2::Array{<:Re
         X = X1 + Δ*(i-1)
         s = s1 + Δs*(i-1)
         cell = find_elem(X, msh.elems, msh._elempartition, 1e-7, Cell[])
-        coords =get_coords(cell)
+        coords =getcoords(cell)
         R = inverse_map(cell.shape, coords, X)
         N = cell.shape.func(R)
         map = [ p.id for p in cell.nodes ]
@@ -759,12 +901,12 @@ function randmesh(l::Real...)
         lx, ly = l
         nx, ny = rand(4:7, 2)
         cellshape = rand((TRI3, TRI6, QUAD4, QUAD8))
-        m = Mesh(Block2D([0.0 0.0; lx ly], nx=nx, ny=ny, cellshape=cellshape), verbose=false)
+        m = Mesh(Block([0.0 0.0; lx ly], nx=nx, ny=ny, cellshape=cellshape), verbosity=false)
     else
         lx, ly, lz = l
         nx, ny, nz = rand(4:7, 3)
         cellshape = rand((TET4, TET10, HEX8, HEX20))
-        m = Mesh(Block3D([0.0 0.0 0.0; lx ly lz], nx=nx, ny=ny, nz=nz, cellshape=cellshape), verbose=false)
+        m = Mesh(Block([0.0 0.0 0.0; lx ly lz], nx=nx, ny=ny, nz=nz, cellshape=cellshape), verbosity=false)
     end
 end
 
@@ -775,7 +917,8 @@ export UMesh
 function UMesh(
                polym::Union{Polygon,PolygonMesh},
                sizes::Array=[],
-               embedded=Array=[];
+               embedded::Array=[];
+               embsurfaces::Array=[],
                size::Real=NaN,
                recombine=false
              )
@@ -783,7 +926,14 @@ function UMesh(
         polym = PolygonMesh([polym])
     end
 
-    coords = get_coords(polym)
+    nembsurfaces = length(embsurfaces)
+    if nembsurfaces>0
+        @show length(polym.polygons)
+        polym = PolygonMesh([polym.polygons; embsurfaces])
+        @show length(polym.polygons)
+    end
+
+    coords = getcoords(polym)
     ndim = sum(abs, coords[:,end])==0.0 ? 2 : 3
     npoints = Base.size(coords,1)
     pdict = Dict{Point, Int}( p=>i for (i,p) in enumerate(polym.points) )
@@ -805,7 +955,7 @@ function UMesh(
     end
 
     # Set embedded points in surfaces
-    _embed = Dict{Int,Int}()
+    _embpoints = Dict{Int,Int}() # point id => surf id
     polydict = Dict{UInt, Int}( hash(poly)=>i for (i,poly) in enumerate(polym.polygons) )
     for (filter,X) in embedded
         polygons = polym.polygons[filter]
@@ -813,10 +963,20 @@ function UMesh(
         poly = polygons[1]
         coords = [coords; X']
         push!(_sizes, size)
-        @show coords
-        #_embed[polydict[hash(poly)]] = Base.size(coords,2)
-        _embed[ Base.size(coords,1) ] = polydict[hash(poly)]
+        _embpoints[ Base.size(coords,1) ] = polydict[hash(poly)]
     end
+
+    # Set embedded surfaces in volume
+    # _embsurfaces = Array{Int,1}[]  # surf id => vol 1
+    # for (i,S) in enumerate(embsurfaces)
+    #     npoints = Base.size(coords,1)
+    #     # @show coords
+    #     # @show S
+    #     coords = [coords; S]
+    #     surf = [ 1, 2, 3, 4 ] .+ npoints
+    #     push!(_embsurfaces, surf)
+    # end
+
 
     # Find point indexes for lines
     pdict = Dict{Point, Int}( p=>i for (i,p) in enumerate(polym.points) )
@@ -833,7 +993,7 @@ function UMesh(
         push!(polyindexes, idx)
     end
 
-    # Fix signal in line indexes for polygons
+    # Fix sign in line indexes for polygons
     for loop in polyindexes
         if !(lineindexes[loop[1]][end] in lineindexes[loop[2]])
             loop[1] = -loop[1]
@@ -852,14 +1012,14 @@ function UMesh(
 
     # Mesh generation
     @eval begin
-        coords = $coords
-        sizes = $_sizes
-        lines = $lineindexes
-        surfaces = $polyindexes
-        ndim = $ndim
-        npoints = $npoints
-        embedded = $_embed
-        recombine = $recombine
+        coords         = $coords
+        sizes          = $_sizes
+        lines          = $lineindexes
+        surfaces       = $polyindexes
+        ndim           = $ndim
+        npoints        = $npoints
+        embeddedpoints = $_embpoints
+        recombine      = $recombine
 
         try import Gmsh.gmsh
         catch
@@ -902,16 +1062,31 @@ function UMesh(
         end
 
         if ndim==3
-            gmsh.model.geo.addSurfaceLoop(collect(1:nsurfs), 1)
+            gmsh.model.geo.addSurfaceLoop(collect(1:nsurfs-$nembsurfaces), 1)
             gmsh.model.geo.addVolume([1], 1)
             global ipg += 1
             gmsh.model.addPhysicalGroup(3, [1], ipg) # ndim, entities, tag
         end
 
         gmsh.model.geo.synchronize()
-        for (k,v) in embedded
+
+        # Embedded points
+        for (k,v) in embeddedpoints
             gmsh.model.mesh.embed(0,[k],2,v)
         end
+
+        # Embedded surfaces
+        for i in nsurfs-$nembsurfaces+1:nsurfs
+            for l in surfaces[i]
+                gmsh.model.mesh.embed(1,[abs(l)],3,1)
+            end
+            # for (i,loop) in enumerate(surfaces)
+            #     gmsh.model.geo.addCurveLoop(loop, nsurfs+i)
+            #     gmsh.model.geo.addPlaneSurface([nsurfs+i], nsurfs+i)
+            # end
+            gmsh.model.mesh.embed(2,[i],3,1)
+        end
+        
 
         # Recombine
         if recombine

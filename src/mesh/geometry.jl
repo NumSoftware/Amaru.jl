@@ -85,15 +85,6 @@ function Base.getindex(polys::Array{Polygon,1}, filter_ex::Expr)
 end
 
 
-
-
-
-
-
-
-
-
-
 mutable struct PolygonMesh
     points::Array{Point,1}
     lines::Array{Line,1}
@@ -160,6 +151,6 @@ function extrude(poly::Polygon; dir=[0,0,1], length=1.0)
 
 end
 
-function get_coords(polym::PolygonMesh)
+function getcoords(polym::PolygonMesh)
     return Float64[ p.coord[j] for p in polym.points, j=1:3 ]
 end

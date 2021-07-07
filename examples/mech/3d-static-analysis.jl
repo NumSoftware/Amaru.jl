@@ -7,7 +7,7 @@ blocks = [
     Block3D( [0 0 0; 1 1 1], nx=1, ny=1, nz=1, cellshape=HEX8, tag="solids"),
 ]
 
-msh = Mesh(blocks, verbose=true);
+msh = Mesh(blocks, verbosity=1);
 
 #mplot(msh, "mesh.pdf", field="cell-id")
 

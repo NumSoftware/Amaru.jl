@@ -133,9 +133,7 @@ function eigvals(T::Tensor2)::Vect
     if s2<s3; s2,s3 = s3,s2 end
     if s1<s2; s1,s2 = s2,s1 end
 
-    P = [ s1, s2, s3 ]
-
-    return P
+    return Vec3(s1, s2, s3)
 end
 
 

@@ -2,33 +2,69 @@
 
 export ElasticRod
 
-mutable struct ElasticRodIpState<:IpState
-    env::ModelEnv
-    σ::Float64
-    ε::Float64
-    function ElasticRodIpState(env::ModelEnv=ModelEnv())
-        this = new(env)
-        this.σ = 0.0
-        this.ε = 0.0
-        return this
-    end
-end
+"""
+    ElasticRod
 
+A type for linear elastic materials in rods.
+
+# Fields
+
+$(TYPEDFIELDS)
+"""
 mutable struct ElasticRod<:Material
+    "Young Modulus"
     E::Float64
+    "Section area"
     A::Float64
+    "Density"
     ρ::Float64
 
     function ElasticRod(prms::Dict{Symbol,Float64})
         return  ElasticRod(;prms...)
     end
 
+    @doc """
+        $(SIGNATURES)
+
+    Creates an `ElasticRod` material type
+
+    # Arguments
+    - `E`: Young modulus
+    - `A`: Section area
+    - `dm`: Diameter (only if `A` is not provided)
+    - `rho`: Density
+    """
     function ElasticRod(;E::Number=NaN, A::Number=NaN, dm::Number=NaN, rho::Number=0.0)
         @check E>0.0
         @check A>0.0 || dm>0.0
         @check rho>=0.0
         dm>0 && (A=π*dm^2/4)
         return new(E, A, rho)
+    end
+end
+
+
+"""
+    ElasticRodIpState
+
+A type for the state data of a `ElasticRod` type.
+
+# Fields
+
+$(TYPEDFIELDS)
+"""
+mutable struct ElasticRodIpState<:IpState
+    "environment information"
+    env::ModelEnv
+    "Axial stress"
+    σ::Float64
+    "Axial strain"
+    ε::Float64
+    function ElasticRodIpState(env::ModelEnv=ModelEnv())
+        this = new(env)
+        this.σ = 0.0
+        this.ε = 0.0
+        return this
     end
 end
 

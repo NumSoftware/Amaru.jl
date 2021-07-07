@@ -4,7 +4,7 @@ using Amaru
 # Mesh generation
 blocks = [Block([0 0; 1 2], nx = 2, ny = 4, tag = "solids")]
 
-msh = Mesh(blocks, verbose = true)
+msh = Mesh(blocks)
 
 # Finite element analysis
 
@@ -42,7 +42,6 @@ tm_solve!(
     end_time = 300000.0,
     tol      = 0.1,
     nincs    = 10,
-    verbose  = true,
     nouts    = 10,
 )
 # Output

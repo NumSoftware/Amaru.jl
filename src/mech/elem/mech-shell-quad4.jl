@@ -4,7 +4,7 @@ export ShellQUAD4
 
 mutable struct ShellQUAD4<:Mechanical
     id    ::Int
-    shape ::ShapeType
+    shape ::CellShape
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -38,7 +38,7 @@ function distributed_bc(elem::ShellQUAD4, facet::Union{Facet, Nothing}, key::Sym
     nnodes = length(nodes)
 
     # Calculate the target coordinates matrix
-    C = get_coords(nodes, ndim)
+    C = getcoords(nodes, ndim)
 
     # Vector with values to apply
     Q = zeros(ndim)
@@ -97,7 +97,7 @@ end
 
 function RotMatrix(elem::ShellQUAD4)
 
-    C = get_coords(elem)
+    C = getcoords(elem)
 
     R = [ 0.0, 0.0, 0.0 ]
     dNdR = elem.shape.deriv(R)
@@ -217,7 +217,7 @@ function elem_stiffness(elem::ShellQUAD4)
     nnodes = length(elem.nodes)
     ndof   = 5
 
-    C = get_coords(elem)
+    C = getcoords(elem)
     R = RotMatrix(elem)
     C = (C*R')[:,1:2]
     B = zeros(8, nnodes*ndof)

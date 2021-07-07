@@ -6,7 +6,7 @@ blocks = [
     Block( [0 0 0; 0.2 2.0 0.2], nx=2, ny=12, nz=2, cellshape=HEX8, tag="solids"),
 ]
 
-mesh = Mesh(blocks, verbose=true)
+mesh = Mesh(blocks, verbosity=1)
 
 # Domain definition
 
@@ -25,5 +25,5 @@ bcs = [
 ]
 
 
-dynsolve!(dom, bcs, time_span=0.1, nincs=50, verbose=false, filekey="dyn", nouts=50, autoinc=true, alpha=4.2038, beta=174.2803e-6)
-#dynsolve!(dom, bcs, time_span=0.1, nincs=50, verbose=true, filekey="dyn", nouts=100, autoinc=true)
+dynsolve!(dom, bcs, time_span=0.1, nincs=50, verbosity=0, filekey="dyn", nouts=50, autoinc=true, alpha=4.2038, beta=174.2803e-6)
+#dynsolve!(dom, bcs, time_span=0.1, nincs=50, verbosity=1, filekey="dyn", nouts=100, autoinc=true)

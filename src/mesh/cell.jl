@@ -1,36 +1,75 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-#abstract type AbstractCell end
-
-abstract type AbstractBlock<:AbstractCell end
-
 
 # Cell
 # ====
 
 """
-A geometry type that represent a definite line, area or volume.
+    Cell
+
+A type that represents a mesh cell. It can be a 1D, 2D or 3D.
+
+# Fields
+$(FIELDS)
 """
 mutable struct Cell<:AbstractCell
+    "identification number"
     id     ::Integer
-    shape  ::ShapeType
+    "geometric shape"
+    shape  ::CellShape
+    "array of nodes"
     nodes  ::Array{Node,1}
+    "string tag used to group cells"
     tag    ::String
+    "cell quality in the range from 0 to 1"
     quality::Float64              # quality index: surf/(reg_surf)
+    "defines if it is an embedded cell"
     embedded::Bool                # flag for embedded cells
+    "defines if it is a crossed cell"
     crossed::Bool                 # flag if cell crossed by linear inclusion
-    oelem  ::Union{AbstractCell,Nothing}  # owner cell if this cell is a face/edge
+    "owner cell if the cell is a face or edge"
+    owner  ::Union{AbstractCell,Nothing}  # owner cell if this cell is a face/edge
+    "array of coupled cells"
     linked_elems::Array{AbstractCell,1}   # neighbor cells in case of joint cell
-    function Cell(shape::ShapeType, nodes::Array{Node,1}; tag::String="", oelem=nothing)
+
+    @doc """
+        $(SIGNATURES)
+
+    Constructs a `Cell` given a `shape` and an array of nodes.
+    A `tag` string can be provided optionally.
+    If the cell is a face or an edge, the `owner` element cell can be provided.
+
+    # Examples
+    
+    ```jldoctest
+    julia> using Amaru;
+    julia> nodes = [ Node(0,0), Node(1,0), Node(1,1) ];
+    julia> Cell(TRI3, nodes, tag="triangle");
+    Cell
+      id: -1
+      shape: CellShape  name="TRI3"
+      nodes: 3-element Vector{Node}:
+          1: Node  id=-1
+          2: Node  id=-1
+          3: Node  id=-1
+      tag: "triangle"
+      quality: 0.0
+      embedded: false
+      crossed: false
+      owner: nothing
+      linked_elems: 0-element Vector{Amaru.AbstractCell}
+    ```
+    """
+    function Cell(shape::CellShape, nodes::Array{Node,1}; tag::String="", owner=nothing, id::Int=-1)
         this = new()
-        this.id = -1
+        this.id = id
         this.shape = shape
-        this.nodes = nodes
+        this.nodes = copy(nodes)
         this.tag = tag
         this.quality = 0.0
         this.embedded= false
         this.crossed = false
-        this.oelem   = oelem
+        this.owner   = owner
         this.linked_elems = []
         return this
     end
@@ -45,7 +84,20 @@ const Facet=Cell
 
 Base.hash(c::Cell) = sum(hash(p) for p in c.nodes)
 
-function get_coords(c::AbstractCell, ndim=3)::Array{Float64,2}
+"""
+    $(TYPEDSIGNATURES)
+
+Creates a copy of `cell`.
+"""
+Base.copy(cell::Cell)  = Cell(cell.shape, cell.nodes, tag=cell.tag, owner=cell.owner)
+
+"""
+    $(SIGNATURES)
+
+Returns a matrix with the nodal coordinates of `c`.
+`ndim` (default 3) can be used to define the number axes.
+"""
+function getcoords(c::AbstractCell, ndim=3)::Array{Float64,2}
     n = length(c.nodes)
     C = Array{Float64}(undef, n, ndim)
     for (i,p) in enumerate(c.nodes)
@@ -58,7 +110,7 @@ end
 
 
 # Return all nodes in cells
-function get_nodes(cells::Array{<:AbstractCell,1})::Array{Node,1}
+function getnodes(cells::Array{<:AbstractCell,1})::Array{Node,1}
     nodes = Set{Node}()
     for cell in cells
         for node in cell.nodes
@@ -72,9 +124,9 @@ end
 
 
 function Base.getproperty(c::AbstractCell, s::Symbol)
-    s == :coords && return get_coords(c)
-    s == :faces  && return get_faces(c)
-    s == :edges  && return get_edges(c)
+    s == :coords && return getcoords(c)
+    s == :faces  && return getfaces(c)
+    s == :edges  && return getedges(c)
     s == :extent && return cell_extent(c)
     s == :points && return c.nodes
     return getfield(c, s)
@@ -85,7 +137,8 @@ function Base.getproperty(cells::Array{<:AbstractCell,1}, s::Symbol)
     s == :lines    && return filter(cell -> cell.shape.family==LINE_SHAPE, cells)
     s == :joints   && return filter(cell -> cell.shape.family==JOINT_SHAPE, cells)
     s in (:linejoints, :joints1D, :joints1d) && return filter(cell -> cell.shape.family==LINEJOINT_SHAPE, cells)
-    s == :nodes && return get_nodes(cells)
+    s == :tipjoints   && return filter(cell -> cell.shape.family==TIPJOINT_SHAPE, cells)
+    s == :nodes && return getnodes(cells)
 
     error("type $(typeof(cells)) has no property $s")
 end
@@ -97,8 +150,9 @@ function Base.getindex(cells::Array{<:AbstractCell,1}, s::Symbol)
     s == :solids   && return filter(cell -> cell.shape.family==SOLID_SHAPE, cells)
     s == :lines    && return filter(cell -> cell.shape.family==LINE_SHAPE, cells)
     s == :joints   && return filter(cell -> cell.shape.family==JOINT_SHAPE, cells)
-    s == :joints1D && return filter(cell -> cell.shape.family==LINEJOINT_SHAPE, cells)
-    s == :nodes   && return get_nodes(cells)
+    s in (:linejoints, :joints1D, :joints1d) && return filter(cell -> cell.shape.family==LINEJOINT_SHAPE, cells)
+    s == :tipjoints   && return filter(cell -> cell.shape.family==TIPJOINT_SHAPE, cells)
+    s == :nodes   && return getnodes(cells)
     error("getindex: $(typeof(cells)) has no property $s")
 end
 
@@ -162,7 +216,7 @@ end
 
 
 # gets all facets of a cell
-function get_faces(cell::AbstractCell)
+function getfaces(cell::AbstractCell)
     faces  = Cell[]
 
     all_faces_idxs = cell.shape.facet_idxs
@@ -170,13 +224,13 @@ function get_faces(cell::AbstractCell)
 
     if facet_shape==() return faces end
 
-    sameshape  = typeof(facet_shape) == ShapeType # check if all facets have the same shape
+    sameshape  = typeof(facet_shape) == CellShape # check if all facets have the same shape
 
     # Iteration for each facet
     for (i, face_idxs) in enumerate(all_faces_idxs)
         nodes = cell.nodes[face_idxs]
         shape  = sameshape ? facet_shape : facet_shape[i]
-        face   = Cell(shape, nodes, tag=cell.tag, oelem=cell)
+        face   = Cell(shape, nodes, tag=cell.tag, owner=cell)
         push!(faces, face)
     end
 
@@ -185,8 +239,8 @@ end
 
 
 # gets all edges of a cell
-function get_edges(cell::AbstractCell)
-    if cell.shape.ndim==2 return get_faces(cell) end
+function getedges(cell::AbstractCell)
+    if cell.shape.ndim==2 return getfaces(cell) end
 
     edges  = Cell[]
     all_edge_idxs = cell.shape.edge_idxs
@@ -194,7 +248,7 @@ function get_edges(cell::AbstractCell)
     for edge_idx in all_edge_idxs
         nodes = cell.nodes[edge_idx]
         shape  = (LIN2, LIN3, LIN4)[length(nodes)-1]
-        edge   = Cell(shape, nodes, tag=cell.tag, oelem=cell)
+        edge   = Cell(shape, nodes, tag=cell.tag, owner=cell)
         push!(edges, edge)
     end
 
@@ -227,7 +281,7 @@ function cell_extent(c::AbstractCell)
     nldim = c.shape.ndim # cell basic dimension
 
     # get coordinates matrix
-    C =get_coords(c)
+    C =getcoords(c)
     J = Array{Float64}(undef, nldim, size(C,2))
 
     # calc metric
@@ -249,7 +303,7 @@ end
 
 
 # Returns the surface/perimeter of a regular element given the volume/area of a cell
-function regular_surface(metric::Float64, shape::ShapeType)
+function regular_surface(metric::Float64, shape::CellShape)
     if shape in [ TRI3, TRI6, TRI9, TRI10 ]
         A = metric
         a = 2.0*√(A/√3.0)
@@ -285,7 +339,7 @@ end
 
 
 # Returns the area/volume of a regular element given the perimeter/surface
-function regular_volume(metric::Float64, shape::ShapeType)
+function regular_volume(metric::Float64, shape::CellShape)
     if shape in [ TRI3, TRI6, TRI9, TRI10 ]
         p = metric
         a = p/3
@@ -324,7 +378,7 @@ end
 #= Returns the cell aspect ratio
 function cell_aspect_ratio(c::AbstractCell)
     # get faces
-    faces = get_faces(c)
+    faces = getfaces(c)
     if length(faces)==0
         return 1.0
     end
@@ -345,7 +399,7 @@ end =#
 # Returns the cell quality ratio as vol/reg_vol
 function cell_quality_2(c::AbstractCell)::Float64
     # get faces
-    faces = get_faces(c)
+    faces = getfaces(c)
     length(faces)==0 && return 1.0
 
     # cell surface
@@ -361,7 +415,7 @@ end
 # Returns the cell quality ratio as reg_surf/surf
 function cell_quality(c::AbstractCell)::Float64
     # get faces
-    faces = get_faces(c)
+    faces = getfaces(c)
     if length(faces)==0
         return 1.0
     end
@@ -386,7 +440,7 @@ end
 
 
 function cell_aspect_ratio(c::AbstractCell)::Float64
-    edges = get_edges(c)
+    edges = getedges(c)
     L = [ cell_extent(e) for e in edges ]
     return maximum(L)/minimum(L)
 end
@@ -429,6 +483,6 @@ end
 
 
 function inverse_map(cell::AbstractCell, X::AbstractArray{Float64,1}, tol=1.0e-7)
-    return inverse_map(cell.shape, get_coords(cell), X, tol)
+    return inverse_map(cell.shape, getcoords(cell), X, tol)
 end
 

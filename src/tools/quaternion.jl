@@ -12,6 +12,9 @@ mutable struct Quaternion<:AbstractArray{Float64,1}
     function Quaternion(Q::Tuple{Float64,Float64,Float64,Float64})
         return new(Q[1], Q[2], Q[3], Q[4])
     end
+    function Quaternion(axis::AbstractArray{<:Float64}, angle::Real)
+        return new(cos(angle/2), axis[1]*sin(angle/2), axis[2]*sin(angle/2), axis[3]*sin(angle/2))
+    end
 end
 
 
@@ -94,34 +97,7 @@ Base.:+(Q::Quaternion, V::Vec3) = Vec3( V.x+Q.x, V.y+Q.y, V.z+Q.z )
 Base.:-(V::Vec3, Q::Quaternion) = Vec3( V.x-Q.x, V.y-Q.y, V.z-Q.z )
 Base.:-(Q::Quaternion, V::Vec3) = Vec3( Q.x-V.x, Q.y-V.y, Q.z-V.z )
 
-
-#function rotation(axis::Array{Float64,1}, angle::Float64)
-    #ang = angle*pi/180
-    #return Quaternion(
-                      #cos(ang/2),
-                      #axis[1]*sin(ang/2),
-                      #axis[2]*sin(ang/2),
-                      #axis[3]*sin(ang/2)
-                     #)
-#end
-#
-#
-#function rotate(X::Vec3, R::Quaternion)
-    #X1 = Quaternion(0.0, X[1], X[2], X[3])
-    #X2 = R*X1*conj(R)
-    #return Vec3(X[2], X[3], X[4])
-#end
-#
-#
-#function rotate(X::Vec3, R::Quaternion)
-    #X1 = Quaternion(0.0, X[1], X[2], X[3])
-    #X2 = R*X1*conj(R)
-    #return Vec3(X[2], X[3], X[4])
-#end
-#
-#function rotate(X::Vec3, base::Vec3, axis::Vec3, angle::Float64)
-    #R = rotation(axis, angle)
-    #X1 = Quaternion(0.0, X[1], X[2], X[3])
-    #X2 = R*X1*conj(R)
-    #return Vec3(X[2], X[3], X[4])
-#end
+function rotate(X::Array{<:Real,1}, Q::Quaternion)
+    Y = Q*X*conj(Q)
+    return Vec3(Y[2], Y[3], Y[4])
+end

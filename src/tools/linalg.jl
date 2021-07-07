@@ -185,7 +185,8 @@ function Base.split(A::Array, knots::Array)
     # @s A
     # @s knots
 
-    R = Array{eltype(A),1}[]
+    # R = Array{eltype(A),1}[]
+    R = Array{Int,1}[]
     n = length(A)
 
     knots = unique(knots)

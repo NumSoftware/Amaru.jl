@@ -7,7 +7,7 @@ blocks = [
     Block( [0 0; 3 0.4], nx=30, ny=8, cellshape=QUAD8, tag="solids"),
 ]
 
-msh = Mesh(blocks, verbose=true);
+msh = Mesh(blocks, verbosity=1);
 
 mplot(msh, "mesh.pdf", field="elem-id")
 

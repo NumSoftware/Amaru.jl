@@ -13,7 +13,8 @@ include("elem/mech-rod.jl")
 include("elem/mech-embrod.jl")
 include("elem/mech-beam.jl")
 include("elem/mech-joint.jl")
-include("elem/mech-joint1d.jl")
+include("elem/mech-rsjoint.jl")
+include("elem/mech-tipjoint.jl")
 include("elem/mech-plate-mzc-quad4.jl")
 include("elem/mech-plate-rm-quad4.jl")
 include("elem/mech-plate-rm-quad8.jl")
@@ -26,6 +27,7 @@ include("mat/dp-solid.jl")
 include("mat/vm-solid.jl")
 include("mat/mazars-solid.jl")
 include("mat/sc-solid.jl")
+include("mat/compressiveconcrete-solid.jl")
 include("mat/damageconcrete-solid.jl")
 #include("mat/ortho-solid.jl")
 #include("mat/ortho-concrete-solid.jl")
@@ -48,7 +50,7 @@ include("mat/elastic-plateMZC.jl")
 include("mat/elastic-plateRM.jl")
 include("mat/elastic-plateRM8node.jl")
 
-# Models for shelss
+# Models for shels
 include("mat/elastic-shell-quad4.jl")
 
 # Models for joint elements
@@ -56,8 +58,11 @@ include("mat/elastic-joint.jl")
 include("mat/mc-joint.jl")
 
 # Models for 1D joint elements
-include("mat/elastic-joint1d.jl")
-include("mat/ceb-joint1d.jl")
+include("mat/elastic-rsjoint.jl")
+include("mat/ceb-rsjoint.jl")
+include("mat/cyclic-rsjoint.jl")
+include("mat/tipjoint.jl")
+include("mat/elastic-tipjoint.jl")
 
 # Stress-update integrator
 include("mat/integrator.jl")

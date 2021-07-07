@@ -4,6 +4,7 @@
 *.bk.jl
 *.swp
 *.vtk
+*.vtu
 *.dat
 *.pdf
 .ipynb_checkpoints

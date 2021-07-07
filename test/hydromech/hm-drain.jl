@@ -6,7 +6,7 @@ bl1 = BlockInset( [1.5 2.0; 1.5 1.5], curvetype="polyline", tag="drains", cellsh
 bl2 = BlockInset( [1.5 1.4; 0.001 0.001], curvetype="polyline", tag="drains", cellshape=LIN2, jointtag="joints")
 bls = [bl, bl1, bl2]
 
-mesh = Mesh(bls, verbose=true)
+mesh = Mesh(bls, verbosity=0)
 
 E  = 5000;
 nu = 0.25;
@@ -37,7 +37,7 @@ bcs = [
        :(y==2.0) => NodeBC(uw=0),
       ]
 
-hm_solve!(dom, bcs, end_time=t0, nincs=2, tol=1e-2, nouts=2, verbose=true)
+hm_solve!(dom, bcs, end_time=t0, nincs=2, tol=1e-2, nouts=2, verbosity=0)
 
 dom.env.t = 0.0
 
@@ -49,6 +49,6 @@ bcs = [
       ]
 
 
-hm_solve!(dom, bcs, end_time=600.0, nincs=2, tol=1e-2, nouts=2, verbose=true)
+hm_solve!(dom, bcs, end_time=600.0, nincs=2, tol=1e-2, nouts=2, verbosity=0)
 
 save(dom, "dom1.vtk")

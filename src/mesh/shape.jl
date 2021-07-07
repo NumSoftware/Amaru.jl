@@ -1,12 +1,13 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 @enum(ShapeFamily,
+VERTEX_SHAPE    = 0,
 LINE_SHAPE      = 1,
 SOLID_SHAPE     = 2,
-JOINT_SHAPE     = 3,
-LINEJOINT_SHAPE = 4,
-VERTEX_SHAPE    = 5,
-EMBEDDED        = 6
+EMBEDDED        = 3,
+JOINT_SHAPE     = 4,
+LINEJOINT_SHAPE = 5,
+TIPJOINT_SHAPE  = 6,
 )
 
 # Export
@@ -14,21 +15,21 @@ for s in instances(ShapeFamily)
     @eval export $(Symbol(s))
 end
 
-mutable struct ShapeType
+mutable struct CellShape
     name       ::String
     family     ::ShapeFamily
     ndim       ::Int
     npoints    ::Int
-    basic_shape::ShapeType
+    basic_shape::CellShape
     vtk_type   ::VTKCellType
     facet_idxs ::Array
     edge_idxs  ::Array
-    facet_shape::Union{ShapeType, Tuple}
+    facet_shape::Union{CellShape, Tuple}
     nat_coords ::Array
     quadrature ::Dict{Int, Array}
     func       ::Function
     deriv      ::Function
-    function ShapeType()
+    function CellShape()
         return new()
     end
 end
@@ -40,7 +41,7 @@ include("shapes/joints.jl")
 
 # Shape for unknown polyvertex
 function MakePOLYVERTEX()
-    shape             = ShapeType()
+    shape             = CellShape()
     shape.name        = "POLYVERTEX"
     shape.family      = VERTEX_SHAPE
     shape.ndim        = 0
@@ -55,14 +56,14 @@ const POLYVERTEX = MakePOLYVERTEX()
 export POLYVERTEX
 
 
-function get_ip_coords(shape::ShapeType, nips=0)
+function get_ip_coords(shape::CellShape, nips=0)
     !haskey(shape.quadrature, nips) && error("Cannot set $nips integ. points for shape $shape. Available numbers are $(collect(keys(shape.quadrature))).")
     return shape.quadrature[nips]
 end
 
 
 # Available VTK shapes
-const VTK2SHAPE = Dict{VTKCellType,ShapeType}(
+const VTK2SHAPE = Dict{VTKCellType,CellShape}(
     VTK_POLY_VERTEX             => POLYVERTEX,
     VTK_LINE                    => LIN2,
     VTK_TRIANGLE                => TRI3,
@@ -104,7 +105,7 @@ const ALL_ISO_SHAPES = [
 ]
 
 
-function get_shape_from_vtk(vtk_type::VTKCellType, npoints::Int64, ndim::Int64, layers::Int64=0)::ShapeType
+function get_shape_from_vtk(vtk_type::VTKCellType, npoints::Int64, ndim::Int64, layers::Int64=0)::CellShape
     # vtk_type: VTK cell code
     # npoints : total number of cell points
     # ndim    : analysis dimension
@@ -139,7 +140,7 @@ function get_shape_from_vtk(vtk_type::VTKCellType, npoints::Int64, ndim::Int64, 
 end
 
 
-function get_shape_from_ndim_npoints(npoints::Int64, ndim::Int64)::ShapeType
+function get_shape_from_ndim_npoints(npoints::Int64, ndim::Int64)::CellShape
     # npoints : total number of cell points
     # ndim    : analysis dimension
 
@@ -165,7 +166,7 @@ function get_shape_from_ndim_npoints(npoints::Int64, ndim::Int64)::ShapeType
 end
 
 
-function bdistance(shape::ShapeType, R::Array{Float64,1})
+function bdistance(shape::CellShape, R::Array{Float64,1})
     # Returns a real value which is a pseudo distance from a point to the border of an element
     # Arguments:
     #     R - a vector containing the point coordinates
@@ -185,7 +186,7 @@ function bdistance(shape::ShapeType, R::Array{Float64,1})
 end
 
 
-function inverse_map(shape::ShapeType, coords::Array{Float64,2}, X0::AbstractArray{Float64,1}, tol=1.0e-7)
+function inverse_map(shape::CellShape, coords::Array{Float64,2}, X0::AbstractArray{Float64,1}, tol=1.0e-7)
     maxits = 20
     ndim  = shape.ndim
     R = zeros(ndim)
@@ -226,7 +227,7 @@ function inverse_map(shape::ShapeType, coords::Array{Float64,2}, X0::AbstractArr
 end
 
 
-function is_inside(shape::ShapeType, C::Array{Float64,2}, X::Array{Float64,1}, tol = 1.e-7)
+function is_inside(shape::CellShape, C::Array{Float64,2}, X::Array{Float64,1}, tol = 1.e-7)
     if shape.family!=SOLID_SHAPE return false end
 
     # Testing with bounding box
@@ -251,7 +252,7 @@ end
 
 
 
-function extrapolator(shape::ShapeType, nips::Int)
+function extrapolator(shape::CellShape, nips::Int)
     #  Returns a numpy matrix E that extrapolates ip values to nodal values as:
     #
     #                 NodalValues = E * IpValues;

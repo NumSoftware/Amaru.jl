@@ -22,10 +22,10 @@ mutable struct IpMonitor<:AbstractMonitor
     end
 end
 
-function output(mon::IpMonitor) 
-    val = round(mon.val, sigdigits=5)
-    return "ip $(mon.ip.id)  $(mon.expr) $val"
-end
+# function output(mon::IpMonitor) 
+#     val = round(mon.val, sigdigits=5)
+#     return "ip $(mon.ip.id)  $(mon.expr) $val"
+# end
 
 
 function setup_monitor!(domain, filter, monitor::IpMonitor)
@@ -49,13 +49,18 @@ function update_monitor!(monitor::IpMonitor, domain)
     state       = ip_vals(monitor.ip)
     monitor.val = eval_arith_expr(monitor.expr; state...)
 
-    data = OrderedDict(:stage=> domain.env.cstage, :T=>domain.env.T, :val=>monitor.val)
-    domain.env.transient && (vals[:t] = domain.env.t)
+    # data = OrderedDict(:val=>monitor.val)
+    # data = OrderedDict(:stage=> domain.env.cstage, :T=>domain.env.T)
+    # domain.env.transient && (vals[:t] = domain.env.t)
+
+    monitor.vals[:stage] = domain.env.cstage
+    monitor.vals[:T]     = domain.env.T
+    domain.env.transient && (monitor.vals[:t]=dom.env.t)
     push!(monitor.table, data)
 
     if monitor.filename!="" 
         filename = joinpath(domain.env.outdir, monitor.filename)
-        save(monitor.table, filename, verbose=false)
+        save(monitor.table, filename, verbosity=0)
     end
 end
 
@@ -64,7 +69,7 @@ end
 
 mutable struct NodeMonitor<:AbstractMonitor
     expr     ::Union{Symbol,Expr}
-    vals     ::OrderedDict
+    vals     ::OrderedDict # stores current values
     filename ::String
     filter   ::Union{Int,Symbol,String,Expr}
     table    ::DataTable
@@ -79,14 +84,36 @@ mutable struct NodeMonitor<:AbstractMonitor
     end
 end
 
-function output(monitor::NodeMonitor) 
-    str = "node $(replace(string(monitor.filter), " " => ""))"
+# function output(monitor::NodeMonitor) 
+#     str = "node $(replace(string(monitor.filter), " " => ""))"
+#     for (k,v) in monitor.vals
+#         k in (:stage, :T) && continue
+#         v = v isa Real ? round(v, sigdigits=5) : v
+#         str *= "  $(replace(string(k), " " => "")):$v" 
+#     end
+
+#     return str
+# end
+
+function output(monitor::AbstractMonitor)
+    out = IOBuffer()
+    head = "  " * string(typeof(monitor)) * " " * replace(string(monitor.filter), " " => "")
+    print(out, head, "\e[K")
+
+    first = true
     for (k,v) in monitor.vals
         k in (:stage, :T) && continue
-        v = v isa Real ? round(v, sigdigits=5) : v
-        str *= "  $(replace(string(k), " " => ""))=$v" 
-    end
+        first || print(out, " "^length(head))
+        first = false
 
+        # v = v isa Real ? round(v, sigdigits=5) : v
+        if v isa Real && !(v isa Bool)
+            v = round(v, sigdigits=5)
+        end
+        println(out, "   ", replace(string(k), " " => ""), " : ", v, "\e[K")
+    end
+    str = String(take!(out))
+    # return replace(str, "\n" =>)
     return str
 end
 
@@ -109,20 +136,20 @@ end
 function update_monitor!(monitor::NodeMonitor, domain)
     isdefined(monitor, :node) || return
 
-    monitor.vals[:stage] = domain.env.cstage
-    monitor.vals[:T]     = domain.env.T
-    domain.env.transient && (monitor.vals[:t]=dom.env.t)
-
     for expr in monitor.expr.args
         state = node_vals(monitor.node) 
         monitor.vals[expr] = eval_arith_expr(expr; state...)
     end
 
+    monitor.vals[:stage] = domain.env.cstage
+    monitor.vals[:T]     = domain.env.T
+    domain.env.transient && (monitor.vals[:t]=dom.env.t)
+
     push!(monitor.table, monitor.vals)
 
-    if monitor.filename!="" 
+    if monitor.filename!=""
         filename = joinpath(domain.env.outdir, monitor.filename)
-        save(monitor.table, filename, verbose=false)
+        save(monitor.table, filename, verbosity=0)
     end
 end
 
@@ -149,15 +176,15 @@ mutable struct IpGroupMonitor<:AbstractMonitor
 end
 
 
-function output(monitor::IpGroupMonitor)
-    str = "ip group $(replace(string(monitor.filter), " " => ""))"
-    for (k,v) in monitor.vals
-        k in (:stage, :T) && continue
-        str *= "  $(replace(string(k), " " => ""))=$v" 
-    end
+# function output(monitor::IpGroupMonitor)
+#     str = "ip group $(replace(string(monitor.filter), " " => ""))"
+#     for (k,v) in monitor.vals
+#         k in (:stage, :T) && continue
+#         str *= "  $(replace(string(k), " " => "")):$v" 
+#     end
 
-    return str
-end
+#     return str
+# end
 
 
 function setup_monitor!(domain, filter, monitor::IpGroupMonitor)
@@ -169,10 +196,6 @@ end
 
 function update_monitor!(monitor::IpGroupMonitor, domain)
     length(monitor.ips) == 0 && return
-
-    monitor.vals[:stage] = domain.env.cstage
-    monitor.vals[:T]     = domain.env.T
-    domain.env.transient && (monitor.vals[:t]=dom.env.t)
 
     for expr in monitor.expr.args
         vals = []
@@ -193,10 +216,14 @@ function update_monitor!(monitor::IpGroupMonitor, domain)
         end
     end
 
+    monitor.vals[:stage] = domain.env.cstage
+    monitor.vals[:T]     = domain.env.T
+    domain.env.transient && (monitor.vals[:t]=dom.env.t)
+
     push!(monitor.table, monitor.vals)
 
     if monitor.filename!="" 
         filename = joinpath(domain.env.outdir, monitor.filename)
-        save(monitor.table, filename, verbose=false)
+        save(monitor.table, filename, verbosity=0)
     end
 end

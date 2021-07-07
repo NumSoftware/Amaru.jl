@@ -2,7 +2,7 @@
 
 mutable struct TMShell<:Thermomechanical
     id    ::Int
-    shape ::ShapeType
+    shape ::CellShape
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -83,7 +83,7 @@ function distributed_bc(elem::TMShell, facet::Union{Facet,Nothing}, key::Symbol,
     nnodes = length(nodes)
 
     # Calculate the target coordinates matrix
-    C = get_coords(nodes, ndim)
+    C = getcoords(nodes, ndim)
 
     # Vector with values to apply
     Q = zeros(ndim)
@@ -215,7 +215,7 @@ function RotMatrix(elem::TMShell)
     vye = zeros(3,1)
     vze = zeros(3,1)
 
-    cxyz = get_coords(elem)
+    cxyz = getcoords(elem)
 
         if size(cxyz,2)==2
             v12[3] = 0
@@ -337,11 +337,11 @@ function elem_stiffness(elem::TMShell)
 
     K_elem = zeros( nnodes*5 , nnodes*5 )
 
-    C = get_coords(elem)
+    C = getcoords(elem)
 
         if size(C,2)==2
             cxyz  = zeros(4,3)
-            cxyz[:,1:2]  = get_coords(elem)
+            cxyz[:,1:2]  = getcoords(elem)
         else
 
             cxyz = C
@@ -542,7 +542,7 @@ function elem_coupling_matrix(elem::TMShell)
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    C   = get_coords(elem)
+    C   = getcoords(elem)
     Bu  = zeros(6, nnodes*ndim)
     Cut = zeros(nnodes*ndim, nbnodes) # u-t coupling matrix
 
@@ -583,7 +583,7 @@ function elem_conductivity_matrix(elem::TMShell)
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    C      = get_coords(elem)
+    C      = getcoords(elem)
     H      = zeros(nnodes, nnodes)
     Bt     = zeros(ndim, nnodes)
     KBt    = zeros(ndim, nnodes)
@@ -617,7 +617,7 @@ function elem_mass_matrix(elem::TMShell)
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    C      = get_coords(elem)
+    C      = getcoords(elem)
     M      = zeros(nnodes, nnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
@@ -649,7 +649,7 @@ function elem_internal_forces(elem::TMShell, F::Array{Float64,1}, DU::Array{Floa
     th     = elem.env.thickness # VERIFICAR ESPESSURA
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    C   = get_coords(elem)
+    C   = getcoords(elem)
     T0     = elem.env.T0 + 273.15
 
     keys   = (:ux, :uy, :uz)[1:ndim]
@@ -718,7 +718,7 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, DF::Array{Float64,1},
     T0     = elem.env.T0 + 273.15
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    C      = get_coords(elem)
+    C      = getcoords(elem)
 
     E = elem.mat.E
     α = elem.mat.α

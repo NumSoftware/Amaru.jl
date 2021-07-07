@@ -2,34 +2,46 @@
 
 export DruckerPrager
 
-mutable struct DruckerPragerIpState<:IpState
-    env::ModelEnv
-    σ::Tensor2
-    ε::Tensor2
-    εpa::Float64
-    Δγ::Float64
-    function DruckerPragerIpState(env::ModelEnv=ModelEnv())
-        this = new(env)
-        this.σ   = zeros(6)
-        this.ε   = zeros(6)
-        this.εpa = 0.0
-        this.Δγ  = 0.0
-        this
-    end
-end
+"""
+    DruckerPrager
 
+A type for linear elastic materials with Drucker Prager failure criterion.
+
+# Fields
+
+$(TYPEDFIELDS)
+"""
 mutable struct DruckerPrager<:Material
+    "Young Modulus"
     E::Float64
+    "Poisson ratio"
     ν::Float64
+    "Drucker Prager alpha paramter"
     α::Float64
+    "Drucker Prager kappa paramter"
     κ::Float64
+    "Hardening parameter"
     H::Float64
+    "Density"
     ρ::Float64
 
     function DruckerPrager(prms::Dict{Symbol,Float64})
         return DruckerPrager(;prms...)
     end
 
+    @doc """
+        $(SIGNATURES)
+
+    Creates an `DruckerPrager` material type
+
+    # Arguments
+    - `E`: Young modulus
+    - `nu`: Poisson ratio
+    - `alpha`: Drucker Prager alpha parameter
+    - `kappa`: Drucker Prager kappa parameter
+    - `H`: Hardening parameter
+    - `rho`: Density
+    """
     function DruckerPrager(;E=NaN, nu=0.0, alpha=0.0, kappa=0.0, H=0.0, rho=0.0)
         @assert E>0.0
         @assert 0.0<=nu<0.5
@@ -40,6 +52,37 @@ mutable struct DruckerPrager<:Material
 
         this    = new(E, nu, alpha, kappa, H, rho)
         return this
+    end
+end
+
+
+"""
+    DruckerPragerIpState
+
+A type for the state data of a `DruckerPrager` type.
+
+# Fields
+
+$(TYPEDFIELDS)
+"""
+mutable struct DruckerPragerIpState<:IpState
+    "Environment information"
+    env::ModelEnv
+    "Stress tensor"
+    σ::Tensor2
+    "Strain tensor"
+    ε::Tensor2
+    "Accumulated plastic strain"
+    εpa::Float64
+    "Plastic multiplier"
+    Δγ::Float64
+    function DruckerPragerIpState(env::ModelEnv=ModelEnv())
+        this = new(env)
+        this.σ   = zeros(6)
+        this.ε   = zeros(6)
+        this.εpa = 0.0
+        this.Δγ  = 0.0
+        this
     end
 end
 

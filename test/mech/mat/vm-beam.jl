@@ -5,11 +5,11 @@ using Test
 bls = [
        Block( [0 0 -0.05; 0.05 1.0 0.05], nx=1, ny=50, nz=2, cellshape=HEX20),
       ]
-msh= Mesh(bls, silent=true)
+msh= Mesh(bls, verbosity=0)
 iptag!(msh.elems[end], "ip")
 
 # fem domain
-mat = MaterialBind(:all, VonMises(E=210e6, nu=0.3, σy=0.24e6) )
+mat = MaterialBind(:all, VonMises(E=210e6, nu=0.3, fy=0.24e6) )
 #mat = MaterialBind(:all, DruckerPrager(E=210e6, nu=0.3, alpha=0.05e6, kappa=0.1 ) )
 
 mon = NodeLogger("ip")
@@ -27,7 +27,7 @@ dom = Domain(msh, mat)
 mon = NodeLogger(dom.edges[:(y==1 && z==0)])
 setlogger!(dom, mon)
 
-@test solve!(dom, bcs, autoinc=true, nincs=6, nouts=1, tol=1e-2, verbose=false).success
+@test solve!(dom, bcs, autoinc=true, nincs=6, nouts=1, tol=1e-2, verbosity=0).success
 
 if Amaru.config.makeplots
     using PyPlot

@@ -2,7 +2,7 @@ using Amaru
 using Test
 
 bl = Block( [0 0 0; 1 1 1], nx=4, ny=4, nz=4, cellshape=HEX8, tag="solids")
-mesh = Mesh(bl, silent=true)
+mesh = Mesh(bl, verbosity=0)
 
 mats = [ "solids" => ElasticSolid(E=100.0, nu=0.2) ]
 
@@ -35,7 +35,7 @@ loggers = [
            :(x>0.5 && y>0.5 && z>0.5) => ip_log1,
            :(x>0.5 && y>0.5) => ips_log1,
            [0.5,0.5,0.0] => PointLogger("plog.dat"),
-           ([0.5,0.5,0.0], [1,1,0]) => SegmentLogger("slog.dat"),
+           [0.5 0.5 0.0; 1 1 0] => SegmentLogger("slog.dat"),
           ]
 
 setloggers!(dom, loggers)
@@ -46,5 +46,5 @@ bcs = [
        :(z==1)         => FaceBC(tz=-10.0),
       ]
 
-@test solve!(dom, bcs, nincs=4, nouts=4, verbose=false).success
+@test solve!(dom, bcs, nincs=4, nouts=4, verbosity=0).success
 println("  uz = ", dom.nodes[:(z==1)][1].dofdict[:uz].vals)

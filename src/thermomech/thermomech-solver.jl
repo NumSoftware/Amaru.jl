@@ -253,14 +253,10 @@ function tm_solve!(
                    nouts     :: Int     = 0,
                    outdir    :: String  = ".",
                    filekey   :: String  = "out",
-                   verbose   :: Bool    = false,
-                   silent    :: Bool    = false,
+                   verbosity = 0
                   )
 
     # Arguments checking
-    verbosity = 1
-    verbose && (verbosity=2)
-    silent && (verbosity=0)
     scheme = string(scheme)
     scheme in ("FE",) || error("tm_solve! : invalid scheme \"$scheme\"")
 
@@ -330,7 +326,7 @@ function tm_solve!(
         complete_ut_T(dom)
         update_single_loggers!(dom)
         update_composed_loggers!(dom)
-        save_outs && save(dom, "$outdir/$filekey-0.vtu", silent=silent)
+        save_outs && save(dom, "$outdir/$filekey-0.vtu", verbosity=verbosity)
     end
 
     # Get the domain current state and backup
@@ -505,7 +501,7 @@ function tm_solve!(
                 update_output_data!(dom)
                 complete_ut_T(dom)
                 update_composed_loggers!(dom)
-                save(dom, "$outdir/$filekey-$iout.vtu", silent=silent)
+                save(dom, "$outdir/$filekey-$iout.vtu", verbosity=verbosity)
                 Tcheck += ΔTcheck # find the next output time
             end
 

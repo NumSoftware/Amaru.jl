@@ -31,4 +31,4 @@ bcs = [:(y == 0) => NodeBC(ut=100.0),
        :(y == 2) => NodeBC(ut=20.0),
 ]
 
-tm_solve!(dom, bcs, end_time=9000, tol=0.1, nincs=10, nouts=10, verbose=true)
+tm_solve!(dom, bcs, end_time=9000, tol=0.1, nincs=10, nouts=10, verbosity=1)

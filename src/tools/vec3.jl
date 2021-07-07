@@ -12,7 +12,7 @@ mutable struct Vec3<:AbstractArray{Float64,1}
         return new(X.x, X.y, X.z)
     end
     function Vec3(X::AbstractArray{<:Real})
-        length(X)==2 && return new(X[1], X[2])
+        length(X)==2 && return new(X[1], X[2], 0.0)
         return new(X[1], X[2], X[3])
     end
     function Vec3(X::Tuple{Float64,Float64,Float64})
