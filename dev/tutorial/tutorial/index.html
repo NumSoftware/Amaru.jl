@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Tutorial · Amaru</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Amaru</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Introduction</a></li><li class="is-active"><a class="tocitem" href>Tutorial</a><ul class="internal"><li><a class="tocitem" href="#Mesh-generation"><span>Mesh generation</span></a></li><li><a class="tocitem" href="#Mesh-generation-examples"><span>Mesh generation examples</span></a></li><li><a class="tocitem" href="#Finite-element-model"><span>Finite element model</span></a></li><li><a class="tocitem" href="#Analysis-example"><span>Analysis example</span></a></li><li><a class="tocitem" href="#Nonlinear-analysis"><span>Nonlinear analysis</span></a></li><li><a class="tocitem" href="#Plotting"><span>Plotting</span></a></li></ul></li><li><a class="tocitem" href="../../meshing/meshing/">Mesh</a></li><li><a class="tocitem" href="../../modelling/modelling/">Domain model</a></li><li><a class="tocitem" href="../../modelling/mech/mech/">Mechanical analysis</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Tutorial</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Tutorial</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/NumSoftware/Amaru.jl/blob/master/docs/src/tutorial/tutorial.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Tutorial"><a class="docs-heading-anchor" href="#Tutorial">Tutorial</a><a id="Tutorial-1"></a><a class="docs-heading-anchor-permalink" href="#Tutorial" title="Permalink"></a></h1><h2 id="Mesh-generation"><a class="docs-heading-anchor" href="#Mesh-generation">Mesh generation</a><a id="Mesh-generation-1"></a><a class="docs-heading-anchor-permalink" href="#Mesh-generation" title="Permalink"></a></h2><p>A mesh is mainly composed by cells and nodes. in Amaru, a mesh is also composed by surface cells and surface edges and are computed at the time of mesh generation.</p><h3 id="Nodes"><a class="docs-heading-anchor" href="#Nodes">Nodes</a><a id="Nodes-1"></a><a class="docs-heading-anchor-permalink" href="#Nodes" title="Permalink"></a></h3><p>A node is represented by a <code>Node</code> type. It contains the node coordinates, and identification number and a tag string that can be used to label a group of nodes.</p><pre><code class="language-julia">using Amaru
+node = Node(1.0, 2.0, 0.0, id=1, tag=&quot;vertex&quot;)</code></pre><pre class="documenter-example-output">Node
+    id: 1
+    coord: [1.0, 2.0, 0.0]
+    tag: &quot;vertex&quot;
+    dofs: 0-element Vector{Dof}
+    dofdict: OrderedDict{Symbol, Dof} with 0 entries</pre><h3 id="Cells"><a class="docs-heading-anchor" href="#Cells">Cells</a><a id="Cells-1"></a><a class="docs-heading-anchor-permalink" href="#Cells" title="Permalink"></a></h3><p>A mesh cell is represented by a <code>Cell</code> type. It is defined by a given shape,  a list of nodes, a identification number an a tag. The shape contains information related with the geometry of a finite element. For example, a <code>TRI3</code> shape represents the shape of a linear triangular  finite element.</p><pre><code class="language-julia">using Amaru;
+node1 = Node(0.0, 0.0, id=1)
+node2 = Node(1.0, 0.0, id=2)
+node3 = Node(1.0, 1.0, id=3)
+nodes = [ node1, node2, node3 ]
+
+Cell(TRI3, nodes, id=1, tag=&quot;triangle&quot;)</code></pre><pre class="documenter-example-output">Cell
+    id: 1
+    shape: CellShape  name=&quot;TRI3&quot;
+    nodes: 3-element Vector{Node}:
+        1: Node  id=1
+        2: Node  id=2
+        3: Node  id=3
+    tag: &quot;triangle&quot;
+    quality: 0.0
+    embedded: false
+    crossed: false
+    owner: nothing
+    linked_elems: 0-element Vector{Amaru.AbstractCell}</pre><p>There are many shapes defined in Amaru, for instance:  <code>LIN2</code>, <code>LIN3</code>, <code>TRI3</code>, <code>TRI6</code>, <code>QUAD4</code>, <code>QUAD8</code>, <code>QUAD9</code> <code>TET4</code>, <code>TET10</code>, <code>PYR5</code>, <code>WED6</code>, <code>WED15</code>, <code>HEX8</code>, <code>HEX20</code>, <code>HEX27</code>, etc.</p><h3 id="Blocks"><a class="docs-heading-anchor" href="#Blocks">Blocks</a><a id="Blocks-1"></a><a class="docs-heading-anchor-permalink" href="#Blocks" title="Permalink"></a></h3><p>Blocks are entities used to aid the generation of structured meshes in 1D, 2D and 3D. A <code>Block</code> structure represents a geometric segment, area (4 or 8 point quadrilateral) or volume (8 or 20 point hexahedron). It is generated from a coordinates matrix and predefined number of divisions divisions (<code>nx</code>, <code>ny</code>, <code>nz</code>) in the <span>$x$</span>, <span>$y$</span> and <span>$z$</span> directions of a local system. The block below, represents a 2D <code>Block</code> with <code>nx=7</code> and <code>ny=5</code>.</p><pre><code class="language-">using Amaru
+block = Block([0 0; 4 0; 3 2; 1 2], nx=7, ny=5)
+mplot(block, &quot;block.svg&quot;, markers=true)
+
+nothing # hide</code></pre><p><img src="block.svg" alt/></p><p>Blocks can be combined to define a complex geometry. To manipulate blocks, Amaru provides several operators as <code>copy</code>, <code>move!</code>, <code>scale!</code>, <code>rotate</code>, <code>mirror</code>, <code>array</code>, <code>polar</code>, <code>extrude</code>, etc.</p><p>For example, let&#39;s start with a quadratic quadrilateral. Note that  the vertex coordinates follow the same numbering as conventional finite elements. Thus, the corner nodes are listed first; then,  the middle nodes. All of them listed couterclockwise.</p><pre><code class="language-">using Amaru
+
+block1 = Block(
+    [ 
+        0.0      0.0    
+        0.7643   0.7643 
+        0.6667   1.0    
+        0.0      1.0    
+        0.38215  0.38215
+        0.692    0.8724 
+        0.3333   1.0    
+        0.0      0.5 
+    ],
+    cellshape=QUAD8, nx=5, ny=5 
+)
+mplot(block1, &quot;block1.svg&quot;, markers=true)
+nothing # hide</code></pre><p><img src="block1.svg" alt/></p><p>A mirror operation can be applyed to this block to get a second one. Then, both blocks can be grouped in an array for further manipulation.</p><pre><code class="language-">block2 = mirror(block1, base=[0, 0], axis=[0.7643, -0.7643])
+blocks = [block1, block2]
+mplot(blocks, &quot;blocks.svg&quot;, markers=true)
+nothing # hide</code></pre><p><img src="blocks.svg" alt/></p><p>To get the centre of the circle that is represented by the arc at the origin,  we perform a <code>move!</code> operation.</p><pre><code class="language-">move!(blocks, dx=-1.0, dy=-1.0)
+mplot(blocks, &quot;moved.svg&quot;, markers=true, axis=true)
+nothing # hide</code></pre><p><img src="moved.svg" alt/></p><p>Now we can apply a <code>polar</code> operation to the current geometry to  obtain a square region with a central hole. The original geometry is replicated four times using a rotation axis that  passes througth a base point.</p><pre><code class="language-">hole = polar(blocks, base=[0, 0], axis=[0, 0, 1], angle=360, n=4)
+mplot(hole, &quot;hole.svg&quot;, markers=true)
+nothing # hide</code></pre><p><img src="hole.svg" alt/></p><p>Then, the <code>extrude</code> operation is used to obtain a volume following a defined axis and length. The number 4 here represents the number of divisions inteded along the new dimension.</p><pre><code class="language-">solid = extrude(hole, axis=[0, 0, 1], length=1, n=4)
+mplot(solid, &quot;solid.svg&quot;, markers=true, dist=13)
+nothing # hide</code></pre><p><img src="solid.svg" alt/></p><p>Note that, the <code>solid</code> variable contains a list of blocks as shown in the figure. This list is used to generate the structured mesh.</p><pre><code class="language-">mesh = Mesh(solid)
+mplot(mesh, &quot;mesh.svg&quot;, dist=13)
+nothing # hide</code></pre><p><img src="mesh.svg" alt/></p><p>Finally, a <code>smooth</code> operation can be applied to improve the cells quality.</p><pre><code class="language-">smooth_mesh = smooth!(mesh)
+mplot(smooth_mesh, &quot;smooth_mesh.svg&quot;, dist=13)
+nothing # hide</code></pre><p><img src="smooth_mesh.svg" alt/></p><h2 id="Mesh-generation-examples"><a class="docs-heading-anchor" href="#Mesh-generation-examples">Mesh generation examples</a><a id="Mesh-generation-examples-1"></a><a class="docs-heading-anchor-permalink" href="#Mesh-generation-examples" title="Permalink"></a></h2><p>Below are presented some examples of structured mesh generation using Amaru.</p><p>Simple 2D mesh:</p><pre><code class="language-">using Amaru
+
+block = Block([0 0 ; 2 2], nx=8, ny=6)
+mesh  = Mesh(block) 
+mplot(mesh, &quot;mesh-quad4.svg&quot;, markers=true)
+nothing # hide</code></pre><p><img src="mesh-quad4.svg" alt/></p><p>Mesh with quadratic cells:</p><pre><code class="language-">using Amaru
+
+block = Block([0 0 ; 2 2], nx=8, ny=6, cellshape=QUAD8)
+mesh  = Mesh(block) 
+mplot(mesh, &quot;mesh-quad8.svg&quot;, markers=true)
+nothing # hide</code></pre><p><img src="mesh-quad8.svg" alt/></p><p>Simple 3D mesh:</p><pre><code class="language-">using Amaru
+block = Block([0 0 0; 2 4 3], nx=3, ny=6, nz=6)
+mesh = Mesh(block)
+mplot(mesh, &quot;mesh-hex8.svg&quot;, markers=true)
+nothing # hide</code></pre><p><img src="mesh-hex8.svg" alt/></p><p>2D mesh constructed from two quadratic blocks:</p><pre><code class="language-">using Amaru
+block1 = Block(
+    [ 
+        0.0      0.0    
+        0.7643   0.7643 
+        0.6667   1.0    
+        0.0      1.0    
+        0.38215  0.38215
+        0.692    0.8724 
+        0.3333   1.0    
+        0.0      0.5 
+    ],
+    cellshape=QUAD8, nx=5, ny=5
+)
+block2 = mirror(block1, base=[0, 0], axis=[0.7643, -0.7643])
+mesh = Mesh(block1, block2)
+mplot(mesh, &quot;mesh-2d.svg&quot;, markers=true)
+nothing # hide</code></pre><p><img src="mesh-2d.svg" alt/></p><p>Mesh with cells growing in the <span>$x$</span> direction.</p><pre><code class="language-">using Amaru
+
+R = 5.0
+r = 1.0
+
+block = BlockGrid(
+    [ 0.0, r, R ], 
+    [ 0.0, R ], 
+    nx=[ 4, 8 ], 
+    ny=[ 8 ], 
+    rx=[ 1, 1.2] # elements growing rate in the x direction
+)
+
+mesh = Mesh(block)
+mplot(mesh, &quot;mesh-rate.svg&quot;, markers=true)
+nothing # hide</code></pre><p><img src="mesh-rate.svg" alt/></p><p>3D mesh obtained revolving the last example:</p><pre><code class="language-">mesh = revolve(mesh, minangle=0, maxangle=90)
+changeaxes!(mesh, &quot;xzy&quot;)
+rotate!(mesh, axis=[0,0,1], angle=90)
+mplot(mesh, &quot;mesh-rev.svg&quot;, azim=-45) 
+nothing # hide</code></pre><p><img src="mesh-rev.svg" alt/></p><p>Wire mesh:</p><pre><code class="language-">using Amaru
+
+block1 = Block([0 0 0; 1 0 1; 0.7 0 0.3 ], n=7) # curved wire (quadratic)
+block2 = Block([1 0 1; 1 0 2], n=5) # straight wire
+mesh = Mesh(block1, block2)
+
+mplot(mesh, &quot;mesh-arc.svg&quot;, azim=-90, elev=0, markers=true)
+nothing # hide</code></pre><p><img src="mesh-arc.svg" alt/></p><p>3D mesh obtained revolving the last example:</p><pre><code class="language-">mesh = revolve(mesh, n=24, axis=[0,0,1]) # surface by revolution
+mplot(mesh, &quot;mesh-surf.svg&quot;, elev=15)
+nothing # hide</code></pre><p><img src="mesh-surf.svg" alt/></p><h2 id="Finite-element-model"><a class="docs-heading-anchor" href="#Finite-element-model">Finite element model</a><a id="Finite-element-model-1"></a><a class="docs-heading-anchor-permalink" href="#Finite-element-model" title="Permalink"></a></h2><p>To performe a finite element analysis, a domain model object is required. In Amaru, this object is called <code>Domain</code>.  A mesh and a list of material models objects are required to construct a <code>Domain</code> object. In Amaru, the <code>Domain</code> type is used for all analysis types, e.g. mechanical, thermal, seepage, etc. For an specific analysis type, a consistent list of materials should be used. For example, in a mechanical analysis, only material types related with a mechanical analysis can be used. Also, based on the choosen materials, the <code>Domain</code> object will setup the corresponding finite elements and degrees of freedom.</p><h3 id="Material-definitions"><a class="docs-heading-anchor" href="#Material-definitions">Material definitions</a><a id="Material-definitions-1"></a><a class="docs-heading-anchor-permalink" href="#Material-definitions" title="Permalink"></a></h3><p>There are several material models implemented in Amaru, e.g.  <code>ElasticSolid</code>, <code>DruckerPrager</code>, <code>VonMises</code>, <code>ElasticRod</code>, etc. A material object is defined by its name and a set of corresponding parameters.</p><pre><code class="language-julia">using Amaru
+
+steel = ElasticSolid(E=2e8, nu=0.2) # E in kPa</code></pre><pre class="documenter-example-output">ElasticSolid
+    E: 2.0e8
+    nu: 0.2
+    ρ: 0.0</pre><h3 id="Model-generation"><a class="docs-heading-anchor" href="#Model-generation">Model generation</a><a id="Model-generation-1"></a><a class="docs-heading-anchor-permalink" href="#Model-generation" title="Permalink"></a></h3><p>The following example shows the walk through of creating a <code>Domain</code> object. Note that the list of materials contains a pair with the domain region  and the corresponding material.</p><pre><code class="language-julia">using Amaru
+
+# Mesh generation
+block = Block([0 0 0; 1 0.1 0.1], nx=20, ny=2, nz=2, cellshape=HEX20)
+mesh = Mesh(block)
+
+# Analysis model
+steel = ElasticSolid(E=2e8, nu=0.2) # E in kPa
+
+materials = [
+    :(x&gt;=0) =&gt; steel,
+]
+model = Domain(mesh, materials)</code></pre><h3 id="Boundary-conditions"><a class="docs-heading-anchor" href="#Boundary-conditions">Boundary conditions</a><a id="Boundary-conditions-1"></a><a class="docs-heading-anchor-permalink" href="#Boundary-conditions" title="Permalink"></a></h3><p>The boundary conditions are given by objects that define the quantities that should be applied to nodes, faces, edges or even elements (<code>NodeBC</code>, <code>FaceBC</code>, <code>EdgeBC</code> and <code>ElementBC</code>).</p><p>The example below shows a nodal boundary condition where all displacements are set to zero.</p><pre><code class="language-julia">using Amaru
+
+fixed_end = NodeBC(ux=0, uy=0, uz=0)</code></pre><pre class="documenter-example-output">NodeBC
+    conds: Base.Iterators.Pairs(:ux =&gt; 0, :uy =&gt; 0, :uz =&gt; 0)
+    filter: Expr ()
+    nodes: 0-element Vector{Node}</pre><p>This other example shows a face boudary conditin where a traction is applied in the negative <span>$z$</span> direction.</p><pre><code class="language-julia">using Amaru
+
+load = FaceBC(tz=-10)</code></pre><pre class="documenter-example-output">FaceBC
+    conds: Base.Iterators.Pairs(:tz =&gt; -10)
+    filter: Expr ()
+    faces: 0-element Vector{Cell}</pre><p>The keys to be set in a boundary condition are related to the analysis type, and ultimately to the material types in use. For example, in a mechanical analysis, the keys for nodal boundary conditions are <code>ux</code>, <code>uy</code>, <code>uz</code>, <code>fx</code>, <code>fy</code> and <code>fz</code> where <code>ux</code> represents displacement and <code>fz</code> concentrated force, both in the <span>$x$</span> direction. Similarly, the keys for a face boudary condition are <code>ux</code>, <code>uy</code>, <code>uz</code>, <code>tx</code>, <code>ty</code> and <code>tz</code>, where <code>tx</code> is a traction (force per area) in the <span>$x$</span> direction.</p><h2 id="Analysis-example"><a class="docs-heading-anchor" href="#Analysis-example">Analysis example</a><a id="Analysis-example-1"></a><a class="docs-heading-anchor-permalink" href="#Analysis-example" title="Permalink"></a></h2><p>This example shows a mechanical analysis in a steel beam. The left end was clamped, thus all displacements at <code>x==0</code> are set to zero. Also, a vertical traction is applied at the right end. The <code>solve!</code> function performs the calculations according to the given boundary conditions and the domain properties. The function also updates the state variables at the elements&#39; integration points. For post-processing in a visualization software (e.g. Paraview), the  model can be saved in &quot;vtk&quot; and &quot;vtu&quot; formats.  These output formats contain values related to nodes and elements, for example, nodal displacements, stresses, etc. corresponding to a time-step. To save the current state of a domain model, the output in &quot;xml&quot; format is also supported; thus, the model can be reused in future analyses.</p><pre><code class="language-julia">using Amaru
+
+# Mesh generation
+block = Block([0 0 0; 1 0.1 0.1], nx=20, ny=2, nz=2, cellshape=HEX8)
+mesh = Mesh(block)
+
+# Analysis model
+steel = ElasticSolid(E=200e6, nu=0.2) # E in kPa
+
+materials = [
+    :(x&gt;=0) =&gt; steel,
+]
+model = Domain(mesh, materials)
+
+bcs = [
+    :(x==0) =&gt; NodeBC(ux=0, uy=0, uz=0)
+    :(x==1) =&gt; FaceBC(tz=-1000)
+]
+
+solve!(model, bcs, verbosity=2)
+save(model, &quot;beam.vtu&quot;)</code></pre><pre class="documenter-example-output">Mechanical FE analysis: Stage 1[K
+  model type: 3d
+  unknown dofs: 540[K
+  stage 1 0:0:3.62 progress 0.00% increment 1 dT=1.0[K
+    assembling... [K     solving... [K     updating...     it 1   residue: 8.1404e-12
+  stage 1 0:0:5.30 progress 100.00%[K
+  valid increments: 1[K
+  time spent: 0h 0m  5.33s[K</pre><pre><code class="language-">mplot(model, &quot;beam.svg&quot;, warpscale=100, field=:uz, colorbarlabel=raw&quot;u_z&quot;, colorbarscale=0.4, azim=-90, dist=7)
+nothing # hide</code></pre><p><img src="beam.svg" alt/></p><h2 id="Nonlinear-analysis"><a class="docs-heading-anchor" href="#Nonlinear-analysis">Nonlinear analysis</a><a id="Nonlinear-analysis-1"></a><a class="docs-heading-anchor-permalink" href="#Nonlinear-analysis" title="Permalink"></a></h2><pre><code class="language-julia">using Amaru
+
+# Mesh generation
+block = Block([0 0 0; 1 0.1 0.1], nx=20, ny=2, nz=3, cellshape=HEX8)
+mesh = Mesh(block)
+
+# Analysis model
+steel1 = ElasticSolid(E=2e8, nu=0.2) # E in kPa
+steel2 = VonMises(E=2e8, nu=0.2, fy=500e3, H=1e4)
+
+materials = [
+    :(x&gt;=0.5) =&gt; steel1,
+    :(x&lt;=0.5) =&gt; steel2
+]
+model = Domain(mesh, materials)
+
+bcs = [
+    :(x==0) =&gt; NodeBC(ux=0, uy=0, uz=0)
+    :(x==1) =&gt; FaceBC(uz=-0.04)
+]
+
+solve!(model, bcs, autoinc=true)</code></pre><pre><code class="language-">mplot(model, &quot;beam-vm.svg&quot;, warpscale=10, field=:sxx, fieldmult=1e-3, colorbarlabel=raw&quot;$\sigma_{xx}$&quot;, colorbarscale=0.4, azim=-90, dist=7)
+nothing # hide</code></pre><p><img src="beam-vm.svg" alt/></p><h3 id="Loggers"><a class="docs-heading-anchor" href="#Loggers">Loggers</a><a id="Loggers-1"></a><a class="docs-heading-anchor-permalink" href="#Loggers" title="Permalink"></a></h3><pre><code class="language-julia">using Amaru
+
+nodelog = NodeLogger(&quot;nodelog.table&quot;)
+iplog = IpLogger(&quot;nodelog.table&quot;)
+facelog = FacesSumLogger(&quot;nodelog.table&quot;)
+nodeslog = NodeGroupLogger(&quot;nodes.book&quot;)</code></pre><pre><code class="language-julia">using Amaru
+
+# Mesh generation
+block = Block([0 0 0; 1 0.1 0.1], nx=20, ny=2, nz=3, cellshape=HEX8)
+mesh = Mesh(block)
+
+# Analysis model
+steel1 = ElasticSolid(E=2e8, nu=0.2) # E in kPa
+steel2 = VonMises(E=2e8, nu=0.2, fy=500e3, H=1e4)
+
+materials = [
+    :(x&gt;=0.5) =&gt; steel1,
+    :(x&lt;=0.5) =&gt; steel2
+]
+model = Domain(mesh, materials)
+
+bcs = [
+    :(x==0) =&gt; NodeBC(ux=0, uy=0, uz=0)
+    :(x==1) =&gt; FaceBC(uz=-0.04)
+]
+
+loggers = [
+    :(x==1) =&gt; FacesSumLogger(&quot;tip.table&quot;),
+    [0.05, 0.05, 0.1] =&gt; IpLogger(&quot;ip.table&quot;),
+    :(y==0.1 &amp;&amp; z==0.1) =&gt; NodeGroupLogger(&quot;topgroup.book&quot;),
+    [0 0.05 0.1; 1 0.05 0.1] =&gt; SegmentLogger(&quot;top.book&quot;, n=20),
+    [0 0.05 0.0; 1 0.05 0.0] =&gt; SegmentLogger(&quot;bottom.book&quot;, n=20),
+]
+
+setloggers!(model, loggers)
+
+solve!(model, bcs, tol=0.01, nouts=2, autoinc=true)</code></pre><pre class="documenter-example-output">  setup_logger: No ip found at [0.05, 0.05, 0.1]. Picking the nearest at
+  [0.039434, 0.039434, 0.092956][K
+  nincs changed to 2 to match nouts[K</pre><pre><code class="language-julia">using Amaru
+
+tip = DataTable(&quot;tip.table&quot;)</code></pre><pre class="documenter-example-output">
+ │       ux │       uy │       uz │       fx │       fy │       fz │ 
+ │  0.0e+00 │  0.0e+00 │      0.0 │  0.0e+00 │  0.0e+00 │      0.0 │ 
+ │  6.5e-19 │  4.6e-16 │  -0.0004 │ -5.3e-13 │  6.9e-14 │ -2.22233 │ 
+ │  2.2e-18 │  8.9e-16 │  -0.0012 │  4.7e-13 │  2.6e-13 │   -6.667 │ 
+ │ -3.5e-19 │  8.9e-16 │  -0.0028 │ -7.5e-14 │  2.8e-13 │ -15.5563 │ 
+ │  3.4e-18 │  3.3e-15 │   -0.006 │ -3.2e-12 │  7.0e-13 │  -33.335 │ 
+ │  3.7e-18 │  4.1e-15 │  -0.0124 │ -1.6e-11 │ -1.3e-12 │ -68.8924 │ 
+ │ -1.4e-18 │  3.5e-15 │    -0.02 │ -8.5e-12 │  5.9e-12 │ -111.117 │ 
+ │ -1.6e-19 │ -5.8e-18 │ -0.02128 │ -1.9e-13 │ -2.8e-14 │ -117.705 │ 
+ │ -1.9e-19 │ -6.5e-18 │ -0.02256 │  1.2e-13 │ -3.8e-15 │ -123.056 │ 
+ │ -2.0e-19 │ -6.6e-18 │ -0.02384 │  8.6e-14 │  4.1e-14 │ -127.697 │ 
+ │ -1.7e-19 │ -7.2e-18 │ -0.02512 │ -3.0e-13 │ -2.8e-14 │ -132.014 │ 
+ │ -1.8e-19 │ -7.6e-18 │  -0.0264 │  4.1e-13 │ -4.4e-15 │ -136.176 │ 
+ │ -1.4e-19 │ -8.1e-18 │ -0.02768 │  1.2e-13 │  5.8e-17 │  -139.91 │ 
+ │ -1.5e-19 │ -8.9e-18 │ -0.02896 │  1.3e-13 │  3.5e-15 │ -143.012 │ 
+ │ -1.9e-19 │ -1.0e-17 │ -0.03024 │  9.4e-14 │  2.9e-14 │ -145.629 │ 
+ │ -1.4e-19 │ -1.0e-17 │ -0.03152 │  4.7e-13 │  1.1e-15 │ -147.749 │ 
+ │ -1.7e-19 │ -1.1e-17 │  -0.0328 │  4.4e-13 │ -1.8e-14 │ -149.645 │ 
+ │ -1.6e-19 │ -1.1e-17 │ -0.03408 │  2.7e-13 │ -2.0e-15 │ -151.396 │ 
+ │ -1.2e-19 │ -1.2e-17 │ -0.03536 │  2.8e-13 │  2.8e-14 │ -152.984 │ 
+ │ -1.2e-19 │ -1.2e-17 │ -0.03664 │  5.2e-13 │  9.4e-15 │ -154.516 │ 
+ │ -9.0e-20 │ -1.2e-17 │ -0.03792 │ -6.8e-13 │ -2.1e-14 │  -155.89 │ 
+ │ -8.1e-20 │ -1.3e-17 │  -0.0392 │  8.3e-13 │ -2.6e-14 │ -157.181 │ 
+ │ -1.4e-19 │ -6.3e-19 │    -0.04 │  2.7e-13 │ -2.6e-14 │ -157.973 │ </pre><pre><code class="language-julia">using Amaru
+
+long = DataBook(&quot;topgroup.book&quot;).tables[end]</code></pre><pre class="documenter-example-output">
+ │    x │   y │   z │       ux │       fx │       uy │       fy │       uz │       fz │ 
+ │  0.0 │ 0.1 │ 0.1 │  0.0e+00 │ -3.2e+02 │  0.0e+00 │  1.1e+02 │  0.0e+00 │  1.1e+02 │ 
+ │ 0.05 │ 0.1 │ 0.1 │  3.3e-04 │  2.0e-03 │ -1.4e-04 │  2.5e-03 │ -1.9e-04 │  4.6e-04 │ 
+ │  0.1 │ 0.1 │ 0.1 │  7.3e-04 │  1.3e-03 │ -1.5e-04 │  4.8e-03 │ -7.1e-04 │  1.1e-03 │ 
+ │ 0.15 │ 0.1 │ 0.1 │  1.1e-03 │ -4.8e-04 │ -1.1e-04 │  3.1e-03 │ -1.6e-03 │  1.3e-03 │ 
+ │  0.2 │ 0.1 │ 0.1 │  1.3e-03 │ -5.5e-04 │ -6.6e-05 │  4.2e-04 │ -2.9e-03 │ -7.8e-06 │ 
+ │ 0.25 │ 0.1 │ 0.1 │  1.6e-03 │ -8.0e-05 │ -4.5e-05 │  5.1e-05 │ -4.3e-03 │ -8.3e-05 │ 
+ │  0.3 │ 0.1 │ 0.1 │  1.7e-03 │ -2.6e-06 │ -3.2e-05 │  1.1e-05 │ -6.0e-03 │ -7.8e-06 │ 
+ │ 0.35 │ 0.1 │ 0.1 │  1.9e-03 │ -5.2e-08 │ -2.5e-05 │  6.3e-07 │ -7.8e-03 │ -1.6e-07 │ 
+ │  0.4 │ 0.1 │ 0.1 │  2.0e-03 │ -5.1e-15 │ -2.4e-05 │  4.0e-14 │ -9.7e-03 │ -3.3e-14 │ 
+ │ 0.45 │ 0.1 │ 0.1 │  2.1e-03 │ -3.1e-14 │ -2.2e-05 │ -2.7e-14 │ -1.2e-02 │  9.9e-15 │ 
+ │  0.5 │ 0.1 │ 0.1 │  2.2e-03 │ -8.8e-15 │ -2.0e-05 │ -3.1e-14 │ -1.4e-02 │  2.9e-14 │ 
+ │ 0.55 │ 0.1 │ 0.1 │  2.3e-03 │ -2.7e-14 │ -1.8e-05 │ -2.1e-14 │ -1.6e-02 │  4.4e-14 │ 
+ │  0.6 │ 0.1 │ 0.1 │  2.4e-03 │  7.9e-14 │ -1.6e-05 │  1.0e-14 │ -1.9e-02 │  1.9e-13 │ 
+ │ 0.65 │ 0.1 │ 0.1 │  2.5e-03 │  1.4e-13 │ -1.4e-05 │  5.2e-14 │ -2.1e-02 │  5.1e-14 │ 
+ │  0.7 │ 0.1 │ 0.1 │  2.6e-03 │ -6.5e-14 │ -1.2e-05 │  5.1e-14 │ -2.4e-02 │  1.4e-14 │ 
+ │ 0.75 │ 0.1 │ 0.1 │  2.6e-03 │ -5.0e-14 │ -9.8e-06 │  1.3e-13 │ -2.6e-02 │  4.2e-13 │ 
+ │  0.8 │ 0.1 │ 0.1 │  2.7e-03 │ -8.2e-14 │ -7.9e-06 │  1.1e-13 │ -2.9e-02 │  1.1e-13 │ 
+ │ 0.85 │ 0.1 │ 0.1 │  2.7e-03 │  4.0e-14 │ -5.9e-06 │ -2.4e-14 │ -3.2e-02 │ -2.3e-13 │ 
+ │  0.9 │ 0.1 │ 0.1 │  2.7e-03 │ -1.3e-13 │ -3.9e-06 │ -8.1e-14 │ -3.4e-02 │ -8.8e-13 │ 
+ │ 0.95 │ 0.1 │ 0.1 │  2.8e-03 │ -1.0e-13 │ -1.9e-06 │  3.0e-14 │ -3.7e-02 │  2.4e-13 │ 
+ │  1.0 │ 0.1 │ 0.1 │  2.8e-03 │  7.5e-14 │ -7.0e-07 │  5.0e-14 │ -4.0e-02 │ -4.8e+00 │ </pre><h2 id="Plotting"><a class="docs-heading-anchor" href="#Plotting">Plotting</a><a id="Plotting-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting" title="Permalink"></a></h2><pre><code class="language-">using Amaru
+
+tip = DataTable(&quot;tip.table&quot;)
+cplot(
+    [
+        (x=tip.uz, y=tip.fz, marker=&quot;o&quot;),
+    ],
+    filename = &quot;uz_vs_fz.svg&quot;,
+    xmult  = 1e3,
+    xlabel = raw&quot;$u_z$ [mm]&quot;,
+    ylabel = raw&quot;$f_z$ [kN]&quot;,
+)
+
+topgroup = DataBook(&quot;topgroup.book&quot;).tables[end]
+cplot(
+    [
+        (x=topgroup.x, y=topgroup.uz, marker=&quot;o&quot;),
+    ],
+    filename = &quot;x_vs_uz.svg&quot;,
+    ymult  = 1e3,
+    xlabel = raw&quot;$x$ [m]&quot;,
+    ylabel = raw&quot;$u_z$ [mm]&quot;,
+)
+
+top = DataBook(&quot;top.book&quot;).tables[end]
+bottom = DataBook(&quot;bottom.book&quot;).tables[end]
+cplot(
+    [
+        (x=top.x, y=top.sxx, marker=&quot;o&quot;, label=&quot;top&quot;),
+        (x=bottom.x, y=bottom.sxx, marker=&quot;o&quot;, label=&quot;bottom&quot;),
+    ],
+    filename = &quot;x_vs_sxx.svg&quot;,
+    ymult  = 1e-3,
+    xlabel = raw&quot;$x$ [m]&quot;,
+    ylabel = raw&quot;$\sigma_{xx}$ [MPa]&quot;,
+)
+
+nothing # hide</code></pre><p><img src="uz_vs_fz.svg" alt/></p><p><img src="x_vs_uz.svg" alt/></p><p><img src="x_vs_sxx.svg" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Introduction</a><a class="docs-footer-nextpage" href="../../meshing/meshing/">Mesh »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.3 on <span class="colophon-date" title="Wednesday 7 July 2021 22:22">Wednesday 7 July 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
