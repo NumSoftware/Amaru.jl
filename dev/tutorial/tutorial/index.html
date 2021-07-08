@@ -25,9 +25,7 @@ Cell(TRI3, nodes, id=1, tag=&quot;triangle&quot;)</code></pre><pre class="docume
     owner: nothing
     linked_elems: 0-element Vector{Amaru.AbstractCell}</pre><p>There are many shapes defined in Amaru, for instance:  <code>LIN2</code>, <code>LIN3</code>, <code>TRI3</code>, <code>TRI6</code>, <code>QUAD4</code>, <code>QUAD8</code>, <code>QUAD9</code> <code>TET4</code>, <code>TET10</code>, <code>PYR5</code>, <code>WED6</code>, <code>WED15</code>, <code>HEX8</code>, <code>HEX20</code>, <code>HEX27</code>, etc.</p><h3 id="Blocks"><a class="docs-heading-anchor" href="#Blocks">Blocks</a><a id="Blocks-1"></a><a class="docs-heading-anchor-permalink" href="#Blocks" title="Permalink"></a></h3><p>Blocks are entities used to aid the generation of structured meshes in 1D, 2D and 3D. A <code>Block</code> structure represents a geometric segment, area (4 or 8 point quadrilateral) or volume (8 or 20 point hexahedron). It is generated from a coordinates matrix and predefined number of divisions divisions (<code>nx</code>, <code>ny</code>, <code>nz</code>) in the <span>$x$</span>, <span>$y$</span> and <span>$z$</span> directions of a local system. The block below, represents a 2D <code>Block</code> with <code>nx=7</code> and <code>ny=5</code>.</p><pre><code class="language-">using Amaru
 block = Block([0 0; 4 0; 3 2; 1 2], nx=7, ny=5)
-mplot(block, &quot;block.png&quot;, markers=true)
-
-nothing # hide</code></pre><p><img src="./block.png" alt/></p><p>Blocks can be combined to define a complex geometry. To manipulate blocks, Amaru provides several operators as <code>copy</code>, <code>move!</code>, <code>scale!</code>, <code>rotate</code>, <code>mirror</code>, <code>array</code>, <code>polar</code>, <code>extrude</code>, etc.</p><p>For example, let&#39;s start with a quadratic quadrilateral. Note that  the vertex coordinates follow the same numbering as conventional finite elements. Thus, the corner nodes are listed first; then,  the middle nodes. All of them listed couterclockwise.</p><pre><code class="language-">using Amaru
+mplot(block, &quot;block.png&quot;, markers=true)</code></pre><p><img src="./block.png" alt/></p><p>Blocks can be combined to define a complex geometry. To manipulate blocks, Amaru provides several operators as <code>copy</code>, <code>move!</code>, <code>scale!</code>, <code>rotate</code>, <code>mirror</code>, <code>array</code>, <code>polar</code>, <code>extrude</code>, etc.</p><p>For example, let&#39;s start with a quadratic quadrilateral. Note that  the vertex coordinates follow the same numbering as conventional finite elements. Thus, the corner nodes are listed first; then,  the middle nodes. All of them listed couterclockwise.</p><pre><code class="language-">using Amaru
 
 block1 = Block(
     [ 
@@ -42,8 +40,7 @@ block1 = Block(
     ],
     cellshape=QUAD8, nx=5, ny=5 
 )
-mplot(block1, &quot;block1.png&quot;, markers=true)
-nothing # hide</code></pre><p><img src="./block1.png" alt/></p><p>A mirror operation can be applyed to this block to get a second one. Then, both blocks can be grouped in an array for further manipulation.</p><pre><code class="language-">block2 = mirror(block1, base=[0, 0], axis=[0.7643, -0.7643])
+mplot(block1, &quot;block1.png&quot;, markers=true)</code></pre><p><img src="./block1.png" alt/></p><p>A mirror operation can be applyed to this block to get a second one. Then, both blocks can be grouped in an array for further manipulation.</p><pre><code class="language-">block2 = mirror(block1, base=[0, 0], axis=[0.7643, -0.7643])
 blocks = [block1, block2]
 mplot(blocks, &quot;blocks.png&quot;, markers=true)
 nothing # hide</code></pre><p><img src="./blocks.png" alt/></p><p>To get the centre of the circle that is represented by the arc at the origin,  we perform a <code>move!</code> operation.</p><pre><code class="language-">move!(blocks, dx=-1.0, dy=-1.0)
@@ -165,11 +162,11 @@ solve!(model, bcs, verbosity=2)
 save(model, &quot;beam.vtu&quot;)</code></pre><pre class="documenter-example-output">Mechanical FE analysis: Stage 1[K
   model type: 3d
   unknown dofs: 540[K
-  stage 1 0:0:2.78 progress 0.00% increment 1 dT=1.0[K
-    assembling... [K     solving... [K     updating...     it 1   residue: 8.1404e-12
-  stage 1 0:0:4.14 progress 100.00%[K
+  stage 1 0:0:2.90 progress 0.00% increment 1 dT=1.0[K
+    assembling... [K     solving... [K     updating...     it 1   residue: 8.7718e-12
+  stage 1 0:0:4.32 progress 100.00%[K
   valid increments: 1[K
-  time spent: 0h 0m  4.17s[K</pre><pre><code class="language-">mplot(model, &quot;beam.png&quot;, warpscale=100, field=:uz, colorbarlabel=raw&quot;u_z&quot;, colorbarscale=0.4, azim=-90, dist=7)
+  time spent: 0h 0m  4.34s[K</pre><pre><code class="language-">mplot(model, &quot;beam.png&quot;, warpscale=100, field=:uz, colorbarlabel=raw&quot;u_z&quot;, colorbarscale=0.4, azim=-90, dist=7)
 nothing # hide</code></pre><p><img src="./beam.png" alt/></p><h2 id="Nonlinear-analysis"><a class="docs-heading-anchor" href="#Nonlinear-analysis">Nonlinear analysis</a><a id="Nonlinear-analysis-1"></a><a class="docs-heading-anchor-permalink" href="#Nonlinear-analysis" title="Permalink"></a></h2><pre><code class="language-julia">using Amaru
 
 # Mesh generation
@@ -235,28 +232,28 @@ solve!(model, bcs, tol=0.01, nouts=2, autoinc=true)</code></pre><pre class="docu
 tip = DataTable(&quot;tip.table&quot;)</code></pre><pre class="documenter-example-output">
  │       ux │       uy │       uz │       fx │       fy │       fz │ 
  │  0.0e+00 │  0.0e+00 │      0.0 │  0.0e+00 │  0.0e+00 │      0.0 │ 
- │  6.5e-19 │  4.6e-16 │  -0.0004 │ -5.3e-13 │  6.9e-14 │ -2.22233 │ 
- │  2.2e-18 │  8.9e-16 │  -0.0012 │  4.7e-13 │  2.6e-13 │   -6.667 │ 
- │ -3.5e-19 │  8.9e-16 │  -0.0028 │ -7.5e-14 │  2.8e-13 │ -15.5563 │ 
- │  3.4e-18 │  3.3e-15 │   -0.006 │ -3.2e-12 │  7.0e-13 │  -33.335 │ 
- │  3.7e-18 │  4.1e-15 │  -0.0124 │ -1.6e-11 │ -1.3e-12 │ -68.8924 │ 
- │ -1.4e-18 │  3.5e-15 │    -0.02 │ -8.5e-12 │  5.9e-12 │ -111.117 │ 
- │ -1.6e-19 │ -5.8e-18 │ -0.02128 │ -1.9e-13 │ -2.8e-14 │ -117.705 │ 
- │ -1.9e-19 │ -6.5e-18 │ -0.02256 │  1.2e-13 │ -3.8e-15 │ -123.056 │ 
- │ -2.0e-19 │ -6.6e-18 │ -0.02384 │  8.6e-14 │  4.1e-14 │ -127.697 │ 
- │ -1.7e-19 │ -7.2e-18 │ -0.02512 │ -3.0e-13 │ -2.8e-14 │ -132.014 │ 
- │ -1.8e-19 │ -7.6e-18 │  -0.0264 │  4.1e-13 │ -4.4e-15 │ -136.176 │ 
- │ -1.4e-19 │ -8.1e-18 │ -0.02768 │  1.2e-13 │  5.8e-17 │  -139.91 │ 
- │ -1.5e-19 │ -8.9e-18 │ -0.02896 │  1.3e-13 │  3.5e-15 │ -143.012 │ 
- │ -1.9e-19 │ -1.0e-17 │ -0.03024 │  9.4e-14 │  2.9e-14 │ -145.629 │ 
- │ -1.4e-19 │ -1.0e-17 │ -0.03152 │  4.7e-13 │  1.1e-15 │ -147.749 │ 
- │ -1.7e-19 │ -1.1e-17 │  -0.0328 │  4.4e-13 │ -1.8e-14 │ -149.645 │ 
- │ -1.6e-19 │ -1.1e-17 │ -0.03408 │  2.7e-13 │ -2.0e-15 │ -151.396 │ 
- │ -1.2e-19 │ -1.2e-17 │ -0.03536 │  2.8e-13 │  2.8e-14 │ -152.984 │ 
- │ -1.2e-19 │ -1.2e-17 │ -0.03664 │  5.2e-13 │  9.4e-15 │ -154.516 │ 
- │ -9.0e-20 │ -1.2e-17 │ -0.03792 │ -6.8e-13 │ -2.1e-14 │  -155.89 │ 
- │ -8.1e-20 │ -1.3e-17 │  -0.0392 │  8.3e-13 │ -2.6e-14 │ -157.181 │ 
- │ -1.4e-19 │ -6.3e-19 │    -0.04 │  2.7e-13 │ -2.6e-14 │ -157.973 │ </pre><pre><code class="language-julia">using Amaru
+ │ -3.3e-19 │  8.1e-16 │  -0.0004 │ -7.3e-13 │  5.1e-13 │ -2.22233 │ 
+ │ -1.9e-19 │  8.9e-16 │  -0.0012 │ -2.9e-12 │  4.6e-13 │   -6.667 │ 
+ │  2.8e-19 │  2.6e-15 │  -0.0028 │ -2.1e-12 │  1.5e-12 │ -15.5563 │ 
+ │  2.8e-18 │  5.7e-15 │   -0.006 │ -1.1e-13 │  7.2e-13 │  -33.335 │ 
+ │ -4.2e-18 │  1.2e-14 │  -0.0124 │ -8.1e-12 │  6.9e-12 │ -68.8924 │ 
+ │  5.7e-18 │  1.2e-14 │    -0.02 │ -7.2e-12 │  8.7e-12 │ -111.117 │ 
+ │ -1.4e-19 │ -8.2e-18 │ -0.02128 │ -4.8e-13 │  1.1e-14 │ -117.705 │ 
+ │ -1.4e-19 │ -9.3e-18 │ -0.02256 │  1.0e-14 │  2.1e-14 │ -123.056 │ 
+ │ -1.4e-19 │ -9.3e-18 │ -0.02384 │  1.6e-13 │  2.0e-14 │ -127.697 │ 
+ │ -1.7e-19 │ -1.0e-17 │ -0.02512 │  7.7e-14 │ -4.2e-15 │ -132.014 │ 
+ │ -1.4e-19 │ -1.0e-17 │  -0.0264 │  6.8e-13 │  3.1e-14 │ -136.176 │ 
+ │ -8.1e-20 │ -1.1e-17 │ -0.02768 │  3.5e-13 │ -1.0e-14 │  -139.91 │ 
+ │ -9.0e-20 │ -1.3e-17 │ -0.02896 │ -4.6e-13 │ -9.2e-15 │ -143.012 │ 
+ │ -1.1e-19 │ -1.4e-17 │ -0.03024 │ -3.0e-13 │ -1.9e-15 │ -145.629 │ 
+ │ -1.1e-19 │ -1.4e-17 │ -0.03152 │ -2.5e-13 │  1.2e-14 │ -147.749 │ 
+ │ -1.5e-19 │ -1.5e-17 │  -0.0328 │ -1.2e-13 │  1.8e-15 │ -149.645 │ 
+ │ -1.4e-19 │ -1.4e-17 │ -0.03408 │  4.2e-13 │  1.9e-14 │ -151.396 │ 
+ │ -1.5e-19 │ -1.5e-17 │ -0.03536 │ -3.8e-13 │ -6.9e-15 │ -152.984 │ 
+ │ -1.4e-19 │ -1.5e-17 │ -0.03664 │  3.4e-13 │  2.1e-14 │ -154.516 │ 
+ │ -1.3e-19 │ -1.6e-17 │ -0.03792 │  2.8e-13 │  2.8e-14 │  -155.89 │ 
+ │ -1.2e-19 │ -1.7e-17 │  -0.0392 │ -3.4e-13 │  1.7e-14 │ -157.181 │ 
+ │ -1.7e-19 │  1.1e-17 │    -0.04 │  2.2e-14 │  1.3e-14 │ -157.973 │ </pre><pre><code class="language-julia">using Amaru
 
 long = DataBook(&quot;topgroup.book&quot;).tables[end]</code></pre><pre class="documenter-example-output">
  │    x │   y │   z │       ux │       fx │       uy │       fy │       uz │       fz │ 
@@ -268,19 +265,19 @@ long = DataBook(&quot;topgroup.book&quot;).tables[end]</code></pre><pre class="d
  │ 0.25 │ 0.1 │ 0.1 │  1.6e-03 │ -8.0e-05 │ -4.5e-05 │  5.1e-05 │ -4.3e-03 │ -8.3e-05 │ 
  │  0.3 │ 0.1 │ 0.1 │  1.7e-03 │ -2.6e-06 │ -3.2e-05 │  1.1e-05 │ -6.0e-03 │ -7.8e-06 │ 
  │ 0.35 │ 0.1 │ 0.1 │  1.9e-03 │ -5.2e-08 │ -2.5e-05 │  6.3e-07 │ -7.8e-03 │ -1.6e-07 │ 
- │  0.4 │ 0.1 │ 0.1 │  2.0e-03 │ -5.1e-15 │ -2.4e-05 │  4.0e-14 │ -9.7e-03 │ -3.3e-14 │ 
- │ 0.45 │ 0.1 │ 0.1 │  2.1e-03 │ -3.1e-14 │ -2.2e-05 │ -2.7e-14 │ -1.2e-02 │  9.9e-15 │ 
- │  0.5 │ 0.1 │ 0.1 │  2.2e-03 │ -8.8e-15 │ -2.0e-05 │ -3.1e-14 │ -1.4e-02 │  2.9e-14 │ 
- │ 0.55 │ 0.1 │ 0.1 │  2.3e-03 │ -2.7e-14 │ -1.8e-05 │ -2.1e-14 │ -1.6e-02 │  4.4e-14 │ 
- │  0.6 │ 0.1 │ 0.1 │  2.4e-03 │  7.9e-14 │ -1.6e-05 │  1.0e-14 │ -1.9e-02 │  1.9e-13 │ 
- │ 0.65 │ 0.1 │ 0.1 │  2.5e-03 │  1.4e-13 │ -1.4e-05 │  5.2e-14 │ -2.1e-02 │  5.1e-14 │ 
- │  0.7 │ 0.1 │ 0.1 │  2.6e-03 │ -6.5e-14 │ -1.2e-05 │  5.1e-14 │ -2.4e-02 │  1.4e-14 │ 
- │ 0.75 │ 0.1 │ 0.1 │  2.6e-03 │ -5.0e-14 │ -9.8e-06 │  1.3e-13 │ -2.6e-02 │  4.2e-13 │ 
- │  0.8 │ 0.1 │ 0.1 │  2.7e-03 │ -8.2e-14 │ -7.9e-06 │  1.1e-13 │ -2.9e-02 │  1.1e-13 │ 
- │ 0.85 │ 0.1 │ 0.1 │  2.7e-03 │  4.0e-14 │ -5.9e-06 │ -2.4e-14 │ -3.2e-02 │ -2.3e-13 │ 
- │  0.9 │ 0.1 │ 0.1 │  2.7e-03 │ -1.3e-13 │ -3.9e-06 │ -8.1e-14 │ -3.4e-02 │ -8.8e-13 │ 
- │ 0.95 │ 0.1 │ 0.1 │  2.8e-03 │ -1.0e-13 │ -1.9e-06 │  3.0e-14 │ -3.7e-02 │  2.4e-13 │ 
- │  1.0 │ 0.1 │ 0.1 │  2.8e-03 │  7.5e-14 │ -7.0e-07 │  5.0e-14 │ -4.0e-02 │ -4.8e+00 │ </pre><h2 id="Plotting"><a class="docs-heading-anchor" href="#Plotting">Plotting</a><a id="Plotting-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting" title="Permalink"></a></h2><pre><code class="language-">using Amaru
+ │  0.4 │ 0.1 │ 0.1 │  2.0e-03 │  2.2e-14 │ -2.4e-05 │ -6.7e-15 │ -9.7e-03 │ -1.5e-13 │ 
+ │ 0.45 │ 0.1 │ 0.1 │  2.1e-03 │  4.3e-14 │ -2.2e-05 │  4.6e-14 │ -1.2e-02 │ -5.5e-14 │ 
+ │  0.5 │ 0.1 │ 0.1 │  2.2e-03 │ -3.3e-15 │ -2.0e-05 │ -1.0e-14 │ -1.4e-02 │ -3.1e-13 │ 
+ │ 0.55 │ 0.1 │ 0.1 │  2.3e-03 │ -4.4e-14 │ -1.8e-05 │ -2.2e-14 │ -1.6e-02 │ -1.0e-13 │ 
+ │  0.6 │ 0.1 │ 0.1 │  2.4e-03 │  5.3e-14 │ -1.6e-05 │  9.8e-14 │ -1.9e-02 │  1.0e-13 │ 
+ │ 0.65 │ 0.1 │ 0.1 │  2.5e-03 │  7.0e-14 │ -1.4e-05 │ -1.2e-15 │ -2.1e-02 │ -1.3e-13 │ 
+ │  0.7 │ 0.1 │ 0.1 │  2.6e-03 │  4.8e-14 │ -1.2e-05 │ -2.1e-13 │ -2.4e-02 │ -5.9e-13 │ 
+ │ 0.75 │ 0.1 │ 0.1 │  2.6e-03 │  1.8e-14 │ -9.8e-06 │ -1.1e-13 │ -2.6e-02 │ -3.8e-13 │ 
+ │  0.8 │ 0.1 │ 0.1 │  2.7e-03 │ -9.4e-14 │ -7.9e-06 │ -3.0e-14 │ -2.9e-02 │ -1.0e-13 │ 
+ │ 0.85 │ 0.1 │ 0.1 │  2.7e-03 │ -7.9e-14 │ -5.9e-06 │ -1.3e-13 │ -3.2e-02 │ -2.7e-13 │ 
+ │  0.9 │ 0.1 │ 0.1 │  2.7e-03 │  9.3e-14 │ -3.9e-06 │ -4.3e-14 │ -3.4e-02 │ -1.1e-13 │ 
+ │ 0.95 │ 0.1 │ 0.1 │  2.8e-03 │ -7.7e-14 │ -1.9e-06 │ -1.0e-13 │ -3.7e-02 │ -2.5e-13 │ 
+ │  1.0 │ 0.1 │ 0.1 │  2.8e-03 │  3.5e-14 │ -7.0e-07 │ -5.7e-14 │ -4.0e-02 │ -4.8e+00 │ </pre><h2 id="Plotting"><a class="docs-heading-anchor" href="#Plotting">Plotting</a><a id="Plotting-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting" title="Permalink"></a></h2><pre><code class="language-">using Amaru
 
 tip = DataTable(&quot;tip.table&quot;)
 cplot(
@@ -317,4 +314,4 @@ cplot(
     ylabel = raw&quot;$\sigma_{xx}$ [MPa]&quot;,
 )
 
-nothing # hide</code></pre><p><img src="./uz_vs_fz.png" alt/></p><p><img src="./x_vs_uz.png" alt/></p><p><img src="./x_vs_sxx.png" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Introduction</a><a class="docs-footer-nextpage" href="../../meshing/meshing/">Mesh »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.3 on <span class="colophon-date" title="Wednesday 7 July 2021 22:49">Wednesday 7 July 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+nothing # hide</code></pre><p><img src="./uz_vs_fz.png" alt/></p><p><img src="./x_vs_uz.png" alt/></p><p><img src="./x_vs_sxx.png" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Introduction</a><a class="docs-footer-nextpage" href="../../meshing/meshing/">Mesh »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.3 on <span class="colophon-date" title="Thursday 8 July 2021 04:19">Thursday 8 July 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
