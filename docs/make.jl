@@ -31,5 +31,4 @@ deploydocs(;
     target    = "build",
     branch    = "gh-pages",
     repo      = "github.com/NumSoftware/Amaru.jl.git",
-    push_preview = true,
 )

@@ -61,8 +61,6 @@ The block below, represents a 2D `Block` with `nx=7` and `ny=5`.
 using Amaru
 block = Block([0 0; 4 0; 3 2; 1 2], nx=7, ny=5)
 mplot(block, "block.png", markers=true)
-
-nothing # hide
 ```
 ![](./block.png)
 
@@ -92,7 +90,6 @@ block1 = Block(
     cellshape=QUAD8, nx=5, ny=5 
 )
 mplot(block1, "block1.png", markers=true)
-nothing # hide
 ```
 ![](./block1.png)
 
