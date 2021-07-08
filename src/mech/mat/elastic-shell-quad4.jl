@@ -12,17 +12,17 @@ end
 mutable struct ElasticShellQUAD4<:Material
     E::Float64
     nu::Float64
-    thick::Float64
+    t::Float64
 
     function ElasticShellQUAD4(prms::Dict{Symbol,Float64})
         return  ElasticShellQUAD4(;prms...)
     end
 
-    function ElasticShellQUAD4(;E=NaN, nu=NaN, thick=0.1)
+    function ElasticShellQUAD4(;E=NaN, nu=NaN, thickness=0.1)
         E>0.0 || error("Invalid value for E: $E")
         (0<=nu<0.5) || error("Invalid value for nu: $nu")
-        thick >0.0 || error("Invalid value for thick: $thick")
-        this = new(E, nu, thick)
+        thickness >0.0 || error("Invalid value for thickness: $thickness")
+        this = new(E, nu, thickness)
         return this
     end
 end
