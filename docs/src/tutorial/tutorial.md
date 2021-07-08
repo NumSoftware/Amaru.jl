@@ -60,9 +60,9 @@ The block below, represents a 2D `Block` with `nx=7` and `ny=5`.
 ```@example
 using Amaru
 block = Block([0 0; 4 0; 3 2; 1 2], nx=7, ny=5)
-mplot(block, "block.png", markers=true)
+mplot(block, "block.svg", markers=true)
 ```
-![](./block.png)
+![](./block.svg)
 
 Blocks can be combined to define a complex geometry.
 To manipulate blocks, Amaru provides several operators as
@@ -89,28 +89,28 @@ block1 = Block(
     ],
     cellshape=QUAD8, nx=5, ny=5 
 )
-mplot(block1, "block1.png", markers=true)
+mplot(block1, "block1.svg", markers=true)
 ```
-![](./block1.png)
+![](./block1.svg)
 
 A mirror operation can be applyed to this block to get a second one.
 Then, both blocks can be grouped in an array for further manipulation.
 ```@example 2
 block2 = mirror(block1, base=[0, 0], axis=[0.7643, -0.7643])
 blocks = [block1, block2]
-mplot(blocks, "blocks.png", markers=true)
+mplot(blocks, "blocks.svg", markers=true)
 nothing # hide
 ```
-![](./blocks.png)
+![](./blocks.svg)
 
 To get the centre of the circle that is represented by the arc at the origin, 
 we perform a `move!` operation.
 ```@example 2
 move!(blocks, dx=-1.0, dy=-1.0)
-mplot(blocks, "moved.png", markers=true, axis=true)
+mplot(blocks, "moved.svg", markers=true, axis=true)
 nothing # hide
 ```
-![](./moved.png)
+![](./moved.svg)
 
 Now we can apply a `polar` operation to the current geometry to 
 obtain a square region with a central hole.
@@ -118,37 +118,37 @@ The original geometry is replicated four times using a rotation axis that
 passes througth a base point.
 ```@example 2
 hole = polar(blocks, base=[0, 0], axis=[0, 0, 1], angle=360, n=4)
-mplot(hole, "hole.png", markers=true)
+mplot(hole, "hole.svg", markers=true)
 nothing # hide
 ```
-![](./hole.png)
+![](./hole.svg)
 
 Then, the `extrude` operation is used to obtain a volume following a defined axis and length.
 The number 4 here represents the number of divisions inteded along the new dimension.
 
 ```@example 2
 solid = extrude(hole, axis=[0, 0, 1], length=1, n=4)
-mplot(solid, "solid.png", markers=true, dist=13)
+mplot(solid, "solid.svg", markers=true, dist=13)
 nothing # hide
 ```
-![](./solid.png)
+![](./solid.svg)
 
 Note that, the `solid` variable contains a list of blocks as shown in the figure. This list is
 used to generate the structured mesh.
 ```@example 2
 mesh = Mesh(solid)
-mplot(mesh, "mesh.png", dist=13)
+mplot(mesh, "mesh.svg", dist=13)
 nothing # hide
 ```
-![](./mesh.png)
+![](./mesh.svg)
 
 Finally, a `smooth` operation can be applied to improve the cells quality.
 ```@example 2
 smooth_mesh = smooth!(mesh)
-mplot(smooth_mesh, "smooth_mesh.png", dist=13)
+mplot(smooth_mesh, "smooth_mesh.svg", dist=13)
 nothing # hide
 ```
-![](./smooth_mesh.png)
+![](./smooth_mesh.svg)
 
 
 
@@ -162,10 +162,10 @@ using Amaru
 
 block = Block([0 0 ; 2 2], nx=8, ny=6)
 mesh  = Mesh(block) 
-mplot(mesh, "mesh-quad4.png", markers=true)
+mplot(mesh, "mesh-quad4.svg", markers=true)
 nothing # hide
 ```
-![](./mesh-quad4.png)
+![](./mesh-quad4.svg)
 
 Mesh with quadratic cells:
 ```@example
@@ -173,20 +173,20 @@ using Amaru
 
 block = Block([0 0 ; 2 2], nx=8, ny=6, cellshape=QUAD8)
 mesh  = Mesh(block) 
-mplot(mesh, "mesh-quad8.png", markers=true)
+mplot(mesh, "mesh-quad8.svg", markers=true)
 nothing # hide
 ```
-![](./mesh-quad8.png)
+![](./mesh-quad8.svg)
 
 Simple 3D mesh:
 ```@example
 using Amaru
 block = Block([0 0 0; 2 4 3], nx=3, ny=6, nz=6)
 mesh = Mesh(block)
-mplot(mesh, "mesh-hex8.png", markers=true)
+mplot(mesh, "mesh-hex8.svg", markers=true)
 nothing # hide
 ```
-![](./mesh-hex8.png)
+![](./mesh-hex8.svg)
 
 2D mesh constructed from two quadratic blocks:
 ```@example
@@ -206,10 +206,10 @@ block1 = Block(
 )
 block2 = mirror(block1, base=[0, 0], axis=[0.7643, -0.7643])
 mesh = Mesh(block1, block2)
-mplot(mesh, "mesh-2d.png", markers=true)
+mplot(mesh, "mesh-2d.svg", markers=true)
 nothing # hide
 ```
-![](./mesh-2d.png)
+![](./mesh-2d.svg)
 
 
 Mesh with cells growing in the ``x`` direction.
@@ -228,20 +228,20 @@ block = BlockGrid(
 )
 
 mesh = Mesh(block)
-mplot(mesh, "mesh-rate.png", markers=true)
+mplot(mesh, "mesh-rate.svg", markers=true)
 nothing # hide
 ```
-![](./mesh-rate.png)
+![](./mesh-rate.svg)
 
 3D mesh obtained revolving the last example:
 ```@example x
 mesh = revolve(mesh, minangle=0, maxangle=90)
 changeaxes!(mesh, "xzy")
 rotate!(mesh, axis=[0,0,1], angle=90)
-mplot(mesh, "mesh-rev.png", azim=-45) 
+mplot(mesh, "mesh-rev.svg", azim=-45) 
 nothing # hide
 ```
-![](./mesh-rev.png)
+![](./mesh-rev.svg)
 
 
 Wire mesh:
@@ -252,18 +252,18 @@ block1 = Block([0 0 0; 1 0 1; 0.7 0 0.3 ], n=7) # curved wire (quadratic)
 block2 = Block([1 0 1; 1 0 2], n=5) # straight wire
 mesh = Mesh(block1, block2)
 
-mplot(mesh, "mesh-arc.png", azim=-90, elev=0, markers=true)
+mplot(mesh, "mesh-arc.svg", azim=-90, elev=0, markers=true)
 nothing # hide
 ```
-![](./mesh-arc.png)
+![](./mesh-arc.svg)
 
 3D mesh obtained revolving the last example:
 ```@example y
 mesh = revolve(mesh, n=24, axis=[0,0,1]) # surface by revolution
-mplot(mesh, "mesh-surf.png", elev=15)
+mplot(mesh, "mesh-surf.svg", elev=15)
 nothing # hide
 ```
-![](./mesh-surf.png)
+![](./mesh-surf.svg)
 
 
 ## Finite element model
@@ -374,10 +374,10 @@ nothing # hide
 ```
 
 ```@example fem
-mplot(model, "beam.png", warpscale=100, field=:uz, colorbarlabel=raw"u_z", colorbarscale=0.4, azim=-90, dist=7)
+mplot(model, "beam.svg", warpscale=100, field=:uz, colorbarlabel=raw"u_z", colorbarscale=0.4, azim=-90, dist=7)
 nothing # hide
 ```
-![](./beam.png)
+![](./beam.svg)
 
  
 ## Nonlinear analysis
@@ -409,10 +409,10 @@ nothing # hide
 ```
 
 ```@example fem
-mplot(model, "beam-vm.png", warpscale=10, field=:sxx, fieldmult=1e-3, colorbarlabel=raw"$\sigma_{xx}$", colorbarscale=0.4, azim=-90, dist=7)
+mplot(model, "beam-vm.svg", warpscale=10, field=:sxx, fieldmult=1e-3, colorbarlabel=raw"$\sigma_{xx}$", colorbarscale=0.4, azim=-90, dist=7)
 nothing # hide
 ```
-![](./beam-vm.png)
+![](./beam-vm.svg)
 
 
 ### Loggers
@@ -488,7 +488,7 @@ cplot(
     [
         (x=tip.uz, y=tip.fz, marker="o"),
     ],
-    filename = "uz_vs_fz.png",
+    filename = "uz_vs_fz.svg",
     xmult  = 1e3,
     xlabel = raw"$u_z$ [mm]",
     ylabel = raw"$f_z$ [kN]",
@@ -499,7 +499,7 @@ cplot(
     [
         (x=topgroup.x, y=topgroup.uz, marker="o"),
     ],
-    filename = "x_vs_uz.png",
+    filename = "x_vs_uz.svg",
     ymult  = 1e3,
     xlabel = raw"$x$ [m]",
     ylabel = raw"$u_z$ [mm]",
@@ -512,7 +512,7 @@ cplot(
         (x=top.x, y=top.sxx, marker="o", label="top"),
         (x=bottom.x, y=bottom.sxx, marker="o", label="bottom"),
     ],
-    filename = "x_vs_sxx.png",
+    filename = "x_vs_sxx.svg",
     ymult  = 1e-3,
     xlabel = raw"$x$ [m]",
     ylabel = raw"$\sigma_{xx}$ [MPa]",
@@ -521,8 +521,8 @@ cplot(
 nothing # hide
 ```
 
-![](./uz_vs_fz.png)
+![](./uz_vs_fz.svg)
 
-![](./x_vs_uz.png)
+![](./x_vs_uz.svg)
 
-![](./x_vs_sxx.png)
+![](./x_vs_sxx.svg)
