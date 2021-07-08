@@ -224,6 +224,7 @@ function elem_stiffness(elem::ShellQUAD4)
     D = zeros(8, 8)
     K = zeros(nnodes*ndof, nnodes*ndof)
 
+<<<<<<< HEAD
 
     for ip in elem.ips
     
@@ -245,6 +246,29 @@ function elem_stiffness(elem::ShellQUAD4)
 
         K += B'*D*B*coef
 
+=======
+
+    for ip in elem.ips
+    
+        # compute shape Jacobian
+        N    = elem.shape.func(ip.R)
+        dNdR = elem.shape.deriv(ip.R)
+
+        J = dNdR*C
+        detJ = norm2(J)
+        dNdX = inv(J)*dNdR
+
+        setB(elem, N, dNdX, B)
+        setD(elem, D)
+
+        coef = detJ*ip.w
+        # @show size(K)
+        # @show size(B)
+        # @show size(D)
+
+        K += B'*D*B*coef
+
+>>>>>>> d5ab1abda7ecdb5f72a611e1d93bcfbf102d2027
     end
 
     K = R*D*R'
