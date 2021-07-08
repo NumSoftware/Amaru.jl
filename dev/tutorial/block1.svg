@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Created with matplotlib (http://matplotlib.org/) -->
+<svg height="191.62pt" version="1.1" viewBox="0 0 194.8 191.62" width="194.8pt" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+ <defs>
+  <style type="text/css">
+*{stroke-linecap:butt;stroke-linejoin:round;}
+  </style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 191.62 
+L 194.8 191.62 
+L 194.8 0 
+L 0 0 
+z
+" style="fill:#ffffff;"/>
+  </g>
+  <g id="axes_1">
+   <g id="PatchCollection_1">
+    <defs>
+     <path d="M 44.040812 -21.8 
+Q 107.6 -85.359188 171.159188 -148.918376 
+Q 155.225732 -165.275948 154.926356 -188.12 
+Q 99.466952 -188.12 44.040812 -188.12 
+Q 44.040812 -104.96 44.040812 -21.8 
+" id="mecbb04c0f6" style="stroke:#666666;stroke-width:0.4;"/>
+    </defs>
+    <g clip-path="url(#pea2923bdc2)">
+     <use style="fill:#f0f7ff;stroke:#666666;stroke-width:0.4;" x="0" xlink:href="#mecbb04c0f6" y="191.62"/>
+    </g>
+   </g>
+   <g id="line2d_1">
+    <path d="M 44.040812 169.82 
+L 171.159188 42.701624 
+L 154.926356 3.5 
+L 44.040812 3.5 
+L 107.6 106.260812 
+L 159.134252 24.722432 
+L 99.475268 3.5 
+L 44.040812 86.66 
+" style="fill:none;"/>
+    <defs>
+     <path d="M 0 0.75 
+C 0.198902 0.75 0.389685 0.670975 0.53033 0.53033 
+C 0.670975 0.389685 0.75 0.198902 0.75 0 
+C 0.75 -0.198902 0.670975 -0.389685 0.53033 -0.53033 
+C 0.389685 -0.670975 0.198902 -0.75 0 -0.75 
+C -0.198902 -0.75 -0.389685 -0.670975 -0.53033 -0.53033 
+C -0.670975 -0.389685 -0.75 -0.198902 -0.75 0 
+C -0.75 0.198902 -0.670975 0.389685 -0.53033 0.53033 
+C -0.389685 0.670975 -0.198902 0.75 0 0.75 
+z
+" id="m70352eb4db"/>
+    </defs>
+    <g>
+     <use x="44.040812" xlink:href="#m70352eb4db" y="169.82"/>
+     <use x="171.159188" xlink:href="#m70352eb4db" y="42.701624"/>
+     <use x="154.926356" xlink:href="#m70352eb4db" y="3.5"/>
+     <use x="44.040812" xlink:href="#m70352eb4db" y="3.5"/>
+     <use x="107.6" xlink:href="#m70352eb4db" y="106.260812"/>
+     <use x="159.134252" xlink:href="#m70352eb4db" y="24.722432"/>
+     <use x="99.475268" xlink:href="#m70352eb4db" y="3.5"/>
+     <use x="44.040812" xlink:href="#m70352eb4db" y="86.66"/>
+    </g>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="pea2923bdc2">
+   <rect height="166.32" width="167.4" x="23.9" y="3.5"/>
+  </clipPath>
+ </defs>
+</svg>

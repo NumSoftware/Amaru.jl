@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Created with matplotlib (http://matplotlib.org/) -->
+<svg height="191.62pt" version="1.1" viewBox="0 0 199.16 191.62" width="199.16pt" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+ <defs>
+  <style type="text/css">
+*{stroke-linecap:butt;stroke-linejoin:round;}
+  </style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 191.62 
+L 199.16 191.62 
+L 199.16 0 
+L 0 0 
+z
+" style="fill:#ffffff;"/>
+  </g>
+  <g id="axes_1">
+   <g id="PatchCollection_1">
+    <defs>
+     <path d="M 28.01 -63.11 
+L 195.41 -63.11 
+L 153.56 -146.81 
+L 69.86 -146.81 
+L 28.01 -63.11 
+" id="m1f8d1ad992" style="stroke:#666666;stroke-width:0.4;"/>
+    </defs>
+    <g clip-path="url(#p70e8fa22f4)">
+     <use style="fill:#f0f7ff;stroke:#666666;stroke-width:0.4;" x="0" xlink:href="#m1f8d1ad992" y="191.62"/>
+    </g>
+   </g>
+   <g id="line2d_1">
+    <path d="M 28.01 128.51 
+L 195.41 128.51 
+L 153.56 44.81 
+L 69.86 44.81 
+" style="fill:none;"/>
+    <defs>
+     <path d="M 0 0.75 
+C 0.198902 0.75 0.389685 0.670975 0.53033 0.53033 
+C 0.670975 0.389685 0.75 0.198902 0.75 0 
+C 0.75 -0.198902 0.670975 -0.389685 0.53033 -0.53033 
+C 0.389685 -0.670975 0.198902 -0.75 0 -0.75 
+C -0.198902 -0.75 -0.389685 -0.670975 -0.53033 -0.53033 
+C -0.670975 -0.389685 -0.75 -0.198902 -0.75 0 
+C -0.75 0.198902 -0.670975 0.389685 -0.53033 0.53033 
+C -0.389685 0.670975 -0.198902 0.75 0 0.75 
+z
+" id="m5de1459c42"/>
+    </defs>
+    <g>
+     <use x="28.01" xlink:href="#m5de1459c42" y="128.51"/>
+     <use x="195.41" xlink:href="#m5de1459c42" y="128.51"/>
+     <use x="153.56" xlink:href="#m5de1459c42" y="44.81"/>
+     <use x="69.86" xlink:href="#m5de1459c42" y="44.81"/>
+    </g>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p70e8fa22f4">
+   <rect height="166.32" width="167.4" x="28.01" y="3.5"/>
+  </clipPath>
+ </defs>
+</svg>
