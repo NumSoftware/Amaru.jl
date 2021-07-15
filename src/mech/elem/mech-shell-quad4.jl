@@ -4,7 +4,7 @@ export ShellQUAD4
 
 mutable struct ShellQUAD4<:Mechanical
     id    ::Int
-    shape ::ShapeType
+    shape ::ShapeType   #CellShape
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -94,6 +94,84 @@ function distributed_bc(elem::ShellQUAD4, facet::Union{Facet, Nothing}, key::Sym
     return reshape(F', nnodes*ndim), map
 end
 
+#=
+function RotMatrix(elem::ShellQUAD4)
+
+    v12 = zeros(3,1)
+    v13 = zeros(3,1)
+    vxe = zeros(3,1)
+    vye = zeros(3,1)
+    vze = zeros(3,1)
+
+    cxyz = get_coords(elem)
+
+        if size(cxyz,2)==2
+            v12[3] = 0
+            v13[3] = 0
+        else
+            v12[3] = cxyz[2,3] - cxyz[1,3]
+            v13[3] = cxyz[3,3] - cxyz[1,3]
+        end
+
+    v12[1] = cxyz[2,1] - cxyz[1,1]
+    v12[2] = cxyz[2,2] - cxyz[1,2]
+
+    v13[1] = cxyz[3,1] - cxyz[1,1]
+    v13[2] = cxyz[3,2] - cxyz[1,2]
+
+    vze[1] = v12[2]*v13[3] - v12[3]*v13[2]
+    vze[2] = v12[3]*v13[1] - v12[1]*v13[3]
+    vze[3] = v12[1]*v13[2] - v12[2]*v13[1]
+
+    dz = sqrt(vze[1]^2 + vze[2]^2 + vze[3]^2);
+
+  # Unit vector normal to element surface
+    vze[1] = vze[1]/dz
+    vze[2] = vze[2]/dz
+    vze[3] = vze[3]/dz
+
+  # XZ plane intesection with element surface
+    vxe[1] =  1/sqrt(1+(vze[1]/vze[3])^2)
+    vxe[2] =  0
+    vxe[3] = -1/sqrt(1+(vze[3]/vze[1])^2)
+
+    dd = vxe[1]*vze[1] + vxe[3]*vze[3];
+    if (abs(dd) > 1e-8)
+      vxe[3] = -vxe[3]
+    end
+
+    if ((vze[3] == 0) && (vze[1] == 0))
+      vxe[1] =  1
+      vxe[2] =  0
+      vxe[3] =  0
+    end
+
+  # Vector product
+    vye[1] = vze[2]*vxe[3] - vxe[2]*vze[3]
+    vye[2] = vze[3]*vxe[1] - vxe[3]*vze[1]
+    vye[3] = vze[1]*vxe[2] - vxe[1]*vze[2]
+
+    dy = sqrt(vye[1]^2 + vye[2]^2 + vye[3]^2)
+    vye[1] = vye[1]/dy
+    vye[2] = vye[2]/dy
+    vye[3] = vye[3]/dy
+
+    if (vye[2] < 0 )
+      vye[1] = -vye[1]
+      vye[2] = -vye[2]
+      vye[3] = -vye[3]
+      vxe[1] = -vxe[1]
+      vxe[2] = -vxe[2]
+      vxe[3] = -vxe[3]
+    end
+
+    Rot = [ vxe[1] vxe[2] vxe[3]
+           vye[1] vye[2] vye[3]
+           vze[1] vze[2] vze[3] ]
+
+    return Rot
+end
+=#
 
 function RotMatrix(elem::ShellQUAD4)
 
@@ -116,6 +194,7 @@ function RotMatrix(elem::ShellQUAD4)
         return [L1 L2 L3]
     end
 end
+
 
 function elem_config_dofs(elem::ShellQUAD4)
     ndim = elem.env.ndim
@@ -175,16 +254,16 @@ function setB(elem::ShellQUAD4, N::Vect, dNdX::Matx, B::Matx)
         B[3,2+j*ndof] = dNdx
 
         # matrix Bb
-        B[4,4+j*ndof] = -dNdx
-        B[5,5+j*ndof] = -dNdy
-        B[6,4+j*ndof] = -dNdy
-        B[7,5+j*ndof] =  dNdx
-
+        B[4,4+j*ndof] =  dNdx  # -dNdx
+        B[5,5+j*ndof] =  dNdy  # -dNdy
+        B[6,4+j*ndof] =  dNdy  # -dNdy
+        B[6,5+j*ndof] =  dNdx  # B[7,5+j*ndof]
+        
         # matrix Bs
         B[7,3+j*ndof] = dNdx
         B[7,4+j*ndof] = -N[i]
         B[8,3+j*ndof] = dNdy
-        B[8,4+j*ndof] = -N[i]
+        B[8,5+j*ndof] = -N[i]   # B[8,4+j*ndof] = -N[i]
 
     end
 end
@@ -198,7 +277,7 @@ function setD(elem::ShellQUAD4, D::Matx)
     d11 = d22 = E/(1-nu^2)
     d12 = d21 = E*nu/(1-nu^2)
     d33 = E/(1-nu^2)*(1-nu)/2
-    d44 = d55 = E/2/(1+nu)*α
+    d44 = d55 = E/(2*(1+nu))*α  #E/2/(1+nu)*α
 
     D .= [ d11*t d12*t 0     0 0 0 0 0
           d21*t d22*t 0     0 0 0 0 0
@@ -216,7 +295,7 @@ function elem_stiffness(elem::ShellQUAD4)
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
     ndof   = 5
-
+    
     C = get_coords(elem)
     R = RotMatrix(elem)
     C = (C*R')[:,1:2]
@@ -224,7 +303,6 @@ function elem_stiffness(elem::ShellQUAD4)
     D = zeros(8, 8)
     K = zeros(nnodes*ndof, nnodes*ndof)
 
-<<<<<<< HEAD
 
     for ip in elem.ips
     
@@ -240,38 +318,16 @@ function elem_stiffness(elem::ShellQUAD4)
         setD(elem, D)
 
         coef = detJ*ip.w
-        # @show size(K)
+         
         # @show size(B)
         # @show size(D)
-
+        
         K += B'*D*B*coef
-
-=======
-
-    for ip in elem.ips
-    
-        # compute shape Jacobian
-        N    = elem.shape.func(ip.R)
-        dNdR = elem.shape.deriv(ip.R)
-
-        J = dNdR*C
-        detJ = norm2(J)
-        dNdX = inv(J)*dNdR
-
-        setB(elem, N, dNdX, B)
-        setD(elem, D)
-
-        coef = detJ*ip.w
         # @show size(K)
-        # @show size(B)
-        # @show size(D)
 
-        K += B'*D*B*coef
-
->>>>>>> d5ab1abda7ecdb5f72a611e1d93bcfbf102d2027
     end
 
-    K = R*D*R'
+    #K = R*D*R'
 
     keys = (:ux, :uy, :uz, :rx, :ry)
 
