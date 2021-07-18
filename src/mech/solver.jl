@@ -266,7 +266,7 @@ function solve!(
                )
     # Arguments checking
     verbosity = 0
-    printlog && (printlog=false)
+    printlog && (verbosity=1)
     printlog && verbose && (verbosity=2)
 
     scheme = string(scheme)

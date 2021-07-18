@@ -237,7 +237,7 @@ function hm_solve!(
 
     # Arguments checking
     verbosity = 0
-    printlog && (printlog=false)
+    printlog && (verbosity=1)
     printlog && verbose && (verbosity=2)
 
     tol>0 || error("hm_solve! : tolerance `tol `should be greater than zero")

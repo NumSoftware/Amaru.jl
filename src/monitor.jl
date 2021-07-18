@@ -60,7 +60,7 @@ function update_monitor!(monitor::IpMonitor, domain)
 
     if monitor.filename!="" 
         filename = joinpath(domain.env.outdir, monitor.filename)
-        save(monitor.table, filename, printlog=true)
+        save(monitor.table, filename, printlog=false)
     end
 end
 
@@ -149,7 +149,7 @@ function update_monitor!(monitor::NodeMonitor, domain)
 
     if monitor.filename!=""
         filename = joinpath(domain.env.outdir, monitor.filename)
-        save(monitor.table, filename, printlog=true)
+        save(monitor.table, filename, printlog=false)
     end
 end
 
@@ -224,6 +224,6 @@ function update_monitor!(monitor::IpGroupMonitor, domain)
 
     if monitor.filename!="" 
         filename = joinpath(domain.env.outdir, monitor.filename)
-        save(monitor.table, filename, printlog=true)
+        save(monitor.table, filename, printlog=false)
     end
 end
