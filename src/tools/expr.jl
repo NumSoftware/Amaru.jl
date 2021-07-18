@@ -139,43 +139,155 @@ end
 
 export SymEx
 mutable struct SymEx
-    root::Symbol
-    args::Array{Any,1}
+    # sym::Symbol
+    expr::Expr
 
     function SymEx(symbol::Symbol)
-        return new(symbol, [])
+        return new(Expr(:call, :identity, symbol))
     end
 
-    function SymEx(op::Symbol, args...)
-        return new(op, collect(args))
+    function SymEx(expr::Expr)
+        return new(expr)
+    end
+
+    # function SymEx(op::Symbol, args...)
+    #     return new(op, collect(args))
+    # end
+end
+
+function draw(a::SymEx) 
+    return ifelse(a.expr.args[1] == :identity, a.expr.args[2], a.expr)
+    # if a.expr.args[1] == :identity 
+    #     return a.expr.args[2]
+    # else
+    #     return a.expr
+    # end
+end
+
+draw(a) = a
+
+
+for op in (:+, :-, :*, :/, :^, :>, :(>=), :<, :(<=), :(==), :(!=))
+    @eval begin
+        Base.$op(x::SymEx, y::SymEx) = SymEx(Expr(:call, Symbol($op), draw(x), draw(y)))
+        Base.$op(x::SymEx, y) = SymEx(Expr(:call, Symbol($op), draw(x), y))
+        Base.$op(x, y::SymEx) = SymEx(Expr(:call, Symbol($op), x, draw(y)))
     end
 end
 
-function Base.show(io::IO, ex::SymEx)
-    nargs = length(ex.args)
-    if nargs==0
-        print(io, ex.root)
-    elseif nargs==1
-        op = ex.root
-        if op==:^
-            print(io, "(", ex.args[1], ",", op)
-        else
-            print(io, "(", ex.args[1], ex.root, ex.args[2], ")")
-        end
-    else
-        print(io, "(", ex.args[1], ex.root, ex.args[2], ")")
+for fun in (:abs, :sin, :cos, :tan, :log, :exp)
+    @eval begin
+        Base.$fun(x::SymEx) = SymEx(Expr(:call, Symbol($fun), draw(x)))
     end
 end
 
-Base.:+(x::SymEx, y::SymEx) = SymEx(:+, x, y)
-Base.:+(x::SymEx, y) = SymEx(:+, x, y)
-Base.:+(x, y::SymEx) = SymEx(:+, x, y)
-Base.:-(x::SymEx, y::SymEx) = SymEx(:-, x, y)
-Base.:-(x::SymEx, y) = SymEx(:-, x, y)
-Base.:-(x, y::SymEx) = SymEx(:-, x, y)
 
-Base.:^(x::SymEx, y) = SymEx(:^, x, y)
 
-test(g) = @eval(Main, g(2))
+# function Base.show(io::IO, ex::SymEx)
+#     nargs = length(ex.args)
+#     if nargs==0
+#         print(io, ex.root)
+#     elseif nargs==1
+#         op = ex.root
+#         if op==:^
+#             print(io, "(", ex.args[1], ",", op)
+#         else
+#             print(io, "(", ex.args[1], ex.root, ex.args[2], ")")
+#         end
+#     else
+#         print(io, "(", ex.args[1], ex.root, ex.args[2], ")")
+#     end
+# end
+
+# Base.:+(x::SymEx, y::SymEx) = SymEx(:+, x, y)
+# Base.:+(x::SymEx, y) = SymEx(:+, x, y)
+# Base.:+(x, y::SymEx) = SymEx(:+, x, y)
+# Base.:-(x::SymEx, y::SymEx) = SymEx(:-, x, y)
+# Base.:-(x::SymEx, y) = SymEx(:-, x, y)
+# Base.:-(x, y::SymEx) = SymEx(:-, x, y)
+
+# Base.:^(x::SymEx, y) = SymEx(:^, x, y)
+
+# test(g) = @eval(Main, g(2))
 # test(g) = eval(:(g(2)))
-# test(g) = eval(Main, f(2))
+# test(g) = eval(Main, f(2)) #!
+
+
+# Base.:+(x::Symbol, y::Symbol) = Expr(:call, :+, x, y)
+# Base.:+(x::Expr, y::Expr) = Expr(:call, :+, x, y)
+# Base.:+(x::Number, y::Symbol) = Expr(:call, :+, x, y)
+# Base.:+(x::Symbol, y::Number) = Expr(:call, :+, x, y)
+# Base.:+(x::Expr, y::Symbol) = Expr(:call, :+, x, y)
+# Base.:+(x::Symbol, y::Expr) = Expr(:call, :+, x, y)
+
+# for op in (:+, :-, :*, :/, :^, :>, :>=, :<, :<=)
+#     @eval begin
+#         Base.$op(x::Symbol, y::Symbol) = Expr(:call, Symbol($op), x, y)
+#         Base.$op(x::Symbol, y) = Expr(:call, Symbol($op), x, y)
+#         Base.$op(x, y::Symbol) = Expr(:call, Symbol($op), x, y)
+#         Base.$op(x::Expr, y::Expr) = Expr(:call, Symbol($op), x, y)
+#         Base.$op(x::Expr, y) = Expr(:call, Symbol($op), x, y)
+#         Base.$op(x, y::Expr) = Expr(:call, Symbol($op), x, y)
+#     end
+# end
+
+# Base.sin(x::Symbol) = Expr(:call, :sin, x)
+# Base.cos(x::Symbol) = Expr(:call, :cos, x)
+# Base.tan(x::Symbol) = Expr(:call, :tan, x)
+# Base.exp(x::Symbol) = Expr(:call, :exp, x)
+# Base.log(x::Symbol) = Expr(:call, :log, x)
+
+
+# export Sym
+# mutable struct Sym
+#     sym::Symbol
+
+#     function Sym(sym::Symbol)
+#         return new(sym)
+#     end
+# end
+
+# export SymEx
+# mutable struct SymEx
+#     expr::Expr
+
+#     function SymEx(expr::Expr)
+#         return new(expr)
+#     end
+# end
+
+# draw(a::Sym) = a.sym
+# draw(a::Expr) = a.expr
+# draw(a) = a
+
+# for op in (:+, :-, :*, :/, :^, :>, :(>=), :<, :(<=), :(==), :(!=))
+#     @eval begin
+#         # Base.$op(x::Sym, y::Sym) = SymEx(Expr(:call, Symbol($op), x.sym, y.sym))
+#         # Base.$op(x::Sym, y) = SymEx(Expr(:call, Symbol($op), x.sym, draw(y)))
+#         # Base.$op(x, y::Sym) = SymEx(Expr(:call, Symbol($op), draw(x), y.sym))
+
+#         # Base.$op(x::SymEx, y::SymEx) = SymEx(Expr(:call, Symbol($op), x.expr, y.expr))
+#         # Base.$op(x::SymEx, y) = SymEx(Expr(:call, Symbol($op), x.expr, draw(y)))
+#         # Base.$op(x, y::SymEx) = SymEx(Expr(:call, Symbol($op), draw(x), y.expr))
+
+#         Base.$op(x::SymEx, y::SymEx) = SymEx(Expr(:call, Symbol($op), x.expr, y.expr))
+#         Base.$op(x::SymEx, y::Sym) = SymEx(Expr(:call, Symbol($op), x.expr, y.sym))
+#         Base.$op(x::Sym, y::SymEx) = SymEx(Expr(:call, Symbol($op), x.sym, y.expr))
+#         Base.$op(x::SymEx, y) = SymEx(Expr(:call, Symbol($op), x.expr, y))
+#         Base.$op(x, y::SymEx) = SymEx(Expr(:call, Symbol($op), x, y.expr))
+        
+#         Base.$op(x::Sym, y::Sym) = SymEx(Expr(:call, Symbol($op), x.sym, y.sym))
+#         Base.$op(x::Sym, y) = SymEx(Expr(:call, Symbol($op), x.sym, y))
+#         Base.$op(x, y::Sym) = SymEx(Expr(:call, Symbol($op), x, y.sym))
+#     end
+# end
+
+
+
+
+
+const x = SymEx(:x)
+const y = SymEx(:y)
+const z = SymEx(:z)
+const t = SymEx(:t)
+export x, y, z, t

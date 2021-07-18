@@ -190,10 +190,15 @@ function dynsolve!(
                    beta      :: Real    = 0.0,
                    outdir    :: String  = "",
                    filekey   :: String  = "out",
-                   verbosity = 0,
+                   printlog = false,
+                   verbose = false
                   )
 
     # Arguments checking
+    verbosity = 0
+    printlog && (printlog=false)
+    printlog && verbose && (verbosity=2)
+
     tol>0 || error("solve! : tolerance should be greater than zero")
     Ttol>0 || error("solve! : tolerance `Ttol `should be greater than zero")
 
@@ -306,7 +311,7 @@ function dynsolve!(
         update_output_data!(dom)
         update_single_loggers!(dom)
         update_composed_loggers!(dom)
-        save(dom, "$outdir/$filekey-0.vtu", verbosity=0)
+        save(dom, "$outdir/$filekey-0.vtu", printlog=true)
     end
 
     # Incremental analysis
@@ -457,7 +462,7 @@ function dynsolve!(
                 iout = env.cout
                 update_output_data!(dom)
                 update_composed_loggers!(dom)
-                save(dom, "$outdir/$filekey-$iout.vtu", verbosity=0)
+                save(dom, "$outdir/$filekey-$iout.vtu", printlog=true)
                 T += dT # find the next output time
             end
 

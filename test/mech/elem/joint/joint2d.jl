@@ -4,7 +4,7 @@ using Test
 # mesh generation
 
 bl  = Block( [0 0; 0.2 0.1], nx=2, ny=6, cellshape=QUAD4, tag="solids")
-msh = Mesh(bl, verbosity=0)
+msh = Mesh(bl, printlog=false)
 generate_joints!(msh, tag="joints")
 
 # finite element analysis
@@ -41,7 +41,7 @@ for i=1:2
            :(x==0.2) => FaceBC(ux=2.0*1.7e-4),
           ]
 
-    @test solve!(dom, bcs, autoinc=true, nincs=20, maxits=3, tol=0.01, verbosity=0, scheme=:ME, nouts=10).success
+    @test solve!(dom, bcs, autoinc=true, nincs=20, maxits=3, tol=0.01, printlog=false, scheme=:ME, nouts=10).success
 
     if Amaru.config.makeplots
         using PyPlot

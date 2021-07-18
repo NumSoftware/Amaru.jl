@@ -7,13 +7,13 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
     printstyled("axisymmetric\n", color=:cyan)
 
     bl = Block( [0 0; 1 1], nx=4, ny=4, cellshape=shape, tag="solids")
-    mesh = Mesh(bl, verbosity=0)
+    mesh = Mesh(bl, printlog=false)
 
     materials = [
         "solids" => ElasticSolid(E=100.0, nu=0.2)
     ]
 
-    dom = Domain(mesh, materials, modeltype="axisymmetric", verbosity=0)
+    dom = Domain(mesh, materials, modeltype="axisymmetric", printlog=false)
 
     bcs = [
            :(x==0) => FaceBC(ux=0),
@@ -22,7 +22,7 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
            #"solids" => FaceBC(ty=-10),
     ]
 
-    solve!(dom, bcs, nincs=1, verbosity=0, nouts=0).success
+    solve!(dom, bcs, nincs=1, printlog=false, nouts=0).success
 
     sample_node = dom.nodes[:(x==1 && y==1)][1]
     uxr = sample_node.dofs[:ux].vals[:ux]
@@ -33,7 +33,7 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
     printstyled("3d version", color=:cyan); println()
 
     mesh = revolve(mesh, n=12)
-    dom = Domain(mesh, materials, modeltype="3d", verbosity=0)
+    dom = Domain(mesh, materials, modeltype="3d", printlog=false)
 
     bcs = [
            :(x==0 && y==0) => NodeBC(ux=0, uy=0),
@@ -42,7 +42,7 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
            #"solids" => FaceBC(ty=-10),
     ]
 
-    solve!(dom, bcs, nincs=1, verbosity=0, nouts=0).success
+    solve!(dom, bcs, nincs=1, printlog=false, nouts=0).success
     sample_node = dom.nodes[:(x==1 && y==1)][1]
     ux = sample_node.dofs[:ux].vals[:ux]
     uy = sample_node.dofs[:uy].vals[:uy]

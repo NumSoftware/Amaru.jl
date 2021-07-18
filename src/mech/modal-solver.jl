@@ -171,7 +171,7 @@ function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemo
                 dof.vals[dof.name] = Umod[k]
             end
 
-            save(dom, dom.filekey * "-defmod$idefmod.vtk", verbosity=0) # saves current domain state for modal deformated
+            save(dom, dom.filekey * "-defmod$idefmod.vtk", printlog=true) # saves current domain state for modal deformated
             verbose && printstyled("  ", dom.filekey * "-defmod$idefmod.vtk file written (Domain)\n", color=:green)
             idefmod += 1
         end

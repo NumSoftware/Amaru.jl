@@ -5,9 +5,9 @@
 function tm_mount_global_matrices(dom::Domain,
                                   ndofs::Int,
                                   Δt::Float64,
-                                  verbosity::Int
+                                  printlog=false
                                  )
-    verbosity>1 && print("    assembling... \e[K \r")
+    printlog && print("    assembling... \e[K \r")
 
     # Assembling matrix G
 
@@ -109,9 +109,9 @@ function tm_solve_system!(
                           DU :: Vect,
                           DF :: Vect,
                           nu :: Int,
-                          verbosity :: Int
+                          printlog=false
                          )
-    verbosity>1 && print("    solving... \e[K \r")
+    printlog && print("    solving... \e[K \r")
 
     #  [  G11   G12 ]  [ U1? ]    [ F1  ]
     #  |            |  |     | =  |     |
@@ -181,9 +181,9 @@ function complete_ut_T(dom::Domain)
 end
 
 
-function tm_update_state!(dom::Domain, ΔUt::Vect, ΔFin::Vect, Δt::Float64, verbosity::Int)
+function tm_update_state!(dom::Domain, ΔUt::Vect, ΔFin::Vect, Δt::Float64, printlog=false)
     # Update
-    verbosity>1 && print("    updating... \r")
+    printlog && print("    updating... \r")
 
     # Get internal forces and update data at integration points (update ΔFin)
     ΔFin .= 0.0
@@ -253,10 +253,15 @@ function tm_solve!(
                    nouts     :: Int     = 0,
                    outdir    :: String  = ".",
                    filekey   :: String  = "out",
-                   verbosity = 0
+                   printlog = false,
+                   verbose = false
                   )
 
     # Arguments checking
+    verbosity = 0
+    printlog && (printlog=false)
+    printlog && verbose && (verbosity=2)
+
     scheme = string(scheme)
     scheme in ("FE",) || error("tm_solve! : invalid scheme \"$scheme\"")
 
@@ -326,7 +331,7 @@ function tm_solve!(
         complete_ut_T(dom)
         update_single_loggers!(dom)
         update_composed_loggers!(dom)
-        save_outs && save(dom, "$outdir/$filekey-0.vtu", verbosity=verbosity)
+        save_outs && save(dom, "$outdir/$filekey-0.vtu", printlog=printlog)
     end
 
     # Get the domain current state and backup
@@ -425,17 +430,17 @@ function tm_solve!(
             lastres = residue # residue from last iteration
 
             # Try FE step
-            G, RHS = tm_mount_global_matrices(dom, ndofs, Δt, verbosity)
+            G, RHS = tm_mount_global_matrices(dom, ndofs, Δt, printlog)
 
             R .+= RHS
 
             # Solve
-            status = tm_solve_system!(G, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
+            status = tm_solve_system!(G, ΔUi, R, nu, printlog)   # Changes unknown positions in ΔUi and R
             failed(status) && (errored=true; break)
 
             copyto!.(State, StateBk)
             ΔUt = ΔUa + ΔUi
-            status = tm_update_state!(dom, ΔUt, ΔFin, Δt, verbosity)
+            status = tm_update_state!(dom, ΔUt, ΔFin, Δt, printlog)
             failed(status) && (errored=true; break)
 
             residue = maximum(abs, (ΔFex-ΔFin)[umap] )
@@ -501,7 +506,7 @@ function tm_solve!(
                 update_output_data!(dom)
                 complete_ut_T(dom)
                 update_composed_loggers!(dom)
-                save(dom, "$outdir/$filekey-$iout.vtu", verbosity=verbosity)
+                save(dom, "$outdir/$filekey-$iout.vtu", printlog=printlog)
                 Tcheck += ΔTcheck # find the next output time
             end
 

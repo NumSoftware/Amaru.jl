@@ -5,9 +5,9 @@
 function hm_mount_global_matrices(dom::Domain,
                                   ndofs::Int,
                                   Δt::Float64,
-                                  verbosity::Int
+                                  printlog=false
                                  )
-    verbosity>1 && print("    assembling... \e[K \r")
+    printlog && print("    assembling... \e[K \r")
 
     # Assembling matrix G
 
@@ -114,9 +114,9 @@ function hm_solve_system!(
                           DU :: Vect,
                           DF :: Vect,
                           nu :: Int,
-                          verbosity :: Int
+                          printlog=false
                          )
-    verbosity>1 && print("    solving... \e[K \r")
+    printlog && print("    solving... \e[K \r")
 
     #  [  G11   G12 ]  [ U1? ]    [ F1  ]
     #  |            |  |     | =  |     |
@@ -269,9 +269,10 @@ function hm_solve!(
                   )
 
     # Arguments checking
-    verbosity = 1
-    verbose && (verbosity=2)
-    silent && (verbosity=0)
+    verbosity = 0
+    printlog && (printlog=false)
+    printlog && verbose && (verbosity=2)
+
     scheme = string(scheme)
     scheme in ("FE",) || error("hm_solve! : invalid scheme \"$scheme\"")
 

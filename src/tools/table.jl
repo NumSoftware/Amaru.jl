@@ -501,8 +501,7 @@ end
 
 
 # TODO: Improve column width for string items
-function save(table::DataTable, filename::String; verbosity=0, digits::Array=[])
-    verbosity = clamp(verbosity, 0, 1)
+function save(table::DataTable, filename::String; printlog=false, digits::Array=[])
     suitable_formats = (".dat", ".table", ".tex")
 
     basename, format = splitext(filename)
@@ -542,7 +541,7 @@ function save(table::DataTable, filename::String; verbosity=0, digits::Array=[])
             end
         end
 
-        verbosity>0 && printstyled("  file $filename written\n", color=:cyan)
+        printlog && printstyled("  file $filename written\n", color=:cyan)
     end
 
     if format==".tex"
@@ -715,7 +714,7 @@ function Base.show(io::IO, table::DataTable)
     # print values
     for i=1:nr
         if i>half_vrows && nr-i>=half_vrows
-            i==half_vrows+1 && println(" ⋮")
+            i==half_vrows+1 && println(io, " ⋮")
             continue
         end
 

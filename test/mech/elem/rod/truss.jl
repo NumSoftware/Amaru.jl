@@ -24,7 +24,7 @@ bcs = [
        :(x>=0)         => ElemBC(ty=-10.0)
       ]
 
-@test solve!(dom, bcs, verbosity=1).success
+@test solve!(dom, bcs, printlog=true).success
 
 
 # 3D Truss plus self weight
@@ -45,7 +45,7 @@ bcs = [
        :(x>=0) => ElemBC(tz=-10.0)
       ]
 
-@test solve!(dom, bcs, verbosity=0).success
+@test solve!(dom, bcs, printlog=false).success
 
 save(dom, "dom.vtk")
 

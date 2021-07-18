@@ -9,7 +9,7 @@ blocks = [Block([0 0.0; 0.5 0.5], nx = 2, ny = 2, cellshape = QUAD4, tag = "soli
           Block([0 0.875; 0.5 1], nx = 2, ny = 2, cellshape = QUAD4, tag = "solids"),
           ]
 
-msh = Mesh(blocks, verbose = true)
+msh = Mesh(blocks, printlog=true)
 
 # Finite element analysis
 
@@ -51,6 +51,6 @@ tm_solve!(
     end_time = 13547.80876*1.0,
     tol = 0.01,
     nincs = 50,
-    verbose = true,
+    printlog=true,
     #nouts = 10,
 )

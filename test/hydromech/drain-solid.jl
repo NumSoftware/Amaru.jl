@@ -9,7 +9,7 @@ bl4 = BlockInset( [1.5 1.2 1.6; 1.5 0.0 0.0], curvetype="polyline", cellshape=LI
 bl5 = BlockInset( [1.5 1.8 1.6; 1.5 3.0 0.0], curvetype="polyline", cellshape=LIN3, tag="drains", jointtag="joints")
 bls = [bl, bl1, bl2, bl3, bl4, bl5]
 
-mesh = Mesh(bls, verbosity=0)
+mesh = Mesh(bls, printlog=false)
 
 gw = 10.0     # water specific weight
 A  = 0.01     # drain area
@@ -33,7 +33,7 @@ bcs = [
        :(z==3.0) => NodeBC(uw=0),
       ]
 
-hm_solve!(dom, bcs, end_time=100.0, nincs=1, tol=1e-2, nouts=0, verbosity=0)
+hm_solve!(dom, bcs, end_time=100.0, nincs=1, tol=1e-2, nouts=0, printlog=false)
 
 
 dom.env.t = 0.0
@@ -50,4 +50,4 @@ bcs = [
       ]
 
 
-hm_solve!(dom, bcs, end_time=100.0, nincs=1, tol=1e-2, nouts=0, verbosity=0)
+hm_solve!(dom, bcs, end_time=100.0, nincs=1, tol=1e-2, nouts=0, printlog=false)

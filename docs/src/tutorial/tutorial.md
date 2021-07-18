@@ -385,7 +385,7 @@ bcs = [
     :(x==1) => FaceBC(tz=-1000)
 ]
 
-solve!(model, bcs, verbosity=2)
+solve!(model, bcs, printlog=true, verbose=true)
 save(model, "beam.vtu")
 
 nothing # hide
@@ -397,7 +397,7 @@ Also the ``u_y`` field is displayed and the corresponding label is placed next t
 To adjunst the point of view, the `azim`, `elev` and `dist` parameters can be set. They represent, respectively, the azimut, elevation angle and distance to the rendered domain.
 
 ```@example fem
-mplot(model, "beam.svg", warpscale=100, field=:uz, colorbarlabel=raw"u_z", colorbarscale=0.4, azim=-90, elev=30, dist=7)
+mplot(model, "beam.svg", warpscale=100, field=:uz, colorbarlabel=raw"$u_z$", colorbarscale=0.4, azim=-90, elev=30, dist=7)
 nothing # hide
 ```
 ![](./beam.svg)

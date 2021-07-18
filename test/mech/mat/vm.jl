@@ -5,7 +5,7 @@ using Test
 bls = [
        Block( [0 0 0; 1 1 0.5], nx=2, ny=2, nz=2, tag="solids"),
       ]
-msh= Mesh(bls, verbosity=0)
+msh= Mesh(bls, printlog=false)
 
 # fem domain
 mats = [

@@ -4,7 +4,7 @@ using Test
 # mesh generation
 
 bl  = Block( [0 0 0; 0.1 0.6 0.1], nx=1, ny=33, nz=6)
-msh = Mesh(bl, verbosity=0)
+msh = Mesh(bl, printlog=false)
 iptag!(msh.elems[2], 100)
 tag!(msh.elems[22], 100)
 tag!(msh.elems, 100)
@@ -34,7 +34,7 @@ bcs = [
       ]
 
 try
-    @test solve!(dom, bcs, autoinc=true, nincs=1000, maxits=4, tol=0.01, verbosity=0, scheme=:FE, nouts=50, maxincs=0).success
+    @test solve!(dom, bcs, autoinc=true, nincs=1000, maxits=4, tol=0.01, printlog=false, scheme=:FE, nouts=50, maxincs=0).success
 catch
 end
 

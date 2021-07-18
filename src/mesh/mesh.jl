@@ -324,7 +324,7 @@ end
 
 
 # Updates numbering, faces and edges in a Mesh object
-function fixup!(mesh::Mesh; verbosity=0, genfacets::Bool=true, genedges::Bool=true, reorder::Bool=false)
+function fixup!(mesh::Mesh; printlog=false, genfacets::Bool=true, genedges::Bool=true, reorder::Bool=false)
 
     # Get ndim
     ndim = 1
@@ -346,14 +346,14 @@ function fixup!(mesh::Mesh; verbosity=0, genfacets::Bool=true, genedges::Bool=tr
 
     # Facets
     if genfacets
-        verbosity>0 && print("  finding facets...   \r")
+        printlog && print("  finding facets...   \r")
         mesh.faces = get_surface(mesh.elems)
     end
     ndim==2 && (mesh.edges=mesh.faces)
 
     # Edges
     if genedges && ndim==3
-        verbosity>0 && print("  finding edges...   \r")
+        printlog && print("  finding edges...   \r")
         mesh.edges = getedges(mesh.faces)
     end
 
@@ -475,9 +475,9 @@ function Mesh(
               conns      :: Array{Array{Int64,1},1},
               cellshapes :: Array{CellShape,1}=CellShape[];
               tag        :: String="",
-              verbosity=0,
+              printlog=false,
              )
-    verbosity = clamp(verbosity, 0,2)
+    
 
     n = size(coordinates, 1) # number of nodes
     m = size(conns , 1) # number of cells
@@ -528,27 +528,6 @@ end
 flatten(x)=flatten(x, [])
 
 
-# """
-#     Mesh(items, kwargs...)
-
-# Generates a mesh based on an array of geometrical objects.
-
-# # Arguments
-
-# `items`     : Array of objects used to generate a `Mesh` object.
-# These objects can be of type `Block` or `Mesh`.
-# Subarrays of these type of objects are also supported.
-
-# # Keyword arguments
-
-# `genfacets = true` : If true, generates facet cells
-
-# `genedges  = true` : If true, generates edge cells
-
-# `reorder   = true` : If true, reorder nodes numbering
-
-# `verbosity      = 0`    : Verbosity level from 0 (silent) to 2 (verbose)
-# """
 """
     $(SIGNATURES)
 
@@ -564,7 +543,7 @@ The printed output can be set to `verbose` or `silent`.
 julia> using Amaru;
 julia> B1 = Block([0 0; 1 1], nx=2, ny=2);
 julia> B2 = Block([1 0; 2 1], nx=3, ny=2);
-julia> Mesh(B1, B2, verbosity=0)
+julia> Mesh(B1, B2, printlog=true)
 Mesh
   ndim: 2
   nodes: 18-element Vector{Node}:
@@ -620,9 +599,9 @@ function Mesh(
     genfacets :: Bool = true,
     genedges  :: Bool = true,
     reorder   :: Bool = true,
-    verbosity=0,
+    printlog=false,
 )
-    verbosity = clamp(verbosity, 0,2)             
+                 
 
     # Flatten items list
     fitems = flatten(items)
@@ -642,7 +621,7 @@ function Mesh(
 
     nmeshes = length(meshes)
     nblocks = length(blocks)
-    if verbosity>0
+    if printlog
         printstyled("Mesh generation:\n", bold=true, color=:cyan)
         nmeshes>0 && @printf "  %5d meshes\n" nmeshes
         @printf "  %5d blocks\n" nblocks
@@ -660,11 +639,11 @@ function Mesh(
     for (i,b) in enumerate(blocks)
         # b.id = i
         split_block(b, mesh)
-        verbosity>1 && print("  spliting block ", i, "...    \r")
+        printlog && print("  spliting block ", i, "...    \r")
     end
 
     # Updates numbering, quality, facets and edges
-    fixup!(mesh, verbosity=verbosity, genfacets=genfacets, genedges=genedges, reorder=reorder)
+    fixup!(mesh, printlog=printlog, genfacets=genfacets, genedges=genedges, reorder=reorder)
 
     # Add field for embedded nodes
     if any( c.shape.family==LINEJOINT_SHAPE for c in mesh.elems )
@@ -681,14 +660,14 @@ function Mesh(
         mesh.elem_data["inset-data"] = inset_data
     end
 
-    if verbosity>0
+    if printlog
         npoints = length(mesh.nodes)
         ncells  = length(mesh.elems)
         @printf "  %4dd mesh                             \n" mesh.ndim
         @printf "  %5d nodes\n" npoints
         @printf "  %5d cells\n" ncells
     end
-    if verbosity>1
+    if printlog
         nfaces  = length(mesh.faces)
         nedges  = length(mesh.edges)
         if genfacets
@@ -901,12 +880,12 @@ function randmesh(l::Real...)
         lx, ly = l
         nx, ny = rand(4:7, 2)
         cellshape = rand((TRI3, TRI6, QUAD4, QUAD8))
-        m = Mesh(Block([0.0 0.0; lx ly], nx=nx, ny=ny, cellshape=cellshape), verbosity=false)
+        m = Mesh(Block([0.0 0.0; lx ly], nx=nx, ny=ny, cellshape=cellshape), printlog=false)
     else
         lx, ly, lz = l
         nx, ny, nz = rand(4:7, 3)
         cellshape = rand((TET4, TET10, HEX8, HEX20))
-        m = Mesh(Block([0.0 0.0 0.0; lx ly lz], nx=nx, ny=ny, nz=nz, cellshape=cellshape), verbosity=false)
+        m = Mesh(Block([0.0 0.0 0.0; lx ly lz], nx=nx, ny=ny, nz=nz, cellshape=cellshape), printlog=false)
     end
 end
 

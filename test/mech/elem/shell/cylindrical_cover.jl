@@ -2,7 +2,7 @@ using Amaru
 
 bl1 = Block( [-300 0 0; -300 600 0; -300 300 0], nx=50,nz=50, cellshape=LIN2, tag="shell")
 
-msh = Mesh(bl1, verbosity=1)
+msh = Mesh(bl1, printlog=true)
 msh = revolve(msh, angle=180, n=40)
 
 # Finite element model
@@ -23,7 +23,7 @@ setloggers!(dom, loggers)
             :(y==300 && z==300) => NodeBC(fz=-1),
             ]
 
-solve!(dom, bcs, tol = 0.1, nincs = 1,verbosity=0).success
+solve!(dom, bcs, tol = 0.1, nincs = 1,printlog=false).success
 save(dom, "shell4node_coberta.vtu")
 save(log1, "shell4node_coberta.dat")
 

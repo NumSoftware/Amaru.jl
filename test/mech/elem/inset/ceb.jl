@@ -8,7 +8,7 @@ bls = [
        BlockInset( [0.5 3 0.5; 0.5 6.0 0.5], curvetype="polyline", tag="bars", jointtag="joints"),
       ]
 
-msh = Mesh(bls, verbosity=0)
+msh = Mesh(bls, printlog=false)
 save(msh, "mesh.vtk")
 
 bar_points  = sort(msh.elems["bars"].nodes, by=get_y)
@@ -49,8 +49,8 @@ scheme = "FE"
 # scheme = "ME"
 scheme = "Ralston"
 nincs=20
-verbosity=1
-#verbosity=0
+printlog=true
+#printlog=false
 #maxits=5
 maxits=3
 # color="blue"
@@ -58,20 +58,20 @@ color="green"
 color="red"
 #color="black"
 
-@test solve!(dom, bcs, nincs=nincs, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, verbosity=0).success
+@test solve!(dom, bcs, nincs=nincs, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, printlog=false).success
 
 bcs[2] = "tip" => NodeBC(uy=-0.0001)
-@test solve!(dom, bcs, nincs=nincs, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, verbosity=0).success
+@test solve!(dom, bcs, nincs=nincs, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, printlog=false).success
 
 bcs[2] = "tip" => NodeBC(uy=+0.0006)
-@test solve!(dom, bcs, nincs=nincs, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, verbosity=0).success
+@test solve!(dom, bcs, nincs=nincs, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, printlog=false).success
 
 bcs[2] = "tip" => NodeBC(uy=-0.0005)
-@test solve!(dom, bcs, nincs=nincs, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, verbosity=0).success
+@test solve!(dom, bcs, nincs=nincs, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, printlog=false).success
 
 try
 bcs[2] = "tip" => NodeBC(uy=+0.005)
-@test solve!(dom, bcs, nincs=nincs, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, verbosity=0).success
+@test solve!(dom, bcs, nincs=nincs, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, printlog=false).success
 catch
 end
 

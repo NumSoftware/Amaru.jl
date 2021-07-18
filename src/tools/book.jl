@@ -43,7 +43,7 @@ function Base.iterate(book::DataBook, state=(nothing,1) )
 end
 
 
-function save(book::DataBook, filename::String; verbosity=0)
+function save(book::DataBook, filename::String; printlog=true)
     _, format = splitext(filename)
     formats = (".dat", ".book")
     format in formats || error("DataBook: cannot save in  \"$format\". Suitable formats are $formats")
@@ -87,7 +87,7 @@ function save(book::DataBook, filename::String; verbosity=0)
             print(f, "\n")
         end
 
-        verbosity>0 && printstyled("  file $filename written\n", color=:cyan)
+        printlog && printstyled("  file $filename written\n", color=:cyan)
     end
     close(f)
     return nothing
@@ -150,9 +150,11 @@ function Base.show(io::IO, book::DataBook)
     n = length(book.tables)
     for (k,table) in enumerate(book.tables)
         # print table label
+        columns = getcolumns(table)
         nitems = length(columns[1])
         print(io, " Table (snapshot=$(k), rows=$nitems):\n")
         str = string(table)
-        k<n && print(io, str, "\n")
+        print(io, str)
+        k<n && print(io, "\n")
     end
 end

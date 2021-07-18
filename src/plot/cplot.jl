@@ -69,7 +69,7 @@ Plots a pyplot line chart.
 
 `tagalign       = true` : if true the tag is aligned to the curve
 
-`verbosity           = 0` : verbosity level from 0 (silent) to 2 (verbose)
+`printlog       = false` : 
 
 `copypath       = ""` : path to copy ouput file
 
@@ -151,16 +151,16 @@ function cplot(
     y2mult           = 1.0,
 
     copypath         = "",
-    verbosity             = false
+    printlog         = false
 )
 
     isempty(filename) && (filename=fname)
-    verbosity = clamp(verbosity, 0,2)
+    
 
-    verbosity>0 && headline("Chart plotting")
-    verbosity>0 && message("generating plot $(strip(xlabel,'$')) vs $(strip(ylabel,'$'))")
+    printlog && headline("Chart plotting")
+    printlog && message("generating plot $(strip(xlabel,'$')) vs $(strip(ylabel,'$'))")
 
-    if verbosity>0
+    if printlog
         hint("Optional arguments:", level=2)
         options = "xlabel, ylabel, legendloc, xbins, ybins, grid, figsize, legendexpand, ncol,
                 xlim, ylim, xscale, yscale, fontsize, ticksinside, legendfontsize, labelspacing"
@@ -520,7 +520,7 @@ function cplot(
     else
         _, format = splitext(filename)
         plt.savefig(filename, bbox_inches="tight", pad_inches=0.01, format=format[2:end])
-        verbosity>0 && info("file $filename saved")
+        printlog && info("file $filename saved")
         plt.close("all")
 
         if copypath!=""
@@ -531,7 +531,7 @@ function cplot(
             end
             try
                 cp(filename, copyfile, force=true)
-                verbosity>0 && info("file $copyfile saved")
+                printlog && info("file $copyfile saved")
             catch err
                 notify("cplot: $filename could not be copied to $copypath")
             end

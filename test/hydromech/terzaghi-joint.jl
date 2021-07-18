@@ -8,7 +8,7 @@ blocks = [
     Block( [0 0; 1 10], nx=1, ny=10, cellshape=QUAD4, tag="solids"),
 ]
 
-msh = Mesh(blocks, verbosity=0)
+msh = Mesh(blocks, printlog=false)
 generate_joints!(msh, layers=3, tag="joints")
 
 
@@ -70,7 +70,7 @@ for i=1:2
         :(y==10) => NodeBC(uw=0.),
     ]
 
-    hm_solve!(dom, bcs, end_time=tlong, nincs=2, tol=1e-2, nouts=1, verbosity=0)
+    hm_solve!(dom, bcs, end_time=tlong, nincs=2, tol=1e-2, nouts=1, printlog=false)
 
     dom.env.t = 0.0
 
@@ -88,7 +88,7 @@ for i=1:2
         :(y==10) => NodeBC(uw=0.),
     ]
 
-    hm_solve!(dom, bcs, end_time=t1, nincs=4, tol=1e-2, nouts=1, verbosity=0)
+    hm_solve!(dom, bcs, end_time=t1, nincs=4, tol=1e-2, nouts=1, printlog=false)
 
 
     # Stage 3: draining
@@ -103,7 +103,7 @@ for i=1:2
 
     Uw_vals = [] # A list with porepressure vectors
     for t in times[1:end]
-        hm_solve!(dom, bcs, end_time=t, nincs=20, tol=1e-2, nouts=1, verbosity=0)
+        hm_solve!(dom, bcs, end_time=t, nincs=20, tol=1e-2, nouts=1, printlog=false)
         push!( Uw_vals, log1.book[end][:uw] )
     end
 

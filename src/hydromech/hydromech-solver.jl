@@ -231,10 +231,14 @@ function hm_solve!(
     nouts     :: Int     = 0,
     outdir    :: String  = "",
     filekey   :: String  = "out",
-    verbosity = 0
+    printlog = false,
+    verbose = false
 )
 
     # Arguments checking
+    verbosity = 0
+    printlog && (printlog=false)
+    printlog && verbose && (verbosity=2)
 
     tol>0 || error("hm_solve! : tolerance `tol `should be greater than zero")
     Ttol>0 || error("hm_solve! : tolerance `Ttol `should be greater than zero")
@@ -312,7 +316,7 @@ function hm_solve!(
         complete_uw_h(dom)
 
         if save_outs
-            save(dom, "$outdir/$filekey-0.vtu", verbosity=0)
+            save(dom, "$outdir/$filekey-0.vtu", printlog=true)
         end
     end
 
@@ -474,7 +478,7 @@ function hm_solve!(
                 update_output_data!(dom)
                 update_composed_loggers!(dom)
                 complete_uw_h(dom)
-                save(dom, "$outdir/$filekey-$iout.vtu", verbosity=verbosity)
+                save(dom, "$outdir/$filekey-$iout.vtu", printlog=printlog)
                 Tout += ΔTout # find the next output time
             end
 

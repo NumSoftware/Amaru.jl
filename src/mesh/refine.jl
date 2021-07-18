@@ -1,4 +1,4 @@
-function hrefine(mesh::Mesh; n=2, verbosity=1)
+function hrefine(mesh::Mesh; n=2, printlog=false)
     n==1 && return copy(mesh)
     newmesh = Mesh()
 
@@ -101,7 +101,7 @@ function hrefine(mesh::Mesh; n=2, verbosity=1)
 end
 
 
-function prefine(mesh::Mesh; n=2, verbosity=1)
+function prefine(mesh::Mesh; n=2, printlog=false)
     #newmesh = Mesh()
 
     NS = Dict{CellShape,CellShape}(TRI3=>TRI6, TET4=>TET10)

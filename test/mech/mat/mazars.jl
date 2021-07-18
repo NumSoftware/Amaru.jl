@@ -4,13 +4,13 @@ using Test
 bl  = Block( [0 0 0; 1. 1. 1.], nx=2, ny=2, nz=2, cellshape=HEX8, tag="solids")
 
 # mesh generation
-msh = Mesh(bl, verbosity=0)
+msh = Mesh(bl, printlog=false)
 
 mats = [
         "solids" => Mazars(E=30000, nu=0.2, eps0=1.e-4, At=0.9, Bt=5000., Ac=1.0, Bc=1500.0)
        ]
 
-dom = Domain(msh, mats, verbosity=0)
+dom = Domain(msh, mats, printlog=false)
 
 
 tag!(dom.elems.ips[1], "ip")
@@ -33,7 +33,7 @@ bcs = [
        :(z==1) => FaceBC(uz=+2e-3),
       ]
 
-@test solve!(dom, bcs, autoinc=true, nincs=100, maxits=4, tol=0.1, nouts=10, verbosity=0).success
+@test solve!(dom, bcs, autoinc=true, nincs=100, maxits=4, tol=0.1, nouts=10, printlog=false).success
 
 if Amaru.config.makeplots
     using PyPlot

@@ -244,7 +244,7 @@ subjected to a set of boundary conditions `bcs`.
 
 `filekey = ""` : File key for output files
 
-`verbosity = 0` : verbosity level from 0 (silent) to 2 (verbose)
+`printlog = false` : verbosity level from 0 (silent) to 2 (verbose)
 
 """
 function solve!(
@@ -261,10 +261,13 @@ function solve!(
                 nouts   :: Int     = 0,
                 outdir  :: String  = ".",
                 filekey :: String  = "out",
-                verbosity = 0,
+                printlog = false,
+                verbose = false,
                )
     # Arguments checking
-    verbosity = clamp(verbosity, 0, 2)
+    verbosity = 0
+    printlog && (printlog=false)
+    printlog && verbose && (verbosity=2)
 
     scheme = string(scheme)
     scheme in ("FE", "ME", "BE", "Ralston") || error("solve! : invalid scheme \"$scheme\"")
@@ -324,7 +327,7 @@ function solve!(
         update_single_loggers!(dom)
         update_composed_loggers!(dom)
         update_monitors!(dom)
-        save_outs && save(dom, "$outdir/$filekey-0.vtu", verbosity=verbosity)
+        save_outs && save(dom, "$outdir/$filekey-0.vtu", printlog=printlog)
     end
 
     # Get the domain current state and backup
@@ -542,7 +545,7 @@ function solve!(
                 update_embedded_disps!(dom)
 
                 rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
-                save(dom, "$outdir/$filekey-$iout.vtu", verbosity=verbosity)
+                save(dom, "$outdir/$filekey-$iout.vtu", printlog=printlog)
                 Tcheck += ΔTcheck # find the next output time
             end
 

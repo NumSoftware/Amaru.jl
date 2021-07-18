@@ -5,7 +5,7 @@ using Test
 bls = [
        Block( [0 0 0; 1 1 0.5], nx=2, ny=2, nz=2, tag="solids"),
       ]
-msh= Mesh(bls, verbosity=0)
+msh= Mesh(bls, printlog=false)
 
 # fem domain
 mats = [
@@ -29,7 +29,7 @@ bcs = [
     :(y==0 || y==1.0) => NodeBC(ux=0, uy=0),
 ]
 
-@test solve!(dom, bcs, autoinc=true, nincs=10, tol=1e-2, verbosity=0).success
+@test solve!(dom, bcs, autoinc=true, nincs=10, tol=1e-2, printlog=false).success
 
 # boundary conditions
 bcs[2] = :(z==0.5) => NodeBC(uz=+0.008)

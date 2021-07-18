@@ -150,12 +150,12 @@ function save_xml(dom::Domain, filename::String)
 end
 
 """
-    save(domain, filename, verbosity=0)
+    save(domain, filename, printlog=true)
 
 Saves a domain object into a file. Available formats are vtu, vtk and xml.
 """
-function save(domain::Domain, filename::String; verbosity=0)
-    verbosity = clamp(verbosity, 0,2)
+function save(domain::Domain, filename::String; printlog=true)
+    
 
     formats = (".vtk", ".vtu", ".xml")
     _, format = splitext(filename)
@@ -163,15 +163,15 @@ function save(domain::Domain, filename::String; verbosity=0)
 
     if format==".xml"; 
         save_xml(domain, filename)
-        verbosity>0 && printstyled( "  file $filename written \e[K \n", color=:cyan)
+        printlog && printstyled( "  file $filename written \e[K \n", color=:cyan)
     else
-        invoke(save, Tuple{AbstractMesh,String}, domain, filename, verbosity=verbosity)
+        invoke(save, Tuple{AbstractMesh,String}, domain, filename, printlog=printlog)
     end
 end
 
 
-function save(elems::Array{<:Element,1}, filename::String; verbosity=0)
-    save(Domain(elems), filename, verbosity=verbosity)
+function save(elems::Array{<:Element,1}, filename::String; printlog=true)
+    save(Domain(elems), filename, printlog=printlog)
 end
 
 
@@ -206,12 +206,11 @@ function setfields!(obj, dict; exclude::Tuple{Vararg{Symbol}}=())
 end
 
 
-function Domain(filename::String; verbosity=0)
-    verbosity = clamp(verbosity, 0, 2)
+function Domain(filename::String; printlog=true)
     suitable_formats = (".xml",)
     
 
-    verbosity>1 && printstyled("Loading Domain: filename $filename\n", bold=true, color=:cyan)
+    printlog && printstyled("Loading Domain: filename $filename\n", bold=true, color=:cyan)
 
     basename, format = splitext(filename)
 
@@ -220,7 +219,7 @@ function Domain(filename::String; verbosity=0)
     domain = Domain()
     env = ModelEnv()
 
-    verbosity>1 && printstyled("  loading xml file...\r", color=:cyan)
+    printlog && printstyled("  loading xml file...\r", color=:cyan)
     xdoc = Xdoc(filename)
     xdomain = xdoc.root
     setfields!(env, xdomain.attributes)
@@ -228,7 +227,7 @@ function Domain(filename::String; verbosity=0)
     domain.env = env
     domain.ndim = env.ndim
 
-    verbosity>1 && printstyled("  setting materials...\e[K\r", color=:cyan)
+    printlog && printstyled("  setting materials...\e[K\r", color=:cyan)
     materials = Material[]
     xmats = xdomain("Materials")
     for xmat in xmats.children
@@ -239,7 +238,7 @@ function Domain(filename::String; verbosity=0)
         push!(materials, mat)
     end
 
-    verbosity>1 && printstyled("  setting nodes...\e[K\r", color=:cyan)
+    printlog && printstyled("  setting nodes...\e[K\r", color=:cyan)
     xnodes = xdomain("Nodes")
     for xnode in xnodes.children
         node = Node()
@@ -257,7 +256,7 @@ function Domain(filename::String; verbosity=0)
         push!(domain.nodes, node)
     end
 
-    verbosity>1 && printstyled("  setting elements...\e[K\r", color=:cyan)
+    printlog && printstyled("  setting elements...\e[K\r", color=:cyan)
     xelems = xdomain("Elements")
     for xelem in xelems.children
         T = eval(Symbol(xelem.name))
@@ -277,7 +276,7 @@ function Domain(filename::String; verbosity=0)
     end
 
     # Setting linked elements
-    verbosity>1 && printstyled("  setting linked elements...\e[K\r", color=:cyan)
+    printlog && printstyled("  setting linked elements...\e[K\r", color=:cyan)
     for (i,xelem) in enumerate(xelems.children)
         linked_str = xelem.attributes["linked_elems"]
         linked_str == "" && continue
@@ -286,7 +285,7 @@ function Domain(filename::String; verbosity=0)
     end
 
     # Quadrature and initialization
-    verbosity>1 && printstyled("  setting integration points...\e[K\r", color=:cyan)
+    printlog && printstyled("  setting integration points...\e[K\r", color=:cyan)
     for (i,xelem) in enumerate(xelems.children)
         elem = domain.elems[i]
         nips = length(xelem.children)
@@ -308,7 +307,7 @@ function Domain(filename::String; verbosity=0)
     domain.faces = get_surface(domain.elems)
     domain.edges = getedges(domain.faces)
 
-    verbosity>1 && printstyled("  setting additional data...\e[K\r", color=:cyan)
+    printlog && printstyled("  setting additional data...\e[K\r", color=:cyan)
 
     TYPES = Dict("Float32"=>Float32, "Float64"=>Float64, "Int32"=>Int32, "Int64"=>Int64)
     nnodes = length(domain.nodes)
@@ -340,7 +339,7 @@ function Domain(filename::String; verbosity=0)
         end
     end
 
-    verbosity>0 && printstyled( "  file $filename loaded \e[K \n", color=:cyan)
+    printlog && printstyled( "  file $filename loaded \e[K \n", color=:cyan)
 
     return domain
 

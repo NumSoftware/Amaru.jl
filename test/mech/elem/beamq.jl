@@ -9,7 +9,7 @@ conn  = [ [1, 2], [2, 3] ]
 # conn  = [ [1, 2], [2, 3] ]
 
 # blt = BlockTruss(coord, conn, tag="beam")
-msh = Mesh(coord, conn, tag="beam", verbosity=0)
+msh = Mesh(coord, conn, tag="beam", printlog=false)
 
 # Finite element model
 
@@ -27,4 +27,4 @@ bcs =
 #bc3 = ElemBC( dom.elems, gz=-25 )
 dom = Domain(msh, mats)
 
-@test solve!(dom, bcs, verbosity=0).success
+@test solve!(dom, bcs, printlog=false).success

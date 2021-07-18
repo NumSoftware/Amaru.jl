@@ -2,7 +2,7 @@ using Amaru
 
 # Finite element entities
 bl  = Block( [0 0; 1 1], nx=4, ny=4, cellshape=QUAD9, tag="solids")
-msh = Mesh(bl, verbosity=0)
+msh = Mesh(bl, printlog=false)
 
 mats = [ "solids" =>  ElasticSolid(E=100.0, nu=0.2) ]
 dom = Domain(msh, mats)

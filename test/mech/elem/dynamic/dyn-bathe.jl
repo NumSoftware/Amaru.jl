@@ -40,7 +40,7 @@ bl21 = BlockInset( (1/1000)*[3*25.4 0 3*25.4; 3*25.4 136*25.4 3*25.4] , curvetyp
 
 
 mesh=Mesh(bl1, bl2, bl3, bl4, bl5, bl6, bl7, bl8, bl9, bl10, bl21, bl11, bl12, bl13, bl14, bl15, bl16, bl17, bl18, bl19, bl20,
- verbosity=0)
+ printlog=false)
 
 #tag!(mesh.nodes[1], 1)
 #tag!(mesh.elems    , 10) # all cells
@@ -71,7 +71,7 @@ bcs = [
     ]
 
 
-dynsolve!(dom, bcs, time_span=0.05, nincs=1000, verbosity=0, filekey="dyn", nouts=100, autoinc=true, alpha=0.0, beta=0.0)
-#dynsolve!(dom, bcs, time_span=0.1, nincs=50, verbosity=1, filekey="dyn", nouts=100, autoinc=true)
+dynsolve!(dom, bcs, time_span=0.05, nincs=1000, printlog=false, filekey="dyn", nouts=100, autoinc=true, alpha=0.0, beta=0.0)
+#dynsolve!(dom, bcs, time_span=0.1, nincs=50, printlog=true, filekey="dyn", nouts=100, autoinc=true)
 #using Glob
 #rm.(glob("*.vtk"))

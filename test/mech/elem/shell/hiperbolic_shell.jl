@@ -26,7 +26,7 @@ blt = [Block(coord1, nx = 1, ny =1, cellshape = QUAD4, tag="shell"),
        Block(coord4, nx = 1, ny =1, cellshape = QUAD4, tag="shell"),
        ]
 
-msh = Mesh(blt, verbosity=0)
+msh = Mesh(blt, printlog=false)
 
 # Finite element model
 
@@ -48,7 +48,7 @@ setloggers!(dom, loggers)
             :(x==50 && y==50) => NodeBC(fz=-100),
             ]
 
-solve!(dom, bcs, tol = 0.1, nincs = 1,verbosity=1)
+solve!(dom, bcs, tol = 0.1, nincs = 1,printlog=true)
 save(dom, "shell4node_hiperbolic.vtu")
 save(log1, "shell4node_hiperbolic.dat")
 

@@ -12,7 +12,7 @@ blocks = [
     Block( [(Lrock/2+Lgap/2) 0; Lrock Hrock], nx=14, ny=15, cellshape=QUAD8, tag="solids"),
 ]
 
-mesh  = Mesh(blocks, verbosity=0)
+mesh  = Mesh(blocks, printlog=false)
 
 # Analysis data
 k    = 1.0e-8  # permeability
@@ -34,4 +34,4 @@ bcs = [
       ]
 
 # Solving
-hm_solve!(dom, bcs, end_time=1, nincs=2, tol=1e-2, nouts=1, verbosity=0)
+hm_solve!(dom, bcs, end_time=1, nincs=2, tol=1e-2, nouts=1, printlog=false)

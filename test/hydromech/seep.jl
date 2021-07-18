@@ -7,7 +7,7 @@ blocks = [
     Block( [0 0; 1 2], nx=1, ny=4, tag="solids"),
 ]
 
-msh = Mesh(blocks, verbosity=0)
+msh = Mesh(blocks, printlog=false)
 
 # Finite element analysis
 
@@ -34,7 +34,7 @@ bcs = [
        :(y==2) => NodeBC(uw=0.),
 ]
 
-hm_solve!(dom, bcs, end_time=500.0, tol=0.1, verbosity=0)
+hm_solve!(dom, bcs, end_time=500.0, tol=0.1, printlog=false)
 
 # Output
 if Amaru.config.makeplots

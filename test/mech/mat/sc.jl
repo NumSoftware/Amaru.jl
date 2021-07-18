@@ -4,7 +4,7 @@ using Test
 # mesh generation
 
 bl  = Block( [0 0; 0.2 0.1], nx=3, ny=1, cellshape=QUAD4)
-msh = Mesh(bl, verbosity=0)
+msh = Mesh(bl, printlog=false)
 iptag!(msh.elems[2], 100)
 tag!(msh.elems[2], 100)
 #tag!(msh.elems[5], 100)
@@ -51,7 +51,7 @@ bcs = [
       ]
 
 
-@test solve!(dom, bcs, autoinc=true, nincs=100, maxits=4, tol=0.1, verbosity=0, scheme=:FE, nouts=50, maxincs=0).success
+@test solve!(dom, bcs, autoinc=true, nincs=100, maxits=4, tol=0.1, printlog=false, scheme=:FE, nouts=50, maxincs=0).success
 
 
 if Amaru.config.makeplots

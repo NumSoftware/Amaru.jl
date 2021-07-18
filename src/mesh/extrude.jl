@@ -82,7 +82,7 @@ end
 Generates a 3D mesh by extruding a planar `mesh` using 
 a direction `axis`, a `length` and a number of divisions `n`.
 """
-function extrude(mesh::Mesh; axis=[0,0,1], length::Number=1.0, n::Int=1, verbose::Bool=true)
+function extrude(mesh::Mesh; axis=[0,0,1], length::Number=1.0, n::Int=1, printlog=false)
     if axis==:x
         axis = Vec3(1,0,0)
     elseif axis==:y
@@ -93,7 +93,7 @@ function extrude(mesh::Mesh; axis=[0,0,1], length::Number=1.0, n::Int=1, verbose
 
     axis = Vec3(normalize(axis))
 
-    verbose && printstyled("Mesh extrude:\n", bold=true, color=:cyan)
+    printlog && printstyled("Mesh extrude:\n", bold=true, color=:cyan)
     Δl = length/n
 
     # Generate new cells
@@ -167,7 +167,7 @@ function extrude(mesh::Mesh; axis=[0,0,1], length::Number=1.0, n::Int=1, verbose
     newmesh.elems = cells
     fixup!(newmesh, reorder=true)
 
-    if verbose
+    if printlog
         @printf "  %5d points obtained\n" Base.length(newmesh.nodes)
         @printf "  %5d cells obtained\n" Base.length(newmesh.elems)
         @printf "  %5d faces obtained\n" Base.length(newmesh.faces)

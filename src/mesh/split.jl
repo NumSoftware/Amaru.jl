@@ -9,7 +9,7 @@ export generate_joints_by_tag!
 
 
 """
-    generate_joints!(mesh, filter=nothing; layers=2, tag="", midnodestag="", intertags=false, verbosity=1)
+    generate_joints!(mesh, filter=nothing; layers=2, tag="", midnodestag="", intertags=false, printlog=false)
 
 Adds joint elements between bulk elements in `mesh`.  If `filter` is supplied
 (element tag or expression), the joints are generated over a specific region

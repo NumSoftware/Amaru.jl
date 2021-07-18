@@ -2,7 +2,7 @@ using Amaru
 using Test
 
 bl = Block( [0 0 0; 1 1 1], nx=4, ny=4, nz=4, cellshape=HEX8, tag="solids")
-mesh = Mesh(bl, verbosity=0)
+mesh = Mesh(bl, printlog=false)
 
 mats = [ "solids" => ElasticSolid(E=100.0, nu=0.2) ]
 
@@ -46,5 +46,5 @@ bcs = [
        :(z==1)         => FaceBC(tz=-10.0),
       ]
 
-@test solve!(dom, bcs, nincs=4, nouts=4, verbosity=0).success
+@test solve!(dom, bcs, nincs=4, nouts=4, printlog=false).success
 println("  uz = ", dom.nodes[:(z==1)][1].dofdict[:uz].vals)

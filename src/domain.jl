@@ -95,7 +95,7 @@ Uses a mesh and a list of meterial especifications to construct a finite element
 `modeltype`
 `thickness`
 `filekey = ""` : File key for output files
-`verbosity = 0` : If true, provides information of the domain construction
+`printlog = false` : If true, provides information of the domain construction
 
 """
 function Domain(
@@ -103,10 +103,13 @@ function Domain(
     matbinds  :: Array{<:Pair,1};
     modeltype :: String = "", # or "plane-stress", "plane-strain", "axysimmetric", "3d"
     thickness :: Real   = 1.0,
-    verbosity = 0,
+    printlog = false,
+    verbose = false,
     params... # extra parameters required for specific solvers
 )
-    verbosity = clamp(verbosity, 0,2)
+    verbosity = 0
+    printlog && (printlog=false)
+    printlog && verbose && (verbosity=2)
 
     if modeltype==""
         modeltype = mesh.ndim==2 ? "plane-strain" : "3d"
