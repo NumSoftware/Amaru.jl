@@ -102,7 +102,7 @@ mutable struct Block <: AbstractBlock
 
         shapes1d = (LIN2, LIN3)
         shapes2d = (TRI3, TRI6, QUAD4, QUAD8, QUAD9, QUAD12)
-        shapes3d = (TET4, TET10, HEX8, HEX20, HEX27)
+        shapes3d = (TET4, TET10, HEX8, HEX20, HEX27, PYR5)
 
         ncoord, ncol = size(coords)
         ncol<=3 || error("Block: invalid coordinate matrix")
@@ -303,7 +303,7 @@ function split_block(bl::Block, msh::Mesh)
         return
     end
 
-    if cellshape == QUAD8 || cellshape == QUAD9
+    if cellshape in (QUAD8, QUAD9)
         p_arr = Array{Node}(undef, 2*nx+1, 2*ny+1)
         for j = 1:2*ny+1
             for i = 1:2*nx+1
@@ -506,7 +506,7 @@ function split_block(bl::Block, msh::Mesh)
         return
     end
 
-    if cellshape==HEX8 || cellshape==TET4
+    if cellshape in (HEX8, TET4, PYR5)
         p_arr = Array{Node}(undef, nx+1, ny+1, nz+1)
         for k = 1:nz+1
             for j = 1:ny+1
@@ -558,6 +558,24 @@ function split_block(bl::Block, msh::Mesh)
                         push!( msh.elems, Cell(cellshape, [p2, p6, p7, p8], tag=bl.tag) )
                         push!( msh.elems, Cell(cellshape, [p2, p3, p4, p8], tag=bl.tag) )
                         push!( msh.elems, Cell(cellshape, [p2, p7, p3, p8], tag=bl.tag) )
+                    end
+                    if cellshape==PYR5
+                        C = (p1.coord+p2.coord+p3.coord+p4.coord+p5.coord+p6.coord+p7.coord+p8.coord)/8
+                        p9 = Node(C); push!(msh.nodes, p9)
+                        msh._pointdict[hash(p9)] = p9
+                        
+                        cell1 = Cell(cellshape, [p1, p2, p3, p4, p9], tag=bl.tag)
+                        cell2 = Cell(cellshape, [p2, p6, p7, p3, p9], tag=bl.tag)
+                        cell3 = Cell(cellshape, [p4, p3, p7, p8, p9], tag=bl.tag)
+                        cell4 = Cell(cellshape, [p1, p4, p8, p5, p9], tag=bl.tag)
+                        cell5 = Cell(cellshape, [p2, p1, p5, p6, p9], tag=bl.tag)
+                        cell6 = Cell(cellshape, [p6, p5, p8, p7, p9], tag=bl.tag)
+                        push!(msh.elems, cell1)
+                        push!(msh.elems, cell2)
+                        push!(msh.elems, cell3)
+                        push!(msh.elems, cell4)
+                        push!(msh.elems, cell5)
+                        push!(msh.elems, cell6)
                     end
                 end
             end
