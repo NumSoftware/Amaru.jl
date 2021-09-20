@@ -246,7 +246,7 @@ function split_block(bl::Block, msh::Mesh)
         return
     end
 
-    if cellshape==QUAD4
+    if cellshape in (QUAD4, TRI3)
         p_arr = Array{Node}(undef, nx+1, ny+1)
         for j = 1:ny+1
             for i = 1:nx+1
@@ -281,8 +281,23 @@ function split_block(bl::Block, msh::Mesh)
                 p3 = p_arr[i+1, j+1]
                 p4 = p_arr[i  , j+1]
 
-                cell = Cell(cellshape, [p1, p2, p3, p4], tag=bl.tag)
-                push!(msh.elems, cell)
+                if cellshape==QUAD4
+                    cell = Cell(cellshape, [p1, p2, p3, p4], tag=bl.tag)
+                    push!(msh.elems, cell)
+                else
+                    C = (p1.coord+p2.coord+p3.coord+p4.coord)/4
+                    p5 = Node(C); push!(msh.nodes, p5)
+                    msh._pointdict[hash(p5)] = p5
+                    
+                    cell1 = Cell(cellshape, [p1, p2, p5], tag=bl.tag)
+                    cell2 = Cell(cellshape, [p2, p3, p5], tag=bl.tag)
+                    cell3 = Cell(cellshape, [p3, p4, p5], tag=bl.tag)
+                    cell4 = Cell(cellshape, [p4, p1, p5], tag=bl.tag)
+                    push!(msh.elems, cell1)
+                    push!(msh.elems, cell2)
+                    push!(msh.elems, cell3)
+                    push!(msh.elems, cell4)
+                end
             end
         end
         return
@@ -391,48 +406,48 @@ function split_block(bl::Block, msh::Mesh)
         return
     end
 
-    if cellshape == TRI3
-        p_arr = Array{Node}(undef, nx+1, ny+1)
-        for j = 1:ny+1
-            for i = 1:nx+1
+    # if cellshape == TRI3
+    #     p_arr = Array{Node}(undef, nx+1, ny+1)
+    #     for j = 1:ny+1
+    #         for i = 1:nx+1
 
-                # r = (2.0/nx)*(i-1) - 1.0
-                # s = (2.0/ny)*(j-1) - 1.0
-                r = -1.0 + 2.0*(rx==1 ? (1/nx)*(i-1) : (1-rx^(i-1))/(1-rx^nx))
-                s = -1.0 + 2.0*(ry==1 ? (1/ny)*(j-1) : (1-ry^(j-1))/(1-ry^ny))
+    #             # r = (2.0/nx)*(i-1) - 1.0
+    #             # s = (2.0/ny)*(j-1) - 1.0
+    #             r = -1.0 + 2.0*(rx==1 ? (1/nx)*(i-1) : (1-rx^(i-1))/(1-rx^nx))
+    #             s = -1.0 + 2.0*(ry==1 ? (1/ny)*(j-1) : (1-ry^(j-1))/(1-ry^ny))
                 
-                N = bl.shape.func([r, s])
-                C = N'*coords
-                p::Any = nothing
-                if i in (1, nx+1) || j in (1, ny+1)
-                    C = round.(C, digits=8)
-                    p =get_node(msh._pointdict, C)
-                    if p===nothing
-                        p = Node(C); push!(msh.nodes, p)
-                        msh._pointdict[hash(p)] = p
-                    end
-                else
-                    p = Node(C); push!(msh.nodes, p)
-                end
-                p_arr[i,j] = p
-            end
-        end
+    #             N = bl.shape.func([r, s])
+    #             C = N'*coords
+    #             p::Any = nothing
+    #             if i in (1, nx+1) || j in (1, ny+1)
+    #                 C = round.(C, digits=8)
+    #                 p =get_node(msh._pointdict, C)
+    #                 if p===nothing
+    #                     p = Node(C); push!(msh.nodes, p)
+    #                     msh._pointdict[hash(p)] = p
+    #                 end
+    #             else
+    #                 p = Node(C); push!(msh.nodes, p)
+    #             end
+    #             p_arr[i,j] = p
+    #         end
+    #     end
 
-        for j = 1:ny
-            for i = 1:nx
-                p1 = p_arr[i  , j  ]
-                p2 = p_arr[i+1, j  ]
-                p3 = p_arr[i+1, j+1]
-                p4 = p_arr[i  , j+1]
+    #     for j = 1:ny
+    #         for i = 1:nx
+    #             p1 = p_arr[i  , j  ]
+    #             p2 = p_arr[i+1, j  ]
+    #             p3 = p_arr[i+1, j+1]
+    #             p4 = p_arr[i  , j+1]
 
-                cell1 = Cell(cellshape, [p1, p2, p3], tag=bl.tag)
-                cell2 = Cell(cellshape, [p4, p1, p3], tag=bl.tag)
-                push!(msh.elems, cell1)
-                push!(msh.elems, cell2)
-            end
-        end
-        return
-    end
+    #             cell1 = Cell(cellshape, [p1, p2, p3], tag=bl.tag)
+    #             cell2 = Cell(cellshape, [p4, p1, p3], tag=bl.tag)
+    #             push!(msh.elems, cell1)
+    #             push!(msh.elems, cell2)
+    #         end
+    #     end
+    #     return
+    # end
 
     if cellshape == TRI6
 
