@@ -17,7 +17,7 @@ mutable struct MechSpring<:Mechanical
     end
 end
 
-matching_shape_family(::Type{MechSpring}) = LINE_SHAPE
+matching_shape_family(::Type{MechSpring}) = LINE_CELL
 
 function elem_stiffness(elem::MechSpring)
     ndim = elem.env.ndim

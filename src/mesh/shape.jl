@@ -1,23 +1,23 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-@enum(ShapeFamily,
-VERTEX_SHAPE    = 0,
-LINE_SHAPE      = 1,
-SOLID_SHAPE     = 2,
-EMBEDDED        = 3,
-JOINT_SHAPE     = 4,
-LINEJOINT_SHAPE = 5,
-TIPJOINT_SHAPE  = 6,
+@enum(CellFamily,
+VERTEX_CELL    = 0,
+LINE_CELL      = 1,
+SOLID_CELL     = 2,
+EMBEDDED_CELL  = 3,
+JOINT_CELL     = 4,
+LINEJOINT_CELL = 5,
+TIPJOINT_CELL  = 6,
 )
 
 # Export
-for s in instances(ShapeFamily)
+for s in instances(CellFamily)
     @eval export $(Symbol(s))
 end
 
 mutable struct CellShape
     name       ::String
-    family     ::ShapeFamily
+    family     ::CellFamily
     ndim       ::Int
     npoints    ::Int
     basic_shape::CellShape
@@ -43,7 +43,7 @@ include("shapes/joints.jl")
 function MakePOLYVERTEX()
     shape             = CellShape()
     shape.name        = "POLYVERTEX"
-    shape.family      = VERTEX_SHAPE
+    shape.family      = VERTEX_CELL
     shape.ndim        = 0
     shape.npoints     = 0
     shape.vtk_type    = VTK_POLY_VERTEX
@@ -228,7 +228,7 @@ end
 
 
 function is_inside(shape::CellShape, C::Array{Float64,2}, X::Array{Float64,1}, tol = 1.e-7)
-    if shape.family!=SOLID_SHAPE return false end
+    if shape.family!=SOLID_CELL return false end
 
     # Testing with bounding box
     ndim = size(C,1)

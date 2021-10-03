@@ -57,7 +57,7 @@ function build_bins(cells::Array{<:AbstractCell,1}, cellpartition::ElemPartition
     # Get max cell lengths
     max_l = 0.0
     for cell in cells
-        cell.shape.family==SOLID_SHAPE || continue
+        cell.shape.family==SOLID_CELL || continue
         bbox = bounding_box(cell)
         l    = maximum(bbox[2,:] - bbox[1,:])
         if l>max_l; max_l = l end

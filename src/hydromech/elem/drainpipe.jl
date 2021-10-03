@@ -17,7 +17,7 @@ mutable struct DrainPipe<:Hydromechanical
     end
 end
 
-matching_shape_family(::Type{DrainPipe}) = LINE_SHAPE
+matching_shape_family(::Type{DrainPipe}) = LINE_CELL
 
 function elem_config_dofs(elem::DrainPipe)
     nnodes = length(elem.nodes)

@@ -578,7 +578,7 @@ function nodal_patch_recovery(dom::Domain)
     patches     = [ Element[] for i=1:nnodes ] # internal patches
     bry_patches = [ Element[] for i=1:nnodes ] # boundary patches
     for elem in dom.elems
-        elem.shape.family != SOLID_SHAPE && continue
+        elem.shape.family != SOLID_CELL && continue
         for node in elem.nodes[1:elem.shape.basic_shape.npoints] # only at corners
             if at_bound[node.id]
                 push!(bry_patches[node.id], elem)
@@ -627,7 +627,7 @@ function nodal_patch_recovery(dom::Domain)
     all_ips_vals   = Array{Array{OrderedDict{Symbol,Float64}},1}()
     all_fields_set = OrderedSet{Symbol}()
     for elem in dom.elems
-        if elem.shape.family==SOLID_SHAPE
+        if elem.shape.family==SOLID_CELL
             ips_vals = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
             push!(all_ips_vals, ips_vals)
             union!(all_fields_set, keys(ips_vals[1]))
@@ -743,7 +743,7 @@ function nodal_local_recovery(dom::Domain)
     rec_elements   = Array{Element, 1}()
 
     for elem in dom.elems
-        elem.shape.family == SOLID_SHAPE && continue
+        elem.shape.family == SOLID_CELL && continue
         node_vals = elem_extrapolated_node_vals(elem)
         length(node_vals) == 0 && continue
 

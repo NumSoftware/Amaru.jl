@@ -737,7 +737,7 @@ function fast_smooth2!(mesh::Mesh; printlog=false, alpha::Float64=1.0, target::F
 
     # check for not allowed cells
     for c in mesh.elems
-        if c.shape.family != SOLID_SHAPE
+        if c.shape.family != SOLID_CELL
             error("smooth!: cells of family $(c.shape.family) are not allowed for smoothing: $(c.shape.name)")
         end
     end
@@ -918,7 +918,7 @@ function fast_smooth!(mesh::Mesh; printlog=false, alpha::Float64=1.0, target::Fl
 
     # check for not allowed cells
     for c in mesh.elems
-        if c.shape.family != SOLID_SHAPE
+        if c.shape.family != SOLID_CELL
             error("smooth!: cells of family $(c.shape.family) are not allowed for smoothing: $(c.shape.name)")
         end
     end
@@ -1097,7 +1097,7 @@ function fitting_smooth!(mesh::Mesh; printlog=false, alpha::Float64=1.0, target:
 
     # check for not allowed cells
     for c in mesh.elems
-        if c.shape.family != SOLID_SHAPE
+        if c.shape.family != SOLID_CELL
             error("smooth!: cells of family $(c.shape.family) are not allowed for smoothing: $(c.shape.name)")
         end
     end

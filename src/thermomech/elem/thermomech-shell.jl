@@ -16,7 +16,7 @@ mutable struct TMShell<:Thermomechanical
     end
 end
 
-matching_shape_family(::Type{TMShell}) = SOLID_SHAPE
+matching_shape_family(::Type{TMShell}) = SOLID_CELL
 
 #=
 function elem_config_dofs(elem::TMShell)

@@ -163,7 +163,7 @@ function complete_ut_T(dom::Domain)
     Ut = dom.node_data["ut"]
 
     for elem in dom.elems
-        elem.shape.family==SOLID_SHAPE || continue
+        elem.shape.family==SOLID_CELL || continue
         elem.shape==elem.shape.basic_shape && continue
         npoints  = elem.shape.npoints
         nbpoints = elem.shape.basic_shape.npoints

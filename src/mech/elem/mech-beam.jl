@@ -19,7 +19,7 @@ mutable struct MechBeam<:Mechanical
     end
 end
 
-matching_shape_family(::Type{MechBeam}) = LINE_SHAPE
+matching_shape_family(::Type{MechBeam}) = LINE_CELL
 
 function beam_shape_func(x::Float64, L::Float64)
     N = Array{Float64}(undef,6)
@@ -73,7 +73,7 @@ function elem_map(elem::MechBeam)::Array{Int,1}
 end
 
 # Return the class of element where this material can be used
-#client_shape_class(mat::MechBeam) = LINE_SHAPE
+#client_shape_class(mat::MechBeam) = LINE_CELL
 
 function calcT(elem::MechBeam, C)
     c = (C[2,1] - C[1,1])/L

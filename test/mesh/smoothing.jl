@@ -15,7 +15,7 @@ bl   = Block( [0 0; 1 1], nx=2, ny=2, cellshape=TRI3)
 mesh = Mesh(bl, printlog=false)
 smooth!(mesh, maxit=5, scheme="smartfitting")
 quality = mean(mesh.elem_data["quality"])
-@test quality ≈ 0.95 atol=1e-2
+@test quality ≈ 0.89 atol=1e-2
 
 println("HEX8:")
 bl = Block( [ 0 0 0; 2 0 0; 2 1 0; 0 1 0; 0 0 1; 1 0 1; 1 1 1; 0 1 1 ], nx=3, ny=3, nz=3, cellshape=HEX8)

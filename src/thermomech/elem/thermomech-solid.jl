@@ -17,7 +17,7 @@ mutable struct TMSolid<:Thermomechanical
     end
 end
 
-matching_shape_family(::Type{TMSolid}) = SOLID_SHAPE
+matching_shape_family(::Type{TMSolid}) = SOLID_CELL
 
 function elem_config_dofs(elem::TMSolid)
     nbnodes = elem.shape.basic_shape.npoints

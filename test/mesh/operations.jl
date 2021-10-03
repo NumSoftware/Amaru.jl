@@ -8,7 +8,7 @@ mesh = Mesh(bl, printlog=false)
 move!(bl, dx=1)
 mesh = Mesh(mesh, bl, printlog=false)
 save(mesh, "out.vtk", printlog=false)
-TR = @test length(mesh.nodes) == 231
+TR = @test length(mesh.nodes) == 431
 println(TR)
 
 printstyled("\nMesh extrude Mesh\n", color=:blue, bold=true)
@@ -48,7 +48,7 @@ bl  = Block( [0 0; 1 1], nx=4, ny=4, cellshape=TRI3)
 bli = BlockInset( [ 0 0; 1 1] )
 mesh = Mesh(bl, bli, printlog=false)
 mesh = generate_joints!(mesh)
-TR = @test length(mesh.elems) == 80
+TR = @test length(mesh.elems) == 168
 println(TR)
 
 printstyled("\nMesh 3D split using joints\n", color=:blue, bold=true)

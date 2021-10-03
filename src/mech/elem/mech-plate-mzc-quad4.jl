@@ -18,7 +18,7 @@ mutable struct PlateMZC<:Mechanical
     end
 end
 
-matching_shape_family(::Type{PlateMZC}) = SOLID_SHAPE
+matching_shape_family(::Type{PlateMZC}) = SOLID_CELL
 
 function D_matrix(elem::PlateMZC)
 

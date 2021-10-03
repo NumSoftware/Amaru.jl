@@ -6,7 +6,7 @@ printstyled("\nMesh generation on solids\n", color=:blue, bold=true)
 println("\nGenerating mesh using TRI3")
 bl = Block( [0 0; 1 1], nx=10, ny=10, cellshape=TRI3)
 mesh = Mesh(bl, printlog=false)
-TR = @test length(mesh.nodes) == 121
+TR = @test length(mesh.nodes) == 221
 println(TR)
 
 println("\nGenerating mesh using TRI6")
@@ -126,7 +126,7 @@ bl  = Block( [0 0; 1 1], nx=4, ny=4, cellshape=TRI3)
 bli = BlockInset( [ 0 0; 1 1] )
 mesh = Mesh(bl, bli, printlog=false)
 mesh = generate_joints!(mesh)
-TR = @test length(mesh.elems) == 80
+TR = @test length(mesh.elems) == 168
 println(TR)
 
 println("\nGenerating mesh using QUAD8 and insets")

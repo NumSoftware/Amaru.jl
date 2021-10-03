@@ -18,7 +18,7 @@ mutable struct ShellQUAD4<:Mechanical
     end
 end
 
-matching_shape_family(::Type{ShellQUAD4}) = SOLID_SHAPE
+matching_shape_family(::Type{ShellQUAD4}) = SOLID_CELL
 
 function distributed_bc(elem::ShellQUAD4, facet::Union{Facet, Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
@@ -95,97 +95,67 @@ function distributed_bc(elem::ShellQUAD4, facet::Union{Facet, Nothing}, key::Sym
 end
 
 
-function RotMatrix(elem::ShellQUAD4)
 
-    C = getcoords(elem)
-
-    R = [ 0.0, 0.0, 0.0 ]
-    dNdR = elem.shape.deriv(R)
-    J = dNdR*C
-
-    if elem.env.ndim==2
-        return Matrix{Float64}(I, 3,3) # identity matrix
-    else
-        L1 = vec(J[1,:])
-        L2 = vec(J[2,:])
-        L3 = cross(L1, L2)  # L3 is normal to the first element facet
-        L2 = cross(L3, L1)
-        normalize!(L1)
-        normalize!(L2)
-        normalize!(L3)
-        return [L1 L2 L3]
-    end
+function matrixR(elem::ShellQUAD4, J::Matrix{Float64})
+    L1 = vec(J[1,:])
+    L2 = vec(J[2,:])
+    L3 = cross(L1, L2)  # L1 is normal to the first element face
+    L2 = cross(L3, L1)
+    normalize!(L1)
+    normalize!(L2)
+    normalize!(L3)
+    Z = zeros(1,3)
+    return [ L1' Z
+             L2' Z
+             L3' Z
+             Z   L1'
+             Z   L2' ]
 end
+
 
 function elem_config_dofs(elem::ShellQUAD4)
     ndim = elem.env.ndim
     ndim == 1 && error("ShellQUAD4: Shell elements do not work in 1d analyses")
-    #if ndim==2
-        for node in elem.nodes
-            add_dof(node, :ux, :fx)
-            add_dof(node, :uy, :fy)
-            add_dof(node, :uz, :fz)
-            add_dof(node, :rx, :mx)
-            add_dof(node, :ry, :my)
-        end
-    #else
-        #error("ShellQUAD4: Shell elements do not work in this analyses")
-        #=
-        for node in elem.nodes
-            add_dof(node, :ux, :fx)
-            add_dof(node, :uy, :fy)
-            add_dof(node, :uz, :fz)
-            add_dof(node, :rx, :mx)
-            add_dof(node, :ry, :my)
-            add_dof(node, :rz, :mz)
-        end
-        =#
-    #end
+    
+    for node in elem.nodes
+        add_dof(node, :ux, :fx)
+        add_dof(node, :uy, :fy)
+        add_dof(node, :uz, :fz)
+        add_dof(node, :rx, :mx)
+        add_dof(node, :ry, :my)
+        add_dof(node, :rz, :mz)
+    end
 end
 
-function elem_map(elem::ShellQUAD4)::Array{Int,1}
-
-    #if elem.env.ndim==2
-    #    dof_keys = (:ux, :uy, :uz, :rx, :ry)
-    #else
-    #    dof_keys = (:ux, :uy, :uz, :rx, :ry, :rz) # VERIFICAR
-    #end
-
-    dof_keys = (:ux, :uy, :uz, :rx, :ry)
-
-    vcat([ [node.dofdict[key].eq_id for key in dof_keys] for node in elem.nodes]...)
-
-end
 
 function setB(elem::ShellQUAD4, N::Vect, dNdX::Matx, B::Matx)
-    ndim, nnodes = size(dNdX)
+    nnodes = length(elem.nodes)
+    # ndim, nnodes = size(dNdX)
     ndof = 5
     B .= 0.0
 
     for i in 1:nnodes
         dNdx = dNdX[1,i]
         dNdy = dNdX[2,i]
-
         j    = i-1
 
-        # matrix Bm
+        # membrane Bm matrix
         B[1,1+j*ndof] = dNdx
         B[2,2+j*ndof] = dNdy
         B[3,1+j*ndof] = dNdy
         B[3,2+j*ndof] = dNdx
 
-        # matrix Bb
-        B[4,4+j*ndof] = -dNdx
-        B[5,5+j*ndof] = -dNdy
-        B[6,4+j*ndof] = -dNdy
-        B[7,5+j*ndof] =  dNdx
+        # bending Bb matrix
+        B[4,5+j*ndof] = -dNdx
+        B[5,4+j*ndof] = -dNdy
+        B[6,5+j*ndof] = -dNdy
+        B[6,4+j*ndof] = -dNdx
 
-        # matrix Bs
+        # shear Bs matrix
         B[7,3+j*ndof] = dNdx
-        B[7,4+j*ndof] = -N[i]
+        B[7,5+j*ndof] = -N[i]
         B[8,3+j*ndof] = dNdy
         B[8,4+j*ndof] = -N[i]
-
     end
 end
 
@@ -212,45 +182,68 @@ function setD(elem::ShellQUAD4, D::Matx)
 end
 
 function elem_stiffness(elem::ShellQUAD4)
-    ndim   = elem.env.ndim
-    th     = elem.env.thickness
     nnodes = length(elem.nodes)
-    ndof   = 5
+    ndofg   = 6
+    ndofl   = 5
 
     C = getcoords(elem)
-    R = RotMatrix(elem)
-    C = (C*R')[:,1:2]
-    B = zeros(8, nnodes*ndof)
+    # R = RotMatrix(elem)
+    
+    B = zeros(8, nnodes*ndofl)
     D = zeros(8, 8)
-    K = zeros(nnodes*ndof, nnodes*ndof)
-
+    K = zeros(nnodes*ndofg, nnodes*ndofg)
+    nr = 5
+    nc = 6
+    R = zeros(nnodes*nr, nnodes*nc)
 
     for ip in elem.ips
-    
         # compute shape Jacobian
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
-
+        
         J = dNdR*C
         detJ = norm2(J)
-        dNdX = inv(J)*dNdR
+        Ri = matrixR(elem, J)
+        # display( Ri)
 
-        setB(elem, N, dNdX, B)
+        for i in 1:nnodes
+            R[(i-1)*nr+1:i*nr, (i-1)*nc+1:i*nc] = Ri
+        end
+
+        dNdX = pinv(J)*dNdR
+        # (3x4) = (3x2) (2x4)
+
+        #@showm J
+        #@showm pinv(J)
+
+        #@showm dNdR
+        #@showm dNdX
+
+        Ri′ = Ri[1:2, 1:3]
+        dNdX′ = Ri′*dNdX
+        #@showm dNdX′
+
+        #(2x4) = (2x3)*(3x4)
+
+        setB(elem, N, dNdX′, B)
+        #@showm B
+
         setD(elem, D)
+        #@showm D
+
 
         coef = detJ*ip.w
         # @show size(K)
         # @show size(B)
-        # @show size(D)
 
-        K += B'*D*B*coef
+        K += R'*B'*D*B*R*coef
+        # (20x20) = () (20x8)(8x8)(8x20)(20x20)
 
     end
 
-    K = R*D*R'
+    #@showm K
 
-    keys = (:ux, :uy, :uz, :rx, :ry)
-
+    keys = (:ux, :uy, :uz, :rx, :ry, :rz)
     map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
      
     return K, map, map

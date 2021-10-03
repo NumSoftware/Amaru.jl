@@ -19,7 +19,7 @@ mutable struct PlateRM8node<:Mechanical
     end
 end
 
-matching_shape_family(::Type{PlateRM8node}) = SOLID_SHAPE
+matching_shape_family(::Type{PlateRM8node}) = SOLID_CELL
 
 function D_matrix(elem::PlateRM8node)
 

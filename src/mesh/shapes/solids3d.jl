@@ -44,7 +44,7 @@ end
 function MakeTET4()
     shape             = CellShape()
     shape.name        = "TET4"
-    shape.family      = SOLID_SHAPE
+    shape.family      = SOLID_CELL
     shape.ndim        = 3
     shape.npoints     = 4
     shape.basic_shape = shape
@@ -192,7 +192,7 @@ end
 function MakeTET10()
     shape             = CellShape()
     shape.name        = "TET10"
-    shape.family      = SOLID_SHAPE
+    shape.family      = SOLID_CELL
     shape.ndim        = 3
     shape.npoints     = 10
     shape.basic_shape = TET4
@@ -261,7 +261,7 @@ end
 function MakePYR5()
     shape             = CellShape()
     shape.name        = "PYR5"
-    shape.family      = SOLID_SHAPE
+    shape.family      = SOLID_CELL
     shape.ndim        = 3
     shape.npoints     = 5
     shape.basic_shape = shape
@@ -396,7 +396,7 @@ end
 function MakePYR13()
     shape             = CellShape()
     shape.name        = "PYR13"
-    shape.family      = SOLID_SHAPE
+    shape.family      = SOLID_CELL
     shape.ndim        = 3
     shape.npoints     = 13
     shape.basic_shape = PYR5
@@ -490,7 +490,7 @@ end
 function MakeHEX8()
     shape             = CellShape()
     shape.name        = "HEX8"
-    shape.family      = SOLID_SHAPE
+    shape.family      = SOLID_CELL
     shape.ndim        = 3
     shape.npoints     = 8
     shape.basic_shape = shape
@@ -676,7 +676,7 @@ end
 function MakeHEX20()
     shape             = CellShape()
     shape.name        = "HEX20"
-    shape.family      = SOLID_SHAPE
+    shape.family      = SOLID_CELL
     shape.ndim        = 3
     shape.npoints     = 20
     shape.basic_shape = HEX8
@@ -941,7 +941,7 @@ end
 function MakeHEX27()
     shape             = CellShape()
     shape.name        = "HEX27"
-    shape.family      = SOLID_SHAPE
+    shape.family      = SOLID_CELL
     shape.ndim        = 3
     shape.npoints     = 27
     shape.basic_shape = HEX8
@@ -1007,7 +1007,7 @@ end
 function MakeWED6()
     shape             = CellShape()
     shape.name        = "WED6"
-    shape.family      = SOLID_SHAPE
+    shape.family      = SOLID_CELL
     shape.ndim        = 3
     shape.npoints     = 6
     shape.basic_shape = shape
@@ -1138,7 +1138,7 @@ end
 function MakeWED15()
     shape             = CellShape()
     shape.name        = "WED15"
-    shape.family      = SOLID_SHAPE
+    shape.family      = SOLID_CELL
     shape.ndim        = 3
     shape.npoints     = 15
     shape.basic_shape = WED6

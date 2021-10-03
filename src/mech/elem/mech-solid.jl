@@ -21,7 +21,7 @@ mutable struct MechSolid<:Mechanical
     end
 end
 
-matching_shape_family(::Type{MechSolid}) = SOLID_SHAPE
+matching_shape_family(::Type{MechSolid}) = SOLID_CELL
 
 function elem_init(elem::MechSolid)
     ipdata_ty = typeof(elem.ips[1].state)

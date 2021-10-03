@@ -22,7 +22,7 @@ mutable struct MechRod<:Mechanical
     end
 end
 
-matching_shape_family(::Type{MechRod}) = LINE_SHAPE
+matching_shape_family(::Type{MechRod}) = LINE_CELL
 
 function elem_stiffness(elem::MechRod)
     local E::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}

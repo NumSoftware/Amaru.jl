@@ -123,6 +123,79 @@ function getnodes(cells::Array{<:AbstractCell,1})::Array{Node,1}
 end
 
 
+function (cells::Array{<:AbstractCell,1})(filter=nothing; tag=nothing, shape=nothing, family=nothing, plane=nothing, invert=false)
+
+    filtered = collect(1:length(cells))
+    
+    if isa(filter, Expr) && filter!=:()
+        indexes = copy(filtered)
+        filtered = Int[]
+        # cells id must be set
+        nodes = getnodes(cells)
+        pointmap = zeros(Int, maximum(node.id for node in nodes) ) # points and pointmap may have different sizes
+
+        T = Bool[]
+        for (i,node) in enumerate(nodes)
+            pointmap[node.id] = i
+            x, y, z = node.coord.x, node.coord.y, node.coord.z
+            push!(T, eval_arith_expr(filter, x=x, y=y, z=z))
+        end
+ 
+        filtered = Int[ i for i in indexes if all( T[pointmap[node.id]] for node in cells[i].nodes ) ]
+    end
+
+    if isa(filter, Symbol)
+        families = Dict(:solids=>SOLID_CELL, :lines=>LINE_CELL, :joints=>JOINT_CELL, :linejoints=>LINEJOINT_CELL, :tipjoints=>TIPJOINT_CELL)
+        family = families[filter]
+    end
+
+    if tag!==nothing
+        indexes = copy(filtered)
+        filtered = Int[ i for i in indexes if cells[i].tag==tag ]
+    end
+    
+    if shape!==nothing
+        indexes = copy(filtered)
+        filtered = Int[ i for i in indexes if cells[i].shape==shape ]
+    end
+
+    if family!==nothing
+        indexes = copy(filtered)
+        filtered = Int[ i for i in indexes if cells[i].shape.family==family ]
+    end
+
+    if plane!==nothing
+        indexes = copy(filtered)
+        filtered = Int[]
+
+        # plane normal
+        tol = 1e-5
+        A = plane # coplanar points
+        I = ones(size(A,1))
+        n = normalize(pinv(A.+tol/100)*I) # best fit normal        
+
+        for i in indexes
+            cell = cells[i]
+            cell.shape.family == JOINT_CELL || continue
+            ndim = cell.shape.ndim+1
+            @assert ndim==size(A,2)
+            C = getcoords(cells[i], ndim)
+            I = ones(size(C,1))
+            N = pinv(C.+tol/100)*I # best fit normal 
+            norm(C*N-I)<tol || continue # check if cell is coplanar
+            normalize!(N)
+            norm(N-n)<tol || continue # check if planes are parallel
+            dot(A[1,:]-C[1,:], n)<tol && push!(filtered, i)
+        end
+    end
+
+    if invert
+        filtered = setdiff(1:length(cells), filtered)
+    end
+
+    return cells[filtered]
+end
+
 function Base.getproperty(c::AbstractCell, s::Symbol)
     s == :coords && return getcoords(c)
     s == :faces  && return getfaces(c)
@@ -133,12 +206,14 @@ function Base.getproperty(c::AbstractCell, s::Symbol)
 end
 
 function Base.getproperty(cells::Array{<:AbstractCell,1}, s::Symbol)
-    s == :solids   && return filter(cell -> cell.shape.family==SOLID_SHAPE, cells)
-    s == :lines    && return filter(cell -> cell.shape.family==LINE_SHAPE, cells)
-    s == :joints   && return filter(cell -> cell.shape.family==JOINT_SHAPE, cells)
-    s in (:linejoints, :joints1D, :joints1d) && return filter(cell -> cell.shape.family==LINEJOINT_SHAPE, cells)
-    s == :tipjoints   && return filter(cell -> cell.shape.family==TIPJOINT_SHAPE, cells)
+    s == :solids   && return filter(cell -> cell.shape.family==SOLID_CELL, cells)
+    s == :lines    && return filter(cell -> cell.shape.family==LINE_CELL, cells)
+    s == :joints   && return filter(cell -> cell.shape.family==JOINT_CELL, cells)
+    s in (:linejoints, :joints1D, :joints1d) && return filter(cell -> cell.shape.family==LINEJOINT_CELL, cells)
+    s == :tipjoints   && return filter(cell -> cell.shape.family==TIPJOINT_CELL, cells)
+    s == :embedded && return filter(cell -> cell.shape.family==LINE_CELL && length(cell.linked_elems)>0, cells)
     s == :nodes && return getnodes(cells)
+    s == :filter && return cells
 
     error("type $(typeof(cells)) has no property $s")
 end
@@ -147,23 +222,23 @@ end
 # Index operator for a collection of elements. This function is not type stable
 function Base.getindex(cells::Array{<:AbstractCell,1}, s::Symbol)
     s == :all      && return cells
-    s == :solids   && return filter(cell -> cell.shape.family==SOLID_SHAPE, cells)
-    s == :lines    && return filter(cell -> cell.shape.family==LINE_SHAPE, cells)
-    s == :joints   && return filter(cell -> cell.shape.family==JOINT_SHAPE, cells)
-    s in (:linejoints, :joints1D, :joints1d) && return filter(cell -> cell.shape.family==LINEJOINT_SHAPE, cells)
-    s == :tipjoints   && return filter(cell -> cell.shape.family==TIPJOINT_SHAPE, cells)
+    s == :solids   && return filter(cell -> cell.shape.family==SOLID_CELL, cells)
+    s == :lines    && return filter(cell -> cell.shape.family==LINE_CELL, cells)
+    s == :joints   && return filter(cell -> cell.shape.family==JOINT_CELL, cells)
+    s in (:linejoints, :joints1D, :joints1d) && return filter(cell -> cell.shape.family==LINEJOINT_CELL, cells)
+    s == :tipjoints   && return filter(cell -> cell.shape.family==TIPJOINT_CELL, cells)
     s == :nodes   && return getnodes(cells)
     error("getindex: $(typeof(cells)) has no property $s")
 end
 
 
-function Base.getindex(cells::Array{Cell,1}, tag::String)
+function Base.getindex(cells::Array{<:AbstractCell,1}, tag::String)
     return filter(cell -> cell.tag==tag, cells)
 end
 
 
-function Base.getindex(cells::Array{Cell,1}, filter_ex::Expr)
-    length(cells)==0 && return Cell[]
+function Base.getindex(cells::Array{Ty,1}, filter_ex::Expr) where Ty<:AbstractCell
+    length(cells)==0 && return Ty[]
 
     # cells id must be set
     nodes = unique(p->p.id, p for c in cells for p in c.nodes )
@@ -174,11 +249,11 @@ function Base.getindex(cells::Array{Cell,1}, filter_ex::Expr)
     T = Bool[]
     for (i,node) in enumerate(nodes)
         pointmap[node.id] = i
-        x, y, z = node.coord.x, node.coord.y, node.coord.z
+        x, y, z = node.coord
         push!(T, eval_arith_expr(filter_ex, x=x, y=y, z=z))
     end
 
-    R = Cell[]
+    R = Ty[]
     for cell in cells
         all( T[pointmap[node.id]] for node in cell.nodes ) && push!(R, cell)
     end

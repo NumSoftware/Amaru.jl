@@ -16,7 +16,7 @@ for i=1:length(shapes)
 end
 
 shapes = (TRI3, TRI6, QUAD4, QUAD8)
-data = ((384,245), (384,1113), (192,245), (192,921))
+data = ((768,437), (384,1113), (192,245), (192,921))
 for i=1:length(shapes)
     shape = shapes[i]
     println("\nrevolving $(shape.name)")

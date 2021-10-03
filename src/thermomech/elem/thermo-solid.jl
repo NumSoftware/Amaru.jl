@@ -18,7 +18,7 @@ mutable struct ThermoSolid<:Thermomechanical
     end
 end
 
-matching_shape_family(::Type{ThermoSolid}) = SOLID_SHAPE
+matching_shape_family(::Type{ThermoSolid}) = SOLID_CELL
 
 function elem_config_dofs(elem::ThermoSolid)
     for node in elem.nodes

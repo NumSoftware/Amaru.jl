@@ -19,7 +19,7 @@ tags.  In this case, the joints get specific tags according to the regions
 they are linking.  Joints can be generated with 2 or 3 `layers`. 
 For three layers, all middle points in joints receive a `midnodestag`, if provided.
 """
-function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing; intertags::Bool=false, layers::Int64=2, verbose::Bool=true, tag="", midnodestag="")
+function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing; intertags::Bool=false, layers::Int64=2, verbose::Bool=false, tag="", midnodestag="")
 
     verbose && printstyled("Mesh generation of joint elements:\n", bold=true, color=:cyan)
 
@@ -97,8 +97,11 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
         # Get tags
         tag_set = Set{String}()
         for cell in targetcells
-            cell.tag != "" && push!(tag_set, cell.tag)
+            # cell.tag != "" && push!(tag_set, cell.tag)
+            push!(tag_set, cell.tag)
         end
+
+        # @show tag_set
 
         # Get joint faces
         trial_faces = Face[]
@@ -107,6 +110,8 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
                 push!(trial_faces, face)
             end
         end
+
+        # @show length(trial_faces)
 
         # Get nodes to duplicate
         nodes_to_dup = Set{Node}()
@@ -127,6 +132,9 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
                 delete!(facedict, hs)
             end
         end
+
+        # @show length(facedict)
+        # @show length(nodes_to_dup)
 
         # Duplicate nodes
         for cell in targetcells
@@ -233,7 +241,7 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
 
     # Fix cells connectivities for special interface elements
     for c in lockedcells
-        c.shape.family in (TIPJOINT_SHAPE, LINEJOINT_SHAPE) || continue
+        c.shape.family in (TIPJOINT_CELL, LINEJOINT_CELL) || continue
         scell = c.linked_elems[1]
         nspts = length(scell.nodes)
         c.nodes[1:nspts] .= scell.nodes
@@ -271,7 +279,7 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
     joint_data = zeros(Int, ncells, 3) # nlayers, first link, second link
     for i=1:ncells
         cell = mesh.elems[i]
-        if cell.shape.family==JOINT_SHAPE
+        if cell.shape.family==JOINT_CELL
             joint_data[i,1] = layers
             joint_data[i,2] = cell.linked_elems[1].id
             joint_data[i,3] = cell.linked_elems[2].id
@@ -489,8 +497,8 @@ function generate_joints_by_tag_2!(mesh::Mesh; layers::Int64=2, verbose::Bool=tr
     verbose && printstyled("Mesh generation of joint elements:\n", bold=true, color=:cyan)
     cells  = mesh.elems
 
-    any(c.shape.family==JOINT_SHAPE for c in cells) && error("generate_joints!: mesh already contains joint elements.")
-    solids = [ c for c in cells if c.shape.family==SOLID_SHAPE ]
+    any(c.shape.family==JOINT_CELL for c in cells) && error("generate_joints!: mesh already contains joint elements.")
+    solids = [ c for c in cells if c.shape.family==SOLID_CELL ]
 
 
     # List all repeated faces
@@ -569,8 +577,8 @@ function generate_joints_by_tag_2!(mesh::Mesh; layers::Int64=2, verbose::Bool=tr
     # Get points from non-separated cells
     points_dict = Dict{UInt64, Node}()
     for c in mesh.elems
-        c.shape.family == SOLID_SHAPE && continue # skip because they have points with same coordinates
-        c.shape.family == LINEJOINT_SHAPE && continue # skip because their points were already considered
+        c.shape.family == SOLID_CELL && continue # skip because they have points with same coordinates
+        c.shape.family == LINEJOINT_CELL && continue # skip because their points were already considered
         for p in c.nodes
             points_dict[hash(p)] = p
         end
@@ -645,7 +653,7 @@ function generate_joints_by_tag_2!(mesh::Mesh; layers::Int64=2, verbose::Bool=tr
     #Copying points from mesh.nodes to mesh.elems[i].nodes if joints
 
     for c in mesh.elems
-        c.shape.family == SOLID_SHAPE && continue
+        c.shape.family == SOLID_CELL && continue
         for (i,p) in enumerate(c.nodes)
             hs = hash(p)
             f = get(pointsdict_4,hs,nothing)
@@ -678,7 +686,7 @@ function generate_joints_by_tag_2!(mesh::Mesh; layers::Int64=2, verbose::Bool=tr
     #Copying points from mesh.nodes to mesh.elems[i].nodes if solids
 
     for c in mesh.elems
-        c.shape.family == JOINT_SHAPE && continue
+        c.shape.family == JOINT_CELL && continue
         for (i,p) in enumerate(c.nodes)
             hs = hash(p)
             f = get(pointsdict_1,hs,nothing)

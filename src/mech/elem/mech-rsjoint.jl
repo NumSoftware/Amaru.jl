@@ -25,7 +25,7 @@ mutable struct MechRodSolidJoint<:Mechanical
     MechRodSolidJoint() = new()
 end
 
-matching_shape_family(::Type{MechRodSolidJoint}) = LINEJOINT_SHAPE
+matching_shape_family(::Type{MechRodSolidJoint}) = LINEJOINT_CELL
 
 
 function elem_init(elem::MechRodSolidJoint)

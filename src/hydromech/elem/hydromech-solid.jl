@@ -17,7 +17,7 @@ mutable struct HMSolid<:Hydromechanical
     end
 end
 
-matching_shape_family(::Type{HMSolid}) = SOLID_SHAPE
+matching_shape_family(::Type{HMSolid}) = SOLID_CELL
 
 function elem_config_dofs(elem::HMSolid)
     nbnodes = elem.shape.basic_shape.npoints

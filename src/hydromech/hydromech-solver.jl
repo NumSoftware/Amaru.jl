@@ -155,7 +155,7 @@ function complete_uw_h(dom::Domain)
     H  = dom.node_data["h"]
 
     for elem in dom.elems
-        elem.shape.family==SOLID_SHAPE || continue
+        elem.shape.family==SOLID_CELL || continue
         elem.shape==elem.shape.basic_shape && continue
         npoints  = elem.shape.npoints
         nbpoints = elem.shape.basic_shape.npoints

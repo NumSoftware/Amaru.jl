@@ -586,7 +586,7 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
         # Update linked cells in joints
 
         # check if there are joints
-        has_joints = any( C -> C.shape.family==JOINT_SHAPE, mesh.elems )
+        has_joints = any( C -> C.shape.family==JOINT_CELL, mesh.elems )
 
         if has_joints
             # generate dict of faces
@@ -600,7 +600,7 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
             end
 
             for cell in mesh.elems
-                if cell.shape.family == JOINT_SHAPE
+                if cell.shape.family == JOINT_CELL
                     n = length(cell.nodes)
                     hs1 = hash( [ cell.nodes[i] for i=1:div(n,2)] )
                     hs2 = hash( [ cell.nodes[i] for i=div(n,2)+1:n] )
@@ -616,7 +616,7 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
     #=
 
     # Fix linked_elems for embedded elements (line cells not connected to other elements)
-    has_line = any(C->C.shape.family==LINE_SHAPE, mesh.elems)
+    has_line = any(C->C.shape.family==LINE_CELL, mesh.elems)
     if has_line
         # TODO: find the owner of orphan line cells OR use parent id information
     end

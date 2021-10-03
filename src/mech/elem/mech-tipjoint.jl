@@ -15,7 +15,7 @@ mutable struct MechTipJoint<:Mechanical
     MechTipJoint() = new()
 end
 
-matching_shape_family(::Type{MechTipJoint}) = TIPJOINT_SHAPE
+matching_shape_family(::Type{MechTipJoint}) = TIPJOINT_CELL
 
 function mountB(elem::MechTipJoint, Ch, Ct)
     # Calculates the matrix that relates nodal displacements with relative displacements

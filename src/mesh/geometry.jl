@@ -84,6 +84,76 @@ function Base.getindex(polys::Array{Polygon,1}, filter_ex::Expr)
     return R
 end
 
+# function to check if two segments intersect
+function intersect(l1::Line, l2::Line)
+
+end
+
+
+function Base.contains(poly::Polygon, point::Point)
+
+    # Get avg plane
+
+    # coordinates
+    eps = 1e-8
+    npoints = length(poly.points)
+    C = [  p.coord[j] for p in poly.points, j in 1:3 ]
+
+    # display(C)
+
+    C .+= eps
+    I = ones(npoints)
+    N = pinv(C)*I # best fit normal
+    N = normalize(N)
+
+    # project to plane
+    v1 = normalize(poly.points[2].coord - poly.points[1].coord)
+    v2 = normalize(cross(N, v1))
+
+    R = [v1'; v2'; N']
+    XY = (C*R')[:,1:2]
+    XY .-= eps
+    XY = round.(XY, digits=8)
+    # display(XY)
+
+    X = R*point.coord
+    x, y = X[1], X[2]
+
+    # find if point is inside
+    ints = 0
+
+    for i in 1:npoints
+        x1, y1 = XY[i,1], XY[i,2]
+
+        # check if point is equal to vertex
+        abs(x1-x)<eps && (y1-y)<eps && return true
+
+        # get second point of segment
+        if i!=size(XY,1)
+            x2, y2 = XY[i+1,1], XY[i+1,2]    
+        else
+            x2, y2 = XY[1,1], XY[1,2]    
+        end
+
+        y1==y2 && continue
+
+        if y>=min(y1,y2) && y<=max(y1,y2)
+            # check if point is contained in line
+            abs((x2-x1)/(y2-y1) - (x2-x)/(y2-y)) < eps && return true
+
+            xi = x1 + (x2-x1)/(y2-y1)*(y-y1)
+
+            if xi > x 
+                ints += 1
+            end
+        end
+
+    end
+
+    return ints%2==1
+
+end
+
 
 mutable struct PolygonMesh
     points::Array{Point,1}
@@ -153,4 +223,8 @@ end
 
 function getcoords(polym::PolygonMesh)
     return Float64[ p.coord[j] for p in polym.points, j=1:3 ]
+end
+
+function getcoords(points::Array{Point,1})
+    return Float64[ p.coord[j] for p in points, j=1:3 ]
 end

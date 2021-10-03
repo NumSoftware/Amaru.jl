@@ -184,7 +184,7 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
     for cell in mesh.elems
 
         # adding cell edges
-        if cell.shape.family == SOLID_SHAPE #is_solid(cell.shape)
+        if cell.shape.family == SOLID_CELL #is_solid(cell.shape)
             for edge in getedges(cell)
                 hs = hash(edge)
                 all_edges[hs] = edge
@@ -219,7 +219,7 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
         end
 
         # embedded line cells
-        if cell.shape.family == LINE_SHAPE && length(cell.linked_elems)>0
+        if cell.shape.family == LINE_CELL && length(cell.linked_elems)>0
             edge1 = Cell(cell.shape, cell.nodes)
             edge2 = Cell(LIN2, [ cell.nodes[1], cell.linked_elems[1].nodes[1] ])
             all_edges[hash(edge1)] = edge1
@@ -364,6 +364,11 @@ function fixup!(mesh::Mesh; printlog=false, genfacets::Bool=true, genedges::Bool
         push!(Q, c.quality)
     end
 
+    # tag
+    tags = sort(unique([elem.tag for elem in mesh.elems]))
+    tag_dict = Dict( tag=>i-1 for (i,tag) in enumerate(tags) )
+    T = [ tag_dict[elem.tag] for elem in mesh.elems ] 
+
     # Ordering
     reorder && reorder!(mesh)
 
@@ -374,6 +379,7 @@ function fixup!(mesh::Mesh; printlog=false, genfacets::Bool=true, genedges::Bool
     mesh.elem_data["quality"]   = Q
     mesh.elem_data["elem-id"]   = collect(1:length(mesh.elems))
     mesh.elem_data["cell-type"] = [ Int(cell.shape.vtk_type) for cell in mesh.elems ]
+    mesh.elem_data["tag"] = T
 
     return nothing
 end
@@ -646,12 +652,12 @@ function Mesh(
     fixup!(mesh, printlog=printlog, genfacets=genfacets, genedges=genedges, reorder=reorder)
 
     # Add field for embedded nodes
-    if any( c.shape.family==LINEJOINT_SHAPE for c in mesh.elems )
+    if any( c.shape.family==LINEJOINT_CELL for c in mesh.elems )
         ncells = length(mesh.elems)
         inset_data = zeros(Int, ncells, 3) # npoints, first link id, second link id
         for i=1:ncells
             cell = mesh.elems[i]
-            if cell.shape.family==LINEJOINT_SHAPE
+            if cell.shape.family==LINEJOINT_CELL
                 inset_data[i,1] = cell.shape.npoints
                 inset_data[i,2] = cell.linked_elems[1].id
                 inset_data[i,3] = cell.linked_elems[2].id
@@ -874,16 +880,16 @@ function get_segment_data(msh::AbstractMesh, X1::Array{<:Real,1}, X2::Array{<:Re
 end
 
 export randmesh
-function randmesh(l::Real...)
-    ndim = length(l)
+function randmesh(n::Int...)
+    ndim = length(n)
     if ndim==2
-        lx, ly = l
-        nx, ny = rand(4:7, 2)
+        lx, ly = (1.0, 1.0)
+        nx, ny = n
         cellshape = rand((TRI3, TRI6, QUAD4, QUAD8))
         m = Mesh(Block([0.0 0.0; lx ly], nx=nx, ny=ny, cellshape=cellshape), printlog=false)
     else
-        lx, ly, lz = l
-        nx, ny, nz = rand(4:7, 3)
+        lx, ly, lz = (1.0, 1.0, 1.0)
+        nx, ny, nz = n
         cellshape = rand((TET4, TET10, HEX8, HEX20))
         m = Mesh(Block([0.0 0.0 0.0; lx ly lz], nx=nx, ny=ny, nz=nz, cellshape=cellshape), printlog=false)
     end
@@ -893,10 +899,12 @@ end
 
 export UMesh
 
-function UMesh(
+function UMesh0(
                polym::Union{Polygon,PolygonMesh},
-               sizes::Array=[],
-               embedded::Array=[];
+               sizes::Array=[];
+               embedded::Array=[],
+               embpoints::Array=[],
+               emblines::Array=[],
                embsurfaces::Array=[],
                size::Real=NaN,
                recombine=false
@@ -938,11 +946,20 @@ function UMesh(
     polydict = Dict{UInt, Int}( hash(poly)=>i for (i,poly) in enumerate(polym.polygons) )
     for (filter,X) in embedded
         polygons = polym.polygons[filter]
-        length(polygons)==0 && break
+        length(polygons)==0 && continue
         poly = polygons[1]
         coords = [coords; X']
         push!(_sizes, size)
         _embpoints[ Base.size(coords,1) ] = polydict[hash(poly)]
+    end
+
+    for line in emblines
+        p1, p2 = line.points
+        polygon = [ poly for poly in polym.polygons if contains(poly, p1) || contains(poly, p2) ]
+        length(polygons)==0 && continue
+        poly = polygons[1]
+
+
     end
 
     # Set embedded surfaces in volume
@@ -1002,6 +1019,7 @@ function UMesh(
 
         try import Gmsh.gmsh
         catch
+            error("Missing Gmsh package")
         end
 
         gmsh.initialize()
@@ -1054,6 +1072,11 @@ function UMesh(
             gmsh.model.mesh.embed(0,[k],2,v)
         end
 
+        # Embedded lines
+        for (k,v) in embeddedlines
+            gmsh.model.mesh.embed(1,[k],ndim,v)
+        end
+
         # Embedded surfaces
         for i in nsurfs-$nembsurfaces+1:nsurfs
             for l in surfaces[i]
@@ -1066,6 +1089,210 @@ function UMesh(
             gmsh.model.mesh.embed(2,[i],3,1)
         end
         
+
+        # Recombine
+        if recombine
+            for (i,loop) in enumerate(surfaces)
+                gmsh.model.mesh.setRecombine(2, i)
+            end
+            gmsh.model.mesh.recombine()
+        end
+
+        gmsh.model.mesh.generate(ndim)
+
+        gmsh.model.mesh.smooth()
+
+        tempfile = "_temp.vtk"
+        gmsh.write(tempfile)
+        gmsh.finalize()
+    end
+
+    mesh = Mesh(tempfile)
+    rm(tempfile)
+    return mesh
+
+end
+
+
+
+function UMesh(
+    polym      ::Union{Polygon,PolygonMesh},
+    # points     
+    sizes      ::Array=[];
+    size       ::Real =NaN,
+    embpoints  ::Array=Point[],
+    emblines   ::Array=Line[],
+    embsurfaces::Array=[],
+    recombine         =false
+)
+
+             
+    if polym isa Polygon
+        polym = PolygonMesh([polym])
+    end
+
+    points = Point[ polym.points; embpoints ]
+    lines  = [ polym.lines; emblines ]
+    surfs  = [ polym.polygons; embsurfaces ]
+    npoints = length(points)
+
+    coords = getcoords(points)
+    ndim = sum(abs, coords[:,end])==0.0 ? 2 : 3
+
+    pdict = Dict{Point, Int}( p=>i for (i,p) in enumerate(points) )
+    ldict = Dict{UInt, Int}( hash(l)=>i for (i,l) in enumerate(lines) )
+    sdict = Dict{UInt, Int}( hash(s)=>i for (i,s) in enumerate(surfs) )
+
+    if isnan(size)
+        bb = bounding_box(polym.points)
+        size = maximum(diff(bb, dims=1))/3
+    end
+
+    # Set sizes
+    sizeslist = fill(size, npoints)
+    for (filter,s) in sizes
+        points = polym.points[filter]
+        for p in points
+           sizeslist[pdict[p]] = s
+        end
+    end
+
+    # Set embedded points in surfaces
+    embpdict = Dict{Int,Int}() # point id => surf id
+    for p in embpoints
+        pid = pdict[p]
+        surf = [ s for s in polym.polygons if contains(s, p) ][1]
+        sid = sdict[hash(surf)]
+        embpdict[pid] = sid
+    end
+
+    # Set embedded lines in surfaces
+    embldict = Dict{Int,Int}() # line id => surf id
+    for l in emblines
+        lid = ldict[hash(l)]
+        p1, p2 = l.points
+        surf = [ s for s in polym.polygons if contains(s, p1) && contains(s, p2)  ][1]
+        sid = sdict[hash(surf)]
+        @show sid
+        embldict[lid] = sid
+    end
+    @show embldict
+
+    # Find embedded point indexes
+    embpoint_idxs = [ pdict[p] for p in embpoints ]
+
+    # Find point indexes for lines
+    line_idxs = Array{Int,1}[]
+    for l in lines
+        idx = Int[ pdict[p] for p in l.points ]
+        push!(line_idxs, idx)
+    end
+
+    # embline_idxs = Array{Int,1}[]
+    # for l in emblines
+    #     idx = Int[ pdict[p] for p in l.points ]
+    #     push!(embline_idxs, idx)
+    # end
+
+    # Find line indexes for surfaces
+    surf_idxs = Array{Int,1}[]
+    for poly in surfs
+        idx = Int[ ldict[hash(l)] for l in poly.lines]
+        push!(surf_idxs, idx)
+    end
+
+    # Fix sign in line indexes in surfs
+    for loop in surf_idxs
+        if !(line_idxs[loop[1]][end] in line_idxs[loop[2]])
+            loop[1] = -loop[1]
+        end
+
+        for i in 2:length(loop)
+            lineidx = loop[i]
+            line = lineidx>0 ? line_idxs[lineidx] : reverse(line_idxs[abs(lineidx)])
+            lastlineidx = loop[i-1]
+            lastline = lastlineidx>0 ? line_idxs[lastlineidx] : reverse(line_idxs[abs(lastlineidx)])
+            if line[1]!=lastline[end]
+                loop[i] = -lineidx
+            end
+        end
+    end
+
+    # Find surf indexes for volumes
+    vol_idxs = Int[ sdict[hash(s)] for s in polym.polygons]
+
+    # Mesh generation
+    @eval begin
+        coords         = $coords
+        sizes          = $sizeslist
+        lines          = $line_idxs
+        surfaces       = $surf_idxs
+        vol            = $vol_idxs
+        ndim           = $ndim
+        npoints        = $npoints
+        embpoints      = $embpoint_idxs
+        emblines       = $embldict
+        recombine      = $recombine
+
+        try import Gmsh.gmsh
+        catch
+            error("Missing Gmsh package")
+        end
+
+        gmsh.initialize()
+        gmsh.option.setNumber("General.Terminal", 1)
+        gmsh.model.add("model01")
+
+        npoints = size(coords,1)
+
+        # adding points
+        for i=1:npoints
+            gmsh.model.geo.addPoint(coords[i,1], coords[i,2], coords[i,3], sizes[i], i)
+        end
+
+        # adding lines
+        # nlines = length(lines)
+        for (i,line) in enumerate(lines)
+            if length(line)==2 # line
+                gmsh.model.geo.addLine(line[1], line[2], i)
+            else # circle arc
+                gmsh.model.geo.addCircleArc(line[1], line[2], line[3], i)
+            end
+        end
+
+        # PhysicalGroup index
+        ipg = 0
+
+        # adding surfaces
+        nsurfs = length(surfaces)
+        for (i,loop) in enumerate(surfaces)
+            gmsh.model.geo.addCurveLoop(loop, i)
+            gmsh.model.geo.addPlaneSurface([i], i)
+            if ndim==2
+                global ipg += 1
+                gmsh.model.addPhysicalGroup(2, [i], ipg) # ndim, entities, tag
+            end
+        end
+
+        if ndim==3
+            gmsh.model.geo.addSurfaceLoop(vol_idxs, 1)
+            gmsh.model.geo.addVolume([1], 1)
+            global ipg += 1
+            gmsh.model.addPhysicalGroup(3, [1], ipg) # ndim, entities, tag
+        end
+
+        gmsh.model.geo.synchronize()
+
+        # Embedded points
+        for (k,v) in embpoints
+            gmsh.model.mesh.embed(0,[k],2,v)
+        end
+
+        # Embedded lines
+        for (k,v) in emblines
+            @show emblines
+            gmsh.model.mesh.embed(1,[k],2,v)
+        end      
 
         # Recombine
         if recombine

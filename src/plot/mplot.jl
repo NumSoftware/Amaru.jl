@@ -149,10 +149,10 @@ function mplot(items::Union{Block, Array}, filename::String=""; args...)
     for bl in blocks
         append!(nodes, bl.nodes)
 
-        if bl.shape.family==SOLID_SHAPE
+        if bl.shape.family==SOLID_CELL
             cell = Cell(bl.shape, bl.nodes)
             push!(cells, cell)
-        elseif bl.shape.family==LINE_SHAPE
+        elseif bl.shape.family==LINE_CELL
             lines = [ Cell(LIN2, bl.nodes[i-1:i]) for i=2:length(bl.nodes)]
             append!(cells, lines)
         else
@@ -186,7 +186,7 @@ function get_main_edges(cells::Array{<:AbstractCell,1}, angle=120)
 
     # Get edges with non-coplanar adjacent faces
     for face in cells
-        face.shape.family == SOLID_SHAPE || continue # only surface cells
+        face.shape.family == SOLID_CELL || continue # only surface cells
         face_idx = faces_dict[hash(face)]
         for edge in getedges(face)
             hs = hash(edge)
@@ -366,8 +366,8 @@ function mplot(
         elem_data = copy(mesh.elem_data)
 
         # filter bulk and line elements
-        areacells  = [ elem for elem in mesh.elems if elem.shape.family==SOLID_SHAPE && elem.shape.ndim==2 ]
-        linecells  = [ cell for cell in mesh.elems if cell.shape.family==LINE_SHAPE]
+        areacells  = [ elem for elem in mesh.elems if elem.shape.family==SOLID_CELL && elem.shape.ndim==2 ]
+        linecells  = [ cell for cell in mesh.elems if cell.shape.family==LINE_CELL]
         newcells   = [ areacells; linecells ]
         c_ids      = [ [c.id for c in areacells]; [c.id for c in linecells] ]
         newnodes   = [ p for c in newcells for p in c.nodes ]
@@ -394,10 +394,10 @@ function mplot(
         elem_data  = OrderedDict{String,Array}()
 
         # get surface cells and update
-        volume_cells = [ elem for elem in mesh.elems if elem.shape.family==SOLID_SHAPE && elem.shape.ndim==3 ]
-        areacells    = [ elem for elem in mesh.elems if elem.shape.family==SOLID_SHAPE && elem.shape.ndim==2 ]
+        volume_cells = [ elem for elem in mesh.elems if elem.shape.family==SOLID_CELL && elem.shape.ndim==3 ]
+        areacells    = [ elem for elem in mesh.elems if elem.shape.family==SOLID_CELL && elem.shape.ndim==2 ]
         scells       = get_surface(volume_cells)
-        linecells    = [ cell for cell in mesh.elems if cell.shape.family==LINE_SHAPE]
+        linecells    = [ cell for cell in mesh.elems if cell.shape.family==LINE_CELL]
         outlinecells = outline ? get_outline_edges(scells) : Cell[]
 
         newcells = [ scells; areacells; linecells ]
@@ -652,7 +652,7 @@ function mplot(
     has_line_field = false
     if has_field
         for (i,cell) in enumerate(cells)
-            cell.shape.family == LINE_SHAPE || continue
+            cell.shape.family == LINE_CELL || continue
             if fvals[i]!=0.0
                 has_line_field = true
                 break
@@ -673,7 +673,7 @@ function mplot(
             points = cellcoords(cell,3)
 
 
-            if shape.family==SOLID_SHAPE
+            if shape.family==SOLID_CELL
                 verts = plot_data_for_cell3d(points, shape)
 
                 if !has_field || has_line_field
@@ -702,7 +702,7 @@ function mplot(
                     # f = 0.9+0.05*abs(dot(L,N)) + 0.05*(1+dot(V,R))/2
                 end
                 fc = (f*fc[1], f*fc[2], f*fc[3], opacity)
-            elseif shape.family==LINE_SHAPE
+            elseif shape.family==LINE_CELL
                 verts = plot_data_for_cell3d(points, shape, V, 0.0075*ll*rodlw)
 
                 if has_line_field
@@ -790,7 +790,7 @@ function mplot(
             patch = matplotlib.patches.PathPatch(path)
 
 
-            if shape.family==SOLID_SHAPE
+            if shape.family==SOLID_CELL
                 if !has_field || has_line_field
                     fc = (0.94, 0.97, 1.0, 1.0)
                     ec = (0.4, 0.4, 0.4, 1.0)
@@ -805,7 +805,7 @@ function mplot(
                     ec = Tuple( (fc .+ [0.3, 0.3, 0.3, 1.0])./2 )
                 end
                 push!(lineweight, lw)
-            elseif shape.family==LINE_SHAPE
+            elseif shape.family==LINE_CELL
                 if has_line_field
                     v = (fvals[i]-fieldlims[1])/(fieldlims[2]-fieldlims[1])
                     ec = cmap(v)
@@ -1133,7 +1133,7 @@ function mplot(
     plt.rc("figure", figsize=figsize)
     maxv = 0.0
 
-    lines = [ elem.shape.family==LINE_SHAPE ? elem : elem.linked_elems[2] for elem in elems ]
+    lines = [ elem.shape.family==LINE_CELL ? elem : elem.linked_elems[2] for elem in elems ]
     coords = getcoords(getnodes(lines))
     #sumx = maximum(abs, coords[:,1])
     #sumy = maximum(abs, coords[:,2])
@@ -1201,7 +1201,7 @@ function mplot(
     dn = 0.005*xwidth
 
     for elem in elems
-        line = elem.shape.family==LINE_SHAPE ? elem : elem.linked_elems[2]
+        line = elem.shape.family==LINE_CELL ? elem : elem.linked_elems[2]
         X = [ node.coord[xidx] for node in line.nodes ]
         Y = [ node.coord[yidx] for node in line.nodes ]
         plt.plot(X, Y, "tab:gray", lw=2, solid_capstyle="round", zorder=2) # plot line

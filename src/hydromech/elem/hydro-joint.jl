@@ -17,7 +17,7 @@ mutable struct HydroJoint<:Hydromechanical
 end
 
 # Return the shape family that works with this element
-matching_shape_family(::Type{HydroJoint}) = JOINT_SHAPE
+matching_shape_family(::Type{HydroJoint}) = JOINT_CELL
 
 function elem_config_dofs(elem::HydroJoint)
     nnodes = length(elem.nodes)

@@ -18,7 +18,7 @@ mutable struct MechEmbRod<:Mechanical
     MechEmbRod() = new()
 end
 
-matching_shape_family(::Type{MechEmbRod}) = LINE_SHAPE
+matching_shape_family(::Type{MechEmbRod}) = LINE_CELL
 
 function elem_config_dofs(elem::MechEmbRod)
     # No-op function.
