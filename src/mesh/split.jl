@@ -207,12 +207,11 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
 
         #jshape = joint_shape(f1.shape)
         jshape = joint_shape_dict[(f1.shape,layers)]
-        if !intertags
-            thetag = tag
-        else
-            thetag = join( sort([f1.owner.tag, f2.owner.tag]), "-" )
+
+        if intertags && tag==""
+            tag = join( sort([f1.owner.tag, f2.owner.tag]), "-" )
         end
-        cell = Cell(jshape, con, tag=thetag)
+        cell = Cell(jshape, con, tag=tag)
         cell.linked_elems = [f1.owner, f2.owner]
         push!(jointcells, cell)
     end

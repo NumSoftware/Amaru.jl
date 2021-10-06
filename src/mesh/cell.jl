@@ -111,15 +111,7 @@ end
 
 # Return all nodes in cells
 function getnodes(cells::Array{<:AbstractCell,1})::Array{Node,1}
-    nodes = Set{Node}()
-    for cell in cells
-        for node in cell.nodes
-            push!(nodes, node)
-        end
-    end
-    R = Node[node for node in nodes]
-
-    return R
+    return collect(Set(node for cell in cells for node in cell.nodes)) 
 end
 
 
