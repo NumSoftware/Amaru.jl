@@ -73,6 +73,7 @@ function matrixT(J::Matrix{Float64})
         L2 = vec(J[1,:])
         L3 = vec(J[2,:])
         L1 = cross(L2, L3)  # L1 is normal to the first element face
+        L2 = cross(L3, L1)
         normalize!(L1)
         normalize!(L2)
         normalize!(L3)
