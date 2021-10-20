@@ -236,6 +236,7 @@ function hm_solve!(
 )
 
     # Arguments checking
+    @check time_span>0 || end_time>0
     verbosity = 0
     printlog && (verbosity=1)
     printlog && verbose && (verbosity=2)
@@ -252,12 +253,14 @@ function hm_solve!(
     if !isnan(end_time)
         end_time > env.t || error("hm_solve! : end_time ($end_time) is greater that current time ($(env.t))")
         time_span = end_time - env.t
+    else
+        end_time = env.t + time_span
     end
     isnan(time_span) && error("hm_solve!: neither time_span nor end_time were set.")
 
     if verbosity>0
         printstyled("Hydromechanical FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
-        println("  from t=$(round(dom.env.t,digits=4)) to t=$(round(dom.env.t+time_span,digits=3))")
+        println("  from t=$(round(env.t,sigdigits=4)) to t=$(round(end_time,sigdigits=4))")
     end
 
     verbosity>1 && println("  model type: ", env.modeltype)
