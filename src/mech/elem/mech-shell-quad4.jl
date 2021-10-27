@@ -113,6 +113,7 @@ function matrixR(elem::ShellQUAD4, J::Matrix{Float64})
              Z   L2'
              Z   L3']
 
+             
 end
 
 
