@@ -46,11 +46,12 @@ for shape in ALL_ISO_SHAPES
     for R in RR
         RI = R .+ Id*δ
         fR = f(R)
-        D  = zeros(ndim, n)
+        D  = zeros(n, ndim)
         for i=1:ndim
             Di     = 1/δ*(f(RI[:,i]) - fR)
-            D[i,:] = Di
+            D[:, i] = Di
         end
+
         tr = @test D ≈ shape.deriv(R) atol=1e-6
         tr isa Test.Pass || (TR = tr)
     end

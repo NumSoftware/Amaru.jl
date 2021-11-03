@@ -35,18 +35,18 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
     C  = getcoords(elem)
     H  = zeros(nnodes, nnodes)
     Bw = zeros(1, nnodes)
-    J  = Array{Float64}(undef, 1, ndim)
+    J  = Array{Float64}(undef, ndim, 1)
 
     for ip in elem.ips
 
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = norm(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # mount Bw
         Bw .= 0.0
-        Bw = dNdR/detJ
+        Bw = dNdR'/detJ
 
         # compute H
         coef = detJ*ip.w*(elem.mat.k/elem.mat.γw)*A
@@ -68,17 +68,17 @@ function elem_RHS_vector(elem::DrainPipe)
     Q  = zeros(nnodes)
     Bw = zeros(1, nnodes)
     dNdX = Array{Float64}(undef, 1, nnodes)
-    J  = Array{Float64}(undef, 1, ndim)
+    J  = Array{Float64}(undef, ndim, 1)
 
     for ip in elem.ips
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = norm(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
         Jvert = J[end]/detJ
 
         # mount Bw
-        Bw = dNdR/detJ
+        Bw = dNdR'/detJ
 
         # compute Q 
         coef = detJ*ip.w*elem.mat.k*A*Jvert
@@ -92,7 +92,7 @@ function elem_RHS_vector(elem::DrainPipe)
 end
 
 function elem_internal_forces(elem::DrainPipe, F::Array{Float64,1})
-local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
+    local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
 
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
@@ -102,7 +102,7 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
     H  = zeros(nnodes, nnodes)
     Bw = zeros(1, nnodes)
     dNdX = Array{Float64}(undef, 1, nnodes)
-    J  = Array{Float64}(undef, 1, ndim)
+    J  = Array{Float64}(undef, ndim, 1)
     dFw = zeros(nnodes)
 
     map_w  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
@@ -110,12 +110,12 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
     for ip in elem.ips
 
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = norm(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         # mount Bw
-        Bw = dNdR/detJ
+        Bw = dNdR'/detJ
 
         # internal volumes dFw
         D    = ip.state.D
@@ -144,19 +144,19 @@ function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1
     Uw += dUw # nodal pore-pressure at step n+1
 
     dNdX = Array{Float64}(undef, 1, nnodes)
-    J  = Array{Float64}(undef, 1, ndim)
+    J  = Array{Float64}(undef, ndim, 1)
     dFw = zeros(nnodes)
 
     for ip in elem.ips
 
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = norm(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
         Jvert = J[end]/detJ
 
         # mount Bw
-        Bw = dNdR/detJ
+        Bw = dNdR'/detJ
 
         # compute Nw vector
         N  = elem.shape.func(ip.R)

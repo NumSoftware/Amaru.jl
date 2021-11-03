@@ -16,10 +16,12 @@ function shape_func_LIN2(R::AbstractArray{<:Float64,1})
 end
 
 # shape derivatives
-const deriv_LIN2_mat = [ -0.5  0.5 ]
-
 function shape_deriv_LIN2(R::AbstractArray{<:Float64,1})
-    return deriv_LIN2_mat
+    r = R[1]
+    D = Array{Float64}(undef,2,1)
+    D[1,1] = -0.5
+    D[2,1] =  0.5
+    return D
 end
 
 
@@ -68,10 +70,10 @@ end
 # shape derivatives
 function shape_deriv_LIN3(R::AbstractArray{<:Float64,1})
     r = R[1]
-    D = Array{Float64}(undef,1, 3)
-    D[1, 1] = r - 0.5
-    D[1, 2] = r + 0.5
-    D[1, 3] = -2.0*r
+    D = Array{Float64}(undef,3,1)
+    D[1,1] = r - 0.5
+    D[2,1] = r + 0.5
+    D[3,1] = -2.0*r
     return D
 end
 
@@ -125,11 +127,11 @@ end
 # shape derivatives
 function shape_deriv_LIN4(R::AbstractArray{<:Float64,1})
     r = R[1]
-    D = Array{Float64}(undef,1, 4)
+    D = Array{Float64}(undef,4,1)
     D[1,1] = 1.0/16.0*( -27.0*r*r + 18.0*r + 1.0 )
-    D[1,2] = 1.0/16.0*(  27.0*r*r + 18.0*r - 1.0 )
-    D[1,3] = 1.0/16.0*(  81.0*r*r - 18.0*r - 27.0)
-    D[1,4] = 1.0/16.0*( -81.0*r*r - 18.0*r + 27.0)
+    D[2,1] = 1.0/16.0*(  27.0*r*r + 18.0*r - 1.0 )
+    D[3,1] = 1.0/16.0*(  81.0*r*r - 18.0*r - 27.0)
+    D[4,1] = 1.0/16.0*( -81.0*r*r - 18.0*r + 27.0)
     return D
 end
 

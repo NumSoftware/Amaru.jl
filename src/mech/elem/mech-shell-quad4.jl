@@ -4,7 +4,7 @@ export ShellQUAD4
 
 mutable struct ShellQUAD4<:Mechanical
     id    ::Int
-    shape ::ShapeType # CellShape
+    shape ::CellShape
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -53,7 +53,7 @@ function distributed_bc(elem::ShellQUAD4, facet::Union{Facet, Nothing}, key::Sym
         w = R[end]
         N = shape.func(R)
         D = shape.deriv(R)
-        J = D*C
+        J = C'*D
         X = C'*N
         if ndim==2
             x, y = X
@@ -134,7 +134,7 @@ end
 
 function setBm(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bm::Matx)
     nnodes = length(elem.nodes)
-    # ndim, nnodes = size(dNdX)
+    # nnodes, ndim = size(dNdX)
     ndof = 6 #5
     Bm .= 0.0
     k =  1e-12
@@ -164,7 +164,7 @@ end
 
 function setBb(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bb::Matx)
     nnodes = length(elem.nodes)
-    # ndim, nnodes = size(dNdX)
+    # nnodes, ndim = size(dNdX)
     ndof = 6 #5
     Bb .= 0.0
    

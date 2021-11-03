@@ -51,7 +51,7 @@ function mountB(elem::SeepJoint1D, R, Ch, Ct)
     nnodes  = length(elem.nodes)
     nbnodes = length(bar.nodes)
     D = bar.shape.deriv(R)
-    J = D*Ct
+    J = Ct'*D
 
     # Mount NN matrix
     N = bar.shape.func(R)

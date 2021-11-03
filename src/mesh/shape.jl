@@ -202,7 +202,7 @@ function inverse_map(shape::CellShape, coords::Array{Float64,2}, X0::AbstractArr
     for k=1:maxits
         # calculate Jacobian
         D = shape.deriv(R)
-        J = D*C
+        J = C'*D
 
         # calculate trial of real coordinates
         N  = shape.func(R)
@@ -210,7 +210,8 @@ function inverse_map(shape::CellShape, coords::Array{Float64,2}, X0::AbstractArr
 
         # calculate the error
         ΔX = Xt - X
-        ΔR = pinv(J)'*ΔX
+        # ΔR = pinv(J)'*ΔX
+        ΔR = pinv(J)*ΔX
 
         # updating local coords R
         R -= ΔR

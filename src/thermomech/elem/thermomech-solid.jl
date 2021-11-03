@@ -70,7 +70,7 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
             w = R[end]
             N = shape.func(R)
             D = shape.deriv(R)
-            J = D*C
+            J = C'*D
             nJ = norm2(J)
             X = C'*N
             if ndim==2
@@ -95,7 +95,7 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
         w = R[end]
         N = shape.func(R)
         D = shape.deriv(R)
-        J = D*C
+        J = C'*D
         X = C'*N
         if ndim==2
             x, y = X
@@ -146,21 +146,21 @@ function elem_stiffness(elem::TMSolid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
-    C = getcoords(elem)
-    K = zeros(nnodes*ndim, nnodes*ndim)
+    C  = getcoords(elem)
+    K  = zeros(nnodes*ndim, nnodes*ndim)
     Bu = zeros(6, nnodes*ndim)
 
     DBu = Array{Float64}(undef, 6, nnodes*ndim)
     J  = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, ndim, nnodes)
+    dNdX = Array{Float64}(undef, nnodes, ndim)
 
     for ip in elem.ips
         elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
-        @gemm dNdX = inv(J)*dNdR
+        @gemm J = C'*dNdR
+        @gemm dNdX = dNdR*inv(J)
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
         set_Bu(elem, ip, dNdX, Bu)
@@ -191,7 +191,7 @@ function elem_coupling_matrix(elem::TMSolid)
     Cut = zeros(nnodes*ndim, nbnodes) # u-t coupling matrix
 
     J    = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, ndim, nnodes)
+    dNdX = Array{Float64}(undef, nnodes, ndim)
     m    = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
     β    = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) # thermal stress modulus
 
@@ -200,8 +200,8 @@ function elem_coupling_matrix(elem::TMSolid)
 
         # compute Bu matrix
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
-        @gemm dNdX = inv(J)*dNdR
+        @gemm J = C'*dNdR
+        @gemm dNdX = dNdR*inv(J)
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
         set_Bu(elem, ip, dNdX, Bu)
@@ -229,6 +229,7 @@ function elem_conductivity_matrix(elem::TMSolid)
     nbnodes = elem.shape.basic_shape.npoints
     C      = getcoords(elem)
     H      = zeros(nnodes, nnodes)
+    dNtdX  = zeros(nnodes, ndim)
     Bt     = zeros(ndim, nnodes)
     KBt    = zeros(ndim, nnodes)
     J    = Array{Float64}(undef, ndim, ndim)
@@ -238,10 +239,11 @@ function elem_conductivity_matrix(elem::TMSolid)
 
         dNdR  = elem.shape.deriv(ip.R)
         dNtdR = elem.shape.basic_shape.deriv(ip.R)
-        @gemm J  = dNdR*C
+        @gemm J  = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        @gemm Bt = inv(J)*dNtdR
+        @gemm dNtdX = dNtdR*inv(J)
+        Bt .= dNtdX'
 
         # compute H
         K = calcK(elem.mat, ip.state)
@@ -271,7 +273,7 @@ function elem_mass_matrix(elem::TMSolid)
 
         Nt   = elem.shape.basic_shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -308,7 +310,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
     m = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ] # = tI
 
     J  = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, ndim, nnodes)
+    dNdX = Array{Float64}(undef, nnodes, ndim)
     Jp  = Array{Float64}(undef, ndim, nbnodes)
     dNtdX = Array{Float64}(undef, ndim, nbnodes)
     dUt = DU[mat_t] # nodal temperature increments
@@ -317,10 +319,10 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
 
         # compute Bu matrix and Bt
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
-        @gemm dNdX = inv(J)*dNdR
+        @gemm dNdX = dNdR*inv(J)
         set_Bu(elem, ip, dNdX, Bu)
 
         dNtdR = elem.shape.basic_shape.deriv(ip.R)
@@ -387,8 +389,8 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
     Bt  = zeros(ndim, nnodes)
 
     J     = Array{Float64}(undef, ndim, ndim)
-    dNdX  = Array{Float64}(undef, ndim, nnodes)
-    dNtdX = Array{Float64}(undef, ndim, nbnodes)
+    dNdX  = Array{Float64}(undef, nnodes, ndim)
+    dNtdX = Array{Float64}(undef, nbnodes, ndim)
     Δε = zeros(6)
 
     for ip in elem.ips
@@ -396,15 +398,15 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
 
         # compute Bu and Bt matrices
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
         invJ = inv(J)
-        @gemm dNdX = invJ*dNdR
+        @gemm dNdX = dNdR*invJ
         set_Bu(elem, ip, dNdX, Bu)
 
         dNtdR = elem.shape.basic_shape.deriv(ip.R)
-        @gemm dNtdX = invJ*dNtdR
+        @gemm dNtdX = dNtdR*invJ
 
         # compute Nt
         Nt = elem.shape.basic_shape.func(ip.R)
@@ -416,7 +418,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         Δut = Nt'*dUt # interpolation to the integ. point
 
         # compute thermal gradient G
-        Bt = dNtdX
+        Bt .= dNtdX'
         G  = Bt*Ut
 
         # internal force dF

@@ -101,7 +101,7 @@ function elem_stiffness(elem::HydroMechJoint2)
         N    = fshape.func(ip.R)
         dNdR = fshape.deriv(ip.R)
 
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = norm2(J)
 
         # compute Bu matrix
@@ -160,7 +160,7 @@ function elem_coupling_matrix(elem::HydroMechJoint2)
         # compute shape Jacobian
         dNdR = fshape.deriv(ip.R)
 
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 

@@ -31,7 +31,7 @@ function elem_init(elem::MechJoint)
     C1 = getcoords(e1)
     for ip in e1.ips
         dNdR = e1.shape.deriv(ip.R)
-        J    = dNdR*C1
+        J    = C1'*dNdR
         detJ = det(J)
         V1  += detJ*ip.w
     end
@@ -41,7 +41,7 @@ function elem_init(elem::MechJoint)
     C2 = getcoords(e2)
     for ip in e2.ips
         dNdR = e2.shape.deriv(ip.R)
-        J    = dNdR*C2
+        J    = C2'*dNdR
         detJ = det(J)
         V2  += detJ*ip.w
     end
@@ -55,7 +55,7 @@ function elem_init(elem::MechJoint)
     for ip in elem.ips
         # compute shape Jacobian
         dNdR = fshape.deriv(ip.R)
-        J    = dNdR*C
+        J    = C'*dNdR
         detJ = norm2(J)
         A += detJ*ip.w
     end
@@ -69,9 +69,9 @@ function elem_init(elem::MechJoint)
 end
 
 function matrixT(J::Matrix{Float64})
-    if size(J,1)==2
-        L2 = vec(J[1,:])
-        L3 = vec(J[2,:])
+    if size(J,2)==2
+        L2 = vec(J[:,1])
+        L3 = vec(J[:,2])
         L1 = cross(L2, L3)  # L1 is normal to the first element face
         L2 = cross(L3, L1)
         normalize!(L1)
@@ -85,6 +85,22 @@ function matrixT(J::Matrix{Float64})
         normalize!(L2)
         return collect([L1 L2]')
     end
+    # if size(J,1)==2
+    #     L2 = vec(J[1,:])
+    #     L3 = vec(J[2,:])
+    #     L1 = cross(L2, L3)  # L1 is normal to the first element face
+    #     L2 = cross(L3, L1)
+    #     normalize!(L1)
+    #     normalize!(L2)
+    #     normalize!(L3)
+    #     return collect([L1 L2 L3]') # collect is used to avoid Adjoint type
+    # else
+    #     L2 = vec(J)
+    #     L1 = [ L2[2], -L2[1] ] # It follows the anti-clockwise numbering of 2D elements: L1 should be normal to the first element face
+    #     normalize!(L1)
+    #     normalize!(L2)
+    #     return collect([L1 L2]')
+    # end
 end
 
 function elem_stiffness(elem::MechJoint)
@@ -99,7 +115,7 @@ function elem_stiffness(elem::MechJoint)
     K = zeros(nnodes*ndim, nnodes*ndim)
 
     DB = zeros(ndim, nnodes*ndim)
-    J  = zeros(ndim-1, ndim)
+    J  = zeros(ndim, ndim-1)
     NN = zeros(ndim, nnodes*ndim)
 
     for ip in elem.ips
@@ -111,7 +127,7 @@ function elem_stiffness(elem::MechJoint)
         N    = fshape.func(ip.R)
         dNdR = fshape.deriv(ip.R)
 
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = norm2(J)
 
         # compute B matrix
@@ -153,7 +169,7 @@ function elem_update!(elem::MechJoint, U::Array{Float64,1}, F::Array{Float64,1},
     B = zeros(ndim, nnodes*ndim)
 
     DB = zeros(ndim, nnodes*ndim)
-    J  = zeros(ndim-1, ndim)
+    J  = zeros(ndim, ndim-1)
     NN = zeros(ndim, nnodes*ndim)
     Δω = zeros(ndim)
 
@@ -165,7 +181,7 @@ function elem_update!(elem::MechJoint, U::Array{Float64,1}, F::Array{Float64,1},
         # compute shape Jacobian
         N    = fshape.func(ip.R)
         dNdR = fshape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = norm2(J)
 
         # compute B matrix

@@ -99,7 +99,7 @@ function distributed_bc(elem::TMShell, facet::Union{Facet,Nothing}, key::Symbol,
             w = R[end]
             N = shape.func(R)
             D = shape.deriv(R)
-            J = D*C
+            J = C'*D
             nJ = norm2(J)
             X = C'*N
             if ndim==2
@@ -124,7 +124,7 @@ function distributed_bc(elem::TMShell, facet::Union{Facet,Nothing}, key::Symbol,
         w = R[end]
         N = shape.func(R)
         D = shape.deriv(R)
-        J = D*C
+        J = C'*D
         X = C'*N
         if ndim==2
             x, y = X
@@ -547,7 +547,7 @@ function elem_coupling_matrix(elem::TMShell)
     Cut = zeros(nnodes*ndim, nbnodes) # u-t coupling matrix
 
     J    = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, ndim, nnodes)
+    dNdX = Array{Float64}(undef, nnodes, ndim)
     m    = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
     β    = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) # thermal stress modulus
 
@@ -556,8 +556,8 @@ function elem_coupling_matrix(elem::TMShell)
 
         # compute Bu matrix
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
-        @gemm dNdX = inv(J)*dNdR
+        @gemm J = C'*dNdR
+        @gemm dNdX = dNdR*inv(J)
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
         set_Bu(elem, ip, dNdX, Bu)
@@ -594,7 +594,7 @@ function elem_conductivity_matrix(elem::TMShell)
 
         dNdR  = elem.shape.deriv(ip.R)
         dNtdR = elem.shape.basic_shape.deriv(ip.R)
-        @gemm J  = dNdR*C
+        @gemm J  = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
         @gemm Bt = inv(J)*dNtdR
@@ -627,7 +627,7 @@ function elem_mass_matrix(elem::TMShell)
 
         Nt   = elem.shape.basic_shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -664,7 +664,7 @@ function elem_internal_forces(elem::TMShell, F::Array{Float64,1}, DU::Array{Floa
     m = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ] # = tI
 
     J  = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, ndim, nnodes)
+    dNdX = Array{Float64}(undef, nnodes, ndim)
     Jp  = Array{Float64}(undef, ndim, nbnodes)
     dNtdX = Array{Float64}(undef, ndim, nbnodes)
     dUt = DU[mat_t] # nodal temperature increments
@@ -673,10 +673,10 @@ function elem_internal_forces(elem::TMShell, F::Array{Float64,1}, DU::Array{Floa
 
         # compute Bu matrix and Bt
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
-        @gemm dNdX = inv(J)*dNdR
+        @gemm dNdX = dNdR*inv(J)
         set_Bu(elem, ip, dNdX, Bu)
 
         dNtdR = elem.shape.basic_shape.deriv(ip.R)
@@ -752,7 +752,7 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, DF::Array{Float64,1},
 
         # compute Bu and Bt matrices
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
         invJ = inv(J)

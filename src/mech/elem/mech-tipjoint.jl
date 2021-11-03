@@ -41,12 +41,12 @@ function mountB(elem::MechTipJoint, Ch, Ct)
     if hash(tip)==hash(rod.nodes[1])
         R = [-1.0, 0, 0]
         D = rod.shape.deriv(R)
-        J = D*Ct
+        J = Ct'*D
         T = -normalize(J)
     else
         R = [+1.0, 0, 0]
         D = rod.shape.deriv(R)
-        J = D*Ct
+        J = Ct'*D
         T = normalize(J)
     end
 

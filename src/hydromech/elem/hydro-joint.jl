@@ -37,7 +37,7 @@ function elem_init(elem::HydroJoint)
     C1 = getcoords(e1)
     for ip in e1.ips
         dNdR = e1.shape.deriv(ip.R)
-        J    = dNdR*C1
+        J    = C1'*dNdR
         detJ = det(J)
         V1  += detJ*ip.w
     end
@@ -47,7 +47,7 @@ function elem_init(elem::HydroJoint)
     C2 = getcoords(e2)
     for ip in e2.ips
         dNdR = e2.shape.deriv(ip.R)
-        J    = dNdR*C2
+        J    = C2'*dNdR
         detJ = det(J)
         V2  += detJ*ip.w
     end
@@ -62,7 +62,7 @@ function elem_init(elem::HydroJoint)
     for ip in elem.ips
         # compute shape Jacobian
         dNdR = fshape.deriv(ip.R)
-        J    = dNdR*C
+        J    = C'*dNdR
         detJ = norm2(J)
         A += detJ*ip.w
     end
@@ -105,7 +105,7 @@ function elem_conductivity_matrix(elem::HydroJoint)
         # compute shape Jacobian
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
 
-        @gemm J = dNpdR*C 
+        @gemm J = C'*dNpdR
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -165,7 +165,7 @@ function elem_compressibility_matrix(elem::HydroJoint)
     for ip in elem.ips
         # compute shape Jacobian
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
-        @gemm J = dNpdR*C
+        @gemm J = C'*dR
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -218,7 +218,7 @@ function elem_RHS_vector(elem::HydroJoint)
         # compute shape Jacobian
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
 
-        @gemm J = dNpdR*C 
+        @gemm J = C'*dNpdR
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -276,7 +276,7 @@ function elem_internal_forces(elem::HydroJoint, F::Array{Float64,1})
         N    = fshape.func(ip.R)
         dNdR = elem.shape.basic_shape.deriv(ip.R)
 
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -357,7 +357,7 @@ function elem_update!(elem::HydroJoint, U::Array{Float64,1}, F::Array{Float64,1}
         # compute shape Jacobian
         dNdR = elem.shape.basic_shape.deriv(ip.R)
 
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 

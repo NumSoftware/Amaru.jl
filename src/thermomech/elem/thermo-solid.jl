@@ -61,7 +61,7 @@ function distributed_bc(elem::ThermoSolid, facet::Union{Facet,Nothing}, key::Sym
         w = R[end]
         N = shape.func(R)
         D = shape.deriv(R)
-        @gemm J = D*C
+        @gemm J = C'*D
         nJ = norm2(J)
         X = C'*N
         if ndim==2
@@ -92,6 +92,7 @@ function elem_conductivity_matrix(elem::ThermoSolid)
     nnodes = length(elem.nodes)
     C      = getcoords(elem)
     H      = zeros(nnodes, nnodes)
+    dNdX   = zeros(nnodes, ndim)
     Bt     = zeros(ndim, nnodes)
     KBt    = zeros(ndim, nnodes)
 
@@ -100,10 +101,11 @@ function elem_conductivity_matrix(elem::ThermoSolid)
     for ip in elem.ips
         elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J  = dNdR*C
+        @gemm J  = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        @gemm Bt = inv(J)*dNdR
+        dNdX = dNdR*inv(J)
+        Bt .= dNdX'
 
         # compute H
         K = calcK(elem.mat, ip.state)
@@ -132,7 +134,7 @@ function elem_mass_matrix(elem::ThermoSolid)
 
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -161,7 +163,7 @@ function elem_internal_forces(elem::ThermoSolid, F::Array{Float64,1})
     Bt  = zeros(ndim, nnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, ndim, nnodes)
+    dNdX = Array{Float64}(undef, nnodes, ndim)
 
     for ip in elem.ips
         elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
@@ -169,10 +171,10 @@ function elem_internal_forces(elem::ThermoSolid, F::Array{Float64,1})
 
         # compute Bt matrix
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
-        @gemm dNdX = inv(J)*dNdR
+        @gemm dNdX = dNdR*inv(J)
 
         Bt = dNdX
 
@@ -207,12 +209,11 @@ function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64
     Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes ]
     Ut += dUt # nodal temperature at step n+1
 
-    dF  = zeros(nnodes*ndim)
     Bt  = zeros(ndim, nnodes)
     dFt = zeros(nnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, ndim, nnodes)
+    dNdX = Array{Float64}(undef, nnodes, ndim)
 
     for ip in elem.ips
         elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
@@ -220,12 +221,12 @@ function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64
         # compute Bu matrix
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
-        @gemm dNdX = inv(J)*dNdR
+        @gemm dNdX = dNdR*inv(J)
 
-        Bt = dNdX
+        Bt .= dNdX'
         G  = Bt*Ut # temperature gradient
 
         Δut = N'*dUt # interpolation to the integ. point

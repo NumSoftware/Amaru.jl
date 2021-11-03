@@ -70,7 +70,7 @@ function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol,
             w = R[end]
             N = shape.func(R)
             D = shape.deriv(R)
-            J = D*C
+            J = C'*D
             nJ = norm2(J)
             X = C'*N
             if ndim==2
@@ -97,7 +97,7 @@ function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol,
         w = R[end]
         N = shape.func(R)
         D = shape.deriv(R)
-        J = D*C
+        J = C'*D
         X = C'*N
         if ndim==2
             x, y = X
@@ -154,15 +154,15 @@ function elem_stiffness(elem::HMSolid)
 
     DBu = Array{Float64}(undef, 6, nnodes*ndim)
     J  = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, ndim, nnodes)
+    dNdX = Array{Float64}(undef, nnodes, ndim)
 
     for ip in elem.ips
         elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
-        @gemm dNdX = inv(J)*dNdR
+        @gemm J = C'*dNdR
+        @gemm dNdX = dNdR*inv(J)
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
         setBu(elem, ip, dNdX, Bu)
@@ -193,7 +193,7 @@ function elem_coupling_matrix(elem::HMSolid)
     Cuw = zeros(nnodes*ndim, nbnodes) # u-p coupling matrix
 
     J    = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, ndim, nnodes)
+    dNdX = Array{Float64}(undef, nnodes, ndim)
     m = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
 
     for ip in elem.ips
@@ -201,8 +201,8 @@ function elem_coupling_matrix(elem::HMSolid)
 
         # compute Bu matrix
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
-        @gemm dNdX = inv(J)*dNdR
+        @gemm J = C'*dNdR
+        @gemm dNdX = dNdR*inv(J)
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
         setBu(elem, ip, dNdX, Bu)
@@ -232,17 +232,19 @@ function elem_conductivity_matrix(elem::HMSolid)
     H      = zeros(nbnodes, nbnodes)
     Bw     = zeros(ndim, nbnodes)
     KBw    = zeros(ndim, nbnodes)
-    J    = Array{Float64}(undef, ndim, ndim)
+    J      = Array{Float64}(undef, ndim, ndim)
+    dNwdX  = Array{Float64}(undef, nbnodes, ndim)
 
     for ip in elem.ips
         elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         dNdR  = elem.shape.deriv(ip.R)
         dNwdR = elem.shape.basic_shape.deriv(ip.R)
-        @gemm J  = dNdR*C
+        @gemm J  = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        @gemm Bw = inv(J)*dNwdR
+        @gemm dNwdX = dNwdR*inv(J)
+	Bw .= dNwdX'
 
         # compute H
         K = calcK(elem.mat, ip.state)
@@ -273,7 +275,7 @@ function elem_compressibility_matrix(elem::HMSolid)
 
         Nw   = elem.shape.basic_shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -300,6 +302,7 @@ function elem_RHS_vector(elem::HMSolid)
     KZ     = zeros(ndim)
 
     J      = Array{Float64}(undef, ndim, ndim)
+    dNwdX  = Array{Float64}(undef, nbnodes, ndim)
     Z      = zeros(ndim)
     Z[end] = 1.0 # hydrostatic gradient
 
@@ -308,10 +311,11 @@ function elem_RHS_vector(elem::HMSolid)
 
         dNdR  = elem.shape.deriv(ip.R)
         dNwdR = elem.shape.basic_shape.deriv(ip.R)
-        @gemm J  = dNdR*C
+        @gemm J  = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        @gemm Bw = inv(J)*dNwdR
+        @gemm dNwdX = dNwdR*inv(J)
+        Bw .= dNwdX'
 
         # compute Q
         K = calcK(elem.mat, ip.state)
@@ -346,21 +350,23 @@ function elem_internal_forces(elem::HMSolid, F::Array{Float64,1})
     m = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
 
     J  = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, ndim, nnodes)
+    dNdX  = Array{Float64}(undef, nnodes, ndim)
+    dNwdX = Array{Float64}(undef, nbnodes, ndim)
 
     for ip in elem.ips
         elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix and Bw
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        @gemm dNdX = inv(J)*dNdR
+        @gemm dNdX = dNdR*inv(J)
         setBu(elem, ip, dNdX, Bu)
 
         dNwdR = elem.shape.basic_shape.deriv(ip.R)
-        @gemm Bw = inv(J)*dNwdR
+        @gemm dNwdX = dNwdR*inv(J)
+        Bw .= dNwdX'
 
         # compute N
         Nw   = elem.shape.basic_shape.func(ip.R)
@@ -413,8 +419,8 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
     Bw  = zeros(ndim, nbnodes)
 
     J     = Array{Float64}(undef, ndim, ndim)
-    dNdX  = Array{Float64}(undef, ndim, nnodes)
-    dNwdX = Array{Float64}(undef, ndim, nbnodes)
+    dNdX  = Array{Float64}(undef, nnodes, ndim)
+    dNwdX = Array{Float64}(undef, nbnodes, ndim)
     Δε = zeros(6)
 
     for ip in elem.ips
@@ -422,15 +428,16 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
 
         # compute Bu matrix and Bw
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
         invJ = inv(J)
-        @gemm dNdX = invJ*dNdR
+        @gemm dNdX = dNdR*invJ
         setBu(elem, ip, dNdX, Bu)
 
         dNwdR = elem.shape.basic_shape.deriv(ip.R)
-        @gemm dNwdX = invJ*dNwdR
+        @gemm dNwdX = dNwdR*invJ
+        Bw .= dNwdX'
 
         # compute Nw
         Nw = elem.shape.basic_shape.func(ip.R)
@@ -442,7 +449,7 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         Δuw = Nw'*dUw # interpolation to the integ. point
 
         # Compute flow gradient G
-        Bw = dNwdX
+        # Bw = dNwdX
         G  = Bw*Uw/elem.mat.γw
         G[end] += 1.0; # gradient due to gravity
 

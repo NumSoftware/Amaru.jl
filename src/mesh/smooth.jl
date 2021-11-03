@@ -168,21 +168,22 @@ end
 
 # Matrix B for the simplified FEM analysis
 function matrixB(ndim::Int, dNdX::Matx, detJ::Float64, B::Matx)
-    nnodes = size(dNdX,2)
+    nnodes = size(dNdX,1)
     sqr2 = √2.0
     B .= 0.0
     if ndim==2
         for i in 1:nnodes
             j = i-1
-            B[1,1+j*ndim] = dNdX[1,i]
-            B[2,2+j*ndim] = dNdX[2,i]
-            B[4,1+j*ndim] = dNdX[2,i]/sqr2; B[4,2+j*ndim] = dNdX[1,i]/sqr2
+            B[1,1+j*ndim] = dNdX[i,1]
+            B[2,2+j*ndim] = dNdX[i,2]
+            B[4,1+j*ndim] = dNdX[i,2]/sqr2
+            B[4,2+j*ndim] = dNdX[i,1]/sqr2
         end
     else
         for i in 1:nnodes
-            dNdx = dNdX[1,i]
-            dNdy = dNdX[2,i]
-            dNdz = dNdX[3,i]
+            dNdx = dNdX[i,1]
+            dNdy = dNdX[i,2]
+            dNdz = dNdX[i,3]
             j    = i-1
             B[1,1+j*ndim] = dNdx
             B[2,2+j*ndim] = dNdy
@@ -205,7 +206,7 @@ function matrixK(cell::Cell, ndim::Int64, E::Float64, nu::Float64)
 
     DB = Array{Float64}(undef, 6, nnodes*ndim)
     J  = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, ndim, nnodes)
+    dNdX = Array{Float64}(undef, nnodes, ndim)
 
     IP = get_ip_coords(cell.shape)
     D = matrixD(E, nu)
@@ -216,11 +217,11 @@ function matrixK(cell::Cell, ndim::Int64, E::Float64, nu::Float64)
 
         # compute B matrix
         dNdR = cell.shape.deriv(R)
-        @gemm J = dNdR*C
-        @gemm dNdX = inv(J)*dNdR
+        @gemm J = C'*dNdR
+        @gemm dNdX = dNdR*inv(J)
         detJ = det(J)
         if detJ < 0.0
-            #@error "Negative jacobian determinant in cell" cell=cell.id ip=i coords=C shape=cell.shape.name
+            # @error "Negative jacobian determinant in cell" cell=cell.id ip=i coords=C shape=cell.shape.name
             #error()
         end
         matrixB(ndim, dNdX, detJ, B)
@@ -233,29 +234,29 @@ function matrixK(cell::Cell, ndim::Int64, E::Float64, nu::Float64)
     return K
 end
 
-function matrixK2(cell::Cell, ndim::Int64, E::Float64, nu::Float64)
-    nnodes = length(cell.nodes)
+# function matrixK2(cell::Cell, ndim::Int64, E::Float64, nu::Float64)
+#     nnodes = length(cell.nodes)
 
-    C = getcoords(cell.nodes, ndim)
-    K = zeros(nnodes*ndim, nnodes*ndim)
-    B = zeros(6, nnodes*ndim)
-    DB = Array{Float64}(undef, 6, nnodes*ndim)
+#     C = getcoords(cell.nodes, ndim)
+#     K = zeros(nnodes*ndim, nnodes*ndim)
+#     B = zeros(6, nnodes*ndim)
+#     DB = Array{Float64}(undef, 6, nnodes*ndim)
 
-    IP = get_ip_coords(cell.shape)
+#     IP = get_ip_coords(cell.shape)
 
-    D = matrixD(E, nu)
-    for i=1:size(IP,1)
-        R    = vec(IP[i,1:3])
-        w    = IP[i,4]
-        detJ = matrixB(cell, ndim, R, C, B)
+#     D = matrixD(E, nu)
+#     for i=1:size(IP,1)
+#         R    = vec(IP[i,1:3])
+#         w    = IP[i,4]
+#         detJ = matrixB(cell, ndim, R, C, B)
 
-        @gemm DB = D*B
-        coef = detJ*w
-        @gemm K += coef*B'*DB
-        #K   += B'*D*B*detJ*w
-    end
-    return K
-end
+#         @gemm DB = D*B
+#         coef = detJ*w
+#         @gemm K += coef*B'*DB
+#         #K   += B'*D*B*detJ*w
+#     end
+#     return K
+# end
 
 function get_map(c::Cell)
     ndim = c.shape.ndim

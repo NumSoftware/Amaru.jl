@@ -104,7 +104,7 @@ function mountB(elem::MechRodSolidJoint, R, Ch, Ct)
     nbnodes = length(bar.nodes)
     nsnodes = length(hook.nodes)
     D = bar.shape.deriv(R)
-    J = D*Ct
+    J = Ct'*D
     T = mount_T(J)
 
     # Mount NN matrix
@@ -132,8 +132,6 @@ function elem_stiffness(elem::MechRodSolidJoint)
     ndim = elem.env.ndim
     nnodes = length(elem.nodes)
     mat    = elem.mat
-    hook = elem.linked_elems[1]
-    bar  = elem.linked_elems[2]
 
     K  = zeros(nnodes*ndim, nnodes*ndim)
     DB = zeros(ndim, nnodes*ndim)
@@ -164,12 +162,12 @@ function elem_update!(elem::MechRodSolidJoint, U::Array{Float64,1}, F::Array{Flo
     dF = zeros(nnodes*ndim)
     Δu = zeros(ndim)
 
-    hook = elem.linked_elems[1]
-    bar  = elem.linked_elems[2]
+    # hook = elem.linked_elems[1]
+    # bar  = elem.linked_elems[2]
     for (i,ip) in enumerate(elem.ips)
         B    = elem.cache_B[i]
         detJ = elem.cache_detJ[i]
-        D    = calcD(mat, ip.state)
+        # D    = calcD(mat, ip.state)
         @gemv Δu = B*dU
         Δσ, _ = stress_update(mat, ip.state, Δu)
         coef = mat.p*detJ*ip.w

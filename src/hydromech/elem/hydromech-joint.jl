@@ -47,7 +47,7 @@ function elem_init(elem::HydroMechJoint)
 
     for ip in e1.ips
         dNdR = e1.shape.deriv(ip.R)
-        J    = dNdR*C1
+        J    = C1'*dNdR
         detJ = det(J)
         V1  += detJ*ip.w
     end
@@ -57,7 +57,7 @@ function elem_init(elem::HydroMechJoint)
     C2 = getcoords(e2)
     for ip in e2.ips
         dNdR = e2.shape.deriv(ip.R)
-        J    = dNdR*C2
+        J    = C2'*dNdR
         detJ = det(J)
         V2  += detJ*ip.w
     end
@@ -74,7 +74,7 @@ function elem_init(elem::HydroMechJoint)
     for ip in elem.ips
         # compute shape Jacobian
         dNdR = fshape.deriv(ip.R)
-        J    = dNdR*C
+        J    = C'*dNdR
         detJ = norm2(J)
         A += detJ*ip.w
     end
@@ -96,7 +96,7 @@ function elem_stiffness(elem::HydroMechJoint)
     fshape   = elem.shape.facet_shape
     C        = getcoords(elem)[1:nlnodes,:]
 
-    J        = Array{Float64}(undef, ndim-1, ndim)
+    J        = Array{Float64}(undef, ndim, ndim-1)
     NN       = zeros(ndim, dnlnodes*ndim)
     Bu       = zeros(ndim, dnlnodes*ndim)
     DBu      = zeros(ndim, dnlnodes*ndim)
@@ -107,7 +107,7 @@ function elem_stiffness(elem::HydroMechJoint)
         N    = fshape.func(ip.R)
         dNdR = fshape.deriv(ip.R)
 
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = norm2(J)
 
         # compute Bu matrix
@@ -148,7 +148,7 @@ function elem_coupling_matrix(elem::HydroMechJoint)
     fshape   = elem.shape.facet_shape
     C        = getcoords(elem)[1:nlnodes,:]
 
-    J        = Array{Float64}(undef, ndim-1, ndim)
+    J        = Array{Float64}(undef, ndim, ndim-1)
     NN       = zeros(ndim, dnlnodes*ndim)
     Bu       = zeros(ndim, dnlnodes*ndim)
     mf       = [1.0, 0.0, 0.0][1:ndim]
@@ -167,7 +167,7 @@ function elem_coupling_matrix(elem::HydroMechJoint)
         # compute shape Jacobian
         dNdR = fshape.deriv(ip.R)
 
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -215,7 +215,7 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
 
     C        = getcoords(elem)[1:nbsnodes,:]
     Cl       = zeros(nbsnodes, ndim-1)
-    J        = Array{Float64}(undef, ndim-1, ndim)
+    J        = Array{Float64}(undef, ndim, ndim-1)
     Jl       = zeros(ndim-1, ndim-1)
     Bp       = zeros(ndim-1, nbsnodes)
 
@@ -234,7 +234,7 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
         # compute shape Jacobian
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
 
-        @gemm J = dNpdR*C 
+        @gemm J = C'*dNpdR
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -242,8 +242,9 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
         T    = matrixT(J) # rotation matrix
         Cl   = C*T[(2:end), (1:end)]'  # new coordinate nodes
 
-        @gemm Jl = dNpdR*Cl
-        Bp = inv(Jl)*dNpdR
+        @gemm Jl = Cl'*dNpdR
+        dNdX = dNpdR*inv(Jl)
+        Bp = dNdX'
         B0 = 0*Bp
         Bf = [B0 B0 Bp] 
 
@@ -294,7 +295,7 @@ function elem_compressibility_matrix(elem::HydroMechJoint)
     fshape   = elem.shape.facet_shape
     C        = getcoords(elem)[1:nbsnodes,:]
 
-    J   = Array{Float64}(undef, ndim-1, ndim)
+    J   = Array{Float64}(undef, ndim, ndim-1)
     Cpp = zeros(3*nbsnodes, 3*nbsnodes)
 
     nodes_p  = []
@@ -308,7 +309,7 @@ function elem_compressibility_matrix(elem::HydroMechJoint)
     for ip in elem.ips
         # compute shape Jacobian
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
-        @gemm J = dNpdR*C
+        @gemm J = C'*dNpdR
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -354,7 +355,7 @@ function elem_RHS_vector(elem::HydroMechJoint)
     fshape   = elem.shape.facet_shape
     C        = getcoords(elem)[1:nbsnodes,:]
 
-    J        = Array{Float64}(undef, ndim-1, ndim)
+    J        = Array{Float64}(undef, ndim, ndim-1)
     Cl       = zeros(nbsnodes, ndim-1)
     Jl       = zeros(ndim-1, ndim-1)
     Bp       = zeros(ndim-1, nbsnodes)
@@ -376,7 +377,7 @@ function elem_RHS_vector(elem::HydroMechJoint)
         # compute shape Jacobian
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
 
-        @gemm J = dNpdR*C 
+        @gemm J = C'*dNpdR
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -384,8 +385,9 @@ function elem_RHS_vector(elem::HydroMechJoint)
         T    = matrixT(J) #rotation matrix
         Cl   = C*T[(2:end), (1:end)]'  #coordinate of new nodes
 
-        @gemm Jl = dNpdR*Cl
-        Bp = inv(Jl)*dNpdR
+        @gemm Jl = Cl'*dNpdR
+        dNdX = dNpdR*inv(Jl)
+        Bp = dNdX'
         B0 = 0*Bp
         Bf = [B0 B0 Bp] 
         
@@ -555,7 +557,7 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
     dF     = zeros(dnlnodes*ndim)
     dFw    = zeros(3*nbsnodes)     
 
-    J      = Array{Float64}(undef, ndim-1, ndim)
+    J      = Array{Float64}(undef, ndim,  ndim-1)
     NN     = zeros(ndim, dnlnodes*ndim)
     Δω     = zeros(ndim)
     Δuw    = zeros(3)
@@ -574,7 +576,7 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
         # compute shape Jacobian
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
 
-        @gemm J = dNpdR*C 
+        @gemm J = C'*dNpdR
         detJ = norm2(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -589,8 +591,9 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
         T    = matrixT(J) # rotation matrix
         Cl   = C*T[(2:end), (1:end)]'  # coordinate of new nodes
 
-        @gemm Jl = dNpdR*Cl
-        Bp = inv(Jl)*dNpdR #dNdX
+        @gemm Jl = Cl'*dNpdR
+        dNdX = dNpdR*inv(Jl)
+        Bp = dNdX'
         B0 = 0*Bp
         Bf = [B0 B0 Bp] 
 

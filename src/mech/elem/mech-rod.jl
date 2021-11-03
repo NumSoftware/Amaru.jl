@@ -34,19 +34,18 @@ function elem_stiffness(elem::MechRod)
     C = getcoords(elem)
     K = zeros(nnodes*ndim, nnodes*ndim)
     B = zeros(1, nnodes*ndim)
-    J = Array{Float64}(undef, 1, ndim)
-
+    J = Array{Float64}(undef, ndim, 1)
 
     for ip in elem.ips
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = norm(J)
 
         # mount B
         B .= 0.0
         for i in 1:nnodes
             for j=1:ndim
-                B[1,j+(i-1)*ndim] = dNdR[1,i]*J[j]/detJ^2.0
+                B[1,j+(i-1)*ndim] = dNdR[i,1]*J[j]/detJ^2.0
             end
         end
 
@@ -69,7 +68,7 @@ function elem_mass(elem::MechRod)
 
     C = getcoords(elem)
     M = zeros(nnodes*ndim, nnodes*ndim)
-    J  = Array{Float64}(undef, 1, ndim)
+    J  = Array{Float64}(undef, ndim, 1)
     N = zeros(ndim, ndim*nnodes)
 
     for ip in elem.ips
@@ -78,7 +77,7 @@ function elem_mass(elem::MechRod)
         Ni = elem.shape.func(ip.R)
         setNt(ndim,Ni,N)
 
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = norm(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -151,7 +150,7 @@ function distributed_bc(elem::MechRod, facet::Union{Facet, Nothing}, key::Symbol
         w = R[end]
         N = shape.func(R)
         D = shape.deriv(R)
-        J = D*C
+        J = C'*D
         nJ = norm2(J)
         X = C'*N
         if ndim==2
@@ -201,18 +200,18 @@ function elem_internal_forces(elem::MechRod, F::Array{Float64,1})
     dF = zeros(nnodes*ndim)
     C = getcoords(elem)
     B = zeros(1, nnodes*ndim)
-    J = Array{Float64}(undef, 1, ndim)
+    J = Array{Float64}(undef, ndim, 1)
 
     for ip in elem.ips
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = norm(J)
 
         # mount B
         B .= 0.0
         for i in 1:nnodes
             for j=1:ndim
-                B[1,j+(i-1)*ndim] = dNdR[1,i]*J[j]/detJ^2.0
+                B[1,j+(i-1)*ndim] = dNdR[i,1]*J[j]/detJ^2.0
             end
         end
 
@@ -237,19 +236,19 @@ function elem_update!(elem::MechRod, U::Array{Float64,1}, F::Array{Float64,1}, Î
     dF = zeros(nnodes*ndim)
     C  = getcoords(elem)
     B  = zeros(1, nnodes*ndim)
-    J  = Array{Float64}(undef, 1, ndim)
+    J  = Array{Float64}(undef, ndim, 1)
 
 
     for ip in elem.ips
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = norm(J)
 
         # mount B
         B .= 0.0
         for i in 1:nnodes
             for j=1:ndim
-                B[1,j+(i-1)*ndim] = dNdR[1,i]*J[j]/detJ^2.0
+                B[1,j+(i-1)*ndim] = dNdR[i,1]*J[j]/detJ^2.0
             end
         end
 

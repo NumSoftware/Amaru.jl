@@ -88,18 +88,18 @@ function elem_stiffness(elem::MechEmbRod)
     C = getcoords(elem)
     K = zeros(nnodes*ndim, nnodes*ndim)
     B = zeros(1, nnodes*ndim)
-    J = Array{Float64}(undef,1, ndim)
+    J = Array{Float64}(undef, ndim, 1)
 
     for ip in elem.ips
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = norm(J)
 
         # mount B
         B .= 0.0
         for i in 1:nnodes
             for j=1:ndim
-                B[1,j+(i-1)*ndim] = dNdR[1,i]*J[j]/detJ^2.0
+                B[1,j+(i-1)*ndim] = dNdR[i,1]*J[j]/detJ^2.0
             end
         end
 
@@ -127,17 +127,17 @@ function elem_update!(elem::MechEmbRod, U::Array{Float64,1}, F::Array{Float64,1}
     dF = zeros(nnodes*ndim)
     C  = getcoords(elem)
     B  = zeros(1, nnodes*ndim)
-    J  = Array{Float64}(undef,1, ndim)
+    J  = Array{Float64}(undef, ndim, 1)
     for ip in elem.ips
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = norm(J)
 
         # mount B
         B .= 0.0
         for i in 1:nnodes
             for j=1:ndim
-                B[1,j+(i-1)*ndim] = dNdR[1,i]*J[j]/detJ^2.0
+                B[1,j+(i-1)*ndim] = dNdR[i,1]*J[j]/detJ^2.0
             end
         end
 

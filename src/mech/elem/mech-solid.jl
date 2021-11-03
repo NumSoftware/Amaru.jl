@@ -84,7 +84,7 @@ function distributed_bc(elem::MechSolid, facet::Union{Facet, Nothing}, key::Symb
         w = R[end]
         N = shape.func(R)
         D = shape.deriv(R)
-        J = D*C
+        J = C'*D
         X = C'*N
         if ndim==2
             x, y = X
@@ -127,34 +127,34 @@ end
 
 
 function setB(elem::Element, ip::Ip, dNdX::Matx, B::Matx)
-    ndim, nnodes = size(dNdX)
+    nnodes, ndim = size(dNdX)
     B .= 0.0
 
     if ndim==2
         for i in 1:nnodes
             j = i-1
-            B[1,1+j*ndim] = dNdX[1,i]
-            B[2,2+j*ndim] = dNdX[2,i]
-            B[6,1+j*ndim] = dNdX[2,i]/SR2; 
-            B[6,2+j*ndim] = dNdX[1,i]/SR2
+            B[1,1+j*ndim] = dNdX[i,1]
+            B[2,2+j*ndim] = dNdX[i,2]
+            B[6,1+j*ndim] = dNdX[i,2]/SR2; 
+            B[6,2+j*ndim] = dNdX[i,1]/SR2
         end
         if elem.env.modeltype=="axisymmetric"
             N = elem.shape.func(ip.R)
             for i in 1:nnodes
                 j = i-1
                 r = ip.coord.x
-                B[1,1+j*ndim] = dNdX[1,i]
-                B[2,2+j*ndim] = dNdX[2,i]
+                B[1,1+j*ndim] = dNdX[i,1]
+                B[2,2+j*ndim] = dNdX[i,2]
                 B[3,1+j*ndim] =    N[i]/r
-                B[6,1+j*ndim] = dNdX[2,i]/SR2; 
-                B[6,2+j*ndim] = dNdX[1,i]/SR2
+                B[6,1+j*ndim] = dNdX[i,2]/SR2
+                B[6,2+j*ndim] = dNdX[i,1]/SR2
             end
         end
     else
         for i in 1:nnodes
-            dNdx = dNdX[1,i]
-            dNdy = dNdX[2,i]
-            dNdz = dNdX[3,i]
+            dNdx = dNdX[i,1]
+            dNdy = dNdX[i,2]
+            dNdz = dNdX[i,3]
             j    = i-1
             B[1,1+j*ndim] = dNdx
             B[2,2+j*ndim] = dNdy
@@ -178,15 +178,15 @@ function elem_stiffness(elem::MechSolid)
 
     DB = Array{Float64}(undef, 6, nnodes*ndim)
     J  = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, ndim, nnodes)
+    dNdX = Array{Float64}(undef, nnodes, ndim)
 
     for ip in elem.ips
         elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
-        @gemm dNdX = inv(J)*dNdR
+        @gemm J = C'*dNdR
+        @gemm dNdX = dNdR*inv(J)
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
         setB(elem, ip, dNdX, B)
@@ -228,7 +228,7 @@ function elem_mass(elem::MechSolid)
             end
         end
 
-        @gemm J = dNdR*C
+        @gemm J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
@@ -255,7 +255,7 @@ function elem_internal_forces(elem::MechSolid, F::Array{Float64,1})
     B  = zeros(6, nnodes*ndim)
 
     J  = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, ndim, nnodes)
+    dNdX = Array{Float64}(undef, nnodes, ndim)
 
     C = getcoords(elem)
     for ip in elem.ips
@@ -265,8 +265,8 @@ function elem_internal_forces(elem::MechSolid, F::Array{Float64,1})
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
-        @gemm dNdX = inv(J)*dNdR
+        @gemm J = C'*dNdR
+        @gemm dNdX = dNdR*inv(J)
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in element $(elem.id)")
         setB(elem, ip, dNdX, B)
@@ -295,7 +295,7 @@ function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1},
 
     DB = Array{Float64}(undef, 6, nnodes*ndim)
     J  = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, ndim, nnodes)
+    dNdX = Array{Float64}(undef, nnodes, ndim)
     Δε = zeros(6)
 
     C = getcoords(elem)
@@ -306,8 +306,8 @@ function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1},
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = dNdR*C
-        @gemm dNdX = inv(J)*dNdR
+        @gemm J = C'*dNdR
+        @gemm dNdX = dNdR*inv(J)
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
         setB(elem, ip, dNdX, B)
