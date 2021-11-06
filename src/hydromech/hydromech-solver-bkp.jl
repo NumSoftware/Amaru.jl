@@ -5,9 +5,9 @@
 function hm_mount_global_matrices(dom::Domain,
                                   ndofs::Int,
                                   Δt::Float64,
-                                  printlog=false
-                                 )
-    printlog && print("    assembling... \e[K \r")
+                                  verbosity::Int
+                                  )
+    verbosity>1 && print("    assembling... \e[K \r")
 
     # Assembling matrix G
 
@@ -114,9 +114,9 @@ function hm_solve_system!(
                           DU :: Vect,
                           DF :: Vect,
                           nu :: Int,
-                          printlog=false
-                         )
-    printlog && print("    solving... \e[K \r")
+                          verbosity :: Int
+                          )
+    verbosity>1 && print("    solving... \e[K \r")
 
     #  [  G11   G12 ]  [ U1? ]    [ F1  ]
     #  |            |  |     | =  |     |
@@ -152,7 +152,7 @@ function hm_solve_system!(
             F2 += G21*U1
         catch err
             U1 .= NaN
-            return CallStatus(false, "hm_solve!: $err")
+            return failure("hm_solve!: $err")
         end
     end
 
@@ -163,7 +163,7 @@ function hm_solve_system!(
     DU[1:nu]     .= U1
     DF[nu+1:end] .= F2
 
-    return CallStatus(true)
+    return success()
 end
 
 
@@ -202,7 +202,7 @@ function hm_update_state!(dom::Domain, ΔUt::Vect, ΔFin::Vect, Δt::Float64, ve
         status = elem_update!(elem, ΔUt, ΔFin, Δt)
         failed(status) && return status
     end
-    return CallStatus(true)
+    return success()
 end
 
 
@@ -249,31 +249,31 @@ subjected to a list of boundary conditions `bcs`.
 `silent = false` : If true, no information is printed
 """
 function hm_solve!(
-                   dom       :: Domain,
-                   bcs       :: Array;
-                   time_span :: Real    = NaN,
-                   end_time  :: Real    = NaN,
-                   nincs     :: Int     = 1,
-                   maxits    :: Int     = 5,
-                   autoinc   :: Bool    = false,
-                   maxincs   :: Int     = 1000000,
-                   tol       :: Number  = 1e-2,
-                   Ttol      :: Number  = 1e-9,
-                   rspan     :: Number  = 1e-2,
-                   scheme    :: Union{String,Symbol} = "FE",
-                   nouts     :: Int     = 0,
-                   outdir    :: String  = ".",
-                   filekey   :: String  = "out",
-                   verbose   :: Bool    = false,
-                   silent    :: Bool    = false,
-                  )
+    dom       :: Domain,
+    bcs       :: Array;
+    time_span :: Real    = NaN,
+    end_time  :: Real    = NaN,
+    nincs     :: Int     = 1,
+    maxits    :: Int     = 5,
+    autoinc   :: Bool    = false,
+    maxincs   :: Int     = 1000000,
+    tol       :: Number  = 1e-2,
+    Ttol      :: Number  = 1e-9,
+    rspan     :: Number  = 1e-2,
+    scheme    :: Union{String,Symbol} = "FE",
+    nouts     :: Int     = 0,
+    outdir    :: String  = ".",
+    filekey   :: String  = "out",
+    printlog = false,
+    verbose  = false
+)
 
     # Arguments checking
+    @check time_span>0 || end_time>0
     verbosity = 0
-    printlog && (printlog=false)
+    printlog && (verbosity=1)
     printlog && verbose && (verbosity=2)
 
-    scheme = string(scheme)
     scheme in ("FE",) || error("hm_solve! : invalid scheme \"$scheme\"")
 
     tol>0 || error("hm_solve! : tolerance `tol `should be greater than zero")
@@ -288,18 +288,20 @@ function hm_solve!(
     if !isnan(end_time)
         end_time > env.t || error("hm_solve! : end_time ($end_time) is greater that current time ($(env.t))")
         time_span = end_time - env.t
+    else
+        end_time = env.t + time_span
     end
     isnan(time_span) && error("hm_solve!: neither time_span nor end_time were set.")
 
     if verbosity>0
         printstyled("Hydromechanical FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
-        println("  from t=$(round(dom.env.t,digits=4)) to t=$(round(dom.env.t+time_span,digits=3))")
+        println("  from t=$(round(env.t,sigdigits=4)) to t=$(round(end_time,sigdigits=4))")
     end
 
     verbosity>1 && println("  model type: ", env.modeltype)
 
     save_outs = nouts>0
-    if save_outs && !autoinc
+    if save_outs #&& !autoinc
         if nouts>nincs
             nincs = nouts
             info("nincs changed to $nincs to match nouts")
@@ -308,6 +310,10 @@ function hm_solve!(
             nincs = nincs - (nincs%nouts) + nouts
             info("nincs changed to $nincs to be a multiple of nouts")
         end
+
+        strip(outdir) == "" && (outdir = ".")
+        isdir(outdir) || error("hm_solve!: output directory <$outdir> not fount")
+        outdir[end] in ('/', '\\')  && (outdir = outdir[1:end-1])
     end
 
     # Get dofs organized according to boundary conditions
@@ -355,7 +361,7 @@ function hm_solve!(
         complete_uw_h(dom)
         update_single_loggers!(dom)
         update_composed_loggers!(dom)
-        save_outs && save(dom, "$outdir/$filekey-0.vtu", silent=silent)
+        save_outs && save(dom, "$outdir/$filekey-0.vtu", printlog=printlog)
     end
 
     # Get the domain current state and backup
@@ -383,7 +389,6 @@ function hm_solve!(
     ΔUa  = zeros(ndofs)  # vector of essential values (e.g. displacements) for this increment
     ΔUi  = zeros(ndofs)  # vector of essential values for current iteration
     Rc   = zeros(ndofs)  # vector of cumulated residues
-    status = CallStatus()
 
     Fex  = zeros(ndofs)  # vector of external loads
     Uex  = zeros(ndofs)  # vector of external essential values
@@ -530,7 +535,7 @@ function hm_solve!(
                 update_output_data!(dom)
                 complete_uw_h(dom)
                 update_composed_loggers!(dom)
-                save(dom, "$outdir/$filekey-$iout.vtu", silent=silent)
+                save(dom, "$outdir/$filekey-$iout.vtu", printlog=printlog)
                 Tcheck += ΔTcheck # find the next output time
             end
 
@@ -594,5 +599,5 @@ function hm_solve!(
     end
     getlapse(sw)>60 && sound_alert()
 
-    return CallStatus(true)
+    return success()
 end
