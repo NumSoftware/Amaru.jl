@@ -289,11 +289,12 @@ function calc_Δλ(mat::MCJointSeep, ipd::MCJointSeepIpState, σtr::Array{Float6
         abs(f) < tol && break
 
         if i == maxits 
-            @error """MCJointSeep: Could not find Δλ. This may happen when the system
-            becomes hypostatic and thus the global stiffness matrix is near syngular.
+            warn("""PJoint: Could not find Δλ. This may happen when the system
+            becomes hypostatic and thus the global stiffness matrix is nearly singular.
             Increasing the mesh refinement may result in a nonsingular matrix.
-            """ iterations=i Δλ
-            #error()
+            """)
+            warn("iterations=$i Δλ=$Δλ")
+            return 0.0, failure()
         end
     end
     return Δλ
