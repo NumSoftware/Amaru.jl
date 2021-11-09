@@ -68,9 +68,7 @@ mutable struct MCJoint<:Material
 end
 
 # Returns the element type that works with this material model
-@static if @isdefined MechJoint
-    matching_elem_type(::MCJoint) = MechJoint
-end
+matching_elem_type(::MCJoint) = MechJoint
 
 # Type of corresponding state structure
 ip_state_type(mat::MCJoint) = MCJointIpState
@@ -146,7 +144,7 @@ function calc_σmax(mat::MCJoint, ipd::MCJointIpState, upa::Float64)
     elseif mat.softcurve == "hordijk"
         if upa < mat.wc
             e = exp(1.0)
-            z = (1 + 27*(upa/mat.wc)^3)*e^(-6.93*upa/mat.wc) - 28*(upa/mat.wc)*e^(-6.93)
+            z = (1 + 27*(upa/mat.wc)^3)*e^(-6.93*upa/mat.wc) - 28*(upa/mat.wc)*e^(-6.93)           
         else
             z = 0.0
         end
@@ -248,12 +246,12 @@ function calc_Δλ(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
              end
         end
                  
-         r      = potential_derivs(mat, ipd, σ)
-         norm_r = norm(r)
-         upa    = ipd.upa + Δλ*norm_r
-         σmax   = calc_σmax(mat, ipd, upa)
-         m      = σmax_deriv(mat, ipd, upa)
-         dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
+        r      = potential_derivs(mat, ipd, σ)
+        norm_r = norm(r)
+        upa    = ipd.upa + Δλ*norm_r
+        σmax   = calc_σmax(mat, ipd, upa)
+        m      = σmax_deriv(mat, ipd, upa)
+        dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
 
         if ndim == 3
             f = sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*μ
@@ -272,7 +270,7 @@ function calc_Δλ(mat::MCJoint, ipd::MCJointIpState, σtr::Array{Float64,1})
         abs(f) < tol && break
 
         if i == maxits || isnan(Δλ)
-            warn("""PJoint: Could not find Δλ. This may happen when the system
+            warn("""MCJoint: Could not find Δλ. This may happen when the system
             becomes hypostatic and thus the global stiffness matrix is nearly singular.
             Increasing the mesh refinement may result in a nonsingular matrix.
             """)

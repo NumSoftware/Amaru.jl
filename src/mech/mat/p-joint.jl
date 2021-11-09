@@ -77,11 +77,10 @@ ip_state_type(mat::PJoint) = PJointIpState
 function yield_func(mat::PJoint, ipd::PJointIpState, σ::Array{Float64,1})
     ndim = ipd.env.ndim
     σmax = calc_σmax(mat, ipd, ipd.upa)
-    μ = mat.μ
     if ndim == 3
-        return μ^2*(σ[1]*σmax - σmax^2) + σ[2]^2 + σ[3]^2
+        return mat.μ^2*(σ[1]*σmax - σmax^2) + σ[2]^2 + σ[3]^2
     else
-        return μ^2*(σ[1]*σmax - σmax^2) + σ[2]^2
+        return mat.μ^2*(σ[1]*σmax - σmax^2) + σ[2]^2
     end
 end
 
@@ -89,11 +88,10 @@ end
 function yield_deriv(mat::PJoint, ipd::PJointIpState)
     ndim = ipd.env.ndim
     σmax = calc_σmax(mat, ipd, ipd.upa)
-    μ = mat.μ
     if ndim == 3
-        return [ σmax, 2*ipd.σ[2]/μ^2, 2*ipd.σ[3]/μ^2  ]
+        return [ mat.μ^2*σmax, 2*ipd.σ[2], 2*ipd.σ[3] ]
     else
-        return [ σmax, 2*ipd.σ[2]/μ^2 ]
+        return [ mat.μ^2*σmax, 2*ipd.σ[2] ]
     end
 end
 
@@ -220,9 +218,11 @@ function calc_Δλ(mat::PJoint, ipd::PJointIpState, σtr::Array{Float64,1})
     Δλ     = 0.0
     f      = 0.0
     upa    = 0.0
-    tol    = 1e-4      
+    tol    = 1e-5
+    nits = 0
 
-    for i=1:maxits
+    for i in 1:maxits
+        nits = i
         μ      = mat.μ
         kn, ks, De = calc_kn_ks_De(mat, ipd)
 
@@ -249,12 +249,10 @@ function calc_Δλ(mat::PJoint, ipd::PJointIpState, σtr::Array{Float64,1})
              end
         end
                  
-         r      = potential_derivs(mat, ipd, σ)
-         norm_r = norm(r)
-         upa    = ipd.upa + Δλ*norm_r
-         σmax   = calc_σmax(mat, ipd, upa)
-         m      = σmax_deriv(mat, ipd, upa)
-         dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
+        r      = potential_derivs(mat, ipd, σ)
+        norm_r = norm(r)
+        upa    = ipd.upa + Δλ*norm_r
+        σmax   = calc_σmax(mat, ipd, upa)
 
         if ndim == 3
             f = μ^2*(σ[1]*σmax - σmax^2) + σ[2]^2 + σ[3]^2
@@ -264,11 +262,14 @@ function calc_Δλ(mat::PJoint, ipd::PJointIpState, σtr::Array{Float64,1})
             dfdσ = [ μ^2*σmax, 2*σ[2] ]
         end
 
+        m = σmax_deriv(mat, ipd, upa)
+        dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
         dfdσmax = μ^2*(σ[1] - 2*σmax)
         dfdΔλ = dot(dfdσ, dσdΔλ) + dfdσmax*dσmaxdΔλ
         Δλ = Δλ - f/dfdΔλ
-
+        # @show f, Δλ
         abs(f) < tol && break
+
 
         if i == maxits || isnan(Δλ)
             warn("""PJoint: Could not find Δλ. This may happen when the system
@@ -279,6 +280,7 @@ function calc_Δλ(mat::PJoint, ipd::PJointIpState, σtr::Array{Float64,1})
             return 0.0, failure()
         end
     end
+    # @show nits
     return Δλ, success()
 end
 
@@ -324,7 +326,7 @@ function mountD(mat::PJoint, ipd::PJointIpState)
     else
         v    = yield_deriv(mat, ipd)
         r    = potential_derivs(mat, ipd, ipd.σ)
-        y    = -mat.μ # ∂F/∂σmax
+        y    = mat.μ^2*(ipd.σ[1] - 2*σmax) # ∂F/∂σmax
         m    = σmax_deriv(mat, ipd, ipd.upa)  # ∂σmax/∂upa
 
         #Dep  = De - De*r*v'*De/(v'*De*r - y*m*norm(r))
@@ -353,6 +355,7 @@ function stress_update(mat::PJoint, ipd::PJointIpState, Δw::Array{Float64,1})
 
     kn, ks, De = calc_kn_ks_De(mat, ipd)
     σmax = calc_σmax(mat, ipd, ipd.upa)  
+    # @show σmax
 
     if isnan(Δw[1]) || isnan(Δw[2])
         alert("PJoint: Invalid value for joint displacement: Δw = $Δw")
@@ -392,8 +395,8 @@ function stress_update(mat::PJoint, ipd::PJointIpState, Δw::Array{Float64,1})
         ipd.σ, ipd.upa = calc_σ_upa(mat, ipd, σtr)
                       
         # Return to surface:
-        F  = yield_func(mat, ipd, ipd.σ)   
-        F > 1e-3 && alert("PJoint: Yield function value ($F) outside tolerance")
+        # F  = yield_func(mat, ipd, ipd.σ)   
+        # F > 1e-2 && alert("PJoint: Yield function value ($F) outside tolerance")
 
     end
     ipd.w += Δw
