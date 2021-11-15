@@ -25,9 +25,11 @@ include("mat/elastic-joint-seep.jl")
 include("mat/elastic-joint-seep2.jl")
 include("mat/mc-joint-seep.jl")
 include("mat/mc-joint-seep2.jl")
+include("mat/p-joint-seep.jl")
 include("mat/joint1d-lin-seep.jl")
 include("mat/joint-lin-seep.jl")
 
-include("hydromech-solver.jl")
+# include("hydromech-solver.jl")
+include("hydromech-solver-bkp.jl")
 
 export hm_solve!

@@ -1,0 +1,457 @@
+ #This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
+
+export PJointSeep
+
+mutable struct PJointSeepIpState<:IpState
+    env::ModelEnv
+    σ   ::Array{Float64,1}  # stress
+    w   ::Array{Float64,1}  # relative displacements
+    Vt  ::Array{Float64,1}  # transverse fluid velocity
+    L   ::Array{Float64,1} 
+    uw  ::Array{Float64,1}  # interface pore pressure
+    upa ::Float64           # effective plastic relative displacement
+    Δλ  ::Float64           # plastic multiplier
+    h   ::Float64           # characteristic length from bulk elements
+    function PJointSeepIpState(env::ModelEnv=ModelEnv())
+        this = new(env)
+        ndim = env.ndim
+        this.σ   = zeros(ndim)
+        this.w   = zeros(ndim)
+        this.Vt  = zeros(2) 
+        this.L   = zeros(ndim-1)
+        this.uw  = zeros(3) 
+        this.upa = 0.0
+        this.Δλ  = 0.0
+        this.h   = 0.0
+        return this
+    end
+end
+
+mutable struct PJointSeep<:Material
+    E  ::Float64       # Young's modulus
+    ν  ::Float64       # Poisson ratio
+    ft::Float64        # tensile strength (internal variable)
+    fc::Float64        # compressive strength (internal variable)
+    ζ  ::Float64       # factor ζ controls the elastic relative displacements (formerly α)
+    wc ::Float64       # critical crack opening
+    ws ::Float64       # openning at inflection (where the curve slope changes)
+    softcurve::String  # softening curve model ("linear" or bilinear" or "hordijk")
+    γw ::Float64       # specific weight of the fluid
+    β  ::Float64       # compressibility of fluid
+    η  ::Float64       # viscosity
+    kt ::Float64       # transverse leak-off coefficient
+    w ::Float64        # initial fracture opening (longitudinal flow)
+    fracture::Bool     # pre-existing fracture (true or false)
+
+    function PJointSeep(prms::Dict{Symbol,Float64})
+        return  PJointSeep(;prms...)
+    end
+
+     function PJointSeep(;E=NaN, nu=NaN, ft=NaN, fc=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", gammaw=NaN, beta=0.0, eta=NaN, kt=NaN, w=0.0, fracture=false)  
+
+        !(isnan(GF) || GF>0) && error("Invalid value for GF: $GF")
+        !(isnan(Gf) || Gf>0) && error("Invalid value for Gf: $Gf")
+
+        if isnan(wc)
+            if softcurve == "linear"
+                 wc = round(2*GF/ft, digits=10)
+            elseif softcurve == "bilinear"
+                if isnan(Gf)
+                    wc = round(5*GF/ft, digits=10)
+                    ws = round(wc*0.15, digits=10)
+                else
+                    wc = round((8*GF- 6*Gf)/ft, digits=10)
+                    ws = round(1.5*Gf/ft, digits=10)
+                end
+            elseif softcurve == "hordijk"
+                wc = round(GF/(0.1947019536*ft), digits=10)
+            end    
+        end
+
+        E>0.0       || error("Invalid value for E: $E")
+        0<=nu<0.5   || error("Invalid value for nu: $nu")
+        ft>=0       || error("Invalid value for ft: $ft")
+        fc<=0       || error("Invalid value for fc: $fc")
+        zeta>0      || error("Invalid value for zeta: $zeta")
+        wc>0        || error("Invalid value for wc: $wc")
+        (isnan(ws)  || ws>0) || error("Invalid value for ws: $ws")
+        (softcurve=="linear" || softcurve=="bilinear" || softcurve=="hordijk") || error("Invalid softcurve: softcurve must to be linear or bilinear or hordijk")
+        gammaw>0    || error("Invalid value for gammaw: $gammaw")
+        beta>= 0    || error("Invalid value for beta: $beta")
+        eta>=0      || error("Invalid value for eta: $eta")
+        kt>=0       || error("Invalid value for kt: $kt")
+        w>=0       || error("Invalid value for w: $w")
+        (fracture==true || fracture==false) || error("Invalid fracture: fracture must to be true or false")
+
+        this = new(E, nu, ft, fc, zeta, wc, ws, softcurve, gammaw, beta, eta, kt, w, fracture)
+        return this
+    end
+end
+
+# Returns the element type that works with this material model
+matching_elem_type(::PJointSeep) = HydroMechJoint
+
+# Type of corresponding state structure
+ip_state_type(mat::PJointSeep) = PJointSeepIpState
+
+
+function yield_func(mat::PJointSeep, ipd::PJointSeepIpState, σ::Array{Float64,1}, σmax::Float64)
+    ndim = ipd.env.ndim
+    fc, ft = mat.fc, mat.ft
+    a = ft - √(ft^2-fc*ft)
+    β = 2*a - fc
+
+    if ndim == 3
+        return β*(σ[1] - σmax) + σ[2]^2 + σ[3]^2
+    else
+        return β*(σ[1] - σmax) + σ[2]^2
+    end
+end
+
+
+function yield_deriv(mat::PJointSeep, ipd::PJointSeepIpState, σ::Array{Float64,1})
+    ndim = ipd.env.ndim
+    fc, ft = mat.fc, mat.ft
+    a = ft - √(ft^2-fc*ft)
+    β = 2*a - fc
+
+    if ndim == 3
+        return [ β , 2*σ[2], 2*σ[3] ]
+    else
+        return [ β , 2*σ[2] ]
+    end
+end
+
+
+function potential_derivs(mat::PJointSeep, ipd::PJointSeepIpState, σ::Array{Float64,1})
+    ndim = ipd.env.ndim
+    if ndim == 3
+            if σ[1] >= 0.0 
+                # G1:
+                r = [ 2.0*σ[1]*mat.μ^2, 2.0*σ[2], 2.0*σ[3]]
+            else
+                # G2:
+                r = [ 0.0, 2.0*σ[2], 2.0*σ[3] ]
+            end
+    else
+            if σ[1] >= 0.0 
+                # G1:
+                r = [ 2*σ[1]*mat.μ^2, 2*σ[2]]
+            else
+                # G2:
+                r = [ 0.0, 2*σ[2] ]
+            end
+    end
+    return r
+end
+
+
+function calc_σmax(mat::PJointSeep, ipd::PJointSeepIpState, upa::Float64)
+    if mat.softcurve == "linear"
+        if upa < mat.wc
+            a = mat.ft 
+            b = mat.ft /mat.wc
+        else
+            a = 0.0
+            b = 0.0
+        end
+        σmax = a - b*upa
+    elseif mat.softcurve == "bilinear"
+        σs = 0.25*mat.ft 
+        if upa < mat.ws
+            a  = mat.ft  
+            b  = (mat.ft  - σs)/mat.ws
+        elseif upa < mat.wc
+            a  = mat.wc*σs/(mat.wc-mat.ws)
+            b  = σs/(mat.wc-mat.ws)
+        else
+            a = 0.0
+            b = 0.0
+        end
+        σmax = a - b*upa
+    elseif mat.softcurve == "hordijk"
+        if upa < mat.wc
+            e = exp(1.0)
+            z = (1 + 27*(upa/mat.wc)^3)*e^(-6.93*upa/mat.wc) - 28*(upa/mat.wc)*e^(-6.93)
+        else
+            z = 0.0
+        end
+        σmax = z*mat.ft 
+    end
+
+    return σmax
+end
+
+
+function deriv_σmax_upa(mat::PJointSeep, ipd::PJointSeepIpState, upa::Float64)
+   # ∂σmax/∂upa = dσmax
+    if mat.softcurve == "linear"
+        if upa < mat.wc
+            b = mat.ft /mat.wc
+        else
+            b = 0.0
+        end
+        dσmax = -b
+    elseif mat.softcurve == "bilinear"
+        σs = 0.25*mat.ft 
+        if upa < mat.ws
+            b  = (mat.ft  - σs)/mat.ws
+        elseif upa < mat.wc
+            b  = σs/(mat.wc-mat.ws)
+        else
+            b = 0.0
+        end
+        dσmax = -b
+    elseif mat.softcurve == "hordijk"
+        if upa < mat.wc
+            e = exp(1.0)
+            dz = ((81*upa^2*e^(-6.93*upa/mat.wc)/mat.wc^3) - (6.93*(1 + 27*upa^3/mat.wc^3)*e^(-6.93*upa/mat.wc)/mat.wc) - 0.02738402432/mat.wc)
+        else
+            dz = 0.0
+        end
+        dσmax = dz*mat.ft 
+    end
+
+    return dσmax
+end
+
+
+function calc_kn_ks(mat::PJointSeep, ipd::PJointSeepIpState)
+    kn = mat.E*mat.ζ/ipd.h
+    G  = mat.E/(2.0*(1.0+mat.ν))
+    ks = G*mat.ζ/ipd.h
+
+    return kn, ks
+end
+
+
+function calc_Δλ(mat::PJointSeep, ipd::PJointSeepIpState, σtr::Array{Float64,1})
+    ndim = ipd.env.ndim
+    maxits = 200
+    Δλ     = 0.0
+    f      = 0.0
+    upa    = 0.0
+    tol    = 1e-2
+    fc, ft = mat.fc, mat.ft
+    a = ft - √(ft^2-fc*ft)
+    β = 2*a - fc
+    nits = 0
+
+    for i in 1:maxits
+        nits = i
+        kn, ks = calc_kn_ks(mat, ipd)
+
+        # quantities at n+1
+        if ndim == 3
+            σ     = [ σtr[1]-β*kn*Δλ,  σtr[2]/(1+2*Δλ*ks), σtr[3]/(1+2*Δλ*ks) ]
+            dσdΔλ = [ -2*β*kn, -2*ks*σtr[2]/(1+2*Δλ*ks)^2, -2*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
+            drdΔλ = [ 0, -4*ks*σtr[2]/(1+2*Δλ*ks)^2, -4*ks*σtr[3]/(1+2*Δλ*ks)^2 ]
+        else
+            σ     = [ σtr[1]-β*kn*Δλ, σtr[2]/(1+2*Δλ*ks)]
+            dσdΔλ = [ -2*β*kn, -2*ks*σtr[2]/(1+2*Δλ*ks)^2 ]
+            drdΔλ = [ 0, -4*ks*σtr[2]/(1+2*Δλ*ks)^2 ]
+        end
+                 
+        r      = yield_deriv(mat, ipd, σ)
+        norm_r = norm(r)
+        upa    = ipd.upa + Δλ*norm_r
+        σmax   = calc_σmax(mat, ipd, upa)
+        m = deriv_σmax_upa(mat, ipd, upa)
+        dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
+
+        if ndim == 3
+            f = β*(σ[1] - σmax) + σ[2]^2 + σ[3]^2
+            dfdσ = [ β, 2*σ[2], 2*σ[3] ]
+        else
+            f = β*(σ[1] - σmax) + σ[2]^2
+            dfdσ = [ β, 2*σ[2] ]
+        end
+
+        
+        dfdσmax = -β
+        dfdΔλ = dot(dfdσ, dσdΔλ) + dfdσmax*dσmaxdΔλ
+        Δλ = Δλ - f/dfdΔλ
+        # @show f, Δλ
+        abs(f) < tol && break
+
+
+        if i == maxits || isnan(Δλ)
+            warn("""PJointSeep: Could not find Δλ. This may happen when the system
+            becomes hypostatic and thus the global stiffness matrix is nearly singular.
+            Increasing the mesh refinement may result in a nonsingular matrix.
+            """)
+            warn("iterations=$i Δλ=$Δλ")
+            return 0.0, failure()
+        end
+    end
+    # @show nits
+    # @show f, Δλ
+
+    return Δλ, success()
+end
+
+
+function calc_σ_upa(mat::PJointSeep, ipd::PJointSeepIpState, σtr::Array{Float64,1})
+    ndim = ipd.env.ndim
+    kn, ks = calc_kn_ks(mat, ipd)
+    fc, ft = mat.fc, mat.ft
+    a = ft - √(ft^2-fc*ft)
+    β = 2*a - fc
+
+    if ndim == 3
+        ipd.σ = [ σtr[1] - β*kn*ipd.Δλ, σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks) ]
+    else
+        ipd.σ = [ σtr[1] - β*kn*ipd.Δλ, σtr[2]/(1 + 2*ipd.Δλ*ks) ]
+    end
+    r = yield_deriv(mat, ipd, ipd.σ)
+    ipd.upa += ipd.Δλ*norm(r)
+    return ipd.σ, ipd.upa
+end
+
+
+function mountD(mat::PJointSeep, ipd::PJointSeepIpState)
+    ndim = ipd.env.ndim
+    kn, ks = calc_kn_ks(mat, ipd)
+    σmax = calc_σmax(mat, ipd, ipd.upa)
+
+    De = diagm([kn, ks, ks][1:ndim])
+
+    if ipd.Δλ == 0.0 
+        return De
+    elseif σmax == 0.0 
+        Dep = De*1e-4
+        return Dep
+    else
+        fc, ft = mat.fc, mat.ft
+        a = ft - √(ft^2-fc*ft)
+        β = 2*a - fc
+
+        r = yield_deriv(mat, ipd, ipd.σ)
+        v = r
+        y = -β  # ∂F/∂σmax
+        m = deriv_σmax_upa(mat, ipd, ipd.upa)  # ∂σmax/∂upa
+
+        if ndim == 3
+            den = kn*r[1]*v[1] + ks*r[2]*v[2] + ks*r[3]*v[3] - y*m*norm(r)
+
+            Dep = [   kn - kn^2*r[1]*v[1]/den    -kn*ks*r[1]*v[2]/den      -kn*ks*r[1]*v[3]/den
+                     -kn*ks*r[2]*v[1]/den         ks - ks^2*r[2]*v[2]/den  -ks^2*r[2]*v[3]/den
+                     -kn*ks*r[3]*v[1]/den        -ks^2*r[3]*v[2]/den        ks - ks^2*r[3]*v[3]/den ]
+        else
+            den = kn*r[1]*v[1] + ks*r[2]*v[2] - y*m*norm(r)
+
+            Dep = [   kn - kn^2*r[1]*v[1]/den    -kn*ks*r[1]*v[2]/den      
+                     -kn*ks*r[2]*v[1]/den         ks - ks^2*r[2]*v[2]/den  ]
+                     
+        end
+        return Dep
+    end
+end
+
+
+function stress_update(mat::PJointSeep, ipd::PJointSeepIpState, Δw::Array{Float64,1}, Δuw::Array{Float64,1},  G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
+    ndim = ipd.env.ndim
+    σini = copy(ipd.σ)
+
+    kn, ks = calc_kn_ks(mat, ipd)
+    De = diagm([kn, ks, ks][1:ndim])
+
+    if mat.fracture 
+        ipd.upa = mat.wc
+    end 
+    
+    σmax = calc_σmax(mat, ipd, ipd.upa) 
+
+    if isnan(Δw[1]) || isnan(Δw[2])
+        alert("PJointSeep: Invalid value for joint displacement: Δw = $Δw")
+    end
+
+    # σ trial and F trial
+    σtr  = ipd.σ + De*Δw
+
+    Ftr  = yield_func(mat, ipd, σtr, σmax) 
+
+    # Elastic and EP integration
+    if σmax == 0.0 && ipd.w[1] >= 0.0
+        if ndim==3
+            r1 = [ σtr[1]/kn, σtr[2]/ks, σtr[3]/ks ]
+            r = r1/norm(r1)
+            ipd.Δλ = norm(r1)
+        else
+            r1 = [ σtr[1]/kn, σtr[2]/ks ]
+            r = r1/norm(r1)
+            ipd.Δλ = norm(r1)  
+        end
+
+        ipd.upa += ipd.Δλ
+        ipd.σ = σtr - ipd.Δλ*De*r     
+
+    elseif Ftr <= 0.0
+        # Pure elastic increment
+        ipd.Δλ = 0.0
+        ipd.σ  = copy(σtr) 
+
+    else    
+        ipd.Δλ, status = calc_Δλ(mat, ipd, σtr) 
+        failed(status) && return ipd.σ, status
+
+        ipd.σ, ipd.upa = calc_σ_upa(mat, ipd, σtr)
+                      
+        # Return to surface:
+        # F  = yield_func(mat, ipd, ipd.σ)   
+        # F > 1e-2 && alert("PJointSeep: Yield function value ($F) outside tolerance")
+    end
+
+    ipd.w += Δw
+    Δσ = ipd.σ - σini
+
+    ipd.uw += Δuw
+    ipd.Vt  = -mat.kt*G
+
+    # compute crack aperture
+    if mat.w == 0.0
+        if ipd.upa == 0.0 || ipd.w[1] <= 0.0 
+            w = 0.0
+        else
+            w = ipd.w[1]
+        end
+    else
+        if mat.w >= ipd.w[1]
+            w = mat.w
+        else 
+            w = ipd.w[1]
+        end
+    end 
+
+    ipd.L  =  ((w^3)/(12*mat.η))*BfUw
+
+    return Δσ, ipd.Vt, ipd.L
+end
+
+
+function ip_state_vals(mat::PJointSeep, ipd::PJointSeepIpState)
+    ndim = ipd.env.ndim
+    if ndim == 3
+       return OrderedDict(
+          :w1   => ipd.w[1] ,
+          :w2   => ipd.w[2] ,
+          :w3   => ipd.w[3] ,
+          :s1   => ipd.σ[1] ,
+          :s2   => ipd.σ[2] ,
+          :s3   => ipd.σ[3] ,
+          :upa  => ipd.upa  ,
+          :uwf  => ipd.uw[3],
+          :vb   => ipd.Vt[1],
+          :vt   => ipd.Vt[2])
+    else
+        return OrderedDict(
+          :w1   => ipd.w[1] ,
+          :w2   => ipd.w[2] ,
+          :s1   => ipd.σ[1] ,
+          :s2   => ipd.σ[2] ,
+          :upa  => ipd.upa  ,
+          :uwf  => ipd.uw[3],
+          :vb   => ipd.Vt[1],
+          :vt   => ipd.Vt[2])
+    end
+end
