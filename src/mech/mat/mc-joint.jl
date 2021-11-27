@@ -405,21 +405,25 @@ function ip_state_vals(mat::MCJoint, ipd::MCJointIpState)
     ndim = ipd.env.ndim
     if ndim == 3
        return Dict(
-          :w1  => ipd.w[1] ,
+          :wn  => ipd.w[1] ,
           :w2  => ipd.w[2] ,
           :w3  => ipd.w[3] ,
-          :s1  => ipd.σ[1] ,
+          :sn  => ipd.σ[1] ,
           :s2  => ipd.σ[2] ,
           :s3  => ipd.σ[3] ,
           :upa => ipd.upa
           )
     else
         return Dict(
-          :w1  => ipd.w[1] ,
+          :wn  => ipd.w[1] ,
           :w2  => ipd.w[2] ,
-          :s1  => ipd.σ[1] ,
+          :sn  => ipd.σ[1] ,
           :s2  => ipd.σ[2] ,
           :upa => ipd.upa
           )
     end
+end
+
+function output_keys(mat::MCJoint)
+    return Symbol[:wn, :sn, :upa]
 end

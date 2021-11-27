@@ -1,15 +1,15 @@
  #This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export PJoint
+export MMCJoint
 
-mutable struct PJointIpState<:IpState
+mutable struct MMCJointIpState<:IpState
     env::ModelEnv
     σ  ::Array{Float64,1} # stress
     w  ::Array{Float64,1} # relative displacements
     upa::Float64          # effective plastic relative displacement
     Δλ ::Float64          # plastic multiplier
     h  ::Float64          # characteristic length from bulk elements
-    function PJointIpState(env::ModelEnv=ModelEnv())
+    function MMCJointIpState(env::ModelEnv=ModelEnv())
         this = new(env)
         ndim = env.ndim
         this.σ = zeros(ndim)
@@ -21,21 +21,23 @@ mutable struct PJointIpState<:IpState
     end
 end
 
-mutable struct PJoint<:Material
+mutable struct MMCJoint<:Material
     E ::Float64      # Young's modulus
     ν ::Float64      # Poisson ratio
+    ζ ::Float64      # factor ζ controls the elastic relative displacements (formerly α)
     ft::Float64      # tensile strength (internal variable)
     fc::Float64      # compressive strength (internal variable)
-    ζ ::Float64      # factor ζ controls the elastic relative displacements (formerly α)
+    α ::Float64      # exponent related to the yield function opening
+    β ::Float64      # coefficient used to match the compression strenght
     wc::Float64      # critical crack opening
     ws::Float64      # openning at inflection (where the curve slope changes)
     softcurve::String # softening curve model ("linear" or bilinear" or "hordijk")
 
-    function PJoint(prms::Dict{Symbol,Float64})
-        return  PJoint(;prms...)
+    function MMCJoint(prms::Dict{Symbol,Float64})
+        return  MMCJoint(;prms...)
     end
 
-    function PJoint(;E=NaN, nu=NaN, fc=NaN, ft=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear")
+    function MMCJoint(;E=NaN, nu=NaN, fc=NaN, ft=NaN, zeta=NaN, alpha=1.0, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear")
 
         if isnan(wc)
             if softcurve == "linear"
@@ -57,55 +59,54 @@ mutable struct PJoint<:Material
         0<=nu<0.5  || error("Invalid value for nu: $nu")
         @check fc<0  
         @check ft>=0  
+        @check 0.5<=alpha
         zeta>0     || error("Invalid value for zeta: $zeta")
         wc>0       || error("Invalid value for wc: $wc")
         (isnan(ws) || ws>0) || error("Invalid value for ws: $ws")
         softcurve in ("linear", "bilinear", "hordijk") || error("Invalid softcurve: softcurve must to be linear or bilinear or hordijk")
 
-        this = new(E, nu, ft, fc, zeta, wc, ws, softcurve)
+        # (a,b) is the point for simple compression failure
+        a = (2*alpha*ft + alpha*fc-fc-√( (alpha*fc-fc+2*alpha*ft)^2 + 4*alpha*fc*ft*(1-2*alpha) )) / (4*alpha-2)
+        b = √(alpha*(2*a-fc)*(ft-a))
+        beta = (ft-a)/(b^2/ft^2)^alpha
+
+        this = new(E, nu, zeta, ft, fc, alpha, beta, wc, ws, softcurve)
         return this
     end
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::PJoint) = MechJoint
+matching_elem_type(::MMCJoint) = MechJoint
 
 # Type of corresponding state structure
-ip_state_type(mat::PJoint) = PJointIpState
+ip_state_type(mat::MMCJoint) = MMCJointIpState
 
 
-function yield_func(mat::PJoint, ipd::PJointIpState, σ::Array{Float64,1}, σmax::Float64)
-    ndim = ipd.env.ndim
-    fc, ft = mat.fc, mat.ft
+function yield_func(mat::MMCJoint, ipd::MMCJointIpState, σ::Array{Float64,1}, σmax::Float64)
+    ft, α, β = mat.ft, mat.α, mat.β
 
-    β = 2*ft - fc -2*√(ft^2 - fc*ft)
-    if ndim == 3
-        return β*(σ[1] - σmax) + σ[2]^2 + σ[3]^2
+    if ipd.env.ndim == 3
+        return σ[1] - σmax + β*((σ[2]^2 + σ[3]^2)/ft^2)^α
     else
-        return β*(σ[1] - σmax) + σ[2]^2
+        return σ[1] - σmax + β*(σ[2]^2/ft^2)^α
     end
 end
 
 
-function yield_derivs(mat::PJoint, ipd::PJointIpState, σ::Array{Float64,1})
-    ndim = ipd.env.ndim
-    fc, ft = mat.fc, mat.ft
-    β = 2*ft - fc -2*√(ft^2 - fc*ft)
+function yield_derivs(mat::MMCJoint, ipd::MMCJointIpState, σ::Array{Float64,1})
+    ft, α, β = mat.ft, mat.α, mat.β
 
-    # @show β
-    # @show a
-    # @show (β*ft)^0.5
-    # error()
-
-    if ndim == 3
-        return [ β , 2*σ[2], 2*σ[3] ]
+    if ipd.env.ndim == 3
+        tmp = 2*α*β/ft^2*((σ[2]^2+σ[3]^2)/ft^2)^(α-1)
+        return [ 1 , σ[2]*tmp, σ[3]*tmp ]
     else
-        return [ β , 2*σ[2] ]
+        tmp = 2*α*β/ft^2*(σ[2]^2/ft^2)^(α-1)
+        return [ 1 , σ[2]*tmp ]
     end
 end
 
 
-function potential_derivs(mat::PJoint, ipd::PJointIpState, σ::Array{Float64,1})
+function potential_derivs(mat::MMCJoint, ipd::MMCJointIpState, σ::Array{Float64,1})
     ndim = ipd.env.ndim
     if ndim == 3
         if σ[1] > 0.0 
@@ -128,7 +129,7 @@ function potential_derivs(mat::PJoint, ipd::PJointIpState, σ::Array{Float64,1})
 end
 
 
-function calc_σmax(mat::PJoint, ipd::PJointIpState, upa::Float64)
+function calc_σmax(mat::MMCJoint, ipd::MMCJointIpState, upa::Float64)
     if mat.softcurve == "linear"
         if upa < mat.wc
             a = mat.ft 
@@ -167,7 +168,7 @@ function calc_σmax(mat::PJoint, ipd::PJointIpState, upa::Float64)
 end
 
 
-function deriv_σmax_upa(mat::PJoint, ipd::PJointIpState, upa::Float64)
+function deriv_σmax_upa(mat::MMCJoint, ipd::MMCJointIpState, upa::Float64)
     # ∂σmax/∂upa = dσmax
     if mat.softcurve == "linear"
         if upa < mat.wc
@@ -200,7 +201,7 @@ function deriv_σmax_upa(mat::PJoint, ipd::PJointIpState, upa::Float64)
 end
 
 
-function calc_kn_ks(mat::PJoint, ipd::PJointIpState)
+function calc_kn_ks(mat::MMCJoint, ipd::MMCJointIpState)
     kn = mat.E*mat.ζ/ipd.h
     G  = mat.E/(2.0*(1.0+mat.ν))
     ks = G*mat.ζ/ipd.h
@@ -209,15 +210,13 @@ function calc_kn_ks(mat::PJoint, ipd::PJointIpState)
 end
 
 
-function calc_Δλ(mat::PJoint, ipd::PJointIpState, σtr::Array{Float64,1})
+function calc_Δλ(mat::MMCJoint, ipd::MMCJointIpState, σtr::Array{Float64,1})
     ndim = ipd.env.ndim
     maxits = 20
     Δλ     = 0.0
     f      = 0.0
     upa    = 0.0
-    tol    = 1e-2
-    fc, ft = mat.fc, mat.ft
-    β = 2*ft - fc -2*√(ft^2 - fc*ft)
+    tol    = 1e-4
     nits = 0
 
     for i in 1:maxits
@@ -250,24 +249,19 @@ function calc_Δλ(mat::PJoint, ipd::PJointIpState, σtr::Array{Float64,1})
         upa    = ipd.upa + Δλ*norm_r
         σmax   = calc_σmax(mat, ipd, upa)
 
-        if ndim == 3
-            f = β*(σ[1] - σmax) + σ[2]^2 + σ[3]^2
-            dfdσ = [ β, 2*σ[2], 2*σ[3] ]
-        else
-            f = β*(σ[1] - σmax) + σ[2]^2
-            dfdσ = [ β, 2*σ[2] ]
-        end
+        f = yield_func(mat, ipd, σ, σmax)
+        dfdσ = yield_derivs(mat, ipd, σ)
 
         m = deriv_σmax_upa(mat, ipd, upa)
         dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
-        dfdσmax = -β
+        dfdσmax = -1
         dfdΔλ = dot(dfdσ, dσdΔλ) + dfdσmax*dσmaxdΔλ
         Δλ = Δλ - f/dfdΔλ
         # @show f, Δλ
         abs(f) < tol && break
 
         if i == maxits || isnan(Δλ)
-            # warn("""PJoint: Could not find Δλ. This may happen when the system
+            # warn("""MMCJoint: Could not find Δλ. This may happen when the system
             # becomes hypostatic and thus the global stiffness matrix is nearly singular.
             # Increasing the mesh refinement may result in a nonsingular matrix.
             # """)
@@ -282,7 +276,7 @@ function calc_Δλ(mat::PJoint, ipd::PJointIpState, σtr::Array{Float64,1})
 end
 
 
-function calc_σ_upa(mat::PJoint, ipd::PJointIpState, σtr::Array{Float64,1})
+function calc_σ_upa(mat::MMCJoint, ipd::MMCJointIpState, σtr::Array{Float64,1})
     ndim = ipd.env.ndim
     kn, ks = calc_kn_ks(mat, ipd)
 
@@ -305,7 +299,7 @@ function calc_σ_upa(mat::PJoint, ipd::PJointIpState, σtr::Array{Float64,1})
 end
 
 
-function mountD(mat::PJoint, ipd::PJointIpState)
+function mountD(mat::MMCJoint, ipd::MMCJointIpState)
     ndim = ipd.env.ndim
     kn, ks = calc_kn_ks(mat, ipd)
     σmax = calc_σmax(mat, ipd, ipd.upa)
@@ -318,7 +312,8 @@ function mountD(mat::PJoint, ipd::PJointIpState)
     if ipd.Δλ == 0.0  # Elastic 
         # @show "ELASTIC De"
         return De
-    elseif σmax == 0.0 
+    # elseif σmax == 0.0 # ?????????????? and w1>0 ???
+    elseif σmax == 0.0 && ipd.w[1]>0
         # @show "smax=0 De"
 
         Dep = De*1e-4
@@ -327,12 +322,9 @@ function mountD(mat::PJoint, ipd::PJointIpState)
         return Dep
     else
         # @show "plastic De"
-        fc, ft = mat.fc, mat.ft
-        β = 2*ft - fc -2*√(ft^2 - fc*ft)
-
         r = potential_derivs(mat, ipd, ipd.σ)
         v = yield_derivs(mat, ipd, ipd.σ)
-        y = -β  # ∂F/∂σmax
+        y = -1  # ∂F/∂σmax
         m = deriv_σmax_upa(mat, ipd, ipd.upa)  # ∂σmax/∂upa
 
         #Dep  = De - De*r*v'*De/(v'*De*r - y*m*norm(r))
@@ -372,11 +364,7 @@ function mountD(mat::PJoint, ipd::PJointIpState)
 end
 
 
-function stress_update(mat::PJoint, ipd::PJointIpState, Δw::Array{Float64,1})
-
-    # if ipd.upa>0.00016
-    #     error()
-    # end
+function stress_update(mat::MMCJoint, ipd::MMCJointIpState, Δw::Array{Float64,1})
 
     ndim = ipd.env.ndim
     σini = copy(ipd.σ)
@@ -387,7 +375,7 @@ function stress_update(mat::PJoint, ipd::PJointIpState, Δw::Array{Float64,1})
     # @show σmax
 
     if isnan(Δw[1]) || isnan(Δw[2])
-        alert("PJoint: Invalid value for joint displacement: Δw = $Δw")
+        alert("MMCJoint: Invalid value for joint displacement: Δw = $Δw")
     end
 
     # σ trial and F trial
@@ -439,7 +427,7 @@ function stress_update(mat::PJoint, ipd::PJointIpState, Δw::Array{Float64,1})
                       
         # Return to surface:
         # F  = yield_func(mat, ipd, ipd.σ)   
-        # F > 1e-2 && alert("PJoint: Yield function value ($F) outside tolerance")
+        # F > 1e-2 && alert("MMCJoint: Yield function value ($F) outside tolerance")
 
     end
     ipd.w += Δw
@@ -448,29 +436,29 @@ function stress_update(mat::PJoint, ipd::PJointIpState, Δw::Array{Float64,1})
 end
 
 
-function ip_state_vals(mat::PJoint, ipd::PJointIpState)
+function ip_state_vals(mat::MMCJoint, ipd::MMCJointIpState)
     ndim = ipd.env.ndim
     if ndim == 3
        return Dict(
-          :wn  => ipd.w[1] ,
-          :w2  => ipd.w[2] ,
-          :w3  => ipd.w[3] ,
-          :sn  => ipd.σ[1] ,
-          :s2  => ipd.σ[2] ,
-          :s3  => ipd.σ[3] ,
+          :wn  => ipd.w[1],
+          :w2  => ipd.w[2],
+          :w3  => ipd.w[3],
+          :sn  => ipd.σ[1],
+          :s2  => ipd.σ[2],
+          :s3  => ipd.σ[3],
           :upa => ipd.upa
           )
     else
         return Dict(
-          :wn  => ipd.w[1] ,
-          :w2  => ipd.w[2] ,
-          :sn  => ipd.σ[1] ,
-          :s2  => ipd.σ[2] ,
+          :wn  => ipd.w[1],
+          :w2  => ipd.w[2],
+          :sn  => ipd.σ[1],
+          :s2  => ipd.σ[2],
           :upa => ipd.upa
           )
     end
 end
 
-function output_keys(mat::PJoint)
+function output_keys(mat::MMCJoint)
     return Symbol[:wn, :sn, :upa]
 end

@@ -209,14 +209,19 @@ end
 function elem_extrapolated_node_vals(elem::MechJoint)
     nips = length(elem.ips)
 
-    E  = extrapolator(elem.shape.facet_shape, nips)
-    Sn = E*[ ip.state.σ[1] for ip in elem.ips ]
-    Wn = E*[ ip.state.w[1] for ip in elem.ips ]
-    N  = [ Sn Wn; Sn Wn ]
-
+    keys = output_keys(elem.mat)
+    vals = zeros(nips, length(keys))
+    for (i,ip) in enumerate(elem.ips)
+        dict = ip_state_vals(elem.mat, ip.state)
+        vals[i,:] = [ dict[key] for key in keys ]
+    end
+    
     node_vals = OrderedDict{Symbol, Array{Float64,1}}()
-    node_vals[:sn] = [ Sn; Sn ]
-    node_vals[:wn] = [ Wn; Wn ]
+    E = extrapolator(elem.shape.facet_shape, nips)
+    for (i,key) in enumerate(keys)
+        V = E*vals[:,i]
+        node_vals[key] = [ V; V ]
+    end
 
     return node_vals
 end

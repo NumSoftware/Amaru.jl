@@ -57,6 +57,7 @@ include("mat/elastic-shell-quad4.jl")
 include("mat/elastic-joint.jl")
 include("mat/mc-joint.jl")
 include("mat/p-joint.jl")
+include("mat/mmc-joint.jl")
 
 # Models for 1D joint elements
 include("mat/elastic-rsjoint.jl")

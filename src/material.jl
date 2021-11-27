@@ -31,11 +31,11 @@ function copy!(target::Material, source::Material)
 end
 
 """
-`mat_elem_keys(mat)`
+`output_keys(mat)`
 
 Returns a list of keys from an specified material
-for output at element level as constant values.
+for output at element level or nodal level.
 """
-function mat_elem_keys(mat::Material)
-    return String[]
+function output_keys(mat::Material)
+    return Symbol[]
 end

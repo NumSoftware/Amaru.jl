@@ -60,7 +60,7 @@ function mountB(elem::MechTipJoint, Ch, Ct)
     end
 
     MM = hvcat(nsnodes, stack...)
-    B = T*[ -MM  eye(ndim) ]
+    B = T'*[ -MM  eye(ndim) ]
     return B
 end
 
