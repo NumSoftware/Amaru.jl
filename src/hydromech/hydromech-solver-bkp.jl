@@ -274,7 +274,7 @@ function hm_solve!(
     printlog && (verbosity=1)
     printlog && verbose && (verbosity=2)
 
-    scheme in ("FE",) || error("hm_solve! : invalid scheme \"$scheme\"")
+    # scheme in ("FE",) || error("hm_solve! : invalid scheme \"$scheme\"")
 
     tol>0 || error("hm_solve! : tolerance `tol `should be greater than zero")
     Ttol>0 || error("hm_solve! : tolerance `Ttol `should be greater than zero")
@@ -337,8 +337,9 @@ function hm_solve!(
     isnan(gammaw) && error("hm_solve!: gammaw parameter was not set in Domain")
     gammaw > 0 || error("hm_solve: invalid value for gammaw: $gammaw")
 
-    # Setup quantities at dofs
+    # Save initial file and loggers
     if env.cstage==1
+        # Setup initial quantities at dofs
         for (i,dof) in enumerate(dofs)
             dof.vals[dof.name]    = 0.0
             dof.vals[dof.natname] = 0.0
@@ -346,21 +347,18 @@ function hm_solve!(
                 dof.vals[:h] = 0.0 # water head
             end
         end
-    end
+        
+        outdir = rstrip(outdir, ['/', '\\'])
+        env.outdir = outdir
+        if !isdir(outdir)
+            info("hm_solve!: creating output directory ./$outdir")
+            mkpath(outdir)
+        end
 
-    outdir = rstrip(outdir, ['/', '\\'])
-    env.outdir = outdir
-    if !isdir(outdir)
-        info("hm_solve!: creating output directory ./$outdir")
-        mkpath(outdir)
-    end
-
-    # Save initial file and loggers
-    if env.cstage==1
-        update_output_data!(dom)
-        complete_uw_h(dom)
-        update_single_loggers!(dom)
+        update_output_data!(dom) # Updates data arrays in domain
+        update_single_loggers!(dom)  # Tracking nodes, ips, elements, etc.
         update_composed_loggers!(dom)
+        complete_uw_h(dom)
         save_outs && save(dom, "$outdir/$filekey-0.vtu", printlog=printlog)
     end
 
@@ -370,11 +368,11 @@ function hm_solve!(
 
     # Incremental analysis
     t    = env.t     # current time
-    tend = t + time_span # end time
 
     T  = 0.0
     ΔT = 1.0/nincs       # initial ΔT value
-    autoinc && nincs==1 && (ΔT=min(ΔT,0.01))
+    autoinc && (ΔT=min(ΔT,0.01))
+    # autoinc && nincs==1 && (ΔT=min(ΔT,0.01))
     ΔTbk = 0.0
 
     ΔTcheck = save_outs ? 1/nouts : 1.0
@@ -458,21 +456,43 @@ function hm_solve!(
             it>1 && (ΔUi.=0.0) # essential values are applied only at first iteration
             lastres = residue # residue from last iteration
 
-            # Try FE step
-            G, RHS = hm_mount_global_matrices(dom, ndofs, Δt, verbosity)
+            # Predictor step for FE, ME and BE
+            if scheme in ("FE", "ME", "BE")
+                G, RHS = hm_mount_global_matrices(dom, ndofs, Δt, verbosity)
 
-            R .+= RHS
+                R .+= RHS
 
-            # Solve
-            status = hm_solve_system!(G, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
-            failed(status) && (errored=true; break)
+                # Solve
+                status = hm_solve_system!(G, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
+                failed(status) && (errored=true; break)
 
-            copyto!.(State, StateBk)
-            ΔUt = ΔUa + ΔUi
-            status = hm_update_state!(dom, ΔUt, ΔFin, Δt, verbosity)
-            failed(status) && (errored=true; break)
+                copyto!.(State, StateBk)
+                ΔUt    = ΔUa + ΔUi
+                status = hm_update_state!(dom, ΔUt, ΔFin, Δt, verbosity)
+                failed(status) && (errored=true; break)
 
-            residue = maximum(abs, (ΔFex-ΔFin)[umap] )
+                residue = maximum(abs, (ΔFex-ΔFin)[umap] )
+            end
+
+            # Corrector step for ME and BE
+            if residue > tol && scheme in ("ME", "BE")
+                # @show "hi"
+                G2, RHS = hm_mount_global_matrices(dom, ndofs, Δt, verbosity)
+                if scheme=="ME"
+                    G = 0.5*(G + G2)
+                elseif scheme=="BE"
+                    G = G2
+                end
+                status = hm_solve_system!(G, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
+                failed(status) && (errored=true; break)
+
+                copyto!.(State, StateBk)
+                ΔUt    = ΔUa + ΔUi
+                status = hm_update_state!(dom, ΔUt, ΔFin, Δt, verbosity)
+                failed(status) && (errored=true; break)
+
+                residue = maximum(abs, (ΔFex-ΔFin)[umap])
+            end
 
             # Update accumulated displacement
             ΔUa .+= ΔUi
@@ -554,6 +574,7 @@ function hm_solve!(
                     if T+ΔTtr>Tcheck-Ttol
                         ΔTbk = ΔT
                         ΔT = Tcheck-T
+                        @assert ΔT>=0.0
                     else
                         ΔT = ΔTtr
                         ΔTbk = 0.0
