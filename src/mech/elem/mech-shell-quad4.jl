@@ -211,13 +211,13 @@ function setBb(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bb::Matx)
         dNdy = dNdX[2,i]
         j    = i-1
 
-        Bb[1,4+j*ndof] = dNdx  
+        Bb[1,4+j*ndof] = -dNdx  
 
-        Bb[2,5+j*ndof] = dNdy   
+        Bb[2,5+j*ndof] = -dNdy   
 
-        Bb[3,4+j*ndof] =  dNdy 
+        Bb[3,4+j*ndof] = -dNdy 
 
-        Bb[3,5+j*ndof] = dNdx 
+        Bb[3,5+j*ndof] = -dNdx 
 
     end
 end
@@ -237,7 +237,7 @@ function setBm(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bm::Matx)
 
         Bm[2,2+j*ndof] = dNdy   
 
-        Bm[3,1+j*ndof] =  dNdy 
+        Bm[3,1+j*ndof] = dNdy 
 
         Bm[3,2+j*ndof] = dNdx 
 
@@ -301,6 +301,8 @@ function elem_stiffness(elem::ShellQUAD4)
         J = dNdR*cxyz
         #@show size(J)
         #@showm J
+        detJ = norm2(J)
+        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         Ri = RotMatrix(elem, J)
         Ri′ = Ri[1:2, 1:3]
@@ -335,9 +337,8 @@ function elem_stiffness(elem::ShellQUAD4)
         
         invJ1  =  pinv(J1) 
         #@showm invJ1
-
-        detJ = norm2(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ1 = norm2(J1)
+        detJ1 > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         for i in 1:nnodes
             c[(i-1)*2+1:i*2, (i-1)*2+1:i*2] = J1[1:2,1:2]
@@ -384,7 +385,7 @@ function elem_stiffness(elem::ShellQUAD4)
         bmat_s = [bmat_s1 bmat_s2 bmat_s3 bmat_s4]
         #@show size(bmat_s)
 
-        coef = detJ*ip.w
+        coef = detJ1*ip.w
 
         K_b = Bb'*D_matb*Bb*coef;                
         K_m = R'*Bm'*D_matm*Bm*R*coef;
