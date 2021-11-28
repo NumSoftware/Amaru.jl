@@ -211,13 +211,12 @@ function setBb(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bb::Matx)
         dNdy = dNdX[2,i]
         j    = i-1
 
-        Bb[1,4+j*ndof] = dNdx  
+        Bb[1,4+j*ndof] = -dNdx  
 
-        Bb[2,5+j*ndof] = dNdy   
+        Bb[2,5+j*ndof] = -dNdy   
 
-        Bb[3,4+j*ndof] =  dNdy 
-
-        Bb[3,5+j*ndof] = dNdx 
+        Bb[3,4+j*ndof] = -dNdy 
+        Bb[3,5+j*ndof] = -dNdx 
 
     end
 end
@@ -233,12 +232,11 @@ function setBm(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bm::Matx)
         dNdy = dNdX[2,i]
         j    = i-1
 
-        Bm[1,1+j*ndof] = dNdx  
+        Bm[1,1+j*ndof] = dNdx
 
-        Bm[2,2+j*ndof] = dNdy   
-
-        Bm[3,1+j*ndof] =  dNdy 
-
+        Bm[2,2+j*ndof] = dNdy 
+         
+        Bm[3,1+j*ndof] = dNdy 
         Bm[3,2+j*ndof] = dNdx 
 
     end
@@ -256,11 +254,14 @@ function setBs(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bs::Matx)
         j    = i-1
         
         Bs[1,3+j*ndof] = dNdx 
-        Bs[1,4+j*ndof] = -N[i]  
+        Bs[1,4+j*ndof] = -N[i]
+
         Bs[2,3+j*ndof] = dNdy  
         Bs[2,5+j*ndof] = -N[i]
 
     end
+
+    
 end
 
 function elem_stiffness(elem::ShellQUAD4)
@@ -280,7 +281,7 @@ function elem_stiffness(elem::ShellQUAD4)
     R = zeros(nnodes*nr, nnodes*nc)
     c     = zeros(8,8)
     b_bar = zeros(8,12)
-    K_elem = zeros( nnodes*5 , nnodes*5 )
+    Kelem = zeros( nnodes*5 , nnodes*5 )
 
     C = get_coords(elem)
 
@@ -301,6 +302,8 @@ function elem_stiffness(elem::ShellQUAD4)
         J = dNdR*cxyz
         #@show size(J)
         #@showm J
+        detJ = norm2(J)
+        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         Ri = RotMatrix(elem, J)
         Ri′ = Ri[1:2, 1:3]
@@ -335,9 +338,8 @@ function elem_stiffness(elem::ShellQUAD4)
         
         invJ1  =  pinv(J1) 
         #@showm invJ1
-
-        detJ = norm2(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ1 = norm2(J1)
+        detJ1 > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
         for i in 1:nnodes
             c[(i-1)*2+1:i*2, (i-1)*2+1:i*2] = J1[1:2,1:2]
@@ -349,53 +351,20 @@ function elem_stiffness(elem::ShellQUAD4)
             b_bar[2*i-1:2*i,:] = bmat_s[1:2,:]
         end
 
-        T_mat = [ 1  0  0  0  0  0  0  0
-                  0  0  0  1  0  0  0  0
-                  0  0  0  0  1  0  0  0
-                  0  0  0  0  0  0  0  1 ]
-
-        P_mat = [ 1  -1   0   0
-                  0   0   1   1
-                  1   1   0   0
-                  0   0   1  -1 ];
-
-        A_mat = [ 1  ip.w  0    0   
-                  0    0  1  ip.w ];  
-
-        bmat_ss = invJ1[1:2, 1:2] * A_mat * inv(P_mat) * T_mat * c * b_bar
-
-        bmat_s1 = [0  0 bmat_ss[1, 1]
-                   0  0 bmat_ss[2, 1]];
-
-        bmat_s2 = [0  0 bmat_ss[1, 4]
-                   0  0 bmat_ss[2, 4]];
-
-        bmat_s3 = [0  0 bmat_ss[1, 7]
-                   0  0 bmat_ss[2, 7]];
-
-        bmat_s4 = [0  0 bmat_ss[1,10]
-                   0  0 bmat_ss[2,10]];
-
-        bmat_s1 = [bmat_s1*Ri[1:3, 1:3] bmat_ss[:,2:3]];
-        bmat_s2 = [bmat_s2*Ri[1:3, 1:3] bmat_ss[:,5:6]];
-        bmat_s3 = [bmat_s3*Ri[1:3, 1:3] bmat_ss[:,8:9]];
-        bmat_s4 = [bmat_s4*Ri[1:3, 1:3] bmat_ss[:,11:12]];
-        
-        bmat_s = [bmat_s1 bmat_s2 bmat_s3 bmat_s4]
         #@show size(bmat_s)
 
-        coef = detJ*ip.w
+        coef = detJ1*ip.w
 
-        K_b = Bb'*D_matb*Bb*coef;                
-        K_m = R'*Bm'*D_matm*Bm*R*coef;
-        K_s = bmat_s'*D_mats*bmat_s*coef;
+        Kb = Bb'*D_matb*Bb*coef;                
+        Km = R'*Bm'*D_matm*Bm*R*coef;
+        Ks = bmat_s'*D_mats*bmat_s*coef;
 
-        K_elem += (K_b + K_m + K_s)
+        Kelem += (Kb + Km + Ks)
     end
 
         map = elem_map(elem) 
 
-    return K_elem, map, map
+    return Kelem, map, map
   end
 end
 
