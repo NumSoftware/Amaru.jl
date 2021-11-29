@@ -392,6 +392,7 @@ function hm_solve!(
     Uex  = zeros(ndofs)  # vector of external essential values
 
     Uex, Fex = get_bc_vals(dom, bcs, t) # get values at time t  #TODO pick internal forces and displacements instead!
+    status = ReturnStatus()
 
     # Get unbalanced forces
     Fin = zeros(ndofs)
