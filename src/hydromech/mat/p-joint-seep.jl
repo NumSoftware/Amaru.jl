@@ -319,6 +319,11 @@ end
 function mountD(mat::PJointSeep, ipd::PJointSeepIpState)
   ndim = ipd.env.ndim
     kn, ks = calc_kn_ks(mat, ipd)
+
+    if mat.fracture 
+        ipd.upa = mat.wc
+    end 
+
     σmax = calc_σmax(mat, ipd, ipd.upa)
 
     De = diagm([kn, ks, ks][1:ndim])
@@ -377,6 +382,11 @@ function stress_update(mat::PJointSeep, ipd::PJointSeepIpState, Δw::Array{Float
     σini = copy(ipd.σ)
 
     kn, ks = calc_kn_ks(mat, ipd)
+
+    if mat.fracture 
+        ipd.upa = mat.wc
+    end 
+
     De = diagm([kn, ks, ks][1:ndim])
     σmax = calc_σmax(mat, ipd, ipd.upa)  
     # @show σmax
