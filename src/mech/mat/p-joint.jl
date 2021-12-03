@@ -318,7 +318,7 @@ function mountD(mat::PJoint, ipd::PJointIpState)
     if ipd.Δλ == 0.0  # Elastic 
         # @show "ELASTIC De"
         return De
-    elseif σmax == 0.0 
+    elseif σmax == 0.0 && ipd.w[1] >= 0.0
         # @show "smax=0 De"
 
         Dep = De*1e-4
@@ -374,10 +374,6 @@ end
 
 function stress_update(mat::PJoint, ipd::PJointIpState, Δw::Array{Float64,1})
 
-    # if ipd.upa>0.00016
-    #     error()
-    # end
-
     ndim = ipd.env.ndim
     σini = copy(ipd.σ)
 
@@ -394,14 +390,6 @@ function stress_update(mat::PJoint, ipd::PJointIpState, Δw::Array{Float64,1})
     σtr  = ipd.σ + De*Δw
 
     Ftr  = yield_func(mat, ipd, σtr, σmax)
-    # @show "stress update"
-    # @show σmax
-    # @show ipd.upa
-    # @show Δw
-    # @show ipd.σ
-    # @show σtr
-    # @show Ftr
-    # @show ipd.w[1] 
 
     # Elastic and EP integration
     if σmax == 0.0 && ipd.w[1] >= 0.0
