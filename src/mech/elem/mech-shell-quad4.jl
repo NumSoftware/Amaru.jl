@@ -4,7 +4,7 @@ export ShellQUAD4
 
 mutable struct ShellQUAD4<:Mechanical
     id    ::Int
-    shape ::ShapeType # CellShape
+    shape ::CellShape
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -18,11 +18,11 @@ mutable struct ShellQUAD4<:Mechanical
     end
 end
 
-matching_shape_family(::Type{ShellQUAD4}) = SOLID_SHAPE
+matching_shape_family(::Type{ShellQUAD4}) = SOLID_CELL
 
 function distributed_bc(elem::ShellQUAD4, facet::Union{Facet, Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
-    th    = elem.env.thickness
+    th    = elem.env.t
     suitable_keys = (:tx, :ty, :tz, :tn)
 
     # Check keys
@@ -94,218 +94,290 @@ function distributed_bc(elem::ShellQUAD4, facet::Union{Facet, Nothing}, key::Sym
     return reshape(F', nnodes*ndim), map
 end
 
+# the strain-displacement matrix for membrane forces
+function Dm_maxtrix(elem::ShellQUAD4)
 
+    coef1 = elem.mat.t*elem.mat.E/(1-elem.mat.nu^2)
+    coef2 = elem.mat.nu*coef1
+    coef3 = coef1*(1-elem.mat.nu)/2
 
-function matrixR(elem::ShellQUAD4, J::Matrix{Float64})
-    L1 = vec(J[1,:])
-    L2 = vec(J[2,:])
+        Dm = [coef1  coef2 0
+                  coef2  coef1 0
+                  0      0     coef3]
+    return Dm
+end
+
+# the strain-displacement matrix for bending moments
+function Db_maxtrix(elem::ShellQUAD4)
+
+    Dm = Dm_maxtrix(elem)
+
+    Db = Dm*(elem.mat.t^2/12)
+
+    return Db
+end
+
+# the strain-displacement matrix for shear forces
+
+function Ds_maxtrix(elem::ShellQUAD4)
+
+    coef = elem.mat.t*(5/6)*elem.mat.E/(2*(1+elem.mat.nu))
+
+            Ds = [coef    0
+                        0     coef]
+    return Ds
+end
+
+# Rotation Matrix
+function RotMatrix(elem::ShellQUAD4, J::Matrix{Float64})
+    
+    Z = zeros(1,2) # zeros(2,1)
+
+    if size(J,1)==2
+        J = [J
+             Z]
+    else
+        J = J
+    end
+    
+    L1 = vec(J[:,1])
+    L2 = vec(J[:,2])
     L3 = cross(L1, L2)  # L1 is normal to the first element face
-    L2 = cross(L3, L1)
+    L2 = cross(L1, L3)
     normalize!(L1)
     normalize!(L2)
     normalize!(L3)
-    Z = zeros(1,3)
 
-    return [ L1' Z
-             L2' Z
-             L3' Z
-             Z   L1'
-             Z   L2'
-             Z   L3']
+    Z1 = zeros(1,2) # Z = zeros(1,3)
 
+    Rot = [ L2' Z1
+    L1' Z1
+    L3' Z1
+    Z1   L2'
+    Z1   L1']
+
+    return Rot
              
 end
-
 
 function elem_config_dofs(elem::ShellQUAD4)
     ndim = elem.env.ndim
     ndim == 1 && error("ShellQUAD4: Shell elements do not work in 1d analyses")
-    
-    for node in elem.nodes
-        add_dof(node, :ux, :fx)
-        add_dof(node, :uy, :fy)
-        add_dof(node, :uz, :fz)
-        add_dof(node, :rx, :mx)
-        add_dof(node, :ry, :my)
-        add_dof(node, :rz, :mz)
-    end
+    #if ndim==2
+        for node in elem.nodes
+            add_dof(node, :ux, :fx)
+            add_dof(node, :uy, :fy)
+            add_dof(node, :uz, :fz)
+            add_dof(node, :rx, :mx)
+            add_dof(node, :ry, :my)
+        end
+    #else
+        #error("ShellQUAD4: Shell elements do not work in this analyses")
+        #=
+        for node in elem.nodes
+            add_dof(node, :ux, :fx)
+            add_dof(node, :uy, :fy)
+            add_dof(node, :uz, :fz)
+            add_dof(node, :rx, :mx)
+            add_dof(node, :ry, :my)
+            add_dof(node, :rz, :mz)
+        end
+        =#
+    #end
 end
 
+function elem_map(elem::ShellQUAD4)::Array{Int,1}
 
-function setBm(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bm::Matx)
-    nnodes = length(elem.nodes)
-    # ndim, nnodes = size(dNdX)
-    ndof = 6 #5
-    Bm .= 0.0
-    k =  1e-8
+    #if elem.env.ndim==2
+    #    dof_keys = (:ux, :uy, :uz, :rx, :ry)
+    #else
+    #    dof_keys = (:ux, :uy, :uz, :rx, :ry, :rz) # VERIFICAR
+    #end
 
-    for i in 1:nnodes
-        dNdx = dNdX[1,i]
-        dNdy = dNdX[2,i]
-        j    = i-1
+    dof_keys = (:ux, :uy, :uz, :rx, :ry)
 
-        Bm[1,1+j*ndof] = dNdx
+    vcat([ [node.dofdict[key].eq_id for key in dof_keys] for node in elem.nodes]...)
 
-        Bm[2,2+j*ndof] = dNdy
-
-        Bm[3,1+j*ndof] = 0.5*dNdy
-        Bm[3,2+j*ndof] = 0.5*dNdx
-
-        Bm[4,3+j*ndof] = 0.5*dNdx
-        Bm[4,5+j*ndof] = 0.5*N[i]  
-
-        Bm[5,3+j*ndof] = 0.5*dNdy
-        Bm[5,4+j*ndof] = -0.5*N[i] 
-
-        Bm[6,6+j*ndof] = k*N[i]
-
-    end
 end
 
 function setBb(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bb::Matx)
     nnodes = length(elem.nodes)
     # ndim, nnodes = size(dNdX)
-    ndof = 6 #5
+    ndof = 5
     Bb .= 0.0
    
     for i in 1:nnodes
-        dNdx = dNdX[1,i]
-        dNdy = dNdX[2,i]
+        dNdx = dNdX[i,1]
+        dNdy = dNdX[i,2]
         j    = i-1
 
-        Bb[1,5+j*ndof] = dNdx  
-
-        Bb[2,4+j*ndof] = -dNdy   
-
-        Bb[3,4+j*ndof] =  -0.5*dNdy 
-
-        Bb[3,5+j*ndof] = 0.5*dNdx 
+        Bb[1,4+j*ndof] = -dNdx  
+        Bb[2,5+j*ndof] = -dNdy   
+        Bb[3,4+j*ndof] = -dNdy 
+        Bb[3,5+j*ndof] = -dNdx 
 
     end
 end
 
+function setBm(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bm::Matx)
+    nnodes = length(elem.nodes)
+    # ndim, nnodes = size(dNdX)
+    ndof = 5
+    Bm .= 0.0
+   
+    for i in 1:nnodes
+        dNdx = dNdX[i,1]
+        dNdy = dNdX[i,2]
+        j    = i-1
 
-function setDm(elem::ShellQUAD4, Dm::Matx)
-    E  = elem.mat.E
-    nu = elem.mat.nu
-    d = 1 #1e-5
-    
-    Dm .= E/(1-nu^2)*[ 1 nu 0 0 0 0
-                       nu 1 0 0 0 0
-                      0 0 1-nu 0 0 0
-                      0 0 0 5/6*(1-nu) 0 0
-                      0 0 0 0 5/6*(1-nu) 0
-                      0 0 0 0 0 d]
+        Bm[1,1+j*ndof] = dNdx  
+        Bm[2,2+j*ndof] = dNdy   
+        Bm[3,1+j*ndof] = dNdy 
+        Bm[3,2+j*ndof] = dNdx 
 
+    end
 end
 
-function setDb(elem::ShellQUAD4, Db::Matx)
-    E  = elem.mat.E
-    nu = elem.mat.nu
+function setBs_bar(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bs_bar::Matx)
+    nnodes = length(elem.nodes)
 
-    Db .= E/(1-nu^2)*[ 1 nu 0
-                       nu 1 0
-                        0 0 1-nu]
+    cx = [ 0 1 0 -1]
+    cy = [-1 0 1 0 ]
 
+    Bs_bar .= 0.0
+    Ns= zeros(4,1)
+    
+    for i in 1:nnodes
+      Ns[1] = (1-cx[i])*(1-cy[i])/4
+      Ns[2] = (1+cx[i])*(1-cy[i])/4
+      Ns[3] = (1+cx[i])*(1+cy[i])/4
+      Ns[4] = (1-cx[i])*(1+cy[i])/4
+
+      bs1  = [ dNdX[1,1] -Ns[1]    0
+               dNdX[1,2]     0 -Ns[1]];
+
+      bs2  = [ dNdX[2,1] -Ns[2]    0
+               dNdX[2,2]     0 -Ns[2]]
+
+      bs3  = [ dNdX[3,1] -Ns[3]    0
+               dNdX[3,2]     0 -Ns[3]]
+
+      bs4  = [ dNdX[4,1] -Ns[4]    0
+               dNdX[4,2]     0 -Ns[4]]
+
+          bs = [bs1 bs2 bs3 bs4]
+
+          Bs_bar[2*i-1:2*i,:] = bs[1:2,:]
+    end
 end
 
 function elem_stiffness(elem::ShellQUAD4)
+
     nnodes = length(elem.nodes)
-    ndofg   = 6
-    ndofl   = 6 #5
 
-    t  = elem.mat.t
+    Db = Db_maxtrix(elem)
+    Dm = Dm_maxtrix(elem)
+    Ds = Ds_maxtrix(elem)
 
-    C = get_coords(elem)
-    # R = RotMatrix(elem)
-    #@show size(C)
+    Bb = zeros(3, nnodes*5)
+    Bm = zeros(3, nnodes*5)
+    Bs_bar = zeros(8,nnodes*3)
 
-
-    Bm = zeros(6, nnodes*ndofl)
-    Bb = zeros(3, nnodes*ndofl)
-    #@showm Bm
-    #@showm Bb
-    Dm = zeros(6, 6)
-    Db = zeros(3, 3)
-    K = zeros(nnodes*ndofg, nnodes*ndofg)
-    nr = 6 #5  
-    nc = 6 
+    c  = zeros(8,8)
+    nr = 5   
+    nc = 5
     R = zeros(nnodes*nr, nnodes*nc)
+    Kelem = zeros( nnodes*5 , nnodes*5 )
 
-    for ip in elem.ips
+    C = getcoords(elem)
+
+    if size(C,2)==2
+        cxyz  = zeros(4,3)
+        cxyz[:,1:2]  = C
+    else
+        cxyz = C
+    end
+    
+    for ip in elem.ips      
         # compute shape Jacobian
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
-        #@show size(dNdR)
-        
-        J = dNdR*C  #dNdR*C
-        detJ = norm2(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
-        
-        Ri = matrixR(elem, J)
-        #display(Ri)
+        J = cxyz'*dNdR
 
+        Ri = RotMatrix(elem, J)
+        Ri′ = Ri[1:2, 1:3]
+    
+        ctxy = cxyz*Ri[1:3, 1:3]' # Rotate coordinates to element mid plane
+      
+        dNdX = dNdR*pinv(J)
+
+        dNdX′ = dNdX*(Ri′)'
+              
         for i in 1:nnodes
             R[(i-1)*nr+1:i*nr, (i-1)*nc+1:i*nc] = Ri
+        end     
+   
+        J1 = ctxy'*dNdR
+        invJ1  =  pinv(J1)
+        detJ1 = norm2(J1)
+
+        for i in 1:nnodes
+            c[(i-1)*2+1:i*2, (i-1)*2+1:i*2] = J1[1:2,1:2]
         end
 
-
-        dNdX = pinv(J)*dNdR
-        # (3x4) = (3x2) (2x4)
-
-        #@showm J
-        #@showm pinv(J)
-
-        #@showm dNdR
-        #@showm dNdX
-
-        Ri′ = Ri[1:2, 1:3]
-        #(2X3)
-        #@show size(Ri′)
-
-        dNdX′ = Ri′*dNdX
-        #@showm dNdX′
-
-        #(2x4) = (2x3)*(3x4)
-
-        setBm(elem, N, dNdX′, Bm)
-        #@showm Bm
         setBb(elem, N, dNdX′, Bb)
-        #@showm Bb
+        setBm(elem, N, dNdX′, Bm)
+        setBs_bar(elem, N, dNdX′, Bs_bar)
 
-        setDm(elem, Dm)
-        #@showm Dm
-        setDb(elem, Db)
-        #@showm Db
+                    T_mat = [ 1  0  0  0  0  0  0  0
+                              0  0  0  1  0  0  0  0
+                              0  0  0  0  1  0  0  0
+                              0  0  0  0  0  0  0  1 ]
 
-        coef = detJ*ip.w
-        # @show size(K)
-        # @show size(B)
+                    P_mat = [ 1  -1   0   0
+                              0   0   1   1
+                              1   1   0   0
+                              0   0   1  -1 ]
+       
+                    A_mat = [ 1  ip.R[2] 0    0
+                              0    0  1  ip.R[1]]
+      
+                    bmat_ss = invJ1[1:2, 1:2]* A_mat * inv(P_mat) * T_mat * c * Bs_bar
 
-        K1 = t*(Bm'*Dm*Bm*coef)
-        K2 = (t^3/12)*(Bb'*Db*Bb*coef)
-        #@show K1
-        #@show K2
+                    bmat_s1 = [0  0 bmat_ss[1, 1]
+                               0  0 bmat_ss[2, 1]]
 
-        K += R'*(K1+K2)*R
-        #K += R'*(K1)*R
-        #K += R'*(K2)*R
-        # (24x24) = (24x24) (24x24 + 24x24) 24x24
-        #@show K
-    end
+                    bmat_s2 = [0  0 bmat_ss[1, 4]
+                               0  0 bmat_ss[2, 4]]
 
-    #@showm K
+                    bmat_s3 = [0  0 bmat_ss[1, 7]
+                               0  0 bmat_ss[2, 7]]
 
-    keys = (:ux, :uy, :uz, :rx, :ry, :rz)
-    map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-     
-    return K, map, map
+                    bmat_s4 = [0  0 bmat_ss[1,10]
+                               0  0 bmat_ss[2,10]]
+
+                    bmat_s1 = [bmat_s1*Ri[1:3, 1:3]  bmat_ss[:,2:3]]
+                    bmat_s2 = [bmat_s2*Ri[1:3, 1:3] bmat_ss[:,5:6]]
+                    bmat_s3 = [bmat_s3*Ri[1:3, 1:3] bmat_ss[:,8:9]]
+                    bmat_s4 = [bmat_s4*Ri[1:3, 1:3] bmat_ss[:,11:12]]
+
+                    bmat_s = [bmat_s1 bmat_s2 bmat_s3 bmat_s4]
+
+                    coef = detJ1*ip.w
+
+                     Kb =    Bb'*Db*Bb*coef 
+                     Km = R'*Bm'*Dm*Bm*R*coef 
+                     Ks = bmat_s'*Ds*bmat_s*coef 
+
+                     Kelem += (Kb + Km + Ks)
+            end
+        map = elem_map(elem) 
+    return Kelem, map, map
 end
- 
+
 function elem_update!(elem::ShellQUAD4, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
-
     dU  = U[map]
     F[map] += K*dU
     return success()
