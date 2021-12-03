@@ -4,7 +4,7 @@ export ShellQUAD4
 
 mutable struct ShellQUAD4<:Mechanical
     id    ::Int
-    shape ::ShapeType
+    shape ::CellShape
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -212,11 +212,8 @@ function setBb(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bb::Matx)
         j    = i-1
 
         Bb[1,4+j*ndof] = -dNdx  
-
         Bb[2,5+j*ndof] = -dNdy   
-
         Bb[3,4+j*ndof] = -dNdy 
-
         Bb[3,5+j*ndof] = -dNdx 
 
     end
@@ -234,11 +231,8 @@ function setBm(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bm::Matx)
         j    = i-1
 
         Bm[1,1+j*ndof] = dNdx  
-
         Bm[2,2+j*ndof] = dNdy   
-
         Bm[3,1+j*ndof] = dNdy 
-
         Bm[3,2+j*ndof] = dNdx 
 
     end
@@ -298,7 +292,7 @@ function elem_stiffness(elem::ShellQUAD4)
         dNdR = elem.shape.deriv(ip.R)
         #@show size(dNdR)
 
-        J = dNdR*cxyz
+        J = cxyz'*dNdR
         #@show size(J)
         #@showm J
         detJ = norm2(J)
@@ -332,7 +326,7 @@ function elem_stiffness(elem::ShellQUAD4)
 
         ctxy = cxyz*Ri[1:3, 1:3]' # Rotate coordinates to element mid plane
 
-        J1 = dNdR*ctxy
+        J1 = ctxy'*dNdR
         #@showm J1
                 
         invJ1  =  pinv(J1) 
