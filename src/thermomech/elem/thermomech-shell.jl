@@ -3,6 +3,7 @@
 mutable struct TMShell<:Thermomechanical
     id    ::Int
     shape ::CellShape
+
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -18,7 +19,6 @@ end
 
 matching_shape_family(::Type{TMShell}) = SOLID_CELL
 
-#=
 function elem_config_dofs(elem::TMShell)
     nbnodes = elem.shape.basic_shape.npoints
     for (i, node) in enumerate(elem.nodes)
@@ -30,35 +30,6 @@ function elem_config_dofs(elem::TMShell)
         end
     end
 end
-=#
-
-function elem_config_dofs(elem::TMShell)
-    ndim = elem.env.ndim
-    ndim == 1 && error("ShellQUAD4: Shell elements do not work in 1d analyses")
-    #if ndim==2
-        for node in elem.nodes
-            add_dof(node, :ux, :fx)
-            add_dof(node, :uy, :fy)
-            add_dof(node, :uz, :fz)
-            add_dof(node, :rx, :mx)
-            add_dof(node, :ry, :my)
-            add_dof(node, :ut, :ft)
-        end
-    #else
-        #error("ShellQUAD4: Shell elements do not work in this analyses")
-        #=
-        for node in elem.nodes
-            add_dof(node, :ux, :fx)
-            add_dof(node, :uy, :fy)
-            add_dof(node, :uz, :fz)
-            add_dof(node, :rx, :mx)
-            add_dof(node, :ry, :my)
-            add_dof(node, :rz, :mz)
-        end
-        =#
-    #end
-end
-
 
 function elem_init(elem::TMShell)
     nothing
@@ -165,374 +136,249 @@ function distributed_bc(elem::TMShell, facet::Union{Facet,Nothing}, key::Symbol,
     return reshape(F', nnodes*ndim), map
 end
 
-#=
-@inline function set_Bu(elem::Element, ip::Ip, dNdX::Matx, B::Matx)
-    setB(elem, ip, dNdX, B) # using function setB from mechanical analysis
-end
-=#
-
 # the strain-displacement matrix for membrane forces
-function D_matrixm(elem::TMShell)
+function Dm_maxtrix(elem::TMShell)
 
-    coef1 = elem.mat.thick*elem.mat.E/(1-elem.mat.nu^2)
+    coef1 = elem.mat.t*elem.mat.E/(1-elem.mat.nu^2)
     coef2 = elem.mat.nu*coef1
     coef3 = coef1*(1-elem.mat.nu)/2
 
-        D_matm = [coef1  coef2 0
+        Dm = [coef1  coef2 0
                   coef2  coef1 0
-                  0      0     coef3];
-    return D_matm
+                  0      0     coef3]
+    return Dm
 end
 
 # the strain-displacement matrix for bending moments
-function D_matrixb(elem::TMShell)
+function Db_maxtrix(elem::TMShell)
 
-    D_matm = D_matrixm(elem)
+    Dm = Dm_maxtrix(elem)
 
-    D_matb = D_matm*(elem.mat.thick^2/12)
+    Db = Dm*(elem.mat.t^2/12)
 
-    return D_matb
+    return Db
 end
 
 # the strain-displacement matrix for shear forces
 
-function D_matrixs(elem::TMShell)
+function Ds_maxtrix(elem::TMShell)
 
-    coef = elem.mat.thick*(5/6)*elem.mat.E/(2*(1+elem.mat.nu))
+    coef = elem.mat.t*(5/6)*elem.mat.E/(2*(1+elem.mat.nu))
 
-            D_mats = [coef    0
-                        0     coef];
-    return D_mats
+            Ds = [coef    0
+                        0     coef]
+    return Ds
 end
 
 # Rotation Matrix
+function RotMatrix(elem::TMShell, J::Matrix{Float64})
+    
+    Z = zeros(1,2) # zeros(2,1)
 
-function RotMatrix(elem::TMShell)
-
-    v12 = zeros(3,1)
-    v13 = zeros(3,1)
-    vxe = zeros(3,1)
-    vye = zeros(3,1)
-    vze = zeros(3,1)
-
-    cxyz = getcoords(elem)
-
-        if size(cxyz,2)==2
-            v12[3] = 0
-            v13[3] = 0
-        else
-            v12[3] = cxyz[2,3] - cxyz[1,3]
-            v13[3] = cxyz[3,3] - cxyz[1,3]
-        end
-
-    v12[1] = cxyz[2,1] - cxyz[1,1]
-    v12[2] = cxyz[2,2] - cxyz[1,2]
-
-    v13[1] = cxyz[3,1] - cxyz[1,1]
-    v13[2] = cxyz[3,2] - cxyz[1,2]
-
-    vze[1] = v12[2]*v13[3] - v12[3]*v13[2]
-    vze[2] = v12[3]*v13[1] - v12[1]*v13[3]
-    vze[3] = v12[1]*v13[2] - v12[2]*v13[1]
-
-    dz = sqrt(vze[1]^2 + vze[2]^2 + vze[3]^2);
-
-  # Unit vector normal to element surface
-    vze[1] = vze[1]/dz
-    vze[2] = vze[2]/dz
-    vze[3] = vze[3]/dz
-
-  # XZ plane intesection with element surface
-    vxe[1] =  1/sqrt(1+(vze[1]/vze[3])^2)
-    vxe[2] =  0
-    vxe[3] = -1/sqrt(1+(vze[3]/vze[1])^2)
-
-    dd = vxe[1]*vze[1] + vxe[3]*vze[3];
-    if (abs(dd) > 1e-8)
-      vxe[3] = -vxe[3]
+    if size(J,1)==2
+        J = [J
+             Z]
+    else
+        J = J
     end
+    
+    L1 = vec(J[:,1])
+    L2 = vec(J[:,2])
+    L3 = cross(L1, L2)  # L1 is normal to the first element face
+    L2 = cross(L1, L3)
+    normalize!(L1)
+    normalize!(L2)
+    normalize!(L3)
 
-    if ((vze[3] == 0) && (vze[1] == 0))
-      vxe[1] =  1
-      vxe[2] =  0
-      vxe[3] =  0
-    end
+    Z1 = zeros(1,2) # Z = zeros(1,3)
 
-  # Vector product
-    vye[1] = vze[2]*vxe[3] - vxe[2]*vze[3]
-    vye[2] = vze[3]*vxe[1] - vxe[3]*vze[1]
-    vye[3] = vze[1]*vxe[2] - vxe[1]*vze[2]
-
-    dy = sqrt(vye[1]^2 + vye[2]^2 + vye[3]^2)
-    vye[1] = vye[1]/dy
-    vye[2] = vye[2]/dy
-    vye[3] = vye[3]/dy
-
-    if (vye[2] < 0 )
-      vye[1] = -vye[1]
-      vye[2] = -vye[2]
-      vye[3] = -vye[3]
-      vxe[1] = -vxe[1]
-      vxe[2] = -vxe[2]
-      vxe[3] = -vxe[3]
-    end
-
-    Rot = [ vxe[1] vxe[2] vxe[3]
-           vye[1] vye[2] vye[3]
-           vze[1] vze[2] vze[3] ]
+    Rot = [ L2' Z1
+    L1' Z1
+    L3' Z1
+    Z1   L2'
+    Z1   L1']
 
     return Rot
+             
 end
 
-function elem_map(elem::TMShell)::Array{Int,1}
+function setBb(elem::TMShell, N::Vect, dNdX::Matx, Bb::Matx)
+    nnodes = length(elem.nodes)
+    # ndim, nnodes = size(dNdX)
+    ndof = 5
+    Bb .= 0.0
+   
+    for i in 1:nnodes
+        dNdx = dNdX[i,1]
+        dNdy = dNdX[i,2]
+        j    = i-1
 
-    #if elem.env.ndim==2
-    #    dof_keys = (:ux, :uy, :uz, :rx, :ry)
-    #else
-    #    dof_keys = (:ux, :uy, :uz, :rx, :ry, :rz) # VERIFICAR
-    #end
+        Bb[1,4+j*ndof] = -dNdx  
+        Bb[2,5+j*ndof] = -dNdy   
+        Bb[3,4+j*ndof] = -dNdy 
+        Bb[3,5+j*ndof] = -dNdx 
 
-    dof_keys = (:ux, :uy, :uz, :rx, :ry)
+    end
+end
 
-    vcat([ [node.dofdict[key].eq_id for key in dof_keys] for node in elem.nodes]...)
+function setBm(elem::TMShell, N::Vect, dNdX::Matx, Bm::Matx)
+    nnodes = length(elem.nodes)
+    # ndim, nnodes = size(dNdX)
+    ndof = 5
+    Bm .= 0.0
+   
+    for i in 1:nnodes
+        dNdx = dNdX[i,1]
+        dNdy = dNdX[i,2]
+        j    = i-1
 
+        Bm[1,1+j*ndof] = dNdx  
+        Bm[2,2+j*ndof] = dNdy   
+        Bm[3,1+j*ndof] = dNdy 
+        Bm[3,2+j*ndof] = dNdx 
+
+    end
+end
+
+function setBs_bar(elem::TMShell, N::Vect, dNdX::Matx, Bs_bar::Matx)
+    nnodes = length(elem.nodes)
+
+    cx = [ 0 1 0 -1]
+    cy = [-1 0 1 0 ]
+
+    Bs_bar .= 0.0
+    Ns= zeros(4,1)
+    
+    for i in 1:nnodes
+      Ns[1] = (1-cx[i])*(1-cy[i])/4
+      Ns[2] = (1+cx[i])*(1-cy[i])/4
+      Ns[3] = (1+cx[i])*(1+cy[i])/4
+      Ns[4] = (1-cx[i])*(1+cy[i])/4
+
+      bs1  = [ dNdX[1,1] -Ns[1]    0
+               dNdX[1,2]     0 -Ns[1]];
+
+      bs2  = [ dNdX[2,1] -Ns[2]    0
+               dNdX[2,2]     0 -Ns[2]]
+
+      bs3  = [ dNdX[3,1] -Ns[3]    0
+               dNdX[3,2]     0 -Ns[3]]
+
+      bs4  = [ dNdX[4,1] -Ns[4]    0
+               dNdX[4,2]     0 -Ns[4]]
+
+          bs = [bs1 bs2 bs3 bs4]
+
+          Bs_bar[2*i-1:2*i,:] = bs[1:2,:]
+    end
 end
 
 function elem_stiffness(elem::TMShell)
-
+    ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
 
-    D_matm = D_matrixm(elem)
-    D_mats = D_matrixs(elem)
-    D_matb = D_matrixb(elem)
+    Db = Db_maxtrix(elem)
+    Dm = Dm_maxtrix(elem)
+    Ds = Ds_maxtrix(elem)
 
-    Rot = RotMatrix(elem)
+    Bb = zeros(3, nnodes*5)
+    Bm = zeros(3, nnodes*5)
+    Bs_bar = zeros(8,nnodes*3)
 
-    gauss_x = zeros(4,1)
-    gauss_y = zeros(4,1)
-    gauss_w = zeros(4,1)
-
-    gauss_x[1] = -1/sqrt(3);
-    gauss_y[1] = -1/sqrt(3);
-    gauss_w[1] =  1.0;
-
-    gauss_x[2] =  1/sqrt(3);
-    gauss_y[2] = -1/sqrt(3);
-    gauss_w[2] =  1.0;
-
-    gauss_x[3] =  1/sqrt(3);
-    gauss_y[3] =  1/sqrt(3);
-    gauss_w[3] =  1.0;
-
-    gauss_x[4] = -1/sqrt(3);
-    gauss_y[4] =  1/sqrt(3);
-    gauss_w[4] =  1.0;
-
-    xjacm = zeros(2,2)
-
-    dxNl = zeros(4,1)
-    dyNl = zeros(4,1)
-    dxN = zeros(4,1)
-    dyN = zeros(4,1)
-
-    K_elem = zeros( nnodes*5 , nnodes*5 )
+    c  = zeros(8,8)
+    nr = 5   
+    nc = 5
+    R = zeros(nnodes*nr, nnodes*nc)
+    Kelem = zeros( nnodes*5 , nnodes*5 )
 
     C = getcoords(elem)
 
-        if size(C,2)==2
-            cxyz  = zeros(4,3)
-            cxyz[:,1:2]  = getcoords(elem)
-        else
+    if size(C,2)==2
+        cxyz  = zeros(4,3)
+        cxyz[:,1:2]  = C
+    else
+        cxyz = C
+    end
+    
+    for ip in elem.ips      
+        # compute shape Jacobian
+        N    = elem.shape.func(ip.R)
+        dNdR = elem.shape.deriv(ip.R)
 
-            cxyz = C
+        J = cxyz'*dNdR
+
+        Ri = RotMatrix(elem, J)
+        Ri′ = Ri[1:2, 1:3]
+    
+        ctxy = cxyz*Ri[1:3, 1:3]' # Rotate coordinates to element mid plane
+      
+        dNdX = dNdR*pinv(J)
+
+        dNdX′ = dNdX*(Ri′)'
+              
+        for i in 1:nnodes
+            R[(i-1)*nr+1:i*nr, (i-1)*nc+1:i*nc] = Ri
+        end     
+   
+        J1 = ctxy'*dNdR
+        invJ1  =  pinv(J1)
+        detJ1 = norm2(J1)
+
+        for i in 1:nnodes
+            c[(i-1)*2+1:i*2, (i-1)*2+1:i*2] = J1[1:2,1:2]
         end
 
+        setBb(elem, N, dNdX′, Bb)
+        setBm(elem, N, dNdX′, Bm)
+        setBs_bar(elem, N, dNdX′, Bs_bar)
 
-    ctxy = cxyz*Rot';    # Rotate coordinates to element mid plane
-
-    x = ctxy[1:4,1]; # Local X coordinate of the element
-    y = ctxy[1:4,2];  # Local Y coordinate of the element
-
-    for igaus = 1 : 4
-        #-----------------------------
-      xgs = gauss_x[igaus] # Local X coordinate of the Gauss point
-      ygs = gauss_y[igaus] # Local Y coordinate of the Gauss point
-
-      dxNl[1] = (-1+ygs)/4;
-      dxNl[2] = ( 1-ygs)/4;
-      dxNl[3] = ( 1+ygs)/4;
-      dxNl[4] = (-1-ygs)/4;
-
-      dyNl[1] = (-1+xgs)/4;
-      dyNl[2] = (-1-xgs)/4;
-      dyNl[3] = ( 1+xgs)/4;
-      dyNl[4] = ( 1-xgs)/4;
-
-      xjacm[1,1] = x[1]*dxNl[1] + x[2]*dxNl[2] + x[3]*dxNl[3] + x[4]*dxNl[4]
-      xjacm[1,2] = y[1]*dxNl[1] + y[2]*dxNl[2] + y[3]*dxNl[3] + y[4]*dxNl[4]
-      xjacm[2,1] = x[1]*dyNl[1] + x[2]*dyNl[2] + x[3]*dyNl[3] + x[4]*dyNl[4]
-      xjacm[2,2] = y[1]*dyNl[1] + y[2]*dyNl[2] + y[3]*dyNl[3] + y[4]*dyNl[4]
-
-      xjaci = inv(xjacm);
-
-      area = abs(xjacm[1,1]*xjacm[2,2] - xjacm[2,1]*xjacm[1,2]);
-
-      dxN[1] = xjaci[1,1]*dxNl[1]+xjaci[1,2]*dyNl[1]
-      dxN[2] = xjaci[1,1]*dxNl[2]+xjaci[1,2]*dyNl[2]
-      dxN[3] = xjaci[1,1]*dxNl[3]+xjaci[1,2]*dyNl[3]
-      dxN[4] = xjaci[1,1]*dxNl[4]+xjaci[1,2]*dyNl[4]
-
-      dyN[1] = xjaci[2,1]*dxNl[1]+xjaci[2,2]*dyNl[1]
-      dyN[2] = xjaci[2,1]*dxNl[2]+xjaci[2,2]*dyNl[2]
-      dyN[3] = xjaci[2,1]*dxNl[3]+xjaci[2,2]*dyNl[3]
-      dyN[4] = xjaci[2,1]*dxNl[4]+xjaci[2,2]*dyNl[4]
-
-      #-----------------------------
-      bmat_b1  = [ 0 0 0 -dxN[1] 0
-             0 0 0      0  -dyN[1]
-             0 0 0 -dyN[1] -dxN[1]];
-
-             bmat_b2  = [ 0 0 0 -dxN[2]     0
-             0 0 0      0 -dyN[2]
-             0 0 0 -dyN[2] -dxN[2]];
-
-             bmat_b3  = [ 0 0 0 -dxN[3]     0
-             0 0 0      0 -dyN[3]
-             0 0 0 -dyN[3] -dxN[3]];
-
-             bmat_b4  = [ 0 0 0 -dxN[4]     0
-             0 0 0      0 -dyN[4]
-             0 0 0 -dyN[4] -dxN[4]];
-
-
-             bmat_b = [bmat_b1 bmat_b2 bmat_b3 bmat_b4];
-             #-----------------------------
-             bmat_m1d  = [ dxN[1]     0  0
-                   0 dyN[1] 0
-              dyN[1] dxN[1] 0];
-
-              bmat_m2d  = [ dxN[2]      0 0
-                   0 dyN[2] 0
-              dyN[2] dxN[2] 0];
-
-              bmat_m3d  = [ dxN[3]      0 0
-                   0 dyN[3] 0
-              dyN[3] dxN[3] 0];
-
-              bmat_m4d  = [ dxN[4]      0 0
-                   0 dyN[4] 0
-              dyN[4] dxN[4] 0];
-
-              bmat_mir  = [ 0 0
-                            0 0
-                            0 0];
-
-              bmat_m1 = [bmat_m1d*Rot bmat_mir];
-              bmat_m2 = [bmat_m2d*Rot bmat_mir];
-              bmat_m3 = [bmat_m3d*Rot bmat_mir];
-              bmat_m4 = [bmat_m4d*Rot bmat_mir];
-
-              bmat_m = [bmat_m1 bmat_m2 bmat_m3 bmat_m4];
-
-              #-----------------------------
-              cx = [ 0 1 0 -1]
-              cy = [-1 0 1 0 ]
-
-              c     = zeros(8,8);
-              b_bar = zeros(8,12)
-              N= zeros(4,1)
-
-              for i = 1 : 4
-                N[1] = (1-cx[i])*(1-cy[i])/4 ;
-                N[2] = (1+cx[i])*(1-cy[i])/4 ;
-                N[3] = (1+cx[i])*(1+cy[i])/4 ;
-                N[4] = (1-cx[i])*(1+cy[i])/4 ;
-
-                dxNl[1] = (-1+cy[i])/4;
-                dxNl[2] = ( 1-cy[i])/4;
-                dxNl[3] = ( 1+cy[i])/4;
-                dxNl[4] = (-1-cy[i])/4;
-
-                dyNl[1] = (-1+cx[i])/4;
-                dyNl[2] = (-1-cx[i])/4;
-                dyNl[3] = ( 1+cx[i])/4;
-                dyNl[4] = ( 1-cx[i])/4;
-
-                xjacm[1,1] = x[1]*dxNl[1] + x[2]*dxNl[2] + x[3]*dxNl[3] + x[4]*dxNl[4];
-                xjacm[1,2] = y[1]*dxNl[1] + y[2]*dxNl[2] + y[3]*dxNl[3] + y[4]*dxNl[4];
-                xjacm[2,1] = x[1]*dyNl[1] + x[2]*dyNl[2] + x[3]*dyNl[3] + x[4]*dyNl[4];
-                xjacm[2,2] = y[1]*dyNl[1] + y[2]*dyNl[2] + y[3]*dyNl[3] + y[4]*dyNl[4];
-
-                jpos = [i*2-1  i*2];
-
-                c[jpos,jpos] = xjacm;
-
-                bmat_s1  = [ dxN[1] -N[1]    0
-                             dyN[1]     0 -N[1]];
-
-                    bmat_s2  = [ dxN[2] -N[2]    0
-                                 dyN[2]     0 -N[2]];
-
-                    bmat_s3  = [ dxN[3] -N[3]    0
-                                 dyN[3]     0 -N[3]];
-
-                    bmat_s4  = [ dxN[4] -N[4]    0
-                                 dyN[4]     0 -N[4]];
-
-                    bmat_s = [bmat_s1 bmat_s2 bmat_s3 bmat_s4];
-
-                    b_bar[2*i-1,:] = bmat_s[1,:];
-                    b_bar[2*i,:] = bmat_s[2,:]
-                end
-                #-----------------------------
                     T_mat = [ 1  0  0  0  0  0  0  0
                               0  0  0  1  0  0  0  0
                               0  0  0  0  1  0  0  0
-                              0  0  0  0  0  0  0  1 ];
+                              0  0  0  0  0  0  0  1 ]
 
                     P_mat = [ 1  -1   0   0
                               0   0   1   1
                               1   1   0   0
-                              0   0   1  -1 ];
-
-                    A_mat = [ 1  ygs  0    0
-                              0    0  1  xgs ];
-
-                    bmat_ss = xjaci * A_mat * inv(P_mat) * T_mat * c * b_bar
+                              0   0   1  -1 ]
+       
+                    A_mat = [ 1  ip.R[2] 0    0
+                              0    0  1  ip.R[1]]
+      
+                    bmat_ss = invJ1[1:2, 1:2]* A_mat * inv(P_mat) * T_mat * c * Bs_bar
 
                     bmat_s1 = [0  0 bmat_ss[1, 1]
-                               0  0 bmat_ss[2, 1]];
+                               0  0 bmat_ss[2, 1]]
 
                     bmat_s2 = [0  0 bmat_ss[1, 4]
-                               0  0 bmat_ss[2, 4]];
+                               0  0 bmat_ss[2, 4]]
 
                     bmat_s3 = [0  0 bmat_ss[1, 7]
-                               0  0 bmat_ss[2, 7]];
+                               0  0 bmat_ss[2, 7]]
 
                     bmat_s4 = [0  0 bmat_ss[1,10]
-                               0  0 bmat_ss[2,10]];
+                               0  0 bmat_ss[2,10]]
 
-                    bmat_s1 = [bmat_s1*Rot bmat_ss[:,2:3]];
-
-                    bmat_s2 = [bmat_s2*Rot bmat_ss[:,5:6]];
-
-                    bmat_s3 = [bmat_s3*Rot bmat_ss[:,8:9]];
-
-                    bmat_s4 = [bmat_s4*Rot bmat_ss[:,11:12]];
+                    bmat_s1 = [bmat_s1*Ri[1:3, 1:3]  bmat_ss[:,2:3]]
+                    bmat_s2 = [bmat_s2*Ri[1:3, 1:3] bmat_ss[:,5:6]]
+                    bmat_s3 = [bmat_s3*Ri[1:3, 1:3] bmat_ss[:,8:9]]
+                    bmat_s4 = [bmat_s4*Ri[1:3, 1:3] bmat_ss[:,11:12]]
 
                     bmat_s = [bmat_s1 bmat_s2 bmat_s3 bmat_s4]
 
-                    #-----------------------------
-                     K_b = bmat_b'*D_matb*bmat_b*area*gauss_w[igaus];
-                     K_m = bmat_m'*D_matm*bmat_m*area*gauss_w[igaus];
-                     K_s = bmat_s'*D_mats*bmat_s*area*gauss_w[igaus];
+                    coef = detJ1*ip.w
 
-                     K_elem += K_b + K_m + K_s
+                     Kb =    Bb'*Db*Bb*coef 
+                     Km = R'*Bm'*Dm*Bm*R*coef 
+                     Ks = bmat_s'*Ds*bmat_s*coef 
 
+                     Kelem += (Kb + Km + Ks)
             end
-        map = elem_map(elem)
-
-    return K_elem, map, map
+            # map
+    keys = (:ux, :uy, :uz)[1:ndim]
+    map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
+    
+    return Kelem, map, map
 end
 
 
@@ -585,6 +431,7 @@ function elem_conductivity_matrix(elem::TMShell)
     nbnodes = elem.shape.basic_shape.npoints
     C      = getcoords(elem)
     H      = zeros(nnodes, nnodes)
+    dNtdX  = zeros(nnodes, ndim)
     Bt     = zeros(ndim, nnodes)
     KBt    = zeros(ndim, nnodes)
     J    = Array{Float64}(undef, ndim, ndim)
@@ -597,7 +444,8 @@ function elem_conductivity_matrix(elem::TMShell)
         @gemm J  = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        @gemm Bt = inv(J)*dNtdR
+        @gemm dNtdX = dNtdR*inv(J)
+        Bt .= dNtdX'
 
         # compute H
         K = calcK(elem.mat, ip.state)
@@ -651,18 +499,14 @@ function elem_internal_forces(elem::TMShell, F::Array{Float64,1}, DU::Array{Floa
     nbnodes = elem.shape.basic_shape.npoints
     C   = getcoords(elem)
     T0     = elem.env.T0 + 273.15
-
     keys   = (:ux, :uy, :uz)[1:ndim]
     map_u  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
     mat_t  = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nbnodes] ]
-
     dF  = zeros(nnodes*ndim)
     Bu  = zeros(6, nnodes*ndim)
     dFt = zeros(nbnodes)
     Bt  = zeros(ndim, nbnodes)
-
     m = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ] # = tI
-
     J  = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, nnodes, ndim)
     Jp  = Array{Float64}(undef, ndim, nbnodes)
@@ -670,7 +514,6 @@ function elem_internal_forces(elem::TMShell, F::Array{Float64,1}, DU::Array{Floa
     dUt = DU[mat_t] # nodal temperature increments
     for ip in elem.ips
         elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
-
         # compute Bu matrix and Bt
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
@@ -678,34 +521,28 @@ function elem_internal_forces(elem::TMShell, F::Array{Float64,1}, DU::Array{Floa
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
         @gemm dNdX = dNdR*inv(J)
         set_Bu(elem, ip, dNdX, Bu)
-
         dNtdR = elem.shape.basic_shape.deriv(ip.R)
         Jp = dNtdR*Ct
         @gemm dNtdX = inv(Jp)*dNtdR
         Bt = dNtdX
         # compute N
-
         # internal force
         ut   = ip.state.ut + 273
         β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu)
         σ    = ip.state.σ - β*ut*m # get total stress
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*σ
-
         # internal volumes dFt
         ε    = ip.state.ε
         εvol = dot(m, ε)
         coef = β*detJ*ip.w*th
         dFt  -= coef*Nt*εvol
-
         coef = detJ*ip.w*elem.mat.ρ*elem.mat.cv*th/T0
         dFt -= coef*Nt*ut
-
         QQ   = ip.state.QQ
         coef = detJ*ip.w*th/T0
         @gemv dFt += coef*Bt'*QQ
     end
-
     F[map_u] += dF
     F[mat_t] += dFt
 end
@@ -743,8 +580,8 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, DF::Array{Float64,1},
     Bt  = zeros(ndim, nnodes)
 
     J     = Array{Float64}(undef, ndim, ndim)
-    dNdX  = Array{Float64}(undef, ndim, nnodes)
-    dNtdX = Array{Float64}(undef, ndim, nbnodes)
+    dNdX  = Array{Float64}(undef, nnodes, ndim)
+    dNtdX = Array{Float64}(undef, nbnodes, ndim)
     Δε = zeros(6)
 
     for ip in elem.ips
@@ -756,23 +593,23 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, DF::Array{Float64,1},
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
         invJ = inv(J)
-        @gemm dNdX = invJ*dNdR
+        @gemm dNdX = dNdR*invJ
         set_Bu(elem, ip, dNdX, Bu)
 
         dNtdR = elem.shape.basic_shape.deriv(ip.R)
-        @gemm dNtdX = invJ*dNtdR
+        @gemm dNtdX = dNtdR*invJ
 
         # compute Nt
         Nt = elem.shape.basic_shape.func(ip.R)
-        # compute Δε
 
+        # compute Δε
         @gemv Δε = Bu*dU
 
         # compute Δut
         Δut = Nt'*dUt # interpolation to the integ. point
 
         # compute thermal gradient G
-        Bt = dNtdX
+        Bt .= dNtdX'
         G  = Bt*Ut
 
         # internal force dF
