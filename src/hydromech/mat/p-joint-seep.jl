@@ -425,7 +425,7 @@ function stress_update(mat::PJointSeep, ipd::PJointSeepIpState, Δw::Array{Float
 
     ipd.L  =  ((w^3)/(12*mat.η))*BfUw
 
-    return Δσ, ipd.Vt, ipd.L
+    return Δσ, ipd.Vt, ipd.L, success()
 end
 
 

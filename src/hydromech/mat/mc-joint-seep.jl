@@ -411,6 +411,7 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
 
     else    
         ipd.Δλ = calc_Δλ(mat, ipd, σtr) 
+        failed(status) && return ipd.σ, status
         ipd.σ, ipd.upa = calc_σ_upa(mat, ipd, σtr)
                       
         # Return to surface:
@@ -445,7 +446,7 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
     ipd.L  =  ((w^3)/(12*mat.η))*BfUw
     #ipd.S +=  ipd.L*Δt
 
-    return Δσ, ipd.Vt, ipd.L
+    return Δσ, ipd.Vt, ipd.L, success()
 end
 
 
