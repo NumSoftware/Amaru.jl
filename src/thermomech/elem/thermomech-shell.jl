@@ -38,7 +38,7 @@ end
 
 function distributed_bc(elem::TMShell, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
-    th    = elem.env.thickness
+    th     = thickness   # elem.env.thickness
     suitable_keys = (:tx, :ty, :tz, :tn, :tq)
 
     # Check keys
@@ -205,6 +205,7 @@ end
 function setBb(elem::TMShell, N::Vect, dNdX::Matx, Bb::Matx)
     nnodes = length(elem.nodes)
     # ndim, nnodes = size(dNdX)
+
     ndof = 5
     Bb .= 0.0
    
@@ -272,9 +273,25 @@ function setBs_bar(elem::TMShell, N::Vect, dNdX::Matx, Bs_bar::Matx)
           Bs_bar[2*i-1:2*i,:] = bs[1:2,:]
     end
 end
+#=
+function elem_map(elem::TMShell)::Array{Int,1}
+
+    #if elem.env.ndim==2
+    #    dof_keys = (:ux, :uy, :uz, :rx, :ry)
+    #else
+    #    dof_keys = (:ux, :uy, :uz, :rx, :ry, :rz) # VERIFICAR
+    #end
+
+    dof_keys = (:ux, :uy, :uz, :rx, :ry)
+
+    vcat([ [node.dofdict[key].eq_id for key in dof_keys] for node in elem.nodes]...)
+
+end
+=#
 
 function elem_stiffness(elem::TMShell)
     ndim   = elem.env.ndim
+
     nnodes = length(elem.nodes)
 
     Db = Db_maxtrix(elem)
@@ -289,7 +306,7 @@ function elem_stiffness(elem::TMShell)
     nr = 5   
     nc = 5
     R = zeros(nnodes*nr, nnodes*nc)
-    Kelem = zeros( nnodes*5 , nnodes*5 )
+    K = zeros( nnodes*5 , nnodes*5 )
 
     C = getcoords(elem)
 
@@ -299,7 +316,7 @@ function elem_stiffness(elem::TMShell)
     else
         cxyz = C
     end
-    
+
     for ip in elem.ips      
         # compute shape Jacobian
         N    = elem.shape.func(ip.R)
@@ -372,20 +389,31 @@ function elem_stiffness(elem::TMShell)
                      Km = R'*Bm'*Dm*Bm*R*coef 
                      Ks = bmat_s'*Ds*bmat_s*coef 
 
-                     Kelem += (Kb + Km + Ks)
+                     K += (Kb + Km + Ks)
             end
-            # map
+            
+    # map
     keys = (:ux, :uy, :uz)[1:ndim]
     map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
+     
+    #map = elem_map(elem)
+       
+    #@show size(K)
+    #@show size(map)
     
     return Kelem, map, map
+end
+
+
+@inline function set_Bu1(elem::Element, ip::Ip, dNdX::Matx, B::Matx)
+    setB(elem, ip, dNdX, B) # using function setB from mechanical analysis
 end
 
 
 # matrix C
 function elem_coupling_matrix(elem::TMShell)
     ndim   = elem.env.ndim
-    th     = elem.env.thickness
+    th     = t   # elem.env.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C   = getcoords(elem)
@@ -406,7 +434,7 @@ function elem_coupling_matrix(elem::TMShell)
         @gemm dNdX = dNdR*inv(J)
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        set_Bu(elem, ip, dNdX, Bu)
+        set_Bu1(elem, ip, dNdX, Bu)
 
         # compute Cut
         Nt    = elem.shape.basic_shape.func(ip.R)
@@ -426,7 +454,7 @@ end
 # thermal conductivity
 function elem_conductivity_matrix(elem::TMShell)
     ndim   = elem.env.ndim
-    th     = elem.env.thickness
+    th     = thickness   # elem.env.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C      = getcoords(elem)
@@ -462,7 +490,7 @@ end
 
 function elem_mass_matrix(elem::TMShell)
     ndim   = elem.env.ndim
-    th     = elem.env.thickness
+    th     = thickness   # elem.env.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C      = getcoords(elem)
@@ -494,7 +522,7 @@ end
 #=
 function elem_internal_forces(elem::TMShell, F::Array{Float64,1}, DU::Array{Float64,1})
     ndim   = elem.env.ndim
-    th     = elem.env.thickness # VERIFICAR ESPESSURA
+    th     = thickness   # elem.env.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C   = getcoords(elem)
@@ -551,7 +579,7 @@ end
 
 function elem_update!(elem::TMShell, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
-    th     = elem.env.thickness
+    th     = thickness   # elem.env.thickness
     T0     = elem.env.T0 + 273.15
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
