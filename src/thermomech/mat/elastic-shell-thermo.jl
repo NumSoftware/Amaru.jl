@@ -28,22 +28,22 @@ mutable struct ElasticShellThermo<:Material
     ρ ::Float64 # density Ton/m3
     cv::Float64 # Specific heat J/Ton/k
     α ::Float64 # thermal expansion coefficient  1/K or 1/°C
-    thick::Float64 # thickness
+    t::Float64 # thickness
 
 
     function ElasticShellThermo(prms::Dict{Symbol,Float64})
         return  ElasticShellThermo(;prms...)
     end
 
-    function ElasticShellThermo(;E=NaN, nu=NaN, k=NaN, rho=NaN, cv=NaN, alpha=1.0, thick =NaN)
+    function ElasticShellThermo(;E=NaN, nu=NaN, k=NaN, rho=NaN, cv=NaN, alpha=1.0, thickness =NaN)
         E>0.0       || error("Invalid value for E: $E")
         (0<=nu<0.5) || error("Invalid value for nu: $nu")
         isnan(k)     && error("Missing value for k")
         cv<=0.0       && error("Invalid value for cv: $cv")
         0<=alpha<=1  || error("Invalid value for alpha: $alpha")
-        thick>0.0       || error("Invalid value for thick: $thick")
+        thickness>0.0       || error("Invalid value for thick: $thickness")
 
-        this = new(E, nu, k, rho, cv, alpha,thick)
+        this = new(E, nu, k, rho, cv, alpha,thickness)
 
         return this
     end
