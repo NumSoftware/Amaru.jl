@@ -241,6 +241,7 @@ function setBm(elem::TMShell, N::Vect, dNdX::Matx, Bm::Matx)
     end
 end
 
+
 function setBs_bar(elem::TMShell, N::Vect, dNdX::Matx, Bs_bar::Matx)
     nnodes = length(elem.nodes)
 
