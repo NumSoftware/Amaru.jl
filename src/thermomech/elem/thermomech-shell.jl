@@ -241,7 +241,6 @@ function setBm(elem::TMShell, N::Vect, dNdX::Matx, Bm::Matx)
     end
 end
 
-
 function setBs_bar(elem::TMShell, N::Vect, dNdX::Matx, Bs_bar::Matx)
     nnodes = length(elem.nodes)
 
@@ -402,7 +401,7 @@ function elem_stiffness(elem::TMShell)
     #@show size(K)
     #@show size(map)
     
-    return Kelem, map, map
+    return K, map, map
 end
 
 
