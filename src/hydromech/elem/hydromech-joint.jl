@@ -84,6 +84,17 @@ function elem_init(elem::HydroMechJoint)
     for ip in elem.ips
         ip.state.h = h
     end
+
+    # Setting initial crack openning if available
+    if hasfield(typeof(elem.mat), :w)
+        if elem.mat.w > 0.0
+            for ip in elem.ips
+                ip.state.w[1] = elem.mat.w
+                ip.state.upa = elem.mat.wc
+                ip.state.Δλ = 1.0
+            end 
+        end
+    end
 end
 
 function elem_stiffness(elem::HydroMechJoint)
@@ -260,19 +271,19 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
         H -= coef*Nt'*Nt
 
          # compute crack aperture
-        if elem.mat.w == 0.0
+        # if elem.mat.w == 0.0
             if ip.state.upa == 0.0 || ip.state.w[1] <= 0.0  
                 w = 0.0
             else
                 w = ip.state.w[1]
             end
-        else
-            if elem.mat.w >= ip.state.w[1]
-                w = elem.mat.w
-            else 
-                w = ip.state.w[1]
-            end
-        end    
+        # else
+        #     if elem.mat.w >= ip.state.w[1]
+        #         w = elem.mat.w
+        #     else 
+        #         w = ip.state.w[1]
+        #     end
+        # end    
 
         coef = detJ*ip.w*th*(w^3)/(12*elem.mat.η) 
         H -= coef*Bf'*Bf
@@ -319,19 +330,19 @@ function elem_compressibility_matrix(elem::HydroMechJoint)
         Nf = [N0' N0' Np']
 
         # compute crack aperture
-        if elem.mat.w == 0.0
+        # if elem.mat.w == 0.0
             if ip.state.upa == 0.0 || ip.state.w[1] <= 0.0  
                 w = 0.0
             else
                 w = ip.state.w[1]
             end
-        else
-            if elem.mat.w >= ip.state.w[1]
-                w = elem.mat.w
-            else 
-                w = ip.state.w[1]
-            end
-        end    
+        # else
+        #     if elem.mat.w >= ip.state.w[1]
+        #         w = elem.mat.w
+        #     else 
+        #         w = ip.state.w[1]
+        #     end
+        # end    
 
         # compute Cpp
         coef = detJ*ip.w*elem.mat.β*w*th
@@ -394,19 +405,19 @@ function elem_RHS_vector(elem::HydroMechJoint)
         # compute Q
 
         # compute crack aperture
-        if elem.mat.w == 0.0
+        # if elem.mat.w == 0.0
             if ip.state.upa == 0.0 || ip.state.w[1] <= 0.0 
                 w = 0.0
             else
                 w = ip.state.w[1]
             end 
-        else
-            if elem.mat.w >= ip.state.w[1]
-                w = elem.mat.w
-            else 
-                w = ip.state.w[1]
-            end
-        end    
+        # else
+        #     if elem.mat.w >= ip.state.w[1]
+        #         w = elem.mat.w
+        #     else 
+        #         w = ip.state.w[1]
+        #     end
+        # end    
 
         coef = detJ*ip.w*th*(w^3)/(12*elem.mat.η)   
         bf = T[(2:end), (1:end)]*Z*elem.mat.γw
@@ -633,19 +644,19 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
         dFw -= coef*Nf'*mfΔω 
 
         # compute fluid compressibility
-        if elem.mat.w == 0.0
+        # if elem.mat.w == 0.0
             if ip.state.upa == 0.0 || ip.state.w[1] <= 0.0 
                 w = 0.0
             else
                 w = ip.state.w[1]
             end 
-        else
-            if elem.mat.w >= ip.state.w[1]
-                w = elem.mat.w
-            else 
-                w = ip.state.w[1]
-            end
-        end    
+        # else
+        #     if elem.mat.w >= ip.state.w[1]
+        #         w = elem.mat.w
+        #     else 
+        #         w = ip.state.w[1]
+        #     end
+        # end    
 
         coef = detJ*ip.w*elem.mat.β*w*th
         dFw -= coef*Nf'*Δuw[3]

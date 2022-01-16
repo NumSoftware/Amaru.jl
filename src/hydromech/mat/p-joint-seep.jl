@@ -455,19 +455,19 @@ function stress_update(mat::PJointSeep, ipd::PJointSeepIpState, Δw::Array{Float
     ipd.Vt  = -mat.kt*G
 
     # compute crack aperture
-    if mat.w == 0.0
+    # if mat.w == 0.0
         if ipd.upa == 0.0 || ipd.w[1] <= 0.0 
             w = 0.0
         else
             w = ipd.w[1]
         end
-    else
-        if mat.w >= ipd.w[1]
-            w = mat.w
-        else 
-            w = ipd.w[1]
-        end
-    end 
+    # else
+    #     if mat.w >= ipd.w[1]
+    #         w = mat.w
+    #     else 
+    #         w = ipd.w[1]
+    #     end
+    # end 
 
     ipd.L  =  ((w^3)/(12*mat.η))*BfUw
 
