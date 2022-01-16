@@ -401,7 +401,7 @@ function elem_stiffness(elem::TMShell)
     #@show size(K)
     #@show size(map)
     
-    return Kelem, map, map
+    return K, map, map
 end
 
 
