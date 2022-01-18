@@ -288,7 +288,7 @@ function calc_Δλ(mat::MCJointSeep, ipd::MCJointSeepIpState, σtr::Array{Float6
 
         abs(f) < tol && break
 
-        if i == maxits 
+        if i == maxits || isnan(Δλ)
             warn("""PJoint: Could not find Δλ. This may happen when the system
             becomes hypostatic and thus the global stiffness matrix is nearly singular.
             Increasing the mesh refinement may result in a nonsingular matrix.
@@ -297,7 +297,7 @@ function calc_Δλ(mat::MCJointSeep, ipd::MCJointSeepIpState, σtr::Array{Float6
             return 0.0, failure()
         end
     end
-    return Δλ
+    return Δλ, success()
 end
 
 
@@ -410,7 +410,7 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
         ipd.σ  = copy(σtr) 
 
     else    
-        ipd.Δλ = calc_Δλ(mat, ipd, σtr) 
+        ipd.Δλ, status = calc_Δλ(mat, ipd, σtr)
         failed(status) && return ipd.σ,ipd.Vt,ipd.L, status
         ipd.σ, ipd.upa = calc_σ_upa(mat, ipd, σtr)
                       
