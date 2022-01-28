@@ -346,10 +346,10 @@ function elem_stiffness(elem::ShellQUAD4)
        
                     A_mat = [ 1  ip.R[2] 0    0
                               0    0  1  ip.R[1]]
-      
+
                     bmat_ss = invJ1[1:2, 1:2]* A_mat * inv(P_mat) * T_mat * c * Bs_bar
 
-
+                    # Rotação dos termos  bmat_ss[1:2,1] bmat_ss[1:2,4] bmat_ss[1:2,7] bmat_ss[1:2,10]
                     bmat_s  = zeros(2,20)
                     for i in 1:nnodes
                         bb = [0  0 bmat_ss[1, (i-1)*3+1]
@@ -360,7 +360,7 @@ function elem_stiffness(elem::ShellQUAD4)
 
                      coef = detJ1*ip.w
 
-                     Kb =    Bb'*Db*Bb*coef 
+                     Kb =    Bb'*Db*Bb*coef # Pq não rotaciona?
                      Km = R'*Bm'*Dm*Bm*R*coef 
                      Ks = bmat_s'*Ds*bmat_s*coef 
 
