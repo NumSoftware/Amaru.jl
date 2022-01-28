@@ -349,26 +349,16 @@ function elem_stiffness(elem::ShellQUAD4)
       
                     bmat_ss = invJ1[1:2, 1:2]* A_mat * inv(P_mat) * T_mat * c * Bs_bar
 
-                    bmat_s1 = [0  0 bmat_ss[1, 1]
-                               0  0 bmat_ss[2, 1]]
 
-                    bmat_s2 = [0  0 bmat_ss[1, 4]
-                               0  0 bmat_ss[2, 4]]
+                    bmat_s  = zeros(2,20)
+                    for i in 1:nnodes
+                        bb = [0  0 bmat_ss[1, (i-1)*3+1]
+                              0  0 bmat_ss[2, (i-1)*3+1]]
 
-                    bmat_s3 = [0  0 bmat_ss[1, 7]
-                               0  0 bmat_ss[2, 7]]
+                        bmat_s[:, (i-1)*5+1:i*5] = [ bb*Ri[1:3, 1:3]   bmat_ss[:,(i-1)*3+2:(i-1)*3+3] ]
+                    end
 
-                    bmat_s4 = [0  0 bmat_ss[1,10]
-                               0  0 bmat_ss[2,10]]
-
-                    bmat_s1 = [bmat_s1*Ri[1:3, 1:3]  bmat_ss[:,2:3]]
-                    bmat_s2 = [bmat_s2*Ri[1:3, 1:3] bmat_ss[:,5:6]]
-                    bmat_s3 = [bmat_s3*Ri[1:3, 1:3] bmat_ss[:,8:9]]
-                    bmat_s4 = [bmat_s4*Ri[1:3, 1:3] bmat_ss[:,11:12]]
-
-                    bmat_s = [bmat_s1 bmat_s2 bmat_s3 bmat_s4]
-
-                    coef = detJ1*ip.w
+                     coef = detJ1*ip.w
 
                      Kb =    Bb'*Db*Bb*coef 
                      Km = R'*Bm'*Dm*Bm*R*coef 
