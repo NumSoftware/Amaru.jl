@@ -273,6 +273,7 @@ function setBs_bar(elem::TMShell, N::Vect, dNdX::Matx, Bs_bar::Matx)
           Bs_bar[2*i-1:2*i,:] = bs[1:2,:]
     end
 end
+
 #=
 function elem_map(elem::TMShell)::Array{Int,1}
 
@@ -395,12 +396,8 @@ function elem_stiffness(elem::TMShell)
     # map
     keys = (:ux, :uy, :uz)[1:ndim]
     map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-     
-    #map = elem_map(elem)
-       
-    #@show size(K)
-    #@show size(map)
-    
+    #map = elem_map(elem) 
+
     return K, map, map
 end
 

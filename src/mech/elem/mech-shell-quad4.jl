@@ -118,7 +118,6 @@ function Db_maxtrix(elem::ShellQUAD4)
 end
 
 # the strain-displacement matrix for shear forces
-
 function Ds_maxtrix(elem::ShellQUAD4)
 
     coef = elem.mat.t*(5/6)*elem.mat.E/(2*(1+elem.mat.nu))
@@ -133,6 +132,7 @@ function RotMatrix(elem::ShellQUAD4, J::Matrix{Float64})
     
     Z = zeros(1,2) # zeros(2,1)
 
+    # artifice for mounting the rotation matrix for flat elements
     if size(J,1)==2
         J = [J
              Z]
@@ -142,15 +142,15 @@ function RotMatrix(elem::ShellQUAD4, J::Matrix{Float64})
     
     L1 = vec(J[:,1])
     L2 = vec(J[:,2])
-    L3 = cross(L1, L2)  # L1 is normal to the first element face
+    L3 = cross(L1, L2) 
     L2 = cross(L1, L3)
     normalize!(L1)
     normalize!(L2)
     normalize!(L3)
 
-    Z1 = zeros(1,2) # Z = zeros(1,3)
+    Z1 = zeros(1,2)
 
-    Rot = [ L2' Z1
+    Rot = [ L2' Z1 # changing the position of L2 by L1 in the rotation matrix to be equivalent that one used by Oñate and Aldo
     L1' Z1
     L3' Z1
     Z1   L2'
@@ -191,7 +191,7 @@ function elem_map(elem::ShellQUAD4)::Array{Int,1}
     #if elem.env.ndim==2
     #    dof_keys = (:ux, :uy, :uz, :rx, :ry)
     #else
-    #    dof_keys = (:ux, :uy, :uz, :rx, :ry, :rz) # VERIFICAR
+    #    dof_keys = (:ux, :uy, :uz, :rx, :ry, :rz) 
     #end
 
     dof_keys = (:ux, :uy, :uz, :rx, :ry)
@@ -199,6 +199,7 @@ function elem_map(elem::ShellQUAD4)::Array{Int,1}
     vcat([ [node.dofdict[key].eq_id for key in dof_keys] for node in elem.nodes]...)
 
 end
+
 
 function setBb(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bb::Matx)
     nnodes = length(elem.nodes)
@@ -268,6 +269,7 @@ function setBs_bar(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bs_bar::Matx)
           bs = [bs1 bs2 bs3 bs4]
 
           Bs_bar[2*i-1:2*i,:] = bs[1:2,:]
+          # dimension 8x12
     end
 end
 
@@ -329,6 +331,8 @@ function elem_stiffness(elem::ShellQUAD4)
         setBb(elem, N, dNdX′, Bb)
         setBm(elem, N, dNdX′, Bm)
         setBs_bar(elem, N, dNdX′, Bs_bar)
+
+        #Assembly of substitutive B matrix
 
                     T_mat = [ 1  0  0  0  0  0  0  0
                               0  0  0  1  0  0  0  0
