@@ -446,7 +446,7 @@ function ip_state_vals(mat::MMCJoint, ipd::MMCJointIpState)
           :sj1  => ipd.σ[1] ,
           :sj2  => ipd.σ[2] ,
           :sj3  => ipd.σ[3] ,
-          :up => ipd.upa
+          :jup => ipd.upa
           )
     else
         return Dict(
@@ -454,11 +454,11 @@ function ip_state_vals(mat::MMCJoint, ipd::MMCJointIpState)
           :wj2  => ipd.w[2] ,
           :sj1  => ipd.σ[1] ,
           :sj2  => ipd.σ[2] ,
-          :up => ipd.upa
+          :jup => ipd.upa
           )
     end
 end
 
 function output_keys(mat::MMCJoint)
-    return Symbol[:wj1, :sj1, :up]
+    return Symbol[:wj1, :sj1, :jup]
 end

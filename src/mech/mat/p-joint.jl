@@ -30,6 +30,8 @@ mutable struct PJoint<:Material
     wc::Float64      # critical crack opening
     ws::Float64      # openning at inflection (where the curve slope changes)
     softcurve::String # softening curve model ("linear" or bilinear" or "hordijk")
+    α::Float64 # fator for reducing the curve
+    γ::Float64 # factor for βres
 
     function PJoint(prms::Dict{Symbol,Float64})
         return  PJoint(;prms...)
@@ -62,7 +64,7 @@ mutable struct PJoint<:Material
         (isnan(ws) || ws>0) || error("Invalid value for ws: $ws")
         softcurve in ("linear", "bilinear", "hordijk") || error("Invalid softcurve: softcurve must to be linear or bilinear or hordijk")
 
-        this = new(E, nu, ft, fc, zeta, wc, ws, softcurve)
+        this = new(E, nu, ft, fc, zeta, wc, ws, softcurve, 1.5, 0.1)
         return this
     end
 end
@@ -73,12 +75,13 @@ matching_elem_type(::PJoint) = MechJoint
 # Type of corresponding state structure
 ip_state_type(mat::PJoint) = PJointIpState
 
-
 function yield_func(mat::PJoint, ipd::PJointIpState, σ::Array{Float64,1}, σmax::Float64)
     ndim = ipd.env.ndim
     fc, ft = mat.fc, mat.ft
 
-    β = 2*ft - fc -2*√(ft^2 - fc*ft)
+    βini = 2*ft - fc -2*√(ft^2 - fc*ft)
+    βres = mat.γ*βini
+    β = βres + (βini-βres)*(σmax/ft)^mat.α
     if ndim == 3
         return β*(σ[1] - σmax) + σ[2]^2 + σ[3]^2
     else
@@ -87,20 +90,17 @@ function yield_func(mat::PJoint, ipd::PJointIpState, σ::Array{Float64,1}, σmax
 end
 
 
-function yield_derivs(mat::PJoint, ipd::PJointIpState, σ::Array{Float64,1})
+function yield_derivs(mat::PJoint, ipd::PJointIpState, σ::Array{Float64,1}, σmax::Float64)
     ndim = ipd.env.ndim
     fc, ft = mat.fc, mat.ft
-    β = 2*ft - fc -2*√(ft^2 - fc*ft)
-
-    # @show β
-    # @show a
-    # @show (β*ft)^0.5
-    # error()
+    βini = 2*ft - fc -2*√(ft^2 - fc*ft)
+    βres = mat.γ*βini
+    β = βres + (βini-βres)*(σmax/ft)^mat.α
 
     if ndim == 3
-        return [ β , 2*σ[2], 2*σ[3] ]
+        return [ β, 2*σ[2], 2*σ[3] ]
     else
-        return [ β , 2*σ[2] ]
+        return [ β, 2*σ[2] ]
     end
 end
 
@@ -217,7 +217,10 @@ function calc_Δλ(mat::PJoint, ipd::PJointIpState, σtr::Array{Float64,1})
     upa    = 0.0
     tol    = 1e-2
     fc, ft = mat.fc, mat.ft
-    β = 2*ft - fc -2*√(ft^2 - fc*ft)
+    βini = 2*ft - fc -2*√(ft^2 - fc*ft)
+    βres = mat.γ*βini
+    α    = mat.α
+    
     nits = 0
 
     for i in 1:maxits
@@ -249,6 +252,8 @@ function calc_Δλ(mat::PJoint, ipd::PJointIpState, σtr::Array{Float64,1})
         norm_r = norm(r)
         upa    = ipd.upa + Δλ*norm_r
         σmax   = calc_σmax(mat, ipd, upa)
+        # β      = βres + (βini-βres)/ft*σmax
+        β      = βres + (βini-βres)*(σmax/ft)^mat.α
 
         if ndim == 3
             f = β*(σ[1] - σmax) + σ[2]^2 + σ[3]^2
@@ -258,56 +263,52 @@ function calc_Δλ(mat::PJoint, ipd::PJointIpState, σtr::Array{Float64,1})
             dfdσ = [ β, 2*σ[2] ]
         end
 
+        # dfdσmax = (βres-βini)/ft*(2*σmax-σ[1]) - βres
+        # dfdσmax = (βini-βres)/ft*(σ[1]-σmax)*α*(σmax/ft)^(α-1) - β
+        dfdσmax = (βini-βres)/ft*(σ[1]-σmax)*α*(σmax/ft)^(α-1) - β
         m = deriv_σmax_upa(mat, ipd, upa)
         dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
-        dfdσmax = -β
         dfdΔλ = dot(dfdσ, dσdΔλ) + dfdσmax*dσmaxdΔλ
         Δλ = Δλ - f/dfdΔλ
-        # @show f, Δλ
+        
         abs(f) < tol && break
 
         if i == maxits || isnan(Δλ)
-            # warn("""PJoint: Could not find Δλ. This may happen when the system
-            # becomes hypostatic and thus the global stiffness matrix is nearly singular.
-            # Increasing the mesh refinement may result in a nonsingular matrix.
-            # """)
-            # warn("iterations=$i Δλ=$Δλ")
             return 0.0, failure()
         end
     end
-    # @show nits
-    # @show f, Δλ
 
     return Δλ, success()
 end
 
 
-function calc_σ_upa(mat::PJoint, ipd::PJointIpState, σtr::Array{Float64,1})
-    ndim = ipd.env.ndim
-    kn, ks = calc_kn_ks(mat, ipd)
+# function calc_σ_upa(mat::PJoint, ipd::PJointIpState, σtr::Array{Float64,1})
+#     ndim = ipd.env.ndim
+#     kn, ks = calc_kn_ks(mat, ipd)
 
-    if ndim == 3
-        if σtr[1] > 0
-            ipd.σ = [σtr[1]/(1 + 2*ipd.Δλ*kn), σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
-        else
-            ipd.σ = [σtr[1], σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
-        end    
-    else
-        if σtr[1] > 0
-            ipd.σ = [σtr[1]/(1 + 2*ipd.Δλ*kn), σtr[2]/(1 + 2*ipd.Δλ*ks)]
-        else
-            ipd.σ = [σtr[1], σtr[2]/(1 + 2*ipd.Δλ*ks)]
-        end    
-    end
-    r = potential_derivs(mat, ipd, ipd.σ)
-    ipd.upa += ipd.Δλ*norm(r)
-    return ipd.σ, ipd.upa
-end
+#     if ndim == 3
+#         if σtr[1] > 0
+#             σ = [σtr[1]/(1 + 2*ipd.Δλ*kn), σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
+#         else
+#             σ = [σtr[1], σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
+#         end    
+#     else
+#         if σtr[1] > 0
+#             σ = [σtr[1]/(1 + 2*ipd.Δλ*kn), σtr[2]/(1 + 2*ipd.Δλ*ks)]
+#         else
+#             σ = [σtr[1], σtr[2]/(1 + 2*ipd.Δλ*ks)]
+#         end    
+#     end
+#     r = potential_derivs(mat, ipd, σ)
+#     upa = ipd.upa + ipd.Δλ*norm(r)
+#     return σ, upa
+# end
 
 
 function mountD(mat::PJoint, ipd::PJointIpState)
     ndim = ipd.env.ndim
     kn, ks = calc_kn_ks(mat, ipd)
+    α = mat.α
     σmax = calc_σmax(mat, ipd, ipd.upa)
 
     De = diagm([kn, ks, ks][1:ndim])
@@ -328,27 +329,30 @@ function mountD(mat::PJoint, ipd::PJointIpState)
     else
         # @show "plastic De"
         fc, ft = mat.fc, mat.ft
-        β = 2*ft - fc -2*√(ft^2 - fc*ft)
+        βini = 2*ft - fc -2*√(ft^2 - fc*ft)
+        βres = mat.γ*βini
 
         r = potential_derivs(mat, ipd, ipd.σ)
-        v = yield_derivs(mat, ipd, ipd.σ)
-        y = -β  # ∂F/∂σmax
+        v = yield_derivs(mat, ipd, ipd.σ, σmax)
+        # dfdσmax = (βres-βini)/ft*(2*σmax-ipd.σ[1]) - βres
+        β = βres + (βini-βres)*(σmax/ft)^mat.α
+        dfdσmax = (βini-βres)/ft*(ipd.σ[1]-σmax)*α*(σmax/ft)^(α-1) - β
+        # dfdσmax = -β  # ∂F/∂σmax
         m = deriv_σmax_upa(mat, ipd, ipd.upa)  # ∂σmax/∂upa
 
-        #Dep  = De - De*r*v'*De/(v'*De*r - y*m*norm(r))
+        #Dep  = De - De*r*v'*De/(v'*De*r - dfdσmax*m*norm(r))
 
         if ndim == 3
-            den = kn*r[1]*v[1] + ks*r[2]*v[2] + ks*r[3]*v[3] - y*m*norm(r)
+            den = kn*r[1]*v[1] + ks*r[2]*v[2] + ks*r[3]*v[3] - dfdσmax*m*norm(r)
 
             Dep = [   kn - kn^2*r[1]*v[1]/den    -kn*ks*r[1]*v[2]/den      -kn*ks*r[1]*v[3]/den
                      -kn*ks*r[2]*v[1]/den         ks - ks^2*r[2]*v[2]/den  -ks^2*r[2]*v[3]/den
                      -kn*ks*r[3]*v[1]/den        -ks^2*r[3]*v[2]/den        ks - ks^2*r[3]*v[3]/den ]
         else
-            den = kn*r[1]*v[1] + ks*r[2]*v[2] - y*m*norm(r)
+            den = kn*r[1]*v[1] + ks*r[2]*v[2] - dfdσmax*m*norm(r)
 
             Dep = [   kn - kn^2*r[1]*v[1]/den    -kn*ks*r[1]*v[2]/den      
                      -kn*ks*r[2]*v[1]/den         ks - ks^2*r[2]*v[2]/den  ]
-                     
         end
 
 
@@ -360,7 +364,7 @@ function mountD(mat::PJoint, ipd::PJointIpState)
         #     @show ks
         #     @show r
         #     @show v
-        #     @show y
+        #     @show dfdσmax
         #     @show m
         #     @show den
         #     @show Dep
@@ -406,7 +410,7 @@ function stress_update(mat::PJoint, ipd::PJointIpState, Δw::Array{Float64,1})
         end
 
         ipd.upa += ipd.Δλ
-        ipd.σ = σtr - ipd.Δλ*De*r     
+        ipd.σ = σtr - ipd.Δλ*De*r
 
     elseif Ftr <= 0.0
         # @show "ELASTIC up"
@@ -421,13 +425,22 @@ function stress_update(mat::PJoint, ipd::PJointIpState, Δw::Array{Float64,1})
         ipd.Δλ, status = calc_Δλ(mat, ipd, σtr)
         failed(status) && return ipd.σ, status
 
-        ipd.σ, ipd.upa = calc_σ_upa(mat, ipd, σtr)
-
-        # @show ipd.Δλ
-                      
-        # Return to surface:
-        # F  = yield_func(mat, ipd, ipd.σ)   
-        # F > 1e-2 && alert("PJoint: Yield function value ($F) outside tolerance")
+        # ipd.σ, ipd.upa = calc_σ_upa(mat, ipd, σtr)
+        if ndim == 3
+            if σtr[1] > 0
+                ipd.σ = [σtr[1]/(1 + 2*ipd.Δλ*kn), σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
+            else
+                ipd.σ = [σtr[1], σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
+            end    
+        else
+            if σtr[1] > 0
+                ipd.σ = [σtr[1]/(1 + 2*ipd.Δλ*kn), σtr[2]/(1 + 2*ipd.Δλ*ks)]
+            else
+                ipd.σ = [σtr[1], σtr[2]/(1 + 2*ipd.Δλ*ks)]
+            end    
+        end
+        r = potential_derivs(mat, ipd, ipd.σ)
+        ipd.upa += ipd.Δλ*norm(r)
 
     end
     ipd.w += Δw
@@ -440,25 +453,25 @@ function ip_state_vals(mat::PJoint, ipd::PJointIpState)
     ndim = ipd.env.ndim
     if ndim == 3
        return Dict(
-          :wj1  => ipd.w[1] ,
-          :wj2  => ipd.w[2] ,
-          :wj3  => ipd.w[3] ,
-          :sj1  => ipd.σ[1] ,
-          :sj2  => ipd.σ[2] ,
-          :sj3  => ipd.σ[3] ,
-          :up => ipd.upa
+          :jw1  => ipd.w[1],
+          :jw2  => ipd.w[2],
+          :jw3  => ipd.w[3],
+          :js1  => ipd.σ[1],
+          :js2  => ipd.σ[2],
+          :js3  => ipd.σ[3],
+          :jup => ipd.upa
           )
     else
         return Dict(
-          :wj1  => ipd.w[1] ,
-          :wj2  => ipd.w[2] ,
-          :sj1  => ipd.σ[1] ,
-          :sj2  => ipd.σ[2] ,
-          :up => ipd.upa
+          :jw1  => ipd.w[1],
+          :jw2  => ipd.w[2],
+          :js1  => ipd.σ[1],
+          :js2  => ipd.σ[2],
+          :jup => ipd.upa
           )
     end
 end
 
 function output_keys(mat::PJoint)
-    return Symbol[:wj1, :sj1, :up]
+    return Symbol[:jw1, :js1, :jup]
 end
