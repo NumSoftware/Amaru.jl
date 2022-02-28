@@ -109,6 +109,7 @@ function Base.contains(poly::Polygon, point::Point)
     # project to plane
     v1 = normalize(poly.points[2].coord - poly.points[1].coord)
     v2 = normalize(cross(N, v1))
+    v1 = cross(v2, N)
 
     R = [v1'; v2'; N']
     XY = (C*R')[:,1:2]
@@ -126,7 +127,7 @@ function Base.contains(poly::Polygon, point::Point)
         x1, y1 = XY[i,1], XY[i,2]
 
         # check if point is equal to vertex
-        abs(x1-x)<eps && (y1-y)<eps && return true
+        abs(x1-x)<eps && abs(y1-y)<eps && return true
 
         # get second point of segment
         if i!=size(XY,1)
