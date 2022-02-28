@@ -1,6 +1,5 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-
 # Assemble the global stiffness matrix
 function mount_K(dom::Domain, 
                  ndofs::Int,
@@ -350,16 +349,17 @@ function solve!(
     ΔTcheck = save_outs ? 1/nouts : 1.0
     Tcheck  = ΔTcheck
 
-    inc  = 0             # increment counter
-    iout = env.cout      # file output counter
-    F    = zeros(ndofs)  # total internal force for current stage
-    U    = zeros(ndofs)  # total displacements for current stage
-    R    = zeros(ndofs)  # vector for residuals of natural values
-    ΔFin = zeros(ndofs)  # vector of internal natural values for current increment
-    ΔUa  = zeros(ndofs)  # vector of essential values (e.g. displacements) for this increment
-    ΔUi  = zeros(ndofs)  # vector of essential values for current iteration
-    Rc   = zeros(ndofs)  # vector of cumulated residues
-    status = ReturnStatus()
+    inc       = 0             # increment counter
+    iout      = env.cout      # file output counter
+    F         = zeros(ndofs)  # total internal force for current stage
+    U         = zeros(ndofs)  # total displacements for current stage
+    R         = zeros(ndofs)  # vector for residuals of natural values
+    ΔFin      = zeros(ndofs)  # vector of internal natural values for current increment
+    ΔUa       = zeros(ndofs)  # vector of essential values (e.g. displacements) for this increment
+    ΔUi       = zeros(ndofs)  # vector of essential values for current iteration
+    Rc        = zeros(ndofs)  # vector of cumulated residues
+    sysstatus = ReturnStatus()
+    solstatus = success()
 
     # Get forces and displacements from boundary conditions
     Uex, Fex = get_bc_vals(dom, bcs)
@@ -385,7 +385,7 @@ function solve!(
             return failure("$maxincs reached")
         end
 
-        # # Print status
+        # # Print sysstatus
         # progress = @sprintf("%4.2f", T*100)
         # verbosity>0 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)% increment $inc dT=$(round(ΔT,sigdigits=4))\e[K\n", bold=true, color=:blue) # color 111
         # # verbosity>1 && println()
@@ -426,13 +426,13 @@ function solve!(
             # Predictor step for FE, ME and BE
             if scheme in ("FE", "ME", "BE")
                 K = mount_K(dom, ndofs, verbosity)
-                status = solve_system!(K, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
-                failed(status) && (errored=true; break)
+                sysstatus = solve_system!(K, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
+                failed(sysstatus) && (errored=true; break)
 
                 copyto!.(State, StateBk)
                 ΔUt   = ΔUa + ΔUi
-                status = update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
-                failed(status) && (errored=true; break)
+                sysstatus = update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
+                failed(sysstatus) && (errored=true; break)
                 
                 residue = maximum(abs, (ΔFex-ΔFin)[umap])
             end
@@ -447,13 +447,13 @@ function solve!(
                 elseif scheme=="BE"
                     K = K2
                 end
-                status = solve_system!(K, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
-                failed(status) && (errored=true; break)
+                sysstatus = solve_system!(K, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
+                failed(sysstatus) && (errored=true; break)
 
                 copyto!.(State, StateBk)
                 ΔUt   = ΔUa + ΔUi
-                status = update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
-                failed(status) && (errored=true; break)
+                sysstatus = update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
+                failed(sysstatus) && (errored=true; break)
 
                 residue = maximum(abs, (ΔFex-ΔFin)[umap])
             end
@@ -464,24 +464,24 @@ function solve!(
                 # Predictor step
                 K = mount_K(dom, ndofs, verbosity)
                 ΔUit = 2/3*ΔUi
-                status = solve_system!(K, ΔUit, 2/3*R, nu, verbosity)   # Changes unknown positions in ΔUi and R
-                failed(status) && (errored=true; break)
+                sysstatus = solve_system!(K, ΔUit, 2/3*R, nu, verbosity)   # Changes unknown positions in ΔUi and R
+                failed(sysstatus) && (errored=true; break)
 
                 copyto!.(State, StateBk)
                 ΔUt = ΔUa + ΔUit
-                status = update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
-                failed(status) && (errored=true; break)
+                sysstatus = update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
+                failed(sysstatus) && (errored=true; break)
 
                 # Corrector step
                 K2 = mount_K(dom, ndofs, verbosity)
                 K = 0.25*K + 0.75*K2
-                status = solve_system!(K, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
-                failed(status) && (errored=true; break)
+                sysstatus = solve_system!(K, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
+                failed(sysstatus) && (errored=true; break)
 
                 copyto!.(State, StateBk)
                 ΔUt   = ΔUa + ΔUi
-                status = update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
-                failed(status) && (errored=true; break)
+                sysstatus = update_state!(dom, ΔUt, ΔFin, 0.0, verbosity)
+                failed(sysstatus) && (errored=true; break)
 
                 residue = maximum(abs, (ΔFex-ΔFin)[umap])
             end
@@ -510,7 +510,7 @@ function solve!(
         q = 0.0 # increment size factor for autoinc
 
         if errored
-            verbosity>1 && notify(status.message, level=3)
+            verbosity>1 && notify(sysstatus.message, level=3)
             converged = false
         end
 
@@ -584,14 +584,19 @@ function solve!(
                 ΔT = q*ΔT
                 ΔT = round(ΔT, sigdigits=3)  # round to 3 significant digits
                 if ΔT < Ttol
-                    alert("solve!: solver did not converge")
-                    clean_status(dom, verbosity)
-                    return failure("solver did not converge")
+                    # succeded = false
+                    solstatus = failure("solver did not converge")
+                    break
+                    # alert("solve!: solver did not converge")
+                    # clean_status(dom, verbosity)
                 end
             else
-                clean_status(dom, verbosity)
-                alert("solve!: solver did not converge")
-                return failure("solver did not converge")
+                # succeded = false
+                solstatus = failure("solver did not converge")
+                break
+                # clean_status(dom, verbosity)
+                # alert("solve!: solver did not converge")
+                # return failure("solver did not converge")
             end
         end
 
@@ -613,5 +618,5 @@ function solve!(
     end
     getlapse(sw)>60 && sound_alert()
 
-    return success()
+    return solstatus
 end
