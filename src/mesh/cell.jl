@@ -252,6 +252,20 @@ function Base.getindex(cells::Array{Ty,1}, filter_ex::Expr) where Ty<:AbstractCe
     return R
 end
 
+function nearest(cells::Array{Cell,1}, coord)
+    n = length(cells)
+    D = zeros(n)
+    X = vec(coord)
+
+    for (i,cell) in enumerate(cells)
+        C = vec(mean(getcoords(cell), dims=1))
+        D[i] = norm(X-C)
+    end
+
+    return cells[sortperm(D)[1]]
+end
+
+
 
 # Gets the coordinates of a bounding box for an array of nodes
 function bounding_box(nodes::Array{<:AbstractPoint,1})
@@ -551,4 +565,229 @@ end
 function inverse_map(cell::AbstractCell, X::AbstractArray{Float64,1}, tol=1.0e-7)
     return inverse_map(cell.shape, getcoords(cell), X, tol)
 end
+
+
+function get_point(s::Float64, coords::Array{Float64,2})
+    #  Interpolates coordinates for s between 0 and 1
+    #
+    #  0               +1  -->s
+    #  1---2---3---..---n  -->idx
+
+    # @show s
+    @assert 0<=s<=1
+    n = size(coords,1)
+    m = n - 1 # number of segments
+    δ = 1/m   # parametric length per segment
+    
+    # segment index and parametric coordinates
+    i  = floor(Int, s/δ) + 1 # index for current segment
+    i  = min(i, m)
+    si = (i-1)*δ     # global parametric coordinate at the beginning of segment i
+    t  = (s - si)/δ  # local parametric coordiante
+
+    return coords[i,:]*(1-t) + coords[i+1,:]*t
+end
+
+export select
+
+function select(cells::Array{Cell,1}, coords::Array{Float64,2}, normal=[0.0, 0.0, 1.0])
+    n = size(coords, 1)
+    N = normal
+    eps = 1e-8
+    
+    # project to plane
+    v1 = normalize(coords[2,:] - coords[1,:])
+    v2 = normalize(cross(N, v1))
+    v1 = cross(v2, N)
+
+    R = [v1'; v2'; N']
+    XY = (coords*R')[:,1:2]
+    XY = round.(XY, digits=8)
+    # display(XY)
+
+    # @show R
+
+    selected = Cell[]
+
+    for cell in cells
+        allin = true
+
+        for node in cell.nodes
+            X = R*node.coord
+            x, y = X[1], X[2]
+        
+            # find if point is inside
+            ints = 0
+
+            for i in 1:n
+                x1, y1 = XY[i,1], XY[i,2]
+        
+                # check if point is equal to vertex
+                if abs(x1-x)<eps && abs(y1-y)<eps
+                    ints = 1
+                    break
+                end
+
+                # get second point of segment
+                if i!=n
+                    x2, y2 = XY[i+1,1], XY[i+1,2]
+                else
+                    x2, y2 = XY[1,1], XY[1,2]
+                end
+
+                # if node.id==46
+                #     @show "hi1"
+                #     @show y1
+                #     @show y2
+                # end
+        
+                # y1==y2 && continue
+                if y1==y2
+                    # if y==y1 && x<max(x1,x2)
+                        # ints += 1
+                    # end
+                    continue
+                end
+
+                # if node.id==46
+                #     @show "hi2"
+                # end
+        
+                if y>=min(y1,y2) && y<=max(y1,y2)
+                    # check if point is contained in line
+                    if abs((x2-x1)/(y2-y1) - (x2-x)/(y2-y)) < eps
+                        ints = 1
+                        break
+                    end
+                    
+                    xi = x1 + (x2-x1)/(y2-y1)*(y-y1)
+        
+                    if xi > x 
+                        ints += 1
+                    end
+                end
+        
+            end
+
+            # if cell.id==19
+            #     @show node.coord
+            #     @show node.id
+            #     @show X
+            #     @show ints
+            # end
+
+            if ints%2==0
+                allin = false
+                break
+            end
+        end
+
+        allin && push!(selected, cell)
+    end
+
+    return selected
+
+end
+
+# function select(msh, coords::Array{Float64,2})
+#     # Tolerances
+#     ε  = 1e-6
+#     εn = 1e-4
+#     εc = 1e-9
+#     # λ  = 1.0
+
+#     itcount = 0
+
+#     # Initial conditions
+#     bdist = 0.0  # boundary function initial value
+#     len   = 1.0
+
+#     # # Defining required vectors
+#     # X1 = vec(coords[  1,:])
+#     # Xn = vec(coords[end,:])
+
+#     # Find the initial and final element
+    
+#     s0 = get_point(εn, coords)
+#     ccell = find_elem(s0, msh.elems, msh._elempartition, εc, exclude=Cell[]) # The first tresspased cell
+    
+#     ccell === nothing && error("Point $(s0) outside the mesh")
+    
+#     # Initializing more variables
+#     ccell = ccell
+#     crossedcells = [ ccell ]
+#     end_reached  = false
+#     s  = 0.0
+#     sp = 0.0
+#     # nits = round(Int, 1.0/λ)
+
+#     # Splitting inset
+#     k = 0
+#     while true
+#         k +=1
+#         ccell_coords = getcoords(ccell)
+#         # Default step
+#         step  = 0.5*(1.0-s)
+
+#         # Finding step
+#         # st = s     # trial point
+#         # for i in 1:nits
+#         #     st += λ
+#         #     if st>1.0; break end
+#         #     X = get_point(st, coords, curvetype)
+#         #     is_in = is_inside(ccell.shape, ccell_coords, X, ε)
+#         #     if !is_in
+#         #         step  = 0.5*(st-s)
+#         #         break
+#         #     end
+#         # end
+
+
+
+#         s += step
+#         @show s
+
+#         X  = get_point(s, coords)
+#         @show X
+#         @show ccell.id
+#         n  = floor(Int, log(2, step/ε)) + 1  # number of required iterations to find intersection
+
+#         itcount+=n ##
+
+#         for i in 1:n
+
+#             step *= 0.5
+#             if is_inside(ccell.shape, ccell_coords, X, εc)
+#                 s += step
+#             else
+#                 s -= step
+#             end
+#             @show s
+
+#             X = get_point(s, coords)
+
+#             R     = inverse_map(ccell.shape, ccell_coords, X)
+#             bdist = bdistance(ccell.shape, R)
+#         end
+
+#         # Check if end was reached
+#         if s > len - εn
+#             end_reached = true
+#             # X = Xn
+#         end
+
+#         end_reached && break
+
+#         # Preparing for the next iteration
+#         ncell  = find_elem(get_point(s + εn, coords), msh.elems, msh._elempartition, εc, exclude=[ccell])
+#         ncell === nothing && error("Hole found while searching for next crossed cell")
+
+#         ccell = ncell
+#         push!(crossedcells, ccell)
+#         sp = s
+#         s = s + εn
+#     end
+
+#     [ c.id for c in crossedcells ]
+# end
 
