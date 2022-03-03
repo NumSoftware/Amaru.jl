@@ -35,6 +35,7 @@ function mount_K(dom::Domain,
     return K
 end
 
+
 function mount_K_threads(
     dom::Domain, 
     ndofs::Int,
@@ -47,9 +48,6 @@ function mount_K_threads(
     Rs = Array{Int64,1}[ [] for i=1:nelems  ]
     Cs = Array{Int64,1}[ [] for i=1:nelems  ]
     Vs = Array{Float64,1}[ [] for i=1:nelems  ]
-    #IDs = zeros(Int64, nelems)
-
-    #GC.gc()
 
     let Rs=Rs, Cs=Cs, Vs=Vs, dom=dom
 
@@ -128,11 +126,20 @@ function solve_system!(
     U1 = zeros(nu)
     if nu>0
         RHS = F1 - K12*U2
+        
         try
+            # Regularization attempt
+            # S = spdiagm([ 1/maximum(abs, K11[:,i]) for i in 1:nu ])
+            # LUfact = lu(K11*S)
+            # U1  = S*(LUfact\RHS)
+
             LUfact = lu(K11)
             U1  = LUfact\RHS
+
             F2 += K21*U1
         catch err
+            any(isnan.(K11)) && warn("solve_system!: NaN values in coefficients matrix")
+            # isnan(det(K11)) && warn("solve_system!: Determinant of coefficients matrix is NaN")
             U1 .= NaN
             warn("solve_system!: $err")
             return failure("solve!: $err")
@@ -142,8 +149,8 @@ function solve_system!(
     maxU = 1e5 # maximum essential value
     # maximum(abs, U1)>maxU && warn("solve_system!: Possible syngular matrix")
     if maximum(abs, U1)>maxU 
-         warn("solve_system!: Possible syngular matrix")
-        #  return failure("solve!: Possible syngular matrix")
+        #  warn("solve_system!: Possible syngular matrix")
+        return failure("solve!: Possible syngular matrix")
     end
 
     # Completing vectors
@@ -167,6 +174,7 @@ function update_state!(dom::Domain, ΔUt::Vect, ΔFin::Vect, t::Float64, verbosi
     return success()
 end
 
+
 function update_embedded_disps!(dom::Domain)
     for elem in dom.elems.embedded
         Ue, nodemap, dimmap = elem_displacements(elem)
@@ -175,13 +183,14 @@ function update_embedded_disps!(dom::Domain)
     end
 end
 
-function update_status(dom::Domain, sw::StopWatch, inc::Int, T::Float64, ΔT::Float64, verbosity::Int)
+
+function update_status_line(dom::Domain, sw::StopWatch, inc::Int, T::Float64, ΔT::Float64, verbosity::Int, resetcursor=true)
     verbosity==0 && return
     env = dom.env
 
     # Print status
     progress = @sprintf("%4.2f", T*100)
-    printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)% increment $inc dT=$(round(ΔT,sigdigits=4))\e[K\n", bold=true, color=:light_blue) # color 111
+    printstyled("  stage $(env.cstage) $(see(sw)) out $(env.cout) progress $(progress)% increment $inc dT=$(round(ΔT,sigdigits=4))\e[K\n", bold=true, color=:light_blue) # color 111
 
     # Print monitors
     nlines = 1
@@ -190,10 +199,11 @@ function update_status(dom::Domain, sw::StopWatch, inc::Int, T::Float64, ΔT::Fl
         printstyled(str, color=:light_blue)
         verbosity==1 && (nlines+=count("\n", str))
     end
-    verbosity==1 && print("\e[$(nlines)A")
+    resetcursor && verbosity==1 && print("\e[$(nlines)A")
 end
 
-function clean_status(dom::Domain, verbosity::Int)
+
+function clean_status_line(dom::Domain, verbosity::Int)
     verbosity!=1 && return
     println("\e[K")
     nlines = 1
@@ -326,7 +336,7 @@ function solve!(
         update_single_loggers!(dom)
         update_composed_loggers!(dom)
         update_monitors!(dom)
-        save_outs && save(dom, "$outdir/$filekey-0.vtu", printlog=printlog)
+        save_outs && save(dom, "$outdir/$filekey-0.vtu", printlog=false)
     end
 
     # Get the domain current state and backup
@@ -336,13 +346,7 @@ function solve!(
     # Incremental analysis
     T  = 0.0
     ΔT = 1.0/nincs       # initial ΔT value
-    # autoinc && nincs==1 && (ΔT=min(ΔT,0.01))
-    # @show ΔT
-    # @show autoinc
     autoinc && (ΔT=min(ΔT,0.01))
-    # @show ΔT
-
-    # autoinc && error()
 
     ΔTbk = 0.0
 
@@ -385,20 +389,6 @@ function solve!(
             return failure("$maxincs reached")
         end
 
-        # # Print sysstatus
-        # progress = @sprintf("%4.2f", T*100)
-        # verbosity>0 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)% increment $inc dT=$(round(ΔT,sigdigits=4))\e[K\n", bold=true, color=:blue) # color 111
-        # # verbosity>1 && println()
-
-        # # Print monitors
-        # monouts = align(output.(dom.monitors), "  ")
-        # for str in monouts
-        #     printstyled("    $str\e[K\n", color=:blue)
-        # end
-
-        # verbosity==1 && length(dom.monitors)>0 && print("\e[$(length(dom.monitors))A")
-        # verbosity==1 && print("\e[A")
-
         ΔUex, ΔFex = ΔT*Uex, ΔT*Fex     # increment of external vectors
 
         ΔTcr = min(rspan, 1-T)    # time span to apply cumulated residues
@@ -418,7 +408,7 @@ function solve!(
         converged = false
         errored   = false
         for it=1:maxits
-            update_status(dom, sw, inc, T, ΔT, verbosity)
+            update_status_line(dom, sw, inc, T, ΔT, verbosity)
             nits += 1
             it>1 && (ΔUi.=0.0) # essential values are applied only at first iteration
             lastres = residue # residue from last iteration
@@ -439,8 +429,6 @@ function solve!(
 
             # Corrector step for ME and BE
             if residue > tol && scheme in ("ME", "BE")
-                update_status(dom, sw, inc, T, ΔT, verbosity)
-
                 K2 = mount_K(dom, ndofs, verbosity)
                 if scheme=="ME"
                     K = 0.5*(K + K2)
@@ -459,8 +447,6 @@ function solve!(
             end
 
             if scheme=="Ralston"
-                update_status(dom, sw, inc, T, ΔT, verbosity)
-
                 # Predictor step
                 K = mount_K(dom, ndofs, verbosity)
                 ΔUit = 2/3*ΔUi
@@ -545,7 +531,7 @@ function solve!(
                 update_embedded_disps!(dom)
 
                 rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
-                save(dom, "$outdir/$filekey-$iout.vtu", printlog=printlog)
+                save(dom, "$outdir/$filekey-$iout.vtu", printlog=false)
                 Tcheck += ΔTcheck # find the next output time
             end
 
@@ -584,19 +570,12 @@ function solve!(
                 ΔT = q*ΔT
                 ΔT = round(ΔT, sigdigits=3)  # round to 3 significant digits
                 if ΔT < Ttol
-                    # succeded = false
                     solstatus = failure("solver did not converge")
                     break
-                    # alert("solve!: solver did not converge")
-                    # clean_status(dom, verbosity)
                 end
             else
-                # succeded = false
                 solstatus = failure("solver did not converge")
                 break
-                # clean_status(dom, verbosity)
-                # alert("solve!: solver did not converge")
-                # return failure("solver did not converge")
             end
         end
 
@@ -607,15 +586,7 @@ function solve!(
         update_composed_loggers!(dom)
     end
 
-    clean_status(dom, verbosity)
-    # update_status(dom, sw, inc, T, ΔT, verbosity)
-
-    progress = @sprintf("%4.2f", T*100)
-    verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)%\e[K\n", bold=true, color=:blue) # color 111
-    if verbosity>0 
-        message("valid increments: ", inc)
-        message("time spent: ", see(sw, format=:hms))
-    end
+    update_status_line(dom, sw, inc, T, ΔT, verbosity, false)
     getlapse(sw)>60 && sound_alert()
 
     return solstatus
