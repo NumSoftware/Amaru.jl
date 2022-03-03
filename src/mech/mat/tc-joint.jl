@@ -105,11 +105,25 @@ function yield_derivs(mat::TCJoint, ipd::TCJointIpState, σ::Array{Float64,1}, �
     β = beta(mat, σmax)
     ft = mat.ft
 
+    # tmp = 2*α/ft^2*(σ[2]^2/ft^2)^(α-1)
+    
+    # isnan(σ[2]) && @show σ[2]
+    # isnan(tmp) && @show tmp
+    # if isnan(σ[2]*tmp) 
+    #     @show tmp
+    #     @show σ
+    #     @show α
+    #     @show ft
+    #     @show ft
+    # end
+
     if ipd.env.ndim == 3
         tmp = 2*α/ft^2*((σ[2]^2+σ[3]^2)/ft^2)^(α-1)
+        σ[2]==σ[3]==0.0 && (tmp=0)
         return [ β , σ[2]*tmp, σ[3]*tmp ]
     else
         tmp = 2*α/ft^2*(σ[2]^2/ft^2)^(α-1)
+        σ[2]==0.0 && (tmp=0)
         return [ β , σ[2]*tmp ]
     end
 end
@@ -125,6 +139,9 @@ function potential_derivs(mat::TCJoint, ipd::TCJointIpState, σ::Array{Float64,1
             # G2:
             r = [ 0.0, 2.0*σ[2], 2.0*σ[3] ]
         end
+        if r[1]==r[2]==r[3]==0.0
+            r = [ 1.0, 0.0, 0.0]
+        end
     else
         if σ[1] > 0.0 
             # G1:
@@ -132,6 +149,9 @@ function potential_derivs(mat::TCJoint, ipd::TCJointIpState, σ::Array{Float64,1
         else
             # G2:
             r = [ 0.0, 2*σ[2] ]
+        end
+        if r[1]==r[2]==0.0
+            r = [ 1.0, 0.0]
         end
     end
     return r
@@ -274,6 +294,7 @@ function calc_Δλ(mat::TCJoint, ipd::TCJointIpState, σtr::Array{Float64,1})
         abs(f) < tol && break
 
         if i == maxits || isnan(Δλ)
+            @show i, Δλ
             return 0.0, failure()
         end
     end
@@ -294,6 +315,11 @@ function mountD(mat::TCJoint, ipd::TCJointIpState)
         return De
     elseif σmax == 0.0 && ipd.w[1] >= 0.0
         Dep = De*1e-4
+        # Dep = De*1e-3
+        # Dep = De*1e-2
+        # Dep = De*1e-2
+        # Dep = De*1e-1
+        # Dep = De
         return Dep
     else
         fc, ft = mat.fc, mat.ft
@@ -317,6 +343,18 @@ function mountD(mat::TCJoint, ipd::TCJointIpState)
 
             Dep = [   kn - kn^2*r[1]*v[1]/den    -kn*ks*r[1]*v[2]/den      
                      -kn*ks*r[2]*v[1]/den         ks - ks^2*r[2]*v[2]/den  ]
+        end
+
+        if any(isnan.(Dep))
+            @show den
+            @show ipd.σ
+            @show σmax
+            @show dfdσmax
+            @show m
+            @show r[1]
+            @show r[2]
+            @show v
+            @show Dep
         end
 
         return Dep
@@ -416,3 +454,4 @@ end
 function output_keys(mat::TCJoint)
     return Symbol[:jw1, :js1, :jup]
 end
+    
