@@ -37,7 +37,7 @@ mutable struct CebRSJoint<:Material
         return  CebRSJoint(;prms...)
     end
 
-    function CebRSJoint(;TauM=NaN, TauR=NaN, s1=NaN, s2=NaN, s3=NaN, alpha=NaN, beta=NaN, kn=NaN, ks=NaN, p=NaN, A=NaN, dm=NaN)
+    function CebRSJoint(;taumax=NaN, taures=NaN, TauM=NaN, TauR=NaN, s1=NaN, s2=NaN, s3=NaN, alpha=NaN, beta=NaN, kn=NaN, ks=NaN, p=NaN, A=NaN, dm=NaN)
         
         @check s1>0
         @check s2>s1
@@ -55,9 +55,12 @@ mutable struct CebRSJoint<:Material
 
         # Estimate TauM if not provided
         @check ks>0
-        isnan(TauM) && (TauM = ks*s1)
-        @check TauM>=TauR
-        @check ks>=TauM/s1
+        !isnan(TauM) && (taumax=TauM)
+        !isnan(TauR) && (taures=TauR)
+
+        isnan(taumax) && (taumax = ks*s1)
+        @check taumax>=taures
+        @check ks>=taumax/s1
 
         # Define alpha if not provided
         isnan(alpha) && (alpha = 1.0)
@@ -71,7 +74,7 @@ mutable struct CebRSJoint<:Material
         isnan(kn) && (kn = ks)
         @check kn>0
 
-        this = new(TauM, TauR, s1, s2, s3, alpha, beta, ks, kn, p)
+        this = new(taumax, taures, s1, s2, s3, alpha, beta, ks, kn, p)
         return this
     end
 end
