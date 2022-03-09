@@ -53,7 +53,7 @@ include("mat/elastic-plateRM8node.jl")
 
 # Models for shels
 include("mat/elastic-shell-quad4.jl")
-include("mat/elastic-degenerated-quad4.jl")
+include("mat/elastic-shell-degenerated.jl")
 
 # Models for joint elements
 include("mat/elastic-joint.jl")
