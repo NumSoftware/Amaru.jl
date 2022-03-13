@@ -113,9 +113,10 @@ cplot([
 
 """
 function cplot(
-    data::Array{<:NamedTuple}, 
-    fname::String = "";
-    filename::String = "",
+    args...;
+    # data::Array{<:NamedTuple}, 
+    # fname::String = "";
+    # filename::String = "",
     xlabel           = L"x",
     ylabel           = L"y",
     xbins            = 10,
@@ -128,6 +129,7 @@ function cplot(
     ncol             = 0,
     xlim             = nothing,
     ylim             = nothing,
+    equalaspect      = false,
     xscale           = "linear",
     yscale           = "linear",
     xmult            = 1.0,
@@ -154,7 +156,22 @@ function cplot(
     printlog         = false
 )
 
-    isempty(filename) && (filename=fname)
+    filename = ""
+    data = []
+
+    for arg in args
+        if arg isa String
+            filename = arg
+        elseif arg isa NamedTuple
+            push!(data, arg)
+        else
+            @show typeof(arg)
+            error("cplot: wrong argument type")
+        end
+    end
+
+
+    # isempty(filename) && (filename=fname)
     
 
     printlog && headline("Chart plotting")
@@ -271,6 +288,7 @@ function cplot(
     # Set axis limits
     xlim!==nothing && plt.xlim(xlim) 
     ylim!==nothing && plt.ylim(ylim) 
+    equalaspect && plt.axes().set_aspect("equal", "datalim") # or "box"
 
     # Print axes labels
     xlabel = get(texlabels, xlabel, xlabel)
