@@ -204,26 +204,23 @@ function setB(elem::ShellDegenerated, J::Matrix{Float64}, ip::Ip, dNdX::Matx, N:
 
         dNdx = dNdX[i,1]
         dNdy = dNdX[i,2]
+        dNdz = dNdX[i,3]
         
         j    = i-1
 
-        B[1,1+j*ndim] = dNdx;  B[1,4+j*ndim] = -ζ*dNdx*t/2*l[2];  B[1,5+j*ndim] = -ζ*dNdx*t/2*l[1,1]
+        B[1,1+j*ndim] = dNdx;                                               B[1,4+j*ndim] = -ζ*dNdx*t/2*l[2];              B[1,5+j*ndim] = -ζ*dNdx*t/2*l[1]
 
-        B[2,1+j*ndim] = dNdy;  B[2,4+j*ndim] = -ζ*dNdy*t/2*l[2];  B[2,5+j*ndim] = -ζ*dNdy*t/2*l[1,1]
+                              B[2,2+j*ndim] = dNdy;                         B[2,4+j*ndim] = -ζ*dNdy*t/2*m[2];              B[2,5+j*ndim] = -ζ*dNdy*t/2*m[1]
 
-                               B[3,4+j*ndim] = -N[i]*t/2*l[2];    B[3,5+j*ndim] =  N[i]*t/2*l[1,1]
+                                                     B[3,3+j*ndim] = dNdz;  B[3,4+j*ndim] = -ζ*dNdz*t/2*n[2];              B[3,5+j*ndim] = -ζ*dNdz*t/2*n[1]
 
-        B[4,2+j*ndim] = dNdx;  B[4,4+j*ndim] = -ζ*dNdx*t/2*m[2];  B[4,5+j*ndim] = -ζ*dNdx*t/2*m[1,1]                      
+        B[4,1+j*ndim] = dNdx;  B[4,2+j*ndim] = dNdy;                        B[4,4+j*ndim] = -ζ*t/2*(dNdy*l[2]+dNdx*m[2]);  B[4,5+j*ndim] = -ζ*t/2*(dNdy*l[1]+dNdx*m[1])
 
-        B[5,2+j*ndim] = dNdy;  B[5,4+j*ndim] = -ζ*dNdy*t/2*m[2];  B[5,5+j*ndim] = -ζ*dNdy*t/2*m[1,1]  
+                               B[5,2+j*ndim] = dNdy; B[5,3+j*ndim] = dNdx;  B[5,4+j*ndim] = -ζ*t/2*(dNdz*m[2]+dNdy*n[2]);  B[5,5+j*ndim] = -ζ*t/2*(dNdz*m[1]+dNdy*n[1])
 
-                               B[6,4+j*ndim] = -N[i]*t/2*m[2];    B[6,5+j*ndim] =  N[i]*t/2*m[1,1]   
-
-        B[7,2+j*ndim] = dNdx;  B[7,4+j*ndim] = -ζ*dNdx*t/2*n[2];  B[7,5+j*ndim] = -ζ*dNdx*t/2*n[1,1]                      
-
-        B[8,2+j*ndim] = dNdy;  B[8,4+j*ndim] = -ζ*dNdy*t/2*n[2];  B[8,5+j*ndim] = -ζ*dNdy*t/2*n[1,1] 
-
-                               B[9,4+j*ndim] = -N[i]*t/2*n[2];    B[9,5+j*ndim] =  N[i]*t/2*n[1,1]  
+        B[6,1+j*ndim] = dNdx;                        B[6,3+j*ndim] = dNdz;  B[6,4+j*ndim] = -ζ*t/2*(dNdz*l[2]+dNdx*n[2]);  B[6,5+j*ndim] = -ζ*t/2*(dNdz*l[1]+dNdx*n[1])
+ 
+ 
 
     end
 
@@ -340,9 +337,11 @@ function elem_stiffness(elem::ShellDegenerated)
     #@show nnodes
 
     C = getcoords(elem)
-    K = zeros(40, 40)
-    B = zeros(9, 5*8)
+    K = zeros(6*nnodes, 6*nnodes)
+    B = zeros(6, 5*nnodes)
     JJ  = zeros(9,9)
+    Rot_K  = zeros(5*nnodes,6*nnodes)
+    aux = zeros(5*nnodes, 5*nnodes)
 
     DB = Array{Float64}(undef, 6, nnodes*ndim)
     J  = Array{Float64}(undef, ndim, ndim)
@@ -391,8 +390,9 @@ function elem_stiffness(elem::ShellDegenerated)
            
         setB(elem, J, ip, dNdX, N, B)
         #@show B
+       # @show size(B)
 
-        B1 = H*JJ*B
+        #B1 = H*JJ*B
         #@show B1
 
        # coef = detJ*ip.w*th
@@ -400,8 +400,21 @@ function elem_stiffness(elem::ShellDegenerated)
 
         #@show D
 
-        K += B1'*T'*D*T*B1*coef  
-        @show K
+        
+        for i in 1:1
+            Rot_K[(i-1)*5+1:i*5, (i-1)*6+1:i*6] = [T[1:2,:]
+                                                   T[4:6,:] ]
+        end
+        
+        aux = (B'*T'*D*T*B)*coef
+             
+        K += Rot_K'*aux
+
+        # K += Rot_K*(B'*T'*D*T*B)*coef
+        #K +=  (B'*T'*D*T*B)*coef
+
+
+        #@show K
 
         
         #=
