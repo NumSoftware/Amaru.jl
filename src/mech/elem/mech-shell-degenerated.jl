@@ -128,14 +128,29 @@ end
 
 
 # Rotation Matrix
-function RotMatrix!(J::Matx, T::Matx)
-    # J (3x2)
-    V3 = cross(J[:,1], J[:,2])
-    V = [ normalize(J[:,1]) normalize(J[:,2]) normalize(V3) ]
+function Rot_Matrix(elem::ShellDegenerated, J::Matx, T::Matx)
 
-    l1, m1, n1 = V[:,1]
-    l2, m2, n2 = V[:,2]
-    l3, m3, n3 = V[:,3]
+    t = elem.mat.t
+    # J (3x2)
+    V1 = vec(J[:,1])
+    V2 = vec(J[:,2])
+
+    V3 = t/2*cross(V1, V2)  # multiplicar ou não por t/2?
+
+    V = [ normalize(V1)
+          normalize(V2)
+          normalize(V3) ]
+
+          l1, m1, n1 = normalize(V1)
+          l2, m2, n2 = normalize(V2)
+          l3, m3, n3 = normalize(V3)
+
+#=
+    l1, m1, n1 = V[1,:]
+    l2, m2, n2 = V[2,:]
+    l3, m3, n3 = V[3,:]
+=#
+
 
     T[1,1] =     l1*l1;  T[1,2] =     m1*m1;  T[1,3] =     n1*n1;   T[1,4] =   SR2*m1*n1;  T[1,5] =   SR2*n1*l1;  T[1,6] =   SR2*l1*m1;
     T[2,1] =     l2*l2;  T[2,2] =     m2*m2;  T[2,3] =     n2*n2;   T[2,4] =   SR2*m2*n2;  T[2,5] =   SR2*n2*l2;  T[2,6] =   SR2*l2*m2;
@@ -146,32 +161,26 @@ function RotMatrix!(J::Matx, T::Matx)
 end
 
 
-function setB(elem::ShellDegenerated, J::Matrix{Float64}, ip::Ip, dNdX::Matx, N::Vect, B::Matx, V::Array{Float64,2})
+function setB(elem::ShellDegenerated, J::Matrix{Float64}, ip::Ip, dNdX::Matx, N::Vect, B::Matx)
     nnodes, ndim = size(dNdX)
     B .= 0.0
     t = elem.mat.t
     ζ = ip.R[3] #não sei se está certo
-
-
-    # como calcular facilamente cossenos diretores na direção x e y para um elemento sólido?
-    
+  
     C = getcoords(elem)
 
-    #@show J
-    
-    for i in 1:nnodes
+    # J (3x2)
+   
+    t = elem.mat.t
+    # J (3x2)
+    V1 = vec(J[:,1])
+    V2 = vec(J[:,2])
 
-            # artifice for mounting the rotation matrix for flat elements
-    if size(J,1)==2
-        J = [J
-             Z]
-    else
-        J = J
-    end
-    
-        l1, m1, n1 = V[:,1]
-        l2, m2, n2 = V[:,2]
-        #l3, m3, n3 = V[:,3]
+    l1, m1, n1 = normalize(V1)
+    l2, m2, n2 = normalize(V2)
+
+
+        for i in 1:nnodes
 
         dNdx = dNdX[i,1]
         dNdy = dNdX[i,2]
@@ -194,43 +203,6 @@ function setB(elem::ShellDegenerated, J::Matrix{Float64}, ip::Ip, dNdX::Matx, N:
  
 
     end
-
-    #=
-    if ndim==2
-        for i in 1:nnodes
-            j = i-1
-            B[1,1+j*ndim] = dNdX[i,1]
-            B[2,2+j*ndim] = dNdX[i,2]
-            B[6,1+j*ndim] = dNdX[i,2]/SR2; 
-            B[6,2+j*ndim] = dNdX[i,1]/SR2
-        end
-        if elem.env.modeltype=="axisymmetric"
-            N = elem.shape.func(ip.R)
-            for i in 1:nnodes
-                j = i-1
-                r = ip.coord.x
-                B[1,1+j*ndim] = dNdX[i,1]
-                B[2,2+j*ndim] = dNdX[i,2]
-                B[3,1+j*ndim] =    N[i]/r
-                B[6,1+j*ndim] = dNdX[i,2]/SR2
-                B[6,2+j*ndim] = dNdX[i,1]/SR2
-            end
-        end
-    else
-        for i in 1:nnodes
-            dNdx = dNdX[i,1]
-            dNdy = dNdX[i,2]
-            dNdz = dNdX[i,3]
-            j    = i-1
-            B[1,1+j*ndim] = dNdx
-            B[2,2+j*ndim] = dNdy
-            B[3,3+j*ndim] = dNdz
-            B[4,2+j*ndim] = dNdz/SR2;   B[4,3+j*ndim] = dNdy/SR2
-            B[5,1+j*ndim] = dNdz/SR2;   B[5,3+j*ndim] = dNdx/SR2
-            B[6,1+j*ndim] = dNdy/SR2;   B[6,2+j*ndim] = dNdx/SR2
-        end
-    end
-    =#
 
 end
 
@@ -313,7 +285,7 @@ function elem_stiffness(elem::ShellDegenerated)
     B = zeros(6, 5*nnodes)
     JJ  = zeros(9,9)
     Rot_K  = zeros(5*nnodes,6*nnodes)
-    aux = zeros(5*nnodes, 5*nnodes)
+    Klocal = zeros(5*nnodes, 5*nnodes)
 
     DB = Array{Float64}(undef, 6, nnodes*ndim)
     J  = Array{Float64}(undef, ndim, ndim)
@@ -334,82 +306,42 @@ function elem_stiffness(elem::ShellDegenerated)
         J = C'*dNdR
         #dNdX = dNdR*inv(J)
         dNdX = dNdR*pinv(J) #! correto
-        RotMatrix!(V, T)
-        @show T
-        @show V
+        Rot_Matrix(elem, J, T)
+        #@show T
+        #@show V
         
         # aux = (elem.mat.t/2)*cross(J[:,1],J[:,2])
         #@show aux
 
         # normalize!(aux)
         #@show aux
-        #falta normalizar o vetor
+        #falta normalizar o vetor     
 
-        J3 = [J aux]       
 
-        detJ = det(J3)
+        detJ = norm2(J)
+        #detJ = det(J)
         #@show detJ
 
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
-        H = [1 0 0 0 0 0 0 0 0
-             0 0 0 0 1 0 0 0 0
-             0 0 0 0 0 0 0 0 1
-             0 1 0 1 0 0 0 0 0
-             0 0 0 0 0 1 0 1 0
-             0 0 1 0 0 0 1 0 0]
-
-           for i in 1:3
-                JJ[(i-1)*3+1:i*3, (i-1)*3+1:i*3] = inv(J3)
-           end
            
-        setB(elem, J, ip, dNdX, N, B, V)
-        
-       # @show size(B)
-
-        #B1 = H*JJ*B
-        #@show B1
+        setB(elem, J, ip, dNdX, N, B)
+        #@show B
 
        # coef = detJ*ip.w*th
         coef = detJ*ip.w
 
-        #@show D
 
-        
-
-
-        for i in 1:1
-            Rot_K[(i-1)*5+1:i*5, (i-1)*6+1:i*6] = [T1[1:2,:]
-                                                   T1[4:6,:] ]
-        end
-
-        #=
-        @show B
-        @show T
-        @show D
-        @show Rot_K
-        =#
-        
-        aux = (B'*T1'*D*T1*B)*coef
-             
-        K += Rot_K'*aux*Rot_K
-
-        # K += Rot_K*(B'*T'*D*T*B)*coef
-        #K +=  (B'*T'*D*T*B)*coef
-
-
-        #@show K
-
-        
-        #=
-        setB(elem, ip, dNdX, B)
-        # compute K
-        coef = detJ*ip.w*th
-        D    = calcD(elem.mat, ip.state)
-        @gemm DB = D*B
-        @gemm K += coef*B'*DB
-        =#
+        Klocal += (B'*T'*D*T*B)*coef
+        @show Klocal
     end
+
+    for i in 1:1
+        Rot_K[(i-1)*5+1:i*5, (i-1)*6+1:i*6] = [T[1:2,:]
+                                               T[4:6,:] ]
+    end
+
+    K = Rot_K'*Klocal*Rot_K
 
     #keys = (:ux, :uy, :uz)[1:ndim]
     #keys =(:ux, :uy, :uz, :rx, :ry, :rz)[1:ndim]
@@ -419,70 +351,6 @@ function elem_stiffness(elem::ShellDegenerated)
     return K, map, map
 end
 
-#=
-function elem_mass(elem::ShellDegenerated)
-    ndim   = elem.env.ndim
-    th     = elem.env.thickness
-    nnodes = length(elem.nodes)
-    ρ = elem.mat.ρ
-    C = getcoords(elem)
-    M = zeros(nnodes*ndim, nnodes*ndim)
-    N = zeros(ndim, nnodes*ndim)
-    J = Array{Float64}(undef, ndim, ndim)
-    for ip in elem.ips
-        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
-        # compute N matrix
-        Ni   = elem.shape.func(ip.R)
-        dNdR = elem.shape.deriv(ip.R)
-        for i=1:nnodes
-            for j=1:ndim
-                N[j, (i-1)*ndim+j] = Ni[i]
-            end
-        end
-        @gemm J = C'*dNdR
-        detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
-        # compute M
-        coef = ρ*detJ*ip.w*th
-        @gemm M += coef*N'*N
-    end
-    keys = (:ux, :uy, :uz)[1:ndim]
-    map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-    return M, map, map
-end
-=#
-
-#=
-function elem_internal_forces(elem::ShellDegenerated, F::Array{Float64,1})
-    ndim   = elem.env.ndim
-    th     = elem.env.thickness
-    nnodes = length(elem.nodes)
-    keys   = (:ux, :uy, :uz)[1:ndim]
-    map    = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-    dF = zeros(nnodes*ndim)
-    B  = zeros(6, nnodes*ndim)
-    J  = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, nnodes, ndim)
-    C = getcoords(elem)
-    for ip in elem.ips
-        if elem.env.modeltype=="axisymmetric"
-            th = 2*pi*ip.coord.x
-        end
-        # compute B matrix
-        dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
-        @gemm dNdX = dNdR*inv(J)
-        detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in element $(elem.id)")
-        setB(elem, ip, dNdX, B)
-        σ    = ip.state.σ
-        coef = detJ*ip.w*th
-        @gemv dF += coef*B'*σ
-    end
-    
-    F[map] += dF
-end
-=#
 
 function elem_update!(elem::ShellDegenerated, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
@@ -490,7 +358,6 @@ function elem_update!(elem::ShellDegenerated, U::Array{Float64,1}, F::Array{Floa
     F[map] += K*dU
     return success()
 end
-
 
 
 #=
