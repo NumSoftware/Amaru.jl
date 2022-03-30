@@ -128,12 +128,14 @@ end
 
 
 # Rotation Matrix
-function RotMatrix(T::Matx, V::Array{Float64,2})
+function RotMatrix!(J::Matx, T::Matx)
+    # J (3x2)
+    V3 = cross(J[:,1], J[:,2])
+    V = [ normalize(J[:,1]) normalize(J[:,2]) normalize(V3) ]
+
     l1, m1, n1 = V[:,1]
     l2, m2, n2 = V[:,2]
     l3, m3, n3 = V[:,3]
-
-    T .= 0.0
 
     T[1,1] =     l1*l1;  T[1,2] =     m1*m1;  T[1,3] =     n1*n1;   T[1,4] =   SR2*m1*n1;  T[1,5] =   SR2*n1*l1;  T[1,6] =   SR2*l1*m1;
     T[2,1] =     l2*l2;  T[2,2] =     m2*m2;  T[2,3] =     n2*n2;   T[2,4] =   SR2*m2*n2;  T[2,5] =   SR2*n2*l2;  T[2,6] =   SR2*l2*m2;
@@ -141,7 +143,6 @@ function RotMatrix(T::Matx, V::Array{Float64,2})
     T[4,1] = SR2*l2*l3;  T[4,2] = SR2*m2*m3;  T[4,3] = SR2*n2*n3;   T[4,4] = m2*n3+m3*n2;  T[4,5] = l2*n3+l3*n2;  T[4,6] = l2*m3+l3*m2;
     T[5,1] = SR2*l3*l1;  T[5,2] = SR2*m3*m1;  T[5,3] = SR2*n3*n1;   T[5,4] = m3*n1+m1*n3;  T[5,5] = l3*n1+l1*n3;  T[5,6] = l3*m1+l1*m3;
     T[6,1] = SR2*l1*l2;  T[6,2] = SR2*m1*m2;  T[6,3] = SR2*n1*n2;   T[6,4] = m1*n2+m2*n1;  T[6,5] = l1*n2+l2*n1;  T[6,6] = l1*m2+l2*m1;
-    return T
 end
 
 
@@ -332,15 +333,15 @@ function elem_stiffness(elem::ShellDegenerated)
         #@gemm dNdX = dNdR*inv(J)
         J = C'*dNdR
         #dNdX = dNdR*inv(J)
-        dNdX = dNdR*pinv(J)
-        T1 = RotMatrix(T, V)
-        @show T1
+        dNdX = dNdR*pinv(J) #! correto
+        RotMatrix!(V, T)
+        @show T
         @show V
         
-        aux = (elem.mat.t/2)*cross(J[:,1],J[:,2])
+        # aux = (elem.mat.t/2)*cross(J[:,1],J[:,2])
         #@show aux
 
-        normalize!(aux)
+        # normalize!(aux)
         #@show aux
         #falta normalizar o vetor
 
