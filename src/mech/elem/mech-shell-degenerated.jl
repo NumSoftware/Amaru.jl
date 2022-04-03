@@ -22,34 +22,47 @@ end
 
 matching_shape_family(::Type{ShellDegenerated}) = SOLID_CELL
 
-#=
+
 function elem_init(elem::ShellDegenerated)
-    ipdata_ty = typeof(elem.ips[1].state)
-    if :h in fieldnames(ipdata_ty)
-        # Element volume/area
-        V = 0.0
-        C = getcoords(elem)
-        for ip in elem.ips
-            dNdR = elem.shape.deriv(ip.R)
-            J    = dNdR*C
-            detJ = det(J)
-            @assert detJ>0
-            V   += detJ*ip.w
-        end
+    elem.shape==QUAD8 || error("elem_init: ShellDegenerated only works with shape QUAD8.")
+    
+    return nothing
+end
 
-        # Representative length size for the element
-        nips = length(elem.ips)
-        ndim = elem.env.ndim
-        h = V^(1/ndim)
+function setquadrature!(elem::ShellDegenerated, n::Int=0)
 
-        for ip in elem.ips
-            ip.state.h = h
+    # if !(n in keys(elem.shape.quadrature))
+    #     alert("setquadrature!: cannot set $n integration points for shape $(elem.shape.name)")
+    #     return
+    # end
+
+    ip2d = get_ip_coords(elem.shape, n)
+    ip1d = get_ip_coords(LIN2, 2)
+    n = size(ip2d,1)
+
+    resize!(elem.ips, 2*n)
+    for k in 1:2
+        for i=1:n
+            R = [ ip2d[i,1:2], ip1d[k,1] ]
+            w = ip2d[i,4]*ip1d[k,4]
+            elem.ips[i] = Ip(R, w)
+            elem.ips[i].id = i
+            elem.ips[i].state = ip_state_type(elem.mat)(elem.env)
+            elem.ips[i].owner = elem
         end
     end
 
-    return nothing
+    # finding ips global coordinates
+    C     = getcoords(elem)
+    shape = elem.shape
+
+    for ip in elem.ips
+        R = [ ip.R[1:2], 0.0 ]
+        N = shape.func(R)
+        ip.coord = C'*N
+    end
 end
-=#
+
 
 function distributed_bc(elem::ShellDegenerated, facet::Union{Facet, Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
@@ -317,7 +330,7 @@ function elem_stiffness(elem::ShellDegenerated)
     #@show cxyz
 
     for ip in elem.ips
-        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        # elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         @show  elem.ips
         # compute B matrix
@@ -372,7 +385,7 @@ function elem_stiffness(elem::ShellDegenerated)
         #@show B3
 
        # coef = detJ*ip.w*th
-        coef = detJ*ip.w
+        coef = 0.5*detJ*ip.w  # 0.5 because in zeta goes from -1 to +1
         #@show coef
 
         K += (B3'*D*B3)*coef
