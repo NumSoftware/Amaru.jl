@@ -22,6 +22,7 @@ end
 
 matching_shape_family(::Type{ShellDegenerated}) = SOLID_CELL
 
+#=
 function elem_init(elem::ShellDegenerated)
     ipdata_ty = typeof(elem.ips[1].state)
     if :h in fieldnames(ipdata_ty)
@@ -48,18 +49,18 @@ function elem_init(elem::ShellDegenerated)
 
     return nothing
 end
-
+=#
 
 function distributed_bc(elem::ShellDegenerated, facet::Union{Facet, Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
-    th    = elem.env.thickness
+    th    = elem.env.t
     suitable_keys = (:tx, :ty, :tz, :tn)
 
     # Check keys
-    key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
+    key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
     (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
 
-    target = facet!==nothing ? facet : elem
+    target = facet!=nothing ? facet : elem
     nodes  = target.nodes
     nnodes = length(nodes)
     t      = elem.env.t
@@ -83,8 +84,7 @@ function distributed_bc(elem::ShellDegenerated, facet::Union{Facet, Nothing}, ke
         w = R[end]
         N = shape.func(R)
         D = shape.deriv(R)
-        J = C'*D
-        #J = D*C
+        J = D*C
         X = C'*N
         if ndim==2
             x, y = X
@@ -125,39 +125,36 @@ function distributed_bc(elem::ShellDegenerated, facet::Union{Facet, Nothing}, ke
     return reshape(F', nnodes*ndim), map
 end
 
-
-
 # Rotation Matrix
 function Rot_Matrix(elem::ShellDegenerated, J::Matx, T::Matx)
 
+    Z = zeros(1,2) # zeros(2,1)
+
+    # artifice for mounting the rotation matrix for flat elements
+    if size(J,1)==2
+        J = [J
+             Z]
+    else
+        J = J
+    end
+
     t = elem.mat.t
     # J (3x2)
-    V1 = vec(J[:,1])
-    V2 = vec(J[:,2])
+    V3 = cross(vec(J[:,1]), vec(J[:,2]))
+    normalize!(V3)
+    V1 = cross(vec([1 0 0]),V3)
+    V2 = cross(V3,V1)
 
-    V3 = t/2*cross(V1, V2)  # multiplicar ou não por t/2?
+    l1, m1, n1 = V1
+    l2, m2, n2 = V2
+    l3, m3, n3 = V3
 
-    V = [ normalize(V1)
-          normalize(V2)
-          normalize(V3) ]
-
-          l1, m1, n1 = normalize(V1)
-          l2, m2, n2 = normalize(V2)
-          l3, m3, n3 = normalize(V3)
-
-#=
-    l1, m1, n1 = V[1,:]
-    l2, m2, n2 = V[2,:]
-    l3, m3, n3 = V[3,:]
-=#
-
-
-    T[1,1] =     l1*l1;  T[1,2] =     m1*m1;  T[1,3] =     n1*n1;   T[1,4] =   SR2*m1*n1;  T[1,5] =   SR2*n1*l1;  T[1,6] =   SR2*l1*m1;
-    T[2,1] =     l2*l2;  T[2,2] =     m2*m2;  T[2,3] =     n2*n2;   T[2,4] =   SR2*m2*n2;  T[2,5] =   SR2*n2*l2;  T[2,6] =   SR2*l2*m2;
-    T[3,1] =     l3*l3;  T[3,2] =     m3*m3;  T[3,3] =     n3*n3;   T[3,4] =   SR2*m3*n3;  T[3,5] =   SR2*n3*l3;  T[3,6] =   SR2*l3*m3;
-    T[4,1] = SR2*l2*l3;  T[4,2] = SR2*m2*m3;  T[4,3] = SR2*n2*n3;   T[4,4] = m2*n3+m3*n2;  T[4,5] = l2*n3+l3*n2;  T[4,6] = l2*m3+l3*m2;
-    T[5,1] = SR2*l3*l1;  T[5,2] = SR2*m3*m1;  T[5,3] = SR2*n3*n1;   T[5,4] = m3*n1+m1*n3;  T[5,5] = l3*n1+l1*n3;  T[5,6] = l3*m1+l1*m3;
-    T[6,1] = SR2*l1*l2;  T[6,2] = SR2*m1*m2;  T[6,3] = SR2*n1*n2;   T[6,4] = m1*n2+m2*n1;  T[6,5] = l1*n2+l2*n1;  T[6,6] = l1*m2+l2*m1;
+    T[1,1] =     l1*l1;  T[1,2] =     m1*m1;  T[1,3] =     n1*n1;   T[1,4] =       l1*m1;  T[1,5] =       m1*n1;  T[1,6] =       n1*l1;
+    T[2,1] =     l2*l2;  T[2,2] =     m2*m2;  T[2,3] =     n2*n2;   T[2,4] =       l2*m2;  T[2,5] =       m2*n2;  T[2,6] =       n2*l2;
+    T[3,1] =     l3*l3;  T[3,2] =     m3*m3;  T[3,3] =     n3*n3;   T[3,4] =       l3*m3;  T[3,5] =       m3*n3;  T[3,6] =       n3*l3;
+    T[4,1] =   2*l1*l2;  T[4,2] =   2*m1*m2;  T[4,3] =   2*n1*n2;   T[4,4] = l1*m2+l2*m1;  T[4,5] = m1*n2+m2*n1;  T[4,6] = n1*l2+n2*l1;
+    T[5,1] =   2*l2*l3;  T[5,2] =   2*m2*m3;  T[5,3] =   2*n2*n3;   T[5,4] = l2*m3+l3*m2;  T[5,5] = m2*n3+m3*n2;  T[5,6] = n2*l3+n3*l2;
+    T[6,1] =   2*l3*l1;  T[6,2] =   2*m3*m1;  T[6,3] =   2*n3*n1;   T[6,4] = l3*m1+l1*m3;  T[6,5] = m3*n1+m1*n3;  T[6,6] = n3*l1+n1*l3;
 end
 
 
@@ -165,43 +162,73 @@ function setB(elem::ShellDegenerated, J::Matrix{Float64}, ip::Ip, dNdX::Matx, N:
     nnodes, ndim = size(dNdX)
     B .= 0.0
     t = elem.mat.t
-    ζ = ip.R[3] #não sei se está certo
+    #ζ = ip.R[3] #ip.coord[3] não sei se está certo
+    #@show ζ
   
     C = getcoords(elem)
 
-    # J (3x2)
-   
+    # artifice for mounting the rotation matrix for flat elements
+    Z = zeros(1,2) # zeros(2,1)
+    if size(J,1)==2
+        J = [J
+             Z]
+    else
+        J = J
+    end
+
+    #=
     t = elem.mat.t
-    # J (3x2)
-    V1 = vec(J[:,1])
-    V2 = vec(J[:,2])
+     # J (3x2)
+    V3 = cross(vec(J[:,1]), vec(J[:,2]))
+    normalize!(V3)
+    V1 = cross(vec([1 0 0]),V3)
+    V2 = cross(V3,V1)
+    
+    l1, m1, n1 = V1
+    l2, m2, n2 = V2
+    =#
 
-    l1, m1, n1 = normalize(V1)
-    l2, m2, n2 = normalize(V2)
-
+    V1=zeros(3,nnodes)
+    V2=zeros(3,nnodes)
+    V3=zeros(3,nnodes)
 
         for i in 1:nnodes
 
+        # J (3x2)
+        V3[:,i] = cross(vec(J[:,1]), vec(J[:,2]))
+        normalize!(V3[:,i])
+        V1[:,i] = cross(vec([1 0 0]),V3[:,i])
+        V2[:,i] = cross(V3[:,i],V1[:,i])
+
+        l1, m1, n1 = V1[:,i]
+        l2, m2, n2 = V2[:,i]
+
         dNdx = dNdX[i,1]
         dNdy = dNdX[i,2]
-        dNdz = dNdX[i,3]
+
+        ζ = ip.R[3] #ip.coord[3] não sei se está certo
         
         j    = i-1
 
-        B[1,1+j*ndim] = dNdx;                                               B[1,4+j*ndim] = -ζ*dNdx*t/2*l2;              B[1,5+j*ndim] = -ζ*dNdx*t/2*l1
 
-                              B[2,2+j*ndim] = dNdy;                         B[2,4+j*ndim] = -ζ*dNdy*t/2*m2;              B[2,5+j*ndim] = -ζ*dNdy*t/2*m1
+        B[1,1+j*ndim] = dNdx;  B[1,4+j*ndim] = -ζ*dNdx*t/2*l2;  B[1,5+j*ndim] = -ζ*dNdx*t/2*l1
 
-                                                     B[3,3+j*ndim] = dNdz;  B[3,4+j*ndim] = -ζ*dNdz*t/2*n2;              B[3,5+j*ndim] = -ζ*dNdz*t/2*n1
+        B[2,1+j*ndim] = dNdy;  B[2,4+j*ndim] = -ζ*dNdy*t/2*l2;  B[2,5+j*ndim] = -ζ*dNdy*t/2*l1
 
-        B[4,1+j*ndim] = dNdx;  B[4,2+j*ndim] = dNdy;                        B[4,4+j*ndim] = -ζ*t/2*(dNdy*l2+dNdx*m2);    B[4,5+j*ndim] = -ζ*t/2*(dNdy*l1+dNdx*m1)
+                               B[3,4+j*ndim] = -N[i]*t/2*l2;    B[3,5+j*ndim] =  N[i]*t/2*l1
 
-                               B[5,2+j*ndim] = dNdy; B[5,3+j*ndim] = dNdx;  B[5,4+j*ndim] = -ζ*t/2*(dNdz*m2+dNdy*n2);    B[5,5+j*ndim] = -ζ*t/2*(dNdz*m1+dNdy*n1)
+        B[4,2+j*ndim] = dNdx;  B[4,4+j*ndim] = -ζ*dNdx*t/2*m2;  B[4,5+j*ndim] = -ζ*dNdx*t/2*m1                      
 
-        B[6,1+j*ndim] = dNdx;                        B[6,3+j*ndim] = dNdz;  B[6,4+j*ndim] = -ζ*t/2*(dNdz*l2+dNdx*n2);    B[6,5+j*ndim] = -ζ*t/2*(dNdz*l1+dNdx*n1)
- 
- 
+        B[5,2+j*ndim] = dNdy;  B[5,4+j*ndim] = -ζ*dNdy*t/2*m2;  B[5,5+j*ndim] = -ζ*dNdy*t/2*m1  
 
+                               B[6,4+j*ndim] = -N[i]*t/2*m2;    B[6,5+j*ndim] =  N[i]*t/2*m1   
+
+        B[7,2+j*ndim] = dNdx;  B[7,4+j*ndim] = -ζ*dNdx*t/2*n2;  B[7,5+j*ndim] = -ζ*dNdx*t/2*n1                     
+
+        B[8,2+j*ndim] = dNdy;  B[8,4+j*ndim] = -ζ*dNdy*t/2*n2;  B[8,5+j*ndim] = -ζ*dNdy*t/2*n1
+
+                               B[9,4+j*ndim] = -N[i]*t/2*n2;    B[9,5+j*ndim] =  N[i]*t/2*n1
+         
     end
 
 end
@@ -214,19 +241,12 @@ function Dmatrix(elem::ShellDegenerated)
     G  = elem.mat.E/(2*(1+elem.mat.nu))
     G1 = 5/6*G
 
-        D =   [E1   nu*E1 0 0 0  0
-             nu*E1    E1  0 0 0  0
-              0         0 0 0 0  0
-              0         0 0 G 0  0
-              0         0 0 0 G1 0
-              0         0 0 0  0 G1 ]
-#=
-              D =   [E1   nu*E1 0 0  0
-                    nu*E1    E1 0 0  0
-                     0          0 G 0  0
-                      0         0 0 G1 0
-                      0         0 0  0 G1 ]
-=#
+              D =   [E1   nu*E1  0  0   0
+                    nu*E1    E1  0  0   0
+                     0        0  G  0   0
+                     0        0  0  G1  0
+                     0        0  0  0  G1 ]
+
     return D
 end
 
@@ -240,7 +260,7 @@ function elem_config_dofs(elem::ShellDegenerated)
             add_dof(node, :uz, :fz)
             add_dof(node, :rx, :mx)
             add_dof(node, :ry, :my)
-            add_dof(node, :rz, :mz)
+            #add_dof(node, :rz, :mz)
         end
     #else
         #error("ShellDegenerated: Shell elements do not work in this analyses")
@@ -257,7 +277,6 @@ function elem_config_dofs(elem::ShellDegenerated)
     #end
 end
 
-
 function elem_map(elem::ShellDegenerated)::Array{Int,1}
 
     #if elem.env.ndim==2
@@ -267,7 +286,7 @@ function elem_map(elem::ShellDegenerated)::Array{Int,1}
     #end
 
     #dof_keys = (:ux, :uy, :uz, :rx, :ry, :rz)
-    dof_keys = (:ux, :uy, :uz, :rx, :ry, :rz)
+    dof_keys = (:ux, :uy, :uz, :rx, :ry)
     #dof_keys = (:ux, :uy, :uz)
 
     vcat([ [node.dofdict[key].eq_id for key in dof_keys] for node in elem.nodes]...)
@@ -278,16 +297,9 @@ function elem_stiffness(elem::ShellDegenerated)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
-    #@show nnodes
-
-    C = getcoords(elem)
-    K = zeros(6*nnodes, 6*nnodes)
-    B = zeros(6, 5*nnodes)
+    K = zeros(5*nnodes, 5*nnodes)
+    B = zeros(9, 5*nnodes)
     JJ  = zeros(9,9)
-    Rot_K  = zeros(5*nnodes,6*nnodes)
-    Klocal = zeros(5*nnodes, 5*nnodes)
-
-    DB = Array{Float64}(undef, 6, nnodes*ndim)
     J  = Array{Float64}(undef, ndim, ndim)
     V  = Array{Float64}(undef, ndim, ndim)
     T = zeros(6,6)
@@ -295,15 +307,25 @@ function elem_stiffness(elem::ShellDegenerated)
 
     D = Dmatrix(elem)
 
+    C = getcoords(elem)
+    if size(C,2)==2
+        cxyz  = zeros(8,3)
+        cxyz[:,1:2]  = C
+    else
+        cxyz = C
+    end
+    #@show cxyz
+
     for ip in elem.ips
         elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
+        @show  elem.ips
         # compute B matrix
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
         #@gemm J = C'*dNdR
         #@gemm dNdX = dNdR*inv(J)
-        J = C'*dNdR
+        J = cxyz'*dNdR  #J (3x2)
         #dNdX = dNdR*inv(J)
         dNdX = dNdR*pinv(J) #! correto
         Rot_Matrix(elem, J, T)
@@ -325,30 +347,41 @@ function elem_stiffness(elem::ShellDegenerated)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
            
-        setB(elem, J, ip, dNdX, N, B)
-        #@show B
+        setB(elem, J, ip, dNdX, N, B)  # 6x40
+
+        H = [1 0 0 0 0 0 0 0 0
+             0 0 0 0 1 0 0 0 0
+             0 0 0 0 0 0 0 0 1
+             0 1 0 1 0 0 0 0 0
+             0 0 0 0 0 1 0 1 0
+             0 0 1 0 0 0 1 0 0]
+
+        #J3= [J (elem.mat.t/2)*cross(vec(J[:,1]), vec(J[:,2])) ]
+        J3= [J cross(vec(J[:,1]), vec(J[:,2])) ]
+
+           for i in 1:3
+                JJ[(i-1)*3+1:i*3, (i-1)*3+1:i*3] = inv(J3)
+           end
+
+        B1 = H*JJ*B
+        B2 = T*B1 # 6x40
+        B3 = [B2[1:3,:]
+              B2[5:6,:]]  # 5x40
+
+        #@show T
+        #@show B3
 
        # coef = detJ*ip.w*th
         coef = detJ*ip.w
+        #@show coef
 
-
-        Klocal += (B'*T'*D*T*B)*coef
-        @show Klocal
+        K += (B3'*D*B3)*coef
+        #@show K
     end
 
-    for i in 1:1
-        Rot_K[(i-1)*5+1:i*5, (i-1)*6+1:i*6] = [T[1:2,:]
-                                               T[4:6,:] ]
-    end
-
-    K = Rot_K'*Klocal*Rot_K
-
-    #keys = (:ux, :uy, :uz)[1:ndim]
-    #keys =(:ux, :uy, :uz, :rx, :ry, :rz)[1:ndim]
-    #map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-
-    map = elem_map(elem)
+     map = elem_map(elem)
     return K, map, map
+    
 end
 
 
