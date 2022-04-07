@@ -11,7 +11,7 @@ function mount_K(dom::Domain,
 
     R, C, V = Int64[], Int64[], Float64[]
 
-    for elem in dom.elems
+    for elem in dom._active_elems
         Ke, rmap, cmap = elem_stiffness(elem)
 
         nr, nc = size(Ke)
@@ -44,14 +44,14 @@ function mount_K_threads(
 
     verbosity>1 && print("    assembling... \e[K \r")
 
-    nelems = length(dom.elems)
+    nelems = length(dom._active_elems)
     Rs = Array{Int64,1}[ [] for i=1:nelems  ]
     Cs = Array{Int64,1}[ [] for i=1:nelems  ]
     Vs = Array{Float64,1}[ [] for i=1:nelems  ]
 
     let Rs=Rs, Cs=Cs, Vs=Vs, dom=dom
 
-        Threads.@threads for elem in dom.elems
+        Threads.@threads for elem in dom._active_elems
             #id = elem.id
             Ke, rmap, cmap = elem_stiffness(elem)
             #IDs[elem.id] = Threads.threadid()
@@ -80,7 +80,7 @@ end
 
 function mount_RHS(dom::Domain, ndofs::Int64, Δt::Float64)
     RHS = zeros(ndofs)
-    for elem in dom.elems
+    for elem in dom._active_elems
         F, map = elem_RHS(elem) # RHS[map] = elem_RHS(elem, Δt::Float64)
         RHS[map] = F
     end
@@ -132,9 +132,20 @@ function solve_system!(
             # S = spdiagm([ 1/maximum(abs, K11[:,i]) for i in 1:nu ])
             # LUfact = lu(K11*S)
             # U1  = S*(LUfact\RHS)
-
-            LUfact = lu(K11)
-            U1  = LUfact\RHS
+            
+            try
+                LUfact = lu(K11)
+                U1 = LUfact\RHS
+            catch err
+                if typeof(err)==SingularException
+                    # Regularization attempt
+                    S = spdiagm([ 1/maximum(abs, K11[i,:]) for i in 1:nu ])
+                    LUfact = lu(S*K11)
+                    U1  = (LUfact\(S*RHS))
+                else
+                    throw(err)
+                end
+            end
 
             F2 += K21*U1
         catch err
@@ -167,16 +178,18 @@ function update_state!(dom::Domain, ΔUt::Vect, ΔFin::Vect, t::Float64, verbosi
 
     # Get internal forces and update data at integration points (update ΔFin)
     ΔFin .= 0.0
-    for elem in dom.elems
+    for elem in dom._active_elems
         status = elem_update!(elem, ΔUt, ΔFin, 0.0)
         failed(status) && return status
     end
+
+    any(isnan.(ΔFin)) && warn("solve_system!: NaN values in internal forces vector")
     return success()
 end
 
 
 function update_embedded_disps!(dom::Domain)
-    for elem in dom.elems.embedded
+    for elem in dom._active_elems.embedded
         Ue, nodemap, dimmap = elem_displacements(elem)
         U = dom.node_data["U"]
         U[nodemap, dimmap] .= Ue
@@ -189,8 +202,8 @@ function update_status_line(dom::Domain, sw::StopWatch, inc::Int, T::Float64, Δ
     env = dom.env
 
     # Print status
-    progress = @sprintf("%4.2f", T*100)
-    printstyled("  stage $(env.cstage) $(see(sw)) out $(env.cout) progress $(progress)% increment $inc dT=$(round(ΔT,sigdigits=4))\e[K\n", bold=true, color=:light_blue) # color 111
+    progress = @sprintf("%5.3f", T*100)
+    printstyled("  stage $(env.cstage) $(see(sw)) out $(env.cout) progress $(progress)% inc $inc dT=$(round(ΔT,sigdigits=4))\e[K\n", bold=true, color=:light_blue) # color 111
 
     # Print monitors
     nlines = 1
@@ -251,7 +264,7 @@ subjected to a set of boundary conditions `bcs`.
 
 `outdir  = ""` : Output directory
 
-`filekey = ""` : File key for output files
+`outkey = ""` : File key for output files
 
 `printlog = false` : verbosity level from 0 (silent) to 2 (verbose)
 
@@ -259,6 +272,8 @@ subjected to a set of boundary conditions `bcs`.
 function solve!(
                 dom     :: Domain,
                 bcs     :: Array;
+                activate:: Array{<:Element,1}=Element[],
+                deactivate:: Array{<:Element,1}=Element[],
                 nincs   :: Int     = 1,
                 maxits  :: Int     = 5,
                 autoinc :: Bool    = false,
@@ -269,7 +284,7 @@ function solve!(
                 scheme  :: Union{String,Symbol} = "FE",
                 nouts   :: Int     = 0,
                 outdir  :: String  = ".",
-                filekey :: String  = "out",
+                outkey  :: String  = "out",
                 printlog = false,
                 verbose = false,
                )
@@ -307,6 +322,12 @@ function solve!(
         end
     end
 
+    # Get active elements
+    for elem in activate
+        elem.active = true
+    end
+    dom._active_elems = filter(elem -> elem.active, dom.elems)
+
     # Get dofs organized according to boundary conditions
     dofs, nu = configure_dofs!(dom, bcs) # unknown dofs first
     ndofs = length(dofs)
@@ -336,11 +357,11 @@ function solve!(
         update_single_loggers!(dom)
         update_composed_loggers!(dom)
         update_monitors!(dom)
-        save_outs && save(dom, "$outdir/$filekey-0.vtu", printlog=false)
+        save_outs && save(dom, "$outdir/$outkey-0.vtu", printlog=false)
     end
 
     # Get the domain current state and backup
-    State = [ ip.state for elem in dom.elems for ip in elem.ips ]
+    State = [ ip.state for elem in dom._active_elems for ip in elem.ips ]
     StateBk = copy.(State)
 
     # Incremental analysis
@@ -369,9 +390,9 @@ function solve!(
     Uex, Fex = get_bc_vals(dom, bcs)
 
     # Get unbalanced forces
-    if env.cstage==1
+    if length(activate)>0
         Fin = zeros(ndofs)
-        for elem in dom.elems
+        for elem in dom._active_elems
             elem_internal_forces(elem, Fin)
         end
         Fex .-= Fin # add negative forces to external forces vector
@@ -531,7 +552,7 @@ function solve!(
                 update_embedded_disps!(dom)
 
                 rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
-                save(dom, "$outdir/$filekey-$iout.vtu", printlog=false)
+                save(dom, "$outdir/$outkey-$iout.vtu", printlog=false)
                 Tcheck += ΔTcheck # find the next output time
             end
 

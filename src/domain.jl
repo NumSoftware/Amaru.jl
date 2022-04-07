@@ -56,6 +56,7 @@ mutable struct Domain<:AbstractDomain
     elem_data::OrderedDict{String,Array}
 
     _elempartition::ElemPartition
+    _active_elems::Array{Element,1}
 
     function Domain()
         this = new()
@@ -72,6 +73,7 @@ mutable struct Domain<:AbstractDomain
         this.env = ModelEnv()
 
         this._elempartition = ElemPartition()
+        this._active_elems = Element[]
         this.node_data = OrderedDict()
         this.elem_data  = OrderedDict()
         return this
@@ -102,7 +104,8 @@ function Domain(
     mesh      :: Mesh,
     matbinds  :: Array{<:Pair,1};
     modeltype :: String = "", # or "plane-stress", "plane-strain", "axysimmetric", "3d"
-    thickness :: Real   = 1.0,
+    ndim      :: Int = 0,
+    thickness :: Real = 1.0,
     printlog = false,
     verbose = false,
     params... # extra parameters required for specific solvers
@@ -111,17 +114,19 @@ function Domain(
     printlog && (printlog=false)
     printlog && verbose && (verbosity=2)
 
+    ndim = max(ndim, mesh.ndim)
+
     if modeltype==""
-        modeltype = mesh.ndim==2 ? "plane-strain" : "3d"
+        modeltype = ndim==2 ? "plane-strain" : "3d"
     end
     modeltype in ("plane-stress", "plane-strain", "axisymmetric", "3d") || error("Domain: Invalid modeltype $modeltype")
 
     dom  = Domain()
-    dom.ndim = mesh.ndim
+    dom.ndim = ndim
 
     # Environment data
     env = dom.env
-    env.ndim = mesh.ndim
+    env.ndim = ndim
     env.modeltype = modeltype
     env.thickness = thickness
     env.t = 0.0
@@ -171,6 +176,9 @@ function Domain(
             dom.elems[cell.id] = elem
         end
     end
+
+    # Initialize active elements
+    dom._active_elems = dom.elems
 
     # Check if all elements have material defined
     undefined_elem_shapes = Set{String}()
@@ -781,4 +789,3 @@ function nodal_local_recovery(dom::Domain)
 
     return V_vals, collect(all_fields_set)
 end
-

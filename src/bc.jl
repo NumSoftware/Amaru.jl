@@ -154,7 +154,7 @@ function setup_bc!(dom, filter, bc::ElemBC)
     isa(filter, Int) && (filter = [filter])
     bc.filter = filter
     # Filter objects according to bc criteria
-    bc.elems = dom.elems[bc.filter]
+    bc.elems = dom._active_elems[bc.filter]
     length(bc.elems)==0 && notify("setup_bc!: applying boundary conditions to empty array of elements while evaluating expression ", string(bc.filter))
 
     # Find prescribed essential bcs
@@ -195,8 +195,14 @@ end
 # Return a vector with all domain dofs and the number of unknown dofs according to bcs
 function configure_dofs!(dom, bcbinds::Array{<:Pair,1})
 
+    # get active nodes
+    ids = [ node.id for elem in dom._active_elems for node in elem.nodes ]
+    ids = sort(unique(ids)) # sort is required to preserve node numbering optimization
+    active_nodes = dom.nodes[ids]
+
     # All dofs
-    dofs = Dof[dof for node in dom.nodes for dof in node.dofs]
+    # dofs = Dof[dof for node in dom.nodes for dof in node.dofs]
+    dofs = Dof[dof for node in active_nodes for dof in node.dofs]
 
     # Reset all dofs as natural conditions
     for dof in dofs
