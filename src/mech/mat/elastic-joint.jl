@@ -19,20 +19,30 @@ end
 mutable struct ElasticJoint<:Material
     E::Float64 # Young modulus from bulk material
     ν::Float64 # Poisson ration from bulk material
+    kn::Float64 # Normal stiffness (used only if E and ν are NaN)
+    ks::Float64 # Shear stiffness (used only if E and ν are NaN)
     ζ::Float64 # elastic displacement scale factor (formerly α)
 
     function ElasticJoint(prms::Dict{Symbol,Float64})
         return  ElasticJoint(;prms...)
     end
 
-    function ElasticJoint(;E=NaN, nu=NaN, zeta=1.0)
-        E>0.0       || error("Invalid value for E: $E")
-        0<=nu<0.5   || error("Invalid value for nu: $nu")
-        zeta>0      || error("Invalid value for zeta: $zeta")
+    function ElasticJoint(;E=NaN, nu=NaN, kn=NaN, ks=NaN, zeta=1.0)
+        # kn and ks are used only if E and ν are NaN
 
-        this = new(E, nu, zeta)
+        if isnan(kn*ks)
+            @check E>0.0    
+            @check 0<=nu<0.5
+        else
+            @check kn>0.0    
+            @check ks>0.0    
+        end
+        @check zeta>0
+
+        this = new(E, nu, kn, ks, zeta)
         return this
     end
+
 end
 
 # Returns the element type that works with this material model
@@ -46,9 +56,15 @@ ip_state_type(mat::ElasticJoint) = JointIpState
 
 function mountD(mat::ElasticJoint, ipd::JointIpState)
     ndim = ipd.env.ndim
-    G  = mat.E/(1.0+mat.ν)/2.0
-    kn = mat.E*mat.ζ/ipd.h
-    ks =     G*mat.ζ/ipd.h
+    if isnan(mat.kn*mat.ks)
+        G  = mat.E/(1.0+mat.ν)/2.0
+        kn = mat.E*mat.ζ/ipd.h
+        ks =     G*mat.ζ/ipd.h
+    else
+        kn = mat.kn
+        ks = mat.ks
+    end
+
     if ndim==2
         return [  kn  0.0
                  0.0   ks ]

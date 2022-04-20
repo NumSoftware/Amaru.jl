@@ -62,7 +62,7 @@ mutable struct TCJoint<:Material
         @check fc<0  
         @check ft>=0  
         @check zeta>0
-        @check wc>0  
+        @check wc>0
         @check isnan(ws) || ws>0
         softcurve in ("linear", "bilinear", "hordijk") || error("Invalid softcurve: softcurve must to be linear or bilinear or hordijk")
 
@@ -74,6 +74,14 @@ mutable struct TCJoint<:Material
         return this
     end
 end
+
+function paramsdict(mat::TCJoint)
+    params = OrderedDict( string(field)=> getfield(mat, field) for field in fieldnames(typeof(mat)) )
+
+    mat.softcurve == "hordijk" && ( params["GF"] = 0.1943*mat.ft*mat.wc )
+    return params
+end
+
 
 # Returns the element type that works with this material model
 matching_elem_type(::TCJoint) = MechJoint
@@ -104,18 +112,6 @@ function yield_derivs(mat::TCJoint, ipd::TCJointIpState, σ::Array{Float64,1}, �
     α = mat.α
     β = beta(mat, σmax)
     ft = mat.ft
-
-    # tmp = 2*α/ft^2*(σ[2]^2/ft^2)^(α-1)
-    
-    # isnan(σ[2]) && @show σ[2]
-    # isnan(tmp) && @show tmp
-    # if isnan(σ[2]*tmp) 
-    #     @show tmp
-    #     @show σ
-    #     @show α
-    #     @show ft
-    #     @show ft
-    # end
 
     if ipd.env.ndim == 3
         tmp = 2*α/ft^2*((σ[2]^2+σ[3]^2)/ft^2)^(α-1)
@@ -237,13 +233,13 @@ end
 
 function calc_Δλ(mat::TCJoint, ipd::TCJointIpState, σtr::Array{Float64,1})
     ndim = ipd.env.ndim
-    maxits = 30
+    maxits = 50
     Δλ     = 0.0
     f      = 0.0
     upa    = 0.0
-    tol    = 1e-4
-    tol    = 1e-3
-    tol    = 1e-2
+    # tol    = 1e-2 # bad
+    # tol    = 1e-4 # better
+    tol    = 1e-5 # best
     ft = mat.ft
     θ    = mat.θ
     βini = mat.βini
@@ -293,8 +289,8 @@ function calc_Δλ(mat::TCJoint, ipd::TCJointIpState, σtr::Array{Float64,1})
         
         abs(f) < tol && break
 
-        if i == maxits || isnan(Δλ)
-            @show i, Δλ
+        if i == maxits || isnan(Δλ) || Δλ<=0
+            # @show i, Δλ
             return 0.0, failure()
         end
     end
@@ -312,16 +308,16 @@ function mountD(mat::TCJoint, ipd::TCJointIpState)
     De = diagm([kn, ks, ks][1:ndim])
 
     if ipd.Δλ == 0.0  # Elastic 
+        # @show "Elastic"
         return De
     elseif σmax == 0.0 && ipd.w[1] >= 0.0
+        # @show "Plast"
         Dep = De*1e-4
         # Dep = De*1e-3
-        # Dep = De*1e-2
-        # Dep = De*1e-2
-        # Dep = De*1e-1
-        # Dep = De
         return Dep
     else
+        # @show "Elastic Pla"
+
         fc, ft = mat.fc, mat.ft
         βini = mat.βini
         βres = mat.γ*βini
@@ -343,18 +339,6 @@ function mountD(mat::TCJoint, ipd::TCJointIpState)
 
             Dep = [   kn - kn^2*r[1]*v[1]/den    -kn*ks*r[1]*v[2]/den      
                      -kn*ks*r[2]*v[1]/den         ks - ks^2*r[2]*v[2]/den  ]
-        end
-
-        if any(isnan.(Dep))
-            @show den
-            @show ipd.σ
-            @show σmax
-            @show dfdσmax
-            @show m
-            @show r[1]
-            @show r[2]
-            @show v
-            @show Dep
         end
 
         return Dep
@@ -418,6 +402,7 @@ function stress_update(mat::TCJoint, ipd::TCJointIpState, Δw::Array{Float64,1})
                 ipd.σ = [σtr[1], σtr[2]/(1 + 2*ipd.Δλ*ks)]
             end    
         end
+
         r = potential_derivs(mat, ipd, ipd.σ)
         ipd.upa += ipd.Δλ*norm(r)
 

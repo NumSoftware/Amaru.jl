@@ -223,6 +223,11 @@ function elem_internal_forces(elem::MechRod, F::Array{Float64,1})
     F[map] += dF
 end
 
+function elem_activate(elem::MechRod, F::Array{Float64,1})
+    elem_internal_forces(elem, F)
+end
+
+
 
 function elem_update!(elem::MechRod, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
 
