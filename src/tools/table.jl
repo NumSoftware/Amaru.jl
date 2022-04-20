@@ -1,6 +1,7 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export DataTable, push!, save, loadtable, randtable, compress, resize, filter, cut!, clamp!, denoise!
+export DataTable, datatable, push!, save, loadtable, randtable
+export compress, resize, filter, cut!, clamp!, denoise!
 export getheader
 
 
@@ -43,13 +44,13 @@ function DataTable(; pairs...)
 end
 
 
-function DataTable(header::Array, matrix::Array{T,2} where T)
+function DataTable(header::Array, matrix::Array{T,2} where T; name="")
     nkeys = length(header)
     ncols = size(matrix,2)
     nkeys != ncols && error("DataTable: header and number of data columns do not match")
     types = [ typeof(matrix[1,i]) for i=1:ncols ]
     columns = AbstractVector[ convert(Array{types[i],1}, matrix[:,i]) for i=1:ncols ]
-    return DataTable(header, columns)
+    return DataTable(header, columns, name=name)
 end
 
 

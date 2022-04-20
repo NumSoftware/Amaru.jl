@@ -273,19 +273,6 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
     # Update and reorder mesh
     fixup!(mesh, reorder=true)
 
-    # Add field for joints
-    ncells = length(mesh.elems)
-    joint_data = zeros(Int, ncells, 3) # nlayers, first link, second link
-    for i=1:ncells
-        cell = mesh.elems[i]
-        if cell.shape.family==JOINT_CELL
-            joint_data[i,1] = layers
-            joint_data[i,2] = cell.linked_elems[1].id
-            joint_data[i,3] = cell.linked_elems[2].id
-        end
-    end
-
-    mesh.elem_data["joint-data"] = joint_data
 
     if verbose
         @printf "  %4dd mesh                             \n" mesh.ndim

@@ -33,8 +33,6 @@ include("tools/include.jl")
 # generic exports
 export max, min, sort, reset, getindex, sort, copy!, show
 
-
-#include("abstract.jl")
 abstract type AbstractPoint end
 abstract type AbstractCell end
 abstract type AbstractBlock<:AbstractCell end
@@ -82,6 +80,7 @@ export update_logger!
 
 include("monitor.jl")
 export NodeMonitor
+export NodeSumMonitor
 export IpMonitor
 export IpGroupMonitor
 

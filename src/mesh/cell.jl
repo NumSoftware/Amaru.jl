@@ -206,6 +206,8 @@ function Base.getproperty(cells::Array{<:AbstractCell,1}, s::Symbol)
     s == :embedded && return filter(cell -> cell.shape.family==LINE_CELL && length(cell.linked_elems)>0, cells)
     s == :nodes && return getnodes(cells)
     s == :filter && return cells
+    
+    s == :active   && return filter(cell -> cell.active, cells)
 
     error("type $(typeof(cells)) has no property $s")
 end

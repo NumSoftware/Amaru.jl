@@ -114,6 +114,7 @@ function update_logger!(logger::IpLogger, domain)
     isdefined(logger, :ip) || return
 
     vals = ip_vals(logger.ip)
+    vals[:out] = domain.env.cout
     domain.env.transient && (vals[:t] = domain.env.t)
 
     push!(logger.table, vals)
@@ -164,6 +165,10 @@ export FacesSumLogger, EdgesSumLogger, NodesSumLogger
 
 
 function setup_logger!(domain, filter, logger::FaceLogger)
+    if length(domain.elems[:joints]) > 0
+        warn("setup_logger: Using FaceLogger in a mesh with joint elemets may provide wrong results.")
+    end
+
     logger.filter = filter
     logger.faces = domain.faces[logger.filter]
     length(logger.faces) == 0 && warn("setup_logger: No faces found for filter expression: ", logger.filter)
@@ -193,9 +198,10 @@ function update_logger!(logger::FacetLogger, domain)
         push!(tableU, valsU)
     end
 
-    valsU = OrderedDict( key => mean(tableU[key]) for key in keys(tableU) ) # gets the average of essential values
-    valsF = OrderedDict( key => sum(tableF[key])  for key in keys(tableF) ) # gets the sum for each component
+    valsU = OrderedDict( Symbol(key) => mean(tableU[key]) for key in keys(tableU) ) # gets the average of essential values
+    valsF = OrderedDict( Symbol(key) => sum(tableF[key])  for key in keys(tableF) ) # gets the sum for each component
     vals  = merge(valsU, valsF)
+    vals[:out] = domain.env.cout
     domain.env.transient && (vals[:t] = domain.env.t)
 
     push!(logger.table, vals)
@@ -245,9 +251,10 @@ function update_logger!(logger::NodeSumLogger, domain)
         push!(tableU, valsU)
     end
 
-    valsU = OrderedDict( key => mean(tableU[key]) for key in keys(tableU) ) # gets the average of essential values
-    valsF = OrderedDict( key => sum(tableF[key])  for key in keys(tableF) ) # gets the sum for each component
+    valsU = OrderedDict( Symbol(key) => mean(tableU[key]) for key in keys(tableU) ) # gets the average of essential values
+    valsF = OrderedDict( Symbol(key) => sum(tableF[key])  for key in keys(tableF) ) # gets the sum for each component
     vals  = merge(valsU, valsF)
+    vals[:out] = domain.env.cout
     domain.env.transient && (vals[:t] = domain.env.t)
 
     push!(logger.table, vals)
@@ -382,6 +389,7 @@ function update_logger!(logger::PointLogger, domain)
         size(V,2)==1 || continue
         vals[k] = dot(V[map], N)
     end
+    vals[:out] = domain.env.cout
     domain.env.transient && (vals[:t] = domain.env.t)
     push!(logger.table, vals)
 

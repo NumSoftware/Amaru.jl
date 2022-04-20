@@ -47,8 +47,6 @@ function warn(xs...)
     msg = wrap(msg, level=2)
     printstyled("\rWarning: \e[K\n", color=:light_yellow)
     printstyled(msg, "\e[K\n", color=:yellow)
-    #printstyled("\rWarning: ", color=:yellow, bold=true)
-    #printstyled(msg, "\e[K\n\n", color=:yellow)
 end
 
 function headline(xs...; color=:cyan)
@@ -79,19 +77,18 @@ function sound_alert()
 end
 
 
-# export @stop
-# macro stop()
-#     return :(error("Stopped here."))
-# end
-
-struct Stop <: Exception 
+struct StopException{T} <: Exception
+    S::T
 end
 
-Base.display_error(io::IO, ::Stop, _) = println(io, "STOP POINT")
-stop() = throw(Stop())
+function Base.showerror(io::IO, ex::StopException, bt; backtrace=true)
+    Base.with_output_color(get(io, :color, false) ? :green : :nothing, io) do io
+        showerror(io, ex.S)
+    end
+end
+
 export stop
-
-
+stop(text="Stop point.") = throw(StopException(text))
 
 function align(arr::Array{<:AbstractString,1}, pat::AbstractString)
     isempty(arr) && return String[]

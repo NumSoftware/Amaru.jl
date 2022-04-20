@@ -54,6 +54,14 @@ function plot_data_for_cell2d(points::Array{Vec3,1}, shape::CellShape)
             append!(verts, [cp2, cp3, p2])
             append!(codes, [CURVE4, CURVE4, CURVE4])
         end
+    elseif shape==JLIN2
+        verts = points[1:2]
+        codes = [ MOVETO, LINETO ]
+    elseif shape == JLIN3
+        p1, p2, p3 = points[1:3]
+        cp    = 2*p3 - 0.5*p1 - 0.5*p2
+        verts = [ p1, cp, p2 ]
+        codes = [ MOVETO, CURVE3, CURVE3]
     else
         error("plot_data_for_cell2d: Not implemented for ", shape.name)
     end
@@ -80,7 +88,8 @@ function plot_data_for_cell3d(points::Array{Vec3,1}, shape::CellShape, V::Vec3=V
             R = [r]
             N = shape.func(R)
             D = shape.deriv(R)
-            J = Vec3(D*X)
+            # J = Vec3(D*X)
+            J = Vec3(X'*D)
             W = normalize(cross(V, J))
             Xi = Vec3(N'*X)
             verts[i] = Xi + width/2*W
@@ -104,6 +113,8 @@ function plot_data_for_cell3d(points::Array{Vec3,1}, shape::CellShape, V::Vec3=V
                 push!(verts, Vec3(N'*X))
             end
         end
+    else
+        error("plot_data_for_cell3d: Not implemented for ", shape.name)
     end
     return verts
 end
@@ -161,18 +172,7 @@ function mplot(items::Union{Block, Array}, filename::String=""; args...)
 
     end
 
-    # Get ndim
-    # ndim = 1
-    # for node in nodes
-    #     node.coord.y != 0.0 && (ndim=2)
-    #     node.coord.z != 0.0 && (ndim=3; break)
-    # end
-
     mesh = Mesh(cells)
-    # mesh = Mesh()
-    # mesh.ndim = ndim
-    # mesh.nodes = nodes
-    # mesh.elems = cells
     mplot(mesh, filename; args...)
 end
 
@@ -293,7 +293,9 @@ function mplot(
                lw                  = 0.4,
                rodlw               = 1.0,
                rodcolor            = "indianred",
+               facecolor           = "aliceblue",
                markers             = false,
+               markerscolor        = "black",
                ms                  = 1.5,
                rodmarkers          = false,
                rodms               = 1.5,
@@ -304,6 +306,7 @@ function mplot(
                fieldlims           = (),
                vectorfield         = nothing,
                arrowscale          = 0.0,
+               shrink              = 1.0,
                opacity             = 1.0,
                lightvector         = nothing,
                colormap            = nothing,
@@ -335,7 +338,6 @@ function mplot(
                copypath            = ""
               )
 
-
     printlog && headline("Mesh plotting")
     printlog && isempty(filename) && message("generating plot to file $filename")
 
@@ -353,74 +355,77 @@ function mplot(
         hint(join(keys(mesh.elem_data), ", "), level=3)
     end
 
-    if hicells isa Int 
+    if hicells isa Int && hicells!=0
         hicells  = [ hicells ]
     end
 
     field !== nothing && (field=string(field))
 
+    mesh = copy(mesh) # copy of original mesh
+
+    if shrink < 1.0
+        nodes = Node[]
+        node_ids = Int[]
+
+        # Detach bulk elements by duplicating nodes
+        for cell in mesh.elems
+            for (i,node) in enumerate(cell.nodes)
+                push!(node_ids, node.id)
+                if cell.shape.family == SOLID_CELL
+                    newnode = Node(node.coord)
+                    cell.nodes[i] = newnode
+                    push!(nodes, newnode)
+                else
+                    push!(nodes, node)
+                end
+            end
+        end
+
+        # update nodal data
+        for (field, data) in mesh.node_data
+            mesh.node_data[field] = data[node_ids,:]
+        end
+
+        # update node ids
+        for (i,node) in enumerate(mesh.nodes)
+            node.id = i
+        end
+    end
+
     # Get initial info from mesh
     ndim = mesh.ndim
-    if ndim==2
-        node_data = copy(mesh.node_data)
-        elem_data = copy(mesh.elem_data)
-
-        # filter bulk and line elements
-        areacells  = [ elem for elem in mesh.elems if elem.shape.family==SOLID_CELL && elem.shape.ndim==2 ]
-        linecells  = [ cell for cell in mesh.elems if cell.shape.family==LINE_CELL]
-        newcells   = [ areacells; linecells ]
-        c_ids      = [ [c.id for c in areacells]; [c.id for c in linecells] ]
-        newnodes   = [ p for c in newcells for p in c.nodes ]
-        pt_ids     = [ p.id for p in newnodes ]
-
-        # update data
-        for (field, data) in mesh.node_data
-            node_data[field] = data[pt_ids,:]
-        end
-        for (field, data) in mesh.elem_data
-            elem_data[field] = data[c_ids]
-        end
-
-        # nodes and cells
-        nodes = newnodes
-        cells = newcells
-        
-        # connectivities
-        id_dict = Dict{Int, Int}( p.id => i for (i,p) in enumerate(nodes) )
-        connect = [ [ id_dict[p.id] for p in c.nodes ] for c in cells ] # Do not use type specifier inside comprehension to avoid problem with Revise
-
-    else
-        node_data = OrderedDict{String,Array}()
-        elem_data  = OrderedDict{String,Array}()
-
+    if ndim==3
         # get surface cells and update
-        volume_cells = [ elem for elem in mesh.elems if elem.shape.family==SOLID_CELL && elem.shape.ndim==3 ]
-        areacells    = [ elem for elem in mesh.elems if elem.shape.family==SOLID_CELL && elem.shape.ndim==2 ]
-        scells       = get_surface(volume_cells)
-        linecells    = [ cell for cell in mesh.elems if cell.shape.family==LINE_CELL]
-        outlinecells = outline ? get_outline_edges(scells) : Cell[]
+        volcells  = [ elem for elem in mesh.elems if elem.shape.family==SOLID_CELL && elem.shape.ndim==3 ]
+        areacells = [ elem for elem in mesh.elems if elem.shape.family==SOLID_CELL && elem.shape.ndim==2 ]
+        surfcells = get_surface(volcells)
+        linecells = [ cell for cell in mesh.elems if cell.shape.family==LINE_CELL]
+        outlinecells = outline ? get_outline_edges(surfcells) : Cell[]
 
-        newcells = [ scells; areacells; linecells ]
-        oc_ids = [ [c.owner.id for c in scells]; [c.id for c in linecells]; [c.id for c in areacells] ]
+        mesh.elems = [ surfcells; areacells; linecells ]
+        cl_ids = [ [c.owner.id for c in surfcells]; [c.id for c in linecells]; [c.id for c in areacells] ]
 
-        newnodes = [ p for c in newcells for p in c.nodes ]
-        pt_ids = [ p.id for p in newnodes ]
+        # mesh.nodes = [ p for c in newcells for p in c.nodes ]
+        mesh.nodes = getnodes(mesh.elems)
+        pt_ids = [ p.id for p in mesh.nodes ]
 
         # update data
         for (field, data) in mesh.node_data
-            node_data[field] = data[pt_ids,:]
+            mesh.node_data[field] = data[pt_ids,:]
         end
         for (field, data) in mesh.elem_data
-            elem_data[field] = data[oc_ids]
+            mesh.elem_data[field] = data[cl_ids]
         end
 
-        # nodes and cells
-        nodes = newnodes
-        cells = newcells
-
-        # connectivities
-        id_dict = Dict{Int, Int}( p.id => i for (i,p) in enumerate(nodes) )
-        connect = [ [ id_dict[p.id] for p in c.nodes ] for c in cells ]
+        # update node ids
+        for (i,node) in enumerate(mesh.nodes)
+            node.id = i
+        end
+        
+        # update cell ids
+        for (i,cell) in enumerate(mesh.elems)
+            cell.id = i
+        end
 
         # observer and light vectors
         V = Vec3( cosd(elev)*cosd(azim), cosd(elev)*sind(azim), sind(elev) )
@@ -431,63 +436,56 @@ function mplot(
         else
             error("mplot: lightvector must be a vector.")
         end
-
-    end
-
-    ncells = length(cells)
-    nnodes = length(nodes)
-
-
-    # Nodal coordinates
-    coords = [ node.coord for node in nodes ]
-
-    # Map for nodal coordinates
-    nodemap = zeros(Int, maximum(n.id for n in nodes))
-    for (i,node) in enumerate(nodes)
-        nodemap[node.id] = i
     end
     
+    connect = [ [ node.id for node in cell.nodes ] for cell in mesh.elems  ]
+
+    ncells = length(mesh.elems)
+    nnodes = length(mesh.nodes)
+    node_data = mesh.node_data
+    elem_data = mesh.elem_data
+  
     # Change coords if warping
-    if warpscale>0 
+    if warpscale>0.0
         if haskey(node_data, "U")
             U = node_data["U"]
-            for (i,node) in enumerate(nodes)
-                coords[i] = node.coord + warpscale*U[i,:] 
+            for (i,node) in enumerate(mesh.nodes)
+                node.coord = node.coord + warpscale*U[i,:]  
             end
         else
             alert("mplot: Vector field U not found for warping.")
         end
     end
 
-    # Cell nodal coordinates
-    # cellcoords(cell, ndim) = [ coords[ nodemap[n.id] ][1:ndim] for n in cell.nodes ] 
-    cellcoords(cell, ndim) = [ coords[ nodemap[n.id] ] for n in cell.nodes ] 
-    cellconnects(cell) = [ nodemap[n.id] for n in cell.nodes ] 
-    
+    # Change coords if shrink
+    if shrink<1.0
+        for cell in mesh.elems
+            shape = cell.shape
+            if shape.family==SOLID_CELL
+                X = getcoords(cell)
+                C = vec(mean(X, dims=1))
+                for node in cell.nodes
+                    node.coord = (node.coord - C)*shrink + C
+                end
+            end
+        end
+    end
+
     # Data limits
-    limX = collect(extrema( coord[1] for coord in coords ))
-    limY = collect(extrema( coord[2] for coord in coords ))
-    limZ = collect(extrema( coord[3] for coord in coords ))
+    limX = collect(extrema( node.coord[1] for node in mesh.nodes) )
+    limY = collect(extrema( node.coord[2] for node in mesh.nodes) )
+    limZ = collect(extrema( node.coord[3] for node in mesh.nodes) )
 
     ll = max(norm(limX), norm(limY), norm(limZ))
-
-    # if ndim==3 && outline # move outline cells towards observer
-    #     θ, γ = (azim+0)*pi/180, elev*pi/180
-    #     ΔX = [ cos(θ)*cos(γ), sin(θ)*cos(γ), sin(γ) ]*0.015*ll
-
-    #     for edge in outlinecells
-    #         for node in edge.nodes
-    #             node = Node(edge.nodes[1].coord + ΔX)
-    #         end
-    #         # edge.nodes[2] = Node(edge.nodes[2].coord + ΔX)
-    #     end
-    #  end
-
 
     # Lazy import of PyPlot
     @eval import PyPlot:plt, matplotlib, figure, art3D, Axes3D, ioff, ColorMap, gcf
     #@eval ioff()
     #@eval ion()
+
+    if facecolor isa String
+        facecolor = matplotlib.colors.to_rgba(facecolor)
+    end
 
     plt.close("all")
 
@@ -651,7 +649,7 @@ function mplot(
     # Check for line field
     has_line_field = false
     if has_field
-        for (i,cell) in enumerate(cells)
+        for (i,cell) in enumerate(mesh.elems)
             cell.shape.family == LINE_CELL || continue
             if fvals[i]!=0.0
                 has_line_field = true
@@ -665,13 +663,13 @@ function mplot(
         # Plot cells
         all_verts = []
         edgecolor = []
-        facecolor = []
+        facecolors = []
         lineweight = []
 
-        for (i,cell) in enumerate(cells)
+        for (i,cell) in enumerate(mesh.elems)
             shape = cell.shape
-            points = cellcoords(cell,3)
-
+            shape.family in (SOLID_CELL, LINE_CELL) || continue
+            points = [ node.coord for node in cell.nodes ]
 
             if shape.family==SOLID_CELL
                 verts = plot_data_for_cell3d(points, shape)
@@ -679,7 +677,8 @@ function mplot(
                 if !has_field || has_line_field
                     fc = (0.94, 0.97, 1.0, opacity)
                     ec = (0.4, 0.4, 0.4, 1-0.75*(1-opacity))
-                    ec = (0.4, 0.4, 0.4, opacity)
+                    # ec = (0.4, 0.4, 0.4, opacity)
+                    ec = (0.5, 0.5, 0.5, opacity)
                 else
                     v = (fvals[i]-fieldlims[1])/(fieldlims[2]-fieldlims[1])
                     fc = cmap(v)
@@ -719,15 +718,13 @@ function mplot(
 
             push!(all_verts, verts)
             push!(edgecolor, ec)
-            push!(facecolor, fc)
+            push!(facecolors, fc)
             push!(lineweight, ew)
         end
 
         for cell in outlinecells
             ΔX = 0.01*ll*V
-            # points = [ node.coord+ΔX for node in cell.nodes ]
-            points = [ coords[id_dict[node.id]]+ΔX for node in cell.nodes ]
-            # verts = plot_data_for_cell3d(points, cell.shape)
+            points = [ node.coord+ΔX for node in cell.nodes ]
             verts = plot_data_for_cell3d(points, cell.shape, V, 0.001)
 
             # ec = "black"
@@ -737,7 +734,7 @@ function mplot(
             push!(all_verts, verts)
             push!(lineweight, lw*1.1)
             push!(edgecolor, ec)
-            push!(facecolor, fc)
+            push!(facecolors, fc)
         end
         
         if rodmarkers && filename!=""
@@ -750,11 +747,11 @@ function mplot(
                 fc = "black"
                 push!(all_verts, verts)
                 push!(edgecolor, ec)
-                push!(facecolor, fc)
+                push!(facecolors, fc)
             end
         end
 
-        cltn = @eval art3D[:Poly3DCollection]($all_verts, facecolor=$facecolor, edgecolor=$edgecolor, lw=$lineweight, alpha=$opacity) # ! lineweight is not working in Poly3DCollection
+        cltn = @eval art3D[:Poly3DCollection]($all_verts, facecolor=$facecolors, edgecolor=$edgecolor, lw=$lineweight, alpha=$opacity) # ! lineweight is not working in Poly3DCollection
         ax.add_collection3d(cltn)
 
         if has_field && colorbar
@@ -777,14 +774,14 @@ function mplot(
 
         all_patches = []
         edgecolor   = []
-        facecolor   = []
+        facecolors  = []
         lineweight  = []
 
-        # for i=1:ncells
-        for (i,cell) in enumerate(cells)
+        
+        for (i,cell) in enumerate(mesh.elems)
             shape = cell.shape
-            # points = [ node.coord[1:2] for node in cell.nodes ]
-            points = cellcoords(cell, 2)
+            shape.family in (SOLID_CELL, LINE_CELL) || continue
+            points = [ node.coord for node in cell.nodes ]
             verts, codes = plot_data_for_cell2d(points, shape)
             path  = matplotlib.path.Path(verts, codes)
             patch = matplotlib.patches.PathPatch(path)
@@ -792,8 +789,8 @@ function mplot(
 
             if shape.family==SOLID_CELL
                 if !has_field || has_line_field
-                    fc = (0.94, 0.97, 1.0, 1.0)
-                    ec = (0.4, 0.4, 0.4, 1.0)
+                    fc = facecolor
+                    ec = Tuple( (fc .+ [0.3, 0.3, 0.3, 1.0])./2 )
 
                     if cell.id in hicells      
                         ec = "black"
@@ -816,12 +813,11 @@ function mplot(
                 push!(lineweight, rodlw )
             end
             push!(edgecolor, ec)
-            push!(facecolor, fc)
+            push!(facecolors, fc)
             push!(all_patches, patch)
         end
 
-
-        cltn = matplotlib.collections.PatchCollection(all_patches, edgecolor=edgecolor, facecolor=facecolor, lw=lineweight)
+        cltn = matplotlib.collections.PatchCollection(all_patches, edgecolor=edgecolor, facecolor=facecolors, lw=lineweight)
         ax.add_collection(cltn)
         
         if has_field && colorbar
@@ -848,21 +844,21 @@ function mplot(
             X = getindex.(coords,1)
             Y = getindex.(coords,2)
             Z = getindex.(coords,3)
-            ax.scatter(X, Y, Z, color="black", marker="o", s=ms)
+            ax.scatter(X, Y, Z, color=markerscolor, marker="o", s=ms)
         else
-            subcoords = [ coords[i] for cell in areacells for i in cellconnects(cell) ]
+            subcoords = [ node.coord for cell in mesh.elems.solids for node in cell.nodes ]
 
-            X = getindex.(coords,1)
-            Y = getindex.(coords,2)
-            plt.plot(X, Y, color="black", marker="o", mfc="black", fillstyle="full", markersize=ms, mew=0, lw=0, clip_on=false)
+            X = getindex.(subcoords,1)
+            Y = getindex.(subcoords,2)
+            plt.plot(X, Y, color="black", marker="o", mfc=markerscolor, fillstyle="full", markersize=ms, mew=0, lw=0, clip_on=false)
         end
     end
 
    # Node markers on line cells
     if rodmarkers && ndim==2
-        subcoords = [ coords[i] for cell in linecells for i in cellconnects(cell) ]
-        X = getindex.(coords,1)
-        Y = getindex.(coords,2)
+        subcoords = [ node.coord for cell in mesh.elems.lines for node in cell.nodes ]
+        X = getindex.(subcoords,1)
+        Y = getindex.(subcoords,2)
 
         plt.plot(X, Y, color="black", marker="o", markersize=rodms, lw=0, mew=0, clip_on=false)
 
@@ -921,8 +917,6 @@ function mplot(
     else
         _, format = splitext(filename)
         plt.savefig(filename, bbox_inches="tight", pad_inches=0.00, format=format[2:end])
-        # plt.savefig(filename, pad_inches=0.00, format="pdf")
-        # plt.savefig(filename, pad_inches=0.00, format="pdf")
 
         if crop
             if Sys.islinux()
@@ -976,7 +970,7 @@ function mplotcolorbar(
     figsize          = (3,3.0),
     crop             = false,
     aspect           = 20,
-    #colormaplims      = (0.0,1.0),
+    colormaplims      = (0.0,1.0),
     #shrinkcolor       = false,
     #darkcolor         = false,
     #lightcolor        = false,
@@ -1007,6 +1001,18 @@ function mplotcolorbar(
     axes  = @eval gcf().add_axes([0, 0, $scale/$aspect, $scale])
 
     cmap = matplotlib.cm.get_cmap(colormap)
+
+    if colormaplims!=(0.0,1.0)
+        allcolors = [ cmap(p) for p in range(colormaplims[1], colormaplims[2], length=21) ]
+        Q = range(0,1,length=21)
+
+        cdict = Dict("red"   => [ (q, c[1], c[1]) for (q,c) in zip(Q,allcolors) ],
+                     "green" => [ (q, c[2], c[2]) for (q,c) in zip(Q,allcolors) ],
+                     "blue"  => [ (q, c[3], c[3]) for (q,c) in zip(Q,allcolors) ])
+
+        cmap = matplotlib.colors.LinearSegmentedColormap("modified_colormap", cdict, 256)
+    end
+
     if discrete
         cmap = matplotlib.cm.get_cmap(colormap, nbins)
     end

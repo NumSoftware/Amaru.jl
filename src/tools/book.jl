@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export DataBook, push!, save, loadbook
+export DataBook, databook, push!, save, loadbook
 
 
 # DataBook type
@@ -64,23 +64,36 @@ function save(book::DataBook, filename::String; printlog=true)
             colidx  = getcolidx(table)
             header  = getheader(table)
             nr, nc  = size(table)
+            name    = getname(table)
 
             # nc = length(colidx)              # number of cols
             # nr = nc>0 ? length(columns[1]) : 0 # number of rows
 
             # print table label
-            print(f, "Table (snapshot=$(k), rows=$nr)\n")
+            print(f, "Table ")
+            if name == "" 
+                print(f, "(snapshot=$k rows=$nr)\n")
+            else
+                print(f, "$name (rows=$nr)\n")
+            end
 
             # print header
             for (i,key) in enumerate(keys(colidx))
-                @printf(f, "%12s", key)
+                @printf(f, "%10s", key)
                 print(f, i!=nc ? "\t" : "\n")
             end
 
             # print values
             for i=1:nr
                 for j=1:nc
-                    @printf(f, "%12.5e", columns[j][i])
+                    val = columns[j][i]
+                    if val isa Int
+                        @printf(f, "%10d", val)
+                    elseif val isa AbstractFloat
+                        @printf(f, "%10.4e", val)
+                    else
+                        @printf(f, "%10s", string(val))
+                    end
                     print(f, j!=nc ? "\t" : "\n")
                 end
             end
