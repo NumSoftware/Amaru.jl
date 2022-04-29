@@ -165,7 +165,6 @@ function save_vtu(mesh::AbstractMesh, filename::String; desc::String="")
 
     # Node and Cell data
     has_node_data = !isempty(mesh.node_data)
-    has_elem_data  = !isempty(mesh.elem_data)
 
     # Write node data
     if has_node_data
@@ -191,7 +190,40 @@ function save_vtu(mesh::AbstractMesh, filename::String; desc::String="")
         push!(piece.children, xpointdata)
     end
 
+    # Add field for joints
+    if any( c.shape.family==JOINT_CELL for c in mesh.elems )
+        ncells = length(mesh.elems)
+        joint_data = zeros(Int, ncells, 3) # nlayers, first link, second link
+        for i=1:ncells
+            cell = mesh.elems[i]
+            nlayers = cell.shape.name[1:2]=="J3" ? 3 : 2
+            if cell.shape.family==JOINT_CELL
+                joint_data[i,1] = nlayers
+                joint_data[i,2] = cell.linked_elems[1].id
+                joint_data[i,3] = cell.linked_elems[2].id
+            end
+        end
+        mesh.elem_data["joint-data"] = joint_data
+    end
+
+    # Add field for embedded nodes
+    if any( c.shape.family==LINEJOINT_CELL for c in mesh.elems )
+        ncells = length(mesh.elems)
+        inset_data = zeros(Int, ncells, 3) # npoints, first link id, second link id
+        for i=1:ncells
+            cell = mesh.elems[i]
+            if cell.shape.family==LINEJOINT_CELL
+                inset_data[i,1] = cell.shape.npoints
+                inset_data[i,2] = cell.linked_elems[1].id
+                inset_data[i,3] = cell.linked_elems[2].id
+            end
+        end
+        mesh.elem_data["inset-data"] = inset_data
+    end
+
     # Write cell data
+    has_elem_data  = !isempty(mesh.elem_data)
+
     if has_elem_data
         xcelldata = Xnode("CellData")
         for (field,D) in mesh.elem_data
@@ -476,10 +508,12 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
     if haskey(mesh.elem_data, "inset-data")
         inset_data = mesh.elem_data["inset-data"]
         for (i,cell) in enumerate(mesh.elems)
-            if cell.shape==POLYVERTEX && joint_data[i,1] == 0
+            if cell.shape==POLYVERTEX && inset_data[i,1]>0
                 linked_ids = inset_data[i,2:3]
                 cell.linked_elems = mesh.elems[linked_ids]
-                cells.linked_elems[1].crossed = true # host cell is crossed
+                cell.linked_elems[1].crossed = true # host cell is crossed
+                n = length(cell.linked_elems[2].nodes)
+                cell.shape = get_shape_from_vtk(VTK_POLY_VERTEX, n, ndim)
             end
         end
     end

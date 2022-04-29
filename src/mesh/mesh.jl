@@ -54,7 +54,7 @@ function get_node(nodes::Dict{UInt64,Node}, C::AbstractArray{<:Real})
     return get(nodes, hs, nothing)
 end
 
-function Base.copy(mesh::Mesh)
+function Base.copy(mesh::AbstractMesh)
     newmesh = Mesh()
     ndim = mesh.ndim
     newmesh.ndim = ndim
@@ -63,7 +63,7 @@ function Base.copy(mesh::Mesh)
     for elem in mesh.elems
         idxs = [ node.id for node in elem.nodes ]
         newelemnodes = newmesh.nodes[idxs]
-        newelem = Cell(elem.shape, newelemnodes, tag=elem.tag)
+        newelem = Cell(elem.shape, newelemnodes, tag=elem.tag, id=elem.id)
         push!(newmesh.elems, newelem)
     end
 
@@ -379,7 +379,7 @@ function fixup!(mesh::Mesh; printlog=false, genfacets::Bool=true, genedges::Bool
     mesh.elem_data["quality"]   = Q
     mesh.elem_data["elem-id"]   = collect(1:length(mesh.elems))
     mesh.elem_data["cell-type"] = [ Int(cell.shape.vtk_type) for cell in mesh.elems ]
-    mesh.elem_data["tag"] = T
+    mesh.elem_data["tag"] = T 
 
     return nothing
 end
@@ -650,21 +650,6 @@ function Mesh(
 
     # Updates numbering, quality, facets and edges
     fixup!(mesh, printlog=printlog, genfacets=genfacets, genedges=genedges, reorder=reorder)
-
-    # Add field for embedded nodes
-    if any( c.shape.family==LINEJOINT_CELL for c in mesh.elems )
-        ncells = length(mesh.elems)
-        inset_data = zeros(Int, ncells, 3) # npoints, first link id, second link id
-        for i=1:ncells
-            cell = mesh.elems[i]
-            if cell.shape.family==LINEJOINT_CELL
-                inset_data[i,1] = cell.shape.npoints
-                inset_data[i,2] = cell.linked_elems[1].id
-                inset_data[i,3] = cell.linked_elems[2].id
-            end
-        end
-        mesh.elem_data["inset-data"] = inset_data
-    end
 
     if printlog
         npoints = length(mesh.nodes)

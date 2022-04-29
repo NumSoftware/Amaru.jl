@@ -39,3 +39,19 @@ for output at element level or nodal level.
 function output_keys(mat::Material)
     return Symbol[]
 end
+
+function paramsdict(mat::Material)
+    return OrderedDict( string(field)=> getfield(mat, field) for field in fieldnames(typeof(mat)) )
+end
+
+function databook(mats::Array{<:Pair,1})
+    db = DataBook()
+    for (label, mat) in mats
+        # tab = DataTable(;paramsdict(mat)...)
+        dt = DataTable()
+        push!(dt, paramsdict(mat))
+        setfield!(dt, :name, string(label))
+        push!(db, dt)
+    end
+    return db
+end

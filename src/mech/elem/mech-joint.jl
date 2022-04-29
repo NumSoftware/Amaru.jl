@@ -72,35 +72,17 @@ function matrixT(J::Matrix{Float64})
     if size(J,2)==2
         L2 = vec(J[:,1])
         L3 = vec(J[:,2])
-        L1 = cross(L2, L3)  # L1 is normal to the first element face
+        L1 = cross(L2, L3)  # L1 is normal to the first joint face
         L2 = cross(L3, L1)
         normalize!(L1)
         normalize!(L2)
         normalize!(L3)
         return collect([L1 L2 L3]') # collect is used to avoid Adjoint type
     else
-        L2 = vec(J)
-        L1 = [ L2[2], -L2[1] ] # It follows the anti-clockwise numbering of 2D elements: L1 should be normal to the first element face
-        normalize!(L1)
-        normalize!(L2)
+        L2 = normalize(vec(J))
+        L1 = [ L2[2], -L2[1] ] # It follows the anti-clockwise numbering of 2D elements: L1 should be normal to the first joint face
         return collect([L1 L2]')
     end
-    # if size(J,1)==2
-    #     L2 = vec(J[1,:])
-    #     L3 = vec(J[2,:])
-    #     L1 = cross(L2, L3)  # L1 is normal to the first element face
-    #     L2 = cross(L3, L1)
-    #     normalize!(L1)
-    #     normalize!(L2)
-    #     normalize!(L3)
-    #     return collect([L1 L2 L3]') # collect is used to avoid Adjoint type
-    # else
-    #     L2 = vec(J)
-    #     L1 = [ L2[2], -L2[1] ] # It follows the anti-clockwise numbering of 2D elements: L1 should be normal to the first element face
-    #     normalize!(L1)
-    #     normalize!(L2)
-    #     return collect([L1 L2]')
-    # end
 end
 
 function elem_stiffness(elem::MechJoint)
@@ -117,6 +99,10 @@ function elem_stiffness(elem::MechJoint)
     DB = zeros(ndim, nnodes*ndim)
     J  = zeros(ndim, ndim-1)
     NN = zeros(ndim, nnodes*ndim)
+
+    # @show elem.env.modeltype
+    # @show elem.ips
+    # error()
 
     for ip in elem.ips
     	if elem.env.modeltype=="axisymmetric"
@@ -151,8 +137,25 @@ function elem_stiffness(elem::MechJoint)
 
     keys = (:ux, :uy, :uz)[1:ndim]
     map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
+    # @show K
+    # error()
+    # return 1e4*Matrix(I, length(map), length(map)), map, map
+    # K = K + 1e3*Matrix(I, length(map), length(map))
     return K, map, map
 end
+
+
+# function elem_update!(elem::MechJoint, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
+#     ndim   = elem.env.ndim
+
+#     keys   = (:ux, :uy, :uz)[1:ndim]
+#     map    = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
+#     dU = U[map]
+#     dF = elem_stiffness(elem)[1]*dU
+#     F[map] += dF
+#     return success()
+# end
+
 
 function elem_update!(elem::MechJoint, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
@@ -168,7 +171,6 @@ function elem_update!(elem::MechJoint, U::Array{Float64,1}, F::Array{Float64,1},
     C = getcoords(elem)[1:hnodes,:]
     B = zeros(ndim, nnodes*ndim)
 
-    DB = zeros(ndim, nnodes*ndim)
     J  = zeros(ndim, ndim-1)
     NN = zeros(ndim, nnodes*ndim)
     Δω = zeros(ndim)

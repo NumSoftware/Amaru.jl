@@ -119,6 +119,8 @@ function cplot(
     # filename::String = "",
     xlabel           = L"x",
     ylabel           = L"y",
+    x2label           = L"x2",
+    y2label           = L"y2",
     xbins            = 10,
     ybins            = 8,
     grid             = true,
@@ -129,12 +131,16 @@ function cplot(
     ncol             = 0,
     xlim             = nothing,
     ylim             = nothing,
+    x2lim             = nothing,
     equalaspect      = false,
     xscale           = "linear",
     yscale           = "linear",
     xmult            = 1.0,
     ymult            = 1.0,
+    x2mult            = 1.0,
+    y2mult            = 1.0,
     ticksinside      = true,
+    axis             = true,
     fontsize         = 6.5,
     legendfontsize   = 0,
     labelspacing     = 0.5, 
@@ -150,7 +156,6 @@ function cplot(
     y2bins           = 8,
     y2lim            = nothing,
     y2scale          = "linear",
-    y2mult           = 1.0,
 
     copypath         = "",
     printlog         = false
@@ -302,11 +307,63 @@ function cplot(
     plt.xscale(xscale)
     plt.yscale(yscale)
 
+    ax_xy = plt.gca()
+    axesdict = Dict("xy" => ax_xy)
+    ax_xy.xaxis.set_tick_params(width=0.3)
+    ax_xy.yaxis.set_tick_params(width=0.3)
+    ax_xy.xaxis.set_tick_params(size=2.5)
+    ax_xy.yaxis.set_tick_params(size=2.5)
+    if ticksinside
+        ax_xy.tick_params(which="minor", axis="x", direction="in")
+        ax_xy.tick_params(which="minor", axis="y", direction="in")
+        ax_xy.tick_params(which="major", axis="x", direction="in")
+        ax_xy.tick_params(which="major", axis="y", direction="in")
+    end
+
+    # Find new axes: x2, y2
+    for line in data
+        thisax = get(line, :axis, "xy")
+        haskey(axesdict, thisax) && continue
+        
+        if thisax=="x2"  
+            ax_x2 = ax_xy.twiny()  # instantiate a second axes that shares the same x-axis
+            axesdict[thisax] = ax_x2
+            x2lim!==nothing && ax_x2.set_xlim(x2lim) 
+            ax_x2.set_xlabel(x2label)  # we already handled the x-label with ax1
+            ax_x2.xaxis.set_tick_params(width=0.3)
+            ax_x2.xaxis.set_tick_params(size=2.5)
+            if ticksinside
+                ax_x2.tick_params(which="minor", axis="x", direction="in")
+                ax_x2.tick_params(which="major", axis="x", direction="in")
+            end
+        end
+        if thisax=="y2"  
+            ax_y2 = ax_xy.twinx()  # instantiate a second axes that shares the same y-axis
+            axesdict[thisax] = ax_y2
+            ax_y2.set_ylabel(y2label)  # we already handled the y-label with ax1
+            ax_y2.yaxis.set_tick_params(width=0.3)
+            ax_y2.yaxis.set_tick_params(size=2.5)
+            if ticksinside
+                ax_y2.tick_params(which="minor", axis="y", direction="in")
+                ax_y2.tick_params(which="major", axis="y", direction="in")
+            end
+        end
+    end
+
     # Plot curves
     haslegend = false
     for (i, line) in enumerate(data)
-        X = get(line, :x, 0).*xmult
-        Y = get(line, :y, 0).*ymult
+        thisax = get(line, :axis, "xy")
+        if thisax=="x2"
+            Y = get(line, :y, 0).*ymult
+            X = get(line, :x, 0).*x2mult
+        elseif thisax=="y2"
+            X = get(line, :x, 0).*xmult
+            Y = get(line, :y, 0).*y2mult
+        else
+            X = get(line, :x, 0).*xmult
+            Y = get(line, :y, 0).*ymult
+        end
         length(X) == length(Y) || error("cplot: (line $i) x and y lengths do not match")
         lw     = get(line, :lw, 0.5)
         ls     = get(line, :ls, "-")
@@ -322,15 +379,27 @@ function cplot(
         (isa(ms, Number) && ms>0) || error("cplot: (line $i) ms should be a number greater that zero. '$ms' was provided.")
         ls in line_styles || error("cplot: (line $i) ls should be one of $line_styles.\n\"$ls\" was provided.")
         marker in markers || error("cplot: (line $i) marker should be one of $markers. \n\"$markers\" was provided")
-        #(color isa Tuple || color in colors) || error("cplot: color should be one of $colors. \n\"$color\" was provided")
+        # (color isa Tuple || color in colors) || error("cplot: color should be one of $colors. \n\"$color\" was provided")
 
-        plt.plot(X, Y, marker=marker, ms=ms, mfc=mfc, mew=0.5, color=color, lw=lw, ls=ls, label=label)
+        ax = axesdict[thisax]
+        ax.plot(X, Y, marker=marker, ms=ms, mfc=mfc, mew=0.5, color=color, lw=lw, ls=ls, label=label)
     end
 
+    plt.sca(ax_xy)
 
     grid && plt.grid(color="lightgrey", which="both", ls="dotted", lw=0.3)
     xscale=="linear" && plt.locator_params(axis="x", nbins=xbins)
     yscale=="linear" && plt.locator_params(axis="y", nbins=ybins)
+
+    if !axis
+        plt.axis("off")
+        # ax_xy.set_xticklabels([])
+        # ax_xy.set_yticklabels([])
+        # ax_xy.set_xticks([])
+        # ax_xy.set_yticks([])
+        # ax_xy.spines["right"].set_visible(false)
+        # ax_xy.spines["top"].set_visible(false)
+    end
 
     # plot legend
     if haslegend
@@ -357,18 +426,10 @@ function cplot(
         frame.set_linewidth(0.5)
     end
 
+    # ax= axesdict["xy"]
     # Tick parameters
-    ax = plt.gca()
-    ax.xaxis.set_tick_params(width=0.3)
-    ax.yaxis.set_tick_params(width=0.3)
-    ax.xaxis.set_tick_params(size=2.5)
-    ax.yaxis.set_tick_params(size=2.5)
-    if ticksinside
-        ax.tick_params(which="minor", axis="x", direction="in")
-        ax.tick_params(which="minor", axis="y", direction="in")
-        ax.tick_params(which="major", axis="x", direction="in")
-        ax.tick_params(which="major", axis="y", direction="in")
-    end
+    # ax = plt.gca()
+
 
     # print text
     if length(annotations)>0
@@ -378,18 +439,34 @@ function cplot(
             text     = string(get(line, :text, ""))
             arrowcoord = get(line, :arrowcoord, nothing)
             
+            
             if arrowcoord===nothing
-                plt.text(x, y, text, fontsize=fontsize, transform=ax.transAxes, ha="center", va="center")
+                ax_xy.text(x, y, text, fontsize=fontsize-1, transform=ax_xy.transAxes, ha="center", va="center")
             else
+                xa, ya = (ax_xy.transData+ax_xy.transAxes.inverted()).transform([x,y])
+                dx = abs(x-xa)*figsize[1]/figsize[2]
+                dy = abs(y-ya)
+                if dx>dy
+                    angleA = -90
+                    angleB = 180
+                else
+                    angleA = 0
+                    angleB = 90
+                end
+
                 plt.annotate(text, 
                     xytext     = (x,y), 
-                    textcoords = "figure fraction",
+                    # textcoords = "figure fraction",
+                    textcoords = "axes fraction",
+                    fontsize   = fontsize-1,
                     xy         = (arrowcoord[1]*xmult, arrowcoord[2]*ymult),
                     arrowprops = Dict(
                         "lw"              => 0.3,
                         "arrowstyle"      => "->",
                         "facecolor"       => "black",
-                        "connectionstyle" => "angle,angleA=0,angleB=90,rad=3"
+                        "shrinkA"         => 0,
+                        "shrinkB"         => 1,
+                        "connectionstyle" => "angle,angleA=$angleA,angleB=$angleB,rad=3"
                     ),
 
                 )
@@ -418,7 +495,7 @@ function cplot(
             color = 0.85.*matplotlib.colors.to_rgb(color)
         end
 
-        XY    = (ax.transData+ax.transAxes.inverted()).transform([X Y])
+        XY    = (ax_xy.transData+ax_xy.transAxes.inverted()).transform([X Y])
         X     = XY[:,1]
         Y     = XY[:,2]
 
@@ -509,29 +586,20 @@ function cplot(
             90<α<=180 && (α=α-180)
             -180<α<=-90 && (α=α+180)
             # @s α
-            angle = ax.transAxes.transform_angles([α], [1.0 1.0])[1]
+            angle = ax_xy.transAxes.transform_angles([α], [1.0 1.0])[1]
         else
             angle = 0.0
         end
 
-
-        # plt.text(xpos, ypos, tag, ha=ha, va=va, color=color, fontsize=tagfontsize, transform=ax.transAxes)
         plt.text(
             xpos, ypos, tag, ha=ha, va=va, color=color, 
             # backgroundcolor="white",
             fontsize=tagfontsize, 
             rotation=angle, rotation_mode="anchor",
-            transform=ax.transAxes
+            transform=ax_xy.transAxes
         )
     end
 
-    # second axis
-    # ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
-    # ax2.plot(t, data2, color=color)
-    # ax2.set_ylim([0, 2.8])
-    # ax2.set_ylabel("Average stress [MPa]")  # we already handled the x-label with ax1
-    # ax2.tick_params(axis='y', labelcolor=color)
-     
     # show or save plot
     if filename=="" 
         plt.fignum_exists(ax.figure.number) || plt.show()
@@ -558,4 +626,13 @@ function cplot(
 
     return @eval gcf()
 
+end
+
+function cplot(
+    data::Array{<:NamedTuple}, 
+    fname::String = "";
+    args...
+)
+
+    cplot(data..., fname; args...)
 end

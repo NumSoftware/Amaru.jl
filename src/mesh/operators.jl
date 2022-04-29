@@ -321,6 +321,43 @@ function array(block::AbstractBlock; nx=1, ny=1, nz=1, dx=0.0, dy=0.0, dz=0.0)
     return blocks
 end
 
+# function array(block::AbstractBlock; nx=1, ny=1, nz=1, dx=0.0, dy=0.0, dz=0.0)
+
+#     if dx isa Array
+#         nx = length(dx)
+#         DX = dx
+#     else
+#         DX = collect( (i-1)*dx for i in 1:nx )
+#     end
+    
+#     if dy isa Array
+#         ny = length(dy)
+#         DY = dy
+#     else
+#         DY = collect( (i-1)*dy for i in 1:ny )
+#     end
+
+#     if dz isa Arraz
+#         nz = length(dz)
+#         DZ = dz
+#     else
+#         DZ = collect( (i-1)*dz for i in 1:nz )
+#     end
+
+#     blocks = [ block ]
+#     for k in 1:nz
+#         for j in 1:ny
+#             for i in 1:nx
+#                 i==j==k==1 && continue
+#                 cp = copy(block)
+#                 move!(cp, dx=Dx[i], dy=DY[j], dz=DZ[k])
+#                 push!(blocks, cp)
+#             end
+#         end
+#     end
+#     return blocks
+# end
+
 
 """
     $(TYPEDSIGNATURES)

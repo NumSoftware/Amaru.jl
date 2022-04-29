@@ -22,11 +22,6 @@ mutable struct IpMonitor<:AbstractMonitor
     end
 end
 
-# function output(mon::IpMonitor) 
-#     val = round(mon.val, sigdigits=5)
-#     return "ip $(mon.ip.id)  $(mon.expr) $val"
-# end
-
 
 function setup_monitor!(domain, filter, monitor::IpMonitor)
     monitor.filter = filter
@@ -84,16 +79,6 @@ mutable struct NodeMonitor<:AbstractMonitor
     end
 end
 
-# function output(monitor::NodeMonitor) 
-#     str = "node $(replace(string(monitor.filter), " " => ""))"
-#     for (k,v) in monitor.vals
-#         k in (:stage, :T) && continue
-#         v = v isa Real ? round(v, sigdigits=5) : v
-#         str *= "  $(replace(string(k), " " => "")):$v" 
-#     end
-
-#     return str
-# end
 
 function output(monitor::AbstractMonitor)
     out = IOBuffer()
@@ -154,7 +139,6 @@ function update_monitor!(monitor::NodeMonitor, domain)
 end
 
 
-
 # Monitor for a group of ips
 # ==========================
 
@@ -174,17 +158,6 @@ mutable struct IpGroupMonitor<:AbstractMonitor
         return new(expr, OrderedDict(), filename, :(), DataTable(), [])
     end
 end
-
-
-# function output(monitor::IpGroupMonitor)
-#     str = "ip group $(replace(string(monitor.filter), " " => ""))"
-#     for (k,v) in monitor.vals
-#         k in (:stage, :T) && continue
-#         str *= "  $(replace(string(k), " " => "")):$v" 
-#     end
-
-#     return str
-# end
 
 
 function setup_monitor!(domain, filter, monitor::IpGroupMonitor)
@@ -214,6 +187,70 @@ function update_monitor!(monitor::IpGroupMonitor, domain)
             val = any(vals)
             monitor.vals[expr] = val
         end
+    end
+
+    monitor.vals[:stage] = domain.env.cstage
+    monitor.vals[:T]     = domain.env.T
+    domain.env.transient && (monitor.vals[:t]=dom.env.t)
+
+    push!(monitor.table, monitor.vals)
+
+    if monitor.filename!="" 
+        filename = joinpath(domain.env.outdir, monitor.filename)
+        save(monitor.table, filename, printlog=false)
+    end
+end
+
+
+# Logger for the sum of nodes
+# ===========================
+
+
+mutable struct NodeSumMonitor<:AbstractMonitor
+    expr     ::Union{Symbol,Expr}
+    vals     ::OrderedDict # stores current values
+    filename ::String
+    filter   ::Union{Symbol,String,Expr}
+    table    ::DataTable
+    nodes    ::Array{Node,1}
+
+    function NodeSumMonitor(expr::Union{Symbol,Expr}, filename::String="")
+        if expr isa Symbol || expr.head == :call
+            expr = :($expr,)
+        end
+
+        return new(expr, OrderedDict(), filename, :(), DataTable())
+    end
+end
+
+
+function setup_monitor!(domain, filter, monitor::NodeSumMonitor)
+    monitor.filter = filter
+    monitor.nodes = domain.nodes[filter]
+    length(monitor.nodes) == 0 && warn("setup_monitor: No nodes found for filter expression: ", monitor.filter)
+end
+
+
+function update_monitor!(monitor::NodeSumMonitor, domain)
+    length(monitor.nodes) == 0 && return
+
+    tableU = DataTable()
+    tableF = DataTable()
+    for node in monitor.nodes
+        # TODO: valsF may be improved by calculating the internal forces components
+        nvals = node_vals(node)
+        valsU  = OrderedDict( dof.name => nvals[dof.name] for dof in node.dofs )
+        valsF  = OrderedDict( dof.natname => nvals[dof.natname] for dof in node.dofs )
+        push!(tableF, valsF)
+        push!(tableU, valsU)
+    end
+
+    valsU = OrderedDict( Symbol(key) => mean(tableU[key]) for key in keys(tableU) ) # gets the average of essential values
+    valsF = OrderedDict( Symbol(key) => sum(tableF[key])  for key in keys(tableF) ) # gets the sum for each component
+    state = merge(valsU, valsF)
+
+    for expr in monitor.expr.args
+        monitor.vals[expr] = eval_arith_expr(expr; state...)
     end
 
     monitor.vals[:stage] = domain.env.cstage
