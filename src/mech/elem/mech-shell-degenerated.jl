@@ -293,7 +293,7 @@ function elem_stiffness(elem::ShellDegenerated)
         rot_matrix_R(elem, J2D, R)
         rot_matrix_T(elem, R, T)
 
-        J = [ J2D  R[:,3] ]  #R[:,3]*t/2
+        J = [ J2D  R[:,3]*t/2 ]  #R[:,3]*t/2
 
         dNdR = [ dNdR zeros(nnodes) ]
         dNdX = dNdR*inv(J)
@@ -307,7 +307,7 @@ function elem_stiffness(elem::ShellDegenerated)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
   
-        coef = detJ*ip.w*0.5  # check *0.5
+        coef = detJ*ip.w  # check *0.5
         
         K += coef*B'*T'*D*T*B
     end
