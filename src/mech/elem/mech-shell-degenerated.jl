@@ -277,6 +277,7 @@ function elem_stiffness(elem::ShellDegenerated)
     J  = Array{Float64}(undef, ndim, ndim)
     R = zeros(3,3)
     T = zeros(5,6)
+    Rot = zeros(40,48)
     dNdX = Array{Float64}(undef, nnodes, ndim)
     
     D  = Array{Float64}(undef, 5, 5)
@@ -303,13 +304,32 @@ function elem_stiffness(elem::ShellDegenerated)
 
         setB(elem, R, J, ip, dNdR, dNdX, N, B)  # 6x40
 
+        #Bs = B[1:3,:]
+       #Bt = B[4:5,:]
+
+        Ds = D[1:3,1:3]
+        Dt = D[4:5,4:5]
+
+        Ts = T[1:3,:]
+        Tt = T[4:5,:]
+
+        Bs = Ts*B
+        Bt = Tt*B
+
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
   
         coef = detJ*ip.w  # check *0.5
-        
+
+        Ks = Bs'*Ds*Bs*coef
+        Kt = Bt'*Dt*Bt*coef
+        K += Ks + Kt
+
+        #=
         K += coef*B'*T'*D*T*B
+        =#
+
     end
     
      map = elem_map(elem)
