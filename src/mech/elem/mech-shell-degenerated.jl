@@ -192,7 +192,7 @@ function setB(elem::ShellDegenerated, R::Matx, J::Matx , ip::Ip, dNdR::Matx, dNd
         dNdxi  = dNdR[i,1]
         dNdeta = dNdR[i,2]
 
-          J_inv = inv(J)
+          J_inv = inv(J)'
           #@show J_inv
           #error()
           H1 = J_inv[1,1]*dNdxi + J_inv[1,2]*dNdeta
