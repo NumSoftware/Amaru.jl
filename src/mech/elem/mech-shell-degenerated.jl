@@ -14,6 +14,7 @@ mutable struct ShellDegenerated<:Mechanical
     active::Bool
     linked_elems::Array{Element,1}
     env   ::ModelEnv
+    Dlmn::Array{ Array{Float64,2}, 1}
 
     function ShellDegenerated();
         return new()
@@ -22,10 +23,30 @@ end
 
 matching_shape_family(::Type{ShellDegenerated}) = SOLID_CELL
 
-
 function elem_init(elem::ShellDegenerated)
     elem.shape==QUAD8 || error("elem_init: ShellDegenerated only works with shape QUAD8.")
-    
+
+    nnodes = length(elem.nodes)
+    Dlmn = Array{Float64,2}[]
+    C = getcoords(elem)
+
+    for i in 1:nnodes
+        Ri = elem.shape.nat_coords[i,:]
+        dNdR = elem.shape.deriv(Ri)
+        J = C'*dNdR
+
+        V1 = J[:,1]
+        V2 = J[:,2]
+        V3 = cross(V1, V2)
+        V2 = cross(V3, V1)
+        normalize!(V1)
+        normalize!(V2)
+        normalize!(V3)
+
+        push!(Dlmn, [V1 V2 V3 ])
+    end
+    elem.Dlmn = Dlmn
+   
     return nothing
 end
 
@@ -140,7 +161,7 @@ function distributed_bc(elem::ShellDegenerated, facet::Union{Facet, Nothing}, ke
 end
 
 # Rotation Matrix
-function rot_matrix_R(elem::ShellDegenerated, J::Matx, R::Matx)
+function set_dir_matrix(elem::ShellDegenerated, J::Matx, dir::Matx)
     V1 = J[:,1]
     V2 = J[:,2]
     V3 = cross(V1, V2)
@@ -150,27 +171,47 @@ function rot_matrix_R(elem::ShellDegenerated, J::Matx, R::Matx)
     normalize!(V2)
     normalize!(V3)
 
-    R[:,1] = V1
-    R[:,2] = V2
-    R[:,3] = V3
+    dir[:,1] = V1
+    dir[:,2] = V2
+    dir[:,3] = V3
+end
+
+function set_jacobian_matrix(elem::ShellDegenerated, C::Matx, R::Matx, J::Matx)
+    V1 = J[:,1]
+    V2 = J[:,2]
+    V3 = cross(V1, V2)
+    V2 = cross(V3, V1)
+
+    normalize!(V1)
+    normalize!(V2)
+    normalize!(V3)
+
+    dir[:,1] = V1
+    dir[:,2] = V2
+    dir[:,3] = V3
 end
 
 # Rotation Matrix
-function rot_matrix_T(elem::ShellDegenerated, R::Matx, T::Matx)
+function set_trans_matrix(elem::ShellDegenerated, dir::Matx, T::Matx)
+    #=
+    lx, ly, lz = dir[:,1]
+    mx, my, mz = dir[:,2]
+    nx, ny, nz = dir[:,3]
+    =#
     
-    l1, m1, n1 = R[:,1]
-    l2, m2, n2 = R[:,2]
-    l3, m3, n3 = R[:,3]
+    l1, m1, n1 = dir[:,1]
+    l2, m2, n2 = dir[:,2]
+    l3, m3, n3 = dir[:,3]
     
     T[1,1] =     l1*l1;  T[1,2] =     m1*m1;  T[1,3] =     n1*n1;   T[1,4] =       l1*m1;  T[1,5] =       m1*n1;  T[1,6] =       n1*l1;
     T[2,1] =     l2*l2;  T[2,2] =     m2*m2;  T[2,3] =     n2*n2;   T[2,4] =       l2*m2;  T[2,5] =       m2*n2;  T[2,6] =       n2*l2;
     T[3,1] =   2*l1*l2;  T[3,2] =   2*m1*m2;  T[3,3] =   2*n1*n2;   T[3,4] = l1*m2+l2*m1;  T[3,5] = m1*n2+m2*n1;  T[3,6] = n1*l2+n2*l1;
     T[4,1] =   2*l2*l3;  T[4,2] =   2*m2*m3;  T[4,3] =   2*n2*n3;   T[4,4] = l2*m3+l3*m2;  T[4,5] = m2*n3+m3*n2;  T[4,6] = n2*l3+n3*l2;
     T[5,1] =   2*l3*l1;  T[5,2] =   2*m3*m1;  T[5,3] =   2*n3*n1;   T[5,4] = l3*m1+l1*m3;  T[5,5] = m3*n1+m1*n3;  T[5,6] = n3*l1+n1*l3;
-
+    # @showm T
+    # @showm R
+    # error()
 end
-
-
 
 function setB(elem::ShellDegenerated, R::Matx, J::Matx , ip::Ip, dNdR::Matx, dNdX::Matx, N::Vect, B::Matx)
     nnodes, ndim = size(dNdX)
@@ -179,15 +220,19 @@ function setB(elem::ShellDegenerated, R::Matx, J::Matx , ip::Ip, dNdR::Matx, dNd
     t = elem.mat.t
     ζ = ip.R[3]
     
-    l1, m1, n1 = R[:,1]
-    l2, m2, n2 = R[:,2]
+       for i in 1:nnodes
 
-     
-    for i in 1:nnodes
-            
 
-        dNdx = dNdX[i,1]
-        dNdy = dNdX[i,2]
+        #=
+        lx, ly, lz = elem.Dlmn[i][:,2]
+        mx, my, mz = elem.Dlmn[i][:,1]
+        =#
+           
+        lx, ly, lz = elem.Dlmn[i][:,2]
+        mx, my, mz = elem.Dlmn[i][:,1]
+
+        #dNdx = dNdX[i,1]
+        #dNdy = dNdX[i,2]
 
         dNdxi  = dNdR[i,1]
         dNdeta = dNdR[i,2]
@@ -203,14 +248,13 @@ function setB(elem::ShellDegenerated, R::Matx, J::Matx , ip::Ip, dNdR::Matx, dNd
           G2 = (J_inv[2,1]*dNdxi  + J_inv[2,2]*dNdeta)*ζ +  J_inv[2,3]*N[i]
           G3 = (J_inv[3,1]*dNdxi  + J_inv[3,2]*dNdeta)*ζ +  J_inv[3,3]*N[i]
 
-          g11 = -t/2*l1
-          g12 = -t/2*m1
-          g13 = -t/2*n1
+          g11 = -t/2*mx
+          g12 = -t/2*my
+          g13 = -t/2*mz
 
-          g21 = -t/2*l2
-          g22 = -t/2*m2
-          g23 = -t/2*n2
-
+          g21 = -t/2*lx
+          g22 = -t/2*ly
+          g23 = -t/2*lz
 
           j    = i-1
 
@@ -225,7 +269,22 @@ function setB(elem::ShellDegenerated, R::Matx, J::Matx , ip::Ip, dNdR::Matx, dNd
           B[5,1+j*ndof] = H3;                        B[5,3+j*ndof] = H1;     B[5,4+j*ndof] = g11*G3+g13*G1;  B[5,5+j*ndof] = g21*G3+g23*G1
 
                                B[6,2+j*ndof] = H3;   B[6,3+j*ndof] = H2;     B[6,4+j*ndof] = g12*G3+g13*G2;  B[6,5+j*ndof] = g22*G3+g23*G2
-    end 
+    
+    #=
+          B[1,1+j*ndof] = H1;                                                B[1,4+j*ndof] = g11*G1;         B[1,5+j*ndof] = g21*G1
+
+                               B[2,2+j*ndof] = H2;                           B[2,4+j*ndof] = g12*G2;         B[2,5+j*ndof] = g22*G2
+
+                                                     B[3,3+j*ndof] = H3;     B[3,4+j*ndof] = g13*G3;         B[3,5+j*ndof] = g23*G3
+
+                               B[4,2+j*ndof] = H3;   B[4,3+j*ndof] = H2;     B[4,4+j*ndof] = g12*G3+g13*G2;  B[4,5+j*ndof] = g22*G3+g23*G2
+
+          B[5,1+j*ndof] = H3;                        B[5,3+j*ndof] = H1;     B[5,4+j*ndof] = g11*G3+g13*G1;  B[5,5+j*ndof] = g21*G3+g23*G1
+
+                                  
+          B[6,1+j*ndof] = H2;  B[6,2+j*ndof] = H1;                           B[6,4+j*ndof] = g11*G2+g12*G1;  B[6,5+j*ndof] = g21*G2+g22*G1
+     =#
+           end 
     #@showm B
     #error()
 end
@@ -275,6 +334,7 @@ function elem_stiffness(elem::ShellDegenerated)
     B = zeros(6, 5*nnodes)
     J  = Array{Float64}(undef, ndim, ndim)
     R = zeros(3,3)
+    L = zeros(3,3)
     T = zeros(5,6)
     dNdX = Array{Float64}(undef, nnodes, ndim)
     
@@ -284,50 +344,60 @@ function elem_stiffness(elem::ShellDegenerated)
     t = elem.mat.t
     C = getcoords(elem)
 
+    Dn = [ elem.Dlmn[i][j,3] for i in 1:nnodes, j in 1:3 ] # nx3
+
     for ip in elem.ips
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
         N    = elem.shape.func(ip.R)
+        J = [ C'*dNdR + t/2*ip.R[3]*Dn'*dNdR   t/2*Dn'*N ] # 3x3
         J2D = C'*dNdR
-        rot_matrix_R(elem, J2D, R)
-        rot_matrix_T(elem, R, T)
 
-        J = [ J2D  R[:,3]*t/2 ]  #R[:,3]*t/2
+        set_dir_matrix(elem, J2D, L)
+        set_trans_matrix(elem, L, T)
 
         dNdR = [ dNdR zeros(nnodes) ]
         dNdX = dNdR*inv(J)
-
+        #@showm  dNdX
         #@show ζ
         #error()
+      
 
         setB(elem, R, J, ip, dNdR, dNdX, N, B)  # 6x40
 
+        #=
+        @showm L
+        @showm inv(J)
+        @showm B[1:6,1:5]
+        error()  
+        =#
+
         #Bs = B[1:3,:]
-       #Bt = B[4:5,:]
+        #Bt = B[4:5,:]
 
-        Ds = D[1:3,1:3]
-        Dt = D[4:5,4:5]
+        #Ds = D[1:3,1:3]
+        #Dt = D[4:5,4:5]
 
-        Ts = T[1:3,:]
-        Tt = T[4:5,:]
+        #Ts = T[1:3,:]
+        #Tt = T[4:5,:]
 
-        Bs = Ts*B
-        Bt = Tt*B
+        #Bs = Ts*B
+        #Bt = Tt*B
 
         detJ = det(J)
         detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
 
   
-        coef1 = detJ*ip.w  # check *0.5
-        coef2 = detJ*ip.w   # check *0.5
+        #coef1 = detJ*ip.w  # check *0.5
+        #coef2 = detJ*ip.w   # check *0.5
 
-        Ks = Bs'*Ds*Bs*coef1
-        Kt = Bt'*Dt*Bt*coef2
-        K += Ks + Kt
-
-        #=
+        #Ks = Bs'*Ds*Bs*coef1
+        #Kt = Bt'*Dt*Bt*coef2
+        #K += Ks + Kt
+    
+        coef = detJ*ip.w 
         K += coef*B'*T'*D*T*B
-        =#
+     
 
     end
     
