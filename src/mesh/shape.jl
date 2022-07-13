@@ -104,24 +104,33 @@ const ALL_ISO_SHAPES = [
     HEX27
 ]
 
+# dictionary (ndim,nfpoints,nlayers) => joint_shape
+_joint_ndim_nfpoints_nlayers_dict = Dict( 
+    (2,2,2)=>:JLIN2 , (2,3,2)=>:JLIN3 , (2,4,2)=>:JLIN4 , (3,3,2)=>:JTRI3 , (3,4,2)=>:JQUAD4 , (3,6,2)=>:JTRI6 , (3,8,2)=>:JQUAD8,
+    (2,2,3)=>:J3LIN2, (2,3,2)=>:J3LIN3, (2,4,2)=>:J3LIN4, (3,3,2)=>:J3TRI3, (3,4,2)=>:J3QUAD4, (3,6,2)=>:J3TRI6, (3,8,2)=>:J3QUAD8,
+)
 
-function get_shape_from_vtk(vtk_type::VTKCellType, npoints::Int64, ndim::Int64, layers::Int64=0)::CellShape
+function get_shape_from_vtk(vtk_type::VTKCellType, npoints::Int64, ndim::Int64, nlayers::Int64=0)::CellShape
     # vtk_type: VTK cell code
     # npoints : total number of cell points
     # ndim    : analysis dimension
-    # layers  : number of layers for joint elements
+    # nlayers : number of layers for joint elements
 
-    vtk_type!=VTK_POLY_VERTEX && return VTK2SHAPE[vtk_type]
+    if vtk_type==VTK_POLYGON
+        if npoints==12
+            return QUAD12    
+        end
+    end
+
+    vtk_type==VTK_POLY_VERTEX || return VTK2SHAPE[vtk_type]
 
     # Check if it is a joint cell with layers
     if layers in (2,3)
-        # dictionary (ndim,nfpoints) => basic_shape
-        shapedict = Dict( (2,2)=>:LIN2, (2,3)=>:LIN3, (2,4)=>:LIN4, (3,3)=>:TRI3, (3,4)=>:QUAD4, (3,6)=>:TRI6, (3,8)=>:QUAD8 )
-        nfpoints = div(npoints,layers)
-        if haskey(shapedict, (ndim, nfpoints))
-            numstr = layers==3 ? "3" : ""
-            shape = Symbol("J$(numstr)$(shapedict[(ndim, nfpoints)])")
-            return eval(shape)
+        # dictionary (ndim,nfpoints,nlayers) => joint_shape
+        shapedict = _joint_ndim_nfpoints_nlayers_dict
+        nfpoints = div(npoints,nlayers)
+        if haskey(shapedict, (ndim, nfpoints, nlayers))
+            return shapedict[(ndim, nfpoints, nlayers)]
         end
     end
 
@@ -130,10 +139,6 @@ function get_shape_from_vtk(vtk_type::VTKCellType, npoints::Int64, ndim::Int64, 
     elseif npoints==3   return JLINK3
     elseif npoints==9   return TRI9
     elseif npoints==10  return TRI10
-    elseif npoints==12
-        #if ndim==2 return QUAD12 end
-    elseif npoints==16
-        if ndim==2 return QUAD16 end
     end
 
     error("get_shape_from_vtk: Unknown shape for vtk_type $vtk_type and npoints $npoints with ndim $ndim")
