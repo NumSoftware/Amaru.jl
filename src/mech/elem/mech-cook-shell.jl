@@ -100,46 +100,51 @@ function set_dir_matrix(elem::CookShell, J::Matx, dir::Matx)
     normalize!(V2)
     normalize!(V3)
 
-    dir[:,1] = V1
-    dir[:,2] = V2
-    dir[:,3] = V3
+    dir[:,1] .= V1
+    dir[:,2] .= V2
+    dir[:,3] .= V3
 end
 
 
 function setB(elem::CookShell, ip::Ip, invJ::Matx, N::Vect, dNdX::Matx, Rrot::Matx, Bil::Matx, Bi::Matx, B::Matx)
-    nnodes, ndim = size(dNdX)
+    nnodes = size(dNdX,1)
     t = elem.mat.t
     # Note that matrix B is designed to work with tensors in Mandel's notation
 
     ndof = 6
 
-    # Bil = zeros(6,5)
-    # Bi = zeros(6,6)
-
     for i in 1:nnodes
-        # c = (i-1)*ndof
         ζ = ip.R[3]
-
         lx, ly, lz = elem.Dlmn[i][:,1] 
         mx, my, mz = elem.Dlmn[i][:,2]
 
-        # Rrot = [ 1.0 0.0 0.0 0.0 0.0 0.0
-        #            0.0 1.0 0.0 0.0 0.0 0.0
-        #            0.0 0.0 1.0 0.0 0.0 0.0
-        #            0.0 0.0 0.0 lx  ly  lz
-        #            0.0 0.0 0.0 mx  my  mz ]
         Rrot[4,4] = lx;  Rrot[4,5] = ly;  Rrot[4,6] = lz;
         Rrot[5,4] = mx;  Rrot[5,5] = my;  Rrot[5,6] = mz;
 
+        # @showm Rrot
+        # error()
         dNdx = dNdX[i,1]
         dNdy = dNdX[i,2]
         dNdz = dNdX[i,3]
-        dζdx = invJ[1,3]
-        dζdy = invJ[2,3]
+        # dζdx = invJ[1,3]
+        # dζdy = invJ[2,3]
+        # dζdz = invJ[3,3]
+        dζdx = invJ[3,1]
+        dζdy = invJ[3,2]
         dζdz = invJ[3,3]
-        dNζdx = dNdx*ζ+N[i]*dζdx
-        dNζdy = dNdy*ζ+N[i]*dζdy
-        dNζdz = dNdz*ζ+N[i]*dζdz
+        dNζdx = dNdx*ζ + N[i]*dζdx
+        dNζdy = dNdy*ζ + N[i]*dζdy
+        dNζdz = dNdz*ζ + N[i]*dζdz
+        # @showm N
+        # @show dNζdx
+        # @show dNζdy
+        # @show dNζdz
+        # @show mx
+        # @show my
+        # @show mz
+        # @show lx
+        # @show ly
+        # @show lz
 
         Bil[1,1] = dNdx;                                                Bil[1,4] = -dNζdx*t/2*mx;                       Bil[1,5] = dNζdx*t/2*lx
                              Bil[2,2] = dNdy;                           Bil[2,4] = -dNζdy*t/2*my;                       Bil[2,5] = dNζdy*t/2*ly
@@ -154,6 +159,14 @@ function setB(elem::CookShell, ip::Ip, invJ::Matx, N::Vect, dNdX::Matx, Rrot::Ma
         #                      B[4,2+c] = dNdz/SR2; B[4,3+c] = dNdy/SR2;  B[4,4+c] = -1/SR2*(dNζdz*t/2*my+dNζdy*t/2*mz);  B[4,5+c] = 1/SR2*(dNζdz*t/2*ly+dNζdy*t/2*lz)
         # B[5,1+c] = dNdz/SR2;                      B[5,3+c] = dNdx/SR2;  B[5,4+c] = -1/SR2*(dNζdz*t/2*mx+dNζdx*t/2*mz);  B[5,5+c] = 1/SR2*(dNζdz*t/2*lx+dNζdx*t/2*lz)
         # B[6,1+c] = dNdy/SR2; B[6,2+c] = dNdx/SR2;                       B[6,4+c] = -1/SR2*(dNζdy*t/2*mx+dNζdx*t/2*my);  B[6,5+c] = 1/SR2*(dNζdy*t/2*lx+dNζdx*t/2*ly)
+
+        # @showm invJ
+
+        # Bil[4:6,:] .*= SR2
+        # # @showm Bil
+        # Bil = Bil[[1,2,3,6,5,4],:]
+        # @showm Bil
+        # error()
 
         c = (i-1)*ndof
         @gemm Bi = Bil*Rrot
@@ -209,25 +222,39 @@ function elem_stiffness(elem::CookShell)
 
         J2D = C'*dNdR
         set_dir_matrix(elem, J2D, L)
-        set_tensor_rot!(L, T)
 
+        set_tensor_rot!(L, T)
+        
         dNdR = [ dNdR zeros(nnodes) ]
         invJ = inv(J)
         dNdX = dNdR*invJ
 
         D = calcD(elem.mat, ip.state)
+        # @showm J
         setB(elem, ip, invJ, N, dNdX, Rrot, Bil, Bi, B)
         detJ = det(J)
 
         coef = detJ*ip.w
 
+        # @showm L
+        # @showm T
+        # @showm D
+        # @showm B[:,1:6]
+        # error()
+
         K += coef*B'*T'*D*T*B
     end
 
-    δ = 1e-10
+    δ = 1e-5
+    # δ = 0.0
     for i in 1:ndof*nnodes
-        K[i,i] += δ
+        # if abs(K[i,i]) < δ
+            K[i,i] += δ
+        # end
     end
+
+    # @show diag(K)
+    # error()
 
     map = elem_map(elem)
     return K, map, map
@@ -244,7 +271,6 @@ function elem_update!(elem::CookShell, U::Array{Float64,1}, F::Array{Float64,1},
     dF = zeros(length(dU))
 
     C = getcoords(elem)
-    K = zeros(ndof*nnodes, ndof*nnodes)
     B = zeros(ndof, ndof*nnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
