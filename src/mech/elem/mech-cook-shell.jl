@@ -25,7 +25,7 @@ matching_shape_family(::Type{CookShell}) = SOLID_CELL
 
 
 function elem_init(elem::CookShell)
-    elem.shape==QUAD8 || error("elem_init: CookShell only works with shape QUAD8.")
+    # elem.shape==QUAD8 || error("elem_init: CookShell only works with shape QUAD8.")
 
     nnodes = length(elem.nodes)
     Dlmn = Array{Float64,2}[]
@@ -105,38 +105,31 @@ function set_dir_matrix(elem::CookShell, J::Matx, dir::Matx)
     dir[:,3] = V3
 end
 
-# Rotation Matrix
-function set_trans_matrix(elem::CookShell, dir::Matx, T::Matx)
-    
-    lx, ly, lz = dir[:,1]
-    mx, my, mz = dir[:,2]
-    nx, ny, nz = dir[:,3]
 
-    T[1,1] = lx*lx;  T[1,2] = mx*mx;  T[1,3] = nx*nx;   T[1,4] =     2*mx*nx;  T[1,5] =     2*nx*lx;  T[1,6] =     2*lx*mx;
-    T[2,1] = ly*ly;  T[2,2] = my*my;  T[2,3] = ny*ny;   T[2,4] =     2*my*ny;  T[2,5] =     2*ny*ly;  T[2,6] =     2*ly*my;
-    T[3,1] = lz*lz;  T[3,2] = mz*mz;  T[3,3] = nz*nz;   T[3,4] =     2*mz*nz;  T[3,5] =     2*nz*lz;  T[3,6] =     2*lz*mz;
-    T[4,1] = ly*lz;  T[4,2] = my*mz;  T[4,3] = ny*nz;   T[4,4] = my*nz+mz*ny;  T[4,5] = ly*nz+lz*ny;  T[4,6] = ly*mz+lz*my;
-    T[5,1] = lz*lx;  T[5,2] = mz*mx;  T[5,3] = nz*nx;   T[5,4] = mz*nx+mx*nz;  T[5,5] = lz*nx+lx*nz;  T[5,6] = lz*mx+lx*mz;
-    T[6,1] = lx*ly;  T[6,2] = mx*my;  T[6,3] = nx*ny;   T[6,4] = mx*ny+my*nx;  T[6,5] = lx*ny+ly*nx;  T[6,6] = lx*my+ly*mx;
-
-    # @showm T
-    # @showm R
-    # error()
-end
-
-function setB(elem::CookShell, ip::Ip, invJ::Matx, N::Vect, dNdX::Matx, B::Matx)
+function setB(elem::CookShell, ip::Ip, invJ::Matx, N::Vect, dNdX::Matx, Rrot::Matx, Bil::Matx, Bi::Matx, B::Matx)
     nnodes, ndim = size(dNdX)
     t = elem.mat.t
     # Note that matrix B is designed to work with tensors in Mandel's notation
 
-    ndof = 5
+    ndof = 6
+
+    # Bil = zeros(6,5)
+    # Bi = zeros(6,6)
 
     for i in 1:nnodes
-        c = (i-1)*ndof
+        # c = (i-1)*ndof
         ζ = ip.R[3]
 
-        lx, ly, lz = elem.Dlmn[i][:,1]
+        lx, ly, lz = elem.Dlmn[i][:,1] 
         mx, my, mz = elem.Dlmn[i][:,2]
+
+        # Rrot = [ 1.0 0.0 0.0 0.0 0.0 0.0
+        #            0.0 1.0 0.0 0.0 0.0 0.0
+        #            0.0 0.0 1.0 0.0 0.0 0.0
+        #            0.0 0.0 0.0 lx  ly  lz
+        #            0.0 0.0 0.0 mx  my  mz ]
+        Rrot[4,4] = lx;  Rrot[4,5] = ly;  Rrot[4,6] = lz;
+        Rrot[5,4] = mx;  Rrot[5,5] = my;  Rrot[5,6] = mz;
 
         dNdx = dNdX[i,1]
         dNdy = dNdX[i,2]
@@ -148,12 +141,23 @@ function setB(elem::CookShell, ip::Ip, invJ::Matx, N::Vect, dNdX::Matx, B::Matx)
         dNζdy = dNdy*ζ+N[i]*dζdy
         dNζdz = dNdz*ζ+N[i]*dζdz
 
-        B[1,1+c] = dNdx;                                                B[1,4+c] = -dNζdx*t/2*mx;               B[1,5+c] = dNζdx*t/2*lx
-                             B[2,2+c] = dNdy;                           B[2,4+c] = -dNζdy*t/2*my;               B[2,5+c] = dNζdy*t/2*ly
-                                                  B[3,3+c] = dNdz;      B[3,4+c] = -dNζdz*t/2*mz;               B[3,5+c] = dNζdz*t/2*lz
-                             B[4,2+c] = dNdz/SR2; B[4,3+c] = dNdy/SR2;  B[4,4+c] = -1/SR2*(dNζdz*t/2*my+dNζdy*t/2*mz);  B[4,5+c] = 1/SR2*(dNζdz*t/2*ly+dNζdy*t/2*lz)
-        B[5,1+c] = dNdz/SR2;                      B[5,3+c] = dNdx/SR2;  B[5,4+c] = -1/SR2*(dNζdz*t/2*mx+dNζdx*t/2*mz);  B[5,5+c] = 1/SR2*(dNζdz*t/2*lx+dNζdx*t/2*lz)
-        B[6,1+c] = dNdy/SR2; B[6,2+c] = dNdx/SR2;                       B[6,4+c] = -1/SR2*(dNζdy*t/2*mx+dNζdx*t/2*my);  B[6,5+c] = 1/SR2*(dNζdy*t/2*lx+dNζdx*t/2*ly)
+        Bil[1,1] = dNdx;                                                Bil[1,4] = -dNζdx*t/2*mx;                       Bil[1,5] = dNζdx*t/2*lx
+                             Bil[2,2] = dNdy;                           Bil[2,4] = -dNζdy*t/2*my;                       Bil[2,5] = dNζdy*t/2*ly
+                                                  Bil[3,3] = dNdz;      Bil[3,4] = -dNζdz*t/2*mz;                       Bil[3,5] = dNζdz*t/2*lz
+                             Bil[4,2] = dNdz/SR2; Bil[4,3] = dNdy/SR2;  Bil[4,4] = -1/SR2*(dNζdz*t/2*my+dNζdy*t/2*mz);  Bil[4,5] = 1/SR2*(dNζdz*t/2*ly+dNζdy*t/2*lz)
+        Bil[5,1] = dNdz/SR2;                      Bil[5,3] = dNdx/SR2;  Bil[5,4] = -1/SR2*(dNζdz*t/2*mx+dNζdx*t/2*mz);  Bil[5,5] = 1/SR2*(dNζdz*t/2*lx+dNζdx*t/2*lz)
+        Bil[6,1] = dNdy/SR2; Bil[6,2] = dNdx/SR2;                       Bil[6,4] = -1/SR2*(dNζdy*t/2*mx+dNζdx*t/2*my);  Bil[6,5] = 1/SR2*(dNζdy*t/2*lx+dNζdx*t/2*ly)
+        
+        # B[1,1+c] = dNdx;                                                B[1,4+c] = -dNζdx*t/2*mx;               B[1,5+c] = dNζdx*t/2*lx
+        #                      B[2,2+c] = dNdy;                           B[2,4+c] = -dNζdy*t/2*my;               B[2,5+c] = dNζdy*t/2*ly
+        #                                           B[3,3+c] = dNdz;      B[3,4+c] = -dNζdz*t/2*mz;               B[3,5+c] = dNζdz*t/2*lz
+        #                      B[4,2+c] = dNdz/SR2; B[4,3+c] = dNdy/SR2;  B[4,4+c] = -1/SR2*(dNζdz*t/2*my+dNζdy*t/2*mz);  B[4,5+c] = 1/SR2*(dNζdz*t/2*ly+dNζdy*t/2*lz)
+        # B[5,1+c] = dNdz/SR2;                      B[5,3+c] = dNdx/SR2;  B[5,4+c] = -1/SR2*(dNζdz*t/2*mx+dNζdx*t/2*mz);  B[5,5+c] = 1/SR2*(dNζdz*t/2*lx+dNζdx*t/2*lz)
+        # B[6,1+c] = dNdy/SR2; B[6,2+c] = dNdx/SR2;                       B[6,4+c] = -1/SR2*(dNζdy*t/2*mx+dNζdx*t/2*my);  B[6,5+c] = 1/SR2*(dNζdy*t/2*lx+dNζdx*t/2*ly)
+
+        c = (i-1)*ndof
+        @gemm Bi = Bil*Rrot
+        B[:, c+1:c+6] .= Bi
 
     end 
 
@@ -168,12 +172,12 @@ function elem_config_dofs(elem::CookShell)
         add_dof(node, :uz, :fz)
         add_dof(node, :rx, :mx)
         add_dof(node, :ry, :my)
-        #add_dof(node, :rz, :mz)
+        add_dof(node, :rz, :mz)
     end
 end
 
 function elem_map(elem::CookShell)
-    keys =(:ux, :uy, :uz, :rx, :ry)
+    keys =(:ux, :uy, :uz, :rx, :ry, :rz)
     return [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
 end
 
@@ -182,15 +186,19 @@ function elem_stiffness(elem::CookShell)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     t = elem.mat.t
+    ndof = 6
 
     C = getcoords(elem)
-    K = zeros(5*nnodes, 5*nnodes)
-    B = zeros(6, 5*nnodes)
+    K = zeros(ndof*nnodes, ndof*nnodes)
+    B = zeros(ndof, ndof*nnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, nnodes, ndim)
     L = zeros(3,3)
     T = zeros(6,6)
+    Rrot = Array{Float64}(I,5,ndof)
+    Bil = zeros(6,5)
+    Bi = zeros(6,ndof)
 
     Dn = [ elem.Dlmn[i][j,3] for i in 1:nnodes, j in 1:3 ] # nx3
 
@@ -201,19 +209,24 @@ function elem_stiffness(elem::CookShell)
 
         J2D = C'*dNdR
         set_dir_matrix(elem, J2D, L)
-        set_trans_matrix(elem, L, T)
+        set_tensor_rot!(L, T)
 
         dNdR = [ dNdR zeros(nnodes) ]
         invJ = inv(J)
         dNdX = dNdR*invJ
 
         D = calcD(elem.mat, ip.state)
-        setB(elem, ip, invJ, N, dNdX, B)
+        setB(elem, ip, invJ, N, dNdX, Rrot, Bil, Bi, B)
         detJ = det(J)
 
         coef = detJ*ip.w
-        
+
         K += coef*B'*T'*D*T*B
+    end
+
+    δ = 1e-10
+    for i in 1:ndof*nnodes
+        K[i,i] += δ
     end
 
     map = elem_map(elem)
@@ -224,19 +237,24 @@ function elem_update!(elem::CookShell, U::Array{Float64,1}, F::Array{Float64,1},
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     t = elem.mat.t
+    ndof = 6
 
     map = elem_map(elem)
     dU = U[map]
     dF = zeros(length(dU))
 
     C = getcoords(elem)
-    B = zeros(6, 5*nnodes)
+    K = zeros(ndof*nnodes, ndof*nnodes)
+    B = zeros(ndof, ndof*nnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, nnodes, ndim)
-    Δε = zeros(6)
     L = zeros(3,3)
     T = zeros(6,6)
+    Rrot = Array{Float64}(I,5,ndof)
+    Bil = zeros(6,5)
+    Bi = zeros(6,ndof)
+    Δε = zeros(6)
 
     Dn = [ elem.Dlmn[i][j,3] for i in 1:nnodes, j in 1:3 ] # nx3
 
@@ -248,12 +266,12 @@ function elem_update!(elem::CookShell, U::Array{Float64,1}, F::Array{Float64,1},
         J = [ C'*dNdR + t/2*ip.R[3]*Dn'*dNdR   t/2*Dn'*N ] # 3x3
         J2D = C'*dNdR
         set_dir_matrix(elem, J2D, L)
-        set_trans_matrix(elem, L, T)
+        set_tensor_rot!(L, T)
 
         dNdR = [ dNdR zeros(nnodes) ]
         invJ = inv(J)
         dNdX = dNdR*invJ
-        setB(elem, ip, invJ, N, dNdX, B)
+        setB(elem, ip, invJ, N, dNdX, Rrot, Bil, Bi, B)
         Δε = T*B*dU
         Δσ, status = stress_update(elem.mat, ip.state, Δε)
         failed(status) && return failure("MechSolid: Error at integration point $(ip.id)")

@@ -46,8 +46,8 @@ function calcD(mat::ElasticCookShell, ipd::ElasticCookShellIpState)
     E = mat.E
     ν = mat.nu
     c = E/(1.0-ν^2)
-    G = E/(2*(1+ν))
-    g = 2*G
+    g = E/(1+ν)
+    # g = 2*G
     return [
         c    c*ν   0.0  0.0    0.0    0.0
         c*ν  c     0.0  0.0    0.0    0.0
@@ -67,18 +67,5 @@ function stress_update(mat::ElasticCookShell, ipd::ElasticCookShellIpState, dε:
 end
 
 function ip_state_vals(mat::ElasticCookShell, ipd::ElasticCookShellIpState)
-    return OrderedDict{Symbol,Float64}(
-        :sxx => ipd.σ[1],
-        :syy => ipd.σ[2],
-        :szz => ipd.σ[3],
-        :syz => ipd.σ[4],
-        :sxz => ipd.σ[5],
-        :sxy => ipd.σ[6],
-        :exx => ipd.ε[1],
-        :eyy => ipd.ε[2],
-        :ezz => ipd.ε[3],
-        :eyz => ipd.ε[4],
-        :exz => ipd.ε[5],
-        :exy => ipd.ε[6],
-    )
+    return stress_strain_dict(ipd.σ, ipd.ε, ipd.env.modeltype)
 end
