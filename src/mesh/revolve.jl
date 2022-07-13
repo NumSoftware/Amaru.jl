@@ -75,6 +75,19 @@ function revolve(mesh::Mesh;
                     coord = base + R*(n.coord-base)*conj(R)
                     push!(nodes, Node(coord))
                 end
+            elseif cell.shape==LIN4
+                newshape = QUAD12
+                n1, n2, n3, n4 = cell.nodes
+                nnodes = length(cell.nodes)
+                θ13 = θ + 1/3*Δθ
+                θ23 = θ + 2/3*Δθ
+                R13 = Quaternion(cos(θ13/2), axis[1]*sin(θ13/2), axis[2]*sin(θ13/2), axis[3]*sin(θ13/2))
+                R23 = Quaternion(cos(θ23/2), axis[1]*sin(θ23/2), axis[2]*sin(θ23/2), axis[3]*sin(θ23/2))
+
+                for (n, R) in zip([n1, n2, n2, n1, n3, n4, n2, n2, n4, n3, n1, n1], [Rend, Rend, Rini, Rini, Rend, Rend, R23, R13, Rini, Rini, R13, R23])
+                    coord = base + R*(n.coord-base)*conj(R)
+                    push!(nodes, Node(coord))
+                end
             elseif cell.shape in (TRI3, QUAD4)
                 newshape = cell.shape==TRI3 ? WED6 : HEX8
                 nnodes = length(cell.nodes)

@@ -100,7 +100,7 @@ mutable struct Block <: AbstractBlock
             cellshape = shape
         end
 
-        shapes1d = (LIN2, LIN3)
+        shapes1d = (LIN2, LIN3, LIN4)
         shapes2d = (TRI3, TRI6, QUAD4, QUAD8, QUAD9, QUAD12)
         shapes3d = (TET4, TET10, HEX8, HEX20, HEX27, PYR5)
 
@@ -241,6 +241,34 @@ function split_block(bl::Block, msh::Mesh)
                 p3 = p_arr[i+1]
 
                 cell = Cell(cellshape, [p1, p2, p3], tag=bl.tag)
+                push!(msh.elems, cell)
+            end
+        return
+    end
+
+    if cellshape==LIN4
+        p_arr = Array{Node}(undef, 3*nx+1)
+            for i = 1:3*nx+1
+                r = -1.0 + 2.0*(rx==1 ? (1/(3*nx))*(i-1) : (1-rx^(i-1))/(1-rx^(3*nx)))
+                N = bl.shape.func([r])
+                C = N'*coords
+                C = round.(C, digits=8)
+                p = get_node(msh._pointdict, C)
+                if p===nothing
+                    p = Node(C); 
+                    push!(msh.nodes, p)
+                    msh._pointdict[hash(p)] = p
+                end
+                p_arr[i] = p
+            end
+
+            for i = 1:3:3*nx
+                p1 = p_arr[i  ]
+                p2 = p_arr[i+3]
+                p3 = p_arr[i+1]
+                p4 = p_arr[i+2]
+
+                cell = Cell(cellshape, [p1, p2, p3, p4], tag=bl.tag)
                 push!(msh.elems, cell)
             end
         return
@@ -390,13 +418,12 @@ function split_block(bl::Block, msh::Mesh)
                 p4 = p_arr[i  , j+3]
 
                 p5 = p_arr[i+1, j  ]
-                p6 = p_arr[i+3, j+1]
-                p7 = p_arr[i+2, j+3]
-                p8 = p_arr[i  , j+2]
-
-                p9  = p_arr[i+2, j  ]
-                p10 = p_arr[i+3, j+2]
-                p11 = p_arr[i+1, j+3]
+                p6 = p_arr[i+2, j  ]
+                p7 = p_arr[i+3, j+1]
+                p8 = p_arr[i+3, j+2]
+                p9 = p_arr[i+2, j+3]
+                p10 = p_arr[i+1, j+3]
+                p11 = p_arr[i  , j+2]
                 p12 = p_arr[i  , j+1]
 
                 cell = Cell(cellshape, [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12], tag=bl.tag)
