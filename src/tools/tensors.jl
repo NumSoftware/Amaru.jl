@@ -212,37 +212,23 @@ end
 
 ∷ = inner
 
-# function tensor_rot!(V::Array{Float64,2}, T::Tensor4)
-#     l1, m1, n1 = V[:,1]
-#     l2, m2, n2 = V[:,2]
-#     l3, m3, n3 = V[:,3]
-
-#     T[1,1] =     l1*l1;  T[1,2] =     m1*m1;  T[1,3] =     n1*n1;   T[1,4] =   SR2*m1*n1;  T[1,5] =   SR2*n1*l1;  T[1,6] =   SR2*l1*m1;
-#     T[2,1] =     l2*l2;  T[2,2] =     m2*m2;  T[2,3] =     n2*n2;   T[2,4] =   SR2*m2*n2;  T[2,5] =   SR2*n2*l2;  T[2,6] =   SR2*l2*m2;
-#     T[3,1] =     l3*l3;  T[3,2] =     m3*m3;  T[3,3] =     n3*n3;   T[3,4] =   SR2*m3*n3;  T[3,5] =   SR2*n3*l3;  T[3,6] =   SR2*l3*m3;
-#     T[4,1] = SR2*l2*l3;  T[4,2] = SR2*m2*m3;  T[4,3] = SR2*n2*n3;   T[4,4] = m2*n3+m3*n2;  T[4,5] = l2*n3+l3*n2;  T[4,6] = l2*m3+l3*m2;
-#     T[5,1] = SR2*l3*l1;  T[5,2] = SR2*m3*m1;  T[5,3] = SR2*n3*n1;   T[5,4] = m3*n1+m1*n3;  T[5,5] = l3*n1+l1*n3;  T[5,6] = l3*m1+l1*m3;
-#     T[6,1] = SR2*l1*l2;  T[6,2] = SR2*m1*m2;  T[6,3] = SR2*n1*n2;   T[6,4] = m1*n2+m2*n1;  T[6,5] = l1*n2+l2*n1;  T[6,6] = l1*m2+l2*m1;
-#     return T
-# end
-
-
 function set_tensor_rot!(V::Array{Float64,2}, R::Tensor4)
     # V : second order tensor with direction cosines (new system axes in old system coordinates)
     # R : fourth order tensor
 
-    l1, m1, n1 = V[:,1]
-    l2, m2, n2 = V[:,2]
-    l3, m3, n3 = V[:,3]
+    lx, ly, lz = V[1,:]
+    mx, my, mz = V[2,:]
+    nx, ny, nz = V[3,:]
 
-    R[1,1] =     l1*l1;  R[1,2] =     m1*m1;  R[1,3] =     n1*n1;   R[1,4] =   SR2*m1*n1;  R[1,5] =   SR2*n1*l1;  R[1,6] =   SR2*l1*m1;
-    R[2,1] =     l2*l2;  R[2,2] =     m2*m2;  R[2,3] =     n2*n2;   R[2,4] =   SR2*m2*n2;  R[2,5] =   SR2*n2*l2;  R[2,6] =   SR2*l2*m2;
-    R[3,1] =     l3*l3;  R[3,2] =     m3*m3;  R[3,3] =     n3*n3;   R[3,4] =   SR2*m3*n3;  R[3,5] =   SR2*n3*l3;  R[3,6] =   SR2*l3*m3;
-    R[4,1] = SR2*l2*l3;  R[4,2] = SR2*m2*m3;  R[4,3] = SR2*n2*n3;   R[4,4] = m2*n3+m3*n2;  R[4,5] = l2*n3+l3*n2;  R[4,6] = l2*m3+l3*m2;
-    R[5,1] = SR2*l3*l1;  R[5,2] = SR2*m3*m1;  R[5,3] = SR2*n3*n1;   R[5,4] = m3*n1+m1*n3;  R[5,5] = l3*n1+l1*n3;  R[5,6] = l3*m1+l1*m3;
-    R[6,1] = SR2*l1*l2;  R[6,2] = SR2*m1*m2;  R[6,3] = SR2*n1*n2;   R[6,4] = m1*n2+m2*n1;  R[6,5] = l1*n2+l2*n1;  R[6,6] = l1*m2+l2*m1;
+    R[1,1] =     lx*lx;  R[1,2] =     ly*ly;  R[1,3] =     lz*lz;   R[1,4] =   SR2*ly*lz;  R[1,5] =   SR2*lz*lx;  R[1,6] =   SR2*lx*ly;
+    R[2,1] =     mx*mx;  R[2,2] =     my*my;  R[2,3] =     mz*mz;   R[2,4] =   SR2*my*mz;  R[2,5] =   SR2*mz*mx;  R[2,6] =   SR2*mx*my;
+    R[3,1] =     nx*nx;  R[3,2] =     ny*ny;  R[3,3] =     nz*nz;   R[3,4] =   SR2*ny*nz;  R[3,5] =   SR2*nz*nx;  R[3,6] =   SR2*nx*ny;
+    R[4,1] = SR2*mx*nx;  R[4,2] = SR2*my*ny;  R[4,3] = SR2*mz*nz;   R[4,4] = my*nz+ny*mz;  R[4,5] = mx*nz+nx*mz;  R[4,6] = mx*ny+nx*my;
+    R[5,1] = SR2*nx*lx;  R[5,2] = SR2*ny*ly;  R[5,3] = SR2*nz*lz;   R[5,4] = ny*lz+ly*nz;  R[5,5] = nx*lz+lx*nz;  R[5,6] = nx*ly+lx*ny;
+    R[6,1] = SR2*lx*mx;  R[6,2] = SR2*ly*my;  R[6,3] = SR2*lz*mz;   R[6,4] = ly*mz+my*lz;  R[6,5] = lx*mz+mx*lz;  R[6,6] = lx*my+mx*ly;
     return R
 end
+
 
 function tensor_rot(V::Array{Float64,2})
     T = zeros(6,6)
