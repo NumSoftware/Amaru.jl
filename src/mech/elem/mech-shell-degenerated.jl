@@ -38,7 +38,8 @@ function elem_init(elem::ShellDegenerated)
         V1 = J[:,1]
         V2 = J[:,2]
         V3 = cross(V1, V2)
-        V2 = cross(V3, V1)
+        #V2 = cross(V3, V1)
+        V2 = cross(V1, V3)
         normalize!(V1)
         normalize!(V2)
         normalize!(V3)
@@ -165,7 +166,8 @@ function set_dir_matrix(elem::ShellDegenerated, J::Matx, dir::Matx)
     V1 = J[:,1]
     V2 = J[:,2]
     V3 = cross(V1, V2)
-    V2 = cross(V3, V1)
+    #V2 = cross(V3, V1)
+    V2 = cross(V1, V3)
 
     normalize!(V1)
     normalize!(V2)
@@ -180,7 +182,8 @@ function set_jacobian_matrix(elem::ShellDegenerated, C::Matx, R::Matx, J::Matx)
     V1 = J[:,1]
     V2 = J[:,2]
     V3 = cross(V1, V2)
-    V2 = cross(V3, V1)
+    #V2 = cross(V3, V1)
+    V2 = cross(V1, V3)
 
     normalize!(V1)
     normalize!(V2)
@@ -193,11 +196,24 @@ end
 
 # Rotation Matrix
 function set_trans_matrix(elem::ShellDegenerated, dir::Matx, T::Matx)
-    #=
+
+
     lx, ly, lz = dir[:,1]
     mx, my, mz = dir[:,2]
     nx, ny, nz = dir[:,3]
-    =#
+
+    T[1,1] =     lx*lx;  T[1,2] =     ly*ly;  T[1,3] =     lz*lz;    T[1,4] =       lx*ly; T[1,5] =       lz*lx;   T[1,6] =       ly*lz; 
+    T[2,1] =     mx*mx;  T[2,2] =     my*my;  T[2,3] =     mz*mz;    T[2,4] =       mx*my; T[2,5] =       mz*mx;   T[2,6] =       my*mz; 
+   #T[3,1] =     nx*nx;  T[3,2] =     ny*ny;  T[3,3] =     nz*nz;    T[3,4] =       nx*ny; T[3,5] =       nz*nx;   T[3,6] =       ny*nz; 
+    T[3,1] =   2*lx*mx;  T[3,2] =   2*ly*my;  T[3,3] =   2*lz*mz;    T[3,4] = lx*my+mx*ly; T[3,5] = lx*mz+mx*lz;   T[3,6] = ly*mz+my*lz; 
+    T[4,1] =   2*nx*lx;  T[4,2] =   2*ny*ly;  T[4,3] =   2*nz*lz;    T[4,4] = nx*ly+lx*ny; T[4,5] = nx*lz+lx*nz;   T[4,6] = ny*lz+ly*nz; 
+    T[5,1] =   2*mx*nx;  T[5,2] =   2*my*ny;  T[5,3] =   2*mz*nz;    T[5,4] = mx*ny+nx*my; T[5,5] = mx*nz+nx*mz;   T[5,6] = my*nz+ny*mz;
+
+
+    #indexL = [1,2,3,5,4]
+    #indexC = [1,2,3,4,6,5]
+    #T = T[indexL,indexC]
+#=
     
     l1, m1, n1 = dir[:,1]
     l2, m2, n2 = dir[:,2]
@@ -208,9 +224,9 @@ function set_trans_matrix(elem::ShellDegenerated, dir::Matx, T::Matx)
     T[3,1] =   2*l1*l2;  T[3,2] =   2*m1*m2;  T[3,3] =   2*n1*n2;   T[3,4] = l1*m2+l2*m1;  T[3,5] = m1*n2+m2*n1;  T[3,6] = n1*l2+n2*l1;
     T[4,1] =   2*l2*l3;  T[4,2] =   2*m2*m3;  T[4,3] =   2*n2*n3;   T[4,4] = l2*m3+l3*m2;  T[4,5] = m2*n3+m3*n2;  T[4,6] = n2*l3+n3*l2;
     T[5,1] =   2*l3*l1;  T[5,2] =   2*m3*m1;  T[5,3] =   2*n3*n1;   T[5,4] = l3*m1+l1*m3;  T[5,5] = m3*n1+m1*n3;  T[5,6] = n3*l1+n1*l3;
-    # @showm T
-    # @showm R
-    # error()
+   =# 
+     #@showm T
+     #error()
 end
 
 function setB(elem::ShellDegenerated, R::Matx, J::Matx , ip::Ip, dNdR::Matx, dNdX::Matx, N::Vect, B::Matx)
@@ -228,8 +244,8 @@ function setB(elem::ShellDegenerated, R::Matx, J::Matx , ip::Ip, dNdR::Matx, dNd
         mx, my, mz = elem.Dlmn[i][:,1]
         =#
            
-        lx, ly, lz = elem.Dlmn[i][:,2]
-        mx, my, mz = elem.Dlmn[i][:,1]
+        lx, ly, lz = elem.Dlmn[i][:,1]
+        mx, my, mz = elem.Dlmn[i][:,2]
 
         #dNdx = dNdX[i,1]
         #dNdy = dNdX[i,2]
@@ -247,7 +263,8 @@ function setB(elem::ShellDegenerated, R::Matx, J::Matx , ip::Ip, dNdR::Matx, dNd
           G1 = (J_inv[1,1]*dNdxi  + J_inv[1,2]*dNdeta)*ζ +  J_inv[1,3]*N[i]
           G2 = (J_inv[2,1]*dNdxi  + J_inv[2,2]*dNdeta)*ζ +  J_inv[2,3]*N[i]
           G3 = (J_inv[3,1]*dNdxi  + J_inv[3,2]*dNdeta)*ζ +  J_inv[3,3]*N[i]
-
+          
+          #=
           g11 = -t/2*mx
           g12 = -t/2*my
           g13 = -t/2*mz
@@ -255,6 +272,16 @@ function setB(elem::ShellDegenerated, R::Matx, J::Matx , ip::Ip, dNdR::Matx, dNd
           g21 = -t/2*lx
           g22 = -t/2*ly
           g23 = -t/2*lz
+          =#
+          
+          g11 = -t/2*lx
+          g12 = -t/2*ly
+          g13 = -t/2*lz
+
+          g21 = -t/2*mx
+          g22 = -t/2*my
+          g23 = -t/2*mz
+    
 
           j    = i-1
 
@@ -272,15 +299,10 @@ function setB(elem::ShellDegenerated, R::Matx, J::Matx , ip::Ip, dNdR::Matx, dNd
     
     #=
           B[1,1+j*ndof] = H1;                                                B[1,4+j*ndof] = g11*G1;         B[1,5+j*ndof] = g21*G1
-
                                B[2,2+j*ndof] = H2;                           B[2,4+j*ndof] = g12*G2;         B[2,5+j*ndof] = g22*G2
-
                                                      B[3,3+j*ndof] = H3;     B[3,4+j*ndof] = g13*G3;         B[3,5+j*ndof] = g23*G3
-
                                B[4,2+j*ndof] = H3;   B[4,3+j*ndof] = H2;     B[4,4+j*ndof] = g12*G3+g13*G2;  B[4,5+j*ndof] = g22*G3+g23*G2
-
           B[5,1+j*ndof] = H3;                        B[5,3+j*ndof] = H1;     B[5,4+j*ndof] = g11*G3+g13*G1;  B[5,5+j*ndof] = g21*G3+g23*G1
-
                                   
           B[6,1+j*ndof] = H2;  B[6,2+j*ndof] = H1;                           B[6,4+j*ndof] = g11*G2+g12*G1;  B[6,5+j*ndof] = g21*G2+g22*G1
      =#
@@ -356,6 +378,12 @@ function elem_stiffness(elem::ShellDegenerated)
         set_dir_matrix(elem, J2D, L)
         set_trans_matrix(elem, L, T)
 
+        #indexL = [1,2,3,5,4]
+        #indexC = [1,2,3,4,6,5]
+        #T = T[indexL,indexC]
+        #@showm T
+        #error()
+
         dNdR = [ dNdR zeros(nnodes) ]
         dNdX = dNdR*inv(J)
         #@showm  dNdX
@@ -365,7 +393,7 @@ function elem_stiffness(elem::ShellDegenerated)
 
         setB(elem, R, J, ip, dNdR, dNdX, N, B)  # 6x40
 
-        #=
+          #=
         @showm L
         @showm inv(J)
         @showm B[1:6,1:5]
