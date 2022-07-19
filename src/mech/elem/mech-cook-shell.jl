@@ -170,6 +170,7 @@ function setB(elem::CookShell, ip::Ip, invJ::Matx, N::Vect, dNdX::Matx, Rrot::Ma
 
         c = (i-1)*ndof
         @gemm Bi = Bil*Rrot
+        
         B[:, c+1:c+6] .= Bi
 
     end 
@@ -241,12 +242,12 @@ function elem_stiffness(elem::CookShell)
         # @showm D
         # @showm B[:,1:6]
         # error()
-
         K += coef*B'*T'*D*T*B
+        #K += coef*B'*D*B
     end
 
-    δ = 1e-5
-    # δ = 0.0
+    #δ = 1e-5
+     δ = 0.0
     for i in 1:ndof*nnodes
         # if abs(K[i,i]) < δ
             K[i,i] += δ
