@@ -83,6 +83,71 @@ function setquadrature!(elem::CookShell, n::Int=0)
 end
 
 
+function distributed_bc(elem::CookShell, facet::Union{Facet, Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
+    ndim  = elem.env.ndim
+    th    = elem.mat.th
+    suitable_keys = (:tx, :ty, :tz, :tn)
+
+    # Check keys
+    key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
+    (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
+
+    # @show facet
+    # @show elem
+    # error()
+
+    target = facet!==nothing ? facet : elem
+    nodes  = target.nodes
+    nnodes = length(nodes)
+    t      = elem.env.t
+
+    # Force boundary condition
+    nnodes = length(nodes)
+
+    # Calculate the target coordinates matrix
+    C = getcoords(nodes, ndim)
+
+    # Vector with values to apply
+    Q = zeros(ndim)
+
+    # Calculate the nodal values
+    F     = zeros(nnodes, ndim)
+    shape = target.shape
+    ips   = get_ip_coords(shape)
+
+    for i=1:size(ips,1)
+        R = vec(ips[i,:])
+        w = R[end]
+        N = shape.func(R)
+        D = shape.deriv(R)
+        J = C'*D
+        X = C'*N
+
+        x, y, z = X
+        vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
+        if key == :tx
+            Q = [vip, 0.0, 0.0]
+        elseif key == :ty
+            Q = [0.0, vip, 0.0]
+        elseif key == :tz
+            Q = [0.0, 0.0, vip]
+        elseif key == :tn
+            n = cross(J[:,1], J[:,2])
+            Q = vip*normalize(n)
+        end
+
+        coef = norm2(J)*w*th
+        @gemm F += coef*N*Q' # F is a matrix
+    end
+
+    # generate a map
+    keys = (:ux, :uy, :uz)[1:ndim]
+    map  = [ node.dofdict[key].eq_id for node in target.nodes for key in keys ]
+
+    return reshape(F', nnodes*ndim), map
+end
+
+
 # Rotation Matrix
 function set_rot_x_xp(elem::CookShell, J::Matx, R::Matx)
     V1 = J[:,1]
@@ -102,7 +167,7 @@ end
 
 function setB(elem::CookShell, ip::Ip, invJ::Matx, N::Vect, dNdX::Matx, Rrot::Matx, Bil::Matx, Bi::Matx, B::Matx)
     nnodes = size(dNdX,1)
-    t = elem.mat.t
+    th = elem.mat.th
     # Note that matrix B is designed to work with tensors in Mandel's notation
 
     ndof = 6
@@ -125,12 +190,12 @@ function setB(elem::CookShell, ip::Ip, invJ::Matx, N::Vect, dNdX::Matx, Rrot::Ma
         dNζdy = dNdy*ζ + N[i]*dζdy
         dNζdz = dNdz*ζ + N[i]*dζdz
 
-        Bil[1,1] = dNdx;                                                Bil[1,4] = -dNζdx*t/2*mx;                       Bil[1,5] = dNζdx*t/2*lx
-                             Bil[2,2] = dNdy;                           Bil[2,4] = -dNζdy*t/2*my;                       Bil[2,5] = dNζdy*t/2*ly
-                                                  Bil[3,3] = dNdz;      Bil[3,4] = -dNζdz*t/2*mz;                       Bil[3,5] = dNζdz*t/2*lz
-                             Bil[4,2] = dNdz/SR2; Bil[4,3] = dNdy/SR2;  Bil[4,4] = -1/SR2*(dNζdz*t/2*my+dNζdy*t/2*mz);  Bil[4,5] = 1/SR2*(dNζdz*t/2*ly+dNζdy*t/2*lz)
-        Bil[5,1] = dNdz/SR2;                      Bil[5,3] = dNdx/SR2;  Bil[5,4] = -1/SR2*(dNζdz*t/2*mx+dNζdx*t/2*mz);  Bil[5,5] = 1/SR2*(dNζdz*t/2*lx+dNζdx*t/2*lz)
-        Bil[6,1] = dNdy/SR2; Bil[6,2] = dNdx/SR2;                       Bil[6,4] = -1/SR2*(dNζdy*t/2*mx+dNζdx*t/2*my);  Bil[6,5] = 1/SR2*(dNζdy*t/2*lx+dNζdx*t/2*ly)
+        Bil[1,1] = dNdx;                                                Bil[1,4] = -dNζdx*th/2*mx;                       Bil[1,5] = dNζdx*th/2*lx
+                             Bil[2,2] = dNdy;                           Bil[2,4] = -dNζdy*th/2*my;                       Bil[2,5] = dNζdy*th/2*ly
+                                                  Bil[3,3] = dNdz;      Bil[3,4] = -dNζdz*th/2*mz;                       Bil[3,5] = dNζdz*th/2*lz
+                             Bil[4,2] = dNdz/SR2; Bil[4,3] = dNdy/SR2;  Bil[4,4] = -1/SR2*(dNζdz*th/2*my+dNζdy*th/2*mz);  Bil[4,5] = 1/SR2*(dNζdz*th/2*ly+dNζdy*th/2*lz)
+        Bil[5,1] = dNdz/SR2;                      Bil[5,3] = dNdx/SR2;  Bil[5,4] = -1/SR2*(dNζdz*th/2*mx+dNζdx*th/2*mz);  Bil[5,5] = 1/SR2*(dNζdz*th/2*lx+dNζdx*th/2*lz)
+        Bil[6,1] = dNdy/SR2; Bil[6,2] = dNdx/SR2;                       Bil[6,4] = -1/SR2*(dNζdy*th/2*mx+dNζdx*th/2*my);  Bil[6,5] = 1/SR2*(dNζdy*th/2*lx+dNζdx*th/2*ly)
         
         c = (i-1)*ndof
         @gemm Bi = Bil*Rrot
@@ -162,7 +227,7 @@ end
 function elem_stiffness(elem::CookShell)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
-    t = elem.mat.t
+    th = elem.mat.th
     ndof = 6
 
     C = getcoords(elem)
@@ -182,7 +247,7 @@ function elem_stiffness(elem::CookShell)
     for ip in elem.ips
         N = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R) # 3xn
-        J = [ C'*dNdR + t/2*ip.R[3]*Dn'*dNdR   t/2*Dn'*N ] # 3x3
+        J = [ C'*dNdR + th/2*ip.R[3]*Dn'*dNdR   th/2*Dn'*N ] # 3x3
 
         J2D = C'*dNdR
         set_rot_x_xp(elem, J2D, L)
@@ -203,7 +268,7 @@ function elem_stiffness(elem::CookShell)
         K += coef*B'*T'*D*T*B
     end
 
-    δ = 1e-10
+    # δ = 1e-10
     δ = 1e-7
     # δ = 0.0
     for i in 1:ndof*nnodes
@@ -217,7 +282,7 @@ end
 function elem_update!(elem::CookShell, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
-    t = elem.mat.t
+    th = elem.mat.th
     ndof = 6
 
     map = elem_map(elem)
@@ -243,7 +308,7 @@ function elem_update!(elem::CookShell, U::Array{Float64,1}, F::Array{Float64,1},
         N = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R) # 3xn
         
-        J = [ C'*dNdR + t/2*ip.R[3]*Dn'*dNdR   t/2*Dn'*N ] # 3x3
+        J = [ C'*dNdR + th/2*ip.R[3]*Dn'*dNdR   th/2*Dn'*N ] # 3x3
         J2D = C'*dNdR
         set_rot_x_xp(elem, J2D, L)
         set_tensor_rot!(L, T)
