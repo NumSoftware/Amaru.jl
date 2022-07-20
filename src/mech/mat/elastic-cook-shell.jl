@@ -21,7 +21,7 @@ end
 mutable struct ElasticCookShell<:Material
     E::Float64
     nu::Float64
-    t::Float64
+    th::Float64
 
     function ElasticCookShell(prms::Dict{Symbol,Float64})
         return  ElasticCookShell(;prms...)
@@ -46,8 +46,8 @@ function calcD(mat::ElasticCookShell, ipd::ElasticCookShellIpState)
     E = mat.E
     ν = mat.nu
     c = E/(1.0-ν^2)
+    # g = c*(1.0-ν)
     g = E/(1+ν)
-    # g = 2*G
     return [
         c    c*ν   0.0  0.0    0.0    0.0
         c*ν  c     0.0  0.0    0.0    0.0
