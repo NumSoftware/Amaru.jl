@@ -31,7 +31,7 @@ setloggers!(domain, loggers)
 # List of boundary conditions
 bcs = [
        :(z==0) => NodeBC(ux=0, uy=0, uz=0),
-       :(z==1) => FaceBC(tz=:(-10*x)),   # triangular load
+       :(z==1) => SurfaceBC(tz=:(-10*x)),   # triangular load
 ]
 
 # Perform the finite element analysis

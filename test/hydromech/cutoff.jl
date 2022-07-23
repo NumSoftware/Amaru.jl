@@ -29,8 +29,8 @@ dom = Domain(mesh, mats, gammaw=10.0)
 
 # Boundary conditions
 bcs = [
-       :(x<=$Lrock/2 && y==$Hrock) => FaceBC(uw=10*gw),
-       :(x>=$Lrock/2 && y==$Hrock) => FaceBC(uw=0),
+       :(x<=$Lrock/2 && y==$Hrock) => SurfaceBC(uw=10*gw),
+       :(x>=$Lrock/2 && y==$Hrock) => SurfaceBC(uw=0),
       ]
 
 # Solving

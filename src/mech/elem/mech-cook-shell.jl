@@ -83,7 +83,7 @@ function setquadrature!(elem::CookShell, n::Int=0)
 end
 
 
-function distributed_bc(elem::CookShell, facet::Union{Facet, Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::CookShell, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     th    = elem.mat.th
     suitable_keys = (:tx, :ty, :tz, :tn)
@@ -202,6 +202,9 @@ function setB(elem::CookShell, ip::Ip, invJ::Matx, N::Vect, dNdX::Matx, Rrot::Ma
         B[:, c+1:c+6] .= Bi
 
     end 
+
+    # @showm round.(B[:,1:5], digits=5)
+    # error()
 end
 
 

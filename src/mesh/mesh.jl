@@ -1260,7 +1260,7 @@ function UMesh(
         end
 
         if ndim==3
-            gmsh.model.geo.addSurfaceLoop(vol_idxs, 1)
+            gmsh.model.geo.addSurfaceLoop(vol, 1)
             gmsh.model.geo.addVolume([1], 1)
             global ipg += 1
             gmsh.model.addPhysicalGroup(3, [1], ipg) # ndim, entities, tag

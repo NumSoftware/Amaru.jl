@@ -317,12 +317,15 @@ function mplot(
                lightcolors         = false,
                vividcolors         = false,
                divergingcolors     = false,
+               shiftcolors         = nothing,
                colorbar            = true,
                colorbarscale       = 0.9,
                colorbarlabel       = "",
                colorbarlocation    = "right",
                colorbarorientation = "vertical",
                colorbarpad         = 0.0,
+               colorbarmin         = false,
+               colorbarmax         = false,
                warpscale           = 0.0,
                hicells             = 0,
                hicolor             = "ivory",
@@ -380,6 +383,7 @@ function mplot(
                 end
             end
         end
+        mesh.nodes = nodes
 
         # update nodal data
         for (field, data) in mesh.node_data
@@ -394,7 +398,17 @@ function mplot(
 
     # Get initial info from mesh
     ndim = mesh.ndim
-    if ndim==3
+    if ndim==2
+        areacells = [ elem for elem in mesh.elems if elem.shape.family==SOLID_CELL ]
+        linecells = [ cell for cell in mesh.elems if cell.shape.family==LINE_CELL]
+
+        mesh.elems = [ areacells; linecells ]
+        cl_ids = [ [c.id for c in areacells]; [c.id for c in linecells] ]
+
+        mesh.nodes = getnodes(mesh.elems)
+        pt_ids = [ p.id for p in mesh.nodes ]
+
+    elseif ndim==3
         # get surface cells and update
         volcells  = [ elem for elem in mesh.elems if elem.shape.family==SOLID_CELL && elem.shape.ndim==3 ]
         areacells = [ elem for elem in mesh.elems if elem.shape.family==SOLID_CELL && elem.shape.ndim==2 ]
@@ -405,27 +419,8 @@ function mplot(
         mesh.elems = [ surfcells; areacells; linecells ]
         cl_ids = [ [c.owner.id for c in surfcells]; [c.id for c in linecells]; [c.id for c in areacells] ]
 
-        # mesh.nodes = [ p for c in newcells for p in c.nodes ]
         mesh.nodes = getnodes(mesh.elems)
         pt_ids = [ p.id for p in mesh.nodes ]
-
-        # update data
-        for (field, data) in mesh.node_data
-            mesh.node_data[field] = data[pt_ids,:]
-        end
-        for (field, data) in mesh.elem_data
-            mesh.elem_data[field] = data[cl_ids]
-        end
-
-        # update node ids
-        for (i,node) in enumerate(mesh.nodes)
-            node.id = i
-        end
-        
-        # update cell ids
-        for (i,cell) in enumerate(mesh.elems)
-            cell.id = i
-        end
 
         # observer and light vectors
         V = Vec3( cosd(elev)*cosd(azim), cosd(elev)*sind(azim), sind(elev) )
@@ -436,6 +431,24 @@ function mplot(
         else
             error("mplot: lightvector must be a vector.")
         end
+    end
+
+    # update data
+    for (field, data) in mesh.node_data
+        mesh.node_data[field] = data[pt_ids,:]
+    end
+    for (field, data) in mesh.elem_data
+        mesh.elem_data[field] = data[cl_ids]
+    end
+
+    # update node ids
+    for (i,node) in enumerate(mesh.nodes)
+        node.id = i
+    end
+    
+    # update cell ids
+    for (i,cell) in enumerate(mesh.elems)
+        cell.id = i
     end
     
     connect = [ [ node.id for node in cell.nodes ] for cell in mesh.elems  ]
@@ -590,6 +603,18 @@ function mplot(
         if shrinkcolors
             allcolors = [ cmap(p) for p in range(0,1,length=21) ]
             Q = [ 0.5+0.5*(abs((p-0.5)/0.5))^3.0*sign(p-0.5) for p in range(0,1,length=21) ]
+
+            cdict = Dict("red"   => [ (q, c[1], c[1]) for (q,c) in zip(Q,allcolors) ],
+                         "green" => [ (q, c[2], c[2]) for (q,c) in zip(Q,allcolors) ],
+                         "blue"  => [ (q, c[3], c[3]) for (q,c) in zip(Q,allcolors) ])
+
+            cmap = matplotlib.colors.LinearSegmentedColormap("modified_colormap", cdict, 256)
+        end
+
+        if shiftcolors!==nothing
+            src, tgt = shiftcolors
+            allcolors = [ cmap(p) for p in range(0,1,length=21) ]
+            Q = [ ( p<src ? p*tgt/src : tgt + (p-src)*(1-tgt)/(1-src) ) |> x->round(x,digits=3)  for p in range(0,1,length=21) ]
 
             cdict = Dict("red"   => [ (q, c[1], c[1]) for (q,c) in zip(Q,allcolors) ],
                          "green" => [ (q, c[2], c[2]) for (q,c) in zip(Q,allcolors) ],
@@ -761,12 +786,6 @@ function mplot(
 
             cbar = plt.colorbar(sm, label=colorbarlabel, shrink=colorbarscale, aspect=10*colorbarscale*figsize[2], 
                                 pad=colorbarpad, location=colorbarlocation)
-
-            cbar.ax.tick_params(labelsize=6)
-            cbar.outline.set_linewidth(0.0)
-            cbar.locator = matplotlib.ticker.MaxNLocator(nbins=8)
-            cbar.update_ticks()
-            cbar.solids.set_alpha(1)
         end
 
 
@@ -830,11 +849,44 @@ function mplot(
             cbar = plt.colorbar(sm, label=colorbarlabel, shrink=colorbarscale, aspect=4*colorbarscale*h, 
                                 # format="%.2f", 
                                 pad=colorbarpad+0.05, orientation=colorbarorientation)
-            cbar.ax.tick_params(labelsize=6)
-            cbar.outline.set_linewidth(0.0)
-            cbar.locator = matplotlib.ticker.MaxNLocator(nbins=8)
-            cbar.update_ticks()
-            cbar.solids.set_alpha(1)
+            # cbar.ax.tick_params(labelsize=6)
+            # cbar.outline.set_linewidth(0.0)
+            # cbar.locator = matplotlib.ticker.MaxNLocator(nbins=8)
+            # cbar.update_ticks()
+            # cbar.solids.set_alpha(1)
+        end
+    end
+
+    if has_field && colorbar
+        cbar.ax.tick_params(labelsize=6)
+        cbar.outline.set_linewidth(0.0)
+        cbar.locator = matplotlib.ticker.MaxNLocator(nbins=8)
+        cbar.update_ticks()
+        cbar.solids.set_alpha(1)
+
+        if colorbarmax
+            ticks = [ cbar.get_ticks(); fieldlims[2] ]
+            label = @sprintf("%g", round(fieldlims[2], sigdigits=3))
+            if colorbarorientation=="vertical"
+                labels = cbar.ax.get_yticklabels()
+            else
+                labels = cbar.ax.get_xticklabels()
+            end
+            labels = [ labels; label ]
+            cbar.set_ticks(ticks)
+            cbar.set_ticklabels(labels)
+        end
+        if colorbarmin
+            ticks = [ fieldlims[1]; cbar.get_ticks()]
+            label = @sprintf("%g", round(fieldlims[1], sigdigits=3))
+            if colorbarorientation=="vertical"
+                labels = cbar.ax.get_yticklabels()
+            else
+                labels = cbar.ax.get_xticklabels()
+            end
+            labels = [ label; labels ]
+            cbar.set_ticks(ticks)
+            cbar.set_ticklabels(labels)
         end
     end
 

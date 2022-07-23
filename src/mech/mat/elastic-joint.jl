@@ -90,23 +90,23 @@ function ip_state_vals(mat::ElasticJoint, ipd::JointIpState)
     ndim = ipd.env.ndim
     if ndim == 3
        return Dict(
-          :wj1  => ipd.w[1],
-          :wj2  => ipd.w[2],
-          :wj3  => ipd.w[3],
-          :sj1  => ipd.σ[1],
-          :sj2  => ipd.σ[2],
-          :sj3  => ipd.σ[3],
+          :jw1  => ipd.w[1],
+          :jw2  => ipd.w[2],
+          :jw3  => ipd.w[3],
+          :js1  => ipd.σ[1],
+          :js2  => ipd.σ[2],
+          :js3  => ipd.σ[3],
           )
     else
         return Dict(
-          :wj1  => ipd.w[1],
-          :wj2  => ipd.w[2],
-          :sj1  => ipd.σ[1],
-          :sj2  => ipd.σ[2],
+          :jw1  => ipd.w[1],
+          :jw2  => ipd.w[2],
+          :js1  => ipd.σ[1],
+          :js2  => ipd.σ[2],
           )
     end
 end
 
 function output_keys(mat::ElasticJoint)
-    return Symbol[:wj1, :sj1]
+    return Symbol[:jw1, :jw1]
 end

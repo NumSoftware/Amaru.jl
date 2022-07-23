@@ -1,8 +1,8 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export MechBeam
+export MechClassicalBeam
 
-mutable struct MechBeam<:Mechanical
+mutable struct MechClassicalBeam<:Mechanical
     id    ::Int
     shape ::CellShape
 
@@ -14,12 +14,12 @@ mutable struct MechBeam<:Mechanical
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function MechBeam()
+    function MechClassicalBeam()
         return new()
     end
 end
 
-matching_shape_family(::Type{MechBeam}) = LINE_CELL
+matching_shape_family(::Type{MechClassicalBeam}) = LINE_CELL
 
 function beam_shape_func(x::Float64, L::Float64)
     N = Array{Float64}(undef,6)
@@ -42,9 +42,9 @@ function beam_second_deriv(ξ::Float64, nnodes::Int)
     return DD
 end
 
-function elem_config_dofs(elem::MechBeam)
+function elem_config_dofs(elem::MechClassicalBeam)
     ndim = elem.env.ndim
-    ndim == 1 && error("MechBeam: Beam elements do not work in 1d analyses")
+    ndim == 1 && error("MechClassicalBeam: Beam elements do not work in 1d analyses")
     if ndim==2
         for node in elem.nodes
             add_dof(node, :ux, :fx)
@@ -63,7 +63,7 @@ function elem_config_dofs(elem::MechBeam)
     end
 end
 
-function elem_map(elem::MechBeam)::Array{Int,1}
+function elem_map(elem::MechClassicalBeam)::Array{Int,1}
     if elem.env.ndim==2
         dof_keys = (:ux, :uy, :rz)
     else
@@ -73,15 +73,15 @@ function elem_map(elem::MechBeam)::Array{Int,1}
 end
 
 # Return the class of element where this material can be used
-#client_shape_class(mat::MechBeam) = LINE_CELL
+#client_shape_class(mat::MechClassicalBeam) = LINE_CELL
 
-function calcT(elem::MechBeam, C)
+function calcT(elem::MechClassicalBeam, C)
     c = (C[2,1] - C[1,1])/L
     s = (C[2,2] - C[1,1])/L
     return
 end
 
-function distributed_bc(elem::MechBeam, facet::Nothing, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::MechClassicalBeam, facet::Nothing, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
 
     # Check bcs
@@ -170,7 +170,7 @@ function distributed_bc(elem::MechBeam, facet::Nothing, key::Symbol, val::Union{
 end
 
 
-function elem_stiffness(elem::MechBeam)
+function elem_stiffness(elem::MechClassicalBeam)
     C  = getcoords(elem)
     L  = norm(C[2,:]-C[1,:])
     L2 = L*L
@@ -204,7 +204,7 @@ function elem_stiffness(elem::MechBeam)
     return T'*K0*T, map, map
 end
 
-function elem_mass(elem::MechBeam)
+function elem_mass(elem::MechClassicalBeam)
     C  = getcoords(elem)
     L  = norm(C[2,:]-C[1,:])
     L2 = L*L
@@ -235,7 +235,7 @@ function elem_mass(elem::MechBeam)
 end
 
 
-function elem_update!(elem::MechBeam, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
+function elem_update!(elem::MechClassicalBeam, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
     dU  = U[map]
     F[map] += K*dU

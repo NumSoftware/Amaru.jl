@@ -39,7 +39,7 @@ mutable struct TCJoint<:Material
         return  TCJoint(;prms...)
     end
 
-    function TCJoint(;E=NaN, nu=NaN, fc=NaN, ft=NaN, zeta=NaN, alpha=1.0, gamma=1.0, theta=1.0, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear")
+    function TCJoint(;E=NaN, nu=NaN, fc=NaN, ft=NaN, zeta=NaN, alpha=1.0, gamma=1.0, theta=1.0, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="hordijk")
 
         if isnan(wc)
             if softcurve == "linear"

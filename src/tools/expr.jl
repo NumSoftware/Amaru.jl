@@ -54,6 +54,7 @@ function reduce_arith_expr!(expr::Expr; vars...)
     end
 
     # evaluate operations
+    # @show expr
     if expr.head == :call
         op = get(op_dict, expr.args[1], nothing)
         op == nothing && error("operation $(expr.args[1]) not allowed in this context")

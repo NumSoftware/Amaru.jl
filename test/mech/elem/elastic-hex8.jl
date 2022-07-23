@@ -31,7 +31,7 @@ bcs2 = [
     :(x==1 && y==0 && z==0) => NodeBC(uy=0),
     :(x==0 && y==1 && z==0) => NodeBC(ux=0),
     :(z==0)                 => NodeBC(uz=0),
-    :(y==1 && z==1)         => EdgeBC(ty=2),
+    :(y==1 && z==1)         => EdgeBC(qy=2),
 ]
 
 bcs3 = [
@@ -39,7 +39,7 @@ bcs3 = [
     :(x==1 && y==0 && z==0) => NodeBC(uy=0),
     :(x==0 && y==1 && z==0) => NodeBC(ux=0),
     :(z==0)                 => NodeBC(uz=0),
-    :(x==1)                 => FaceBC(tx=:(3*z)),
+    :(x==1)                 => SurfaceBC(tx=:(3*z)),
 ]
 
 bcs4 = [
@@ -47,7 +47,7 @@ bcs4 = [
     :(x==1 && y==0 && z==0) => NodeBC(uy=0),
     :(x==0 && y==1 && z==0) => NodeBC(ux=0),
     :(z==0)                 => NodeBC(uz=0),
-    :(x>=0)                 => ElemBC(tz=-1),
+    :(x>=0)                 => BodyC(wz=-1),
 ]
 
 ana_list = ["Nodal load", "Edge load", "Triangular face load", "Volume load"]

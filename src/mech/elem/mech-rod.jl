@@ -118,23 +118,22 @@ function setNt(ndim::Int,Ni::Vect, N::Matx)
 
 end
 
-function distributed_bc(elem::MechRod, facet::Union{Facet, Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
-    ndim  = elem.env.ndim
+function mech_rod_distributed_forces(elem::Element, key::Symbol, val::Union{Real,Symbol,Expr})
+    ndim = elem.env.ndim
+    suitable_keys = (:qx, :qy, :qz, :qn, :wx, :wy, :wz)
+    isedgebc = key in (:qx, :qy, :qz, :qn) 
+    
+    # Check keys
+    key in suitable_keys || error("mech_rod_distributed_forces: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
+    (key in (:wz,:qz) && ndim==2) && error("mech_rod_distributed_forces: boundary condition $key is not applicable in a 2D analysis")
+    (key == :qn && ndim==3) && error("mech_rod_distributed_forces: boundary condition $key is not applicable in a 3D analysis")
 
-    # Check bcs
-    (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
-    !(key in (:tx, :ty, :tz, :tn)) && error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
-
-    target = facet!=nothing ? facet : elem
-    nodes  = target.nodes
+    nodes  = elem.nodes
     nnodes = length(nodes)
     t      = elem.env.t
-    A      = elem.mat.A
+    A      = isedgebc ? 1.0 : elem.mat.A
 
-    # Force boundary condition
-    nnodes = length(nodes)
-
-    # Calculate the target coordinates matrix
+    # Calculate the elem coordinates matrix
     C = getcoords(nodes, ndim)
 
     # Vector with values to apply
@@ -142,7 +141,7 @@ function distributed_bc(elem::MechRod, facet::Union{Facet, Nothing}, key::Symbol
 
     # Calculate the nodal values
     F     = zeros(nnodes, ndim)
-    shape = target.shape
+    shape = elem.shape
     ips   = get_ip_coords(shape)
 
     for i=1:size(ips,1)
@@ -153,41 +152,48 @@ function distributed_bc(elem::MechRod, facet::Union{Facet, Nothing}, key::Symbol
         J = C'*D
         nJ = norm2(J)
         X = C'*N
+
         if ndim==2
             x, y = X
-            #vip = fun(t,x,y,0.0)
             vip = eval_arith_expr(val, t=t, x=x, y=y)
-            if key == :tx
-                Q = [vip, 0.0]
-            elseif key == :ty
-                Q = [0.0, vip]
-            elseif key == :tn
-                n = [J[1,2], -J[1,1]]
-                Q = vip*n/norm(n)
-            end
+            Q = zeros(2)
         else
             x, y, z = X
-            #vip = fun(t,x,y,z)
             vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
-            if key == :tx
-                Q = [vip, 0.0, 0.0]
-            elseif key == :ty
-                Q = [0.0, vip, 0.0]
-            elseif key == :tz
-                Q = [0.0, 0.0, vip]
-            elseif key == :tn && ndim==3
-                n = cross(J[1,:], J[2,:])
-                Q = vip*n/norm(n)
-            end
+            Q = zeros(3)
         end
+
+        if key == :qx
+            Q[1] = vip
+        elseif key == :qy
+            Q[2] = vip
+        elseif key == :qz
+            Q[3] = vip
+        elseif key == :qn
+            if  ndim==2
+                n = [J[1,2], -J[1,1]]
+            else
+                n = cross(J[1,:], J[2,:])
+            end
+            Q = vip*normalize(n)
+        end
+
         F += N*Q'*(A*nJ*w) # F is a matrix
     end
 
     # generate a map
     keys = [:ux, :uy, :uz][1:ndim]
-    map  = Int[ node.dofdict[key].eq_id for node in target.nodes for key in keys ]
+    map  = Int[ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
 
     return reshape(F', nnodes*ndim), map
+end
+
+function distributed_bc(elem::MechRod, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
+    return mech_rod_distributed_forces(elem, key, val)
+end
+
+function body_c(elem::MechRod, key::Symbol, val::Union{Real,Symbol,Expr})
+    return mech_rod_distributed_forces(elem, key, val)
 end
 
 function elem_internal_forces(elem::MechRod, F::Array{Float64,1})

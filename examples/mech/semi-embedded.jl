@@ -27,7 +27,7 @@ dom = Domain(msh, mats)
 bcs = [
        :(y==0 && z==0) => NodeBC(ux=0, uy=0, uz=0),
        :(y==6 && z==0) => NodeBC(ux=0, uy=0, uz=0),
-       :(z==1) => FaceBC(tz=-1000),
+       :(z==1) => SurfaceBC(tz=-1000),
       ]
 
 solve!(dom, bcs, nincs=20, verbosity=1)

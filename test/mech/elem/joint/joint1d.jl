@@ -23,7 +23,7 @@ dom = Domain(mesh, mats)
 bcs = [
        :(y==0 && z==0) => NodeBC(uy=0, uz=0),
        :(y==6 && z==0) => NodeBC(uz=0),
-       :(z==1) => FaceBC(tz=-1000 ),
+       :(z==1) => SurfaceBC(tz=-1000 ),
       ]
 
 mon = NodeLogger()

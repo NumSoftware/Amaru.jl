@@ -16,7 +16,7 @@ setloggers!(dom, loggers)
 
 bcs = [
         :(y==0) => NodeBC(ux=0, uy=0),
-        :(y==1) => FaceBC(ty=2),
+        :(y==1) => SurfaceBC(ty=2),
       ]
 
 

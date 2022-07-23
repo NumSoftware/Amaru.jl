@@ -18,8 +18,8 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8, QUAD9)
 
 
     bcs = [
-        "bottom" => FaceBC(ux=0, uy=0),
-        "top"    => FaceBC(ty=-10.)
+        "bottom" => SurfaceBC(ux=0, uy=0),
+        "top"    => SurfaceBC(ty=-10.)
     ]
 
     solve!(dom, bcs, nincs=1, printlog=false).success
@@ -49,9 +49,9 @@ for shape in (TET4, TET10, HEX8, HEX20, HEX27)
     dom = Domain(mesh, materials, printlog=false)
 
     bcs = [
-        "bottom" => FaceBC(ux=0, uy=0, uz=0),
-        "sides"  => FaceBC(ux=0),
-        "top"    => FaceBC(tz=-10.)
+        "bottom" => SurfaceBC(ux=0, uy=0, uz=0),
+        "sides"  => SurfaceBC(ux=0),
+        "top"    => SurfaceBC(tz=-10.)
     ]
 
     solve!(dom, bcs, nincs=1, printlog=false).success

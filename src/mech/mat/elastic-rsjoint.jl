@@ -14,7 +14,6 @@ mutable struct ElasticRSJointIpState<:IpState
     end
 end
 
-
 mutable struct ElasticRSJoint<:Material
     ks::Float64
     kn::Float64

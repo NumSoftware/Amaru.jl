@@ -9,13 +9,32 @@ Amaru module implements functions and types to perform finite element analyses.
 
 **Important data types**
 
-Node, Element, Domain, Dof, Ip, NodeBC, FaceBC
+Node, Element, Domain, Dof, Ip, NodeBC, SurfaceBC
 
 """
 module Amaru
 using Printf, StatsBase, Statistics, LinearAlgebra, SparseArrays, DelimitedFiles, Arpack
 using DataStructures, Glob, DocStringExtensions
+using Distributed
 import DataStructures.OrderedDict, DataStructures.OrderedSet
+
+
+function bb()
+    println("id: ", myid())
+end
+
+function aa()
+    println("nprocs: ", nprocs())
+ 
+    eval(macroexpand(Main, quote @everywhere using Amaru end))
+    eval(macroexpand(Main, quote import Amaru.bb end))
+    # println("id: ", myid())
+
+    @everywhere bb()
+end
+
+
+
 
 # Debug
 mutable struct ConfigFlags
@@ -69,7 +88,7 @@ include("plot/cplot.jl")
 
 # Boundary conditions
 include("bc.jl")
-export NodeBC, FaceBC, EdgeBC, ElemBC
+export NodeBC, SurfaceBC, EdgeBC, BodyC
 
 include("logger.jl")
 export NodeLogger, IpLogger

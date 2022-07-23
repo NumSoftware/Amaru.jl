@@ -16,10 +16,10 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
     dom = Domain(mesh, materials, modeltype="axisymmetric", printlog=false)
 
     bcs = [
-           :(x==0) => FaceBC(ux=0),
-           :(y==0) => FaceBC(uy=0),
-           :(y==1) => FaceBC(ty=-10),
-           #"solids" => FaceBC(ty=-10),
+           :(x==0) => SurfaceBC(ux=0),
+           :(y==0) => SurfaceBC(uy=0),
+           :(y==1) => SurfaceBC(ty=-10),
+           #"solids" => SurfaceBC(ty=-10),
     ]
 
     solve!(dom, bcs, nincs=1, printlog=false, nouts=0).success
@@ -37,9 +37,9 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
 
     bcs = [
            :(x==0 && y==0) => NodeBC(ux=0, uy=0),
-           :(y==0) => FaceBC(uy=0),
-           :(y==1) => FaceBC(ty=-10),
-           #"solids" => FaceBC(ty=-10),
+           :(y==0) => SurfaceBC(uy=0),
+           :(y==1) => SurfaceBC(ty=-10),
+           #"solids" => SurfaceBC(ty=-10),
     ]
 
     solve!(dom, bcs, nincs=1, printlog=false, nouts=0).success

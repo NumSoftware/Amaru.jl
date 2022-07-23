@@ -73,7 +73,7 @@ begin
 	bcs = [
 	       :(x==0 && y==0) => NodeBC(ux=0, uy=0),
 	       :(x==3 && y==0) => NodeBC(uy=0),
-	       :(y==0.4)       => FaceBC(ty=:(-0.1*x)), # triangular load
+	       :(y==0.4)       => SurfaceBC(ty=:(-0.1*x)), # triangular load
 	]
 	
 	# Perform the finite element analysis

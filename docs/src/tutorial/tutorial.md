@@ -330,7 +330,7 @@ nothing # hide
 ### Boundary conditions
 
 The boundary conditions are given by objects that define the quantities that should be applied
-to nodes, faces, edges or even elements (`NodeBC`, `FaceBC`, `EdgeBC` and `ElementBC`).
+to nodes, faces, edges or even elements (`NodeBC`, `SurfaceBC`, `EdgeBC` and `ElementBC`).
 
 The example below shows a nodal boundary condition where all displacements are set to zero.
 ```@example
@@ -343,7 +343,7 @@ This other example shows a face boudary condition where a traction is applied in
 ```@example
 using Amaru
 
-load = FaceBC(tz=-10)
+load = SurfaceBC(tz=-10)
 ```
 The keys (e.g. `ux`, `tz`, etc.) to be set in a boundary condition are related to the analysis problem, and ultimately to the material types in use.
 For example, in a mechanical analysis, the keys for nodal boundary conditions are `ux`, `uy`, `uz`, `fx`, `fy` and `fz` where
@@ -382,7 +382,7 @@ model = Domain(mesh, materials)
 
 bcs = [
     :(x==0) => NodeBC(ux=0, uy=0, uz=0)
-    :(x==1) => FaceBC(tz=-1000)
+    :(x==1) => SurfaceBC(tz=-1000)
 ]
 
 solve!(model, bcs, printlog=true, verbose=true)
@@ -432,7 +432,7 @@ model = Domain(mesh, materials)
 
 bcs = [
     :(x==0) => NodeBC(ux=0, uy=0, uz=0)
-    :(x==1) => FaceBC(uz=-0.04)
+    :(x==1) => SurfaceBC(uz=-0.04)
 ]
 
 solve!(model, bcs, tol=0.01, autoinc=true)
@@ -484,7 +484,7 @@ model = Domain(mesh, materials)
 
 bcs = [
     :(x==0) => NodeBC(ux=0, uy=0, uz=0)
-    :(x==1) => FaceBC(uz=-0.04)
+    :(x==1) => SurfaceBC(uz=-0.04)
 ]
 
 loggers = [

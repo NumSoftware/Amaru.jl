@@ -25,8 +25,8 @@ dom = Domain(msh, mats)
 
 # Boundary conditions
 bcs = [
-       :(y==0)   => FaceBC(ux=0, uy=0, uz=0),
-       :(y==0.3) => FaceBC(ty=100)
+       :(y==0)   => SurfaceBC(ux=0, uy=0, uz=0),
+       :(y==0.3) => SurfaceBC(ty=100)
       ]
 
 @test solve!(dom, bcs, autoinc=true, nincs=20, maxits=3, tol=0.01, printlog=false, scheme=:FE, nouts=10).success

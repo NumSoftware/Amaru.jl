@@ -21,7 +21,7 @@ bcs = [
        :(x==0 && y==9) => NodeBC(ux=0, uy=0),
        :(x==9 && y==0) => NodeBC(fy=-450.),
        :(x==18&& y==0) => NodeBC(fy=-450.),
-       :(x>=0)         => ElemBC(ty=-10.0)
+       :(x>=0)         => BodyC(wy=-10.0)
       ]
 
 @test solve!(dom, bcs, printlog=true).success
@@ -42,7 +42,7 @@ bcs = [
        :(x==0 && y==1 && z==0) => NodeBC(ux=0, uy=0, uz=0),
        :(x==0 && y==1 && z==1) => NodeBC(ux=0, uy=0),
        :(x==0 && y==0) => NodeBC(fz=-50.),
-       :(x>=0) => ElemBC(tz=-10.0)
+       :(x>=0) => BodyC(wz=-10.0)
       ]
 
 @test solve!(dom, bcs, printlog=false).success

@@ -33,7 +33,9 @@ function revolve(mesh::Mesh;
     @assert minangle<maxangle
 
     cells = Cell[]
-    Δθ = (maxangle-minangle)/n*pi/180
+    minθ = minangle*pi/180
+    maxθ = maxangle*pi/180
+    Δθ = (maxθ-minθ)/n
 
     if !collapse
         # move points that lie at the axis
@@ -46,7 +48,7 @@ function revolve(mesh::Mesh;
         end
     end
 
-    for θ in range(minangle*pi/180,step=Δθ,length=n)
+    for θ in range(minθ,step=Δθ,length=n)
         θhalf = θ + Δθ/2
         θend  = θ + Δθ
 

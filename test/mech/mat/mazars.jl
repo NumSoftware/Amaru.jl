@@ -30,7 +30,7 @@ bcs = [
        :(z==0) => NodeBC(ux=0, uy=0),
 
        #:(z==1) => NodeBC(uz=-1.2e-2),
-       :(z==1) => FaceBC(uz=+2e-3),
+       :(z==1) => SurfaceBC(uz=+2e-3),
       ]
 
 @test solve!(dom, bcs, autoinc=true, nincs=100, maxits=4, tol=0.1, nouts=10, printlog=false).success

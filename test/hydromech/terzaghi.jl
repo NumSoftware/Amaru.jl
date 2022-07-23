@@ -67,7 +67,7 @@ dom.env.t = 0.0
 bcs = [
     :(z==0)  => NodeBC(ux=0, uy=0, uz=0),
     :(x>=0)  => NodeBC(ux=0, uy=0),
-    :(z==10) => FaceBC(tz=-load),
+    :(z==10) => SurfaceBC(tz=-load),
     :(z==10) => NodeBC(uw=0.),
 ]
 
@@ -80,7 +80,7 @@ hm_solve!(dom, bcs, end_time=t1, nincs=4, tol=1e-2, nouts=1, printlog=false)
 bcs = [
     :(z==0)  => NodeBC(ux=0, uy=0, uz=0),
     :(x>=0)  => NodeBC(ux=0, uy=0),
-    :(z==10) => FaceBC(tz=-load),
+    :(z==10) => SurfaceBC(tz=-load),
     :(z==10) => NodeBC(uw=0.),
 ]
 

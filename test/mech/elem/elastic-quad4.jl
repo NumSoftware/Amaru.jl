@@ -19,9 +19,9 @@ mats = [
 dom = Domain(mesh, mats)
 
 bcs = [
-    :(x==0.) => FaceBC(ux=0.),
-    :(y==0.) => FaceBC(uy=0),
-    :(y==1.) => FaceBC(ty=-1.),
+    :(x==0.) => SurfaceBC(ux=0.),
+    :(y==0.) => SurfaceBC(uy=0),
+    :(y==1.) => SurfaceBC(ty=-1.),
 ]
 
 solve!(dom, bcs, printlog=true)

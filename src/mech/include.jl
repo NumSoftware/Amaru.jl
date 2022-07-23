@@ -21,6 +21,7 @@ include("elem/mech-plate-rm-quad8.jl")
 include("elem/mech-shell-quad4.jl")
 include("elem/mech-shell-degenerated.jl")
 include("elem/mech-cook-shell.jl")
+include("elem/mech-shell.jl")
 
 
 # Models for bulk elements
@@ -57,6 +58,7 @@ include("mat/elastic-plateRM8node.jl")
 include("mat/elastic-shell-quad4.jl")
 include("mat/elastic-shell-degenerated.jl")
 include("mat/elastic-cook-shell.jl")
+include("mat/elastic-shell.jl")
 
 # Models for joint elements
 include("mat/elastic-joint.jl")

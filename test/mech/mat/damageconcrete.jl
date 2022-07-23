@@ -36,7 +36,7 @@ bcs = [
        :(y==0) => NodeBC(uy=0),
        :(z==0) => NodeBC(uz=0),
        #:(x==0 && y==0 && z==0) => NodeBC(uy=0, uz=0),
-       :(x==$lx) => FaceBC(ux=0.0001),
+       :(x==$lx) => SurfaceBC(ux=0.0001),
        #:(x==0.1 && y==0.1 && z==0.1) => NodeBC(ux=0.0001),
       ]
 

@@ -87,7 +87,7 @@ function setquadrature!(elem::ShellDegenerated, n::Int=0)
 end
 
 
-function distributed_bc(elem::ShellDegenerated, facet::Union{Facet, Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::ShellDegenerated, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     th    = elem.env.t
     suitable_keys = (:tx, :ty, :tz, :tn)
@@ -467,42 +467,5 @@ function elem_update!(elem::ShellDegenerated, U::Array{Float64,1}, F::Array{Floa
         @gemm J = C'*dNdR
         @gemm dNdX = dNdR*inv(J)
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
-        setB(elem, ip, dNdX, B)
-        @gemv Δε = B*dU
-        Δσ, status = stress_update(elem.mat, ip.state, Δε)
-        failed(status) && return failure("ShellDegenerated: Error at integration point $(ip.id)")
-        #if failed(status)
-            #status.message = "ShellDegenerated: Error at integration point $(ip.id)\n" * status.message
-            #return status
-        #end
-        coef = detJ*ip.w*th
-        @gemv dF += coef*B'*Δσ
-    end
-    F[map] += dF
-    return success()
-end
-function elem_vals(elem::ShellDegenerated)
-    vals = OrderedDict{Symbol,Float64}()
-    if haskey(ip_state_vals(elem.mat, elem.ips[1].state), :damt)
-        mean_dt = mean( ip_state_vals(elem.mat, ip.state)[:damt] for ip in elem.ips )
-        vals[:damt] = mean_dt
-        mean_dc = mean( ip_state_vals(elem.mat, ip.state)[:damc] for ip in elem.ips )
-        vals[:damc] = mean_dc
-    end
-    #vals = OrderedDict{String, Float64}()
-    #keys = elem_vals_keys(elem)
-#
-    #dicts = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
-    #nips = length(elem.ips)
-#
-    #for key in keys
-        #s = 0.0
-        #for dict in dicts
-            #s += dict[key]
-        #end
-        #vals[key] = s/nips
-    #end
-    return vals
-end
-=#
+        detJ > 0.0 || er
+        =#

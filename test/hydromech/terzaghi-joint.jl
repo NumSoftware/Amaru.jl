@@ -84,7 +84,7 @@ for i=1:2
     bcs = [
         :(y==0)  => NodeBC(ux=0., uy=0.),
         :(x>=0)  => NodeBC(ux=0.),
-        :(y==10) => FaceBC(ty=-load),
+        :(y==10) => SurfaceBC(ty=-load),
         :(y==10) => NodeBC(uw=0.),
     ]
 
@@ -97,7 +97,7 @@ for i=1:2
     bcs = [
         :(y==0)  => NodeBC(ux=0., uy=0.),
         :(x>=0)  => NodeBC(ux=0.),
-        :(y==10) => FaceBC(ty=-load),
+        :(y==10) => SurfaceBC(ty=-load),
         :(y==10) => NodeBC(uw=0.),
     ]
 

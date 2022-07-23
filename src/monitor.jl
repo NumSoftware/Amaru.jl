@@ -57,6 +57,8 @@ function update_monitor!(monitor::IpMonitor, domain)
         filename = joinpath(domain.env.outdir, monitor.filename)
         save(monitor.table, filename, printlog=false)
     end
+    
+    return success()
 end
 
 # Node Monitor
@@ -136,6 +138,8 @@ function update_monitor!(monitor::NodeMonitor, domain)
         filename = joinpath(domain.env.outdir, monitor.filename)
         save(monitor.table, filename, printlog=false)
     end
+
+    return success()
 end
 
 
@@ -199,6 +203,8 @@ function update_monitor!(monitor::IpGroupMonitor, domain)
         filename = joinpath(domain.env.outdir, monitor.filename)
         save(monitor.table, filename, printlog=false)
     end
+
+    return success()
 end
 
 
@@ -213,13 +219,32 @@ mutable struct NodeSumMonitor<:AbstractMonitor
     filter   ::Union{Symbol,String,Expr}
     table    ::DataTable
     nodes    ::Array{Node,1}
+    stopexpr ::Expr
+    _extra   ::Expr # extra symbols
 
-    function NodeSumMonitor(expr::Union{Symbol,Expr}, filename::String="")
+    function NodeSumMonitor(expr::Union{Symbol,Expr}, filename::String=""; stop=Expr=:())
         if expr isa Symbol || expr.head == :call
             expr = :($expr,)
         end
+        if stop.head == :call
+            stop = :($stop,)
+        end
+        
 
-        return new(expr, OrderedDict(), filename, :(), DataTable())
+        # add _min and _max extra values
+        extra = :()
+        for ex in [ expr.args; stop.args ]
+            for var in get_vars(ex)
+                varstr = string(var)
+                length(varstr)>4 || continue
+                _, optstr = split(varstr, '_')
+                optstr in ("min","max") || continue
+                extra.args = union(extra.args, [var]) # add extra var as fx_min
+                expr.args  = union(expr.args, [var])  # add extra var as fx
+            end
+        end
+
+        return new(expr, OrderedDict(), filename, :(), DataTable(), Node[], stop, extra)
     end
 end
 
@@ -249,6 +274,22 @@ function update_monitor!(monitor::NodeSumMonitor, domain)
     valsF = OrderedDict( Symbol(key) => sum(tableF[key])  for key in keys(tableF) ) # gets the sum for each component
     state = merge(valsU, valsF)
 
+    # update state with _max and _min
+    for var in monitor._extra.args
+        keystr, optstr = split(string(var), '_')
+        key = Symbol(keystr)
+        if size(monitor.table)[1] == 0
+            state[var] = state[key]
+            continue
+        end
+        if optstr=="min"
+            state[var] = min(state[key], monitor.table[var][end])
+        else
+            state[var] = max(state[key], monitor.table[var][end])
+        end
+    end
+
+    # eval expressions
     for expr in monitor.expr.args
         monitor.vals[expr] = eval_arith_expr(expr; state...)
     end
@@ -256,11 +297,19 @@ function update_monitor!(monitor::NodeSumMonitor, domain)
     monitor.vals[:stage] = domain.env.cstage
     monitor.vals[:T]     = domain.env.T
     domain.env.transient && (monitor.vals[:t]=dom.env.t)
-
     push!(monitor.table, monitor.vals)
 
     if monitor.filename!="" 
         filename = joinpath(domain.env.outdir, monitor.filename)
         save(monitor.table, filename, printlog=false)
     end
+
+    # eval stop expressions
+    for expr in monitor.stopexpr.args
+        if eval_arith_expr(expr; state...)
+            return failure("Stop condition at NodeSumMonitor")
+        end
+    end
+
+    return success()
 end

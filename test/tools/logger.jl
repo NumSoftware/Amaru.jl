@@ -43,7 +43,7 @@ setloggers!(dom, loggers)
 bcs = [
        :(z==0)         => NodeBC(ux=0, uy=0, uz=0 ),
        :(x==0 || x==1) => NodeBC(ux=0),
-       :(z==1)         => FaceBC(tz=-10.0),
+       :(z==1)         => SurfaceBC(tz=-10.0),
       ]
 
 @test solve!(dom, bcs, nincs=4, nouts=4, printlog=false).success

@@ -125,7 +125,7 @@ function get_shape_from_vtk(vtk_type::VTKCellType, npoints::Int64, ndim::Int64, 
     vtk_type==VTK_POLY_VERTEX || return VTK2SHAPE[vtk_type]
 
     # Check if it is a joint cell with layers
-    if layers in (2,3)
+    if nlayers in (2,3)
         # dictionary (ndim,nfpoints,nlayers) => joint_shape
         shapedict = _joint_ndim_nfpoints_nlayers_dict
         nfpoints = div(npoints,nlayers)

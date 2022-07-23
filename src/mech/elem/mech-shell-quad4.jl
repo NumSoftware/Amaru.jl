@@ -20,7 +20,7 @@ end
 
 matching_shape_family(::Type{ShellQUAD4}) = SOLID_CELL
 
-function distributed_bc(elem::ShellQUAD4, facet::Union{Facet, Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::ShellQUAD4, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     th    = elem.env.t
     suitable_keys = (:tx, :ty, :tz, :tn)

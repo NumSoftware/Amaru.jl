@@ -42,7 +42,7 @@ bcs = [
      :(x == 0.5) =>  NodeBC(k = 0),
      :(y == 0) =>  NodeBC(k = 0),
      :(y == 0) => NodeBC(ux = 0, uy =0),
-     :(y == 1) => FaceBC(ut = 100),
+     :(y == 1) => SurfaceBC(ut = 100),
 ]
 
 tm_solve!(

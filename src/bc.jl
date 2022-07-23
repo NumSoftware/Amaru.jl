@@ -31,14 +31,14 @@ function setup_bc!(dom, filter, bc::NodeBC)
         for node in bc.nodes
             !haskey(node.dofdict, key) && continue
             dof = node.dofdict[key]
-            dof.name == key && (dof.prescribed = true)
+            dof.name==key && (dof.prescribed=true)
         end
     end
 end
 
 
 function compute_bc_vals!(bc::NodeBC, t::Float64, U::Array{Float64,1}, F::Array{Float64,1})
-    essential_keys = Set( dof.name for node in bc.nodes for dof in node.dofs )
+    # essential_keys = Set( dof.name for node in bc.nodes for dof in node.dofs )
 
     for node in bc.nodes
         x, y, z = node.coord
@@ -55,19 +55,21 @@ function compute_bc_vals!(bc::NodeBC, t::Float64, U::Array{Float64,1}, F::Array{
 end
 
 
-# FaceBC and EdgeBC
-# =================
+# SurfaceBC and EdgeBC
+# ====================
 
 
-mutable struct FaceBC<:BC
+mutable struct SurfaceBC<:BC
     conds ::AbstractDict
     filter::Union{Symbol,String,Expr}
     faces ::Array{Face,1}
 
-    function FaceBC(;conds...)
+    function SurfaceBC(;conds...)
         return new(conds, :(), [])
     end
 end
+
+FaceBC = SurfaceBC
 
 
 mutable struct EdgeBC<:BC
@@ -81,11 +83,11 @@ mutable struct EdgeBC<:BC
 end
 
 
-function setup_bc!(dom, filter, bc::Union{FaceBC,EdgeBC})
+function setup_bc!(dom, filter, bc::Union{SurfaceBC,EdgeBC})
     bc.filter = filter
 
     # Filter objects according to bc criteria
-    if bc isa FaceBC
+    if bc isa SurfaceBC
         bc.faces = dom.faces[bc.filter]
         facets = bc.faces
     else
@@ -94,7 +96,7 @@ function setup_bc!(dom, filter, bc::Union{FaceBC,EdgeBC})
     end
     length(facets)==0 && notify("setup_bc!: applying boundary conditions to empty array of faces/edges while evaluating expression ", string(bc.filter))
 
-    not_found_keys = Set()
+    # not_found_keys = Set()
 
     # Find prescribed essential bcs
     for (key,val) in bc.conds
@@ -102,15 +104,15 @@ function setup_bc!(dom, filter, bc::Union{FaceBC,EdgeBC})
             for node in facet.nodes
                 !haskey(node.dofdict, key) && continue
                 dof = node.dofdict[key]
-                dof.name == key && (dof.prescribed = true)
+                dof.name==key && (dof.prescribed=true)
             end
         end
     end
 end
 
 
-function compute_bc_vals!(bc::Union{FaceBC,EdgeBC}, t::Float64, U::Array{Float64,1}, F::Array{Float64,1})
-    facets = bc isa FaceBC ? bc.faces : bc.edges
+function compute_bc_vals!(bc::Union{SurfaceBC,EdgeBC}, t::Float64, U::Array{Float64,1}, F::Array{Float64,1})
+    facets = bc isa SurfaceBC ? bc.faces : bc.edges
     essential_keys = Set( dof.name for facet in facets for node in facet.nodes for dof in node.dofs )
 
     for facet in facets
@@ -134,23 +136,22 @@ function compute_bc_vals!(bc::Union{FaceBC,EdgeBC}, t::Float64, U::Array{Float64
 end
 
 
-# ElemBC
+# BodyC
 # ======
 
 
-mutable struct ElemBC<:BC
+mutable struct BodyC<:BC
     conds::AbstractDict
     filter::Union{Array{Int,1},Symbol,String,Expr}
     elems::Array{Element,1}
 
-    function ElemBC(;conds...)
+    function BodyC(;conds...)
         return new(conds, :(), [])
     end
 end
 
 
-# Return a vector with all domain dofs and the number of unknown dofs according to bcs
-function setup_bc!(dom, filter, bc::ElemBC)
+function setup_bc!(dom, filter, bc::BodyC)
     isa(filter, Int) && (filter = [filter])
     bc.filter = filter
     # Filter objects according to bc criteria
@@ -163,14 +164,14 @@ function setup_bc!(dom, filter, bc::ElemBC)
             for node in elem.nodes
                 !haskey(node.dofdict, key) && continue # if key not found, assume it is a natural bc
                 dof = node.dofdict[key]
-                dof.name == key && (dof.prescribed = true)
+                dof.name==key && (dof.prescribed=true)
             end
         end
     end
 end
 
 
-function compute_bc_vals!(bc::ElemBC, t::Float64, U::Array{Float64,1}, F::Array{Float64,1})
+function compute_bc_vals!(bc::BodyC, t::Float64, U::Array{Float64,1}, F::Array{Float64,1})
     essential_keys = Set( dof.name for elem in bc.elems for node in elem.nodes for dof in node.dofs )
 
     for elem in bc.elems
@@ -184,7 +185,7 @@ function compute_bc_vals!(bc::ElemBC, t::Float64, U::Array{Float64,1}, F::Array{
                     end
                 end
             else
-                Fd, map = distributed_bc(elem, nothing, key, val)
+                Fd, map = body_c(elem, key, val)
                 F[map] += Fd
             end
         end

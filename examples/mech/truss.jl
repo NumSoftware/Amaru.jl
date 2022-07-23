@@ -17,7 +17,7 @@ bcs = [
        :(x==0 && y==9) => NodeBC(ux=0, uy=0),
        :(x==9 && y==0) => NodeBC(fy=-450.),
        :(x==18&& y==0) => NodeBC(fy=-450.),
-       :(x>=0)         => ElemBC(ty=-10.0)
+       :(x>=0)         => BodyC(ty=-10.0)
       ]
 
 solve!(dom, bcs)

@@ -71,7 +71,7 @@ begin
 	bcs = [
 	   :(z==0) => NodeBC(ux=0, uy=0, uz=0)
 	   #:(x==1 && y==1 && z==1) => NodeBC(fz=-0.1)	
-       :(z==1) => FaceBC(tz=:(-10*x))   # triangular load
+       :(z==1) => SurfaceBC(tz=:(-10*x))   # triangular load
 	]
 end;
 

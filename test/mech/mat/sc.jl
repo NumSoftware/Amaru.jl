@@ -36,7 +36,7 @@ dom = Domain(msh, mats, loggers)
 bcs = [
        NodeBC(:(x==0 && y==0 ), :(ux=0, uy=0 )),
        NodeBC(:(x==0.2 && y==0 ), :(uy=0 )),
-       FaceBC(10, :(uy=8*1e-4)),
+       SurfaceBC(10, :(uy=8*1e-4)),
        #BC(:node, :(x<0.1), :(ux=0, uy=0 )),
        #BC(:node, :(x>0.1), :(ux=1e-5)),
        #BC(:node, :(x>0.1), :(ux=0, uy=8.0*1.7e-4)),

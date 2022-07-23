@@ -19,7 +19,7 @@ bcs =
      :(x==1 && y==0) => NodeBC(fy=-10.),
     ]
 
-#bc3 = ElemBC( dom.elems, gz=-25 )
+#bc3 = BodyC( dom.elems, gz=-25 )
 dom = Domain(msh, mats)
 
 @test solve!(dom, bcs, printlog=false).success

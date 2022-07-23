@@ -24,8 +24,8 @@ dom = Domain(msh, mats, modeltype="plane-stress", thickness=1.0)
 
 # Boundary conditions
 bcs = [
-       :(x==0)   => FaceBC(ux=0, uy=0 )
-       :(x==0.3) => FaceBC(ux=2.0*1.7e-4)
+       :(x==0)   => SurfaceBC(ux=0, uy=0 )
+       :(x==0.3) => SurfaceBC(ux=2.0*1.7e-4)
       ]
 
 @test solve!(dom, bcs, autoinc=true, nincs=20, maxits=3, tol=0.01, printlog=false, scheme=:ME, nouts=10).success

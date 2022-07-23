@@ -141,8 +141,14 @@ function cplot(
     y2mult            = 1.0,
     ticksinside      = true,
     axis             = true,
+    arrowaxis        = false,
+    xticks           = nothing,
+    xticklabels      = [],
+    yticks           = nothing,
+    yticklabels      = [],
     fontsize         = 6.5,
     legendfontsize   = 0,
+    textfontsize     = 0,
     labelspacing     = 0.5, 
     annotations      = [],  # e.g. [ (text="C1", pos=(x,y)), ]
 
@@ -266,8 +272,10 @@ function cplot(
     # Configure plot
     legendfontsize==0 && (legendfontsize=fontsize)
     tagfontsize==0 && (tagfontsize=fontsize)
+    textfontsize==0 && (textfontsize=fontsize-0.5)
 
     if filename!=""
+        # plt.rc("text", usetex=true)
         plt.rc("font", family="STIXGeneral", size=fontsize)
         plt.rc("mathtext", fontset="cm")
         plt.rc("lines", scale_dashes=true)
@@ -401,6 +409,58 @@ function cplot(
         # ax_xy.spines["top"].set_visible(false)
     end
 
+    if xticks!==nothing && length(xticks) == length(xticklabels)
+        ax_xy.set_xticks(xticks)
+        ax_xy.set_xticklabels(xticklabels)
+    end
+    if yticks!==nothing && length(yticks) == length(yticklabels)
+        ax_xy.set_yticks(yticks)
+        ax_xy.set_yticklabels(yticklabels)
+    end
+
+    if arrowaxis
+        # plt.axis("off")
+        ax_xy.spines["left"].set_position("zero")
+        ax_xy.spines["right"].set_visible(false)
+        ax_xy.spines["bottom"].set_position("zero")
+        ax_xy.spines["top"].set_visible(false)
+
+        # get width and height of axes object to compute 
+        # matching arrowhead length and width
+
+        dps = @eval plt.gcf().dpi_scale_trans.inverted()
+        bbox = ax_xy.get_window_extent().transformed(dps)
+        width, height = bbox.width, bbox.height
+
+        xmin, xmax = ax_xy.get_xlim() 
+        ymin, ymax = ax_xy.get_ylim()
+
+        # manual arrowhead width and length
+        hw = 1/40*(ymax-ymin) 
+        hl = 1/40*(xmax-xmin)
+        
+        # compute matching arrowhead length and width
+        yhw = hw/(ymax-ymin)*(xmax-xmin)* height/width 
+        yhl = hl/(xmax-xmin)*(ymax-ymin)* width/height
+        lw = ax_xy.spines["left"].get_linewidth()
+        ohg=0.3
+
+        # draw x and y axis
+        ax_xy.arrow(xmin, 0, xmax-xmin, 0., fc="k", ec="k", lw = lw, 
+        head_width=hw, head_length=hl, overhang=ohg,
+        length_includes_head=false, clip_on=false) 
+
+        ax_xy.arrow(0, ymin, 0., ymax-ymin, fc="k", ec="k", lw=lw, 
+        head_width=yhw, head_length=yhl, overhang=ohg, 
+        length_includes_head=false, clip_on=false)
+
+        # ax_xy.arrow(0,0,1,0, width=0, head_width=hw, head_length=hl, overhang=0.3, length_includes_head= false, fc="k", ec="k", clip_on=false, lw = ax_xy.spines["left"].get_linewidth(), transform=ax_xy.get_yaxis_transform())
+        # ax_xy.arrow(0,0,0,1, width=0, head_width=yhw, head_length=yhl, overhang=0.3, length_includes_head= false, fc="k", ec="k", clip_on=false, lw = ax_xy.spines["left"].get_linewidth(), transform=ax_xy.get_xaxis_transform())
+        # ax_xy.set_ylabel(ylabel, rotation=0)
+        ax_xy.set_xlabel(xlabel, labelpad=1)
+        ax_xy.set_ylabel(ylabel, labelpad=1)
+    end
+
     # plot legend
     if haslegend
         mode = legendexpand ? "expand" : nothing
@@ -435,13 +495,15 @@ function cplot(
     if length(annotations)>0
         for line in annotations
             x, y     = get(line, :pos, (0.5, 0.5))
+            # x        = get(line, :x, 0.5)
+            # y        = get(line, :x, 0.5)
             fontsize = get(line, :fontsize, tagfontsize)
             text     = string(get(line, :text, ""))
             arrowcoord = get(line, :arrowcoord, nothing)
             
             
             if arrowcoord===nothing
-                ax_xy.text(x, y, text, fontsize=fontsize-1, transform=ax_xy.transAxes, ha="center", va="center")
+                ax_xy.text(x, y, text, fontsize=textfontsize, transform=ax_xy.transAxes, ha="center", va="center")
             else
                 xa, ya = (ax_xy.transData+ax_xy.transAxes.inverted()).transform([x,y])
                 dx = abs(x-xa)*figsize[1]/figsize[2]
@@ -458,7 +520,7 @@ function cplot(
                     xytext     = (x,y), 
                     # textcoords = "figure fraction",
                     textcoords = "axes fraction",
-                    fontsize   = fontsize-1,
+                    fontsize   = textfontsize,
                     xy         = (arrowcoord[1]*xmult, arrowcoord[2]*ymult),
                     arrowprops = Dict(
                         "lw"              => 0.3,
@@ -602,7 +664,7 @@ function cplot(
 
     # show or save plot
     if filename=="" 
-        plt.fignum_exists(ax.figure.number) || plt.show()
+        plt.fignum_exists(ax_xy.figure.number) || plt.show()
     else
         _, format = splitext(filename)
         plt.savefig(filename, bbox_inches="tight", pad_inches=0.01, format=format[2:end])

@@ -306,8 +306,10 @@ end
 
 function update_monitors!(domain::Domain)
     for monitor in domain.monitors
-        update_monitor!(monitor, domain)
+        rstatus = update_monitor!(monitor, domain)
+        failed(rstatus) && return rstatus
     end
+    return success()
 end
 
 

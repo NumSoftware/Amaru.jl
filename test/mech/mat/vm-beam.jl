@@ -19,8 +19,8 @@ mon = NodeLogger("ip")
 bcs = [
     NodeBC(:(y==0), :(uy=0)),
     NodeBC(:(y==0 && z==0), :(uz=0)),
-    FaceBC(:(x==0 && y==0 && z==0), :(ux=0)),
-    FaceBC(:(y==1 && z==0), :(uz=-0.1)),
+    SurfaceBC(:(x==0 && y==0 && z==0), :(ux=0)),
+    SurfaceBC(:(y==1 && z==0), :(uz=-0.1)),
 ]
 
 dom = Domain(msh, mat)

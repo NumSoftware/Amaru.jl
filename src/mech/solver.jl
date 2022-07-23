@@ -28,9 +28,10 @@ function mount_K(dom::Domain,
     try
         K = sparse(R, C, V, ndofs, ndofs)
     catch err
-        @show ndofs
         @show err
     end
+
+    dropzeros!(K)
 
     return K
 end
@@ -149,8 +150,8 @@ function solve_system!(
 
             F2 += K21*U1
         catch err
+            err isa InterruptException && rethrow(err)
             any(isnan.(K11)) && warn("solve_system!: NaN values in coefficients matrix")
-            # isnan(det(K11)) && warn("solve_system!: Determinant of coefficients matrix is NaN")
             U1 .= NaN
             warn("solve_system!: $err")
             return failure("solve!: $err")
@@ -540,9 +541,7 @@ function solve!(
             T += ΔT
             env.T = T
             
-            update_single_loggers!(dom)
-            update_monitors!(dom)
-
+            
             # Check for saving output file
             if T>Tcheck-Ttol && save_outs
                 env.cout += 1
@@ -555,6 +554,12 @@ function solve!(
                 save(dom, "$outdir/$outkey-$iout.vtu", printlog=false)
                 Tcheck += ΔTcheck # find the next output time
             end
+
+            update_single_loggers!(dom)
+            if failed(update_monitors!(dom))
+                break
+            end
+
 
             if autoinc
                 if ΔTbk>0.0
@@ -609,6 +614,10 @@ function solve!(
 
     update_status_line(dom, sw, inc, T, ΔT, verbosity, false)
     getlapse(sw)>60 && sound_alert()
+
+    if verbosity>=1
+        println(solstatus.message)
+    end
 
     return solstatus
 end

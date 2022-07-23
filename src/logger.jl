@@ -159,6 +159,7 @@ mutable struct EdgeLogger<:FacetLogger
 end
 
 FacesSumLogger = FaceLogger
+SurfaceLogger = FaceLogger
 EdgesSumLogger = EdgeLogger
 
 export FacesSumLogger, EdgesSumLogger, NodesSumLogger
