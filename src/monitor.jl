@@ -39,7 +39,7 @@ end
 
 
 function update_monitor!(monitor::IpMonitor, domain)
-    isdefined(monitor, :ip) || return
+    isdefined(monitor, :ip) || return success()
 
     state       = ip_vals(monitor.ip)
     monitor.val = eval_arith_expr(monitor.expr; state...)
@@ -121,7 +121,7 @@ end
 
 
 function update_monitor!(monitor::NodeMonitor, domain)
-    isdefined(monitor, :node) || return
+    isdefined(monitor, :node) || return success()
 
     for expr in monitor.expr.args
         state = node_vals(monitor.node) 
@@ -172,7 +172,7 @@ end
 
 
 function update_monitor!(monitor::IpGroupMonitor, domain)
-    length(monitor.ips) == 0 && return
+    length(monitor.ips) == 0 && return success()
 
     for expr in monitor.expr.args
         vals = []
@@ -257,7 +257,7 @@ end
 
 
 function update_monitor!(monitor::NodeSumMonitor, domain)
-    length(monitor.nodes) == 0 && return
+    length(monitor.nodes) == 0 && return success()
 
     tableU = DataTable()
     tableF = DataTable()

@@ -82,7 +82,7 @@ end
 Generates a 3D mesh by extruding a planar `mesh` using 
 a direction `axis`, a `length` and a number of divisions `n`.
 """
-function extrude(mesh::Mesh; axis=[0,0,1], length::Number=1.0, n::Int=1, printlog=false)
+function extrude(mesh::Mesh; axis=[0,0,1], length::Number=1.0, n::Int=1, printlog=false, lagrangian=false)
     if axis==:x
         axis = Vec3(1,0,0)
     elseif axis==:y
@@ -112,6 +112,15 @@ function extrude(mesh::Mesh; axis=[0,0,1], length::Number=1.0, n::Int=1, printlo
                 ls = [l, l+Δl/2, l+Δl]
                 nidx = [1,2,2,1,3,2,3,1]
                 lidx = [1,1,3,3,1,2,3,2]
+                if lagrangian
+                    push!(nidx, 3)
+                    push!(lidx, 2)
+                end
+            elseif cell.shape==LIN4
+                newshape = QUAD8
+                ls = [l, l+Δl*1/3, l+Δl*2/3, l+Δl]
+                nidx = [1,2,2,1,3,4,2,2,4,3,1,1]
+                lidx = [1,1,4,4,1,1,2,3,4,4,3,2]
             elseif cell.shape==TRI3
                 newshape = WED6
                 ls = [l, l+Δl]
