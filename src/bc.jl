@@ -150,6 +150,8 @@ mutable struct BodyC<:BC
     end
 end
 
+ElemBC = BodyC
+
 
 function setup_bc!(dom, filter, bc::BodyC)
     isa(filter, Int) && (filter = [filter])
