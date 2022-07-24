@@ -14,7 +14,8 @@ function revolve(mesh::Mesh;
                  maxangle::Real = 360,
                  angle::Real = NaN,
                  n::Int=8,
-                 collapse::Bool=true
+                 collapse::Bool=true,
+                 lagrangian::Bool = false
                 )
     @assert length(axis)==3
     @assert length(base)==3
@@ -62,25 +63,30 @@ function revolve(mesh::Mesh;
             if cell.shape==LIN2
                 newshape = QUAD4
                 n1, n2 = cell.nodes
-                nnodes = length(cell.nodes)
-
                 for (n, R) in zip([n1, n2, n2, n1], [Rend, Rend, Rini, Rini])
                     coord = base + R*(n.coord-base)*conj(R)
                     push!(nodes, Node(coord))
                 end
             elseif cell.shape==LIN3
-                newshape = QUAD8
                 n1, n2, n3 = cell.nodes
-                nnodes = length(cell.nodes)
+                newnodes  = [n1, n2, n2, n1, n3, n2, n3, n1]
+                angles = [Rend, Rend, Rini, Rini, Rend, Rhalf, Rini, Rhalf]
 
-                for (n, R) in zip([n1, n2, n2, n1, n3, n2, n3, n1], [Rend, Rend, Rini, Rini, Rend, Rhalf, Rini, Rhalf])
+                if lagrangian
+                    newshape = QUAD9
+                    push!(newnodes, n3)
+                    push!(angles, Rhalf)
+                else
+                    newshape = QUAD8
+                end
+
+                for (n, R) in zip(newnodes, angles)
                     coord = base + R*(n.coord-base)*conj(R)
                     push!(nodes, Node(coord))
                 end
             elseif cell.shape==LIN4
                 newshape = QUAD12
                 n1, n2, n3, n4 = cell.nodes
-                nnodes = length(cell.nodes)
                 θ13 = θ + 1/3*Δθ
                 θ23 = θ + 2/3*Δθ
                 R13 = Quaternion(cos(θ13/2), axis[1]*sin(θ13/2), axis[2]*sin(θ13/2), axis[3]*sin(θ13/2))
