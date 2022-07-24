@@ -145,6 +145,61 @@ function distributed_bc(elem::MechShell, facet::Cell, key::Symbol, val::Union{Re
 end
 
 
+function mech_shell_body_forces(elem::Element, key::Symbol, val::Union{Real,Symbol,Expr})
+    ndim  = elem.env.ndim
+    th    = elem.mat.th
+    suitable_keys = (:tx, :ty, :tz, :tn)
+
+    # Check keys
+    key in suitable_keys || error("mech_shell_body_forces: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
+
+    nodes  = elem.nodes
+    nnodes = length(nodes)
+    t      = elem.env.t
+
+    C = getcoords(nodes, ndim)
+    Q = zeros(ndim) # Vector with values to apply
+    F     = zeros(nnodes, ndim) # Nodal values
+    shape = elem.shape
+    ips   = get_ip_coords(shape)
+
+    for i=1:size(ips,1)
+        R = vec(ips[i,:])
+        w = R[end]
+        N = shape.func(R)
+        D = shape.deriv(R)
+        J = C'*D
+        X = C'*N
+
+        x, y, z = X
+        vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
+        if key == :tx
+            Q = [vip, 0.0, 0.0]
+        elseif key == :ty
+            Q = [0.0, vip, 0.0]
+        elseif key == :tz
+            Q = [0.0, 0.0, vip]
+        elseif key == :tn
+            n = cross(J[:,1], J[:,2])
+            Q = vip*normalize(n)
+        end
+
+        coef = norm2(J)*w*th
+        @gemm F += coef*N*Q' # F is a matrix
+    end
+
+    # generate a map
+    keys = (:ux, :uy, :uz)
+    map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
+
+    return reshape(F', nnodes*ndim), map
+end
+
+function body_c(elem::MechShell, key::Symbol, val::Union{Real,Symbol,Expr})
+    return mech_shell_body_forces(elem, key, val)
+end
+
+
 function elem_config_dofs(elem::MechShell)
     ndim = elem.env.ndim
     ndim in (1,2) && error("MechShell: Shell elements do not work in $(ndim)d analyses")

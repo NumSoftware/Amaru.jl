@@ -51,17 +51,17 @@ matching_shape_family(::Type{MechSolid}) = SOLID_CELL
 # end
 
 # Distributed natural boundary conditions for faces and edges
-function mech_boundary_forces(elem::Element, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
+function mech_solid_boundary_forces(elem::Element, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     suitable_keys = (:qx, :qy, :qz, :qn, :tx, :ty, :tz, :tn)
     isedgebc = key in (:qx, :qy, :qz, :qn) 
     
     # Check keys
-    key in suitable_keys || error("mech_boundary_forces: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
-    key in (:tz,:qz) && ndim==2 && error("mech_boundary_forces: boundary condition $key is not applicable in a 2D analysis")
-    isedgebc && elem.env.modeltype=="axisymmetric" && error("mech_boundary_forces: boundary condition $key is not applicable in a axisymmetric analysis")
-    isedgebc && facet.shape.ndim==2 && error("mech_boundary_forces: boundary condition $key is not applicable on surfaces")
-    !isedgebc && facet.shape.ndim==1 && ndim==3 && error("mech_boundary_forces: boundary condition $key is not applicable on 3D edges")
+    key in suitable_keys || error("mech_solid_boundary_forces: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
+    key in (:tz,:qz) && ndim==2 && error("mech_solid_boundary_forces: boundary condition $key is not applicable in a 2D analysis")
+    isedgebc && elem.env.modeltype=="axisymmetric" && error("mech_solid_boundary_forces: boundary condition $key is not applicable in a axisymmetric analysis")
+    isedgebc && facet.shape.ndim==2 && error("mech_solid_boundary_forces: boundary condition $key is not applicable on surfaces")
+    !isedgebc && facet.shape.ndim==1 && ndim==3 && error("mech_solid_boundary_forces: boundary condition $key is not applicable on 3D edges")
 
     th     = isedgebc ? 1.0 : elem.env.thickness
     nodes  = facet.nodes
@@ -126,7 +126,7 @@ end
 
 
 function distributed_bc(elem::MechSolid, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
-    return mech_boundary_forces(elem, facet, key, val)
+    return mech_solid_boundary_forces(elem, facet, key, val)
 end
 
 
