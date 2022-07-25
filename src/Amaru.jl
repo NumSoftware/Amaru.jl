@@ -15,7 +15,6 @@ Node, Element, Domain, Dof, Ip, NodeBC, SurfaceBC
 module Amaru
 using Printf, StatsBase, Statistics, LinearAlgebra, SparseArrays, DelimitedFiles, Arpack
 using DataStructures, Glob, DocStringExtensions
-using Distributed
 import DataStructures.OrderedDict, DataStructures.OrderedSet
 
 
