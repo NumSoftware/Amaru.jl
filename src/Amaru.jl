@@ -18,23 +18,6 @@ using DataStructures, Glob, DocStringExtensions
 import DataStructures.OrderedDict, DataStructures.OrderedSet
 
 
-function bb()
-    println("id: ", myid())
-end
-
-function aa()
-    println("nprocs: ", nprocs())
- 
-    eval(macroexpand(Main, quote @everywhere using Amaru end))
-    eval(macroexpand(Main, quote import Amaru.bb end))
-    # println("id: ", myid())
-
-    @everywhere bb()
-end
-
-
-
-
 # Debug
 mutable struct ConfigFlags
     debug::Bool
