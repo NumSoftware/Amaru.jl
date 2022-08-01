@@ -182,7 +182,7 @@ function Domain(
 
     # Check if all elements have material defined
     undefined_elem_shapes = Set{String}()
-    for i=1:ncells
+    for i in 1:ncells
         if !isassigned(dom.elems, i)
             push!(undefined_elem_shapes, mesh.elems[i].shape.name)
         end
@@ -378,7 +378,7 @@ function Domain(elems::Array{<:Element,1})
 
     # Copying states
     for (newelem, elem) in zip(domain.elems, elems)
-        for i=1:length(elem.ips)
+        for i in 1:length(elem.ips)
             copyto!(newelem.ips[i].state, elem.ips[i].state)
         end
     end
@@ -585,8 +585,8 @@ function nodal_patch_recovery(dom::Domain)
     end
 
     # generate patches for solid elements
-    patches     = [ Element[] for i=1:nnodes ] # internal patches
-    bry_patches = [ Element[] for i=1:nnodes ] # boundary patches
+    patches     = [ Element[] for i in 1:nnodes ] # internal patches
+    bry_patches = [ Element[] for i in 1:nnodes ] # boundary patches
     for elem in dom.elems
         elem.shape.family != SOLID_CELL && continue
         for node in elem.nodes[1:elem.shape.basic_shape.npoints] # only at corners

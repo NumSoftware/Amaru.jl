@@ -4,9 +4,9 @@
 
 export ElasticPlateRM
 
-mutable struct ElasticPlateRMIpState<:IpState
+mutable struct ElasticPlateRMState<:IpState
     env::ModelEnv
-    function ElasticPlateRMIpState(env::ModelEnv=ModelEnv())
+    function ElasticPlateRMState(env::ModelEnv=ModelEnv())
         return new(env)
     end
 end
@@ -32,8 +32,8 @@ end
 matching_elem_type(::ElasticPlateRM) = PlateRM
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticPlateRM) = ElasticPlateRMIpState
+ip_state_type(mat::ElasticPlateRM) = ElasticPlateRMState
 
-function ip_state_vals(mat::ElasticPlateRM, ipd::ElasticPlateRMIpState)
+function ip_state_vals(mat::ElasticPlateRM, ipd::ElasticPlateRMState)
     return OrderedDict{Symbol, Float64}()
 end

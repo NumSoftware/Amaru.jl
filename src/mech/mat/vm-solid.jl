@@ -51,7 +51,7 @@ mutable struct VonMises<:Material
 end
 
 """
-    DruckerPragerIpState
+    DruckerPragerState
 
 A type for the state data of a `DruckerPrager` type.
 
@@ -59,7 +59,7 @@ A type for the state data of a `DruckerPrager` type.
 
 $(TYPEDFIELDS)
 """
-mutable struct VonMisesIpState<:IpState
+mutable struct VonMisesState<:IpState
     "Environment information"
     env::ModelEnv
     "Stress tensor"
@@ -70,7 +70,7 @@ mutable struct VonMisesIpState<:IpState
     εpa::Float64
     "Plastic multiplier"
     Δγ::Float64
-    function VonMisesIpState(env::ModelEnv=ModelEnv())
+    function VonMisesState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ   = zeros(6)
         this.ε   = zeros(6)
@@ -81,9 +81,9 @@ mutable struct VonMisesIpState<:IpState
 end
 
 matching_elem_type(::VonMises) = MechSolid
-ip_state_type(mat::VonMises) = VonMisesIpState
+ip_state_type(mat::VonMises) = VonMisesState
 
-function yield_func(mat::VonMises, ipd::VonMisesIpState, σ::Tensor2)
+function yield_func(mat::VonMises, ipd::VonMisesState, σ::Tensor2)
     j1  = J1(σ)
     j2d = J2D(σ)
     σy  = mat.σy
@@ -92,7 +92,7 @@ function yield_func(mat::VonMises, ipd::VonMisesIpState, σ::Tensor2)
     return √(3*j2d) - σy - H*εpa
 end
 
-function calcD(mat::VonMises, ipd::VonMisesIpState)
+function calcD(mat::VonMises, ipd::VonMisesState)
     σy = mat.σy
     H  = mat.H
     #De = mat.De
@@ -112,7 +112,7 @@ function calcD(mat::VonMises, ipd::VonMisesIpState)
     return De - inner(De,Nu) ⊗ inner(V,De) / (inner(V,De,Nu) + H)
 end
 
-function stress_update(mat::VonMises, ipd::VonMisesIpState, Δε::Array{Float64,1})
+function stress_update(mat::VonMises, ipd::VonMisesState, Δε::Array{Float64,1})
     σini = ipd.σ
     De   = calcDe(mat.E, mat.ν, ipd.env.modeltype)
     σtr  = ipd.σ + inner(De, Δε)
@@ -144,7 +144,7 @@ function stress_update(mat::VonMises, ipd::VonMisesIpState, Δε::Array{Float64,
     return Δσ, success()
 end
 
-function ip_state_vals(mat::VonMises, ipd::VonMisesIpState)
+function ip_state_vals(mat::VonMises, ipd::VonMisesState)
     ndim  = ipd.env.ndim
     σ, ε  = ipd.σ, ipd.ε
     j1    = tr(σ)

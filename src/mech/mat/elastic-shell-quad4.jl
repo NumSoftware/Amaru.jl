@@ -2,10 +2,10 @@
 
 export ElasticShellQUAD4
 
-mutable struct ElasticShellQuad4IpState<:IpState
+mutable struct ElasticShellQuad4State<:IpState
     env::ModelEnv
     σ::Array{Float64,1}
-    function ElasticShellQuad4IpState(env::ModelEnv=ModelEnv())
+    function ElasticShellQuad4State(env::ModelEnv=ModelEnv())
         σ = zeros(5)
         return new(env, σ)
     end
@@ -32,8 +32,8 @@ end
 matching_elem_type(::ElasticShellQUAD4) = ShellQUAD4
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticShellQUAD4) = ElasticShellQuad4IpState
+ip_state_type(mat::ElasticShellQUAD4) = ElasticShellQuad4State
 
-function ip_state_vals(mat::ElasticShellQUAD4, ipd::ElasticShellQuad4IpState)
+function ip_state_vals(mat::ElasticShellQUAD4, ipd::ElasticShellQuad4State)
     return OrderedDict{Symbol, Float64}()
 end

@@ -2,9 +2,9 @@
 
 export ElasticPlateMZC
 
-mutable struct ElasticPlateMZCIpState<:IpState
+mutable struct ElasticPlateMZCState<:IpState
     env::ModelEnv
-    function ElasticPlateMZCIpState(env::ModelEnv=ModelEnv())
+    function ElasticPlateMZCState(env::ModelEnv=ModelEnv())
         return new(env)
     end
 end
@@ -31,8 +31,8 @@ end
 matching_elem_type(::ElasticPlateMZC) = PlateMZC
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticPlateMZC) = ElasticPlateMZCIpState
+ip_state_type(mat::ElasticPlateMZC) = ElasticPlateMZCState
 
-function ip_state_vals(mat::ElasticPlateMZC, ipd::ElasticPlateMZCIpState)
+function ip_state_vals(mat::ElasticPlateMZC, ipd::ElasticPlateMZCState)
     return OrderedDict{Symbol, Float64}()
 end

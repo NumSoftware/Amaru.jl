@@ -11,7 +11,7 @@ for shape in ALL_ISO_SHAPES
 
     # calculate nodal values using a linear scalar function
     V = zeros(n)
-    for i=1:n
+    for i in 1:n
         x, y, z = [C[i,:]; 0.0; 0.0]
         V[i] = x+y+z+1.0
     end
@@ -28,7 +28,7 @@ for shape in ALL_ISO_SHAPES
         # Calculate values at ips
         print("  nip = ", nip)
         P = zeros(nip)
-        for i=1:nip
+        for i in 1:nip
             x, y, z = [ Cip[i,:]; 0.0; 0.0 ]
             P[i] = x+y+z+1.0
         end

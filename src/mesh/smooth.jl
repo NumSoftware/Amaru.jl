@@ -211,7 +211,7 @@ function matrixK(cell::Cell, ndim::Int64, E::Float64, nu::Float64)
     IP = get_ip_coords(cell.shape)
     D = matrixD(E, nu)
 
-    for i=1:size(IP,1)
+    for i in 1:size(IP,1)
         R    = vec(IP[i,1:3])
         w    = IP[i,4]
 
@@ -245,7 +245,7 @@ end
 #     IP = get_ip_coords(cell.shape)
 
 #     D = matrixD(E, nu)
-#     for i=1:size(IP,1)
+#     for i in 1:size(IP,1)
 #         R    = vec(IP[i,1:3])
 #         w    = IP[i,4]
 #         detJ = matrixB(cell, ndim, R, C, B)
@@ -263,7 +263,7 @@ function get_map(c::Cell)
 
     map = Int[]
     for p in c.nodes
-        for i=1:ndim
+        for i in 1:ndim
             push!(map, (p.id-1)*ndim + i)
         end
     end
@@ -281,8 +281,8 @@ function mountKg(mesh::Mesh, E::Float64, nu::Float64, A)
         Ke  = matrixK(c, ndim, E, nu)
         map = get_map(c)
         nr, nc = size(Ke)
-        for i=1:nr
-            for j=1:nc
+        for i in 1:nr
+            for j in 1:nc
                 push!(R, map[i])
                 push!(C, map[j])
                 push!(V, Ke[i,j])
@@ -429,8 +429,8 @@ function mountA(mesh::Mesh, fixed::Bool, conds, facetol)
         #A = zeros(n*ndim, length(mesh.nodes)*ndim)
         R, C, V = Int64[], Int64[], Float64[]
 
-        for i=1:n
-            for j=1:ndim
+        for i in 1:n
+            for j in 1:ndim
                 #A[ (i-1)*ndim+j, (border_nodes[i].node.id-1)*ndim+j ] = 1.0
                 push!(R, (i-1)*ndim+j )
                 push!(C, (border_nodes[i].node.id-1)*ndim+j )
@@ -450,8 +450,8 @@ function mountA(mesh::Mesh, fixed::Bool, conds, facetol)
             nnorm   = length(normals)
 
             if nnorm==1 || nnorm==2  # all faces in up to 2 planes
-                for i=1:nnorm
-                    for j=1:ndim
+                for i in 1:nnorm
+                    for j in 1:ndim
                         push!(R, baserow+1)
                         push!(C, basecol+j)
                         push!(V, normals[i][j])
@@ -460,7 +460,7 @@ function mountA(mesh::Mesh, fixed::Bool, conds, facetol)
                     baserow += 1
                 end
             else # zero or more than two non coplanar faces
-                for j=1:ndim
+                for j in 1:ndim
                     #A[ baserow+j, basecol+j ] = 1.0
                     push!(R, baserow+j)
                     push!(C, basecol+j)
@@ -621,7 +621,7 @@ function find_disps(mesh::Mesh, patches, extended, α, qmin, in_border)
         C = BC
 
         # align C with cell orientation
-        pindexes = [ i for i=1:np if in_border[ c.nodes[i].id] ]
+        pindexes = [ i for i in 1:np if in_border[ c.nodes[i].id] ]
         R, D = rigid_transform(C, C0, pindexes)
         C1 = C*R' .+ D
         U  = C1 - C0  # displacements matrix
@@ -677,7 +677,7 @@ function find_weighted_pos(mesh::Mesh, patches, extended, α, qmin, in_border)
         C = BC
 
         # align C with cell orientation
-        pindexes = [ i for i=1:np if in_border[ c.nodes[i].id] ]
+        pindexes = [ i for i in 1:np if in_border[ c.nodes[i].id] ]
         R, D = rigid_transform(C, C0, pindexes)
         C1 = C*R' .+ D
 
@@ -720,7 +720,7 @@ function str_histogram(hist::Array{Int64,1})
     m = maximum(hist)
     H = round.(Int, hist./m*7)
     chars = [" ","_","▁","▂","▃","▄","▅","▆","▇","█"]
-    return "["*join( hist[i]==0 ? " " : chars[H[i]+2] for i=1:length(H) )*"]"
+    return "["*join( hist[i]==0 ? " " : chars[H[i]+2] for i in 1:length(H) )*"]"
 end
 
 
@@ -794,7 +794,7 @@ function fast_smooth2!(mesh::Mesh; printlog=false, alpha::Float64=1.0, target::F
 
 
     
-    for i=1:maxit
+    for i in 1:maxit
 
         sw = StopWatch()
 
@@ -973,7 +973,7 @@ function fast_smooth!(mesh::Mesh; printlog=false, alpha::Float64=1.0, target::Fl
     mesh.elem_data["quality"] = Q
     savesteps && save(mesh, "$filekey-0.vtk", printlog=true)
 
-    for i=1:maxit
+    for i in 1:maxit
 
         sw = StopWatch()
 
@@ -1137,7 +1137,7 @@ function fitting_smooth!(mesh::Mesh; printlog=false, alpha::Float64=1.0, target:
 
     nits = 0
 
-    for i=1:maxit
+    for i in 1:maxit
 
         #if i>2; extended=true end
         sw = StopWatch()
@@ -1336,7 +1336,7 @@ function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, printlog=false, fixed=fa
     printlog && println("  ", str_histogram(hist))
 
     # find center node and update node position
-    for i=1:maxit
+    for i in 1:maxit
         sw = StopWatch()
 
         for (node, patch, patch_nodes) in zip(nodes, patches, P)
@@ -1357,7 +1357,7 @@ function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, printlog=false, fixed=fa
             if weighted
                 Xcs = [ mean(getcoords(c,ndim),dims=1)[1:ndim] for c in patch ] # centroidal coordinates for each cell in patch
                 Vs  = [ c.extent for c in patch ] # areas or volumes
-                X = X0 + sum( Vs[j]*(Xcs[j]-X0) for j=1:length(patch) ) / sum(Vs)
+                X = X0 + sum( Vs[j]*(Xcs[j]-X0) for j in 1:length(patch) ) / sum(Vs)
             else # simplest Laplacian smoothing
                 X  = mean(getcoords(patch_nodes),dims=1)[1:ndim]
             end

@@ -48,8 +48,8 @@ function DataTable(header::Array, matrix::Array{T,2} where T; name="")
     nkeys = length(header)
     ncols = size(matrix,2)
     nkeys != ncols && error("DataTable: header and number of data columns do not match")
-    types = [ typeof(matrix[1,i]) for i=1:ncols ]
-    columns = AbstractVector[ convert(Array{types[i],1}, matrix[:,i]) for i=1:ncols ]
+    types = [ typeof(matrix[1,i]) for i in 1:ncols ]
+    columns = AbstractVector[ convert(Array{types[i],1}, matrix[:,i]) for i in 1:ncols ]
     return DataTable(header, columns, name=name)
 end
 
@@ -182,14 +182,14 @@ end
 
 function Base.getindex(table::DataTable, rowindex::Int)
     columns = getcolumns(table)
-    cols = [ [ columns[i][rowindex] ] for i=1:length(columns) ]
+    cols = [ [ columns[i][rowindex] ] for i in 1:length(columns) ]
 
     return DataTable(getheader(table), cols)
 end
 
 function Base.getindex(table::DataTable, idxs::Union{Colon,OrdinalRange{Int,Int},Array{Int,1},BitArray{1}})
     columns = getcolumns(table)
-    cols = [ columns[i][idxs] for i=1:length(columns) ]
+    cols = [ columns[i][idxs] for i in 1:length(columns) ]
 
     return DataTable(getheader(table), cols)
 end
@@ -256,7 +256,7 @@ function Base.filter(table::DataTable, expr::Expr)
     vars   = Dict{Symbol, Float64}()
     nr     = nrows(table)
     idxs   = falses(nr)
-    for i=1:nr
+    for i in 1:nr
         for field in fields
             vars[field] = table[field][i]
         end
@@ -295,7 +295,7 @@ function compress!(table::DataTable, n::Int)
     nr<=n && return table[:]
 
     factor = (nr-1)/(n-1)
-    idxs   = [ round(Int, 1+factor*(i-1)) for i=1:n ]
+    idxs   = [ round(Int, 1+factor*(i-1)) for i in 1:n ]
 
     for i in 1:length(columns)
         columns[i] = columns[i][idxs]
@@ -365,7 +365,7 @@ end
 function cut!(table::DataTable, field, value=0.0; after=false)
     V   = table[field] .- value
     idx = 0
-    for i=2:length(V)
+    for i in 2:length(V)
         if V[i-1]*V[i] <= 0
             idx = i
             break
@@ -440,9 +440,9 @@ function denoise!(table::DataTable, fieldx, fieldy=nothing; noise=0.05, npatch=4
     # Regression along patches
     M  = ones(npatch,2)
     A  = zeros(2)
-    ΔY = [ Float64[] for i=1:nr ]
+    ΔY = [ Float64[] for i in 1:nr ]
 
-    for i=1:nr-npatch+1        
+    for i in 1:nr-npatch+1        
         rng = i:i+npatch-1
         Xp = X[rng]
         Yp = Y[rng]
@@ -528,8 +528,8 @@ function save(table::DataTable, filename::String; printlog=false, digits::Array=
         end
 
         # print values
-        for i=1:nr
-            for j=1:nc
+        for i in 1:nr
+            for j in 1:nc
                 item = columns[j][i]
                 if typeof(item)<:AbstractFloat
                     @printf(f, "%12.5e", item)
@@ -589,9 +589,9 @@ function save(table::DataTable, filename::String; printlog=false, digits::Array=
 
         # printing body
         println(f, indent^level, raw"\hline")
-        for i=1:nr
+        for i in 1:nr
             print(f, indent^level)
-            for j=1:nc
+            for j in 1:nc
                 etype = types[j]
                 item = columns[j][i]
                 width = widths[j]
@@ -713,14 +713,14 @@ function Base.show(io::IO, table::DataTable)
     half_vrows = div(visible_rows,2)
 
     # print values
-    for i=1:nr
+    for i in 1:nr
         if i>half_vrows && nr-i>=half_vrows
             i==half_vrows+1 && println(io, " ⋮")
             continue
         end
 
         print(io, " │ ")
-        for j=1:nc
+        for j in 1:nc
             etype = types[j]
             item = columns[j][i]
             if etype<:AbstractFloat

@@ -59,7 +59,7 @@ function setquadrature!(elem::CookShell, n::Int=0)
 
     resize!(elem.ips, 2*n)
     for k in 1:2
-        for i=1:n
+        for i in 1:n
             R = [ ip2d[i,1:2]; ip1d[k,1] ]
             w = ip2d[i,4]*ip1d[k,4]
             j = (k-1)*n + i

@@ -40,11 +40,11 @@ function _mountNN(elem::MechEmbRod)
     NN = zeros(ndim*n, ndim*m)
     Cs = getcoords(solid)
 
-    for j=1:m
+    for j in 1:m
         R = inverse_map(solid.shape, Cs, elem.nodes[j].coord)
         N = solid.shape.func(R)
-        for i=1:n
-            for k=1:ndim
+        for i in 1:n
+            for k in 1:ndim
                 NN[(i-1)*ndim+k, (j-1)*ndim+k] = N[i]
             end
         end
@@ -66,18 +66,6 @@ function elem_displacements(elem::MechEmbRod)
     nodemap = [ node.id for node in elem.nodes for key in keys ]
     dimmap  = [ i for node in elem.nodes for i in 1:ndim ]
 
-    # if elem.id>2700
-    #     @show elem.id
-    #     @show Ubulk
-    #     @show nodemap
-    #     @show dimmap
-    #     @show NN'*Ubulk
-
-    #     display(NN)
-
-    #     error()
-    # end
-
     return NN'*Ubulk, nodemap, dimmap
 end
 
@@ -98,7 +86,7 @@ function elem_stiffness(elem::MechEmbRod)
         # mount B
         B .= 0.0
         for i in 1:nnodes
-            for j=1:ndim
+            for j in 1:ndim
                 B[1,j+(i-1)*ndim] = dNdR[i,1]*J[j]/detJ^2.0
             end
         end
@@ -136,7 +124,7 @@ function elem_update!(elem::MechEmbRod, U::Array{Float64,1}, F::Array{Float64,1}
         # mount B
         B .= 0.0
         for i in 1:nnodes
-            for j=1:ndim
+            for j in 1:ndim
                 B[1,j+(i-1)*ndim] = dNdR[i,1]*J[j]/detJ^2.0
             end
         end

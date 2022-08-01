@@ -11,7 +11,7 @@ generate_joints!(msh, tag="joints")
 
 E = 27.e6
 
-for i=1:2
+for i in 1:2
 
     mats = [
         "solids" => ElasticSolid(E=E, nu=0.2),
@@ -46,7 +46,7 @@ for i=1:2
     if Amaru.config.makeplots
         using PyPlot
         table = log1.table
-        #plot(table[:upa], table[:s1])
+        #plot(table[:up], table[:s1])
         plot(table[:jw1], table[:js1])
     end
 end

@@ -204,7 +204,7 @@ function inverse_map(shape::CellShape, coords::Array{Float64,2}, X0::AbstractArr
     end
 
     k = 0
-    for k=1:maxits
+    for k in 1:maxits
         # calculate Jacobian
         D = shape.deriv(R)
         J = C'*D
@@ -280,7 +280,7 @@ function extrapolator(shape::CellShape, nips::Int)
 
     #filling N matrix with shape functions of all ips
     N = Array{Float64}(undef, nips, npoints)
-    for i=1:nips
+    for i in 1:nips
         N[i,:] = shape.func(vec(IP[i,:]))
     end
 

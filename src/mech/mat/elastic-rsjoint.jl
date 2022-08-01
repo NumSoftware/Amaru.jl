@@ -2,11 +2,11 @@
 
 export ElasticRSJoint
 
-mutable struct ElasticRSJointIpState<:IpState
+mutable struct ElasticRSJointState<:IpState
     env::ModelEnv
     σ ::Array{Float64,1}
     u ::Array{Float64,1}
-    function ElasticRSJointIpState(env::ModelEnv=ModelEnv())
+    function ElasticRSJointState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(env.ndim)
         this.u = zeros(env.ndim)
@@ -53,9 +53,9 @@ export ElasticJoint1D
 matching_elem_type(::ElasticRSJoint) = MechRodSolidJoint
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticRSJoint) = ElasticRSJointIpState
+ip_state_type(mat::ElasticRSJoint) = ElasticRSJointState
 
-function calcD(mat::ElasticRSJoint, ipd::ElasticRSJointIpState)
+function calcD(mat::ElasticRSJoint, ipd::ElasticRSJointState)
     ks = mat.ks
     kn = mat.kn
     if ipd.env.ndim==2
@@ -69,7 +69,7 @@ function calcD(mat::ElasticRSJoint, ipd::ElasticRSJointIpState)
 end
 
 
-function stress_update(mat::ElasticRSJoint, ipd::ElasticRSJointIpState, Δu)
+function stress_update(mat::ElasticRSJoint, ipd::ElasticRSJointState, Δu)
     D = calcD(mat, ipd)
     Δσ = D*Δu
 
@@ -78,7 +78,7 @@ function stress_update(mat::ElasticRSJoint, ipd::ElasticRSJointIpState, Δu)
     return Δσ, success()
 end
 
-function ip_state_vals(mat::ElasticRSJoint, ipd::ElasticRSJointIpState)
+function ip_state_vals(mat::ElasticRSJoint, ipd::ElasticRSJointState)
     return OrderedDict(
       :ur   => ipd.u[1] ,
       :tau  => ipd.σ[1] )

@@ -238,7 +238,7 @@ end
 # Get node coordinates for a collection of nodes as a matrix
 function getcoords(nodes::Array{Node,1}, ndim=3)
     nnodes = length(nodes)
-    [ nodes[i].coord[j] for i=1:nnodes, j=1:ndim]
+    [ nodes[i].coord[j] for i in 1:nnodes, j=1:ndim]
 end
 
 function setcoords!(nodes::Array{Node,1}, coords::AbstractArray{Float64,2})

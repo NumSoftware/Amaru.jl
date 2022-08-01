@@ -2,10 +2,10 @@
 
 export ElasticShellDegenerated
 
-mutable struct ElasticShellDegeneratedIpState<:IpState
+mutable struct ElasticShellDegeneratedState<:IpState
     env::ModelEnv
     σ::Array{Float64,1}
-    function ElasticShellDegeneratedIpState(env::ModelEnv=ModelEnv())
+    function ElasticShellDegeneratedState(env::ModelEnv=ModelEnv())
         σ = zeros(5)
         return new(env, σ)
     end
@@ -32,8 +32,8 @@ end
 matching_elem_type(::ElasticShellDegenerated) = ShellDegenerated
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticShellDegenerated) = ElasticShellDegeneratedIpState
+ip_state_type(mat::ElasticShellDegenerated) = ElasticShellDegeneratedState
 
-function ip_state_vals(mat::ElasticShellDegenerated, ipd::ElasticShellDegeneratedIpState)
+function ip_state_vals(mat::ElasticShellDegenerated, ipd::ElasticShellDegeneratedState)
     return OrderedDict{Symbol, Float64}()
 end

@@ -56,7 +56,7 @@ function distributed_bc(elem::ThermoSolid, facet::Union{Facet,Nothing}, key::Sym
     shape = target.shape
     ips   = get_ip_coords(shape)
 
-    for i=1:size(ips,1)
+    for i in 1:size(ips,1)
         R = vec(ips[i,:])
         w = R[end]
         N = shape.func(R)

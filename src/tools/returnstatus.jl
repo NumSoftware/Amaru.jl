@@ -9,5 +9,5 @@ end
 failed(rs::ReturnStatus)    = !rs.success
 succeeded(rs::ReturnStatus) =  rs.success
 
-failure(msg::String="")      = ReturnStatus(false, msg)
+failure(msg::String...)      = ReturnStatus(false, join(msg,"\n"))
 Base.success(msg::String="") = ReturnStatus(true, msg)

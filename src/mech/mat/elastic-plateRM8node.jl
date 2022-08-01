@@ -4,9 +4,9 @@
 
 export ElasticPlateRM8node
 
-mutable struct ElasticPlateRM8nodeIpState<:IpState
+mutable struct ElasticPlateRM8nodeState<:IpState
     env::ModelEnv
-    function ElasticPlateRM8nodeIpState(env::ModelEnv=ModelEnv())
+    function ElasticPlateRM8nodeState(env::ModelEnv=ModelEnv())
         return new(env)
     end
 end
@@ -32,8 +32,8 @@ end
 matching_elem_type(::ElasticPlateRM8node) = PlateRM8node
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticPlateRM8node) = ElasticPlateRM8nodeIpState
+ip_state_type(mat::ElasticPlateRM8node) = ElasticPlateRM8nodeState
 
-function ip_state_vals(mat::ElasticPlateRM8node, ipd::ElasticPlateRM8nodeIpState)
+function ip_state_vals(mat::ElasticPlateRM8node, ipd::ElasticPlateRM8nodeState)
     return OrderedDict{Symbol, Float64}()
 end

@@ -2,7 +2,7 @@
 
 export ElasticShell
 
-mutable struct ElasticShellIpState<:IpState
+mutable struct ElasticShellState<:IpState
     "Environment information"
     env::ModelEnv
     "Stress tensor"
@@ -10,7 +10,7 @@ mutable struct ElasticShellIpState<:IpState
     "Strain tensor"
     ε::Array{Float64,1} # in the local system
 
-    function ElasticShellIpState(env::ModelEnv=ModelEnv())
+    function ElasticShellState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
@@ -39,10 +39,10 @@ end
 matching_elem_type(::ElasticShell) = MechShell
 
 # Type of corresponding state structure
-ip_state_type(::ElasticShell) = ElasticShellIpState
+ip_state_type(::ElasticShell) = ElasticShellState
 
 
-function calcD(mat::ElasticShell, ipd::ElasticShellIpState)
+function calcD(mat::ElasticShell, ipd::ElasticShellState)
     E = mat.E
     ν = mat.nu
     c = E/(1.0-ν^2)
@@ -57,7 +57,7 @@ function calcD(mat::ElasticShell, ipd::ElasticShellIpState)
     # ezz = -ν/E*(sxx+syy)
 end
 
-function stress_update(mat::ElasticShell, ipd::ElasticShellIpState, dε::Array{Float64,1})
+function stress_update(mat::ElasticShell, ipd::ElasticShellState, dε::Array{Float64,1})
     D = calcD(mat, ipd)
     dσ = D*dε
     ipd.ε += dε
@@ -65,6 +65,6 @@ function stress_update(mat::ElasticShell, ipd::ElasticShellIpState, dε::Array{F
     return dσ, success()
 end
 
-function ip_state_vals(mat::ElasticShell, ipd::ElasticShellIpState)
+function ip_state_vals(mat::ElasticShell, ipd::ElasticShellState)
     return stress_strain_dict(ipd.σ, ipd.ε, ipd.env.modeltype)
 end

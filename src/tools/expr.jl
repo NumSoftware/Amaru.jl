@@ -64,7 +64,7 @@ function reduce_arith_expr!(expr::Expr; vars...)
     elseif expr.head == :||
         return expr.args[1] || expr.args[2]
     elseif expr.head == :comparison
-        for i=2:2:length(expr.args)
+        for i in 2:2:length(expr.args)
             op = op_dict[expr.args[i]]
             op(expr.args[i-1], expr.args[i+1]) || return false
         end
@@ -88,6 +88,9 @@ Returns the result of the arithmetic expression `expr` using values defined in `
 
 
 function get_vars(sym::Symbol)
+    if sym in ( :<, :<=, :>, >= )
+        return []
+    end
     return [ sym ]
 end
 

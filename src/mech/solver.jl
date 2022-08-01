@@ -15,11 +15,13 @@ function mount_K(dom::Domain,
         Ke, rmap, cmap = elem_stiffness(elem)
 
         nr, nc = size(Ke)
-        for i=1:nr
-            for j=1:nc
+        for i in 1:nr
+            for j in 1:nc
+                val = Ke[i,j]
+                val == 0.0 && continue
                 push!(R, rmap[i])
                 push!(C, cmap[j])
-                push!(V, Ke[i,j])
+                push!(V, val)
             end
         end
     end
@@ -30,8 +32,6 @@ function mount_K(dom::Domain,
     catch err
         @show err
     end
-
-    dropzeros!(K)
 
     return K
 end
@@ -46,9 +46,9 @@ function mount_K_threads(
     verbosity>1 && print("    assembling... \e[K \r")
 
     nelems = length(dom._active_elems)
-    Rs = Array{Int64,1}[ [] for i=1:nelems  ]
-    Cs = Array{Int64,1}[ [] for i=1:nelems  ]
-    Vs = Array{Float64,1}[ [] for i=1:nelems  ]
+    Rs = Array{Int64,1}[ [] for i in 1:nelems  ]
+    Cs = Array{Int64,1}[ [] for i in 1:nelems  ]
+    Vs = Array{Float64,1}[ [] for i in 1:nelems  ]
 
     let Rs=Rs, Cs=Cs, Vs=Vs, dom=dom
 
@@ -58,8 +58,8 @@ function mount_K_threads(
             #IDs[elem.id] = Threads.threadid()
 
             nr, nc = size(Ke)
-            for i=1:nr
-                for j=1:nc
+            for i in 1:nr
+                for j in 1:nc
                     push!(Rs[elem.id], rmap[i])
                     push!(Cs[elem.id], cmap[j])
                     push!(Vs[elem.id], Ke[i,j])
@@ -556,9 +556,9 @@ function solve!(
             end
 
             update_single_loggers!(dom)
-            if failed(update_monitors!(dom))
-                break
-            end
+            # if failed(update_monitors!(dom))
+                # break
+            # end
 
 
             if autoinc
@@ -587,6 +587,8 @@ function solve!(
             # Restore counters
             inc -= 1
             env.cinc -= 1
+
+            copyto!.(StateBk, State)
 
             if autoinc
                 verbosity>1 && notify("increment failed", level=3)

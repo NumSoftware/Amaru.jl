@@ -2,11 +2,11 @@
 
 export LinPress
 
-mutable struct LinPressIpState<:IpState
+mutable struct LinPressState<:IpState
     env::ModelEnv
     V  ::Array{Float64,1} # fluid velocity
     up ::Float64          # pressure
-    function LinPressIpState(env::ModelEnv=ModelEnv())
+    function LinPressState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.V  = zeros(env.ndim)
         this.up = 0.0
@@ -38,11 +38,11 @@ end
 matching_elem_type(::LinPress) = PressSolid
 
 # Type of corresponding state structure
-ip_state_type(mat::LinPress) = LinPressIpState
+ip_state_type(mat::LinPress) = LinPressState
 
 
 
-function update_state!(mat::LinPress, ipd::LinPressIpState, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
+function update_state!(mat::LinPress, ipd::LinPressState, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
     K = calcK(mat, ipd)
     ipd.V   = -K*G
     ipd.D  += ipd.V*Δt
@@ -51,7 +51,7 @@ function update_state!(mat::LinPress, ipd::LinPressIpState, Δuw::Float64, G::Ar
 end
 
 
-function ip_state_vals(mat::LinPress, ipd::LinPressIpState)
+function ip_state_vals(mat::LinPress, ipd::LinPressState)
     D = OrderedDict{Symbol, Float64}()
     D[:up] = ipd.up
     D[:vx] = ipd.V[1]

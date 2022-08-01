@@ -2,19 +2,19 @@
 
 export MMCJoint
 
-mutable struct MMCJointIpState<:IpState
+mutable struct MMCJointState<:IpState
     env::ModelEnv
     σ  ::Array{Float64,1} # stress
     w  ::Array{Float64,1} # relative displacements
-    upa::Float64          # effective plastic relative displacement
+    up::Float64          # effective plastic relative displacement
     Δλ ::Float64          # plastic multiplier
     h  ::Float64          # characteristic length from bulk elements
-    function MMCJointIpState(env::ModelEnv=ModelEnv())
+    function MMCJointState(env::ModelEnv=ModelEnv())
         this = new(env)
         ndim = env.ndim
         this.σ = zeros(ndim)
         this.w = zeros(ndim)
-        this.upa = 0.0
+        this.up = 0.0
         this.Δλ  = 0.0
         this.h  = 0.0
         return this
@@ -79,10 +79,10 @@ end
 matching_elem_type(::MMCJoint) = MechJoint
 
 # Type of corresponding state structure
-ip_state_type(mat::MMCJoint) = MMCJointIpState
+ip_state_type(mat::MMCJoint) = MMCJointState
 
 
-function yield_func(mat::MMCJoint, ipd::MMCJointIpState, σ::Array{Float64,1}, σmax::Float64)
+function yield_func(mat::MMCJoint, ipd::MMCJointState, σ::Array{Float64,1}, σmax::Float64)
     ft, α, β = mat.ft, mat.α, mat.β
 
     if ipd.env.ndim == 3
@@ -93,7 +93,7 @@ function yield_func(mat::MMCJoint, ipd::MMCJointIpState, σ::Array{Float64,1}, �
 end
 
 
-function yield_derivs(mat::MMCJoint, ipd::MMCJointIpState, σ::Array{Float64,1})
+function yield_derivs(mat::MMCJoint, ipd::MMCJointState, σ::Array{Float64,1})
     ft, α, β = mat.ft, mat.α, mat.β
 
     if ipd.env.ndim == 3
@@ -106,7 +106,7 @@ function yield_derivs(mat::MMCJoint, ipd::MMCJointIpState, σ::Array{Float64,1})
 end
 
 
-function potential_derivs(mat::MMCJoint, ipd::MMCJointIpState, σ::Array{Float64,1})
+function potential_derivs(mat::MMCJoint, ipd::MMCJointState, σ::Array{Float64,1})
     ndim = ipd.env.ndim
     if ndim == 3
         if σ[1] > 0.0 
@@ -129,33 +129,33 @@ function potential_derivs(mat::MMCJoint, ipd::MMCJointIpState, σ::Array{Float64
 end
 
 
-function calc_σmax(mat::MMCJoint, ipd::MMCJointIpState, upa::Float64)
+function calc_σmax(mat::MMCJoint, ipd::MMCJointState, up::Float64)
     if mat.softcurve == "linear"
-        if upa < mat.wc
+        if up < mat.wc
             a = mat.ft 
             b = mat.ft /mat.wc
         else
             a = 0.0
             b = 0.0
         end
-        σmax = a - b*upa
+        σmax = a - b*up
     elseif mat.softcurve == "bilinear"
         σs = 0.25*mat.ft 
-        if upa < mat.ws
+        if up < mat.ws
             a  = mat.ft  
             b  = (mat.ft  - σs)/mat.ws
-        elseif upa < mat.wc
+        elseif up < mat.wc
             a  = mat.wc*σs/(mat.wc-mat.ws)
             b  = σs/(mat.wc-mat.ws)
         else
             a = 0.0
             b = 0.0
         end
-        σmax = a - b*upa
+        σmax = a - b*up
     elseif mat.softcurve == "hordijk"
-        if upa < mat.wc
+        if up < mat.wc
             e = exp(1.0)
-            z = (1 + 27*(upa/mat.wc)^3)*e^(-6.93*upa/mat.wc) - 28*(upa/mat.wc)*e^(-6.93)
+            z = (1 + 27*(up/mat.wc)^3)*e^(-6.93*up/mat.wc) - 28*(up/mat.wc)*e^(-6.93)
         else
             z = 0.0
         end
@@ -168,10 +168,10 @@ function calc_σmax(mat::MMCJoint, ipd::MMCJointIpState, upa::Float64)
 end
 
 
-function deriv_σmax_upa(mat::MMCJoint, ipd::MMCJointIpState, upa::Float64)
-    # ∂σmax/∂upa = dσmax
+function deriv_σmax_upa(mat::MMCJoint, ipd::MMCJointState, up::Float64)
+    # ∂σmax/∂up = dσmax
     if mat.softcurve == "linear"
-        if upa < mat.wc
+        if up < mat.wc
             b = mat.ft /mat.wc
         else
             b = 0.0
@@ -179,18 +179,18 @@ function deriv_σmax_upa(mat::MMCJoint, ipd::MMCJointIpState, upa::Float64)
         dσmax = -b
     elseif mat.softcurve == "bilinear"
         σs = 0.25*mat.ft 
-        if upa < mat.ws
+        if up < mat.ws
             b  = (mat.ft  - σs)/mat.ws
-        elseif upa < mat.wc
+        elseif up < mat.wc
             b  = σs/(mat.wc-mat.ws)
         else
             b = 0.0
         end
         dσmax = -b
     elseif mat.softcurve == "hordijk"
-        if upa < mat.wc
+        if up < mat.wc
             e = exp(1.0)
-            dz = ((81*upa^2*e^(-6.93*upa/mat.wc)/mat.wc^3) - (6.93*(1 + 27*upa^3/mat.wc^3)*e^(-6.93*upa/mat.wc)/mat.wc) - 0.02738402432/mat.wc)
+            dz = ((81*up^2*e^(-6.93*up/mat.wc)/mat.wc^3) - (6.93*(1 + 27*up^3/mat.wc^3)*e^(-6.93*up/mat.wc)/mat.wc) - 0.02738402432/mat.wc)
         else
             dz = 0.0
         end
@@ -201,7 +201,7 @@ function deriv_σmax_upa(mat::MMCJoint, ipd::MMCJointIpState, upa::Float64)
 end
 
 
-function calc_kn_ks(mat::MMCJoint, ipd::MMCJointIpState)
+function calc_kn_ks(mat::MMCJoint, ipd::MMCJointState)
     kn = mat.E*mat.ζ/ipd.h
     G  = mat.E/(2.0*(1.0+mat.ν))
     ks = G*mat.ζ/ipd.h
@@ -210,12 +210,12 @@ function calc_kn_ks(mat::MMCJoint, ipd::MMCJointIpState)
 end
 
 
-function calc_Δλ(mat::MMCJoint, ipd::MMCJointIpState, σtr::Array{Float64,1})
+function calc_Δλ(mat::MMCJoint, ipd::MMCJointState, σtr::Array{Float64,1})
     ndim = ipd.env.ndim
     maxits = 20
     Δλ     = 0.0
     f      = 0.0
-    upa    = 0.0
+    up    = 0.0
     tol    = 1e-4
     nits = 0
 
@@ -246,13 +246,13 @@ function calc_Δλ(mat::MMCJoint, ipd::MMCJointIpState, σtr::Array{Float64,1})
                  
         r      = potential_derivs(mat, ipd, σ)
         norm_r = norm(r)
-        upa    = ipd.upa + Δλ*norm_r
-        σmax   = calc_σmax(mat, ipd, upa)
+        up    = ipd.up + Δλ*norm_r
+        σmax   = calc_σmax(mat, ipd, up)
 
         f = yield_func(mat, ipd, σ, σmax)
         dfdσ = yield_derivs(mat, ipd, σ)
 
-        m = deriv_σmax_upa(mat, ipd, upa)
+        m = deriv_σmax_upa(mat, ipd, up)
         dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
         dfdσmax = -1
         dfdΔλ = dot(dfdσ, dσdΔλ) + dfdσmax*dσmaxdΔλ
@@ -266,7 +266,7 @@ function calc_Δλ(mat::MMCJoint, ipd::MMCJointIpState, σtr::Array{Float64,1})
             # Increasing the mesh refinement may result in a nonsingular matrix.
             # """)
             # warn("iterations=$i Δλ=$Δλ")
-            return 0.0, failure()
+            return 0.0, failure("MMCJoint: Could nof find Δλ.")
         end
     end
     # @show nits
@@ -276,7 +276,7 @@ function calc_Δλ(mat::MMCJoint, ipd::MMCJointIpState, σtr::Array{Float64,1})
 end
 
 
-function calc_σ_upa(mat::MMCJoint, ipd::MMCJointIpState, σtr::Array{Float64,1})
+function calc_σ_upa(mat::MMCJoint, ipd::MMCJointState, σtr::Array{Float64,1})
     ndim = ipd.env.ndim
     kn, ks = calc_kn_ks(mat, ipd)
 
@@ -294,20 +294,20 @@ function calc_σ_upa(mat::MMCJoint, ipd::MMCJointIpState, σtr::Array{Float64,1}
         end    
     end
     r = potential_derivs(mat, ipd, ipd.σ)
-    ipd.upa += ipd.Δλ*norm(r)
-    return ipd.σ, ipd.upa
+    ipd.up += ipd.Δλ*norm(r)
+    return ipd.σ, ipd.up
 end
 
 
-function mountD(mat::MMCJoint, ipd::MMCJointIpState)
+function mountD(mat::MMCJoint, ipd::MMCJointState)
     ndim = ipd.env.ndim
     kn, ks = calc_kn_ks(mat, ipd)
-    σmax = calc_σmax(mat, ipd, ipd.upa)
+    σmax = calc_σmax(mat, ipd, ipd.up)
 
     De = diagm([kn, ks, ks][1:ndim])
     # @show σmax
-    # @show ipd.upa
-    # @show ipd.upa > mat.wc
+    # @show ipd.up
+    # @show ipd.up > mat.wc
 
     if ipd.Δλ == 0.0  # Elastic 
         # @show "ELASTIC De"
@@ -325,7 +325,7 @@ function mountD(mat::MMCJoint, ipd::MMCJointIpState)
         r = potential_derivs(mat, ipd, ipd.σ)
         v = yield_derivs(mat, ipd, ipd.σ)
         y = -1  # ∂F/∂σmax
-        m = deriv_σmax_upa(mat, ipd, ipd.upa)  # ∂σmax/∂upa
+        m = deriv_σmax_upa(mat, ipd, ipd.up)  # ∂σmax/∂up
 
         #Dep  = De - De*r*v'*De/(v'*De*r - y*m*norm(r))
 
@@ -364,14 +364,14 @@ function mountD(mat::MMCJoint, ipd::MMCJointIpState)
 end
 
 
-function stress_update(mat::MMCJoint, ipd::MMCJointIpState, Δw::Array{Float64,1})
+function stress_update(mat::MMCJoint, ipd::MMCJointState, Δw::Array{Float64,1})
 
     ndim = ipd.env.ndim
     σini = copy(ipd.σ)
 
     kn, ks = calc_kn_ks(mat, ipd)
     De = diagm([kn, ks, ks][1:ndim])
-    σmax = calc_σmax(mat, ipd, ipd.upa)  
+    σmax = calc_σmax(mat, ipd, ipd.up)  
     # @show σmax
 
     if isnan(Δw[1]) || isnan(Δw[2])
@@ -384,7 +384,7 @@ function stress_update(mat::MMCJoint, ipd::MMCJointIpState, Δw::Array{Float64,1
     Ftr  = yield_func(mat, ipd, σtr, σmax)
     # @show "stress update"
     # @show σmax
-    # @show ipd.upa
+    # @show ipd.up
     # @show Δw
     # @show ipd.σ
     # @show σtr
@@ -405,7 +405,7 @@ function stress_update(mat::MMCJoint, ipd::MMCJointIpState, Δw::Array{Float64,1
             ipd.Δλ = norm(r1)  
         end
 
-        ipd.upa += ipd.Δλ
+        ipd.up += ipd.Δλ
         ipd.σ = σtr - ipd.Δλ*De*r     
 
     elseif Ftr <= 0.0
@@ -421,7 +421,7 @@ function stress_update(mat::MMCJoint, ipd::MMCJointIpState, Δw::Array{Float64,1
         ipd.Δλ, status = calc_Δλ(mat, ipd, σtr)
         failed(status) && return ipd.σ, status
 
-        ipd.σ, ipd.upa = calc_σ_upa(mat, ipd, σtr)
+        ipd.σ, ipd.up = calc_σ_upa(mat, ipd, σtr)
 
         # @show ipd.Δλ
                       
@@ -436,7 +436,7 @@ function stress_update(mat::MMCJoint, ipd::MMCJointIpState, Δw::Array{Float64,1
 end
 
 
-function ip_state_vals(mat::MMCJoint, ipd::MMCJointIpState)
+function ip_state_vals(mat::MMCJoint, ipd::MMCJointState)
     ndim = ipd.env.ndim
     if ndim == 3
        return Dict(
@@ -446,7 +446,7 @@ function ip_state_vals(mat::MMCJoint, ipd::MMCJointIpState)
           :js1  => ipd.σ[1] ,
           :js2  => ipd.σ[2] ,
           :js3  => ipd.σ[3] ,
-          :jup => ipd.upa
+          :jup => ipd.up
           )
     else
         return Dict(
@@ -454,7 +454,7 @@ function ip_state_vals(mat::MMCJoint, ipd::MMCJointIpState)
           :jw2  => ipd.w[2] ,
           :js1  => ipd.σ[1] ,
           :js2  => ipd.σ[2] ,
-          :jup => ipd.upa
+          :jup => ipd.up
           )
     end
 end

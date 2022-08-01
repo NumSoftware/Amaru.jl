@@ -2,19 +2,19 @@
 
 export PJoint
 
-mutable struct PJointIpState<:IpState
+mutable struct PJointState<:IpState
     env::ModelEnv
     σ  ::Array{Float64,1} # stress
     w  ::Array{Float64,1} # relative displacements
-    upa::Float64          # effective plastic relative displacement
+    up::Float64          # effective plastic relative displacement
     Δλ ::Float64          # plastic multiplier
     h  ::Float64          # characteristic length from bulk elements
-    function PJointIpState(env::ModelEnv=ModelEnv())
+    function PJointState(env::ModelEnv=ModelEnv())
         this = new(env)
         ndim = env.ndim
         this.σ = zeros(ndim)
         this.w = zeros(ndim)
-        this.upa = 0.0
+        this.up = 0.0
         this.Δλ  = 0.0
         this.h  = 0.0
         return this
@@ -73,9 +73,9 @@ end
 matching_elem_type(::PJoint) = MechJoint
 
 # Type of corresponding state structure
-ip_state_type(mat::PJoint) = PJointIpState
+ip_state_type(mat::PJoint) = PJointState
 
-function yield_func(mat::PJoint, ipd::PJointIpState, σ::Array{Float64,1}, σmax::Float64)
+function yield_func(mat::PJoint, ipd::PJointState, σ::Array{Float64,1}, σmax::Float64)
     ndim = ipd.env.ndim
     fc, ft = mat.fc, mat.ft
 
@@ -90,7 +90,7 @@ function yield_func(mat::PJoint, ipd::PJointIpState, σ::Array{Float64,1}, σmax
 end
 
 
-function yield_derivs(mat::PJoint, ipd::PJointIpState, σ::Array{Float64,1}, σmax::Float64)
+function yield_derivs(mat::PJoint, ipd::PJointState, σ::Array{Float64,1}, σmax::Float64)
     ndim = ipd.env.ndim
     fc, ft = mat.fc, mat.ft
     βini = 2*ft - fc -2*√(ft^2 - fc*ft)
@@ -105,7 +105,7 @@ function yield_derivs(mat::PJoint, ipd::PJointIpState, σ::Array{Float64,1}, σm
 end
 
 
-function potential_derivs(mat::PJoint, ipd::PJointIpState, σ::Array{Float64,1})
+function potential_derivs(mat::PJoint, ipd::PJointState, σ::Array{Float64,1})
     ndim = ipd.env.ndim
     if ndim == 3
         if σ[1] > 0.0 
@@ -128,33 +128,33 @@ function potential_derivs(mat::PJoint, ipd::PJointIpState, σ::Array{Float64,1})
 end
 
 
-function calc_σmax(mat::PJoint, ipd::PJointIpState, upa::Float64)
+function calc_σmax(mat::PJoint, ipd::PJointState, up::Float64)
     if mat.softcurve == "linear"
-        if upa < mat.wc
+        if up < mat.wc
             a = mat.ft 
             b = mat.ft /mat.wc
         else
             a = 0.0
             b = 0.0
         end
-        σmax = a - b*upa
+        σmax = a - b*up
     elseif mat.softcurve == "bilinear"
         σs = 0.25*mat.ft 
-        if upa < mat.ws
+        if up < mat.ws
             a  = mat.ft  
             b  = (mat.ft  - σs)/mat.ws
-        elseif upa < mat.wc
+        elseif up < mat.wc
             a  = mat.wc*σs/(mat.wc-mat.ws)
             b  = σs/(mat.wc-mat.ws)
         else
             a = 0.0
             b = 0.0
         end
-        σmax = a - b*upa
+        σmax = a - b*up
     elseif mat.softcurve == "hordijk"
-        if upa < mat.wc
+        if up < mat.wc
             e = exp(1.0)
-            z = (1 + 27*(upa/mat.wc)^3)*e^(-6.93*upa/mat.wc) - 28*(upa/mat.wc)*e^(-6.93)
+            z = (1 + 27*(up/mat.wc)^3)*e^(-6.93*up/mat.wc) - 28*(up/mat.wc)*e^(-6.93)
         else
             z = 0.0
         end
@@ -167,10 +167,10 @@ function calc_σmax(mat::PJoint, ipd::PJointIpState, upa::Float64)
 end
 
 
-function deriv_σmax_upa(mat::PJoint, ipd::PJointIpState, upa::Float64)
-    # ∂σmax/∂upa = dσmax
+function deriv_σmax_upa(mat::PJoint, ipd::PJointState, up::Float64)
+    # ∂σmax/∂up = dσmax
     if mat.softcurve == "linear"
-        if upa < mat.wc
+        if up < mat.wc
             b = mat.ft /mat.wc
         else
             b = 0.0
@@ -178,18 +178,18 @@ function deriv_σmax_upa(mat::PJoint, ipd::PJointIpState, upa::Float64)
         dσmax = -b
     elseif mat.softcurve == "bilinear"
         σs = 0.25*mat.ft 
-        if upa < mat.ws
+        if up < mat.ws
             b  = (mat.ft  - σs)/mat.ws
-        elseif upa < mat.wc
+        elseif up < mat.wc
             b  = σs/(mat.wc-mat.ws)
         else
             b = 0.0
         end
         dσmax = -b
     elseif mat.softcurve == "hordijk"
-        if upa < mat.wc
+        if up < mat.wc
             e = exp(1.0)
-            dz = ((81*upa^2*e^(-6.93*upa/mat.wc)/mat.wc^3) - (6.93*(1 + 27*upa^3/mat.wc^3)*e^(-6.93*upa/mat.wc)/mat.wc) - 0.02738402432/mat.wc)
+            dz = ((81*up^2*e^(-6.93*up/mat.wc)/mat.wc^3) - (6.93*(1 + 27*up^3/mat.wc^3)*e^(-6.93*up/mat.wc)/mat.wc) - 0.02738402432/mat.wc)
         else
             dz = 0.0
         end
@@ -200,7 +200,7 @@ function deriv_σmax_upa(mat::PJoint, ipd::PJointIpState, upa::Float64)
 end
 
 
-function calc_kn_ks(mat::PJoint, ipd::PJointIpState)
+function calc_kn_ks(mat::PJoint, ipd::PJointState)
     kn = mat.E*mat.ζ/ipd.h
     G  = mat.E/(2.0*(1.0+mat.ν))
     ks = G*mat.ζ/ipd.h
@@ -209,12 +209,12 @@ function calc_kn_ks(mat::PJoint, ipd::PJointIpState)
 end
 
 
-function calc_Δλ(mat::PJoint, ipd::PJointIpState, σtr::Array{Float64,1})
+function calc_Δλ(mat::PJoint, ipd::PJointState, σtr::Array{Float64,1})
     ndim = ipd.env.ndim
     maxits = 20
     Δλ     = 0.0
     f      = 0.0
-    upa    = 0.0
+    up    = 0.0
     tol    = 1e-2
     fc, ft = mat.fc, mat.ft
     βini = 2*ft - fc -2*√(ft^2 - fc*ft)
@@ -250,8 +250,8 @@ function calc_Δλ(mat::PJoint, ipd::PJointIpState, σtr::Array{Float64,1})
                  
         r      = potential_derivs(mat, ipd, σ)
         norm_r = norm(r)
-        upa    = ipd.upa + Δλ*norm_r
-        σmax   = calc_σmax(mat, ipd, upa)
+        up    = ipd.up + Δλ*norm_r
+        σmax   = calc_σmax(mat, ipd, up)
         # β      = βres + (βini-βres)/ft*σmax
         β      = βres + (βini-βres)*(σmax/ft)^mat.α
 
@@ -266,7 +266,7 @@ function calc_Δλ(mat::PJoint, ipd::PJointIpState, σtr::Array{Float64,1})
         # dfdσmax = (βres-βini)/ft*(2*σmax-σ[1]) - βres
         # dfdσmax = (βini-βres)/ft*(σ[1]-σmax)*α*(σmax/ft)^(α-1) - β
         dfdσmax = (βini-βres)/ft*(σ[1]-σmax)*α*(σmax/ft)^(α-1) - β
-        m = deriv_σmax_upa(mat, ipd, upa)
+        m = deriv_σmax_upa(mat, ipd, up)
         dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
         dfdΔλ = dot(dfdσ, dσdΔλ) + dfdσmax*dσmaxdΔλ
         Δλ = Δλ - f/dfdΔλ
@@ -274,7 +274,7 @@ function calc_Δλ(mat::PJoint, ipd::PJointIpState, σtr::Array{Float64,1})
         abs(f) < tol && break
 
         if i == maxits || isnan(Δλ)
-            return 0.0, failure()
+            return 0.0, failure("PJoint: Could nof find Δλ.")
         end
     end
 
@@ -282,7 +282,7 @@ function calc_Δλ(mat::PJoint, ipd::PJointIpState, σtr::Array{Float64,1})
 end
 
 
-# function calc_σ_upa(mat::PJoint, ipd::PJointIpState, σtr::Array{Float64,1})
+# function calc_σ_upa(mat::PJoint, ipd::PJointState, σtr::Array{Float64,1})
 #     ndim = ipd.env.ndim
 #     kn, ks = calc_kn_ks(mat, ipd)
 
@@ -300,21 +300,21 @@ end
 #         end    
 #     end
 #     r = potential_derivs(mat, ipd, σ)
-#     upa = ipd.upa + ipd.Δλ*norm(r)
-#     return σ, upa
+#     up = ipd.up + ipd.Δλ*norm(r)
+#     return σ, up
 # end
 
 
-function mountD(mat::PJoint, ipd::PJointIpState)
+function mountD(mat::PJoint, ipd::PJointState)
     ndim = ipd.env.ndim
     kn, ks = calc_kn_ks(mat, ipd)
     α = mat.α
-    σmax = calc_σmax(mat, ipd, ipd.upa)
+    σmax = calc_σmax(mat, ipd, ipd.up)
 
     De = diagm([kn, ks, ks][1:ndim])
     # @show σmax
-    # @show ipd.upa
-    # @show ipd.upa > mat.wc
+    # @show ipd.up
+    # @show ipd.up > mat.wc
 
     if ipd.Δλ == 0.0  # Elastic 
         # @show "ELASTIC De"
@@ -338,7 +338,7 @@ function mountD(mat::PJoint, ipd::PJointIpState)
         β = βres + (βini-βres)*(σmax/ft)^mat.α
         dfdσmax = (βini-βres)/ft*(ipd.σ[1]-σmax)*α*(σmax/ft)^(α-1) - β
         # dfdσmax = -β  # ∂F/∂σmax
-        m = deriv_σmax_upa(mat, ipd, ipd.upa)  # ∂σmax/∂upa
+        m = deriv_σmax_upa(mat, ipd, ipd.up)  # ∂σmax/∂up
 
         #Dep  = De - De*r*v'*De/(v'*De*r - dfdσmax*m*norm(r))
 
@@ -376,14 +376,14 @@ function mountD(mat::PJoint, ipd::PJointIpState)
 end
 
 
-function stress_update(mat::PJoint, ipd::PJointIpState, Δw::Array{Float64,1})
+function stress_update(mat::PJoint, ipd::PJointState, Δw::Array{Float64,1})
 
     ndim = ipd.env.ndim
     σini = copy(ipd.σ)
 
     kn, ks = calc_kn_ks(mat, ipd)
     De = diagm([kn, ks, ks][1:ndim])
-    σmax = calc_σmax(mat, ipd, ipd.upa)  
+    σmax = calc_σmax(mat, ipd, ipd.up)  
     # @show σmax
 
     if isnan(Δw[1]) || isnan(Δw[2])
@@ -409,7 +409,7 @@ function stress_update(mat::PJoint, ipd::PJointIpState, Δw::Array{Float64,1})
             ipd.Δλ = norm(r1)  
         end
 
-        ipd.upa += ipd.Δλ
+        ipd.up += ipd.Δλ
         ipd.σ = σtr - ipd.Δλ*De*r
 
     elseif Ftr <= 0.0
@@ -425,7 +425,7 @@ function stress_update(mat::PJoint, ipd::PJointIpState, Δw::Array{Float64,1})
         ipd.Δλ, status = calc_Δλ(mat, ipd, σtr)
         failed(status) && return ipd.σ, status
 
-        # ipd.σ, ipd.upa = calc_σ_upa(mat, ipd, σtr)
+        # ipd.σ, ipd.up = calc_σ_upa(mat, ipd, σtr)
         if ndim == 3
             if σtr[1] > 0
                 ipd.σ = [σtr[1]/(1 + 2*ipd.Δλ*kn), σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
@@ -440,7 +440,7 @@ function stress_update(mat::PJoint, ipd::PJointIpState, Δw::Array{Float64,1})
             end    
         end
         r = potential_derivs(mat, ipd, ipd.σ)
-        ipd.upa += ipd.Δλ*norm(r)
+        ipd.up += ipd.Δλ*norm(r)
 
     end
     ipd.w += Δw
@@ -449,7 +449,7 @@ function stress_update(mat::PJoint, ipd::PJointIpState, Δw::Array{Float64,1})
 end
 
 
-function ip_state_vals(mat::PJoint, ipd::PJointIpState)
+function ip_state_vals(mat::PJoint, ipd::PJointState)
     ndim = ipd.env.ndim
     if ndim == 3
        return Dict(
@@ -459,7 +459,7 @@ function ip_state_vals(mat::PJoint, ipd::PJointIpState)
           :js1  => ipd.σ[1],
           :js2  => ipd.σ[2],
           :js3  => ipd.σ[3],
-          :jup => ipd.upa
+          :jup => ipd.up
           )
     else
         return Dict(
@@ -467,7 +467,7 @@ function ip_state_vals(mat::PJoint, ipd::PJointIpState)
           :jw2  => ipd.w[2],
           :js1  => ipd.σ[1],
           :js2  => ipd.σ[2],
-          :jup => ipd.upa
+          :jup => ipd.up
           )
     end
 end

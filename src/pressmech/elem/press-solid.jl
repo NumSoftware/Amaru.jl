@@ -53,7 +53,7 @@ function distributed_bc(elem::PressSolid, facet::Union{Facet,Nothing}, key::Symb
     shape = target.shape
     ips   = get_ip_coords(shape)
 
-    for i=1:size(ips,1)
+    for i in 1:size(ips,1)
         R = vec(ips[i,:])
         w = R[end]
         N = shape.func(R)

@@ -2,11 +2,11 @@
 
 export ElasticTipJoint
 
-mutable struct ElasticTipJointIpState<:IpState
+mutable struct ElasticTipJointState<:IpState
     env::ModelEnv
     f ::Float64
     w ::Float64
-    function ElasticTipJointIpState(env::ModelEnv=ModelEnv())
+    function ElasticTipJointState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.f = 0.0
         this.w = 0.0
@@ -34,20 +34,20 @@ end
 matching_elem_type(::ElasticTipJoint) = MechTipJoint
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticTipJoint) = ElasticTipJointIpState
+ip_state_type(mat::ElasticTipJoint) = ElasticTipJointState
 
-function calcD(mat::ElasticTipJoint, ipd::ElasticTipJointIpState)
+function calcD(mat::ElasticTipJoint, ipd::ElasticTipJointState)
     return mat.k
 end
 
-function stress_update(mat::ElasticTipJoint, ipd::ElasticTipJointIpState, Δw)
+function stress_update(mat::ElasticTipJoint, ipd::ElasticTipJointState, Δw)
     Δf = mat.k*Δw
     ipd.f += Δf
     ipd.w += Δw
     return Δf, success()
 end
 
-function ip_state_vals(mat::ElasticTipJoint, ipd::ElasticTipJointIpState)
+function ip_state_vals(mat::ElasticTipJoint, ipd::ElasticTipJointState)
     return OrderedDict(
       :ur   => ipd.w ,
       :tau  => ipd.f )

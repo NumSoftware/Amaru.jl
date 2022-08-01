@@ -143,7 +143,7 @@ end
 # Return a list of neighbors for each cell
 function get_neighbors(cells::Array{Cell,1})::Array{Cell,1}
     faces_dict = Dict{UInt64, Cell}()
-    neighbors = [ Cell[] for i=1:length(cells) ]
+    neighbors = [ Cell[] for i in 1:length(cells) ]
 
     # Get cell faces. If dup, original and dup are deleted but neigh info saved
     for cell in cells
@@ -166,7 +166,7 @@ end
 
 # Return the cell patch for each point
 function get_patches(mesh::Mesh)
-    patches = [ Cell[] for i=1:length(mesh.nodes) ]
+    patches = [ Cell[] for i in 1:length(mesh.nodes) ]
     for cell in mesh.elems
         for pt in cell.nodes
             push!(patches[pt.id], cell)
@@ -241,8 +241,8 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
     for edge in values(all_edges)
         nodes = edge.nodes
         np = length(nodes)
-        for i=1:np-1
-            for j=i+1:np
+        for i in 1:np-1
+            for j in i+1:np
                 push!(neighs_ids[nodes[i].id], nodes[j].id)
                 push!(neighs_ids[nodes[j].id], nodes[i].id)
             end
@@ -489,7 +489,7 @@ function Mesh(
     m = size(conns , 1) # number of cells
 
     nodes = Node[]
-    for i=1:n
+    for i in 1:n
         C = coordinates[i,:]
         push!(nodes, Node(C))
     end
@@ -498,7 +498,7 @@ function Mesh(
     ndim = size(coordinates,2)
 
     cells = Cell[]
-    for i=1:m
+    for i in 1:m
         pts = nodes[conns[i]]
         if length(cellshapes)>0
             shape = cellshapes[i]
@@ -793,7 +793,7 @@ function threshold(mesh::Mesh, field::Union{Symbol,String}, minval::Float64, max
         found = haskey(mesh.node_data, field)
         found || error("threshold: field $field not found")
         data  = mesh.node_data[field]
-        vals = [ mean(data[i]) for i=1:ncells ]
+        vals = [ mean(data[i]) for i in 1:ncells ]
     end
 
     # filter cells
@@ -843,7 +843,7 @@ function get_segment_data(msh::AbstractMesh, X1::Array{<:Real,1}, X2::Array{<:Re
     Δs = norm(Δ)
     s1 = 0.0
 
-    for i=1:n
+    for i in 1:n
         X = X1 + Δ*(i-1)
         s = s1 + Δs*(i-1)
         cell = find_elem(X, msh.elems, msh._elempartition, 1e-7, Cell[])
@@ -1014,7 +1014,7 @@ function UMesh0(
         npoints = size(coords,1)
 
         # adding points
-        for i=1:npoints
+        for i in 1:npoints
             #gmsh.model.geo.addPoint(coords[i,1], coords[i,2], ndim==2 ? 0.0 : coords[i,3], sizes[i], i)
             gmsh.model.geo.addPoint(coords[i,1], coords[i,2], coords[i,3], sizes[i], i)
         end
@@ -1231,7 +1231,7 @@ function UMesh(
         npoints = size(coords,1)
 
         # adding points
-        for i=1:npoints
+        for i in 1:npoints
             gmsh.model.geo.addPoint(coords[i,1], coords[i,2], coords[i,3], sizes[i], i)
         end
 

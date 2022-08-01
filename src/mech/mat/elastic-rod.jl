@@ -45,7 +45,7 @@ end
 
 
 """
-    ElasticRodIpState
+    ElasticRodState
 
 A type for the state data of a `ElasticRod` type.
 
@@ -53,14 +53,14 @@ A type for the state data of a `ElasticRod` type.
 
 $(TYPEDFIELDS)
 """
-mutable struct ElasticRodIpState<:IpState
+mutable struct ElasticRodState<:IpState
     "environment information"
     env::ModelEnv
     "Axial stress"
     σ::Float64
     "Axial strain"
     ε::Float64
-    function ElasticRodIpState(env::ModelEnv=ModelEnv())
+    function ElasticRodState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = 0.0
         this.ε = 0.0
@@ -72,9 +72,9 @@ matching_elem_type(::ElasticRod) = MechRod
 matching_elem_type_if_embedded(::ElasticRod) = MechEmbRod
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticRod) = ElasticRodIpState
+ip_state_type(mat::ElasticRod) = ElasticRodState
 
-function stress_update(mat::ElasticRod, ipd::ElasticRodIpState, Δε::Float64)
+function stress_update(mat::ElasticRod, ipd::ElasticRodState, Δε::Float64)
     E  = mat.E
     Δσ = mat.E*Δε
     ipd.ε += Δε
@@ -82,7 +82,7 @@ function stress_update(mat::ElasticRod, ipd::ElasticRodIpState, Δε::Float64)
     return Δσ, success()
 end
 
-function ip_state_vals(mat::ElasticRod, ipd::ElasticRodIpState)
+function ip_state_vals(mat::ElasticRod, ipd::ElasticRodState)
     return OrderedDict(
       :sa => ipd.σ,
       :ea => ipd.ε,
@@ -90,7 +90,7 @@ function ip_state_vals(mat::ElasticRod, ipd::ElasticRodIpState)
       :A  => mat.A )
 end
 
-function calcD(mat::ElasticRod, ips::ElasticRodIpState)
+function calcD(mat::ElasticRod, ips::ElasticRodState)
     return mat.E
 end
 

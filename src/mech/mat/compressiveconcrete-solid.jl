@@ -28,14 +28,14 @@ mutable struct CompressiveConcrete<:Material
 end
 
 
-mutable struct CompressiveConcreteIpState<:IpState
+mutable struct CompressiveConcreteState<:IpState
     env        ::ModelEnv
     σ          ::Array{Float64,1}  # current stress
     ε          ::Array{Float64,1}  # current strain
     ε̅c         ::Float64
     ε̅min       ::Float64
 
-    function CompressiveConcreteIpState(env::ModelEnv=ModelEnv())
+    function CompressiveConcreteState(env::ModelEnv=ModelEnv())
         this      = new(env)
         this.σ    = zeros(6)
         this.ε    = zeros(6)
@@ -51,9 +51,9 @@ end
 matching_elem_type(::CompressiveConcrete) = MechSolid
 
 # Type of corresponding state structure
-ip_state_type(mat::CompressiveConcrete) = CompressiveConcreteIpState
+ip_state_type(mat::CompressiveConcrete) = CompressiveConcreteState
 
-function uniaxial_σ(mat::CompressiveConcrete, ipd::CompressiveConcreteIpState, εi::Float64)
+function uniaxial_σ(mat::CompressiveConcrete, ipd::CompressiveConcreteState, εi::Float64)
     # σp = eigvals(ipd.σ)
     # σ1c, σ2c, σ3c = neg.(σp)
 
@@ -71,7 +71,7 @@ function uniaxial_σ(mat::CompressiveConcrete, ipd::CompressiveConcreteIpState, 
 end
 
 
-function uniaxial_E(mat::CompressiveConcrete, ipd::CompressiveConcreteIpState, εi::Float64)
+function uniaxial_E(mat::CompressiveConcrete, ipd::CompressiveConcreteState, εi::Float64)
     # σp = eigvals(ipd.σ)
     # σ1c, σ2c, σ3c = neg.(σp)
 
@@ -90,7 +90,7 @@ function uniaxial_E(mat::CompressiveConcrete, ipd::CompressiveConcreteIpState, �
 end
 
 
-function calcD(mat::CompressiveConcrete, ipd::CompressiveConcreteIpState)
+function calcD(mat::CompressiveConcrete, ipd::CompressiveConcreteState)
 
     if ipd.ε̅c > ipd.ε̅min
         E = mat.E0
@@ -105,7 +105,7 @@ function calcD(mat::CompressiveConcrete, ipd::CompressiveConcreteIpState)
 end
 
 
-function stress_update(mat::CompressiveConcrete, ipd::CompressiveConcreteIpState, Δε::Array{Float64,1})
+function stress_update(mat::CompressiveConcrete, ipd::CompressiveConcreteState, Δε::Array{Float64,1})
     # special function
     neg(x) = (-abs(x)+x)/2.0
 
@@ -127,7 +127,7 @@ function stress_update(mat::CompressiveConcrete, ipd::CompressiveConcreteIpState
     return Δσ, success()
 end
 
-function ip_state_vals(mat::CompressiveConcrete, ipd::CompressiveConcreteIpState)
+function ip_state_vals(mat::CompressiveConcrete, ipd::CompressiveConcreteState)
     dict = stress_strain_dict(ipd.σ, ipd.ε, ipd.env.modeltype)
     dict[:Ec] = uniaxial_E(mat, ipd, ipd.ε̅c)
     return dict

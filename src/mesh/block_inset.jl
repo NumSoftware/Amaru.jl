@@ -59,7 +59,7 @@ mutable struct BlockInset <: AbstractBlock
         end
 
         nrows  = size(coords,1)
-        nodes = [ Node(coords[i,:]) for i=1:nrows ]
+        nodes = [ Node(coords[i,:]) for i in 1:nrows ]
 
         closed && (tipjoint=:none)
         embedded && (tipjoint=:none)
@@ -169,7 +169,7 @@ function split_block(bl::BlockInset, mesh::Mesh)
         if bl.closed && n<3; error("At least three points are required for closed polyline in BlockInset") end
 
         bl._endpoint = nothing
-        for i=1:n-1
+        for i in 1:n-1
             coordsi = coords[i:i+1,:]
             split_curve(coordsi, bl, false, mesh)
         end
@@ -264,7 +264,7 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
 
         # Finding step
         st = s     # trial point
-        for i=1:nits
+        for i in 1:nits
             st += λ
             if st>1.0; break end
             X =get_point(st, coords, curvetype)
@@ -281,7 +281,7 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
 
         itcount+=n ##
 
-        for i=1:n
+        for i in 1:n
 
             step *= 0.5
             is_in = is_inside(ccell.shape, ccell_coords, X, εc)

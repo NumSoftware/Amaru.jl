@@ -2,7 +2,7 @@
 
 export Mazars
 
-mutable struct MazarsIpState<:IpState
+mutable struct MazarsState<:IpState
     env::ModelEnv
     σ::Tensor2
     ε::Tensor2
@@ -10,7 +10,7 @@ mutable struct MazarsIpState<:IpState
     φc::Float64
     φ::Float64  # damage
     ε̅max::Float64
-    function MazarsIpState(env::ModelEnv=ModelEnv())
+    function MazarsState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
@@ -59,10 +59,10 @@ end
 matching_elem_type(::Mazars) = MechSolid
 
 # Type of corresponding state structure
-ip_state_type(mat::Mazars) = MazarsIpState
+ip_state_type(mat::Mazars) = MazarsState
 
 
-function calcD(mat::Mazars, ipd::MazarsIpState)
+function calcD(mat::Mazars, ipd::MazarsState)
     # There is something wrong with the derivatives here
 
     # Equivalent strain scalar
@@ -105,7 +105,7 @@ function calcD(mat::Mazars, ipd::MazarsIpState)
         # Constitutive matrix calculation
         dφtdε̅ = (1.0-mat.At)*mat.ε̅0*ε̅^-2 + mat.At*mat.Bt*exp( -mat.Bt*(ε̅-mat.ε̅0) )
         dφcdε̅ = (1.0-mat.Ac)*mat.ε̅0*ε̅^-2 + mat.Ac*mat.Bc*exp( -mat.Bc*(ε̅-mat.ε̅0) )
-        dε̅dε  = sum( pos(εp[i])*(1+sign(εp[i]))*P[i] for i=1:3 ) / (2*ε̅)
+        dε̅dε  = sum( pos(εp[i])*(1+sign(εp[i]))*P[i] for i in 1:3 ) / (2*ε̅)
         dφdε  = (αt*dφtdε̅ + αc*dφcdε̅) * dε̅dε
 
         #@show dφdε'*mat.De
@@ -116,7 +116,7 @@ function calcD(mat::Mazars, ipd::MazarsIpState)
 end
 
 
-function stress_update(mat::Mazars, ipd::MazarsIpState, Δε::Array{Float64,1})
+function stress_update(mat::Mazars, ipd::MazarsState, Δε::Array{Float64,1})
     σini  = ipd.σ
     ipd.ε = ipd.ε + Δε
 
@@ -152,7 +152,7 @@ function stress_update(mat::Mazars, ipd::MazarsIpState, Δε::Array{Float64,1})
         εt = mat.invDe*σt
         εc = mat.invDe*σc
 
-        #εv = sum(pos(εt[i]) + pos(εc[i]) for i=1:3)
+        #εv = sum(pos(εt[i]) + pos(εc[i]) for i in 1:3)
         εv = sum(pos.(εt)) + sum(neg.(εc))
         εv == 0.0 && (εv += 1e-15)
 
@@ -172,7 +172,7 @@ function stress_update(mat::Mazars, ipd::MazarsIpState, Δε::Array{Float64,1})
     return Δσ, success()
 end
 
-function ip_state_vals(mat::Mazars, ipd::MazarsIpState)
+function ip_state_vals(mat::Mazars, ipd::MazarsState)
     ndim  = ipd.env.ndim
     σ, ε  = ipd.σ, ipd.ε
 

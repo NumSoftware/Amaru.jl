@@ -148,7 +148,7 @@ function MakeLIN4()
     shape.edge_idxs   = []
     shape.facet_shape = ()
     shape.nat_coords  = coords_LIN4
-    shape.quadrature  = Dict( 0=>LIN_IP2, 1=>ALL_IP1, 2=>LIN_IP2, 3=>LIN_IP3, 4=>LIN_IP4 )
+    shape.quadrature  = Dict( 0=>LIN_IP3, 1=>ALL_IP1, 2=>LIN_IP2, 3=>LIN_IP3, 4=>LIN_IP4 )
     shape.func        = shape_func_LIN4
     shape.deriv       = shape_deriv_LIN4
     return shape

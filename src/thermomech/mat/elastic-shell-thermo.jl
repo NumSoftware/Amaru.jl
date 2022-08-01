@@ -2,14 +2,14 @@
 
 export ElasticShellThermo
 
-mutable struct ElasticShellThermoIpState<:IpState
+mutable struct ElasticShellThermoState<:IpState
     env::ModelEnv
     σ::Array{Float64,1} # stress
     ε::Array{Float64,1} # strain
     QQ::Array{Float64,1} # heat flux
     D::Array{Float64,1}
     ut::Float64
-    function ElasticShellThermoIpState(env::ModelEnv=ModelEnv())
+    function ElasticShellThermoState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
@@ -53,10 +53,10 @@ end
 matching_elem_type(::ElasticShellThermo) = TMShell
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticShellThermo) = ElasticShellThermoIpState
+ip_state_type(mat::ElasticShellThermo) = ElasticShellThermoState
 
 
-#function set_state(ipd::ElasticShellLinSeepIpState; sig=zeros(0), eps=zeros(0))
+#function set_state(ipd::ElasticShellLinSeepState; sig=zeros(0), eps=zeros(0))
 #    sq2 = √2.0
 #    mdl = [1, 1, 1, sq2, sq2, sq2]
 #    if length(sig)==6
@@ -73,11 +73,11 @@ ip_state_type(mat::ElasticShellThermo) = ElasticShellThermoIpState
 
 
 
-function calcD(mat::ElasticShellThermo, ipd::ElasticShellThermoIpState)
+function calcD(mat::ElasticShellThermo, ipd::ElasticShellThermoState)
     return calcDe(mat.E, mat.nu, ipd.env.modeltype) # function calcDe defined at elastic-Shell.jl
 end
 
-function calcK(mat::ElasticShellThermo, ipd::ElasticShellThermoIpState) # Thermal conductivity matrix
+function calcK(mat::ElasticShellThermo, ipd::ElasticShellThermoState) # Thermal conductivity matrix
     if ipd.env.ndim==2
         return mat.k*eye(2)
     else
@@ -85,7 +85,7 @@ function calcK(mat::ElasticShellThermo, ipd::ElasticShellThermoIpState) # Therma
     end
 end
 
-function stress_update(mat::ElasticShellThermo, ipd::ElasticShellThermoIpState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
+function stress_update(mat::ElasticShellThermo, ipd::ElasticShellThermoState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
     De = calcD(mat, ipd)
     Δσ = De*Δε
     ipd.ε  += Δε
@@ -97,7 +97,7 @@ function stress_update(mat::ElasticShellThermo, ipd::ElasticShellThermoIpState, 
     return Δσ, ipd.QQ
 end
 
-function ip_state_vals(mat::ElasticShellThermo, ipd::ElasticShellThermoIpState)
+function ip_state_vals(mat::ElasticShellThermo, ipd::ElasticShellThermoState)
     D = stress_strain_dict(ipd.σ, ipd.ε, ipd.env.modeltype)
 
     #D[:qx] = ipd.QQ[1] # VERIFICAR NECESSIDADE

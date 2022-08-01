@@ -59,7 +59,7 @@ function setquadrature!(elem::MechShell, n::Int=0)
 
     resize!(elem.ips, 2*n)
     for k in 1:2
-        for i=1:n
+        for i in 1:n
             R = [ ip2d[i,1:2]; ip1d[k,1] ]
             w = ip2d[i,4]*ip1d[k,4]
             j = (k-1)*n + i
@@ -84,115 +84,7 @@ end
 
 
 function distributed_bc(elem::MechShell, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
-    ndim  = elem.env.ndim
-    th    = elem.mat.th
-    suitable_keys = (:tx, :ty, :tz, :tn)
-
-    # Check keys
-    key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
-    (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
-
-
-    target = facet!==nothing ? facet : elem
-    nodes  = target.nodes
-    nnodes = length(nodes)
-    t      = elem.env.t
-
-    # Force boundary condition
-    nnodes = length(nodes)
-
-    # Calculate the target coordinates matrix
-    C = getcoords(nodes, ndim)
-
-    # Vector with values to apply
-    Q = zeros(ndim)
-
-    # Calculate the nodal values
-    F     = zeros(nnodes, ndim)
-    shape = target.shape
-    ips   = get_ip_coords(shape)
-
-    for i=1:size(ips,1)
-        R = vec(ips[i,:])
-        w = R[end]
-        N = shape.func(R)
-        D = shape.deriv(R)
-        J = C'*D
-        X = C'*N
-
-        x, y, z = X
-        vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
-        if key == :tx
-            Q = [vip, 0.0, 0.0]
-        elseif key == :ty
-            Q = [0.0, vip, 0.0]
-        elseif key == :tz
-            Q = [0.0, 0.0, vip]
-        elseif key == :tn
-            n = cross(J[:,1], J[:,2])
-            Q = vip*normalize(n)
-        end
-
-        coef = norm2(J)*w*th
-        @gemm F += coef*N*Q' # F is a matrix
-    end
-
-    # generate a map
-    keys = (:ux, :uy, :uz)[1:ndim]
-    map  = [ node.dofdict[key].eq_id for node in target.nodes for key in keys ]
-
-    return reshape(F', nnodes*ndim), map
-end
-
-
-function mech_shell_body_forces(elem::Element, key::Symbol, val::Union{Real,Symbol,Expr})
-    ndim  = elem.env.ndim
-    th    = elem.mat.th
-    suitable_keys = (:tx, :ty, :tz, :tn)
-
-    # Check keys
-    key in suitable_keys || error("mech_shell_body_forces: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
-
-    nodes  = elem.nodes
-    nnodes = length(nodes)
-    t      = elem.env.t
-
-    C = getcoords(nodes, ndim)
-    Q = zeros(ndim) # Vector with values to apply
-    F     = zeros(nnodes, ndim) # Nodal values
-    shape = elem.shape
-    ips   = get_ip_coords(shape)
-
-    for i=1:size(ips,1)
-        R = vec(ips[i,:])
-        w = R[end]
-        N = shape.func(R)
-        D = shape.deriv(R)
-        J = C'*D
-        X = C'*N
-
-        x, y, z = X
-        vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
-        if key == :tx
-            Q = [vip, 0.0, 0.0]
-        elseif key == :ty
-            Q = [0.0, vip, 0.0]
-        elseif key == :tz
-            Q = [0.0, 0.0, vip]
-        elseif key == :tn
-            n = cross(J[:,1], J[:,2])
-            Q = vip*normalize(n)
-        end
-
-        coef = norm2(J)*w*th
-        @gemm F += coef*N*Q' # F is a matrix
-    end
-
-    # generate a map
-    keys = (:ux, :uy, :uz)
-    map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-
-    return reshape(F', nnodes*ndim), map
+    return mech_shell_boundary_forces(elem, facet, key, val)
 end
 
 function body_c(elem::MechShell, key::Symbol, val::Union{Real,Symbol,Expr})
@@ -264,8 +156,6 @@ function setB(elem::MechShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx,
         B[:, c+1:c+6] .= Bi
     end 
 end
-
-
 
 
 function elem_stiffness(elem::MechShell)

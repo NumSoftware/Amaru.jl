@@ -2,7 +2,7 @@
 
 export MCJointSeep
 
-mutable struct MCJointSeepIpState<:IpState
+mutable struct MCJointSeepState<:IpState
     env::ModelEnv
     σ   ::Array{Float64,1}  # stress
     w   ::Array{Float64,1}  # relative displacements
@@ -11,10 +11,10 @@ mutable struct MCJointSeepIpState<:IpState
     L   ::Array{Float64,1} 
     #S   ::Array{Float64,1}
     uw  ::Array{Float64,1}  # interface pore pressure
-    upa ::Float64           # effective plastic relative displacement
+    up ::Float64           # effective plastic relative displacement
     Δλ  ::Float64           # plastic multiplier
     h   ::Float64           # characteristic length from bulk elements
-    function MCJointSeepIpState(env::ModelEnv=ModelEnv())
+    function MCJointSeepState(env::ModelEnv=ModelEnv())
         this = new(env)
         ndim = env.ndim
         this.σ   = zeros(ndim)
@@ -24,7 +24,7 @@ mutable struct MCJointSeepIpState<:IpState
         this.L   = zeros(ndim-1)
         #this.S   = zeros(ndim-1)
         this.uw  = zeros(3) 
-        this.upa = 0.0
+        this.up = 0.0
         this.Δλ  = 0.0
         this.h   = 0.0
         return this
@@ -96,12 +96,12 @@ end
 matching_elem_type(::MCJointSeep) = HydroMechJoint
 
 # Type of corresponding state structure
-ip_state_type(mat::MCJointSeep) = MCJointSeepIpState
+ip_state_type(mat::MCJointSeep) = MCJointSeepState
 
 
-function yield_func(mat::MCJointSeep, ipd::MCJointSeepIpState, σ::Array{Float64,1})
+function yield_func(mat::MCJointSeep, ipd::MCJointSeepState, σ::Array{Float64,1})
     ndim = ipd.env.ndim
-    σmax = calc_σmax(mat, ipd, ipd.upa)
+    σmax = calc_σmax(mat, ipd, ipd.up)
     if ndim == 3
         return sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*mat.μ
     else
@@ -110,7 +110,7 @@ function yield_func(mat::MCJointSeep, ipd::MCJointSeepIpState, σ::Array{Float64
 end
 
 
-function yield_deriv(mat::MCJointSeep, ipd::MCJointSeepIpState)
+function yield_deriv(mat::MCJointSeep, ipd::MCJointSeepState)
     ndim = ipd.env.ndim
     if ndim == 3
         return [ mat.μ, ipd.σ[2]/sqrt(ipd.σ[2]^2 + ipd.σ[3]^2), ipd.σ[3]/sqrt(ipd.σ[2]^2 + ipd.σ[3]^2)]
@@ -120,7 +120,7 @@ function yield_deriv(mat::MCJointSeep, ipd::MCJointSeepIpState)
 end
 
 
-function potential_derivs(mat::MCJointSeep, ipd::MCJointSeepIpState, σ::Array{Float64,1})
+function potential_derivs(mat::MCJointSeep, ipd::MCJointSeepState, σ::Array{Float64,1})
     ndim = ipd.env.ndim
     if ndim == 3
             if σ[1] >= 0.0 
@@ -143,33 +143,33 @@ function potential_derivs(mat::MCJointSeep, ipd::MCJointSeepIpState, σ::Array{F
 end
 
 
-function calc_σmax(mat::MCJointSeep, ipd::MCJointSeepIpState, upa::Float64)
+function calc_σmax(mat::MCJointSeep, ipd::MCJointSeepState, up::Float64)
     if mat.softcurve == "linear"
-        if upa < mat.wc
+        if up < mat.wc
             a = mat.σmax0
             b = mat.σmax0/mat.wc
         else
             a = 0.0
             b = 0.0
         end
-        σmax = a - b*upa
+        σmax = a - b*up
     elseif mat.softcurve == "bilinear"
         σs = 0.25*mat.σmax0
-        if upa < mat.ws
+        if up < mat.ws
             a  = mat.σmax0 
             b  = (mat.σmax0 - σs)/mat.ws
-        elseif upa < mat.wc
+        elseif up < mat.wc
             a  = mat.wc*σs/(mat.wc-mat.ws)
             b  = σs/(mat.wc-mat.ws)
         else
             a = 0.0
             b = 0.0
         end
-        σmax = a - b*upa
+        σmax = a - b*up
     elseif mat.softcurve == "hordijk"
-        if upa < mat.wc
+        if up < mat.wc
             e = exp(1.0)
-            z = (1 + 27*(upa/mat.wc)^3)*e^(-6.93*upa/mat.wc) - 28*(upa/mat.wc)*e^(-6.93)
+            z = (1 + 27*(up/mat.wc)^3)*e^(-6.93*up/mat.wc) - 28*(up/mat.wc)*e^(-6.93)
         else
             z = 0.0
         end
@@ -179,10 +179,10 @@ function calc_σmax(mat::MCJointSeep, ipd::MCJointSeepIpState, upa::Float64)
 end
 
 
-function σmax_deriv(mat::MCJointSeep, ipd::MCJointSeepIpState, upa::Float64)
-   # ∂σmax/∂upa = dσmax
+function σmax_deriv(mat::MCJointSeep, ipd::MCJointSeepState, up::Float64)
+   # ∂σmax/∂up = dσmax
     if mat.softcurve == "linear"
-        if upa < mat.wc
+        if up < mat.wc
             b = mat.σmax0/mat.wc
         else
             b = 0.0
@@ -190,18 +190,18 @@ function σmax_deriv(mat::MCJointSeep, ipd::MCJointSeepIpState, upa::Float64)
         dσmax = -b
     elseif mat.softcurve == "bilinear"
         σs = 0.25*mat.σmax0
-        if upa < mat.ws
+        if up < mat.ws
             b  = (mat.σmax0 - σs)/mat.ws
-        elseif upa < mat.wc
+        elseif up < mat.wc
             b  = σs/(mat.wc-mat.ws)
         else
             b = 0.0
         end
         dσmax = -b
     elseif mat.softcurve == "hordijk"
-        if upa < mat.wc
+        if up < mat.wc
             e = exp(1.0)
-            dz = ((81*upa^2*e^(-6.93*upa/mat.wc)/mat.wc^3) - (6.93*(1 + 27*upa^3/mat.wc^3)*e^(-6.93*upa/mat.wc)/mat.wc) - 0.02738402432/mat.wc)
+            dz = ((81*up^2*e^(-6.93*up/mat.wc)/mat.wc^3) - (6.93*(1 + 27*up^3/mat.wc^3)*e^(-6.93*up/mat.wc)/mat.wc) - 0.02738402432/mat.wc)
         else
             dz = 0.0
         end
@@ -211,7 +211,7 @@ function σmax_deriv(mat::MCJointSeep, ipd::MCJointSeepIpState, upa::Float64)
 end
 
 
-function calc_kn_ks_De(mat::MCJointSeep, ipd::MCJointSeepIpState)
+function calc_kn_ks_De(mat::MCJointSeep, ipd::MCJointSeepState)
     ndim = ipd.env.ndim
     kn = mat.E*mat.ζ/ipd.h
     G  = mat.E/(2.0*(1.0+mat.ν))
@@ -230,15 +230,15 @@ function calc_kn_ks_De(mat::MCJointSeep, ipd::MCJointSeepIpState)
 end
 
 
-function calc_Δλ(mat::MCJointSeep, ipd::MCJointSeepIpState, σtr::Array{Float64,1})
+function calc_Δλ(mat::MCJointSeep, ipd::MCJointSeepState, σtr::Array{Float64,1})
     ndim = ipd.env.ndim
     maxits = 100
     Δλ     = 0.0
     f      = 0.0
-    upa    = 0.0
+    up    = 0.0
     tol    = 1e-4      
 
-    for i=1:maxits
+    for i in 1:maxits
         μ      = mat.μ
         kn, ks, De = calc_kn_ks_De(mat, ipd)
 
@@ -267,9 +267,9 @@ function calc_Δλ(mat::MCJointSeep, ipd::MCJointSeepIpState, σtr::Array{Float6
                  
          r      = potential_derivs(mat, ipd, σ)
          norm_r = norm(r)
-         upa    = ipd.upa + Δλ*norm_r
-         σmax   = calc_σmax(mat, ipd, upa)
-         m      = σmax_deriv(mat, ipd, upa)
+         up    = ipd.up + Δλ*norm_r
+         σmax   = calc_σmax(mat, ipd, up)
+         m      = σmax_deriv(mat, ipd, up)
          dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
 
         if ndim == 3
@@ -294,14 +294,14 @@ function calc_Δλ(mat::MCJointSeep, ipd::MCJointSeepIpState, σtr::Array{Float6
             Increasing the mesh refinement may result in a nonsingular matrix.
             """)
             warn("iterations=$i Δλ=$Δλ")
-            return 0.0, failure()
+            return 0.0, failure("MCJointSeep: Could nof find Δλ.")
         end
     end
     return Δλ, success()
 end
 
 
-function calc_σ_upa(mat::MCJointSeep, ipd::MCJointSeepIpState, σtr::Array{Float64,1})
+function calc_σ_upa(mat::MCJointSeep, ipd::MCJointSeepState, σtr::Array{Float64,1})
     ndim = ipd.env.ndim
     μ = mat.μ
     kn, ks, De = calc_kn_ks_De(mat, ipd)
@@ -321,21 +321,21 @@ function calc_σ_upa(mat::MCJointSeep, ipd::MCJointSeepIpState, σtr::Array{Floa
     end
     ipd.σ = σ
     r = potential_derivs(mat, ipd, ipd.σ)
-    ipd.upa += ipd.Δλ*norm(r)
-    return ipd.σ, ipd.upa
+    ipd.up += ipd.Δλ*norm(r)
+    return ipd.σ, ipd.up
 end
 
 
-function mountD(mat::MCJointSeep, ipd::MCJointSeepIpState)
+function mountD(mat::MCJointSeep, ipd::MCJointSeepState)
 
     ndim = ipd.env.ndim
     kn, ks, De = calc_kn_ks_De(mat, ipd)
 
     if mat.fracture 
-        ipd.upa = mat.wc
+        ipd.up = mat.wc
     end 
 
-    σmax = calc_σmax(mat, ipd, ipd.upa)
+    σmax = calc_σmax(mat, ipd, ipd.up)
 
     if ipd.Δλ == 0.0  # Elastic 
         return De
@@ -346,7 +346,7 @@ function mountD(mat::MCJointSeep, ipd::MCJointSeepIpState)
         v    = yield_deriv(mat, ipd)
         r    = potential_derivs(mat, ipd, ipd.σ)
         y    = -mat.μ # ∂F/∂σmax
-        m    = σmax_deriv(mat, ipd, ipd.upa)  # ∂σmax/∂upa
+        m    = σmax_deriv(mat, ipd, ipd.up)  # ∂σmax/∂up
 
         #Dep  = De - De*r*v'*De/(v'*De*r - y*m*norm(r))
 
@@ -368,17 +368,17 @@ function mountD(mat::MCJointSeep, ipd::MCJointSeepIpState)
 end
 
 
-function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Float64,1}, Δuw::Array{Float64,1},  G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
+function stress_update(mat::MCJointSeep, ipd::MCJointSeepState, Δw::Array{Float64,1}, Δuw::Array{Float64,1},  G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
     ndim = ipd.env.ndim
     σini = copy(ipd.σ)
 
     kn, ks, De = calc_kn_ks_De(mat, ipd)
 
     if mat.fracture 
-        ipd.upa = mat.wc
+        ipd.up = mat.wc
     end 
     
-    σmax = calc_σmax(mat, ipd, ipd.upa) 
+    σmax = calc_σmax(mat, ipd, ipd.up) 
 
     if isnan(Δw[1]) || isnan(Δw[2])
         @warn "MCJointSeep: Invalid value for joint displacement: Δw = $Δw"
@@ -401,7 +401,7 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
             ipd.Δλ = norm(r1)  
         end
 
-        ipd.upa += ipd.Δλ
+        ipd.up += ipd.Δλ
         ipd.σ = σtr - ipd.Δλ*De*r     
 
     elseif Ftr <= 0.0
@@ -412,7 +412,7 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
     else    
         ipd.Δλ, status = calc_Δλ(mat, ipd, σtr)
         failed(status) && return ipd.σ,ipd.Vt,ipd.L, status
-        ipd.σ, ipd.upa = calc_σ_upa(mat, ipd, σtr)
+        ipd.σ, ipd.up = calc_σ_upa(mat, ipd, σtr)
                       
         # Return to surface:
         F  = yield_func(mat, ipd, ipd.σ)   
@@ -430,7 +430,7 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
 
     # compute crack aperture
     #if mat.w == 0.0
-        if ipd.upa == 0.0 || ipd.w[1] <= 0.0 
+        if ipd.up == 0.0 || ipd.w[1] <= 0.0 
             w = 0.0
         else
             w = ipd.w[1]
@@ -450,7 +450,7 @@ function stress_update(mat::MCJointSeep, ipd::MCJointSeepIpState, Δw::Array{Flo
 end
 
 
-function ip_state_vals(mat::MCJointSeep, ipd::MCJointSeepIpState)
+function ip_state_vals(mat::MCJointSeep, ipd::MCJointSeepState)
     ndim = ipd.env.ndim
     if ndim == 3
        return OrderedDict(
@@ -460,7 +460,7 @@ function ip_state_vals(mat::MCJointSeep, ipd::MCJointSeepIpState)
           :s1   => ipd.σ[1] ,
           :s2   => ipd.σ[2] ,
           :s3   => ipd.σ[3] ,
-          :upa  => ipd.upa  ,
+          :up  => ipd.up  ,
           :uwf  => ipd.uw[3],
           :vb   => ipd.Vt[1],
           :vt   => ipd.Vt[2])
@@ -470,7 +470,7 @@ function ip_state_vals(mat::MCJointSeep, ipd::MCJointSeepIpState)
           :w2   => ipd.w[2] ,
           :s1   => ipd.σ[1] ,
           :s2   => ipd.σ[2] ,
-          :upa  => ipd.upa  ,
+          :up  => ipd.up  ,
           :uwf  => ipd.uw[3],
           :vb   => ipd.Vt[1],
           :vt   => ipd.Vt[2])

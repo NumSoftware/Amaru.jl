@@ -44,7 +44,7 @@ function elem_stiffness(elem::MechRod)
         # mount B
         B .= 0.0
         for i in 1:nnodes
-            for j=1:ndim
+            for j in 1:ndim
                 B[1,j+(i-1)*ndim] = dNdR[i,1]*J[j]/detJ^2.0
             end
         end
@@ -118,82 +118,14 @@ function setNt(ndim::Int,Ni::Vect, N::Matx)
 
 end
 
-function mech_rod_distributed_forces(elem::Element, key::Symbol, val::Union{Real,Symbol,Expr})
-    ndim = elem.env.ndim
-    suitable_keys = (:qx, :qy, :qz, :qn, :wx, :wy, :wz)
-    isedgebc = key in (:qx, :qy, :qz, :qn) 
-    
-    # Check keys
-    key in suitable_keys || error("mech_rod_distributed_forces: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
-    (key in (:wz,:qz) && ndim==2) && error("mech_rod_distributed_forces: boundary condition $key is not applicable in a 2D analysis")
-    (key == :qn && ndim==3) && error("mech_rod_distributed_forces: boundary condition $key is not applicable in a 3D analysis")
 
-    nodes  = elem.nodes
-    nnodes = length(nodes)
-    t      = elem.env.t
-    A      = isedgebc ? 1.0 : elem.mat.A
-
-    # Calculate the elem coordinates matrix
-    C = getcoords(nodes, ndim)
-
-    # Vector with values to apply
-    Q = zeros(ndim)
-
-    # Calculate the nodal values
-    F     = zeros(nnodes, ndim)
-    shape = elem.shape
-    ips   = get_ip_coords(shape)
-
-    for i=1:size(ips,1)
-        R = vec(ips[i,:])
-        w = R[end]
-        N = shape.func(R)
-        D = shape.deriv(R)
-        J = C'*D
-        nJ = norm2(J)
-        X = C'*N
-
-        if ndim==2
-            x, y = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y)
-            Q = zeros(2)
-        else
-            x, y, z = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
-            Q = zeros(3)
-        end
-
-        if key == :qx
-            Q[1] = vip
-        elseif key == :qy
-            Q[2] = vip
-        elseif key == :qz
-            Q[3] = vip
-        elseif key == :qn
-            if  ndim==2
-                n = [J[1,2], -J[1,1]]
-            else
-                n = cross(J[1,:], J[2,:])
-            end
-            Q = vip*normalize(n)
-        end
-
-        F += N*Q'*(A*nJ*w) # F is a matrix
-    end
-
-    # generate a map
-    keys = [:ux, :uy, :uz][1:ndim]
-    map  = Int[ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-
-    return reshape(F', nnodes*ndim), map
-end
 
 function distributed_bc(elem::MechRod, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
-    return mech_rod_distributed_forces(elem, key, val)
+    return mech_line_distributed_forces(elem, key, val)
 end
 
 function body_c(elem::MechRod, key::Symbol, val::Union{Real,Symbol,Expr})
-    return mech_rod_distributed_forces(elem, key, val)
+    return mech_line_distributed_forces(elem, key, val)
 end
 
 function elem_internal_forces(elem::MechRod, F::Array{Float64,1})
@@ -216,7 +148,7 @@ function elem_internal_forces(elem::MechRod, F::Array{Float64,1})
         # mount B
         B .= 0.0
         for i in 1:nnodes
-            for j=1:ndim
+            for j in 1:ndim
                 B[1,j+(i-1)*ndim] = dNdR[i,1]*J[j]/detJ^2.0
             end
         end
@@ -258,7 +190,7 @@ function elem_update!(elem::MechRod, U::Array{Float64,1}, F::Array{Float64,1}, Î
         # mount B
         B .= 0.0
         for i in 1:nnodes
-            for j=1:ndim
+            for j in 1:ndim
                 B[1,j+(i-1)*ndim] = dNdR[i,1]*J[j]/detJ^2.0
             end
         end

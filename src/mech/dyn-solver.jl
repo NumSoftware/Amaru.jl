@@ -11,8 +11,8 @@ function mount_M(dom::Domain, ndofs::Int)
     for elem in dom.elems
         Me, rmap, cmap = elem_mass(elem)
         nr, nc = size(Me)
-        for i=1:nr
-            for j=1:nc
+        for i in 1:nr
+            for j in 1:nc
                 push!(R, rmap[i])
                 push!(C, cmap[j])
                 push!(V, Me[i,j])
@@ -86,8 +86,8 @@ function sismic_force(dom::Domain, bcs, M::SparseMatrixCSC{Float64, Int}, F::Vec
     ndat = length(AS)    # quantity of aceleration data
     AS2  = zeros(ndat+1) # sismic aceleration data how vector
     c = 0
-    for i=1:size(AS,1)
-        for j=1:size(AS,2)
+    for i in 1:size(AS,1)
+        for j in 1:size(AS,2)
             c += 1
             AS2[c+1] = AS[i,j]
         end
@@ -95,7 +95,7 @@ function sismic_force(dom::Domain, bcs, M::SparseMatrixCSC{Float64, Int}, F::Vec
 
     vts = zeros(ndat+1) # time vetor correspond to acelerations
 
-    for i=1:ndat+1
+    for i in 1:ndat+1
         vts[i] = (i-1)*tds/ndat
     end
 
@@ -106,7 +106,7 @@ function sismic_force(dom::Domain, bcs, M::SparseMatrixCSC{Float64, Int}, F::Vec
     inic = 0
     fin = 0
 
-    for i=1:ndat
+    for i in 1:ndat
         if FAS[i,1]<=tfia<=FAS[i+1,1]
             inic = i
             fin = i+1

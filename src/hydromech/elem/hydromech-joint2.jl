@@ -108,7 +108,7 @@ function elem_stiffness(elem::HydroMechJoint2)
         T   = matrixT(J)
         NN .= 0.0  # NN = [ -N[]  N[] ]
 
-        for i=1:nlnodes
+        for i in 1:nlnodes
             for dof=1:ndim
                 NN[dof, (i-1)*ndim + dof              ] = -N[i]
                 NN[dof, nlnodes*ndim + (i-1)*ndim + dof] = N[i]
@@ -173,7 +173,7 @@ function elem_coupling_matrix(elem::HydroMechJoint2)
         T   = matrixT(J)
         NN .= 0.0
 
-        for i=1:nlnodes
+        for i in 1:nlnodes
             for dof=1:ndim
                 NN[dof, (i-1)*ndim + dof               ] = -N[i]
                 NN[dof, nlnodes*ndim + (i-1)*ndim + dof] =  N[i]
@@ -249,7 +249,7 @@ function elem_conductivity_matrix(elem::HydroMechJoint2)
 
          # compute crack aperture
         if elem.mat.w == 0.0
-            if ip.state.upa == 0.0 || ip.state.w[1] <= 0.0
+            if ip.state.up == 0.0 || ip.state.w[1] <= 0.0
                 w = 0.0
             else
                 w = ip.state.w[1]
@@ -306,7 +306,7 @@ function elem_compressibility_matrix(elem::HydroMechJoint2)
 
         # compute crack aperture
         if elem.mat.w == 0.0
-            if ip.state.upa == 0.0 || ip.state.w[1] <= 0.0  
+            if ip.state.up == 0.0 || ip.state.w[1] <= 0.0  
                 w = 0.0
             else
                 w = ip.state.w[1]
@@ -378,7 +378,7 @@ function elem_RHS_vector(elem::HydroMechJoint2)
 
         # compute crack aperture
         if elem.mat.w == 0.0
-            if ip.state.upa == 0.0 || ip.state.w[1] <= 0.0
+            if ip.state.up == 0.0 || ip.state.w[1] <= 0.0
                 w = 0.0
             else
                 w = ip.state.w[1]
@@ -468,7 +468,7 @@ function elem_internal_forces(elem::HydroMechJoint2, F::Array{Float64,1})
         # compute NN matrix
         N    = fshape.func(ip.R)
         NN .= 0.0
-        for i=1:nlnodes
+        for i in 1:nlnodes
             for dof=1:ndim
                 NN[dof, (i-1)*ndim + dof               ] = -N[i]
                 NN[dof, nlnodes*ndim + (i-1)*ndim + dof] =  N[i]
@@ -580,7 +580,7 @@ function elem_update!(elem::HydroMechJoint2, U::Array{Float64,1}, F::Array{Float
         N    = fshape.func(ip.R)
         NN .= 0.0
 
-        for i=1:nlnodes
+        for i in 1:nlnodes
             for dof=1:ndim
                 NN[dof, (i-1)*ndim + dof               ] = -N[i]
                 NN[dof, nlnodes*ndim + (i-1)*ndim + dof] =  N[i]
@@ -609,7 +609,7 @@ function elem_update!(elem::HydroMechJoint2, U::Array{Float64,1}, F::Array{Float
 
         # compute fluid compressibility
         if elem.mat.w == 0.0
-            if ip.state.upa == 0.0 || ip.state.w[1] <= 0.0  
+            if ip.state.up == 0.0 || ip.state.w[1] <= 0.0  
                 w = 0.0
             else
                 w = ip.state.w[1]

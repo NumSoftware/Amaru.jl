@@ -84,8 +84,8 @@ function save(book::DataBook, filename::String; printlog=true)
             end
 
             # print values
-            for i=1:nr
-                for j=1:nc
+            for i in 1:nr
+                for j in 1:nc
                     val = columns[j][i]
                     if val isa Int
                         @printf(f, "%10d", val)

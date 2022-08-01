@@ -75,7 +75,7 @@ function build_bins(cells::Array{<:AbstractCell,1}, cellpartition::ElemPartition
 
     # Allocate cellpartition
     cellpartition.partition = Array{Array{AbstractCell,1}}(undef, nx, ny, nz)
-    for k=1:nz, j=1:ny, i=1:nx
+    for k in 1:nz, j=1:ny, i=1:nx
         cellpartition.partition[i,j,k] = AbstractCell[]
     end
 

@@ -61,7 +61,7 @@ function cubic_roots(a,b,c,d)
         der = 3*a*x0^2 + 2*b*x0 + c
         der==0.0 && (x0=π)
 
-        for i=1:maxits
+        for i in 1:maxits
             f   = a*x0^3 + b*x0^2 + c*x0 + d
             der = 3*a*x0^2 + 2*b*x0 + c
             x   = x0 - f/der
@@ -90,7 +90,7 @@ function spline_coefficients(Y::Array{Float64,1})
     B[end]           = 3*(Y[n]-Y[n-1])
 
     v141 = [1, 4, 1]
-    for i=2:n-1
+    for i in 2:n-1
         M[i, i-1:i+1] .= v141
         B[i]           = 3*(Y[i+1]-Y[i-1])
     end

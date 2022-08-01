@@ -29,8 +29,8 @@ function hm_mount_global_matrices(dom::Domain,
         if has_stiffness_matrix
             K, rmap, cmap = elem_stiffness(elem)
             nr, nc = size(K)
-            for i=1:nr
-                for j=1:nc
+            for i in 1:nr
+                for j in 1:nc
                     push!(R, rmap[i])
                     push!(C, cmap[j])
                     push!(V, K[i,j])
@@ -42,8 +42,8 @@ function hm_mount_global_matrices(dom::Domain,
         if has_coupling_matrix
             Cup, rmap, cmap = elem_coupling_matrix(elem)
             nr, nc = size(Cup)
-            for i=1:nr
-                for j=1:nc
+            for i in 1:nr
+                for j in 1:nc
                     # matrix Cup
                     push!(R, rmap[i])
                     push!(C, cmap[j])
@@ -62,8 +62,8 @@ function hm_mount_global_matrices(dom::Domain,
         if has_conductivity_matrix
             H, rmap, cmap =  elem_conductivity_matrix(elem)
             nr, nc = size(H)
-            for i=1:nr
-                for j=1:nc
+            for i in 1:nr
+                for j in 1:nc
                     push!(R, rmap[i])
                     push!(C, cmap[j])
                     push!(V, α*Δt*H[i,j])
@@ -79,8 +79,8 @@ function hm_mount_global_matrices(dom::Domain,
         if has_compressibility_matrix
             Cpp, rmap, cmap =  elem_compressibility_matrix(elem)
             nr, nc = size(Cpp)
-            for i=1:nr
-                for j=1:nc
+            for i in 1:nr
+                for j in 1:nc
                     push!(R, rmap[i])
                     push!(C, cmap[j])
                     push!(V, Cpp[i,j])
@@ -177,11 +177,11 @@ function complete_uw_h(dom::Domain)
         elem.shape==elem.shape.basic_shape && continue
         npoints  = elem.shape.npoints
         nbpoints = elem.shape.basic_shape.npoints
-        map = [ elem.nodes[i].id for i=1:nbpoints ]
+        map = [ elem.nodes[i].id for i in 1:nbpoints ]
         Ue = Uw[map]
         He = H[map]
         C = elem.shape.nat_coords
-        for i=nbpoints+1:npoints
+        for i in nbpoints+1:npoints
             id = elem.nodes[i].id
             R = C[i,:]
             N = elem.shape.basic_shape.func(R)
@@ -372,7 +372,6 @@ function hm_solve!(
     T  = 0.0
     ΔT = 1.0/nincs       # initial ΔT value
     autoinc && (ΔT=min(ΔT,0.01))
-    # autoinc && nincs==1 && (ΔT=min(ΔT,0.01))
     ΔTbk = 0.0
 
     ΔTcheck = save_outs ? 1/nouts : 1.0
@@ -477,7 +476,6 @@ function hm_solve!(
 
             # Corrector step for ME and BE
             if residue > tol && scheme in ("ME", "BE")
-                # @show "hi"
                 G2, RHS = hm_mount_global_matrices(dom, ndofs, Δt, verbosity)
                 if scheme=="ME"
                     G = 0.5*(G + G2)
@@ -587,6 +585,8 @@ function hm_solve!(
             inc -= 1
             env.cinc -= 1
 
+            copyto!.(StateBk, State)
+
             if autoinc
                 verbosity>1 && notify("increment failed", level=3)
                 q = (1+tanh(log10(tol/residue1)))
@@ -595,12 +595,10 @@ function hm_solve!(
                 ΔT = q*ΔT
                 ΔT = round(ΔT, sigdigits=3)  # round to 3 significant digits
                 if ΔT < Ttol
-                    alert("hm_solve!: solver did not converge")
-                    return false
+                    return failure("hm_solve!: solver did not converge")
                 end
             else
-                alert("hm_solve!: solver did not converge")
-                return false
+                return failure("hm_solve!: solver did not converge")
             end
         end
 

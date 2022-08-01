@@ -55,7 +55,7 @@ mutable struct PPRod<:Material
 end
 
 """
-    ElasticRodIpState
+    ElasticRodState
 
 A type for the state data of a PPRod type.
 
@@ -63,14 +63,14 @@ A type for the state data of a PPRod type.
 
 $(TYPEDFIELDS)
 """
-mutable struct PPRodIpState<:IpState
+mutable struct PPRodState<:IpState
     env::ModelEnv
     σ::Float64
     ε::Float64
     εp::Float64
     Δγ ::Float64
 
-    function PPRodIpState(env::ModelEnv=ModelEnv())
+    function PPRodState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = 0.0
         this.ε = 0.0
@@ -84,14 +84,14 @@ matching_elem_type(::PPRod) = MechRod
 matching_elem_type_if_embedded(::PPRod) = MechEmbRod
 
 # Type of corresponding state structure
-ip_state_type(mat::PPRod) = PPRodIpState
+ip_state_type(mat::PPRod) = PPRodState
 
-function yield_func(mat::PPRod, ipd::PPRodIpState, σ::Float64)
+function yield_func(mat::PPRod, ipd::PPRodState, σ::Float64)
     σya = mat.σy0 + mat.H*ipd.εp
     return abs(σ) - σya
 end
 
-function calcD(mat::PPRod, ipd::PPRodIpState)
+function calcD(mat::PPRod, ipd::PPRodState)
     if ipd.Δγ == 0.0
         return mat.E
     else
@@ -100,7 +100,7 @@ function calcD(mat::PPRod, ipd::PPRodIpState)
     end
 end
 
-function stress_update(mat::PPRod, ipd::PPRodIpState, Δε::Float64)
+function stress_update(mat::PPRod, ipd::PPRodState, Δε::Float64)
     E, H    = mat.E, mat.H
     σini    = ipd.σ
     σtr     = σini + E*Δε
@@ -114,7 +114,7 @@ function stress_update(mat::PPRod, ipd::PPRodIpState, Δε::Float64)
     return Δσ, ReturnStatus(true)
 end
 
-function ip_state_vals(mat::PPRod, ipd::PPRodIpState)
+function ip_state_vals(mat::PPRod, ipd::PPRodState)
     return OrderedDict{Symbol,Float64}(
         :sa  => ipd.σ,
         :ea  => ipd.ε,

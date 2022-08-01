@@ -113,7 +113,7 @@ function prefine(mesh::Mesh; n=2, printlog=false)
         newshape = NS[cell.shape]
         coords = getcoords(cell.nodes)
         points = Node[]
-        for i=1:newshape.npoints
+        for i in 1:newshape.npoints
             R = newshape.nat_coords[i,:]
             N = cell.shape.func(R)
             C = coords'*N

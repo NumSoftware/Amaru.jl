@@ -24,8 +24,8 @@ function hm_mount_global_matrices(dom::Domain, ndofs::Int, Δt::Float64)
         if has_stiffness_matrix
             K, rmap, cmap = elem_stiffness(elem)
             nr, nc = size(K)
-            for i=1:nr
-                for j=1:nc
+            for i in 1:nr
+                for j in 1:nc
                     push!(R, rmap[i])
                     push!(C, cmap[j])
                     push!(V, K[i,j])
@@ -37,8 +37,8 @@ function hm_mount_global_matrices(dom::Domain, ndofs::Int, Δt::Float64)
         if has_coupling_matrix
             Cup, rmap, cmap = elem_coupling_matrix(elem)
             nr, nc = size(Cup)
-            for i=1:nr
-                for j=1:nc
+            for i in 1:nr
+                for j in 1:nc
                     # matrix Cup
                     push!(R, rmap[i])
                     push!(C, cmap[j])
@@ -57,8 +57,8 @@ function hm_mount_global_matrices(dom::Domain, ndofs::Int, Δt::Float64)
         if has_conductivity_matrix
             H, rmap, cmap =  elem_conductivity_matrix(elem)
             nr, nc = size(H)
-            for i=1:nr
-                for j=1:nc
+            for i in 1:nr
+                for j in 1:nc
                     push!(R, rmap[i])
                     push!(C, cmap[j])
                     push!(V, α*Δt*H[i,j])
@@ -74,8 +74,8 @@ function hm_mount_global_matrices(dom::Domain, ndofs::Int, Δt::Float64)
         if has_compressibility_matrix
             Cpp, rmap, cmap =  elem_compressibility_matrix(elem)
             nr, nc = size(Cpp)
-            for i=1:nr
-                for j=1:nc
+            for i in 1:nr
+                for j in 1:nc
                     push!(R, rmap[i])
                     push!(C, cmap[j])
                     push!(V, Cpp[i,j])
@@ -159,11 +159,11 @@ function complete_uw_h(dom::Domain)
         elem.shape==elem.shape.basic_shape && continue
         npoints  = elem.shape.npoints
         nbpoints = elem.shape.basic_shape.npoints
-        map = [ elem.nodes[i].id for i=1:nbpoints ]
+        map = [ elem.nodes[i].id for i in 1:nbpoints ]
         Ue = Uw[map]
         He = H[map]
         C = elem.shape.nat_coords
-        for i=nbpoints+1:npoints
+        for i in nbpoints+1:npoints
             id = elem.nodes[i].id
             R = C[i,:]
             N = elem.shape.basic_shape.func(R)

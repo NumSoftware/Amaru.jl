@@ -37,7 +37,7 @@ times .+= t1
 
 S = (alpha - n)/Ks + n/Kw 
 
-for i=1:2
+for i in 1:2
     materials = [
         "solids" => ElasticSolidLinSeep(E=E, nu=nu, k=k, gammaw=gw, alpha=alpha, S=S),
         "joints" => ElasticJointSeep(E=E, nu=nu, zeta=100, gammaw=gw,eta=eta, kt=1),
@@ -115,7 +115,7 @@ for i=1:2
         # Terzaghi's 1-d consolidation
         function calc_Ue(Z, T)
             sum = 0.0
-            for i=0:4
+            for i in 0:4
                 M = pi/2*(2*i+1)
                 sum = sum + 2/M*sin(M*Z)*exp(-M^2*T)
             end

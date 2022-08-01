@@ -27,7 +27,7 @@ mutable struct DamageConcrete<:Material
 end
 
 
-mutable struct DamageConcreteIpState<:IpState
+mutable struct DamageConcreteState<:IpState
     env        ::ModelEnv
     σ          ::Array{Float64,1}  # current stress
     ε          ::Array{Float64,1}  # current strain
@@ -41,7 +41,7 @@ mutable struct DamageConcreteIpState<:IpState
     _ν         ::Float64
     in_tension ::Bool
 
-    function DamageConcreteIpState(env::ModelEnv=ModelEnv())
+    function DamageConcreteState(env::ModelEnv=ModelEnv())
         this           = new(env)
         this.σ         = zeros(6)
         this.ε         = zeros(6)
@@ -63,9 +63,9 @@ end
 matching_elem_type(::DamageConcrete) = MechSolid
 
 # Type of corresponding state structure
-ip_state_type(mat::DamageConcrete) = DamageConcreteIpState
+ip_state_type(mat::DamageConcrete) = DamageConcreteState
 
-function uniaxial_σ(mat::DamageConcrete, ipd::DamageConcreteIpState, εi::Float64)
+function uniaxial_σ(mat::DamageConcrete, ipd::DamageConcreteState, εi::Float64)
     σp = eigvals(ipd.σ)
     σ1c, σ2c, σ3c = neg.(σp)
     if εi>=0  # tension: Nilsson and Oldenburg 1982; Beshara and Virdi 1991; Wu and Yao 1998
@@ -132,7 +132,7 @@ function uniaxial_σ(mat::DamageConcrete, ipd::DamageConcreteIpState, εi::Float
 end
 
 
-function uniaxial_E(mat::DamageConcrete, ipd::DamageConcreteIpState, εi::Float64)
+function uniaxial_E(mat::DamageConcrete, ipd::DamageConcreteState, εi::Float64)
     σp = eigvals(ipd.σ)
     σ1c, σ2c, σ3c = neg.(σp)
     if εi>=0 # tension
@@ -180,7 +180,7 @@ function uniaxial_E(mat::DamageConcrete, ipd::DamageConcreteIpState, εi::Float6
 end
 
 
-function calcD(mat::DamageConcrete, ipd::DamageConcreteIpState)
+function calcD(mat::DamageConcrete, ipd::DamageConcreteState)
 
     #@show ipd._E
     if ipd._E==0.0
@@ -196,8 +196,8 @@ function calcD(mat::DamageConcrete, ipd::DamageConcreteIpState)
 end
 
 
-#function calcDsec(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Array{Float64,1}, modeltype::Symbol)
-function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Array{Float64,1})
+#function calcDsec(mat::DamageConcrete, ipd::DamageConcreteState, Δε::Array{Float64,1}, modeltype::Symbol)
+function stress_update(mat::DamageConcrete, ipd::DamageConcreteState, Δε::Array{Float64,1})
     # special functions
     pos(x)   = (abs(x)+x)/2.0
     neg(x)   = (-abs(x)+x)/2.0
@@ -318,7 +318,7 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteIpState, Δε::Ar
     return Δσ, success()
 end
 
-function ip_state_vals(mat::DamageConcrete, ipd::DamageConcreteIpState)
+function ip_state_vals(mat::DamageConcrete, ipd::DamageConcreteState)
     dict = stress_strain_dict(ipd.σ, ipd.ε, ipd.env.modeltype)
     dict[:damt] = ipd.damt
     dict[:damc] = ipd.damc

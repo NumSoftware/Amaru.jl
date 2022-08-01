@@ -2,9 +2,9 @@
 
 export LumpedMass
 
-mutable struct LumpedMassIpState<:IpState
+mutable struct LumpedMassState<:IpState
     env::ModelEnv
-    function LumpedMassIpState(env::ModelEnv=ModelEnv())
+    function LumpedMassState(env::ModelEnv=ModelEnv())
         return new(env)
     end
 end
@@ -25,8 +25,8 @@ end
 matching_elem_type(::LumpedMass) = MechLumpedMass
 
 # Type of corresponding state structure
-ip_state_type(mat::LumpedMass) = LumpedMassIpState
+ip_state_type(mat::LumpedMass) = LumpedMassState
 
-function ip_state_vals(mat::LumpedMass, ipd::LumpedMassIpState)
+function ip_state_vals(mat::LumpedMass, ipd::LumpedMassState)
     return OrderedDict{Symbol, Float64}()
 end

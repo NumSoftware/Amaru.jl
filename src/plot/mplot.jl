@@ -23,7 +23,7 @@ function plot_data_for_cell2d(points::Array{Vec3,1}, shape::CellShape)
         n = shape==TRI3 ? 3 : 4
         codes = [ MOVETO ]
         verts = [ points[1] ]
-        for i=1:n
+        for i in 1:n
             p2 = i<n ? points[i+1] : points[1]
             push!(verts, p2)
             push!(codes, LINETO)
@@ -32,7 +32,7 @@ function plot_data_for_cell2d(points::Array{Vec3,1}, shape::CellShape)
         n = shape==TRI6 ? 3 : 4
         codes = [ MOVETO ]
         verts = [ points[1] ]
-        for i=1:n
+        for i in 1:n
             p1 = points[i]
             p2 = i<n ? points[i+1] : points[1]
             p3 = points[i+n]
@@ -44,7 +44,7 @@ function plot_data_for_cell2d(points::Array{Vec3,1}, shape::CellShape)
         n = 4
         codes = [ MOVETO ]
         verts = [ points[1] ]
-        for i=1:n
+        for i in 1:n
             p1 = points[i]
             p2 = i<n ? points[i+1] : points[1]
             p3 = points[2*i+3]
@@ -106,7 +106,7 @@ function plot_data_for_cell3d(points::Array{Vec3,1}, shape::CellShape, V::Vec3=V
         verts   = Vec3[]
         corners = [[-1.0,-1.0], [1.0,-1.0], [1.0,1.0], [-1.0,1.0], [-1.0,-1.0]]
         
-        for k=1:4
+        for k in 1:4
             for r in range(0.0, 1.0, length=n)[1:n-1]
                 R = corners[k] + r*(corners[k+1]-corners[k])
                 N = shape.func(R)
@@ -164,7 +164,7 @@ function mplot(items::Union{Block, Array}, filename::String=""; args...)
             cell = Cell(bl.shape, bl.nodes)
             push!(cells, cell)
         elseif bl.shape.family==LINE_CELL
-            lines = [ Cell(LIN2, bl.nodes[i-1:i]) for i=2:length(bl.nodes)]
+            lines = [ Cell(LIN2, bl.nodes[i-1:i]) for i in 2:length(bl.nodes)]
             append!(cells, lines)
         else
             continue
@@ -561,7 +561,7 @@ function mplot(
             found = haskey(node_data, field)
             found || error("mplot: field $field not found")
             data  = node_data[field]
-            fvals = [ mean(data[connect[i]]) for i=1:ncells ]
+            fvals = [ mean(data[connect[i]]) for i in 1:ncells ]
         end
         fvals *= fieldmult
         fieldlims==() && (fieldlims = extrema(fvals))
@@ -936,7 +936,7 @@ function mplot(
   #  # Draw node numbers
   #  if nodelabels
   #      nnodes = length(X)
-  #      for i=1:nnodes
+  #      for i in 1:nnodes
   #          x = X[i] + 0.01*L
   #          y = Y[i] - 0.01*L
   #          z = Z[i] - 0.01*L
@@ -950,7 +950,7 @@ function mplot(
 
   #  # Draw cell numbers
   #  if celllabels && ndim==2
-  #      for i=1:ncells
+  #      for i in 1:ncells
   #          coo = getcoords(cells[i])
   #          x = mean(coo[:,1])
   #          y = mean(coo[:,2])

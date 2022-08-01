@@ -28,8 +28,8 @@ function tm_mount_global_matrices(dom::Domain,
         if has_stiffness_matrix
             K, rmap, cmap = elem_stiffness(elem)
             nr, nc = size(K)
-            for i=1:nr
-                for j=1:nc
+            for i in 1:nr
+                for j in 1:nc
                     push!(R, rmap[i])
                     push!(C, cmap[j])
                     push!(V, K[i,j])
@@ -42,8 +42,8 @@ function tm_mount_global_matrices(dom::Domain,
             Cut, rmap, cmap = elem_coupling_matrix(elem)
             nr, nc = size(Cut)
             T0     = dom.env.T0 + 273.15
-            for i=1:nr
-                for j=1:nc
+            for i in 1:nr
+                for j in 1:nc
                     # matrix Cut
                     push!(R, rmap[i])
                     push!(C, cmap[j])
@@ -62,8 +62,8 @@ function tm_mount_global_matrices(dom::Domain,
         if has_conductivity_matrix
             H, rmap, cmap =  elem_conductivity_matrix(elem)
             nr, nc = size(H)
-            for i=1:nr
-                for j=1:nc
+            for i in 1:nr
+                for j in 1:nc
                     push!(R, rmap[i])
                     push!(C, cmap[j])
                     push!(V, α*Δt*H[i,j])
@@ -79,8 +79,8 @@ function tm_mount_global_matrices(dom::Domain,
         if has_mass_matrix
             M, rmap, cmap =  elem_mass_matrix(elem)
             nr, nc = size(M)
-            for i=1:nr
-                for j=1:nc
+            for i in 1:nr
+                for j in 1:nc
                     push!(R, rmap[i])
                     push!(C, cmap[j])
                     push!(V, M[i,j])
@@ -167,10 +167,10 @@ function complete_ut_T(dom::Domain)
         elem.shape==elem.shape.basic_shape && continue
         npoints  = elem.shape.npoints
         nbpoints = elem.shape.basic_shape.npoints
-        map = [ elem.nodes[i].id for i=1:nbpoints ]
+        map = [ elem.nodes[i].id for i in 1:nbpoints ]
         Ute = Ut[map]
         C = elem.shape.nat_coords
-        for i=nbpoints+1:npoints
+        for i in nbpoints+1:npoints
             id = elem.nodes[i].id
             R = C[i,:]
             N = elem.shape.basic_shape.func(R)

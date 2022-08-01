@@ -129,7 +129,7 @@ mutable struct Block <: AbstractBlock
             ncoord in (2, 3) || error("Block: invalid coordinates matrix rows ($ncoord) for dimension $ndim or chord.")
             cellshape===nothing && (cellshape=LIN2)
             cellshape in shapes1d || error("Block: invalid cell type $(cellshape.name) for dimension $ndim.")
-            nodes = [ Node(coords[i,:]) for i=1:ncoord ]
+            nodes = [ Node(coords[i,:]) for i in 1:ncoord ]
             shape = length(nodes)==2 ? LIN2 : LIN3
         elseif ndim==2 || surface
             if !surface && ncoord==2
@@ -139,7 +139,7 @@ mutable struct Block <: AbstractBlock
             ncoord in (4, 8) || error("Block: invalid coordinates matrix rows ($ncoord) for dimension $ndim or surface.")
             cellshape===nothing && (cellshape=QUAD4)
             cellshape in shapes2d || error("Block: invalid cell type $(cellshape.name) for dimension $ndim or surface.")
-            nodes = [ Node(coords[i,:]) for i=1:ncoord ]
+            nodes = [ Node(coords[i,:]) for i in 1:ncoord ]
             shape = length(nodes)==4 ? QUAD4 : QUAD8
         else
             if ncoord==2
@@ -149,11 +149,11 @@ mutable struct Block <: AbstractBlock
             ncoord in (8, 20) || error("Block: invalid coordinates matrix rows ($ncoord) for dimension $ndim.")
             cellshape===nothing && (cellshape=HEX8)
             cellshape in shapes3d || error("Block: invalid cell type $(cellshape.name) for dimension $ndim.")
-            nodes = [ Node(coords[i,:]) for i=1:ncoord ]
+            nodes = [ Node(coords[i,:]) for i in 1:ncoord ]
             shape = length(nodes)==8 ? HEX8 : HEX20
         end
 
-        for i=1:length(nodes)
+        for i in 1:length(nodes)
             nodes[i].id = i
         end
 
@@ -721,7 +721,7 @@ end
 #         size(coords,1) != 2 && error("Invalid coordinates matrix for BlockCylinder")
 #         nr<2 && error("Invalid nr=$nr value for BlockCylinder")
 #         cellshape in (HEX8, HEX20) || error("BlockCylinder: cellshape must be HEX8 or HEX20")
-#         nodes = [ Node(coords[i,1], coords[i,2], coords[i,3]) for i=1:size(coords,1) ]
+#         nodes = [ Node(coords[i,1], coords[i,2], coords[i,3]) for i in 1:size(coords,1) ]
 #         return new(nodes, LIN2, cellshape, r, nr, n, tag, id)
 #     end
 # end

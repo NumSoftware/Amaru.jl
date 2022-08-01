@@ -119,7 +119,7 @@ function elem_stiffness(elem::MechJoint)
         # compute B matrix
         T   = matrixT(J)
         NN .= 0.0  # NN = [ -N[]  N[] ]
-        for i=1:hnodes
+        for i in 1:hnodes
             for dof=1:ndim
                 NN[dof, (i-1)*ndim + dof              ] = -N[i]
                 NN[dof, hnodes*ndim + (i-1)*ndim + dof] =  N[i]
@@ -137,24 +137,8 @@ function elem_stiffness(elem::MechJoint)
 
     keys = (:ux, :uy, :uz)[1:ndim]
     map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-    # @show K
-    # error()
-    # return 1e4*Matrix(I, length(map), length(map)), map, map
-    # K = K + 1e3*Matrix(I, length(map), length(map))
     return K, map, map
 end
-
-
-# function elem_update!(elem::MechJoint, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
-#     ndim   = elem.env.ndim
-
-#     keys   = (:ux, :uy, :uz)[1:ndim]
-#     map    = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-#     dU = U[map]
-#     dF = elem_stiffness(elem)[1]*dU
-#     F[map] += dF
-#     return success()
-# end
 
 
 function elem_update!(elem::MechJoint, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
@@ -189,7 +173,7 @@ function elem_update!(elem::MechJoint, U::Array{Float64,1}, F::Array{Float64,1},
         # compute B matrix
         T = matrixT(J)
         NN[:,:] .= 0.0  # NN = [ -N[]  N[] ]
-        for i=1:hnodes
+        for i in 1:hnodes
             for dof=1:ndim
                 NN[dof, (i-1)*ndim + dof              ] = -N[i]
                 NN[dof, hnodes*ndim + (i-1)*ndim + dof] =  N[i]
@@ -200,7 +184,7 @@ function elem_update!(elem::MechJoint, U::Array{Float64,1}, F::Array{Float64,1},
         # internal force
         @gemv Δω = B*dU
         Δσ, status = stress_update(elem.mat, ip.state, Δω)
-        failed(status) && return failure()
+        failed(status) && return status
         coef = detJ*ip.w*th
         @gemv dF += coef*B'*Δσ
     end

@@ -427,7 +427,7 @@ function setup_logger!(domain, filter, logger::SegmentLogger)
     X1 = filter[1,:]
     X2 = filter[2,:]
     Δ = (X2-X1)/(logger.n-1)
-    Xs = [ X1.+ Δ*i for i=0:logger.n-1]
+    Xs = [ X1.+ Δ*i for i in 0:logger.n-1]
 
     # find cells and Rs
     for X in Xs

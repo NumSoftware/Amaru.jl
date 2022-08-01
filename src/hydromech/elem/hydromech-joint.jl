@@ -90,7 +90,7 @@ function elem_init(elem::HydroMechJoint)
         if elem.mat.w > 0.0
             for ip in elem.ips
                 ip.state.w[1] = elem.mat.w
-                ip.state.upa = elem.mat.wc
+                ip.state.up = elem.mat.wc
                 ip.state.Δλ = 1.0
             end 
         end
@@ -125,7 +125,7 @@ function elem_stiffness(elem::HydroMechJoint)
         T   = matrixT(J)
         NN .= 0.0  # NN = [ -N[]  N[] ]
 
-        for i=1:nlnodes
+        for i in 1:nlnodes
             for dof=1:ndim
                 NN[dof, (i-1)*ndim + dof              ] = -N[i]
                 NN[dof, nlnodes*ndim + (i-1)*ndim + dof] = N[i]
@@ -192,7 +192,7 @@ function elem_coupling_matrix(elem::HydroMechJoint)
         T   = matrixT(J)
         NN .= 0.0
 
-        for i=1:nlnodes
+        for i in 1:nlnodes
             for dof=1:ndim
                 NN[dof, (i-1)*ndim + dof               ] = -N[i]
                 NN[dof, nlnodes*ndim + (i-1)*ndim + dof] =  N[i]
@@ -272,7 +272,7 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
 
          # compute crack aperture
         # if elem.mat.w == 0.0
-            if ip.state.upa == 0.0 || ip.state.w[1] <= 0.0  
+            if ip.state.up == 0.0 || ip.state.w[1] <= 0.0  
                 w = 0.0
             else
                 w = ip.state.w[1]
@@ -331,7 +331,7 @@ function elem_compressibility_matrix(elem::HydroMechJoint)
 
         # compute crack aperture
         # if elem.mat.w == 0.0
-            if ip.state.upa == 0.0 || ip.state.w[1] <= 0.0  
+            if ip.state.up == 0.0 || ip.state.w[1] <= 0.0  
                 w = 0.0
             else
                 w = ip.state.w[1]
@@ -406,7 +406,7 @@ function elem_RHS_vector(elem::HydroMechJoint)
 
         # compute crack aperture
         # if elem.mat.w == 0.0
-            if ip.state.upa == 0.0 || ip.state.w[1] <= 0.0 
+            if ip.state.up == 0.0 || ip.state.w[1] <= 0.0 
                 w = 0.0
             else
                 w = ip.state.w[1]
@@ -499,7 +499,7 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
         # compute NN matrix
         N    = fshape.func(ip.R)
         NN .= 0.0
-        for i=1:nlnodes
+        for i in 1:nlnodes
             for dof=1:ndim
                 NN[dof, (i-1)*ndim + dof               ] = -N[i]
                 NN[dof, nlnodes*ndim + (i-1)*ndim + dof] =  N[i]
@@ -615,7 +615,7 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
         N    = fshape.func(ip.R)
         NN .= 0.0
 
-        for i=1:nlnodes
+        for i in 1:nlnodes
             for dof=1:ndim
                 NN[dof, (i-1)*ndim + dof               ] = -N[i]
                 NN[dof, nlnodes*ndim + (i-1)*ndim + dof] =  N[i]
@@ -633,7 +633,7 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
           
         # internal force dF
         Δσ, Vt, L, status = stress_update(elem.mat, ip.state, Δω, Δuw, G, BfUw, Δt)
-        failed(status) && return failure()
+        failed(status) && return failure("HydroMechJoint: error in elem_update!", status.message)
         Δσ -= mf*Δuw[3] # get total stress
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*Δσ
@@ -645,7 +645,7 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
 
         # compute fluid compressibility
         # if elem.mat.w == 0.0
-            if ip.state.upa == 0.0 || ip.state.w[1] <= 0.0 
+            if ip.state.up == 0.0 || ip.state.w[1] <= 0.0 
                 w = 0.0
             else
                 w = ip.state.w[1]
@@ -675,18 +675,53 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
     return success()
 end
 
+# function elem_extrapolated_node_vals(elem::HydroMechJoint)
+#     nips = length(elem.ips)
+
+#     E  = extrapolator(elem.shape.facet_shape, nips)
+#     Sn = E*[ ip.state.σ[1] for ip in elem.ips ]
+#     Wn = E*[ ip.state.w[1] for ip in elem.ips ]
+#     Uwn = E*[ ip.state.uw[3] for ip in elem.ips ]
+
+#     node_vals = OrderedDict{Symbol, Array{Float64,1}}()
+#     node_vals[:sn] = [ Sn; Sn; Sn ]
+#     node_vals[:wn] = [ Wn; Wn; Wn]
+#     node_vals[:uwn] = [ Uwn; Uwn; Uwn]
+
+#     return node_vals
+# end
+
+# function elem_vals(elem::HydroMechJoint)
+#     # get ip average values
+#     nips = length(elem.ips)
+#     keys = output_keys(elem.mat)
+#     vals = zeros(nips, length(keys))
+#     for (i,ip) in enumerate(elem.ips)
+#         dict = ip_state_vals(elem.mat, ip.state)
+#         vals[i,:] = [ dict[key] for key in keys ]
+#     end
+
+#     vals = sum(vals, dims=1)
+#     return OrderedDict( k=>vals[i]/nips for (i,k) in enumerate(keys))
+# end
+
+
 function elem_extrapolated_node_vals(elem::HydroMechJoint)
     nips = length(elem.ips)
 
-    E  = extrapolator(elem.shape.facet_shape, nips)
-    Sn = E*[ ip.state.σ[1] for ip in elem.ips ]
-    Wn = E*[ ip.state.w[1] for ip in elem.ips ]
-    Uwn = E*[ ip.state.uw[3] for ip in elem.ips ]
-
+    keys = output_keys(elem.mat)
+    vals = zeros(nips, length(keys))
+    for (i,ip) in enumerate(elem.ips)
+        dict = ip_state_vals(elem.mat, ip.state)
+        vals[i,:] = [ dict[key] for key in keys ]
+    end
+    
     node_vals = OrderedDict{Symbol, Array{Float64,1}}()
-    node_vals[:sn] = [ Sn; Sn; Sn ]
-    node_vals[:wn] = [ Wn; Wn; Wn]
-    node_vals[:uwn] = [ Uwn; Uwn; Uwn]
+    E = extrapolator(elem.shape.facet_shape, nips)
+    for (i,key) in enumerate(keys)
+        V = E*vals[:,i]
+        node_vals[key] = [ V; V; V ]
+    end
 
     return node_vals
 end

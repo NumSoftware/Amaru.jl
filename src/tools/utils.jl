@@ -1,14 +1,21 @@
 
 function wrap(str::String; level=1)
     width = displaysize(stdout)[2]-2
-    (level-1)*2+length(str)<=width && return "  "^(level-1)*str
+    str = replace(str, r" +" => " ")
+    parts = String[]
 
-    str = replace(str, r"(\s|\n)+" => " ")
-    len = width - 2*(level-1) 
-    rx  = Regex(".{1,$len}( |\$)")
-    ss  = SubstitutionString("  "^(level-1)*"\\0\\n")
-    str = replace(str, rx => ss)
-    return str[1:end-1]
+    for s in split(str, "\n")
+        if (level-1)*2+length(str)>width
+            len = width - 2*(level-1) 
+            rx  = Regex(".{1,$len}( |\$)")
+            ss  = SubstitutionString("  "^(level-1)*"\\0\\n")
+            s   = replace(s, rx => ss)[1:end-1]
+        else 
+            s = "  "^(level-1)*s
+        end
+        push!(parts, s)
+    end
+    return join(parts, "\n")
 end
 
 

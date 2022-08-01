@@ -2,14 +2,14 @@
 
 export ElasticSolidLinSeep
 
-mutable struct ElasticSolidLinSeepIpState<:IpState
+mutable struct ElasticSolidLinSeepState<:IpState
     env::ModelEnv
     σ::Array{Float64,1} # stress
     ε::Array{Float64,1} # strain
     V::Array{Float64,1} # fluid velocity
     D::Array{Float64,1} # distance traveled by the fluid
     uw::Float64         # pore pressure
-    function ElasticSolidLinSeepIpState(env::ModelEnv=ModelEnv())
+    function ElasticSolidLinSeepState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
@@ -59,9 +59,9 @@ end
 matching_elem_type(::ElasticSolidLinSeep) = HMSolid
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticSolidLinSeep) = ElasticSolidLinSeepIpState
+ip_state_type(mat::ElasticSolidLinSeep) = ElasticSolidLinSeepState
 
-function set_state(ipd::ElasticSolidLinSeepIpState; sig=zeros(0), eps=zeros(0))
+function set_state(ipd::ElasticSolidLinSeepState; sig=zeros(0), eps=zeros(0))
     sq2 = √2.0
     mdl = [1, 1, 1, sq2, sq2, sq2]
     if length(sig)==6
@@ -76,11 +76,11 @@ function set_state(ipd::ElasticSolidLinSeepIpState; sig=zeros(0), eps=zeros(0))
     end
 end
 
-function calcD(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState)
+function calcD(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepState)
     return calcDe(mat.E, mat.nu, ipd.env.modeltype) # function calcDe defined at elastic-solid.jl
 end
 
-function calcK(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState) # Hydraulic conductivity matrix
+function calcK(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepState) # Hydraulic conductivity matrix
     if ipd.env.ndim==2
         return mat.k*eye(2)
     else
@@ -88,7 +88,7 @@ function calcK(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState) # Hydr
     end
 end
 
-function stress_update(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState, Δε::Array{Float64,1}, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
+function stress_update(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepState, Δε::Array{Float64,1}, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
     De = calcD(mat, ipd)
     Δσ = De*Δε
     ipd.ε  += Δε
@@ -100,7 +100,7 @@ function stress_update(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState
     return Δσ, ipd.V
 end
 
-function ip_state_vals(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState)
+function ip_state_vals(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepState)
     D = stress_strain_dict(ipd.σ, ipd.ε, ipd.env.modeltype)
 
     D[:vx] = ipd.V[1]

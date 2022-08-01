@@ -63,7 +63,7 @@ if Amaru.config.makeplots
     #tab = log_ip.table
     #plot(tab[:w], tab[:s1], marker="o", color="blue")
     #show()
-    #plot(tab[:upa], tab[:s3], marker="o", color="blue")
+    #plot(tab[:up], tab[:s3], marker="o", color="blue")
     #show()
     #plot(tab[:s1], tab[:s3], marker="o", color="blue")
     #show()

@@ -65,7 +65,7 @@ function distributed_bc(elem::TMShell, facet::Union{Facet,Nothing}, key::Symbol,
     ips   = get_ip_coords(shape)
 
     if key == :tq # energy per area
-        for i=1:size(ips,1)
+        for i in 1:size(ips,1)
             R = vec(ips[i,:])
             w = R[end]
             N = shape.func(R)
@@ -90,7 +90,7 @@ function distributed_bc(elem::TMShell, facet::Union{Facet,Nothing}, key::Symbol,
         return F, map
     end
 
-    for i=1:size(ips,1)
+    for i in 1:size(ips,1)
         R = vec(ips[i,:])
         w = R[end]
         N = shape.func(R)

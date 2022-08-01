@@ -2,12 +2,12 @@
 
 export ElasticJoint
 
-mutable struct JointIpState<:IpState
+mutable struct JointState<:IpState
     env::ModelEnv
     σ   ::Array{Float64,1}
     w   ::Array{Float64,1}
     h   ::Float64
-    function JointIpState(env::ModelEnv=ModelEnv())
+    function JointState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ   = zeros(3)
         this.w = zeros(3)
@@ -51,10 +51,10 @@ end
 end
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticJoint) = JointIpState
+ip_state_type(mat::ElasticJoint) = JointState
 
 
-function mountD(mat::ElasticJoint, ipd::JointIpState)
+function mountD(mat::ElasticJoint, ipd::JointState)
     ndim = ipd.env.ndim
     if isnan(mat.kn*mat.ks)
         G  = mat.E/(1.0+mat.ν)/2.0
@@ -75,7 +75,7 @@ function mountD(mat::ElasticJoint, ipd::JointIpState)
     end
 end
 
-function stress_update(mat::ElasticJoint, ipd::JointIpState, Δu)
+function stress_update(mat::ElasticJoint, ipd::JointState, Δu)
     ndim = ipd.env.ndim
     D  = mountD(mat, ipd)
     Δσ = D*Δu
@@ -86,7 +86,7 @@ function stress_update(mat::ElasticJoint, ipd::JointIpState, Δu)
 end
 
 
-function ip_state_vals(mat::ElasticJoint, ipd::JointIpState)
+function ip_state_vals(mat::ElasticJoint, ipd::JointState)
     ndim = ipd.env.ndim
     if ndim == 3
        return Dict(

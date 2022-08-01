@@ -2,7 +2,7 @@
 
 export ElasticJointSeep
 
-mutable struct JointSeepIpState<:IpState
+mutable struct JointSeepState<:IpState
     env  ::ModelEnv
     σ    ::Array{Float64,1} # stress
     w    ::Array{Float64,1} # relative displacements
@@ -12,8 +12,8 @@ mutable struct JointSeepIpState<:IpState
     #S    ::Array{Float64,1}
     uw   ::Array{Float64,1} # interface pore pressure
     h    ::Float64          # characteristic length from bulk elements
-    upa  ::Float64          # effective plastic relative displacement
-    function JointSeepIpState(env::ModelEnv=ModelEnv())
+    up  ::Float64          # effective plastic relative displacement
+    function JointSeepState(env::ModelEnv=ModelEnv())
         this     = new(env)
         ndim     = env.ndim
         this.σ   = zeros(3)
@@ -24,7 +24,7 @@ mutable struct JointSeepIpState<:IpState
         #this.S   = zeros(ndim-1)
         this.uw  = zeros(3) 
         this.h   = 0.0
-        this.upa = 0.0
+        this.up = 0.0
         return this
     end
 end
@@ -63,9 +63,9 @@ end
 matching_elem_type(::ElasticJointSeep) = HydroMechJoint
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticJointSeep) = JointSeepIpState
+ip_state_type(mat::ElasticJointSeep) = JointSeepState
 
-function mountD(mat::ElasticJointSeep, ipd::JointSeepIpState)
+function mountD(mat::ElasticJointSeep, ipd::JointSeepState)
     ndim = ipd.env.ndim
     G  = mat.E/(1.0+mat.nu)/2.0
     kn = mat.E*mat.ζ/ipd.h
@@ -80,7 +80,7 @@ function mountD(mat::ElasticJointSeep, ipd::JointSeepIpState)
     end
 end
 
-function stress_update(mat::ElasticJointSeep, ipd::JointSeepIpState, Δu::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
+function stress_update(mat::ElasticJointSeep, ipd::JointSeepState, Δu::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
     ndim = ipd.env.ndim
     D  = mountD(mat, ipd)
     Δσ = D*Δu
@@ -109,7 +109,7 @@ function stress_update(mat::ElasticJointSeep, ipd::JointSeepIpState, Δu::Array{
     return Δσ, ipd.Vt, ipd.L, success()
 end
 
-function ip_state_vals(mat::ElasticJointSeep, ipd::JointSeepIpState)
+function ip_state_vals(mat::ElasticJointSeep, ipd::JointSeepState)
     ndim = ipd.env.ndim
     if ndim == 2
         return OrderedDict(

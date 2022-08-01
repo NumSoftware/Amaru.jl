@@ -369,7 +369,7 @@ function cell_extent(c::AbstractCell)
 
     # calc metric
     vol = 0.0
-    for i=1:nip
+    for i in 1:nip
         R    = vec(IP[i,1:3])
         dNdR = c.shape.deriv(R)
         @gemm J = C'*dNdR
@@ -543,12 +543,12 @@ function get_patches(cells::Array{<:AbstractCell,1})
 
     # backup nodes ids
     bk_pt_id = [ pt.id for pt in nodes ]
-    for i=1:np
+    for i in 1:np
         nodes[i].id = i
     end
 
     # get incidence array
-    patches  = [ AbstractCell[] for i=1:np ]
+    patches  = [ AbstractCell[] for i in 1:np ]
     for cell in cells
         for pt in cell.nodes
             push!(patches[pt.id], cell)
@@ -556,7 +556,7 @@ function get_patches(cells::Array{<:AbstractCell,1})
     end
 
     # restore nodes ids
-    for i=1:np
+    for i in 1:np
         nodes[i].id = bk_pt_id[i]
     end
 
@@ -592,18 +592,22 @@ end
 
 export select
 
-function select(cells::Array{Cell,1}, coords::Array{Float64,2}, normal=[0.0, 0.0, 1.0])
-    n = size(coords, 1)
-    N = normal
+function select(cells::Array{Cell,1}, polycoords::Array{Float64,2}, axis=[0.0, 0.0, 1.0])
+    # Selects elements included in the projection of the give polygon and axis direction
+
+    n = size(polycoords, 1)
     eps = 1e-8
     
     # project to plane
-    v1 = normalize(coords[2,:] - coords[1,:])
-    v2 = normalize(cross(N, v1))
-    v1 = cross(v2, N)
+    V1 = polycoords[2,:] - polycoords[1,:]
+    V2 = cross(axis, V1)
+    V1 = cross(V2, axis)
+    normalize!(V1)
+    normalize!(V2)
+    N = normalize(axis)
 
-    R = [v1'; v2'; N']
-    XY = (coords*R')[:,1:2]
+    R = [V1'; V2'; N']
+    XY = (polycoords*R')[:,1:2]
     XY = round.(XY, digits=8)
     # display(XY)
 
@@ -690,106 +694,3 @@ function select(cells::Array{Cell,1}, coords::Array{Float64,2}, normal=[0.0, 0.0
     return selected
 
 end
-
-# function select(msh, coords::Array{Float64,2})
-#     # Tolerances
-#     ε  = 1e-6
-#     εn = 1e-4
-#     εc = 1e-9
-#     # λ  = 1.0
-
-#     itcount = 0
-
-#     # Initial conditions
-#     bdist = 0.0  # boundary function initial value
-#     len   = 1.0
-
-#     # # Defining required vectors
-#     # X1 = vec(coords[  1,:])
-#     # Xn = vec(coords[end,:])
-
-#     # Find the initial and final element
-    
-#     s0 = get_point(εn, coords)
-#     ccell = find_elem(s0, msh.elems, msh._elempartition, εc, exclude=Cell[]) # The first tresspased cell
-    
-#     ccell === nothing && error("Point $(s0) outside the mesh")
-    
-#     # Initializing more variables
-#     ccell = ccell
-#     crossedcells = [ ccell ]
-#     end_reached  = false
-#     s  = 0.0
-#     sp = 0.0
-#     # nits = round(Int, 1.0/λ)
-
-#     # Splitting inset
-#     k = 0
-#     while true
-#         k +=1
-#         ccell_coords = getcoords(ccell)
-#         # Default step
-#         step  = 0.5*(1.0-s)
-
-#         # Finding step
-#         # st = s     # trial point
-#         # for i in 1:nits
-#         #     st += λ
-#         #     if st>1.0; break end
-#         #     X = get_point(st, coords, curvetype)
-#         #     is_in = is_inside(ccell.shape, ccell_coords, X, ε)
-#         #     if !is_in
-#         #         step  = 0.5*(st-s)
-#         #         break
-#         #     end
-#         # end
-
-
-
-#         s += step
-#         @show s
-
-#         X  = get_point(s, coords)
-#         @show X
-#         @show ccell.id
-#         n  = floor(Int, log(2, step/ε)) + 1  # number of required iterations to find intersection
-
-#         itcount+=n ##
-
-#         for i in 1:n
-
-#             step *= 0.5
-#             if is_inside(ccell.shape, ccell_coords, X, εc)
-#                 s += step
-#             else
-#                 s -= step
-#             end
-#             @show s
-
-#             X = get_point(s, coords)
-
-#             R     = inverse_map(ccell.shape, ccell_coords, X)
-#             bdist = bdistance(ccell.shape, R)
-#         end
-
-#         # Check if end was reached
-#         if s > len - εn
-#             end_reached = true
-#             # X = Xn
-#         end
-
-#         end_reached && break
-
-#         # Preparing for the next iteration
-#         ncell  = find_elem(get_point(s + εn, coords), msh.elems, msh._elempartition, εc, exclude=[ccell])
-#         ncell === nothing && error("Hole found while searching for next crossed cell")
-
-#         ccell = ncell
-#         push!(crossedcells, ccell)
-#         sp = s
-#         s = s + εn
-#     end
-
-#     [ c.id for c in crossedcells ]
-# end
-

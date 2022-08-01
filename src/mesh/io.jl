@@ -62,8 +62,8 @@ function save_vtk(mesh::AbstractMesh, filename::String; desc::String="")
             else
                 println(f, "VECTORS ", "$field $dtype")
             end
-            for i=1:npoints
-                for j=1:ncomps
+            for i in 1:npoints
+                for j in 1:ncomps
                     if isfloat
                         @printf f "%23.10e" Float32(D[i,j])
                     else
@@ -90,8 +90,8 @@ function save_vtk(mesh::AbstractMesh, filename::String; desc::String="")
             else
                 println(f, "VECTORS ", "$field $dtype")
             end
-            for i=1:ncells
-                for j=1:ncomps
+            for i in 1:ncells
+                for j in 1:ncomps
                     if isfloat
                         @printf f "%23.10e" Float32(D[i,j])
                     else
@@ -175,8 +175,8 @@ function save_vtu(mesh::AbstractMesh, filename::String; desc::String="")
             dtype = isfloat ? "Float64" : "Int32"
             ncomps = size(D,2)
             xdata = Xnode("DataArray", attributes=("type"=>dtype, "Name"=>"$field", "NumberOfComponents"=>"$ncomps", "format"=>"ascii"))
-            for i=1:npoints
-                for j=1:ncomps
+            for i in 1:npoints
+                for j in 1:ncomps
                     if isfloat
                         @printf io "%17.7e" Float32(D[i,j])
                     else
@@ -194,7 +194,7 @@ function save_vtu(mesh::AbstractMesh, filename::String; desc::String="")
     if any( c.shape.family==JOINT_CELL for c in mesh.elems )
         ncells = length(mesh.elems)
         joint_data = zeros(Int, ncells, 3) # nlayers, first link, second link
-        for i=1:ncells
+        for i in 1:ncells
             cell = mesh.elems[i]
             nlayers = cell.shape.name[1:2]=="J3" ? 3 : 2
             if cell.shape.family==JOINT_CELL
@@ -210,7 +210,7 @@ function save_vtu(mesh::AbstractMesh, filename::String; desc::String="")
     if any( c.shape.family==LINEJOINT_CELL for c in mesh.elems )
         ncells = length(mesh.elems)
         inset_data = zeros(Int, ncells, 3) # npoints, first link id, second link id
-        for i=1:ncells
+        for i in 1:ncells
             cell = mesh.elems[i]
             if cell.shape.family==LINEJOINT_CELL
                 inset_data[i,1] = cell.shape.npoints
@@ -232,8 +232,8 @@ function save_vtu(mesh::AbstractMesh, filename::String; desc::String="")
             dtype = isfloat ? "Float64" : "Int32"
             ncomps = size(D,2)
             xdata = Xnode("DataArray", attributes=("type"=>dtype, "Name"=>"$field", "NumberOfComponents"=>"$ncomps", "format"=>"ascii"))
-            for i=1:ncells
-                for j=1:ncomps
+            for i in 1:ncells
+                for j in 1:ncomps
                     if isfloat
                         @printf io "%20.10e" Float32(D[i,j])
                     else
@@ -284,7 +284,7 @@ function read_vtk(filename::String)
             npoints = parse(Int64, data[idx+1]) # read number of coords
             coords  = zeros(npoints,3)
             idx += 2
-            for i=1:npoints
+            for i in 1:npoints
                 coords[i,1] = parse(Float64, data[idx+1])
                 coords[i,2] = parse(Float64, data[idx+2])
                 coords[i,3] = parse(Float64, data[idx+3])
@@ -299,11 +299,11 @@ function read_vtk(filename::String)
             idx += 2
 
             connects = Array{Int,1}[]
-            for i=1:ncells
+            for i in 1:ncells
                 npts = parse(Int64, data[idx+1])
                 idx += 1
                 conn = Int[]
-                for j=1:npts
+                for j in 1:npts
                     idx += 1
                     id = parse(Int64, data[idx]) + 1
                     push!(conn, id)
@@ -316,7 +316,7 @@ function read_vtk(filename::String)
         if data[idx] == "CELL_TYPES"
             idx += 1
             cell_types = Int[]
-            for i=1:ncells
+            for i in 1:ncells
                 idx += 1
                 vtk_shape = parse(Int64, data[idx])
                 push!(cell_types, vtk_shape)
@@ -341,7 +341,7 @@ function read_vtk(filename::String)
             dtype = TYPES[ty]
             idx += 2
             vectors = zeros(dtype, npoints,3)
-            for i=1:npoints
+            for i in 1:npoints
                 vectors[i,1] = parse(dtype, data[idx+1])
                 vectors[i,2] = parse(dtype, data[idx+2])
                 vectors[i,3] = parse(dtype, data[idx+3])
@@ -356,7 +356,7 @@ function read_vtk(filename::String)
             dtype = TYPES[ty]
             idx += 2
             vectors = zeros(dtype, ncells,3)
-            for i=1:ncells
+            for i in 1:ncells
                 vectors[i,1] = parse(dtype, data[idx+1])
                 vectors[i,2] = parse(dtype, data[idx+2])
                 vectors[i,3] = parse(dtype, data[idx+3])
@@ -370,7 +370,7 @@ function read_vtk(filename::String)
             ty = data[idx+2]
             idx += 5
             scalars = zeros(TYPES[ty], npoints)
-            for i=1:npoints
+            for i in 1:npoints
                 idx += 1
                 scalars[i] = parse(TYPES[ty], data[idx])
             end
@@ -382,7 +382,7 @@ function read_vtk(filename::String)
             ty = data[idx+2]
             idx += 5
             scalars = zeros(TYPES[ty], ncells)
-            for i=1:ncells
+            for i in 1:ncells
                 idx += 1
                 scalars[i] = parse(TYPES[ty], data[idx])
             end
@@ -466,7 +466,7 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
     ncells  = length(connects)
 
     # Setting points
-    for i=1:npoints
+    for i in 1:npoints
         X = coords[i,:]
         node = Node(X)
         node.id = i
@@ -484,7 +484,7 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
     # Setting cells
     has_polyvertex = false
 
-    for i=1:ncells
+    for i in 1:ncells
         conn = mesh.nodes[ connects[i] ]
         vtk_shape = VTKCellType(vtk_types[i])
         if vtk_shape == VTK_POLY_VERTEX
@@ -552,10 +552,10 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
                 # look for joints1D and fix shape
                 if n>=5
                     # check if cell is related to a JLINK2
-                    hss = hash( [ cell.nodes[i] for i=1:n-2] )
+                    hss = hash( [ cell.nodes[i] for i in 1:n-2] )
                     if haskey(cdict, hss)
                         cell.shape = JLINK2
-                        hs0   = hash( [ cell.nodes[i] for i=n-1:n] )
+                        hs0   = hash( [ cell.nodes[i] for i in n-1:n] )
                         hcell = cdict[hss]
                         lcell = cdict[hs0]
                         cell.linked_elems = [hcell, lcell]
@@ -564,10 +564,10 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
                     end
 
                     # check if cell is related to a JLINK3
-                    hss = hash( [ cell.nodes[i] for i=1:n-3] )
+                    hss = hash( [ cell.nodes[i] for i in 1:n-3] )
                     if haskey(cdict, hss)
                         cell.shape = JLINK3
-                        hs0   = hash( [ cell.nodes[i] for i=n-2:n] )
+                        hs0   = hash( [ cell.nodes[i] for i in n-2:n] )
                         hcell = cdict[hss]
                         lcell = cdict[hs0]
                         cell.linked_elems = [hcell, lcell]
@@ -579,7 +579,7 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
                 # look for conventional joints and fix shape
                 if n%2==0 && n>=4
                     isjoint = true
-                    for i=1:div(n,2)
+                    for i in 1:div(n,2)
                         p1 = cell.nodes[i]
                         p2 = cell.nodes[div(n,2)+i]
                         if hash(p1) != hash(p2)
@@ -598,7 +598,7 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
                     isjoint = true
                     stride= div(n,3)
                     delta = 0.0
-                    for i=1:stride
+                    for i in 1:stride
                         p1 = cell.nodes[i]
                         p2 = cell.nodes[stride+i]
                         if hash(p1) != hash(p2)
@@ -636,8 +636,8 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
             for cell in mesh.elems
                 if cell.shape.family == JOINT_CELL
                     n = length(cell.nodes)
-                    hs1 = hash( [ cell.nodes[i] for i=1:div(n,2)] )
-                    hs2 = hash( [ cell.nodes[i] for i=div(n,2)+1:n] )
+                    hs1 = hash( [ cell.nodes[i] for i in 1:div(n,2)] )
+                    hs2 = hash( [ cell.nodes[i] for i in div(n,2)+1:n] )
                     cell1 = facedict[hs1].owner
                     cell2 = facedict[hs2].owner
                     cell.linked_elems = [ cell1, cell2 ]
@@ -676,7 +676,7 @@ function read_tetgen(filekey::String)
     npoints, ndim, _, _ = parse.(Int, split(line))
     points  = zeros(npoints,3)
 
-    for i=1:npoints
+    for i in 1:npoints
         line = readline(f)
         items = split(line)
         points[i,1] = parse(Float64, items[2])
@@ -692,7 +692,7 @@ function read_tetgen(filekey::String)
     ncells, npts, _ = parse.(Int, split(line))
     cells = Array{Int,1}[]
 
-    for i=1:ncells
+    for i in 1:ncells
         line = readline(f)
         items = split(line)
         pts = parse.(Int, items[2:end])
@@ -721,7 +721,7 @@ function tetreader(filekey::String)
     npoints, ndim, att, hasmarker = parse.(split(data[1]))
     points = Array{Node,1}(npoints)
 
-    for i=1:npoints
+    for i in 1:npoints
         pdata = parse.(split(data[i+1]))
         tag   = hasmarker==1 ? pdata[end] : ""
         node = Node(pdata[2], pdata[3], pdata[4], tag)
@@ -736,7 +736,7 @@ function tetreader(filekey::String)
     celltype = ntetpts==4 ? TET4 : TET10
     cells = Array{Cell,1}(ncells)
 
-    for i=1:ncells
+    for i in 1:ncells
         cdata = parse.(split(data[i+1]))
         tag   = hasatt==1 ? cdata[end] : 0
         cellpoints = points[cdata[2:ntetpts+1]]
@@ -753,7 +753,7 @@ function tetreader(filekey::String)
     celltype = ntetpts==4 ? TRI3 : TRI6
     faces = Array{Cell,1}(nfaces)
 
-    for i=1:nfaces
+    for i in 1:nfaces
         fdata = parse.(split(data[i+1]))
         tag   = hasmarker==1 ? fdata[end] : 0
         facepts = points[fdata[2:nfacepts+1]]
@@ -769,7 +769,7 @@ function tetreader(filekey::String)
     celltype = ntetpts==4 ? LIN2 : LIN3
     edges = Array{Cell,1}(nedges)
 
-    for i=1:nedges
+    for i in 1:nedges
         edata = parse.(split(data[i+1]))
         tag   = hasmarker==1 ? edata[end] : 0
         edgepts = points[edata[2:nedgepts+1]]

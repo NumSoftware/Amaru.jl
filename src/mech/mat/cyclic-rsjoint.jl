@@ -2,7 +2,7 @@
 
 export CyclicRSJoint
 
-mutable struct CyclicRSJointIpState<:IpState
+mutable struct CyclicRSJointState<:IpState
     env    ::ModelEnv
     σ      ::Array{Float64,1}
     u      ::Array{Float64,1}
@@ -15,7 +15,7 @@ mutable struct CyclicRSJointIpState<:IpState
     sneg   ::Float64
     spos   ::Float64
     elastic::Bool
-    function CyclicRSJointIpState(env::ModelEnv=ModelEnv())
+    function CyclicRSJointState(env::ModelEnv=ModelEnv())
         this         = new(env)
         ndim         = env.ndim
         this.σ       = zeros(ndim)
@@ -90,10 +90,10 @@ end
 matching_elem_type(::CyclicRSJoint) = MechRodSolidJoint
 
 # Creates a new instance of Ip data
-ip_state_type(mat::CyclicRSJoint) = CyclicRSJointIpState
+ip_state_type(mat::CyclicRSJoint) = CyclicRSJointState
 
 
-function tau(mat::CyclicRSJoint, ips::CyclicRSJointIpState, s::Float64)
+function tau(mat::CyclicRSJoint, ips::CyclicRSJointState, s::Float64)
     s = abs(s)
     s2 = ips.speak*1.1
     if s<ips.speak
@@ -108,7 +108,7 @@ function tau(mat::CyclicRSJoint, ips::CyclicRSJointIpState, s::Float64)
 end
 
 
-function tau_deriv(mat::CyclicRSJoint, ips::CyclicRSJointIpState, s::Float64)
+function tau_deriv(mat::CyclicRSJoint, ips::CyclicRSJointState, s::Float64)
     s = abs(s)
     s2 = ips.speak*1.1
 
@@ -131,7 +131,7 @@ function tau_deriv(mat::CyclicRSJoint, ips::CyclicRSJointIpState, s::Float64)
 end
 
 
-function calcD(mat::CyclicRSJoint, ips::CyclicRSJointIpState)
+function calcD(mat::CyclicRSJoint, ips::CyclicRSJointState)
     ndim = ips.env.ndim
     ks = mat.ks
     kn = mat.kn
@@ -167,7 +167,7 @@ function calcD(mat::CyclicRSJoint, ips::CyclicRSJointIpState)
 end
 
 
-function stress_update(mat::CyclicRSJoint, ips::CyclicRSJointIpState, Δu::Vect)
+function stress_update(mat::CyclicRSJoint, ips::CyclicRSJointState, Δu::Vect)
     ks = mat.ks
     kn = mat.kn
     s  = ips.u[1]   # relative displacement
@@ -229,7 +229,7 @@ function stress_update(mat::CyclicRSJoint, ips::CyclicRSJointIpState, Δu::Vect)
     return Δσ, success()
 end
 
-function stress_update2(mat::CyclicRSJoint, ips::CyclicRSJointIpState, Δu::Vect)
+function stress_update2(mat::CyclicRSJoint, ips::CyclicRSJointState, Δu::Vect)
     ks = mat.ks
     kn = mat.kn
     s  = ips.u[1]   # relative displacement
@@ -296,7 +296,7 @@ function stress_update2(mat::CyclicRSJoint, ips::CyclicRSJointIpState, Δu::Vect
     return Δσ, success()
 end
 
-function ip_state_vals(mat::CyclicRSJoint, ips::CyclicRSJointIpState)
+function ip_state_vals(mat::CyclicRSJoint, ips::CyclicRSJointState)
     return OrderedDict(
       :ur   => ips.u[1] ,
       :tau  => ips.σ[1] ,

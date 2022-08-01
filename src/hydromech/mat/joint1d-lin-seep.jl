@@ -2,12 +2,12 @@
 
 export Joint1DLinSeep
 
-mutable struct Joint1DLinSeepIpState<:IpState
+mutable struct Joint1DLinSeepState<:IpState
     env::ModelEnv
     ndim::Int
     V::Float64     # fluid velocity
     D::Float64     # distance traveled by the fluid
-    function Joint1DLinSeepIpState(env::ModelEnv=ModelEnv())
+    function Joint1DLinSeepState(env::ModelEnv=ModelEnv())
         this = new(env)
         ndim = env.ndim
         this.V = 0.0
@@ -52,16 +52,16 @@ end
 matching_elem_type(::Joint1DLinSeep) = SeepJoint1D
 
 # Type of corresponding state structure
-ip_state_type(mat::Joint1DLinSeep) = Joint1DLinSeepIpState
+ip_state_type(mat::Joint1DLinSeep) = Joint1DLinSeepState
 
-function update_state!(mat::Joint1DLinSeep, ipd::Joint1DLinSeepIpState, ΔFw::Float64, Δt::Float64)
+function update_state!(mat::Joint1DLinSeep, ipd::Joint1DLinSeepState, ΔFw::Float64, Δt::Float64)
     k = mat.k
     ipd.V  = -k*ΔFw
     ipd.D  += ipd.V*Δt
     return ipd.V
 end
 
-function ip_state_vals(mat::Joint1DLinSeep, ipd::Joint1DLinSeepIpState)
+function ip_state_vals(mat::Joint1DLinSeep, ipd::Joint1DLinSeepState)
     return OrderedDict(
       :vj => ipd.V)
 end

@@ -2,11 +2,11 @@
 
 export TipJoint
 
-mutable struct TipJointIpState<:IpState
+mutable struct TipJointState<:IpState
     env::ModelEnv
     f ::Float64
     w ::Float64
-    function TipJointIpState(env::ModelEnv=ModelEnv())
+    function TipJointState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.f = 0.0
         this.w = 0.0
@@ -34,9 +34,9 @@ end
 matching_elem_type(::TipJoint) = MechTipJoint
 
 # Type of corresponding state structure
-ip_state_type(mat::TipJoint) = TipJointIpState
+ip_state_type(mat::TipJoint) = TipJointState
 
-function calcD(mat::TipJoint, ipd::TipJointIpState)
+function calcD(mat::TipJoint, ipd::TipJointState)
     if ipd.w>0.0
         return mat.k
     else
@@ -44,7 +44,7 @@ function calcD(mat::TipJoint, ipd::TipJointIpState)
     end
 end
 
-function stress_update(mat::TipJoint, ipd::TipJointIpState, Δw)
+function stress_update(mat::TipJoint, ipd::TipJointState, Δw)
     fini = ipd.f
     ftr  = fini + mat.k*Δw
     
@@ -59,7 +59,7 @@ function stress_update(mat::TipJoint, ipd::TipJointIpState, Δw)
     return Δf, success()
 end
 
-function ip_state_vals(mat::TipJoint, ipd::TipJointIpState)
+function ip_state_vals(mat::TipJoint, ipd::TipJointState)
     return OrderedDict(
       :ur   => ipd.w ,
       :tau  => ipd.f )

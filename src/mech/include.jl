@@ -5,6 +5,7 @@ export set_state
 export solve!
 
 include("elem/mech.jl")
+include("elem/distributed.jl")
 
 # Elements
 include("elem/mech-solid.jl")

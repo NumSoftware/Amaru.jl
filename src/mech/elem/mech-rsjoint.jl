@@ -113,7 +113,7 @@ function mountB(elem::MechRodSolidJoint, R, Ch, Ct)
 
     # Mount MM matrix
     stack = Array{Float64,2}[]
-    for i=1:nbnodes
+    for i in 1:nbnodes
         Xj = bar.nodes[i].coord
         R  = inverse_map(hook.shape, Ch, Xj)
         M  = hook.shape.func(R)

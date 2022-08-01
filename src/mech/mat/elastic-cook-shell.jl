@@ -2,7 +2,7 @@
 
 export ElasticCookShell
 
-mutable struct ElasticCookShellIpState<:IpState
+mutable struct ElasticCookShellState<:IpState
     "Environment information"
     env::ModelEnv
     "Stress tensor"
@@ -10,7 +10,7 @@ mutable struct ElasticCookShellIpState<:IpState
     "Strain tensor"
     ε::Array{Float64,1}
 
-    function ElasticCookShellIpState(env::ModelEnv=ModelEnv())
+    function ElasticCookShellState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
@@ -39,10 +39,10 @@ end
 matching_elem_type(::ElasticCookShell) = CookShell
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticCookShell) = ElasticCookShellIpState
+ip_state_type(mat::ElasticCookShell) = ElasticCookShellState
 
 
-function calcD(mat::ElasticCookShell, ipd::ElasticCookShellIpState)
+function calcD(mat::ElasticCookShell, ipd::ElasticCookShellState)
     E = mat.E
     ν = mat.nu
     c = E/(1.0-ν^2)
@@ -58,7 +58,7 @@ function calcD(mat::ElasticCookShell, ipd::ElasticCookShellIpState)
     # ezz = -ν/E*(sxx+syy)
 end
 
-function stress_update(mat::ElasticCookShell, ipd::ElasticCookShellIpState, dε::Array{Float64,1})
+function stress_update(mat::ElasticCookShell, ipd::ElasticCookShellState, dε::Array{Float64,1})
     D = calcD(mat, ipd)
     dσ = D*dε
     ipd.ε += dε
@@ -66,6 +66,6 @@ function stress_update(mat::ElasticCookShell, ipd::ElasticCookShellIpState, dε:
     return dσ, success()
 end
 
-function ip_state_vals(mat::ElasticCookShell, ipd::ElasticCookShellIpState)
+function ip_state_vals(mat::ElasticCookShell, ipd::ElasticCookShellState)
     return stress_strain_dict(ipd.σ, ipd.ε, ipd.env.modeltype)
 end

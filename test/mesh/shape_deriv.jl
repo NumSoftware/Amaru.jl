@@ -11,7 +11,7 @@ for shape in ALL_ISO_SHAPES
     In = Matrix{Float64}(I,n,n)
 
     # Check at nodes
-    RR = [ shape.nat_coords[i,:] for i=1:n ]
+    RR = [ shape.nat_coords[i,:] for i in 1:n ]
     NN = shape.func.(RR)
 
     II = hcat(NN...) # should provida an identity matrix
@@ -21,7 +21,7 @@ for shape in ALL_ISO_SHAPES
     Q  = shape.quadrature[0]
     nip, _ = size(Q)
 
-    RR = [ Q[i,:] for i=1:nip ]
+    RR = [ Q[i,:] for i in 1:nip ]
     NN = shape.func.(RR)
     TR = @test sum(sum(NN)) ≈ nip atol=1e-10
     println(TR)
@@ -33,7 +33,7 @@ for shape in ALL_ISO_SHAPES
     print("shape : ", shape.name)
     n    = shape.npoints
     ndim = shape.ndim
-    RR = [ shape.nat_coords[i,:] for i=1:n ]
+    RR = [ shape.nat_coords[i,:] for i in 1:n ]
     f  = shape.func
 
     In = Matrix{Float64}(I,n,n)
@@ -47,7 +47,7 @@ for shape in ALL_ISO_SHAPES
         RI = R .+ Id*δ
         fR = f(R)
         D  = zeros(n, ndim)
-        for i=1:ndim
+        for i in 1:ndim
             Di     = 1/δ*(f(RI[:,i]) - fR)
             D[:, i] = Di
         end

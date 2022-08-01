@@ -2,9 +2,9 @@
 
 export ElasticSpring
 
-mutable struct ElasticSpringIpState<:IpState
+mutable struct ElasticSpringState<:IpState
     env::ModelEnv
-    function ElasticSpringIpState(env::ModelEnv=ModelEnv())
+    function ElasticSpringState(env::ModelEnv=ModelEnv())
         return new(env)
     end
 end
@@ -35,8 +35,8 @@ end
 matching_elem_type(::ElasticSpring) = MechSpring
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticSpring) = ElasticSpringIpState
+ip_state_type(mat::ElasticSpring) = ElasticSpringState
 
-function ip_state_vals(mat::ElasticSpring, ipd::ElasticSpringIpState)
+function ip_state_vals(mat::ElasticSpring, ipd::ElasticSpringState)
     return OrderedDict{Symbol, Float64}()
 end

@@ -2,12 +2,12 @@
 
 export LinSeep
 
-mutable struct LinSeepIpState<:IpState
+mutable struct LinSeepState<:IpState
     env::ModelEnv
     V::Array{Float64,1} # fluid velocity
     D::Array{Float64,1} # distance traveled by the fluid
     uw::Float64         # pore pressure
-    function LinSeepIpState(env::ModelEnv=ModelEnv())
+    function LinSeepState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.V  = zeros(env.ndim)
         this.D  = zeros(env.ndim)
@@ -41,9 +41,9 @@ end
 matching_elem_type(::LinSeep) = SeepSolid
 
 # Type of corresponding state structure
-ip_state_type(mat::LinSeep) = LinSeepIpState
+ip_state_type(mat::LinSeep) = LinSeepState
 
-function calcK(mat::LinSeep, ipd::LinSeepIpState) # Hydraulic conductivity matrix
+function calcK(mat::LinSeep, ipd::LinSeepState) # Hydraulic conductivity matrix
     if ipd.env.ndim==2
         return mat.k*eye(2)
     else
@@ -51,7 +51,7 @@ function calcK(mat::LinSeep, ipd::LinSeepIpState) # Hydraulic conductivity matri
     end
 end
 
-function update_state!(mat::LinSeep, ipd::LinSeepIpState, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
+function update_state!(mat::LinSeep, ipd::LinSeepState, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
     K = calcK(mat, ipd)
     ipd.V   = -K*G
     ipd.D  += ipd.V*Δt
@@ -60,7 +60,7 @@ function update_state!(mat::LinSeep, ipd::LinSeepIpState, Δuw::Float64, G::Arra
 end
 
 
-function ip_state_vals(mat::LinSeep, ipd::LinSeepIpState)
+function ip_state_vals(mat::LinSeep, ipd::LinSeepState)
     D = OrderedDict{Symbol, Float64}()
     D[:vx] = ipd.V[1]
     D[:vy] = ipd.V[2]

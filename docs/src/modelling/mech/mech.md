@@ -14,29 +14,29 @@ Amaru.MechRodSolidJoint
 ```@docs
 ElasticSolid
 ElasticSolid()
-Amaru.ElasticSolidIpState
+Amaru.ElasticSolidState
 ```
 
 ```@docs
 DruckerPrager
 DruckerPrager()
-Amaru.DruckerPragerIpState
+Amaru.DruckerPragerState
 ```
 
 ```@docs
 VonMises
 VonMises()
-Amaru.VonMisesIpState
+Amaru.VonMisesState
 ```
 
 ```@docs
 ElasticRod
 ElasticRod()
-Amaru.ElasticRodIpState
+Amaru.ElasticRodState
 ```
 
 ```@docs
 PPRod
 PPRod()
-Amaru.PPRodIpState
+Amaru.PPRodState
 ```

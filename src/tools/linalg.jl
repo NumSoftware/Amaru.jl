@@ -9,8 +9,8 @@ eye(n) = Array{Float64,2}(I, n, n)
 # Fancy matrix printing
 function print_matrix(M::Array{Float64,2})
     n, m = size(M)
-    for i=1:n
-        for j=1:m
+    for i in 1:n
+        for j in 1:m
             @printf( "%23.11e", M[i,j] )
         end
         println()

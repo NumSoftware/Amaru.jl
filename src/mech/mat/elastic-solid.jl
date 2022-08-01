@@ -43,7 +43,7 @@ mutable struct ElasticSolid<:Material
 end
 
 """
-    ElasticSolidIpState
+    ElasticSolidState
 
 A type for the state data of a `ElasticSolid` type.
 
@@ -51,7 +51,7 @@ A type for the state data of a `ElasticSolid` type.
 
 $(TYPEDFIELDS)
 """
-mutable struct ElasticSolidIpState<:IpState
+mutable struct ElasticSolidState<:IpState
     "Environment information"
     env::ModelEnv
     "Stress tensor"
@@ -59,7 +59,7 @@ mutable struct ElasticSolidIpState<:IpState
     "Strain tensor"
     ε::Array{Float64,1}
 
-    function ElasticSolidIpState(env::ModelEnv=ModelEnv())
+    function ElasticSolidState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
@@ -73,7 +73,7 @@ end
 matching_elem_type(::ElasticSolid) = MechSolid
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticSolid) = ElasticSolidIpState
+ip_state_type(mat::ElasticSolid) = ElasticSolidState
 
 
 function calcDe(E::Number, ν::Number, modeltype::String)
@@ -99,11 +99,11 @@ function calcDe(E::Number, ν::Number, modeltype::String)
     end
 end
 
-function calcD(mat::ElasticSolid, ipd::ElasticSolidIpState)
+function calcD(mat::ElasticSolid, ipd::ElasticSolidState)
     return calcDe(mat.E, mat.nu, ipd.env.modeltype)
 end
 
-function stress_update(mat::ElasticSolid, ipd::ElasticSolidIpState, dε::Array{Float64,1})
+function stress_update(mat::ElasticSolid, ipd::ElasticSolidState, dε::Array{Float64,1})
     De = calcDe(mat.E, mat.nu, ipd.env.modeltype)
     dσ = De*dε
     ipd.ε += dε
@@ -111,6 +111,6 @@ function stress_update(mat::ElasticSolid, ipd::ElasticSolidIpState, dε::Array{F
     return dσ, success()
 end
 
-function ip_state_vals(mat::ElasticSolid, ipd::ElasticSolidIpState)
+function ip_state_vals(mat::ElasticSolid, ipd::ElasticSolidState)
     return stress_strain_dict(ipd.σ, ipd.ε, ipd.env.modeltype)
 end

@@ -21,14 +21,14 @@ end
 function Base.getindex(node::Node, index::Int)
     nodei = node
     if index>0
-        for i=1:index
+        for i in 1:index
             nodei = nodei.next
         end
     end
 
     if index<0
         index = abs(index)
-        for i=1:index
+        for i in 1:index
             nodei = nodei.prev
         end
     end
@@ -109,7 +109,7 @@ end
 export check
 function check(list::List{T}) where T
     node = list.first
-    for i=1:length(list)
+    for i in 1:length(list)
         if objectid(node.next.prev)==objectid(node)
             println("ok")
         else

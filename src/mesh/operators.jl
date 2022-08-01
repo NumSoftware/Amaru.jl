@@ -158,7 +158,7 @@ end
 #         idxs = [ npts:-1:1; ]  # reverse
 #     end
 #     coords = coords[idxs,:]
-#     bl.nodes = [ Node(coords[i,1], coords[i,2], coords[i,3]) for i=1:size(coords,1) ]
+#     bl.nodes = [ Node(coords[i,1], coords[i,2], coords[i,3]) for i in 1:size(coords,1) ]
 
 #     return bl
 # end
@@ -308,9 +308,9 @@ julia> length(blocks)
 """
 function array(block::AbstractBlock; nx=1, ny=1, nz=1, dx=0.0, dy=0.0, dz=0.0)
     blocks = [ block ]
-    for k=0:nz-1
-        for j=0:ny-1
-            for i=0:nx-1
+    for k in 0:nz-1
+        for j in 0:ny-1
+            for i in 0:nx-1
                 i==j==k==0 && continue
                 cp = copy(block)
                 move!(cp, dx=i*dx, dy=j*dy, dz=k*dz)
@@ -492,7 +492,7 @@ end
 function polar(block::AbstractBlock; base=[0.0,0,0], axis=[0.0,0,1], angle=360.0, n=2 )
     blocks = [ block ]
     angle = angle/n
-    for i=1:n-1
+    for i in 1:n-1
         bli = copy(block)
         rotate!(bli, base=base, axis=axis, angle=angle*i)
         push!(blocks, bli)

@@ -569,11 +569,11 @@ function cplot(
             n = length(X)
             m = length(pos)
             found = false # j
-            for j=2:m
+            for j in 2:m
                 A1x, A1y = pos[j-1]
                 A2x, A2y = pos[j] .+ 1e-3
 
-                for i=2:n
+                for i in 2:n
                     B1x, B1y = X[i-1], Y[i-1]
                     B2x, B2y = X[i], Y[i]
 
@@ -598,13 +598,13 @@ function cplot(
             end
         else # pos is a scalar
             len = 0.0
-            for i=2:length(X)
+            for i in 2:length(X)
                 len += √((X[i]-X[i-1])^2 + (Y[i]-Y[i-1])^2)
             end
             lpos = pos*len
             len = 0.0
 
-            for i=2:length(X)
+            for i in 2:length(X)
                 dlen = √((X[i]-X[i-1])^2 + (Y[i]-Y[i-1])^2)
                 len += dlen
                 if len>=lpos

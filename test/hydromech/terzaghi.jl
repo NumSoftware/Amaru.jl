@@ -98,7 +98,7 @@ if Amaru.config.makeplots
     # Terzaghi's 1-d consolidation
     function calc_Ue(Z, T)
         sum = 0.0
-        for i=0:4
+        for i in 0:4
             M = pi/2*(2*i+1)
             sum = sum + 2/M*sin(M*Z)*exp(-M^2*T)
         end

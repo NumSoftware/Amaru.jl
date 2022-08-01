@@ -26,6 +26,7 @@ include("mat/elastic-joint-seep2.jl")
 include("mat/mc-joint-seep.jl")
 include("mat/mc-joint-seep2.jl")
 include("mat/p-joint-seep.jl")
+include("mat/tc-joint-seep.jl")
 include("mat/joint1d-lin-seep.jl")
 include("mat/joint-lin-seep.jl")
 

@@ -96,7 +96,7 @@ end
 function getcoords(elem::Element)
     nnodes = length(elem.nodes)
     ndim   = elem.env.ndim
-    return [ elem.nodes[i].coord[j] for i=1:nnodes, j=1:ndim]
+    return [ elem.nodes[i].coord[j] for i in 1:nnodes, j=1:ndim]
 end
 
 
@@ -111,7 +111,7 @@ function setquadrature!(elem::Element, n::Int=0)
     n = size(ipc,1)
 
     resize!(elem.ips, n)
-    for i=1:n
+    for i in 1:n
         R = ipc[i,1:3]
         w = ipc[i,4]
         elem.ips[i] = Ip(R, w)

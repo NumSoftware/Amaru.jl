@@ -64,7 +64,7 @@ function setquadrature!(elem::ShellDegenerated, n::Int=0)
 
     resize!(elem.ips, 2*n)
     for k in 1:2
-        for i=1:n
+        for i in 1:n
             R = [ ip2d[i,1:2]; ip1d[k,1] ]
             w = ip2d[i,4]*ip1d[k,4]
             j = (k-1)*n + i
@@ -115,7 +115,7 @@ function distributed_bc(elem::ShellDegenerated, facet::Cell, key::Symbol, val::U
     shape = target.shape
     ips   = get_ip_coords(shape)
 
-    for i=1:size(ips,1)
+    for i in 1:size(ips,1)
         R = vec(ips[i,:])
         w = R[end]
         N = shape.func(R)

@@ -107,8 +107,8 @@ function save_xml(dom::Domain, filename::String)
         dtype = isfloat ? "Float64" : "Int32"
         ncomps = size(D,2)
         xdata = Xnode("DataArray", attributes=OrderedDict("name"=>string(field), "type"=>dtype, "ncomps"=>string(ncomps)))
-        for i=1:nnodes
-            for j=1:ncomps
+        for i in 1:nnodes
+            for j in 1:ncomps
                 if isfloat
                     @printf io "%17.7e" Float32(D[i,j])
                 else
@@ -129,8 +129,8 @@ function save_xml(dom::Domain, filename::String)
         dtype = isfloat ? "Float64" : "Int32"
         ncomps = size(D,2)
         xdata = Xnode("DataArray", attributes=OrderedDict("name"=>string(field), "type"=>dtype, "ncomps"=>string(ncomps)))
-        for i=1:nelems
-            for j=1:ncomps
+        for i in 1:nelems
+            for j in 1:ncomps
                 if isfloat
                     @printf io "%20.10e" Float32(D[i,j])
                 else
@@ -354,7 +354,7 @@ function get_segment_data(dom::Domain, X1::Array{<:Real,1}, X2::Array{<:Real,1},
     Δs = norm(Δ)
     s1 = 0.0
 
-    for i=1:npoints
+    for i in 1:npoints
         X = X1 + Δ*(i-1)
         s = s1 + Δs*(i-1)
         cell = find_elem(X, dom.elems, dom._elempartition, 1e-7, Cell[])

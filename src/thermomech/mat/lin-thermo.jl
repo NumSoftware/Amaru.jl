@@ -2,12 +2,12 @@
 
 export LinThermo
 
-mutable struct LinThermoIpState<:IpState
+mutable struct LinThermoState<:IpState
     env::ModelEnv
     ut::Float64
     QQ::Array{Float64,1}
     D::Array{Float64,1} #
-    function LinThermoIpState(env::ModelEnv=ModelEnv())
+    function LinThermoState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.ut = 0.0
         this.QQ  = zeros(env.ndim)
@@ -44,9 +44,9 @@ end
 matching_elem_type(::LinThermo) = ThermoSolid
 
 # Type of corresponding state structure
-ip_state_type(mat::LinThermo) = LinThermoIpState
+ip_state_type(mat::LinThermo) = LinThermoState
 
-function calcK(mat::LinThermo, ipd::LinThermoIpState) # Thermal conductivity matrix
+function calcK(mat::LinThermo, ipd::LinThermoState) # Thermal conductivity matrix
     if ipd.env.ndim==2
         return mat.k*eye(2)
     else
@@ -54,7 +54,7 @@ function calcK(mat::LinThermo, ipd::LinThermoIpState) # Thermal conductivity mat
     end
 end
 
-function update_state!(mat::LinThermo, ipd::LinThermoIpState, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
+function update_state!(mat::LinThermo, ipd::LinThermoState, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
     K = calcK(mat, ipd)
     ipd.QQ   = -K*G
     ipd.D  += ipd.QQ*Δt
@@ -63,7 +63,7 @@ function update_state!(mat::LinThermo, ipd::LinThermoIpState, Δut::Float64, G::
 end
 
 
-function ip_state_vals(mat::LinThermo, ipd::LinThermoIpState)
+function ip_state_vals(mat::LinThermo, ipd::LinThermoState)
     D = OrderedDict{Symbol, Float64}()
     #D[:qx] = ipd.QQ[1]
     #D[:qy] = ipd.QQ[2]

@@ -2,17 +2,17 @@
 
 export PJointSeep
 
-mutable struct PJointSeepIpState<:IpState
+mutable struct PJointSeepState<:IpState
     env::ModelEnv
     σ   ::Array{Float64,1}  # stress
     w   ::Array{Float64,1}  # relative displacements
     Vt  ::Array{Float64,1}  # transverse fluid velocity
     L   ::Array{Float64,1} 
     uw  ::Array{Float64,1}  # interface pore pressure
-    upa ::Float64           # effective plastic relative displacement
+    up ::Float64           # effective plastic relative displacement
     Δλ  ::Float64           # plastic multiplier
     h   ::Float64           # characteristic length from bulk elements
-    function PJointSeepIpState(env::ModelEnv=ModelEnv())
+    function PJointSeepState(env::ModelEnv=ModelEnv())
         this = new(env)
         ndim = env.ndim
         this.σ   = zeros(ndim)
@@ -20,7 +20,7 @@ mutable struct PJointSeepIpState<:IpState
         this.Vt  = zeros(2) 
         this.L   = zeros(ndim-1)
         this.uw  = zeros(3) 
-        this.upa = 0.0
+        this.up = 0.0
         this.Δλ  = 0.0
         this.h   = 0.0
         return this
@@ -92,10 +92,10 @@ end
 matching_elem_type(::PJointSeep) = HydroMechJoint
 
 # Type of corresponding state structure
-ip_state_type(mat::PJointSeep) = PJointSeepIpState
+ip_state_type(mat::PJointSeep) = PJointSeepState
 
 
-function yield_func(mat::PJointSeep, ipd::PJointSeepIpState, σ::Array{Float64,1}, σmax::Float64)
+function yield_func(mat::PJointSeep, ipd::PJointSeepState, σ::Array{Float64,1}, σmax::Float64)
     ndim = ipd.env.ndim
     fc, ft = mat.fc, mat.ft
 
@@ -108,7 +108,7 @@ function yield_func(mat::PJointSeep, ipd::PJointSeepIpState, σ::Array{Float64,1
 end
 
 
-function yield_derivs(mat::PJointSeep, ipd::PJointSeepIpState, σ::Array{Float64,1})
+function yield_derivs(mat::PJointSeep, ipd::PJointSeepState, σ::Array{Float64,1})
     ndim = ipd.env.ndim
     fc, ft = mat.fc, mat.ft
     β = 2*ft - fc -2*√(ft^2 - fc*ft)
@@ -121,7 +121,7 @@ function yield_derivs(mat::PJointSeep, ipd::PJointSeepIpState, σ::Array{Float64
 end
 
 
-function potential_derivs(mat::PJointSeep, ipd::PJointSeepIpState, σ::Array{Float64,1})
+function potential_derivs(mat::PJointSeep, ipd::PJointSeepState, σ::Array{Float64,1})
     ndim = ipd.env.ndim
     if ndim == 3
         if σ[1] > 0.0 
@@ -144,33 +144,33 @@ function potential_derivs(mat::PJointSeep, ipd::PJointSeepIpState, σ::Array{Flo
 end
 
 
-function calc_σmax(mat::PJointSeep, ipd::PJointSeepIpState, upa::Float64)
+function calc_σmax(mat::PJointSeep, ipd::PJointSeepState, up::Float64)
     if mat.softcurve == "linear"
-        if upa < mat.wc
+        if up < mat.wc
             a = mat.ft 
             b = mat.ft /mat.wc
         else
             a = 0.0
             b = 0.0
         end
-        σmax = a - b*upa
+        σmax = a - b*up
     elseif mat.softcurve == "bilinear"
         σs = 0.25*mat.ft 
-        if upa < mat.ws
+        if up < mat.ws
             a  = mat.ft  
             b  = (mat.ft  - σs)/mat.ws
-        elseif upa < mat.wc
+        elseif up < mat.wc
             a  = mat.wc*σs/(mat.wc-mat.ws)
             b  = σs/(mat.wc-mat.ws)
         else
             a = 0.0
             b = 0.0
         end
-        σmax = a - b*upa
+        σmax = a - b*up
     elseif mat.softcurve == "hordijk"
-        if upa < mat.wc
+        if up < mat.wc
             e = exp(1.0)
-            z = (1 + 27*(upa/mat.wc)^3)*e^(-6.93*upa/mat.wc) - 28*(upa/mat.wc)*e^(-6.93)
+            z = (1 + 27*(up/mat.wc)^3)*e^(-6.93*up/mat.wc) - 28*(up/mat.wc)*e^(-6.93)
         else
             z = 0.0
         end
@@ -181,10 +181,10 @@ function calc_σmax(mat::PJointSeep, ipd::PJointSeepIpState, upa::Float64)
 end
 
 
-function deriv_σmax_upa(mat::PJointSeep, ipd::PJointSeepIpState, upa::Float64)
-   # ∂σmax/∂upa = dσmax
+function deriv_σmax_upa(mat::PJointSeep, ipd::PJointSeepState, up::Float64)
+   # ∂σmax/∂up = dσmax
     if mat.softcurve == "linear"
-        if upa < mat.wc
+        if up < mat.wc
             b = mat.ft /mat.wc
         else
             b = 0.0
@@ -192,18 +192,18 @@ function deriv_σmax_upa(mat::PJointSeep, ipd::PJointSeepIpState, upa::Float64)
         dσmax = -b
     elseif mat.softcurve == "bilinear"
         σs = 0.25*mat.ft 
-        if upa < mat.ws
+        if up < mat.ws
             b  = (mat.ft  - σs)/mat.ws
-        elseif upa < mat.wc
+        elseif up < mat.wc
             b  = σs/(mat.wc-mat.ws)
         else
             b = 0.0
         end
         dσmax = -b
     elseif mat.softcurve == "hordijk"
-        if upa < mat.wc
+        if up < mat.wc
             e = exp(1.0)
-            dz = ((81*upa^2*e^(-6.93*upa/mat.wc)/mat.wc^3) - (6.93*(1 + 27*upa^3/mat.wc^3)*e^(-6.93*upa/mat.wc)/mat.wc) - 0.02738402432/mat.wc)
+            dz = ((81*up^2*e^(-6.93*up/mat.wc)/mat.wc^3) - (6.93*(1 + 27*up^3/mat.wc^3)*e^(-6.93*up/mat.wc)/mat.wc) - 0.02738402432/mat.wc)
         else
             dz = 0.0
         end
@@ -214,7 +214,7 @@ function deriv_σmax_upa(mat::PJointSeep, ipd::PJointSeepIpState, upa::Float64)
 end
 
 
-function calc_kn_ks(mat::PJointSeep, ipd::PJointSeepIpState)
+function calc_kn_ks(mat::PJointSeep, ipd::PJointSeepState)
     kn = mat.E*mat.ζ/ipd.h
     G  = mat.E/(2.0*(1.0+mat.ν))
     ks = G*mat.ζ/ipd.h
@@ -223,12 +223,12 @@ function calc_kn_ks(mat::PJointSeep, ipd::PJointSeepIpState)
 end
 
 
-function calc_Δλ(mat::PJointSeep, ipd::PJointSeepIpState, σtr::Array{Float64,1})
+function calc_Δλ(mat::PJointSeep, ipd::PJointSeepState, σtr::Array{Float64,1})
   ndim = ipd.env.ndim
     maxits = 20
     Δλ     = 0.0
     f      = 0.0
-    upa    = 0.0
+    up    = 0.0
     tol    = 1e-2
     fc, ft = mat.fc, mat.ft
     β = 2*ft - fc -2*√(ft^2 - fc*ft)
@@ -261,8 +261,8 @@ function calc_Δλ(mat::PJointSeep, ipd::PJointSeepIpState, σtr::Array{Float64,
                  
         r      = potential_derivs(mat, ipd, σ)
         norm_r = norm(r)
-        upa    = ipd.upa + Δλ*norm_r
-        σmax   = calc_σmax(mat, ipd, upa)
+        up    = ipd.up + Δλ*norm_r
+        σmax   = calc_σmax(mat, ipd, up)
 
         if ndim == 3
             f = β*(σ[1] - σmax) + σ[2]^2 + σ[3]^2
@@ -272,7 +272,7 @@ function calc_Δλ(mat::PJointSeep, ipd::PJointSeepIpState, σtr::Array{Float64,
             dfdσ = [ β, 2*σ[2] ]
         end
 
-        m = deriv_σmax_upa(mat, ipd, upa)
+        m = deriv_σmax_upa(mat, ipd, up)
         dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
         dfdσmax = -β
         dfdΔλ = dot(dfdσ, dσdΔλ) + dfdσmax*dσmaxdΔλ
@@ -285,7 +285,7 @@ function calc_Δλ(mat::PJointSeep, ipd::PJointSeepIpState, σtr::Array{Float64,
             # Increasing the mesh refinement may result in a nonsingular matrix.
             # """)
             # warn("iterations=$i Δλ=$Δλ")
-            return 0.0, failure()
+            return 0.0, failure("PJointSeep: Could nof find Δλ.")
         end
     end
 
@@ -293,7 +293,7 @@ function calc_Δλ(mat::PJointSeep, ipd::PJointSeepIpState, σtr::Array{Float64,
 end
 
 
-function calc_σ_upa(mat::PJointSeep, ipd::PJointSeepIpState, σtr::Array{Float64,1})
+function calc_σ_upa(mat::PJointSeep, ipd::PJointSeepState, σtr::Array{Float64,1})
     ndim = ipd.env.ndim
     kn, ks = calc_kn_ks(mat, ipd)
 
@@ -311,25 +311,25 @@ function calc_σ_upa(mat::PJointSeep, ipd::PJointSeepIpState, σtr::Array{Float6
         end    
     end
     r = potential_derivs(mat, ipd, ipd.σ)
-    ipd.upa += ipd.Δλ*norm(r)
-    return ipd.σ, ipd.upa
+    ipd.up += ipd.Δλ*norm(r)
+    return ipd.σ, ipd.up
 end
 
 
-function mountD(mat::PJointSeep, ipd::PJointSeepIpState)
+function mountD(mat::PJointSeep, ipd::PJointSeepState)
   ndim = ipd.env.ndim
     kn, ks = calc_kn_ks(mat, ipd)
 
     if mat.fracture 
-        ipd.upa = mat.wc
+        ipd.up = mat.wc
     end 
 
-    σmax = calc_σmax(mat, ipd, ipd.upa)
+    σmax = calc_σmax(mat, ipd, ipd.up)
 
     De = diagm([kn, ks, ks][1:ndim])
     # @show σmax
-    # @show ipd.upa
-    # @show ipd.upa > mat.wc
+    # @show ipd.up
+    # @show ipd.up > mat.wc
 
     if ipd.Δλ == 0.0  # Elastic 
         # @show "ELASTIC De"
@@ -349,7 +349,7 @@ function mountD(mat::PJointSeep, ipd::PJointSeepIpState)
         r = potential_derivs(mat, ipd, ipd.σ)
         v = yield_derivs(mat, ipd, ipd.σ)
         y = -β  # ∂F/∂σmax
-        m = deriv_σmax_upa(mat, ipd, ipd.upa)  # ∂σmax/∂upa
+        m = deriv_σmax_upa(mat, ipd, ipd.up)  # ∂σmax/∂up
 
         #Dep  = De - De*r*v'*De/(v'*De*r - y*m*norm(r))
 
@@ -372,9 +372,9 @@ function mountD(mat::PJointSeep, ipd::PJointSeepIpState)
 end
 
 
-function stress_update(mat::PJointSeep, ipd::PJointSeepIpState, Δw::Array{Float64,1}, Δuw::Array{Float64,1},  G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
+function stress_update(mat::PJointSeep, ipd::PJointSeepState, Δw::Array{Float64,1}, Δuw::Array{Float64,1},  G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
 
-    # if ipd.upa>0.00016
+    # if ipd.up>0.00016
     #     error()
     # end
 
@@ -384,11 +384,11 @@ function stress_update(mat::PJointSeep, ipd::PJointSeepIpState, Δw::Array{Float
     kn, ks = calc_kn_ks(mat, ipd)
 
     if mat.fracture 
-        ipd.upa = mat.wc
+        ipd.up = mat.wc
     end 
 
     De = diagm([kn, ks, ks][1:ndim])
-    σmax = calc_σmax(mat, ipd, ipd.upa)  
+    σmax = calc_σmax(mat, ipd, ipd.up)  
     # @show σmax
 
     if isnan(Δw[1]) || isnan(Δw[2])
@@ -401,7 +401,7 @@ function stress_update(mat::PJointSeep, ipd::PJointSeepIpState, Δw::Array{Float
     Ftr  = yield_func(mat, ipd, σtr, σmax)
     # @show "stress update"
     # @show σmax
-    # @show ipd.upa
+    # @show ipd.up
     # @show Δw
     # @show ipd.σ
     # @show σtr
@@ -422,7 +422,7 @@ function stress_update(mat::PJointSeep, ipd::PJointSeepIpState, Δw::Array{Float
             ipd.Δλ = norm(r1)  
         end
 
-        ipd.upa += ipd.Δλ
+        ipd.up += ipd.Δλ
         ipd.σ = σtr - ipd.Δλ*De*r     
 
     elseif Ftr <= 0.0
@@ -438,7 +438,7 @@ function stress_update(mat::PJointSeep, ipd::PJointSeepIpState, Δw::Array{Float
         ipd.Δλ, status = calc_Δλ(mat, ipd, σtr)
         failed(status) && return ipd.σ,ipd.Vt,ipd.L, status
 
-        ipd.σ, ipd.upa = calc_σ_upa(mat, ipd, σtr)
+        ipd.σ, ipd.up = calc_σ_upa(mat, ipd, σtr)
 
         # @show ipd.Δλ
                       
@@ -456,7 +456,7 @@ function stress_update(mat::PJointSeep, ipd::PJointSeepIpState, Δw::Array{Float
 
     # compute crack aperture
     # if mat.w == 0.0
-        if ipd.upa == 0.0 || ipd.w[1] <= 0.0 
+        if ipd.up == 0.0 || ipd.w[1] <= 0.0 
             w = 0.0
         else
             w = ipd.w[1]
@@ -475,7 +475,7 @@ function stress_update(mat::PJointSeep, ipd::PJointSeepIpState, Δw::Array{Float
 end
 
 
-function ip_state_vals(mat::PJointSeep, ipd::PJointSeepIpState)
+function ip_state_vals(mat::PJointSeep, ipd::PJointSeepState)
     ndim = ipd.env.ndim
     if ndim == 3
        return OrderedDict(
@@ -485,7 +485,7 @@ function ip_state_vals(mat::PJointSeep, ipd::PJointSeepIpState)
           :s1   => ipd.σ[1] ,
           :s2   => ipd.σ[2] ,
           :s3   => ipd.σ[3] ,
-          :upa  => ipd.upa  ,
+          :up  => ipd.up  ,
           :uwf  => ipd.uw[3],
           :vb   => ipd.Vt[1],
           :vt   => ipd.Vt[2])
@@ -495,7 +495,7 @@ function ip_state_vals(mat::PJointSeep, ipd::PJointSeepIpState)
           :w2   => ipd.w[2] ,
           :s1   => ipd.σ[1] ,
           :s2   => ipd.σ[2] ,
-          :upa  => ipd.upa  ,
+          :up  => ipd.up  ,
           :uwf  => ipd.uw[3],
           :vb   => ipd.Vt[1],
           :vt   => ipd.Vt[2])

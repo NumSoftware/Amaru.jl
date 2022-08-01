@@ -9,8 +9,8 @@ function mount_Kf(dom::Domain, ndofs::Int)
     for elem in elems
        Ke, rmap, cmap = elem_stiffness(elem)
         nr, nc = size(Ke)
-        for i=1:nr
-            for j=1:nc
+        for i in 1:nr
+            for j in 1:nc
                 push!(R, rmap[i])
                 push!(C, cmap[j])
                 push!(V, Ke[i,j])
@@ -34,8 +34,8 @@ function mount_Mf(dom::Domain, ndofs::Int)
     for elem in elems
         Me, rmap, cmap = elem_mass(elem)
         nr, nc = size(Me)
-        for i=1:nr
-            for j=1:nc
+        for i in 1:nr
+            for j in 1:nc
                 push!(R, rmap[i])
                 push!(C, cmap[j])
                 push!(V, Me[i,j])
@@ -86,7 +86,7 @@ function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemo
     sort!(idsd)
     nidsd = length(idsd)
 
-    for i=1:nidsd
+    for i in 1:nidsd
        M11=M11[1:size(M11,1)     .!= idsd[nidsd+1-i,1],:];
        M11=M11[:,1:size(M11,2) .!= idsd[nidsd+1-i,1]];
        K11=K11[1:size(K11,1)     .!= idsd[nidsd+1-i,1],:];
@@ -95,7 +95,7 @@ function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemo
 
     m11 = zeros(size(M11,2)) #Vetor of inverse matrix mass
 
-    for i=1:size(M11,2)
+    for i in 1:size(M11,2)
         m11[i] = 1/M11[i,i]
     end
 
@@ -126,13 +126,13 @@ function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemo
 
     w = Array{Float64,1}()
 
-    for i=1:nmods
+    for i in 1:nmods
         push!(w,wi[i])
     end
 
     v = Array{Float64,2}(undef,size(P,2),nmods)
 
-    for i=1:nmods
+    for i in 1:nmods
         col = findfirst(isequal(w[i]),w0)
         col = col[1]
         #v[:,i] = eigvecs(P)[:,col]
@@ -159,11 +159,11 @@ function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemo
         nidss = length(idss)
         idefmod = 1
 
-        for j=1:nmods
+        for j in 1:nmods
 
             Umod = zeros(ndofs)
 
-            for i=1:length(v[:,j])
+            for i in 1:length(v[:,j])
                 Umod[idss[i]] = v[i,j]
             end
 

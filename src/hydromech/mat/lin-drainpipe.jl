@@ -2,12 +2,12 @@
 
 export LinDrainPipe
 
-mutable struct LinDrainPipeIpState<:IpState
+mutable struct LinDrainPipeState<:IpState
     env::ModelEnv
     V::Float64       # fluid velocity
     D::Float64       # distance traveled by the fluid
     uw::Float64      # pore pressure
-    function LinDrainPipeIpState(env::ModelEnv=ModelEnv())
+    function LinDrainPipeState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.V  = 0.0
         this.D  = 0.0
@@ -37,9 +37,9 @@ matching_elem_type(::LinDrainPipe) = DrainPipe
 #matching_elem_type_if_embedded(::LinDrainPipe) = SeepEmbRod
 
 # Type of corresponding state structure
-ip_state_type(mat::LinDrainPipe) = LinDrainPipeIpState
+ip_state_type(mat::LinDrainPipe) = LinDrainPipeState
 
-function update_state!(mat::LinDrainPipe, ipd::LinDrainPipeIpState, Δuw::Float64, G::Float64, Δt::Float64)
+function update_state!(mat::LinDrainPipe, ipd::LinDrainPipeState, Δuw::Float64, G::Float64, Δt::Float64)
     k = mat.k
     ipd.V  = -k*G
     ipd.D  += ipd.V*Δt
@@ -47,7 +47,7 @@ function update_state!(mat::LinDrainPipe, ipd::LinDrainPipeIpState, Δuw::Float6
     return ipd.V
 end
 
-function ip_state_vals(mat::LinDrainPipe, ipd::LinDrainPipeIpState)
+function ip_state_vals(mat::LinDrainPipe, ipd::LinDrainPipeState)
     return OrderedDict(
       :va => ipd.V,
       :uwa => ipd.uw,

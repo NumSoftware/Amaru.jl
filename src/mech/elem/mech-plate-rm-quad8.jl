@@ -98,9 +98,9 @@ function elem_stiffness(elem::PlateRM8node)
       -0.932469514203152];
 
       # This region 6 segment integration
-         for k=1:6;
+         for k in 1:6;
             for  i=1:6;
-               for j=1:6;
+               for j in 1:6;
                    e=W[i];
                    n=W[j];
                    z=0.5*th*W[k];

@@ -57,7 +57,7 @@ end
 
 
 """
-    DruckerPragerIpState
+    DruckerPragerState
 
 A type for the state data of a `DruckerPrager` type.
 
@@ -65,7 +65,7 @@ A type for the state data of a `DruckerPrager` type.
 
 $(TYPEDFIELDS)
 """
-mutable struct DruckerPragerIpState<:IpState
+mutable struct DruckerPragerState<:IpState
     "Environment information"
     env::ModelEnv
     "Stress tensor"
@@ -76,7 +76,7 @@ mutable struct DruckerPragerIpState<:IpState
     εpa::Float64
     "Plastic multiplier"
     Δγ::Float64
-    function DruckerPragerIpState(env::ModelEnv=ModelEnv())
+    function DruckerPragerState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.σ   = zeros(6)
         this.ε   = zeros(6)
@@ -89,7 +89,7 @@ end
 matching_elem_type(::DruckerPrager) = MechSolid
 
 # Type of corresponding state structure
-ip_state_type(mat::DruckerPrager) = DruckerPragerIpState
+ip_state_type(mat::DruckerPrager) = DruckerPragerState
 
 
 function nlE(fc::Float64, εc::Float64, ε::Array{Float64,1})
@@ -97,7 +97,7 @@ function nlE(fc::Float64, εc::Float64, ε::Array{Float64,1})
     return 2*fc*(εc-εv)/εc^2
 end
 
-function yield_func(mat::DruckerPrager, ipd::DruckerPragerIpState, σ::Tensor2)
+function yield_func(mat::DruckerPrager, ipd::DruckerPragerState, σ::Tensor2)
     j1  = J1(σ)
     j2d = J2D(σ)
     α,κ = mat.α, mat.κ
@@ -106,7 +106,7 @@ function yield_func(mat::DruckerPrager, ipd::DruckerPragerIpState, σ::Tensor2)
     return α*j1 + √j2d - κ - H*εpa
 end
 
-function calcD(mat::DruckerPrager, ipd::DruckerPragerIpState)
+function calcD(mat::DruckerPrager, ipd::DruckerPragerState)
     α   = mat.α
     H   = mat.H
     De  = calcDe(mat.E, mat.ν, ipd.env.modeltype)
@@ -130,7 +130,7 @@ function calcD(mat::DruckerPrager, ipd::DruckerPragerIpState)
     return De - inner(De,Nu) ⊗ inner(V,De) / (inner(V,De,Nu) + H)
 end
 
-function stress_update(mat::DruckerPrager, ipd::DruckerPragerIpState, Δε::Array{Float64,1})
+function stress_update(mat::DruckerPrager, ipd::DruckerPragerState, Δε::Array{Float64,1})
     σini = ipd.σ
     De   = calcDe(mat.E, mat.ν, ipd.env.modeltype)
     σtr  = ipd.σ + inner(De, Δε)
@@ -170,7 +170,7 @@ function stress_update(mat::DruckerPrager, ipd::DruckerPragerIpState, Δε::Arra
 end
 
 
-function ip_state_vals(mat::DruckerPrager, ipd::DruckerPragerIpState)
+function ip_state_vals(mat::DruckerPrager, ipd::DruckerPragerState)
     ndim  = ipd.env.ndim
     σ, ε  = ipd.σ, ipd.ε
     j1    = tr(σ)

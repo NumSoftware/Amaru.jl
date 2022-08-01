@@ -66,7 +66,7 @@ function mountB(elem::SeepJoint1D, R, Ch, Ct)
 
     # Mount MM matrix
     stack = Array{Float64,1}[]
-    for i=1:nbnodes
+    for i in 1:nbnodes
         Xj = bar.nodes[i].coord
         R  = inverse_map(hook.shape, Ch, Xj)
         M  = hookshape.func(R)

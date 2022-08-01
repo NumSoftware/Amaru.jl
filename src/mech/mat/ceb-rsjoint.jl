@@ -2,14 +2,14 @@
 
 export CebRSJoint
 
-mutable struct CebRSJointIpState<:IpState
+mutable struct CebRSJointState<:IpState
     env::ModelEnv
     σ  ::Array{Float64,1}
     u  ::Array{Float64,1}
     τy ::Float64      # max stress
     sy ::Float64      # accumulated relative displacement
     elastic::Bool
-    function CebRSJointIpState(env::ModelEnv=ModelEnv())
+    function CebRSJointState(env::ModelEnv=ModelEnv())
         this = new(env)
         ndim = env.ndim
         this.σ = zeros(ndim)
@@ -83,7 +83,7 @@ end
 matching_elem_type(::CebRSJoint) = MechRodSolidJoint
 
 # Creates a new instance of Ip data
-ip_state_type(mat::CebRSJoint) = CebRSJointIpState
+ip_state_type(mat::CebRSJoint) = CebRSJointState
 
 CEBJoint1D = CebRSJoint #! deprecated
 export CEBJoint1D
@@ -101,7 +101,7 @@ function Tau(mat::CebRSJoint, sy::Float64)
 end
 
 
-function deriv(mat::CebRSJoint, ipd::CebRSJointIpState, sy::Float64)
+function deriv(mat::CebRSJoint, ipd::CebRSJointState, sy::Float64)
     if sy==0.0
         s1_factor = 0.01
         sy = s1_factor*mat.s1   # to avoid undefined derivative
@@ -121,7 +121,7 @@ function deriv(mat::CebRSJoint, ipd::CebRSJointIpState, sy::Float64)
 end
 
 
-function calcD(mat::CebRSJoint, ipd::CebRSJointIpState)
+function calcD(mat::CebRSJoint, ipd::CebRSJointState)
     ndim = ipd.env.ndim
     ks = mat.ks
 
@@ -144,12 +144,12 @@ function calcD(mat::CebRSJoint, ipd::CebRSJointIpState)
 end
 
 
-function yield_func(mat::CebRSJoint, ipd::CebRSJointIpState, τ::Float64)
+function yield_func(mat::CebRSJoint, ipd::CebRSJointState, τ::Float64)
     return abs(τ) - ipd.τy
 end
 
 
-function stress_update_n(mat::CebRSJoint, ipd::CebRSJointIpState, Δu::Vect)
+function stress_update_n(mat::CebRSJoint, ipd::CebRSJointState, Δu::Vect)
     ks = mat.ks
     kn = mat.kn
     Δs = Δu[1]      # relative displacement
@@ -242,7 +242,7 @@ function stress_update_n(mat::CebRSJoint, ipd::CebRSJointIpState, Δu::Vect)
 end
 
 
-function stress_update(mat::CebRSJoint, ipd::CebRSJointIpState, Δu::Vect)
+function stress_update(mat::CebRSJoint, ipd::CebRSJointState, Δu::Vect)
     ks = mat.ks
     kn = mat.kn
     Δs = Δu[1]      # relative displacement
@@ -280,7 +280,7 @@ function stress_update(mat::CebRSJoint, ipd::CebRSJointIpState, Δu::Vect)
     return Δσ, success()
 end
 
-function ip_state_vals(mat::CebRSJoint, ipd::CebRSJointIpState)
+function ip_state_vals(mat::CebRSJoint, ipd::CebRSJointState)
     return OrderedDict(
       :ur   => ipd.u[1] ,
       :tau  => ipd.σ[1] ,

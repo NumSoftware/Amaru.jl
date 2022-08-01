@@ -2,7 +2,7 @@
 
 export JointLinSeep
 
-mutable struct JointLinSeepIpState<:IpState
+mutable struct JointLinSeepState<:IpState
     env  ::ModelEnv
     V    ::Array{Float64,1} # fluid velocity
     #D    ::Array{Float64,1} # distance traveled by the fluid
@@ -10,7 +10,7 @@ mutable struct JointLinSeepIpState<:IpState
     #S    ::Array{Float64,1}
     uw   ::Array{Float64,1} # interface pore pressure
     h    ::Float64          # characteristic length from bulk elements
-    function JointLinSeepIpState(env::ModelEnv=ModelEnv())
+    function JointLinSeepState(env::ModelEnv=ModelEnv())
         this     = new(env)
         ndim     = env.ndim
         this.V   = zeros(2)
@@ -51,9 +51,9 @@ end
 matching_elem_type(::JointLinSeep) = HydroJoint
 
 # Type of corresponding state structure
-ip_state_type(mat::JointLinSeep) = JointLinSeepIpState
+ip_state_type(mat::JointLinSeep) = JointLinSeepState
 
-function update_state!(mat::JointLinSeep, ipd::JointLinSeepIpState, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
+function update_state!(mat::JointLinSeep, ipd::JointLinSeepState, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
     ipd.uw +=  Δuw
     ipd.V   = -mat.kt*G
     #ipd.D  +=  ipd.V*Δt
@@ -63,7 +63,7 @@ function update_state!(mat::JointLinSeep, ipd::JointLinSeepIpState, Δuw::Array{
     return ipd.V, ipd.L
 end
 
-function ip_state_vals(mat::JointLinSeep, ipd::JointLinSeepIpState)
+function ip_state_vals(mat::JointLinSeep, ipd::JointLinSeepState)
     return OrderedDict(
           :uwf => ipd.uw[3] ,
           :vb  => ipd.V[1] ,
