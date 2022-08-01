@@ -53,19 +53,19 @@ matching_elem_type(::JointLinSeep) = HydroJoint
 # Type of corresponding state structure
 ip_state_type(mat::JointLinSeep) = JointLinSeepState
 
-function update_state!(mat::JointLinSeep, ipd::JointLinSeepState, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
-    ipd.uw +=  Δuw
-    ipd.V   = -mat.kt*G
-    #ipd.D  +=  ipd.V*Δt
-    ipd.L   =  ((mat.w^3)/(12*mat.η))*BfUw
-    #ipd.S  +=  ipd.L*Δt
+function update_state!(mat::JointLinSeep, state::JointLinSeepState, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
+    state.uw +=  Δuw
+    state.V   = -mat.kt*G
+    #state.D  +=  state.V*Δt
+    state.L   =  ((mat.w^3)/(12*mat.η))*BfUw
+    #state.S  +=  state.L*Δt
 
-    return ipd.V, ipd.L
+    return state.V, state.L
 end
 
-function ip_state_vals(mat::JointLinSeep, ipd::JointLinSeepState)
+function ip_state_vals(mat::JointLinSeep, state::JointLinSeepState)
     return OrderedDict(
-          :uwf => ipd.uw[3] ,
-          :vb  => ipd.V[1] ,
-          :vt  => ipd.V[2] )
+          :uwf => state.uw[3] ,
+          :vb  => state.V[1] ,
+          :vt  => state.V[2] )
 end

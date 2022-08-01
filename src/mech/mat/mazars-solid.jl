@@ -62,25 +62,25 @@ matching_elem_type(::Mazars) = MechSolid
 ip_state_type(mat::Mazars) = MazarsState
 
 
-function calcD(mat::Mazars, ipd::MazarsState)
+function calcD(mat::Mazars, state::MazarsState)
     # There is something wrong with the derivatives here
 
     # Equivalent strain scalar
-    εp = eigvals(ipd.ε)
+    εp = eigvals(state.ε)
     ε̅ = norm(pos.(εp))
     ε̅ == 0.0 && (ε̅ += 1e-15)
-    ε̅max = max(ipd.ε̅max, mat.ε̅0)
+    ε̅max = max(state.ε̅max, mat.ε̅0)
 
     if ε̅<ε̅max
         #@show "elastic"
-        return (1.0 - ipd.φ)*mat.De
+        return (1.0 - state.φ)*mat.De
     else
         #@show "plastic"
-        #return (1.0 - ipd.φ)*mat.De
+        #return (1.0 - state.φ)*mat.De
         return mat.De
 
         # Principal stresses and principal directions
-        σp, V = eigen(ipd.σ)
+        σp, V = eigen(state.σ)
         σp = [ σp; zeros(3) ]
         # Eigen vectors
         p1 = V[:, 1]
@@ -109,42 +109,42 @@ function calcD(mat::Mazars, ipd::MazarsState)
         dφdε  = (αt*dφtdε̅ + αc*dφcdε̅) * dε̅dε
 
         #@show dφdε'*mat.De
-        #D     = (1.0 - ipd.φ)*mat.De - (dφdε'*mat.De)'*ipd.ε'
-        D     = (1.0 - ipd.φ)*mat.De - dφdε*(mat.De*ipd.ε)'
+        #D     = (1.0 - state.φ)*mat.De - (dφdε'*mat.De)'*state.ε'
+        D     = (1.0 - state.φ)*mat.De - dφdε*(mat.De*state.ε)'
         return D
     end
 end
 
 
-function stress_update(mat::Mazars, ipd::MazarsState, Δε::Array{Float64,1})
-    σini  = ipd.σ
-    ipd.ε = ipd.ε + Δε
+function stress_update(mat::Mazars, state::MazarsState, Δε::Array{Float64,1})
+    σini  = state.σ
+    state.ε = state.ε + Δε
 
     E  = mat.E
     nu = mat.nu
 
     # Principal stresses tensor
-    εp = eigvals(ipd.ε)
+    εp = eigvals(state.ε)
 
     # Equivalent strain scalar
     ε̅ = norm(pos.(εp))
     ε̅ == 0.0 && (ε̅ += 1e-15)
-    ipd.ε̅max = max(ipd.ε̅max, mat.ε̅0)
+    state.ε̅max = max(state.ε̅max, mat.ε̅0)
 
-    if ε̅ < ipd.ε̅max  # linear-elastic increment
+    if ε̅ < state.ε̅max  # linear-elastic increment
         #@show "Elast"
-        ipd.σ = (1.0 - ipd.φ)*mat.De*ipd.ε
+        state.σ = (1.0 - state.φ)*mat.De*state.ε
     else # increment with damage: A previous elastic step is desired
         #@show "Plast"
-        ipd.ε̅max = ε̅
+        state.ε̅max = ε̅
 
         # Principal stresses and principal directions
-        σp = eigvals(ipd.σ)
+        σp = eigvals(state.σ)
         σp = [ σp; zeros(3) ]
 
         # Damage calculation
-        ipd.φt = 1.0 - (1-mat.At)*mat.ε̅0/ε̅ - mat.At/exp(mat.Bt*(ε̅-mat.ε̅0))
-        ipd.φc = 1.0 - (1-mat.Ac)*mat.ε̅0/ε̅ - mat.Ac/exp(mat.Bc*(ε̅-mat.ε̅0))
+        state.φt = 1.0 - (1-mat.At)*mat.ε̅0/ε̅ - mat.At/exp(mat.Bt*(ε̅-mat.ε̅0))
+        state.φc = 1.0 - (1-mat.Ac)*mat.ε̅0/ε̅ - mat.Ac/exp(mat.Bc*(ε̅-mat.ε̅0))
 
         # Tensile and compression tensors
         σt = pos.(σp)
@@ -161,26 +161,26 @@ function stress_update(mat::Mazars, ipd::MazarsState, Δε::Array{Float64,1})
         αc = clamp(sum(neg.(εc))/εv, 0.0, 1.0)
 
         # Damage variable
-        φ = αt*ipd.φt + αc*ipd.φc
-        ipd.φ = clamp(φ, ipd.φ, 0.999)
+        φ = αt*state.φt + αc*state.φc
+        state.φ = clamp(φ, state.φ, 0.999)
 
         # Total stress and stress increment
-        ipd.σ = (1.0 - ipd.φ)*mat.De*ipd.ε
+        state.σ = (1.0 - state.φ)*mat.De*state.ε
     end
 
-    Δσ    = ipd.σ - σini
+    Δσ    = state.σ - σini
     return Δσ, success()
 end
 
-function ip_state_vals(mat::Mazars, ipd::MazarsState)
-    ndim  = ipd.env.ndim
-    σ, ε  = ipd.σ, ipd.ε
+function ip_state_vals(mat::Mazars, state::MazarsState)
+    ndim  = state.env.ndim
+    σ, ε  = state.σ, state.ε
 
-    D = stress_strain_dict(σ, ε, ipd.env.modeltype)
-    D[:dam]  = ipd.φ
-    D[:damt] = ipd.φt
-    D[:damc] = ipd.φc
-    D[:eq]   = ipd.ε̅max
+    D = stress_strain_dict(σ, ε, state.env.modeltype)
+    D[:dam]  = state.φ
+    D[:damt] = state.φt
+    D[:damc] = state.φc
+    D[:eq]   = state.ε̅max
 
     return D
 end

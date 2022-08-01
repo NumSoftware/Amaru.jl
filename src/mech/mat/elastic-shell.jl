@@ -42,7 +42,7 @@ matching_elem_type(::ElasticShell) = MechShell
 ip_state_type(::ElasticShell) = ElasticShellState
 
 
-function calcD(mat::ElasticShell, ipd::ElasticShellState)
+function calcD(mat::ElasticShell, state::ElasticShellState)
     E = mat.E
     ν = mat.nu
     c = E/(1.0-ν^2)
@@ -57,14 +57,14 @@ function calcD(mat::ElasticShell, ipd::ElasticShellState)
     # ezz = -ν/E*(sxx+syy)
 end
 
-function stress_update(mat::ElasticShell, ipd::ElasticShellState, dε::Array{Float64,1})
-    D = calcD(mat, ipd)
+function stress_update(mat::ElasticShell, state::ElasticShellState, dε::Array{Float64,1})
+    D = calcD(mat, state)
     dσ = D*dε
-    ipd.ε += dε
-    ipd.σ += dσ
+    state.ε += dε
+    state.σ += dσ
     return dσ, success()
 end
 
-function ip_state_vals(mat::ElasticShell, ipd::ElasticShellState)
-    return stress_strain_dict(ipd.σ, ipd.ε, ipd.env.modeltype)
+function ip_state_vals(mat::ElasticShell, state::ElasticShellState)
+    return stress_strain_dict(state.σ, state.ε, state.env.modeltype)
 end

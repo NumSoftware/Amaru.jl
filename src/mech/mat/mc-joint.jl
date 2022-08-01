@@ -74,9 +74,9 @@ matching_elem_type(::MCJoint) = MechJoint
 ip_state_type(mat::MCJoint) = MCJointState
 
 
-function yield_func(mat::MCJoint, ipd::MCJointState, σ::Array{Float64,1})
-    ndim = ipd.env.ndim
-    σmax = calc_σmax(mat, ipd, ipd.up)
+function yield_func(mat::MCJoint, state::MCJointState, σ::Array{Float64,1})
+    ndim = state.env.ndim
+    σmax = calc_σmax(mat, state, state.up)
     if ndim == 3
         return sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*mat.μ
     else
@@ -85,18 +85,18 @@ function yield_func(mat::MCJoint, ipd::MCJointState, σ::Array{Float64,1})
 end
 
 
-function yield_deriv(mat::MCJoint, ipd::MCJointState)
-    ndim = ipd.env.ndim
+function yield_deriv(mat::MCJoint, state::MCJointState)
+    ndim = state.env.ndim
     if ndim == 3
-        return [ mat.μ, ipd.σ[2]/sqrt(ipd.σ[2]^2 + ipd.σ[3]^2), ipd.σ[3]/sqrt(ipd.σ[2]^2 + ipd.σ[3]^2)]
+        return [ mat.μ, state.σ[2]/sqrt(state.σ[2]^2 + state.σ[3]^2), state.σ[3]/sqrt(state.σ[2]^2 + state.σ[3]^2)]
     else
-        return [ mat.μ, sign(ipd.σ[2]) ]
+        return [ mat.μ, sign(state.σ[2]) ]
     end
 end
 
 
-function potential_derivs(mat::MCJoint, ipd::MCJointState, σ::Array{Float64,1})
-    ndim = ipd.env.ndim
+function potential_derivs(mat::MCJoint, state::MCJointState, σ::Array{Float64,1})
+    ndim = state.env.ndim
     if ndim == 3
         if σ[1] >= 0.0 
             # G1:
@@ -118,7 +118,7 @@ function potential_derivs(mat::MCJoint, ipd::MCJointState, σ::Array{Float64,1})
 end
 
 
-function calc_σmax(mat::MCJoint, ipd::MCJointState, up::Float64)
+function calc_σmax(mat::MCJoint, state::MCJointState, up::Float64)
     if mat.softcurve == "linear"
         if up < mat.wc
             a = mat.σmax0
@@ -155,7 +155,7 @@ function calc_σmax(mat::MCJoint, ipd::MCJointState, up::Float64)
 end
 
 
-function σmax_deriv(mat::MCJoint, ipd::MCJointState, up::Float64)
+function σmax_deriv(mat::MCJoint, state::MCJointState, up::Float64)
     # ∂σmax/∂up = dσmax
     if mat.softcurve == "linear"
         if up < mat.wc
@@ -185,18 +185,18 @@ function σmax_deriv(mat::MCJoint, ipd::MCJointState, up::Float64)
     end
 
     # if dσmax==0.0
-    #     dσmax = mat.E*mat.ζ/ipd.h*1e-2
+    #     dσmax = mat.E*mat.ζ/state.h*1e-2
     # end
 
     return dσmax
 end
 
 
-function calc_kn_ks_De(mat::MCJoint, ipd::MCJointState)
-    ndim = ipd.env.ndim
-    kn = mat.E*mat.ζ/ipd.h
+function calc_kn_ks_De(mat::MCJoint, state::MCJointState)
+    ndim = state.env.ndim
+    kn = mat.E*mat.ζ/state.h
     G  = mat.E/(2.0*(1.0+mat.ν))
-    ks = G*mat.ζ/ipd.h
+    ks = G*mat.ζ/state.h
 
     if ndim == 3
         De = [  kn  0.0  0.0
@@ -211,8 +211,8 @@ function calc_kn_ks_De(mat::MCJoint, ipd::MCJointState)
 end
 
 
-function calc_Δλ(mat::MCJoint, ipd::MCJointState, σtr::Array{Float64,1})
-    ndim = ipd.env.ndim
+function calc_Δλ(mat::MCJoint, state::MCJointState, σtr::Array{Float64,1})
+    ndim = state.env.ndim
     maxits = 100
     Δλ     = 0.0
     f      = 0.0
@@ -221,7 +221,7 @@ function calc_Δλ(mat::MCJoint, ipd::MCJointState, σtr::Array{Float64,1})
 
     for i in 1:maxits
         μ      = mat.μ
-        kn, ks, De = calc_kn_ks_De(mat, ipd)
+        kn, ks, De = calc_kn_ks_De(mat, state)
 
         # quantities at n+1
         if ndim == 3
@@ -246,11 +246,11 @@ function calc_Δλ(mat::MCJoint, ipd::MCJointState, σtr::Array{Float64,1})
              end
         end
                  
-        r      = potential_derivs(mat, ipd, σ)
+        r      = potential_derivs(mat, state, σ)
         norm_r = norm(r)
-        up    = ipd.up + Δλ*norm_r
-        σmax   = calc_σmax(mat, ipd, up)
-        m      = σmax_deriv(mat, ipd, up)
+        up    = state.up + Δλ*norm_r
+        σmax   = calc_σmax(mat, state, up)
+        m      = σmax_deriv(mat, state, up)
         dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
 
         if ndim == 3
@@ -282,37 +282,37 @@ function calc_Δλ(mat::MCJoint, ipd::MCJointState, σtr::Array{Float64,1})
 end
 
 
-function calc_σ_upa(mat::MCJoint, ipd::MCJointState, σtr::Array{Float64,1})
-    ndim = ipd.env.ndim
+function calc_σ_upa(mat::MCJoint, state::MCJointState, σtr::Array{Float64,1})
+    ndim = state.env.ndim
     μ = mat.μ
-    kn, ks, De = calc_kn_ks_De(mat, ipd)
+    kn, ks, De = calc_kn_ks_De(mat, state)
 
     if ndim == 3
         if σtr[1] > 0
-            σ = [σtr[1]/(1 + 2*ipd.Δλ*kn*(μ^2)), σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
+            σ = [σtr[1]/(1 + 2*state.Δλ*kn*(μ^2)), σtr[2]/(1 + 2*state.Δλ*ks), σtr[3]/(1 + 2*state.Δλ*ks)]
         else
-            σ = [σtr[1], σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
+            σ = [σtr[1], σtr[2]/(1 + 2*state.Δλ*ks), σtr[3]/(1 + 2*state.Δλ*ks)]
         end    
     else
         if σtr[1] > 0
-            σ = [σtr[1]/(1 + 2*ipd.Δλ*kn*(μ^2)), σtr[2]/(1 + 2*ipd.Δλ*ks)]
+            σ = [σtr[1]/(1 + 2*state.Δλ*kn*(μ^2)), σtr[2]/(1 + 2*state.Δλ*ks)]
         else
-            σ = [σtr[1], σtr[2]/(1 + 2*ipd.Δλ*ks)]
+            σ = [σtr[1], σtr[2]/(1 + 2*state.Δλ*ks)]
         end    
     end
-    ipd.σ = σ
-    r = potential_derivs(mat, ipd, ipd.σ)
-    ipd.up += ipd.Δλ*norm(r)
-    return ipd.σ, ipd.up
+    state.σ = σ
+    r = potential_derivs(mat, state, state.σ)
+    state.up += state.Δλ*norm(r)
+    return state.σ, state.up
 end
 
 
-function mountD(mat::MCJoint, ipd::MCJointState)
-    ndim = ipd.env.ndim
-    kn, ks, De = calc_kn_ks_De(mat, ipd)
-    σmax = calc_σmax(mat, ipd, ipd.up)
+function mountD(mat::MCJoint, state::MCJointState)
+    ndim = state.env.ndim
+    kn, ks, De = calc_kn_ks_De(mat, state)
+    σmax = calc_σmax(mat, state, state.up)
 
-    if ipd.Δλ == 0.0  # Elastic 
+    if state.Δλ == 0.0  # Elastic 
         return De
     elseif σmax == 0.0 
         # Dep  = De*1e-10 
@@ -321,10 +321,10 @@ function mountD(mat::MCJoint, ipd::MCJointState)
         Dep  = De*1e-3
         return Dep
     else
-        v    = yield_deriv(mat, ipd)
-        r    = potential_derivs(mat, ipd, ipd.σ)
+        v    = yield_deriv(mat, state)
+        r    = potential_derivs(mat, state, state.σ)
         y    = -mat.μ # ∂F/∂σmax
-        m    = σmax_deriv(mat, ipd, ipd.up)  # ∂σmax/∂up
+        m    = σmax_deriv(mat, state, state.up)  # ∂σmax/∂up
 
         #Dep  = De - De*r*v'*De/(v'*De*r - y*m*norm(r))
 
@@ -346,80 +346,80 @@ function mountD(mat::MCJoint, ipd::MCJointState)
 end
 
 
-function stress_update(mat::MCJoint, ipd::MCJointState, Δw::Array{Float64,1})
-    ndim = ipd.env.ndim
-    σini = copy(ipd.σ)
+function stress_update(mat::MCJoint, state::MCJointState, Δw::Array{Float64,1})
+    ndim = state.env.ndim
+    σini = copy(state.σ)
 
-    kn, ks, De = calc_kn_ks_De(mat, ipd)
-    σmax = calc_σmax(mat, ipd, ipd.up)  
+    kn, ks, De = calc_kn_ks_De(mat, state)
+    σmax = calc_σmax(mat, state, state.up)  
 
     if isnan(Δw[1]) || isnan(Δw[2])
         alert("MCJoint: Invalid value for joint displacement: Δw = $Δw")
     end
 
     # σ trial and F trial
-    σtr  = ipd.σ + De*Δw
+    σtr  = state.σ + De*Δw
 
-    Ftr  = yield_func(mat, ipd, σtr) 
+    Ftr  = yield_func(mat, state, σtr) 
 
     # Elastic and EP integration
-    if σmax == 0.0 && ipd.w[1] >= 0.0
+    if σmax == 0.0 && state.w[1] >= 0.0
         # Return to apex:
         if ndim==3
             r1 = [ σtr[1]/kn, σtr[2]/ks, σtr[3]/ks ]
             r = r1/norm(r1)
-            ipd.Δλ = norm(r1)
+            state.Δλ = norm(r1)
         else
             r1 = [ σtr[1]/kn, σtr[2]/ks ]
             r = r1/norm(r1)
-            ipd.Δλ = norm(r1)  
+            state.Δλ = norm(r1)  
         end
 
-        ipd.up += ipd.Δλ
-        ipd.σ = σtr - ipd.Δλ*De*r     
+        state.up += state.Δλ
+        state.σ = σtr - state.Δλ*De*r     
 
     elseif Ftr <= 0.0
         # Pure elastic increment
-        ipd.Δλ = 0.0
-        ipd.σ  = copy(σtr) 
+        state.Δλ = 0.0
+        state.σ  = copy(σtr) 
 
     else
         # Plastic increment
-        ipd.Δλ, status = calc_Δλ(mat, ipd, σtr)
-        failed(status) && return ipd.σ, status
+        state.Δλ, status = calc_Δλ(mat, state, σtr)
+        failed(status) && return state.σ, status
 
-        ipd.σ, ipd.up = calc_σ_upa(mat, ipd, σtr)
+        state.σ, state.up = calc_σ_upa(mat, state, σtr)
                       
         # Return to surface:
-        F  = yield_func(mat, ipd, ipd.σ)   
+        F  = yield_func(mat, state, state.σ)   
         F > 1e-3 && alert("MCJoint: Yield function value ($F) outside tolerance")
 
     end
-    ipd.w += Δw
-    Δσ = ipd.σ - σini
+    state.w += Δw
+    Δσ = state.σ - σini
     return Δσ, success()
 end
 
 
-function ip_state_vals(mat::MCJoint, ipd::MCJointState)
-    ndim = ipd.env.ndim
+function ip_state_vals(mat::MCJoint, state::MCJointState)
+    ndim = state.env.ndim
     if ndim == 3
        return Dict(
-          :jw1  => ipd.w[1] ,
-          :jw2  => ipd.w[2] ,
-          :jw3  => ipd.w[3] ,
-          :js1  => ipd.σ[1] ,
-          :js2  => ipd.σ[2] ,
-          :js3  => ipd.σ[3] ,
-          :jup => ipd.up
+          :jw1  => state.w[1] ,
+          :jw2  => state.w[2] ,
+          :jw3  => state.w[3] ,
+          :js1  => state.σ[1] ,
+          :js2  => state.σ[2] ,
+          :js3  => state.σ[3] ,
+          :jup => state.up
           )
     else
         return Dict(
-          :jw1  => ipd.w[1] ,
-          :jw2  => ipd.w[2] ,
-          :js1  => ipd.σ[1] ,
-          :js2  => ipd.σ[2] ,
-          :jup => ipd.up
+          :jw1  => state.w[1] ,
+          :jw2  => state.w[2] ,
+          :js1  => state.σ[1] ,
+          :js2  => state.σ[2] ,
+          :jup => state.up
           )
     end
 end

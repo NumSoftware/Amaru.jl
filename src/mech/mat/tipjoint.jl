@@ -36,16 +36,16 @@ matching_elem_type(::TipJoint) = MechTipJoint
 # Type of corresponding state structure
 ip_state_type(mat::TipJoint) = TipJointState
 
-function calcD(mat::TipJoint, ipd::TipJointState)
-    if ipd.w>0.0
+function calcD(mat::TipJoint, state::TipJointState)
+    if state.w>0.0
         return mat.k
     else
         return 0.0
     end
 end
 
-function stress_update(mat::TipJoint, ipd::TipJointState, Δw)
-    fini = ipd.f
+function stress_update(mat::TipJoint, state::TipJointState, Δw)
+    fini = state.f
     ftr  = fini + mat.k*Δw
     
     if ftr>0.0
@@ -54,13 +54,13 @@ function stress_update(mat::TipJoint, ipd::TipJointState, Δw)
         f = 0.0
     end
     Δf = f - fini
-    ipd.f += Δf
-    ipd.w += Δw
+    state.f += Δf
+    state.w += Δw
     return Δf, success()
 end
 
-function ip_state_vals(mat::TipJoint, ipd::TipJointState)
+function ip_state_vals(mat::TipJoint, state::TipJointState)
     return OrderedDict(
-      :ur   => ipd.w ,
-      :tau  => ipd.f )
+      :ur   => state.w ,
+      :tau  => state.f )
 end

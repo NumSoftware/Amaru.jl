@@ -82,10 +82,10 @@ matching_elem_type(::MMCJoint) = MechJoint
 ip_state_type(mat::MMCJoint) = MMCJointState
 
 
-function yield_func(mat::MMCJoint, ipd::MMCJointState, σ::Array{Float64,1}, σmax::Float64)
+function yield_func(mat::MMCJoint, state::MMCJointState, σ::Array{Float64,1}, σmax::Float64)
     ft, α, β = mat.ft, mat.α, mat.β
 
-    if ipd.env.ndim == 3
+    if state.env.ndim == 3
         return σ[1] - σmax + β*((σ[2]^2 + σ[3]^2)/ft^2)^α
     else
         return σ[1] - σmax + β*(σ[2]^2/ft^2)^α
@@ -93,10 +93,10 @@ function yield_func(mat::MMCJoint, ipd::MMCJointState, σ::Array{Float64,1}, σm
 end
 
 
-function yield_derivs(mat::MMCJoint, ipd::MMCJointState, σ::Array{Float64,1})
+function yield_derivs(mat::MMCJoint, state::MMCJointState, σ::Array{Float64,1})
     ft, α, β = mat.ft, mat.α, mat.β
 
-    if ipd.env.ndim == 3
+    if state.env.ndim == 3
         tmp = 2*α*β/ft^2*((σ[2]^2+σ[3]^2)/ft^2)^(α-1)
         return [ 1 , σ[2]*tmp, σ[3]*tmp ]
     else
@@ -106,8 +106,8 @@ function yield_derivs(mat::MMCJoint, ipd::MMCJointState, σ::Array{Float64,1})
 end
 
 
-function potential_derivs(mat::MMCJoint, ipd::MMCJointState, σ::Array{Float64,1})
-    ndim = ipd.env.ndim
+function potential_derivs(mat::MMCJoint, state::MMCJointState, σ::Array{Float64,1})
+    ndim = state.env.ndim
     if ndim == 3
         if σ[1] > 0.0 
             # G1:
@@ -129,7 +129,7 @@ function potential_derivs(mat::MMCJoint, ipd::MMCJointState, σ::Array{Float64,1
 end
 
 
-function calc_σmax(mat::MMCJoint, ipd::MMCJointState, up::Float64)
+function calc_σmax(mat::MMCJoint, state::MMCJointState, up::Float64)
     if mat.softcurve == "linear"
         if up < mat.wc
             a = mat.ft 
@@ -168,7 +168,7 @@ function calc_σmax(mat::MMCJoint, ipd::MMCJointState, up::Float64)
 end
 
 
-function deriv_σmax_upa(mat::MMCJoint, ipd::MMCJointState, up::Float64)
+function deriv_σmax_upa(mat::MMCJoint, state::MMCJointState, up::Float64)
     # ∂σmax/∂up = dσmax
     if mat.softcurve == "linear"
         if up < mat.wc
@@ -201,17 +201,17 @@ function deriv_σmax_upa(mat::MMCJoint, ipd::MMCJointState, up::Float64)
 end
 
 
-function calc_kn_ks(mat::MMCJoint, ipd::MMCJointState)
-    kn = mat.E*mat.ζ/ipd.h
+function calc_kn_ks(mat::MMCJoint, state::MMCJointState)
+    kn = mat.E*mat.ζ/state.h
     G  = mat.E/(2.0*(1.0+mat.ν))
-    ks = G*mat.ζ/ipd.h
+    ks = G*mat.ζ/state.h
 
     return kn, ks
 end
 
 
-function calc_Δλ(mat::MMCJoint, ipd::MMCJointState, σtr::Array{Float64,1})
-    ndim = ipd.env.ndim
+function calc_Δλ(mat::MMCJoint, state::MMCJointState, σtr::Array{Float64,1})
+    ndim = state.env.ndim
     maxits = 20
     Δλ     = 0.0
     f      = 0.0
@@ -221,7 +221,7 @@ function calc_Δλ(mat::MMCJoint, ipd::MMCJointState, σtr::Array{Float64,1})
 
     for i in 1:maxits
         nits = i
-        kn, ks = calc_kn_ks(mat, ipd)
+        kn, ks = calc_kn_ks(mat, state)
 
         # quantities at n+1
         if ndim == 3
@@ -244,15 +244,15 @@ function calc_Δλ(mat::MMCJoint, ipd::MMCJointState, σtr::Array{Float64,1})
 
         drdΔλ = 2*dσdΔλ
                  
-        r      = potential_derivs(mat, ipd, σ)
+        r      = potential_derivs(mat, state, σ)
         norm_r = norm(r)
-        up    = ipd.up + Δλ*norm_r
-        σmax   = calc_σmax(mat, ipd, up)
+        up    = state.up + Δλ*norm_r
+        σmax   = calc_σmax(mat, state, up)
 
-        f = yield_func(mat, ipd, σ, σmax)
-        dfdσ = yield_derivs(mat, ipd, σ)
+        f = yield_func(mat, state, σ, σmax)
+        dfdσ = yield_derivs(mat, state, σ)
 
-        m = deriv_σmax_upa(mat, ipd, up)
+        m = deriv_σmax_upa(mat, state, up)
         dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
         dfdσmax = -1
         dfdΔλ = dot(dfdσ, dσdΔλ) + dfdσmax*dσmaxdΔλ
@@ -276,44 +276,44 @@ function calc_Δλ(mat::MMCJoint, ipd::MMCJointState, σtr::Array{Float64,1})
 end
 
 
-function calc_σ_upa(mat::MMCJoint, ipd::MMCJointState, σtr::Array{Float64,1})
-    ndim = ipd.env.ndim
-    kn, ks = calc_kn_ks(mat, ipd)
+function calc_σ_upa(mat::MMCJoint, state::MMCJointState, σtr::Array{Float64,1})
+    ndim = state.env.ndim
+    kn, ks = calc_kn_ks(mat, state)
 
     if ndim == 3
         if σtr[1] > 0
-            ipd.σ = [σtr[1]/(1 + 2*ipd.Δλ*kn), σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
+            state.σ = [σtr[1]/(1 + 2*state.Δλ*kn), σtr[2]/(1 + 2*state.Δλ*ks), σtr[3]/(1 + 2*state.Δλ*ks)]
         else
-            ipd.σ = [σtr[1], σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
+            state.σ = [σtr[1], σtr[2]/(1 + 2*state.Δλ*ks), σtr[3]/(1 + 2*state.Δλ*ks)]
         end    
     else
         if σtr[1] > 0
-            ipd.σ = [σtr[1]/(1 + 2*ipd.Δλ*kn), σtr[2]/(1 + 2*ipd.Δλ*ks)]
+            state.σ = [σtr[1]/(1 + 2*state.Δλ*kn), σtr[2]/(1 + 2*state.Δλ*ks)]
         else
-            ipd.σ = [σtr[1], σtr[2]/(1 + 2*ipd.Δλ*ks)]
+            state.σ = [σtr[1], σtr[2]/(1 + 2*state.Δλ*ks)]
         end    
     end
-    r = potential_derivs(mat, ipd, ipd.σ)
-    ipd.up += ipd.Δλ*norm(r)
-    return ipd.σ, ipd.up
+    r = potential_derivs(mat, state, state.σ)
+    state.up += state.Δλ*norm(r)
+    return state.σ, state.up
 end
 
 
-function mountD(mat::MMCJoint, ipd::MMCJointState)
-    ndim = ipd.env.ndim
-    kn, ks = calc_kn_ks(mat, ipd)
-    σmax = calc_σmax(mat, ipd, ipd.up)
+function mountD(mat::MMCJoint, state::MMCJointState)
+    ndim = state.env.ndim
+    kn, ks = calc_kn_ks(mat, state)
+    σmax = calc_σmax(mat, state, state.up)
 
     De = diagm([kn, ks, ks][1:ndim])
     # @show σmax
-    # @show ipd.up
-    # @show ipd.up > mat.wc
+    # @show state.up
+    # @show state.up > mat.wc
 
-    if ipd.Δλ == 0.0  # Elastic 
+    if state.Δλ == 0.0  # Elastic 
         # @show "ELASTIC De"
         return De
     # elseif σmax == 0.0 # ?????????????? and w1>0 ???
-    elseif σmax == 0.0 && ipd.w[1]>0
+    elseif σmax == 0.0 && state.w[1]>0
         # @show "smax=0 De"
 
         Dep = De*1e-4
@@ -322,10 +322,10 @@ function mountD(mat::MMCJoint, ipd::MMCJointState)
         return Dep
     else
         # @show "plastic De"
-        r = potential_derivs(mat, ipd, ipd.σ)
-        v = yield_derivs(mat, ipd, ipd.σ)
+        r = potential_derivs(mat, state, state.σ)
+        v = yield_derivs(mat, state, state.σ)
         y = -1  # ∂F/∂σmax
-        m = deriv_σmax_upa(mat, ipd, ipd.up)  # ∂σmax/∂up
+        m = deriv_σmax_upa(mat, state, state.up)  # ∂σmax/∂up
 
         #Dep  = De - De*r*v'*De/(v'*De*r - y*m*norm(r))
 
@@ -364,14 +364,14 @@ function mountD(mat::MMCJoint, ipd::MMCJointState)
 end
 
 
-function stress_update(mat::MMCJoint, ipd::MMCJointState, Δw::Array{Float64,1})
+function stress_update(mat::MMCJoint, state::MMCJointState, Δw::Array{Float64,1})
 
-    ndim = ipd.env.ndim
-    σini = copy(ipd.σ)
+    ndim = state.env.ndim
+    σini = copy(state.σ)
 
-    kn, ks = calc_kn_ks(mat, ipd)
+    kn, ks = calc_kn_ks(mat, state)
     De = diagm([kn, ks, ks][1:ndim])
-    σmax = calc_σmax(mat, ipd, ipd.up)  
+    σmax = calc_σmax(mat, state, state.up)  
     # @show σmax
 
     if isnan(Δw[1]) || isnan(Δw[2])
@@ -379,82 +379,82 @@ function stress_update(mat::MMCJoint, ipd::MMCJointState, Δw::Array{Float64,1})
     end
 
     # σ trial and F trial
-    σtr  = ipd.σ + De*Δw
+    σtr  = state.σ + De*Δw
 
-    Ftr  = yield_func(mat, ipd, σtr, σmax)
+    Ftr  = yield_func(mat, state, σtr, σmax)
     # @show "stress update"
     # @show σmax
-    # @show ipd.up
+    # @show state.up
     # @show Δw
-    # @show ipd.σ
+    # @show state.σ
     # @show σtr
     # @show Ftr
-    # @show ipd.w[1] 
+    # @show state.w[1] 
 
     # Elastic and EP integration
-    if σmax == 0.0 && ipd.w[1] >= 0.0
+    if σmax == 0.0 && state.w[1] >= 0.0
         # @show "smax=0 up"
         # Return to apex:
         if ndim==3
             r1 = [ σtr[1]/kn, σtr[2]/ks, σtr[3]/ks ]
             r = r1/norm(r1)
-            ipd.Δλ = norm(r1)
+            state.Δλ = norm(r1)
         else
             r1 = [ σtr[1]/kn, σtr[2]/ks ]
             r = r1/norm(r1)
-            ipd.Δλ = norm(r1)  
+            state.Δλ = norm(r1)  
         end
 
-        ipd.up += ipd.Δλ
-        ipd.σ = σtr - ipd.Δλ*De*r     
+        state.up += state.Δλ
+        state.σ = σtr - state.Δλ*De*r     
 
     elseif Ftr <= 0.0
         # @show "ELASTIC up"
         # Pure elastic increment
-        ipd.Δλ = 0.0
-        ipd.σ  = copy(σtr) 
+        state.Δλ = 0.0
+        state.σ  = copy(σtr) 
 
     else
         # @show "plastic up"
 
         # Plastic increment
-        ipd.Δλ, status = calc_Δλ(mat, ipd, σtr)
-        failed(status) && return ipd.σ, status
+        state.Δλ, status = calc_Δλ(mat, state, σtr)
+        failed(status) && return state.σ, status
 
-        ipd.σ, ipd.up = calc_σ_upa(mat, ipd, σtr)
+        state.σ, state.up = calc_σ_upa(mat, state, σtr)
 
-        # @show ipd.Δλ
+        # @show state.Δλ
                       
         # Return to surface:
-        # F  = yield_func(mat, ipd, ipd.σ)   
+        # F  = yield_func(mat, state, state.σ)   
         # F > 1e-2 && alert("MMCJoint: Yield function value ($F) outside tolerance")
 
     end
-    ipd.w += Δw
-    Δσ = ipd.σ - σini
+    state.w += Δw
+    Δσ = state.σ - σini
     return Δσ, success()
 end
 
 
-function ip_state_vals(mat::MMCJoint, ipd::MMCJointState)
-    ndim = ipd.env.ndim
+function ip_state_vals(mat::MMCJoint, state::MMCJointState)
+    ndim = state.env.ndim
     if ndim == 3
        return Dict(
-          :jw1  => ipd.w[1] ,
-          :jw2  => ipd.w[2] ,
-          :jw3  => ipd.w[3] ,
-          :js1  => ipd.σ[1] ,
-          :js2  => ipd.σ[2] ,
-          :js3  => ipd.σ[3] ,
-          :jup => ipd.up
+          :jw1  => state.w[1] ,
+          :jw2  => state.w[2] ,
+          :jw3  => state.w[3] ,
+          :js1  => state.σ[1] ,
+          :js2  => state.σ[2] ,
+          :js3  => state.σ[3] ,
+          :jup => state.up
           )
     else
         return Dict(
-          :jw1  => ipd.w[1] ,
-          :jw2  => ipd.w[2] ,
-          :js1  => ipd.σ[1] ,
-          :js2  => ipd.σ[2] ,
-          :jup => ipd.up
+          :jw1  => state.w[1] ,
+          :jw2  => state.w[2] ,
+          :js1  => state.σ[1] ,
+          :js2  => state.σ[2] ,
+          :jup => state.up
           )
     end
 end

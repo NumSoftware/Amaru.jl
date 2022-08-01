@@ -24,6 +24,14 @@ function shape_deriv_LIN2(R::AbstractArray{<:Float64,1})
     return D
 end
 
+function shape_deriv2_LIN2(R::AbstractArray{<:Float64,1})
+    r = R[1]
+    D = Array{Float64}(undef,2,1)
+    D[1,1] = 0.0
+    D[2,1] = 0.0
+    return D
+end
+
 
 # constructor
 function MakeLIN2()
@@ -41,6 +49,7 @@ function MakeLIN2()
     shape.quadrature  = Dict{Int, Array}(0=>LIN_IP2, 1=>ALL_IP1, 2=>LIN_IP2, 3=>LIN_IP3, 4=>LIN_IP4)
     shape.func        = shape_func_LIN2
     shape.deriv       = shape_deriv_LIN2
+    shape.deriv2      = shape_deriv2_LIN2
     return shape
 end
 
@@ -77,6 +86,14 @@ function shape_deriv_LIN3(R::AbstractArray{<:Float64,1})
     return D
 end
 
+function shape_deriv2_LIN3(R::AbstractArray{<:Float64,1})
+    D = Array{Float64}(undef,3,1)
+    D[1,1] = 1.0
+    D[2,1] = 1.0
+    D[3,1] = -2.0
+    return D
+end
+
 # constructor
 function MakeLIN3()
     shape             = CellShape()
@@ -93,6 +110,7 @@ function MakeLIN3()
     shape.quadrature  = Dict( 0=>LIN_IP2, 1=>ALL_IP1, 2=>LIN_IP2, 3=>LIN_IP3, 4=>LIN_IP4 )
     shape.func        = shape_func_LIN3
     shape.deriv       = shape_deriv_LIN3
+    shape.deriv2       = shape_deriv2_LIN3
     return shape
 end
 
@@ -135,6 +153,16 @@ function shape_deriv_LIN4(R::AbstractArray{<:Float64,1})
     return D
 end
 
+function shape_deriv2_LIN4(R::AbstractArray{<:Float64,1})
+    r = R[1]
+    D = Array{Float64}(undef,4,1)
+    D[1,1] = 1.0/16.0*( -54.0*r  + 18.0 )
+    D[2,1] = 1.0/16.0*(  54.0*r  + 18.0 )
+    D[3,1] = 1.0/16.0*(  162.0*r - 18.0 )
+    D[4,1] = 1.0/16.0*( -162.0*r - 18.0 )
+    return D
+end
+
 # constructor
 function MakeLIN4()
     shape             = CellShape()
@@ -151,6 +179,7 @@ function MakeLIN4()
     shape.quadrature  = Dict( 0=>LIN_IP3, 1=>ALL_IP1, 2=>LIN_IP2, 3=>LIN_IP3, 4=>LIN_IP4 )
     shape.func        = shape_func_LIN4
     shape.deriv       = shape_deriv_LIN4
+    shape.deriv2      = shape_deriv2_LIN4
     return shape
 end
 

@@ -39,19 +39,19 @@ matching_elem_type(::LinDrainPipe) = DrainPipe
 # Type of corresponding state structure
 ip_state_type(mat::LinDrainPipe) = LinDrainPipeState
 
-function update_state!(mat::LinDrainPipe, ipd::LinDrainPipeState, Δuw::Float64, G::Float64, Δt::Float64)
+function update_state!(mat::LinDrainPipe, state::LinDrainPipeState, Δuw::Float64, G::Float64, Δt::Float64)
     k = mat.k
-    ipd.V  = -k*G
-    ipd.D  += ipd.V*Δt
-    ipd.uw += Δuw
-    return ipd.V
+    state.V  = -k*G
+    state.D  += state.V*Δt
+    state.uw += Δuw
+    return state.V
 end
 
-function ip_state_vals(mat::LinDrainPipe, ipd::LinDrainPipeState)
+function ip_state_vals(mat::LinDrainPipe, state::LinDrainPipeState)
     return OrderedDict(
-      :va => ipd.V,
-      :uwa => ipd.uw,
-      :Fa => ipd.V*mat.A,
+      :va => state.V,
+      :uwa => state.uw,
+      :Fa => state.V*mat.A,
       :A  => mat.A )
 end
 

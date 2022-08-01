@@ -43,29 +43,29 @@ matching_elem_type(::LinSeep) = SeepSolid
 # Type of corresponding state structure
 ip_state_type(mat::LinSeep) = LinSeepState
 
-function calcK(mat::LinSeep, ipd::LinSeepState) # Hydraulic conductivity matrix
-    if ipd.env.ndim==2
+function calcK(mat::LinSeep, state::LinSeepState) # Hydraulic conductivity matrix
+    if state.env.ndim==2
         return mat.k*eye(2)
     else
         return mat.k*eye(3)
     end
 end
 
-function update_state!(mat::LinSeep, ipd::LinSeepState, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
-    K = calcK(mat, ipd)
-    ipd.V   = -K*G
-    ipd.D  += ipd.V*Δt
-    ipd.uw += Δuw
-    return ipd.V
+function update_state!(mat::LinSeep, state::LinSeepState, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
+    K = calcK(mat, state)
+    state.V   = -K*G
+    state.D  += state.V*Δt
+    state.uw += Δuw
+    return state.V
 end
 
 
-function ip_state_vals(mat::LinSeep, ipd::LinSeepState)
+function ip_state_vals(mat::LinSeep, state::LinSeepState)
     D = OrderedDict{Symbol, Float64}()
-    D[:vx] = ipd.V[1]
-    D[:vy] = ipd.V[2]
-    if ipd.env.ndim==3
-        D[:vz] = ipd.V[3]
+    D[:vx] = state.V[1]
+    D[:vy] = state.V[2]
+    if state.env.ndim==3
+        D[:vz] = state.V[3]
     end
 
     return D

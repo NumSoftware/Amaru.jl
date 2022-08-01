@@ -27,6 +27,6 @@ matching_elem_type(::LumpedMass) = MechLumpedMass
 # Type of corresponding state structure
 ip_state_type(mat::LumpedMass) = LumpedMassState
 
-function ip_state_vals(mat::LumpedMass, ipd::LumpedMassState)
+function ip_state_vals(mat::LumpedMass, state::LumpedMassState)
     return OrderedDict{Symbol, Float64}()
 end

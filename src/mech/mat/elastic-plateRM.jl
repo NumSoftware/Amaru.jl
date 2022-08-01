@@ -34,6 +34,6 @@ matching_elem_type(::ElasticPlateRM) = PlateRM
 # Type of corresponding state structure
 ip_state_type(mat::ElasticPlateRM) = ElasticPlateRMState
 
-function ip_state_vals(mat::ElasticPlateRM, ipd::ElasticPlateRMState)
+function ip_state_vals(mat::ElasticPlateRM, state::ElasticPlateRMState)
     return OrderedDict{Symbol, Float64}()
 end

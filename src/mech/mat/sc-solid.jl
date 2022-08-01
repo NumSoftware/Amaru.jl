@@ -74,7 +74,7 @@ matching_elem_type(::SmearedCrack) = MechSolid
 ip_state_type(mat::SmearedCrack) = SmearedCrackState
 
 
-function calc_ςmax(mat::SmearedCrack, ipd::SmearedCrackState, up::Float64)
+function calc_ςmax(mat::SmearedCrack, state::SmearedCrackState, up::Float64)
     wc  = mat.wc
     ws  = mat.ws
     if mat.softcurve == "linear"
@@ -109,7 +109,7 @@ function calc_ςmax(mat::SmearedCrack, ipd::SmearedCrackState, up::Float64)
 end
 
 
-function ςmax_deriv(mat::SmearedCrack, ipd::SmearedCrackState, up::Float64)
+function ςmax_deriv(mat::SmearedCrack, state::SmearedCrackState, up::Float64)
     # ∂ςmax/∂up = dςmax
     wc  = mat.wc
     ws  = mat.ws
@@ -142,20 +142,20 @@ function ςmax_deriv(mat::SmearedCrack, ipd::SmearedCrackState, up::Float64)
 end
 
 
-function yield_func(mat::SmearedCrack, ipd::SmearedCrackState, ς::Array{Float64,1})
-    ςmax = calc_ςmax(mat, ipd, ipd.up)
+function yield_func(mat::SmearedCrack, state::SmearedCrackState, ς::Array{Float64,1})
+    ςmax = calc_ςmax(mat, state, state.up)
     return sqrt(ς[2]^2 + ς[3]^2) + (ς[1]-ςmax)*mat.μ
 end
 
 
-function yield_deriv(mat::SmearedCrack, ipd::SmearedCrackState, ς::Array{Float64,1})
+function yield_deriv(mat::SmearedCrack, state::SmearedCrackState, ς::Array{Float64,1})
     τ = sqrt(ς[2]^2 + ς[3]^2)
     τ==0.0 && return [ mat.μ, 0.0, 0.0 ]
     return [ mat.μ, ς[2]/τ, ς[3]/τ]
 end
 
 
-function potential_derivs(mat::SmearedCrack, ipd::SmearedCrackState, ς::Array{Float64,1})
+function potential_derivs(mat::SmearedCrack, state::SmearedCrackState, ς::Array{Float64,1})
     if ς[1] >= 0.0 
         # G1:
         r = [ 2.0*ς[1]*mat.μ^2, 2.0*ς[2], 2.0*ς[3]]
@@ -167,9 +167,9 @@ function potential_derivs(mat::SmearedCrack, ipd::SmearedCrackState, ς::Array{F
 end
 
 
-function calc_nu(mat::SmearedCrack, ipd::SmearedCrackState)
+function calc_nu(mat::SmearedCrack, state::SmearedCrackState)
     wc  = mat.wc
-    up = ipd.up
+    up = state.up
     if up < wc
         z = (1 + 27*(up/wc)^3)*exp(-6.93*up/wc) - 28*(up/wc)*exp(-6.93)
     else
@@ -178,21 +178,21 @@ function calc_nu(mat::SmearedCrack, ipd::SmearedCrackState)
     return mat.ν*z
 end
 
-function calc_kn_ks(mat::SmearedCrack, ipd::SmearedCrackState)
-    #kn = mat.E/ipd.h
+function calc_kn_ks(mat::SmearedCrack, state::SmearedCrackState)
+    #kn = mat.E/state.h
     ν = mat.ν
-    #ν = ipd.up==0 ? mat.ν : 0.0
-    ν = calc_nu(mat, ipd)
-    kn = mat.E*(1-mat.ν)/((1+mat.ν)*(1-2*mat.ν))/ipd.h
+    #ν = state.up==0 ? mat.ν : 0.0
+    ν = calc_nu(mat, state)
+    kn = mat.E*(1-mat.ν)/((1+mat.ν)*(1-2*mat.ν))/state.h
 
     G  = mat.E/(2.0*(1.0+mat.ν))
-    ks = G/ipd.h
+    ks = G/state.h
 
     return kn, ks
 end
 
 
-function calc_Δλ(mat::SmearedCrack, ipd::SmearedCrackState, ςtr::Array{Float64,1})
+function calc_Δλ(mat::SmearedCrack, state::SmearedCrackState, ςtr::Array{Float64,1})
     maxits = 100
     Δλ     = 0.0
     f      = 0.0
@@ -202,7 +202,7 @@ function calc_Δλ(mat::SmearedCrack, ipd::SmearedCrackState, ςtr::Array{Float6
 
     for i in 1:maxits
         μ      = mat.μ
-        kn, ks = calc_kn_ks(mat, ipd)
+        kn, ks = calc_kn_ks(mat, state)
 
         # quantities at n+1
         if ςtr[1]>0
@@ -215,11 +215,11 @@ function calc_Δλ(mat::SmearedCrack, ipd::SmearedCrackState, ςtr::Array{Float6
              drdΔλ = [ 0,  -4*ks*ςtr[2]/(1+2*Δλ*ks)^2,  -4*ks*ςtr[3]/(1+2*Δλ*ks)^2 ]
         end
 
-        r      = potential_derivs(mat, ipd, ς)
+        r      = potential_derivs(mat, state, ς)
         norm_r = norm(r)
-        up    = ipd.up + Δλ*norm_r
-        ςmax   = calc_ςmax(mat, ipd, up)
-        m      = ςmax_deriv(mat, ipd, up)
+        up    = state.up + Δλ*norm_r
+        ςmax   = calc_ςmax(mat, state, up)
+        m      = ςmax_deriv(mat, state, up)
         dςmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
 
         f = sqrt(ς[2]^2 + ς[3]^2) + (ς[1]-ςmax)*μ
@@ -240,27 +240,27 @@ function calc_Δλ(mat::SmearedCrack, ipd::SmearedCrackState, ςtr::Array{Float6
     return Δλ, ς, up, success()
 end
 
-function calcDe(mat::SmearedCrack, ipd::SmearedCrackState)
+function calcDe(mat::SmearedCrack, state::SmearedCrackState)
     E = mat.E
     ν = mat.ν
-    #ν = ipd.up==0 ? mat.ν : 0.0
-    ν = calc_nu(mat, ipd)
-    De = calcDe(E, ν, ipd.env.modeltype)
+    #ν = state.up==0 ? mat.ν : 0.0
+    ν = calc_nu(mat, state)
+    De = calcDe(E, ν, state.env.modeltype)
 
     return De
 end
 
-function calcD(mat::SmearedCrack, ipd::SmearedCrackState)
-    h = ipd.h
-    D = calcDe(mat, ipd)
+function calcD(mat::SmearedCrack, state::SmearedCrackState)
+    h = state.h
+    D = calcDe(mat, state)
 
     # If has no crack return complete elastic tensor
-    ipd.up==0 && return D
+    state.up==0 && return D
 
-    ςmax = calc_ςmax(mat, ipd, ipd.up)
-    kn, ks = calc_kn_ks(mat, ipd)
+    ςmax = calc_ςmax(mat, state, state.up)
+    kn, ks = calc_kn_ks(mat, state)
 
-    if ipd.Δλ == 0.0 # Cracked but in elastic regime
+    if state.Δλ == 0.0 # Cracked but in elastic regime
         #@show "elastic"
 
         D = [ kn*h  D[1,2] D[1,3] 0.0    0.0    0.0
@@ -270,11 +270,11 @@ function calcD(mat::SmearedCrack, ipd::SmearedCrackState)
               0.0  0.0    0.0    0.0    2*ks*h 0.0
               0.0  0.0    0.0    0.0    0.0    2*ks*h ]
     else
-        #if ςmax == 0.0 && ipd.w[1] >= 0.0
+        #if ςmax == 0.0 && state.w[1] >= 0.0
         if ςmax == 0.0
             #@show "fully cracked"
             return D*1e-5
-            #z = kn*ipd.h*1e-10
+            #z = kn*state.h*1e-10
 
             #D = [ z    0.0    0.0    0.0    0.0    0.0
                   #0.0  D[2,2] D[2,3] 0.0    0.0    0.0 
@@ -287,16 +287,16 @@ function calcD(mat::SmearedCrack, ipd::SmearedCrackState)
             #@show "partially cracked"
             idx = [1, 5, 6]          # indexes for components in the crack plane
             M   = (1.0, SR2, SR2)  # Mandel's notation correction coefficients
-            ς = (ipd.T*ipd.σ)[idx]./M  # stress components in the crack plane
+            ς = (state.T*state.σ)[idx]./M  # stress components in the crack plane
 
-            v = yield_deriv(mat, ipd, ς)
-            r = potential_derivs(mat, ipd, ς)
+            v = yield_deriv(mat, state, ς)
+            r = potential_derivs(mat, state, ς)
             y = -mat.μ # ∂F/∂ςmax
-            m = ςmax_deriv(mat, ipd, ipd.up)  # ∂ςmax/∂up
+            m = ςmax_deriv(mat, state, state.up)  # ∂ςmax/∂up
 
 
             den = kn*r[1]*v[1] + ks*r[2]*v[2] + ks*r[3]*v[3] - y*m*norm(r)
-            Dcr = ipd.h*[  kn-kn^2*r[1]*v[1]/den    -kn*ks*r[1]*v[2]/den    -kn*ks*r[1]*v[3]/den
+            Dcr = state.h*[  kn-kn^2*r[1]*v[1]/den    -kn*ks*r[1]*v[2]/den    -kn*ks*r[1]*v[3]/den
                           -kn*ks*r[2]*v[1]/den       ks-ks^2*r[2]*v[2]/den  -ks^2*r[2]*v[3]/den
                           -kn*ks*r[3]*v[1]/den      -ks^2*r[3]*v[2]/den      ks-ks^2*r[3]*v[3]/den ]
 
@@ -317,68 +317,68 @@ function calcD(mat::SmearedCrack, ipd::SmearedCrackState)
     end
 
     # Rotate D to the global xyz system
-    D = ipd.T'*D*ipd.T
+    D = state.T'*D*state.T
     return D
 end
 
 
-function stress_update(mat::SmearedCrack, ipd::SmearedCrackState, Δε::Array{Float64,1})
+function stress_update(mat::SmearedCrack, state::SmearedCrackState, Δε::Array{Float64,1})
     # σ : stress tensor in the xyz system
     # ε : strain tensor in the xyz system
     # ς : stress vector at crack plane
 
-    h = ipd.h
-    kn, ks = calc_kn_ks(mat, ipd)
+    h = state.h
+    kn, ks = calc_kn_ks(mat, state)
     M = (1.0, SR2, SR2)
     idx  = [1, 5, 6]     # indexes for components in the crack plane
 
-    σini = ipd.σ
-    D = calcDe(mat, ipd)
+    σini = state.σ
+    D = calcDe(mat, state)
     Δσtr = D*Δε
-    σtr  = ipd.σ + Δσtr
-    ipd.ε += Δε
+    σtr  = state.σ + Δσtr
+    state.ε += Δε
 
     # Check for cracks
-    if ipd.up==0
+    if state.up==0
         P, V = eigen(σtr)
         if P[1]>mat.ft
-            ipd.T = tensor_rot(V)
-            ipd.up = 1e-20
+            state.T = tensor_rot(V)
+            state.up = 1e-20
         else
-            ipd.σ = σtr
+            state.σ = σtr
             return Δσtr, success()
         end
     end
 
-    T = ipd.T
+    T = state.T
     ςtr  = (T*σtr)[idx]./M
-    Δw   = (T*Δε)[idx]./M*ipd.h
-    ipd.w += Δw
-    Ftr  = yield_func(mat, ipd, ςtr)
-    ςmax = calc_ςmax(mat, ipd, ipd.up)
+    Δw   = (T*Δε)[idx]./M*state.h
+    state.w += Δw
+    Ftr  = yield_func(mat, state, ςtr)
+    ςmax = calc_ςmax(mat, state, state.up)
 
-    w1 = (ipd.T*ipd.ε)[1]*ipd.h
+    w1 = (state.T*state.ε)[1]*state.h
 
-    #if ςmax == 0.0 && ipd.w[1] >= 0.0
+    #if ςmax == 0.0 && state.w[1] >= 0.0
     if ςmax == 0.0 && w1>=0
         #@show "fully cracked"
         r1 = [ ςtr[1]/kn, ςtr[2]/ks, ςtr[3]/ks ]
-        ipd.Δλ   = norm(r1)
+        state.Δλ   = norm(r1)
         r = normalize!(r1)
-        ipd.up += ipd.Δλ
+        state.up += state.Δλ
         Decr = [kn, ks, ks]
-        ς = ςtr - ipd.Δλ*Decr.*r
+        ς = ςtr - state.Δλ*Decr.*r
         if norm(ς)>1e-2
             @show ς
         end
         σtr = zeros(6)
     elseif Ftr <= 0
         #@show "elastic"
-        ipd.Δλ = 0.0
+        state.Δλ = 0.0
         ς = ςtr
     else
         #@show "partially cracked"
-        ipd.Δλ, ς, ipd.up, status = calc_Δλ(mat, ipd, ςtr) 
+        state.Δλ, ς, state.up, status = calc_Δλ(mat, state, ςtr) 
         failed(status) && return ς, status
     end
 
@@ -386,7 +386,7 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackState, Δε::Array{Fl
     σcr[idx] .= ς.*M
 
     wc  = mat.wc
-    up = ipd.up
+    up = state.up
     if up < wc
         z = (1 + 27*(up/wc)^3)*exp(-6.93*up/wc) - 28*(up/wc)*exp(-6.93)
         dz = ((81*up^2*exp(-6.93*up/wc)/wc^3) - (6.93*(1 + 27*up^3/wc^3)*exp(-6.93*up/wc)/wc) - 0.02738402432/wc)
@@ -399,33 +399,33 @@ function stress_update(mat::SmearedCrack, ipd::SmearedCrackState, Δε::Array{Fl
     #σcr[3] *= z
     #σcr[4] *= z
 
-    ipd.σ = T'*σcr
-    Δσ    = ipd.σ - σini
+    state.σ = T'*σcr
+    Δσ    = state.σ - σini
 
     return Δσ, success()
 end
 
-function ip_state_vals(mat::SmearedCrack, ipd::SmearedCrackState)
-    ndim  = ipd.env.ndim
-    σ, ε  = ipd.σ, ipd.ε
+function ip_state_vals(mat::SmearedCrack, state::SmearedCrackState)
+    ndim  = state.env.ndim
+    σ, ε  = state.σ, state.ε
 
-    D = stress_strain_dict(σ, ε, ipd.env.modeltype)
+    D = stress_strain_dict(σ, ε, state.env.modeltype)
     mand = (1.0, SR2, SR2)
-    T    = ipd.T
-    if ipd.up>0
-        s1 = (T*ipd.σ)[1]
-        s2 = (T*ipd.σ)[5]
-        s3 = (T*ipd.σ)[6]
+    T    = state.T
+    if state.up>0
+        s1 = (T*state.σ)[1]
+        s2 = (T*state.σ)[5]
+        s3 = (T*state.σ)[6]
     else
         s1 = s2 = s3 = 0.0
     end
-    D[:up] = ipd.up
+    D[:up] = state.up
     D[:s1]  = s1
     D[:s2]  = s2
     D[:s3]  = s3
-    D[:w]   = ipd.w[1]
-    D[:w2]  = ipd.w[2]
-    D[:w3]  = ipd.w[3]
-    D[:crack]  = float(ipd.up>0)
+    D[:w]   = state.w[1]
+    D[:w2]  = state.w[2]
+    D[:w3]  = state.w[3]
+    D[:crack]  = float(state.up>0)
     return D
 end

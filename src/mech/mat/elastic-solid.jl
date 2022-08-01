@@ -99,18 +99,18 @@ function calcDe(E::Number, ν::Number, modeltype::String)
     end
 end
 
-function calcD(mat::ElasticSolid, ipd::ElasticSolidState)
-    return calcDe(mat.E, mat.nu, ipd.env.modeltype)
+function calcD(mat::ElasticSolid, state::ElasticSolidState)
+    return calcDe(mat.E, mat.nu, state.env.modeltype)
 end
 
-function stress_update(mat::ElasticSolid, ipd::ElasticSolidState, dε::Array{Float64,1})
-    De = calcDe(mat.E, mat.nu, ipd.env.modeltype)
+function stress_update(mat::ElasticSolid, state::ElasticSolidState, dε::Array{Float64,1})
+    De = calcDe(mat.E, mat.nu, state.env.modeltype)
     dσ = De*dε
-    ipd.ε += dε
-    ipd.σ += dσ
+    state.ε += dε
+    state.σ += dσ
     return dσ, success()
 end
 
-function ip_state_vals(mat::ElasticSolid, ipd::ElasticSolidState)
-    return stress_strain_dict(ipd.σ, ipd.ε, ipd.env.modeltype)
+function ip_state_vals(mat::ElasticSolid, state::ElasticSolidState)
+    return stress_strain_dict(state.σ, state.ε, state.env.modeltype)
 end

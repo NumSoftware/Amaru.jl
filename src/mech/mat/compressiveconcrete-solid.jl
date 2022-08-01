@@ -53,8 +53,8 @@ matching_elem_type(::CompressiveConcrete) = MechSolid
 # Type of corresponding state structure
 ip_state_type(mat::CompressiveConcrete) = CompressiveConcreteState
 
-function uniaxial_σ(mat::CompressiveConcrete, ipd::CompressiveConcreteState, εi::Float64)
-    # σp = eigvals(ipd.σ)
+function uniaxial_σ(mat::CompressiveConcrete, state::CompressiveConcreteState, εi::Float64)
+    # σp = eigvals(state.σ)
     # σ1c, σ2c, σ3c = neg.(σp)
 
     # compression: Popovics 1973; Carreira and Chu 1985
@@ -71,8 +71,8 @@ function uniaxial_σ(mat::CompressiveConcrete, ipd::CompressiveConcreteState, ε
 end
 
 
-function uniaxial_E(mat::CompressiveConcrete, ipd::CompressiveConcreteState, εi::Float64)
-    # σp = eigvals(ipd.σ)
+function uniaxial_E(mat::CompressiveConcrete, state::CompressiveConcreteState, εi::Float64)
+    # σp = eigvals(state.σ)
     # σ1c, σ2c, σ3c = neg.(σp)
 
     # αc = 0.3
@@ -90,45 +90,45 @@ function uniaxial_E(mat::CompressiveConcrete, ipd::CompressiveConcreteState, εi
 end
 
 
-function calcD(mat::CompressiveConcrete, ipd::CompressiveConcreteState)
+function calcD(mat::CompressiveConcrete, state::CompressiveConcreteState)
 
-    if ipd.ε̅c > ipd.ε̅min
+    if state.ε̅c > state.ε̅min
         E = mat.E0
     else
-        E = uniaxial_E(mat, ipd, ipd.ε̅c)
+        E = uniaxial_E(mat, state, state.ε̅c)
         Emin = mat.E0*1e-4
         abs(E)<Emin && (E=Emin)
     end
 
-    D  = calcDe(E, mat.ν, ipd.env.modeltype)
+    D  = calcDe(E, mat.ν, state.env.modeltype)
     return D
 end
 
 
-function stress_update(mat::CompressiveConcrete, ipd::CompressiveConcreteState, Δε::Array{Float64,1})
+function stress_update(mat::CompressiveConcrete, state::CompressiveConcreteState, Δε::Array{Float64,1})
     # special function
     neg(x) = (-abs(x)+x)/2.0
 
-    ipd.ε .+= Δε
-    εp = eigvals(ipd.ε)
-    ipd.ε̅c = -norm(neg.(εp), 2)
+    state.ε .+= Δε
+    εp = eigvals(state.ε)
+    state.ε̅c = -norm(neg.(εp), 2)
 
-    if ipd.ε̅c > ipd.ε̅min
+    if state.ε̅c > state.ε̅min
         E = mat.E0
     else
-        ipd.ε̅min = ipd.ε̅c
-        E = uniaxial_E(mat, ipd, ipd.ε̅c)
+        state.ε̅min = state.ε̅c
+        E = uniaxial_E(mat, state, state.ε̅c)
     end
 
-    D  = calcDe(E, mat.ν, ipd.env.modeltype)
+    D  = calcDe(E, mat.ν, state.env.modeltype)
     Δσ = D*Δε
-    ipd.σ .+= Δσ
+    state.σ .+= Δσ
 
     return Δσ, success()
 end
 
-function ip_state_vals(mat::CompressiveConcrete, ipd::CompressiveConcreteState)
-    dict = stress_strain_dict(ipd.σ, ipd.ε, ipd.env.modeltype)
-    dict[:Ec] = uniaxial_E(mat, ipd, ipd.ε̅c)
+function ip_state_vals(mat::CompressiveConcrete, state::CompressiveConcreteState)
+    dict = stress_strain_dict(state.σ, state.ε, state.env.modeltype)
+    dict[:Ec] = uniaxial_E(mat, state, state.ε̅c)
     return dict
 end

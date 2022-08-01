@@ -34,6 +34,6 @@ matching_elem_type(::ElasticShellQUAD4) = ShellQUAD4
 # Type of corresponding state structure
 ip_state_type(mat::ElasticShellQUAD4) = ElasticShellQuad4State
 
-function ip_state_vals(mat::ElasticShellQUAD4, ipd::ElasticShellQuad4State)
+function ip_state_vals(mat::ElasticShellQUAD4, state::ElasticShellQuad4State)
     return OrderedDict{Symbol, Float64}()
 end

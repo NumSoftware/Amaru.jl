@@ -65,8 +65,8 @@ matching_elem_type(::DamageConcrete) = MechSolid
 # Type of corresponding state structure
 ip_state_type(mat::DamageConcrete) = DamageConcreteState
 
-function uniaxial_σ(mat::DamageConcrete, ipd::DamageConcreteState, εi::Float64)
-    σp = eigvals(ipd.σ)
+function uniaxial_σ(mat::DamageConcrete, state::DamageConcreteState, εi::Float64)
+    σp = eigvals(state.σ)
     σ1c, σ2c, σ3c = neg.(σp)
     if εi>=0  # tension: Nilsson and Oldenburg 1982; Beshara and Virdi 1991; Wu and Yao 1998
 
@@ -78,7 +78,7 @@ function uniaxial_σ(mat::DamageConcrete, ipd::DamageConcreteState, εi::Float64
             return εi*mat.E0
         else
             σ̅t = norm(pos.(σp))
-            w = (εi-εt0)*ipd.h # crack openning
+            w = (εi-εt0)*state.h # crack openning
             if w < ws
             elseif ws<w<wc
             else
@@ -101,14 +101,14 @@ function uniaxial_σ(mat::DamageConcrete, ipd::DamageConcreteState, εi::Float64
         else
             #γ = 1.0 - 0.5/mat.fc*( √(σ1c^2 + σ2c^2+ σ3c^2))
             σ̅t = norm(pos.(σp))
-            w = (εi-εt0)*ipd.h # crack openning
-            #w = (εi-εt0*σ̅t/ft)*ipd.h # crack openning
+            w = (εi-εt0)*state.h # crack openning
+            #w = (εi-εt0*σ̅t/ft)*state.h # crack openning
 
-            #GF = mat.GF - 0.5*ft*εt0*ipd.h
-            #@show ipd.h
+            #GF = mat.GF - 0.5*ft*εt0*state.h
+            #@show state.h
             #@show mat.GF
             #@show GF
-            #@show 0.5*ft*εt0*ipd.h
+            #@show 0.5*ft*εt0*state.h
             #error()
             #@assert GF>0
             #@show ft*exp(-ft/mat.GF*w)
@@ -132,8 +132,8 @@ function uniaxial_σ(mat::DamageConcrete, ipd::DamageConcreteState, εi::Float64
 end
 
 
-function uniaxial_E(mat::DamageConcrete, ipd::DamageConcreteState, εi::Float64)
-    σp = eigvals(ipd.σ)
+function uniaxial_E(mat::DamageConcrete, state::DamageConcreteState, εi::Float64)
+    σp = eigvals(state.σ)
     σ1c, σ2c, σ3c = neg.(σp)
     if εi>=0 # tension
         αt = 2.05
@@ -148,12 +148,12 @@ function uniaxial_E(mat::DamageConcrete, ipd::DamageConcreteState, εi::Float64)
         if εi<εt0
             return mat.E0
         else
-            #GF = mat.GF - 0.5*ft*εt0*ipd.h
-            #Et = ft*exp(-ft/(GF/ipd.h)*(εi-εt0)) * (-ft/(GF/ipd.h))
+            #GF = mat.GF - 0.5*ft*εt0*state.h
+            #Et = ft*exp(-ft/(GF/state.h)*(εi-εt0)) * (-ft/(GF/state.h))
             σ̅t = norm(pos.(σp))
-            #w = (εi-εt0*σ̅t/ft)*ipd.h # crack openning
-            #Et = ft*exp(-ft/mat.GF*w) * (-ft/mat.GF*ipd.h)
-            Et = ft*exp(-ft/(mat.GF/ipd.h)*(εi-εt0)) * (-ft/(mat.GF/ipd.h))
+            #w = (εi-εt0*σ̅t/ft)*state.h # crack openning
+            #Et = ft*exp(-ft/mat.GF*w) * (-ft/mat.GF*state.h)
+            Et = ft*exp(-ft/(mat.GF/state.h)*(εi-εt0)) * (-ft/(mat.GF/state.h))
             return Et
         end
     else # compression
@@ -180,44 +180,44 @@ function uniaxial_E(mat::DamageConcrete, ipd::DamageConcreteState, εi::Float64)
 end
 
 
-function calcD(mat::DamageConcrete, ipd::DamageConcreteState)
+function calcD(mat::DamageConcrete, state::DamageConcreteState)
 
-    #@show ipd._E
-    if ipd._E==0.0
+    #@show state._E
+    if state._E==0.0
         E = mat.E0
         ν = mat.ν
     else
-        E = ipd._E
-        ν = ipd._ν
+        E = state._E
+        ν = state._ν
     end
 
-    D  = calcDe(E, ν, ipd.env.modeltype)
+    D  = calcDe(E, ν, state.env.modeltype)
     return D
 end
 
 
-#function calcDsec(mat::DamageConcrete, ipd::DamageConcreteState, Δε::Array{Float64,1}, modeltype::Symbol)
-function stress_update(mat::DamageConcrete, ipd::DamageConcreteState, Δε::Array{Float64,1})
+#function calcDsec(mat::DamageConcrete, state::DamageConcreteState, Δε::Array{Float64,1}, modeltype::Symbol)
+function stress_update(mat::DamageConcrete, state::DamageConcreteState, Δε::Array{Float64,1})
     # special functions
     pos(x)   = (abs(x)+x)/2.0
     neg(x)   = (-abs(x)+x)/2.0
-    σfun(εi) = uniaxial_σ(mat, ipd, εi)
-    Efun(εi) = uniaxial_E(mat, ipd, εi)
+    σfun(εi) = uniaxial_σ(mat, state, εi)
+    Efun(εi) = uniaxial_E(mat, state, εi)
 
-    εp = eigvals(ipd.ε)
-    ipd.ε .+= Δε
+    εp = eigvals(state.ε)
+    state.ε .+= Δε
 
     # principal strains
-    εp = eigvals(ipd.ε)
+    εp = eigvals(state.ε)
     ε̅c = norm(neg.(εp), 2)
     ε̅t = norm(pos.(εp), 2)
     
     # principal stresses
-    σp = eigvals(ipd.σ)
+    σp = eigvals(state.σ)
     σ̅c = norm(neg.(σp), 2)
     σ̅t = norm(pos.(σp), 2)
-    Δε̅tmax = max(ε̅t-ipd.ε̅tmax, 0.0)
-    Δε̅cmax = max(ε̅c-ipd.ε̅cmax, 0.0)
+    Δε̅tmax = max(ε̅t-state.ε̅tmax, 0.0)
+    Δε̅cmax = max(ε̅c-state.ε̅cmax, 0.0)
 
     if σ̅c==0
         in_tension = true
@@ -228,37 +228,37 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteState, Δε::Arra
     end
 
     # update maximum strains
-    ipd.ε̅tmax = max(ε̅t, ipd.ε̅tmax)
-    ipd.ε̅cmax = max(ε̅c, ipd.ε̅cmax)
+    state.ε̅tmax = max(ε̅t, state.ε̅tmax)
+    state.ε̅cmax = max(ε̅c, state.ε̅cmax)
 
     # @show in_tension
 
     # estimate tangent Young modulus
     if in_tension
             #@show ε̅t
-        if ε̅t < ipd.ε̅tmax
+        if ε̅t < state.ε̅tmax
             #E = ε̅t==0 ? mat.E0 : min(mat.E0, σ̅t/ε̅t)
-            Et = ε̅t==0 ? mat.E0 : min(ipd._E, σ̅t/ε̅t)
-            ipd.lin_range = true
+            Et = ε̅t==0 ? mat.E0 : min(state._E, σ̅t/ε̅t)
+            state.lin_range = true
         else
             Et = Efun(ε̅t)
-            ipd.lin_range = false
+            state.lin_range = false
         end
         Et = Efun(ε̅t)
-        ν = mat.ν*(1-ipd.damt)
+        ν = mat.ν*(1-state.damt)
         E = Et
 
         #ν = mat.ν
     else
-        if ε̅c < ipd.ε̅cmax
+        if ε̅c < state.ε̅cmax
             Ec = ε̅c==0 ? mat.E0 : min(mat.E0, σ̅c/ε̅c)
-            ipd.lin_range = true
+            state.lin_range = true
         else
             Ec = Efun(-ε̅c)
-            ipd.lin_range = false
+            state.lin_range = false
         end
         Ec = Efun(-ε̅c)
-        #ν = mat.ν*(1-ipd.damc)
+        #ν = mat.ν*(1-state.damc)
         ν = mat.ν
         E = Ec
     end
@@ -288,48 +288,48 @@ function stress_update(mat::DamageConcrete, ipd::DamageConcreteState, Δε::Arra
     #@show Emin
     #@show E
 
-    D  = calcDe(E, ν, ipd.env.modeltype)
+    D  = calcDe(E, ν, state.env.modeltype)
     Δσ = D*Δε
-    ipd.σ .+= Δσ
+    state.σ .+= Δσ
 
-    ipd._E = E
-    ipd._ν = ν
+    state._E = E
+    state._ν = ν
 
-    if ipd.ε̅tmax>0
-        ipd.damt = clamp(1.0 - σfun(ipd.ε̅tmax)/ipd.ε̅tmax/mat.E0, 0.0, 1.0)
+    if state.ε̅tmax>0
+        state.damt = clamp(1.0 - σfun(state.ε̅tmax)/state.ε̅tmax/mat.E0, 0.0, 1.0)
     else
-        ipd.damt = 0.0
+        state.damt = 0.0
     end
 
-    if ipd.ε̅cmax>0
-        ipd.damc = clamp(1.0 + σfun(-ipd.ε̅cmax)/ipd.ε̅cmax/mat.E0, 0.0, 1.0)
+    if state.ε̅cmax>0
+        state.damc = clamp(1.0 + σfun(-state.ε̅cmax)/state.ε̅cmax/mat.E0, 0.0, 1.0)
     else
-        ipd.damc = 0.0
+        state.damc = 0.0
     end
     
-    #ipd.in_tension != in_tension && show(1)
-    ipd.in_tension = in_tension
+    #state.in_tension != in_tension && show(1)
+    state.in_tension = in_tension
 
-    #ipd.damt = 1.0 - σfun(ipd.ε̅tmax)/ipd.ε̅tmax/mat.E0
-    #ipd.damc = 1.0 + σfun(-ipd.ε̅cmax)/ipd.ε̅cmax/mat.E0
+    #state.damt = 1.0 - σfun(state.ε̅tmax)/state.ε̅tmax/mat.E0
+    #state.damc = 1.0 + σfun(-state.ε̅cmax)/state.ε̅cmax/mat.E0
 
-    #ipd.env.cstage==1 && ipd.env.cinc==2 && error()
+    #state.env.cstage==1 && state.env.cinc==2 && error()
 
     return Δσ, success()
 end
 
-function ip_state_vals(mat::DamageConcrete, ipd::DamageConcreteState)
-    dict = stress_strain_dict(ipd.σ, ipd.ε, ipd.env.modeltype)
-    dict[:damt] = ipd.damt
-    dict[:damc] = ipd.damc
-    dict[:E] = ipd._E
-    dict[:nu] = ipd._ν
-    dict[:T] = ipd.in_tension
+function ip_state_vals(mat::DamageConcrete, state::DamageConcreteState)
+    dict = stress_strain_dict(state.σ, state.ε, state.env.modeltype)
+    dict[:damt] = state.damt
+    dict[:damc] = state.damc
+    dict[:E] = state._E
+    dict[:nu] = state._ν
+    dict[:T] = state.in_tension
 
-    εp = eigvals(ipd.ε)
+    εp = eigvals(state.ε)
     ε̅t = norm(pos.(εp))
-    Efun(εi) = uniaxial_E(mat, ipd, εi)
+    Efun(εi) = uniaxial_E(mat, state, εi)
     εt0 = mat.ft/mat.E0
-    dict[:w] = ε̅t-εt0 > 0 ? (ε̅t-εt0)ipd.h : 0.0 # crack openning
+    dict[:w] = ε̅t-εt0 > 0 ? (ε̅t-εt0)state.h : 0.0 # crack openning
     return dict
 end

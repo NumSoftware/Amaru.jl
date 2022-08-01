@@ -2,7 +2,7 @@
 
 """
     MechBeam
-A beam finite element for mechanical equilibrium analyses.
+Am beam finite element for mechanical equilibrium analyses.
 """
 mutable struct MechBeam<:Mechanical
     id    ::Int
@@ -25,7 +25,7 @@ matching_shape_family(::Type{MechBeam}) = LINE_CELL
 
 
 function elem_init(elem::MechBeam)
-
+    ndim = elem.env.ndim
     nnodes = length(elem.nodes)
     Dlmn = Array{Float64,2}[]
     C = getcoords(elem)
@@ -34,9 +34,9 @@ function elem_init(elem::MechBeam)
         Ri = elem.shape.nat_coords[i,:]
         dNdR = elem.shape.deriv(Ri)
         J = C'*dNdR
-        R = zeros(3,3)
-        set_rot_x_xp(elem, J, R)
-        push!(Dlmn, R)
+        L = zeros(ndim,ndim)
+        set_rot_x_xp(elem, J, L)
+        push!(Dlmn, L)
     end
     elem.Dlmn = Dlmn
 
@@ -44,19 +44,26 @@ function elem_init(elem::MechBeam)
 end
 
 function setquadrature!(elem::MechBeam, n::Int=0)
-
+    ndim = elem.env.ndim
     ipL = get_ip_coords(LIN2, n) # longitudinal
     ipT = get_ip_coords(LIN2, 2) # transversal
     
     n = size(ipL,1)
+    nj = 2
+    nk = ndim-1
 
-    resize!(elem.ips, 4*n)
+    resize!(elem.ips, n*nj*nk)
     for i in 1:n
         for j in 1:2
-            for k in 1:2
-                R = [ ipT[i,1], ipT[j,1], ipL[k,1] ]
-                w = ipL[i,4]*ipT[j,4]*ipT[k,4]
-                m = (i-1)*n*2 + (j-1)*2 + k
+            for k in 1:nk
+                if ndim==2
+                    R = [ ipT[i,1], ipT[j,1], 0.0 ]
+                    w = ipL[i,4]*ipT[j,4]
+                else
+                    R = [ ipT[i,1], ipT[j,1], ipL[k,1] ]
+                    w = ipL[i,4]*ipT[j,4]*ipT[k,4]
+                end
+                m = (i-1)*nj*nk + (j-1)*nk + k
                 elem.ips[m] = Ip(R, w)
                 elem.ips[m].id = m
                 elem.ips[m].state = ip_state_type(elem.mat)(elem.env)
@@ -91,102 +98,138 @@ end
 
 function elem_config_dofs(elem::MechBeam)
     ndim = elem.env.ndim
-    ndim in (1,2) && error("MechBeam: Shell elements do not work in $(ndim)d analyses")
+    # ndim in (1,2) && error("MechBeam: Shell elementhy do not work in $(ndim)d analyses")
     for node in elem.nodes
         add_dof(node, :ux, :fx)
         add_dof(node, :uy, :fy)
-        add_dof(node, :uz, :fz)
-        add_dof(node, :rx, :mx)
-        add_dof(node, :ry, :my)
+        if ndim==3
+            add_dof(node, :uz, :fz)
+            add_dof(node, :rx, :mx)
+            add_dof(node, :ry, :my)
+        end
         add_dof(node, :rz, :mz)
     end
 end
 
 function elem_map(elem::MechBeam)
-    keys =(:ux, :uy, :uz, :rx, :ry, :rz)
+    if elem.env.ndim==2
+        keys =(:ux, :uy, :rz)
+    else
+        keys =(:ux, :uy, :uz, :rx, :ry, :rz)
+    end
     return [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
 end
 
 
 # Rotation Matrix
 function set_rot_x_xp(elem::MechBeam, J::Matx, R::Matx)
+    ndim = elem.env.ndim
     V1 = normalize(vec(J))
 
-    if V1[1]==0.0
-        V2 = [ 1.0, 0.0, 0.0 ]
-    elseif V1[2]==0.0
-        V2 = [ 0.0, 1.0, 0.0 ]
+    if ndim==2
+        V2 = [ -V1[2], V1[1] ]
+        R[1,:] .= V1
+        R[2,:] .= V2
     else
-        V2 = [ 0.0, 0.0, 1.0 ]
+        if V1[1]==0.0
+            V2 = [ 1.0, 0.0, 0.0 ]
+        elseif V1[2]==0.0
+            V2 = [ 0.0, 1.0, 0.0 ]
+        else
+            V2 = [ 0.0, 0.0, 1.0 ]
+        end
+
+        V3 = cross(V1, V2)
+        V2 = cross(V3, V1)
+
+        normalize!(V1)
+        normalize!(V2)
+        normalize!(V3)
+
+        R[1,:] .= V1
+        R[2,:] .= V2
+        R[3,:] .= V3
     end
-
-    V3 = cross(V1, V2)
-    V2 = cross(V3, V1)
-
-    normalize!(V1)
-    normalize!(V2)
-    normalize!(V3)
-
-    R[1,:] .= V1
-    R[2,:] .= V2
-    R[3,:] .= V3
 end
 
 
 function setB(elem::MechBeam, ip::Ip, L::Matx, N::Vect, dNdX::Matx, Rθ::Matx, Bil::Matx, Bi::Matx, B::Matx)
+    ndim = elem.env.ndim
+    ndof = ndim==2 ? 3 : 6
     nnodes = size(dNdX,1)
-    th = elem.mat.th
-    ts = elem.mat.ts
+    thz = elem.mat.thz
+    thy = elem.mat.thy
     # Note that matrix B is designed to work with tensors in Mandel's notation
+    if ndim==2
+        Rθ[3,3] = 1.0
+        for i in 1:nnodes
+            η = ip.R[2]
+            Rθ[1:2,1:2] .= L
 
-    ndof = 6
-    for i in 1:nnodes
-        η = ip.R[2]
-        ζ = ip.R[3]
-        Rθ[1:3,1:3] .= L
-        Rθ[4:6,4:6] .= elem.Dlmn[i]
+            Ni = N[i]
+            dNdx = dNdX[i]
 
-        Ni = N[i]
-        dNdx = dNdX[i]
+            Bil[1,1] = dNdx;                        Bil[1,3] = -dNdx*η*thy/2
+                              Bil[2,2] = dNdx/SR2;  Bil[2,3] = -1/SR2*Ni
 
-        Bil[1,1] = dNdx;                                                                             Bil[1,5] = dNdx*ζ*th/2;  Bil[1,6] = -dNdx*η*ts/2
-                                               Bil[2,3] = dNdx/SR2;  Bil[2,4] = 1/SR2*dNdx*η*ts/2;   Bil[2,5] = 1/SR2*Ni
-                          Bil[3,2] = dNdx/SR2;                       Bil[3,4] = -1/SR2*dNdx*ζ*th/2;                           Bil[3,6] = -1/SR2*Ni
+            c = (i-1)*ndof
+            @gemm Bi = Bil*Rθ
+            B[:, c+1:c+ndof] .= Bi
+        end
+    else
+        for i in 1:nnodes
+            η = ip.R[2]
+            ζ = ip.R[3]
+            Rθ[1:3,1:3] .= L
+            Rθ[4:6,4:6] .= elem.Dlmn[i]
 
-        c = (i-1)*ndof
-        @gemm Bi = Bil*Rθ
-        B[:, c+1:c+6] .= Bi
+            Ni = N[i]
+            dNdx = dNdX[i]
+
+            Bil[1,1] = dNdx;                                                                             Bil[1,5] = dNdx*ζ*thz/2;  Bil[1,6] = -dNdx*η*thy/2
+                                                   Bil[2,3] = dNdx/SR2;  Bil[2,4] = 1/SR2*dNdx*η*thy/2;   Bil[2,5] = 1/SR2*Ni
+                             Bil[3,2] = dNdx/SR2;                        Bil[3,4] = -1/SR2*dNdx*ζ*thz/2;                           Bil[3,6] = -1/SR2*Ni
+
+            c = (i-1)*ndof
+            @gemm Bi = Bil*Rθ
+            B[:, c+1:c+ndof] .= Bi
+        end
     end
 end
 
 
 function elem_stiffness(elem::MechBeam)
+    ndim = elem.env.ndim
     nnodes = length(elem.nodes)
-    th = elem.mat.th
-    ts = elem.mat.ts
-    ndof = 6
-    nstr = 3
-    C = getcoords(elem)
-    K = zeros(ndof*nnodes, ndof*nnodes)
-    dNdX′ = zeros(nnodes)
-    B = zeros(nstr, ndof*nnodes)
-    L = zeros(3,3)
-    Rθ = zeros(6,ndof)
-    Bil = zeros(nstr,6)
-    Bi = zeros(nstr,ndof)
+    thz = elem.mat.thz
+    thy = elem.mat.thy
+    ndof = ndim==2 ? 3 : 6
+    nstr = ndim==2 ? 2 : 3
+
+    C   = getcoords(elem)
+    K   = zeros(ndof*nnodes, ndof*nnodes)
+    B   = zeros(nstr, ndof*nnodes)
+    L   = zeros(ndim,ndim)
+    Rθ  = zeros(ndof,ndof)
+    Bil = zeros(nstr,ndof)
+    Bi  = zeros(nstr,ndof)
 
     for ip in elem.ips
-        N = elem.shape.func(ip.R)
+        N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
-        J1D = C'*dNdR
+        J1D  = C'*dNdR
         set_rot_x_xp(elem, J1D, L)
         dx′dξ = norm(J1D)
         dNdX′ = dNdR*inv(dx′dξ)
-        D = calcD(elem.mat, ip.state)
+        D     = calcD(elem.mat, ip.state)
         
         setB(elem, ip, L, N, dNdX′, Rθ, Bil, Bi, B)
-
-        detJ′ = dx′dξ*th/2*ts/2
+        
+        if ndim==2
+            detJ′ = dx′dξ*thz*thy/2
+        else
+            detJ′ = dx′dξ*thz/2*thy/2
+        end
         coef = detJ′*ip.w
         K += coef*B'*D*B
 
@@ -198,39 +241,43 @@ end
 
 
 function elem_update!(elem::MechBeam, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
+    ndim = elem.env.ndim
     nnodes = length(elem.nodes)
-    th = elem.mat.th
-    ts = elem.mat.ts
-    ndof = 6
-    nstr = 3
-    C = getcoords(elem)
-    B = zeros(nstr, ndof*nnodes)
-    L = zeros(3,3)
-    Rθ = zeros(6,ndof)
+    thz = elem.mat.thz
+    thy = elem.mat.thy
+    ndof = ndim==2 ? 3 : 6
+    nstr = ndim==2 ? 2 : 3
+
+    C   = getcoords(elem)
+    B   = zeros(nstr, ndof*nnodes)
+    L   = zeros(ndim,ndim)
+    Rθ  = zeros(6,ndof)
     Bil = zeros(nstr,6)
-    Bi = zeros(nstr,ndof)
+    Bi  = zeros(nstr,ndof)
 
     map = elem_map(elem)
-    dU = U[map]
-    dF = zeros(length(dU))
-    Δε = zeros(6)
+    dU  = U[map]
+    dF  = zeros(length(dU))
+    Δε  = zeros(nstr)
 
     for ip in elem.ips
-        N = elem.shape.func(ip.R)
+        N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
-        J1D = C'*dNdR
+        J1D  = C'*dNdR
         set_rot_x_xp(elem, J1D, L)
         dx′dξ = norm(J1D)
         dNdX′ = dNdR*inv(dx′dξ)
-        normJ = dx′dξ*th/2*ts/2
-        
         setB(elem, ip, L, N, dNdX′, Rθ, Bil, Bi, B)
         Δε = B*dU
-
         Δσ, status = stress_update(elem.mat, ip.state, Δε)
         failed(status) && return failure("MechBeam: Error at integration point $(ip.id)")
         
-        coef = normJ*ip.w
+        if ndim==2
+            detJ′ = dx′dξ*thz*thy/2
+        else
+            detJ′ = dx′dξ*thz/2*thy/2
+        end
+        coef = detJ′*ip.w
         dF += coef*B'*Δσ
     end
 
@@ -250,71 +297,96 @@ end
 
 
 function elem_extrapolated_node_vals(elem::MechBeam)
+    ndim = elem.env.ndim
+    thz = elem.mat.thz
+    thy = elem.mat.thy
+    ndof = ndim==2 ? 3 : 6
+
     nnodes = length(elem.nodes)
+    C = getcoords(elem) # global coordinates
+    Ξ = elem.shape.nat_coords # natural coordinates
 
-    # displacements
-    keys = (:ux, :uy, :uz, :rx, :ry, :rz)
+    # get local displacementhy from global
+    if elem.env.ndim==2
+        keys =(:ux, :uy, :rz)
+    else
+        keys =(:ux, :uy, :uz, :rx, :ry, :rz)
+    end
     U = [ node.dofdict[key].vals[key] for node in elem.nodes for key in keys ]
-    Rθ = zeros(6,6)
-    Uplane = zeros(2*nnodes, 2) # u1 θ1 u2 θ2; u1 θ1 ...
+    U′ = similar(U)
+    Rθ = zeros(ndof,ndof)
+
+    # coefficient matrices to compute moment and shear
+    Am = zeros(nnodes, nnodes)
+    Av = zeros(nnodes, nnodes)
+
     for i in 1:nnodes
-        Rθ[1:3,1:3] .= elem.Dlmn[i]
-        Rθ[4:6,4:6] .= elem.Dlmn[i]
-        U′i = Rθ*U[(i-1)*6+1:i*6]
-        Uplane[(i-1)*2+1, 1] = U′i[3] # uz
-        Uplane[(i-1)*2+2, 1] = U′i[5] # θy
-        Uplane[(i-1)*2+1, 2] = U′i[2] # uy
-        Uplane[(i-1)*2+2, 2] = U′i[6] # θz
-    end
-
-    # Coefficients matrix for Hermite interpolation
-    ncoefs = nnodes*2
-    A = zeros(ncoefs, ncoefs)
-    Ξ = elem.shape.nat_coords
-    for i in 1:nnodes
-        ξ = Ξ[i]
-        A[(i-1)*2+1,1] = 1.0
-        for j in 2:ncoefs
-            A[(i-1)*2+1,j] = ξ^(j-1)
-            A[(i-1)*2+2,j] = (j-1)*ξ^(j-2)
-        end
-    end
-
-    invA = inv(A)
-    M = zeros(nnodes,2)
-    V = zeros(nnodes,2)
-    E = elem.mat.E
-    th = elem.mat.th
-    ts = elem.mat.ts
-
-    for k in 1:2
-        C = invA*Uplane[:,k]
-        
-        if k==1
-            I = ts*th^3/12 #!TODO, check directions
+        if ndim==2
+            Rθ[1:2,1:2] .= elem.Dlmn[i]
+            Rθ[3,3] = 1.0 
         else
-            I = th*ts^3/12
+            Rθ[1:3,1:3] .= elem.Dlmn[i]
+            Rθ[4:6,4:6] .= elem.Dlmn[i]
         end
 
-        for i in 1:nnodes
-            ξ = Ξ[i]
-            d2u = 2*C[3]
-            d3u = 0.0
-            for j in 4:ncoefs
-                d2u += factorial(j-1)/factorial(j-3)*C[j]*ξ^(i-3)
-                d3u += factorial(j-1)/factorial(j-4)*C[j]*ξ^(i-4)
-            end
-            M[i,k] = d2u/(E*I)
-            V[i,k] = d3u/(E*I)
+        U′[(i-1)*ndof+1:i*ndof] = Rθ*U[(i-1)*ndof+1:i*ndof]
+        ξ = Ξ[i]
+
+        # first derivatives and jacobian
+        dNdξ = elem.shape.deriv([ξ])
+        jac = norm(C'*dNdξ)
+
+        # second derivatives
+        d2Ndξ2 = elem.shape.deriv2([ξ])
+        d2xdξ2 = dot(C'*d2Ndξ2, elem.Dlmn[i][1,:])
+        d2ξNdx2 = -d2xdξ2/jac^3
+        
+        for j in 1:nnodes
+            dNdx = dNdξ[j]/jac
+            Am[i,j] = dNdx
+            d2Ndx2 = d2Ndξ2[j]*(1/jac)^2 + dNdξ[j]*d2ξNdx2
+            Av[i,j] = d2Ndx2
         end
+        
     end
 
-    return OrderedDict(
-        Symbol("Mx'z'") => M[:,1],
-        Symbol("Vx'z'") => V[:,1],
-        Symbol("Mx'y'") => M[:,2],
-        Symbol("Vx'y'") => V[:,2]
-    )
+    E = elem.mat.E
+    if ndim==2
+        θZ = U′[3:ndof:ndof*nnodes]
+        Izy = thz*thy^3/12
 
+        # Bending moment
+        Mxy = (Am*θZ).*(E*Izy)
+        # Shear (negative to match convention)
+        Vxy = -(Av*θZ).*(E*Izy)
+        Vxy = ones(nnodes)*mean(Vxy)
+
+        return OrderedDict(
+            Symbol("Mx'y'") => Mxy,
+            Symbol("Vx'y'") => Vxy
+        )
+    else
+        θY = U′[5:ndof:ndof*nnodes-1]
+        θZ = U′[6:ndof:ndof*nnodes]
+
+        Iyz = thy*thz^3/12
+        Izy = thz*thy^3/12
+
+        # Bending moment
+        Mxz = (Am*θY).*(E*Iyz)
+        Mxy = (Am*θZ).*(E*Izy)
+        # Shear (negative to match convention)
+        Vxz = -(Av*θY).*(E*Iyz) 
+        Vxy = -(Av*θZ).*(E*Izy)
+        Vxz = ones(nnodes)*mean(Vxz)
+        Vxy = ones(nnodes)*mean(Vxy)
+
+        return OrderedDict(
+            Symbol("Mx'z'") => Mxz,
+            Symbol("Mx'y'") => Mxy,
+            Symbol("Vx'z'") => Vxz,
+            Symbol("Vx'y'") => Vxy
+        )
+    end
 end
 

@@ -61,7 +61,9 @@ Configures `elem` according to its type.
 This function can be specialized by concrete types.
 """
 function elem_init(elem::Element)
-    # No-op function but can be specialized by concrete types
+    for ip in elem.ips
+        init_state(ip.state, elem.mat)
+    end
     return nothing
 end
 

@@ -42,7 +42,7 @@ matching_elem_type(::ElasticCookShell) = CookShell
 ip_state_type(mat::ElasticCookShell) = ElasticCookShellState
 
 
-function calcD(mat::ElasticCookShell, ipd::ElasticCookShellState)
+function calcD(mat::ElasticCookShell, state::ElasticCookShellState)
     E = mat.E
     ν = mat.nu
     c = E/(1.0-ν^2)
@@ -58,14 +58,14 @@ function calcD(mat::ElasticCookShell, ipd::ElasticCookShellState)
     # ezz = -ν/E*(sxx+syy)
 end
 
-function stress_update(mat::ElasticCookShell, ipd::ElasticCookShellState, dε::Array{Float64,1})
-    D = calcD(mat, ipd)
+function stress_update(mat::ElasticCookShell, state::ElasticCookShellState, dε::Array{Float64,1})
+    D = calcD(mat, state)
     dσ = D*dε
-    ipd.ε += dε
-    ipd.σ += dσ
+    state.ε += dε
+    state.σ += dσ
     return dσ, success()
 end
 
-function ip_state_vals(mat::ElasticCookShell, ipd::ElasticCookShellState)
-    return stress_strain_dict(ipd.σ, ipd.ε, ipd.env.modeltype)
+function ip_state_vals(mat::ElasticCookShell, state::ElasticCookShellState)
+    return stress_strain_dict(state.σ, state.ε, state.env.modeltype)
 end

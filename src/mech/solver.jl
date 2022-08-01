@@ -541,7 +541,6 @@ function solve!(
             T += ΔT
             env.T = T
             
-            
             # Check for saving output file
             if T>Tcheck-Ttol && save_outs
                 env.cout += 1
@@ -556,6 +555,7 @@ function solve!(
             end
 
             update_single_loggers!(dom)
+            update_monitors!(dom)
             # if failed(update_monitors!(dom))
                 # break
             # end

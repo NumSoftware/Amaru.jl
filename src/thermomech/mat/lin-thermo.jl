@@ -46,29 +46,29 @@ matching_elem_type(::LinThermo) = ThermoSolid
 # Type of corresponding state structure
 ip_state_type(mat::LinThermo) = LinThermoState
 
-function calcK(mat::LinThermo, ipd::LinThermoState) # Thermal conductivity matrix
-    if ipd.env.ndim==2
+function calcK(mat::LinThermo, state::LinThermoState) # Thermal conductivity matrix
+    if state.env.ndim==2
         return mat.k*eye(2)
     else
         return mat.k*eye(3)
     end
 end
 
-function update_state!(mat::LinThermo, ipd::LinThermoState, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
-    K = calcK(mat, ipd)
-    ipd.QQ   = -K*G
-    ipd.D  += ipd.QQ*Δt
-    ipd.ut += Δut
-    return ipd.QQ
+function update_state!(mat::LinThermo, state::LinThermoState, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
+    K = calcK(mat, state)
+    state.QQ   = -K*G
+    state.D  += state.QQ*Δt
+    state.ut += Δut
+    return state.QQ
 end
 
 
-function ip_state_vals(mat::LinThermo, ipd::LinThermoState)
+function ip_state_vals(mat::LinThermo, state::LinThermoState)
     D = OrderedDict{Symbol, Float64}()
-    #D[:qx] = ipd.QQ[1]
-    #D[:qy] = ipd.QQ[2]
-    #if ipd.env.ndim==3
-        #D[:qz] = ipd.QQ[3]
+    #D[:qx] = state.QQ[1]
+    #D[:qy] = state.QQ[2]
+    #if state.env.ndim==3
+        #D[:qz] = state.QQ[3]
     #end
     return D
 end

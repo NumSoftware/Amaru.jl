@@ -54,14 +54,14 @@ matching_elem_type(::Joint1DLinSeep) = SeepJoint1D
 # Type of corresponding state structure
 ip_state_type(mat::Joint1DLinSeep) = Joint1DLinSeepState
 
-function update_state!(mat::Joint1DLinSeep, ipd::Joint1DLinSeepState, ΔFw::Float64, Δt::Float64)
+function update_state!(mat::Joint1DLinSeep, state::Joint1DLinSeepState, ΔFw::Float64, Δt::Float64)
     k = mat.k
-    ipd.V  = -k*ΔFw
-    ipd.D  += ipd.V*Δt
-    return ipd.V
+    state.V  = -k*ΔFw
+    state.D  += state.V*Δt
+    return state.V
 end
 
-function ip_state_vals(mat::Joint1DLinSeep, ipd::Joint1DLinSeepState)
+function ip_state_vals(mat::Joint1DLinSeep, state::Joint1DLinSeepState)
     return OrderedDict(
-      :vj => ipd.V)
+      :vj => state.V)
 end

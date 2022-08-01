@@ -51,11 +51,11 @@ export Node, Dof, add_dof, get_data, setvalue!
 include("mesh/include.jl")
 export getcoords
 
-include("ip.jl")
-export Ip, ip_vals, maximum, minimum, sort
-
 include("material.jl")
 export Material, read_prms
+
+include("ip.jl")
+export Ip, ip_vals, maximum, minimum, sort
 
 include("element.jl")
 export Element

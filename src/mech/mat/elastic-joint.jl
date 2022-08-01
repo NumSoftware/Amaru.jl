@@ -54,12 +54,12 @@ end
 ip_state_type(mat::ElasticJoint) = JointState
 
 
-function mountD(mat::ElasticJoint, ipd::JointState)
-    ndim = ipd.env.ndim
+function mountD(mat::ElasticJoint, state::JointState)
+    ndim = state.env.ndim
     if isnan(mat.kn*mat.ks)
         G  = mat.E/(1.0+mat.ν)/2.0
-        kn = mat.E*mat.ζ/ipd.h
-        ks =     G*mat.ζ/ipd.h
+        kn = mat.E*mat.ζ/state.h
+        ks =     G*mat.ζ/state.h
     else
         kn = mat.kn
         ks = mat.ks
@@ -75,34 +75,34 @@ function mountD(mat::ElasticJoint, ipd::JointState)
     end
 end
 
-function stress_update(mat::ElasticJoint, ipd::JointState, Δu)
-    ndim = ipd.env.ndim
-    D  = mountD(mat, ipd)
+function stress_update(mat::ElasticJoint, state::JointState, Δu)
+    ndim = state.env.ndim
+    D  = mountD(mat, state)
     Δσ = D*Δu
 
-    ipd.w[1:ndim] += Δu
-    ipd.σ[1:ndim] += Δσ
+    state.w[1:ndim] += Δu
+    state.σ[1:ndim] += Δσ
     return Δσ, success()
 end
 
 
-function ip_state_vals(mat::ElasticJoint, ipd::JointState)
-    ndim = ipd.env.ndim
+function ip_state_vals(mat::ElasticJoint, state::JointState)
+    ndim = state.env.ndim
     if ndim == 3
        return Dict(
-          :jw1  => ipd.w[1],
-          :jw2  => ipd.w[2],
-          :jw3  => ipd.w[3],
-          :js1  => ipd.σ[1],
-          :js2  => ipd.σ[2],
-          :js3  => ipd.σ[3],
+          :jw1  => state.w[1],
+          :jw2  => state.w[2],
+          :jw3  => state.w[3],
+          :js1  => state.σ[1],
+          :js2  => state.σ[2],
+          :js3  => state.σ[3],
           )
     else
         return Dict(
-          :jw1  => ipd.w[1],
-          :jw2  => ipd.w[2],
-          :js1  => ipd.σ[1],
-          :js2  => ipd.σ[2],
+          :jw1  => state.w[1],
+          :jw2  => state.w[2],
+          :js1  => state.σ[1],
+          :js2  => state.σ[2],
           )
     end
 end

@@ -86,13 +86,13 @@ matching_elem_type_if_embedded(::PPRod) = MechEmbRod
 # Type of corresponding state structure
 ip_state_type(mat::PPRod) = PPRodState
 
-function yield_func(mat::PPRod, ipd::PPRodState, σ::Float64)
-    σya = mat.σy0 + mat.H*ipd.εp
+function yield_func(mat::PPRod, state::PPRodState, σ::Float64)
+    σya = mat.σy0 + mat.H*state.εp
     return abs(σ) - σya
 end
 
-function calcD(mat::PPRod, ipd::PPRodState)
-    if ipd.Δγ == 0.0
+function calcD(mat::PPRod, state::PPRodState)
+    if state.Δγ == 0.0
         return mat.E
     else
         E, H = mat.E, mat.H
@@ -100,26 +100,26 @@ function calcD(mat::PPRod, ipd::PPRodState)
     end
 end
 
-function stress_update(mat::PPRod, ipd::PPRodState, Δε::Float64)
+function stress_update(mat::PPRod, state::PPRodState, Δε::Float64)
     E, H    = mat.E, mat.H
-    σini    = ipd.σ
+    σini    = state.σ
     σtr     = σini + E*Δε
-    ftr     = yield_func(mat, ipd, σtr)
-    ipd.Δγ  = ftr>0.0 ? ftr/(E+H) : 0.0
-    Δεp     = ipd.Δγ*sign(σtr)
-    ipd.εp += ipd.Δγ
-    ipd.σ   = σtr - E*Δεp
-    Δσ      = ipd.σ - σini
-    ipd.ε  += Δε
+    ftr     = yield_func(mat, state, σtr)
+    state.Δγ  = ftr>0.0 ? ftr/(E+H) : 0.0
+    Δεp     = state.Δγ*sign(σtr)
+    state.εp += state.Δγ
+    state.σ   = σtr - E*Δεp
+    Δσ      = state.σ - σini
+    state.ε  += Δε
     return Δσ, ReturnStatus(true)
 end
 
-function ip_state_vals(mat::PPRod, ipd::PPRodState)
+function ip_state_vals(mat::PPRod, state::PPRodState)
     return OrderedDict{Symbol,Float64}(
-        :sa  => ipd.σ,
-        :ea  => ipd.ε,
-        :eap => ipd.εp,
-        :fa  => ipd.σ*mat.A,
+        :sa  => state.σ,
+        :ea  => state.ε,
+        :eap => state.εp,
+        :fa  => state.σ*mat.A,
         :A   => mat.A
     )
 end

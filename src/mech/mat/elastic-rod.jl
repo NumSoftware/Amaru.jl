@@ -74,19 +74,19 @@ matching_elem_type_if_embedded(::ElasticRod) = MechEmbRod
 # Type of corresponding state structure
 ip_state_type(mat::ElasticRod) = ElasticRodState
 
-function stress_update(mat::ElasticRod, ipd::ElasticRodState, Δε::Float64)
+function stress_update(mat::ElasticRod, state::ElasticRodState, Δε::Float64)
     E  = mat.E
     Δσ = mat.E*Δε
-    ipd.ε += Δε
-    ipd.σ += Δσ
+    state.ε += Δε
+    state.σ += Δσ
     return Δσ, success()
 end
 
-function ip_state_vals(mat::ElasticRod, ipd::ElasticRodState)
+function ip_state_vals(mat::ElasticRod, state::ElasticRodState)
     return OrderedDict(
-      :sa => ipd.σ,
-      :ea => ipd.ε,
-      :fa => ipd.σ*mat.A,
+      :sa => state.σ,
+      :ea => state.ε,
+      :fa => state.σ*mat.A,
       :A  => mat.A )
 end
 

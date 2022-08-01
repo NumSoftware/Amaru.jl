@@ -12,8 +12,9 @@ mutable struct ElasticBeamState<:IpState
 
     function ElasticBeamState(env::ModelEnv=ModelEnv())
         this = new(env)
-        this.σ = zeros(3)
-        this.ε = zeros(3)
+        nstr = env.ndim==2 ? 2 : 3
+        this.σ = zeros(nstr)
+        this.ε = zeros(nstr)
         return this
     end
 end
@@ -21,8 +22,8 @@ end
 mutable struct ElasticBeam<:Material
     E::Float64
     nu::Float64
-    th::Float64
-    ts::Float64
+    thz::Float64
+    thy::Float64
     A::Float64
     ρ::Float64
 
@@ -30,13 +31,13 @@ mutable struct ElasticBeam<:Material
         return  ElasticBeam(;prms...)
     end
 
-    function ElasticBeam(;E=NaN, nu=0.0, th=NaN, ts=NaN, rho=0.0)
+    function ElasticBeam(;E=NaN, nu=0.0, thz=NaN, thy=NaN, rho=0.0)
         @check E>0.0
         @check 0.0<=nu<0.5
-        @check th>0.0
-        @check ts>0.0
+        @check thz>0.0
+        @check thy>0.0
         @check rho>=0.0
-        this = new(E, nu, ts, th, ts*th, rho)
+        this = new(E, nu, thy, thz, thy*thz, rho)
         return this
     end
 end
@@ -47,30 +48,41 @@ matching_elem_type(::ElasticBeam) = MechBeam
 ip_state_type(mat::ElasticBeam) = ElasticBeamState
 
 
-function calcD(mat::ElasticBeam, ipd::ElasticBeamState)
+function calcD(mat::ElasticBeam, state::ElasticBeamState)
     E = mat.E
     ν = mat.nu
     c = E/(1.0-ν^2)
     g = E/(1+ν)
 
-    return [ c    0.0    0.0  
-             0.0  5/6*g  0.0  
-             0.0  0.0    5/6*g ]
+    if state.env.ndim==2
+        return [ c      0.0  
+                 0.0  5/6*g ]
+    else
+        return [ c    0.0    0.0  
+                0.0  5/6*g  0.0  
+                0.0  0.0    5/6*g ]
+    end
 end
 
 
-function stress_update(mat::ElasticBeam, ipd::ElasticBeamState, dε::Array{Float64,1})
-    D = calcD(mat, ipd)
+function stress_update(mat::ElasticBeam, state::ElasticBeamState, dε::Array{Float64,1})
+    D = calcD(mat, state)
     dσ = D*dε
-    ipd.ε += dε
-    ipd.σ += dσ
+    state.ε += dε
+    state.σ += dσ
     return dσ, success()
 end
 
 
-function ip_state_vals(mat::ElasticBeam, ipd::ElasticBeamState)
-    return OrderedDict(
-      :(sx') => ipd.σ[1],
-      :(ex') => ipd.ε[1],
-      :A  => mat.A )
+function ip_state_vals(mat::ElasticBeam, state::ElasticBeamState)
+    vals =  OrderedDict(
+      "sx'"   => state.σ[1],
+      "sx'y'" => state.σ[2],
+      "ex'"   => state.ε[1],
+      "A"     => mat.A )
+    if state.env.ndim==3
+        vals["sx'z'"] = state.σ[2]
+        vals["sx'y'"] = state.σ[3]
+    end
+    return vals
 end

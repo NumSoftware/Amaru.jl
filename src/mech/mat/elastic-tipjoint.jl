@@ -36,19 +36,19 @@ matching_elem_type(::ElasticTipJoint) = MechTipJoint
 # Type of corresponding state structure
 ip_state_type(mat::ElasticTipJoint) = ElasticTipJointState
 
-function calcD(mat::ElasticTipJoint, ipd::ElasticTipJointState)
+function calcD(mat::ElasticTipJoint, state::ElasticTipJointState)
     return mat.k
 end
 
-function stress_update(mat::ElasticTipJoint, ipd::ElasticTipJointState, Δw)
+function stress_update(mat::ElasticTipJoint, state::ElasticTipJointState, Δw)
     Δf = mat.k*Δw
-    ipd.f += Δf
-    ipd.w += Δw
+    state.f += Δf
+    state.w += Δw
     return Δf, success()
 end
 
-function ip_state_vals(mat::ElasticTipJoint, ipd::ElasticTipJointState)
+function ip_state_vals(mat::ElasticTipJoint, state::ElasticTipJointState)
     return OrderedDict(
-      :ur   => ipd.w ,
-      :tau  => ipd.f )
+      :ur   => state.w ,
+      :tau  => state.f )
 end

@@ -34,6 +34,6 @@ matching_elem_type(::ElasticShellDegenerated) = ShellDegenerated
 # Type of corresponding state structure
 ip_state_type(mat::ElasticShellDegenerated) = ElasticShellDegeneratedState
 
-function ip_state_vals(mat::ElasticShellDegenerated, ipd::ElasticShellDegeneratedState)
+function ip_state_vals(mat::ElasticShellDegenerated, state::ElasticShellDegeneratedState)
     return OrderedDict{Symbol, Float64}()
 end

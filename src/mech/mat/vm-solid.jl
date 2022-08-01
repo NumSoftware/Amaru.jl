@@ -83,28 +83,28 @@ end
 matching_elem_type(::VonMises) = MechSolid
 ip_state_type(mat::VonMises) = VonMisesState
 
-function yield_func(mat::VonMises, ipd::VonMisesState, σ::Tensor2)
+function yield_func(mat::VonMises, state::VonMisesState, σ::Tensor2)
     j1  = J1(σ)
     j2d = J2D(σ)
     σy  = mat.σy
     H   = mat.H
-    εpa = ipd.εpa
+    εpa = state.εpa
     return √(3*j2d) - σy - H*εpa
 end
 
-function calcD(mat::VonMises, ipd::VonMisesState)
+function calcD(mat::VonMises, state::VonMisesState)
     σy = mat.σy
     H  = mat.H
     #De = mat.De
-    De  = calcDe(mat.E, mat.ν, ipd.env.modeltype)
+    De  = calcDe(mat.E, mat.ν, state.env.modeltype)
 
-    if ipd.Δγ==0.0
+    if state.Δγ==0.0
         return De
     end
 
-    j2d = J2D(ipd.σ)
+    j2d = J2D(state.σ)
     @assert j2d>0
-    s  = dev(ipd.σ)
+    s  = dev(state.σ)
     su = s/norm(s)
     V  = √(3/2)*su # df/dσ
     Nu = su
@@ -112,16 +112,16 @@ function calcD(mat::VonMises, ipd::VonMisesState)
     return De - inner(De,Nu) ⊗ inner(V,De) / (inner(V,De,Nu) + H)
 end
 
-function stress_update(mat::VonMises, ipd::VonMisesState, Δε::Array{Float64,1})
-    σini = ipd.σ
-    De   = calcDe(mat.E, mat.ν, ipd.env.modeltype)
-    σtr  = ipd.σ + inner(De, Δε)
-    ftr  = yield_func(mat, ipd, σtr)
+function stress_update(mat::VonMises, state::VonMisesState, Δε::Array{Float64,1})
+    σini = state.σ
+    De   = calcDe(mat.E, mat.ν, state.env.modeltype)
+    σtr  = state.σ + inner(De, Δε)
+    ftr  = yield_func(mat, state, σtr)
 
     if ftr < 1.e-8
         # elastic
-        ipd.Δγ = 0.0
-        ipd.σ  = σtr
+        state.Δγ = 0.0
+        state.σ  = σtr
     else
         # plastic
         K, G  = mat.E/(3.0*(1.0-2.0*mat.ν)), mat.E/(2.0*(1.0+mat.ν))
@@ -129,29 +129,29 @@ function stress_update(mat::VonMises, ipd::VonMisesState, Δε::Array{Float64,1}
         j1tr  = J1(σtr)
         j2dtr = J2D(σtr)
 
-        @assert √j2dtr - ipd.Δγ*√2*G > 0.0
-        ipd.Δγ = ftr/(√6*G + H)
+        @assert √j2dtr - state.Δγ*√2*G > 0.0
+        state.Δγ = ftr/(√6*G + H)
         j1     = j1tr
-        m      = 1.0 - ipd.Δγ*√2*G/√j2dtr
-        ipd.σ  = m*dev(σtr) + j1/3.0*tI
+        m      = 1.0 - state.Δγ*√2*G/√j2dtr
+        state.σ  = m*dev(σtr) + j1/3.0*tI
 
-        ipd.εpa += ipd.Δγ
+        state.εpa += state.Δγ
 
     end
 
-    ipd.ε += Δε
-    Δσ     = ipd.σ - σini
+    state.ε += Δε
+    Δσ     = state.σ - σini
     return Δσ, success()
 end
 
-function ip_state_vals(mat::VonMises, ipd::VonMisesState)
-    ndim  = ipd.env.ndim
-    σ, ε  = ipd.σ, ipd.ε
+function ip_state_vals(mat::VonMises, state::VonMisesState)
+    ndim  = state.env.ndim
+    σ, ε  = state.σ, state.ε
     j1    = tr(σ)
     srj2d = √J2D(σ)
 
-    D = stress_strain_dict(σ, ε, ipd.env.modeltype)
-    D[:epa]   = ipd.εpa
+    D = stress_strain_dict(σ, ε, state.env.modeltype)
+    D[:epa]   = state.εpa
     D[:j1]    = j1
     D[:srj2d] = srj2d
 

@@ -42,22 +42,22 @@ ip_state_type(mat::LinPress) = LinPressState
 
 
 
-function update_state!(mat::LinPress, ipd::LinPressState, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
-    K = calcK(mat, ipd)
-    ipd.V   = -K*G
-    ipd.D  += ipd.V*Δt
-    ipd.up += Δuw
-    return ipd.V
+function update_state!(mat::LinPress, state::LinPressState, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
+    K = calcK(mat, state)
+    state.V   = -K*G
+    state.D  += state.V*Δt
+    state.up += Δuw
+    return state.V
 end
 
 
-function ip_state_vals(mat::LinPress, ipd::LinPressState)
+function ip_state_vals(mat::LinPress, state::LinPressState)
     D = OrderedDict{Symbol, Float64}()
-    D[:up] = ipd.up
-    D[:vx] = ipd.V[1]
-    D[:vy] = ipd.V[2]
-    if ipd.env.ndim==3
-        D[:vz] = ipd.V[3]
+    D[:up] = state.up
+    D[:vx] = state.V[1]
+    D[:vy] = state.V[2]
+    if state.env.ndim==3
+        D[:vz] = state.V[3]
     end
 
     return D

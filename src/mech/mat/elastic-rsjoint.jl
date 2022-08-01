@@ -55,10 +55,10 @@ matching_elem_type(::ElasticRSJoint) = MechRodSolidJoint
 # Type of corresponding state structure
 ip_state_type(mat::ElasticRSJoint) = ElasticRSJointState
 
-function calcD(mat::ElasticRSJoint, ipd::ElasticRSJointState)
+function calcD(mat::ElasticRSJoint, state::ElasticRSJointState)
     ks = mat.ks
     kn = mat.kn
-    if ipd.env.ndim==2
+    if state.env.ndim==2
         return [  ks  0.0
                  0.0   kn ]
     else
@@ -69,17 +69,17 @@ function calcD(mat::ElasticRSJoint, ipd::ElasticRSJointState)
 end
 
 
-function stress_update(mat::ElasticRSJoint, ipd::ElasticRSJointState, Δu)
-    D = calcD(mat, ipd)
+function stress_update(mat::ElasticRSJoint, state::ElasticRSJointState, Δu)
+    D = calcD(mat, state)
     Δσ = D*Δu
 
-    ipd.u .+= Δu
-    ipd.σ .+= Δσ
+    state.u .+= Δu
+    state.σ .+= Δσ
     return Δσ, success()
 end
 
-function ip_state_vals(mat::ElasticRSJoint, ipd::ElasticRSJointState)
+function ip_state_vals(mat::ElasticRSJoint, state::ElasticRSJointState)
     return OrderedDict(
-      :ur   => ipd.u[1] ,
-      :tau  => ipd.σ[1] )
+      :ur   => state.u[1] ,
+      :tau  => state.σ[1] )
 end

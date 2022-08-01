@@ -29,6 +29,7 @@ mutable struct CellShape
     quadrature ::Dict{Int, Array}
     func       ::Function
     deriv      ::Function
+    deriv2     ::Function
     function CellShape()
         return new()
     end

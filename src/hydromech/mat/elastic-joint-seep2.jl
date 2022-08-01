@@ -65,11 +65,11 @@ matching_elem_type(::ElasticJointSeep2) = HydroMechJoint2
 # Type of corresponding state structure
 ip_state_type(mat::ElasticJointSeep2) = JointSeepState2
 
-function mountD(mat::ElasticJointSeep2, ipd::JointSeepState2)
-    ndim = ipd.env.ndim
+function mountD(mat::ElasticJointSeep2, state::JointSeepState2)
+    ndim = state.env.ndim
     G  = mat.E/(1.0+mat.nu)/2.0
-    kn = mat.E*mat.ζ/ipd.h
-    ks =     G*mat.ζ/ipd.h
+    kn = mat.E*mat.ζ/state.h
+    ks =     G*mat.ζ/state.h
     if ndim==2
         return  [  kn  0.0
                   0.0   ks ]
@@ -80,56 +80,56 @@ function mountD(mat::ElasticJointSeep2, ipd::JointSeepState2)
     end
 end
 
-function stress_update(mat::ElasticJointSeep2, ipd::JointSeepState2, Δu::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
-    ndim = ipd.env.ndim
-    D  = mountD(mat, ipd)
+function stress_update(mat::ElasticJointSeep2, state::JointSeepState2, Δu::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
+    ndim = state.env.ndim
+    D  = mountD(mat, state)
     Δσ = D*Δu
 
-    ipd.w[1:ndim] += Δu
-    ipd.σ[1:ndim] += Δσ
+    state.w[1:ndim] += Δu
+    state.σ[1:ndim] += Δσ
 
-    ipd.uw += Δuw
-    ipd.Vt = -mat.kt*G
-    #ipd.D +=  ipd.Vt*Δt
+    state.uw += Δuw
+    state.Vt = -mat.kt*G
+    #state.D +=  state.Vt*Δt
 
     # compute crack aperture
     if mat.w == 0.0
         w = 0.0
     else
-        if mat.w >= ipd.w[1]
+        if mat.w >= state.w[1]
             w = mat.w
         else
-            w = ipd.w[1]
+            w = state.w[1]
         end
     end
 
-    ipd.L  =  ((w^3)/(12*mat.η))*BfUw
-    #ipd.S +=  ipd.L*Δt
+    state.L  =  ((w^3)/(12*mat.η))*BfUw
+    #state.S +=  state.L*Δt
 
-    return Δσ, ipd.Vt, ipd.L
+    return Δσ, state.Vt, state.L
 end
 
-function ip_state_vals(mat::ElasticJointSeep2, ipd::JointSeepState2)
-    ndim = ipd.env.ndim
+function ip_state_vals(mat::ElasticJointSeep2, state::JointSeepState2)
+    ndim = state.env.ndim
     if ndim == 2
         return OrderedDict(
-          :w1  => ipd.w[1] ,
-          :w2  => ipd.w[2] ,
-          :s1  => ipd.σ[1] ,
-          :s2  => ipd.σ[2] ,
-          :uwf => ipd.uw[3],
-          :vb  => ipd.Vt[1],
-          :vt  => ipd.Vt[2] )
+          :w1  => state.w[1] ,
+          :w2  => state.w[2] ,
+          :s1  => state.σ[1] ,
+          :s2  => state.σ[2] ,
+          :uwf => state.uw[3],
+          :vb  => state.Vt[1],
+          :vt  => state.Vt[2] )
     else
         return OrderedDict(
-          :w1  => ipd.w[1] ,
-          :w2  => ipd.w[2] ,
-          :w3  => ipd.w[3] ,
-          :s1  => ipd.σ[1] ,
-          :s2  => ipd.σ[2] ,
-          :s3  => ipd.σ[3] ,
-          :uwf => ipd.uw[3],
-          :vb  => ipd.Vt[1],
-          :vt  => ipd.Vt[2] )
+          :w1  => state.w[1] ,
+          :w2  => state.w[2] ,
+          :w3  => state.w[3] ,
+          :s1  => state.σ[1] ,
+          :s2  => state.σ[2] ,
+          :s3  => state.σ[3] ,
+          :uwf => state.uw[3],
+          :vb  => state.Vt[1],
+          :vt  => state.Vt[2] )
     end
 end

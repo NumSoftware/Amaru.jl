@@ -75,8 +75,8 @@ matching_elem_type(::PJoint) = MechJoint
 # Type of corresponding state structure
 ip_state_type(mat::PJoint) = PJointState
 
-function yield_func(mat::PJoint, ipd::PJointState, σ::Array{Float64,1}, σmax::Float64)
-    ndim = ipd.env.ndim
+function yield_func(mat::PJoint, state::PJointState, σ::Array{Float64,1}, σmax::Float64)
+    ndim = state.env.ndim
     fc, ft = mat.fc, mat.ft
 
     βini = 2*ft - fc -2*√(ft^2 - fc*ft)
@@ -90,8 +90,8 @@ function yield_func(mat::PJoint, ipd::PJointState, σ::Array{Float64,1}, σmax::
 end
 
 
-function yield_derivs(mat::PJoint, ipd::PJointState, σ::Array{Float64,1}, σmax::Float64)
-    ndim = ipd.env.ndim
+function yield_derivs(mat::PJoint, state::PJointState, σ::Array{Float64,1}, σmax::Float64)
+    ndim = state.env.ndim
     fc, ft = mat.fc, mat.ft
     βini = 2*ft - fc -2*√(ft^2 - fc*ft)
     βres = mat.γ*βini
@@ -105,8 +105,8 @@ function yield_derivs(mat::PJoint, ipd::PJointState, σ::Array{Float64,1}, σmax
 end
 
 
-function potential_derivs(mat::PJoint, ipd::PJointState, σ::Array{Float64,1})
-    ndim = ipd.env.ndim
+function potential_derivs(mat::PJoint, state::PJointState, σ::Array{Float64,1})
+    ndim = state.env.ndim
     if ndim == 3
         if σ[1] > 0.0 
             # G1:
@@ -128,7 +128,7 @@ function potential_derivs(mat::PJoint, ipd::PJointState, σ::Array{Float64,1})
 end
 
 
-function calc_σmax(mat::PJoint, ipd::PJointState, up::Float64)
+function calc_σmax(mat::PJoint, state::PJointState, up::Float64)
     if mat.softcurve == "linear"
         if up < mat.wc
             a = mat.ft 
@@ -167,7 +167,7 @@ function calc_σmax(mat::PJoint, ipd::PJointState, up::Float64)
 end
 
 
-function deriv_σmax_upa(mat::PJoint, ipd::PJointState, up::Float64)
+function deriv_σmax_upa(mat::PJoint, state::PJointState, up::Float64)
     # ∂σmax/∂up = dσmax
     if mat.softcurve == "linear"
         if up < mat.wc
@@ -200,17 +200,17 @@ function deriv_σmax_upa(mat::PJoint, ipd::PJointState, up::Float64)
 end
 
 
-function calc_kn_ks(mat::PJoint, ipd::PJointState)
-    kn = mat.E*mat.ζ/ipd.h
+function calc_kn_ks(mat::PJoint, state::PJointState)
+    kn = mat.E*mat.ζ/state.h
     G  = mat.E/(2.0*(1.0+mat.ν))
-    ks = G*mat.ζ/ipd.h
+    ks = G*mat.ζ/state.h
 
     return kn, ks
 end
 
 
-function calc_Δλ(mat::PJoint, ipd::PJointState, σtr::Array{Float64,1})
-    ndim = ipd.env.ndim
+function calc_Δλ(mat::PJoint, state::PJointState, σtr::Array{Float64,1})
+    ndim = state.env.ndim
     maxits = 20
     Δλ     = 0.0
     f      = 0.0
@@ -225,7 +225,7 @@ function calc_Δλ(mat::PJoint, ipd::PJointState, σtr::Array{Float64,1})
 
     for i in 1:maxits
         nits = i
-        kn, ks = calc_kn_ks(mat, ipd)
+        kn, ks = calc_kn_ks(mat, state)
 
         # quantities at n+1
         if ndim == 3
@@ -248,10 +248,10 @@ function calc_Δλ(mat::PJoint, ipd::PJointState, σtr::Array{Float64,1})
 
         drdΔλ = 2*dσdΔλ
                  
-        r      = potential_derivs(mat, ipd, σ)
+        r      = potential_derivs(mat, state, σ)
         norm_r = norm(r)
-        up    = ipd.up + Δλ*norm_r
-        σmax   = calc_σmax(mat, ipd, up)
+        up    = state.up + Δλ*norm_r
+        σmax   = calc_σmax(mat, state, up)
         # β      = βres + (βini-βres)/ft*σmax
         β      = βres + (βini-βres)*(σmax/ft)^mat.α
 
@@ -266,7 +266,7 @@ function calc_Δλ(mat::PJoint, ipd::PJointState, σtr::Array{Float64,1})
         # dfdσmax = (βres-βini)/ft*(2*σmax-σ[1]) - βres
         # dfdσmax = (βini-βres)/ft*(σ[1]-σmax)*α*(σmax/ft)^(α-1) - β
         dfdσmax = (βini-βres)/ft*(σ[1]-σmax)*α*(σmax/ft)^(α-1) - β
-        m = deriv_σmax_upa(mat, ipd, up)
+        m = deriv_σmax_upa(mat, state, up)
         dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
         dfdΔλ = dot(dfdσ, dσdΔλ) + dfdσmax*dσmaxdΔλ
         Δλ = Δλ - f/dfdΔλ
@@ -282,44 +282,44 @@ function calc_Δλ(mat::PJoint, ipd::PJointState, σtr::Array{Float64,1})
 end
 
 
-# function calc_σ_upa(mat::PJoint, ipd::PJointState, σtr::Array{Float64,1})
-#     ndim = ipd.env.ndim
-#     kn, ks = calc_kn_ks(mat, ipd)
+# function calc_σ_upa(mat::PJoint, state::PJointState, σtr::Array{Float64,1})
+#     ndim = state.env.ndim
+#     kn, ks = calc_kn_ks(mat, state)
 
 #     if ndim == 3
 #         if σtr[1] > 0
-#             σ = [σtr[1]/(1 + 2*ipd.Δλ*kn), σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
+#             σ = [σtr[1]/(1 + 2*state.Δλ*kn), σtr[2]/(1 + 2*state.Δλ*ks), σtr[3]/(1 + 2*state.Δλ*ks)]
 #         else
-#             σ = [σtr[1], σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
+#             σ = [σtr[1], σtr[2]/(1 + 2*state.Δλ*ks), σtr[3]/(1 + 2*state.Δλ*ks)]
 #         end    
 #     else
 #         if σtr[1] > 0
-#             σ = [σtr[1]/(1 + 2*ipd.Δλ*kn), σtr[2]/(1 + 2*ipd.Δλ*ks)]
+#             σ = [σtr[1]/(1 + 2*state.Δλ*kn), σtr[2]/(1 + 2*state.Δλ*ks)]
 #         else
-#             σ = [σtr[1], σtr[2]/(1 + 2*ipd.Δλ*ks)]
+#             σ = [σtr[1], σtr[2]/(1 + 2*state.Δλ*ks)]
 #         end    
 #     end
-#     r = potential_derivs(mat, ipd, σ)
-#     up = ipd.up + ipd.Δλ*norm(r)
+#     r = potential_derivs(mat, state, σ)
+#     up = state.up + state.Δλ*norm(r)
 #     return σ, up
 # end
 
 
-function mountD(mat::PJoint, ipd::PJointState)
-    ndim = ipd.env.ndim
-    kn, ks = calc_kn_ks(mat, ipd)
+function mountD(mat::PJoint, state::PJointState)
+    ndim = state.env.ndim
+    kn, ks = calc_kn_ks(mat, state)
     α = mat.α
-    σmax = calc_σmax(mat, ipd, ipd.up)
+    σmax = calc_σmax(mat, state, state.up)
 
     De = diagm([kn, ks, ks][1:ndim])
     # @show σmax
-    # @show ipd.up
-    # @show ipd.up > mat.wc
+    # @show state.up
+    # @show state.up > mat.wc
 
-    if ipd.Δλ == 0.0  # Elastic 
+    if state.Δλ == 0.0  # Elastic 
         # @show "ELASTIC De"
         return De
-    elseif σmax == 0.0 && ipd.w[1] >= 0.0
+    elseif σmax == 0.0 && state.w[1] >= 0.0
         # @show "smax=0 De"
 
         Dep = De*1e-4
@@ -332,13 +332,13 @@ function mountD(mat::PJoint, ipd::PJointState)
         βini = 2*ft - fc -2*√(ft^2 - fc*ft)
         βres = mat.γ*βini
 
-        r = potential_derivs(mat, ipd, ipd.σ)
-        v = yield_derivs(mat, ipd, ipd.σ, σmax)
-        # dfdσmax = (βres-βini)/ft*(2*σmax-ipd.σ[1]) - βres
+        r = potential_derivs(mat, state, state.σ)
+        v = yield_derivs(mat, state, state.σ, σmax)
+        # dfdσmax = (βres-βini)/ft*(2*σmax-state.σ[1]) - βres
         β = βres + (βini-βres)*(σmax/ft)^mat.α
-        dfdσmax = (βini-βres)/ft*(ipd.σ[1]-σmax)*α*(σmax/ft)^(α-1) - β
+        dfdσmax = (βini-βres)/ft*(state.σ[1]-σmax)*α*(σmax/ft)^(α-1) - β
         # dfdσmax = -β  # ∂F/∂σmax
-        m = deriv_σmax_upa(mat, ipd, ipd.up)  # ∂σmax/∂up
+        m = deriv_σmax_upa(mat, state, state.up)  # ∂σmax/∂up
 
         #Dep  = De - De*r*v'*De/(v'*De*r - dfdσmax*m*norm(r))
 
@@ -376,14 +376,14 @@ function mountD(mat::PJoint, ipd::PJointState)
 end
 
 
-function stress_update(mat::PJoint, ipd::PJointState, Δw::Array{Float64,1})
+function stress_update(mat::PJoint, state::PJointState, Δw::Array{Float64,1})
 
-    ndim = ipd.env.ndim
-    σini = copy(ipd.σ)
+    ndim = state.env.ndim
+    σini = copy(state.σ)
 
-    kn, ks = calc_kn_ks(mat, ipd)
+    kn, ks = calc_kn_ks(mat, state)
     De = diagm([kn, ks, ks][1:ndim])
-    σmax = calc_σmax(mat, ipd, ipd.up)  
+    σmax = calc_σmax(mat, state, state.up)  
     # @show σmax
 
     if isnan(Δw[1]) || isnan(Δw[2])
@@ -391,83 +391,83 @@ function stress_update(mat::PJoint, ipd::PJointState, Δw::Array{Float64,1})
     end
 
     # σ trial and F trial
-    σtr  = ipd.σ + De*Δw
+    σtr  = state.σ + De*Δw
 
-    Ftr  = yield_func(mat, ipd, σtr, σmax)
+    Ftr  = yield_func(mat, state, σtr, σmax)
 
     # Elastic and EP integration
-    if σmax == 0.0 && ipd.w[1] >= 0.0
+    if σmax == 0.0 && state.w[1] >= 0.0
         # @show "smax=0 up"
         # Return to apex:
         if ndim==3
             r1 = [ σtr[1]/kn, σtr[2]/ks, σtr[3]/ks ]
             r = r1/norm(r1)
-            ipd.Δλ = norm(r1)
+            state.Δλ = norm(r1)
         else
             r1 = [ σtr[1]/kn, σtr[2]/ks ]
             r = r1/norm(r1)
-            ipd.Δλ = norm(r1)  
+            state.Δλ = norm(r1)  
         end
 
-        ipd.up += ipd.Δλ
-        ipd.σ = σtr - ipd.Δλ*De*r
+        state.up += state.Δλ
+        state.σ = σtr - state.Δλ*De*r
 
     elseif Ftr <= 0.0
         # @show "ELASTIC up"
         # Pure elastic increment
-        ipd.Δλ = 0.0
-        ipd.σ  = copy(σtr) 
+        state.Δλ = 0.0
+        state.σ  = copy(σtr) 
 
     else
         # @show "plastic up"
 
         # Plastic increment
-        ipd.Δλ, status = calc_Δλ(mat, ipd, σtr)
-        failed(status) && return ipd.σ, status
+        state.Δλ, status = calc_Δλ(mat, state, σtr)
+        failed(status) && return state.σ, status
 
-        # ipd.σ, ipd.up = calc_σ_upa(mat, ipd, σtr)
+        # state.σ, state.up = calc_σ_upa(mat, state, σtr)
         if ndim == 3
             if σtr[1] > 0
-                ipd.σ = [σtr[1]/(1 + 2*ipd.Δλ*kn), σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
+                state.σ = [σtr[1]/(1 + 2*state.Δλ*kn), σtr[2]/(1 + 2*state.Δλ*ks), σtr[3]/(1 + 2*state.Δλ*ks)]
             else
-                ipd.σ = [σtr[1], σtr[2]/(1 + 2*ipd.Δλ*ks), σtr[3]/(1 + 2*ipd.Δλ*ks)]
+                state.σ = [σtr[1], σtr[2]/(1 + 2*state.Δλ*ks), σtr[3]/(1 + 2*state.Δλ*ks)]
             end    
         else
             if σtr[1] > 0
-                ipd.σ = [σtr[1]/(1 + 2*ipd.Δλ*kn), σtr[2]/(1 + 2*ipd.Δλ*ks)]
+                state.σ = [σtr[1]/(1 + 2*state.Δλ*kn), σtr[2]/(1 + 2*state.Δλ*ks)]
             else
-                ipd.σ = [σtr[1], σtr[2]/(1 + 2*ipd.Δλ*ks)]
+                state.σ = [σtr[1], σtr[2]/(1 + 2*state.Δλ*ks)]
             end    
         end
-        r = potential_derivs(mat, ipd, ipd.σ)
-        ipd.up += ipd.Δλ*norm(r)
+        r = potential_derivs(mat, state, state.σ)
+        state.up += state.Δλ*norm(r)
 
     end
-    ipd.w += Δw
-    Δσ = ipd.σ - σini
+    state.w += Δw
+    Δσ = state.σ - σini
     return Δσ, success()
 end
 
 
-function ip_state_vals(mat::PJoint, ipd::PJointState)
-    ndim = ipd.env.ndim
+function ip_state_vals(mat::PJoint, state::PJointState)
+    ndim = state.env.ndim
     if ndim == 3
        return Dict(
-          :jw1  => ipd.w[1],
-          :jw2  => ipd.w[2],
-          :jw3  => ipd.w[3],
-          :js1  => ipd.σ[1],
-          :js2  => ipd.σ[2],
-          :js3  => ipd.σ[3],
-          :jup => ipd.up
+          :jw1  => state.w[1],
+          :jw2  => state.w[2],
+          :jw3  => state.w[3],
+          :js1  => state.σ[1],
+          :js2  => state.σ[2],
+          :js3  => state.σ[3],
+          :jup => state.up
           )
     else
         return Dict(
-          :jw1  => ipd.w[1],
-          :jw2  => ipd.w[2],
-          :js1  => ipd.σ[1],
-          :js2  => ipd.σ[2],
-          :jup => ipd.up
+          :jw1  => state.w[1],
+          :jw2  => state.w[2],
+          :js1  => state.σ[1],
+          :js2  => state.σ[2],
+          :jup => state.up
           )
     end
 end

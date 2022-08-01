@@ -101,7 +101,7 @@ function Tau(mat::CebRSJoint, sy::Float64)
 end
 
 
-function deriv(mat::CebRSJoint, ipd::CebRSJointState, sy::Float64)
+function deriv(mat::CebRSJoint, state::CebRSJointState, sy::Float64)
     if sy==0.0
         s1_factor = 0.01
         sy = s1_factor*mat.s1   # to avoid undefined derivative
@@ -121,19 +121,19 @@ function deriv(mat::CebRSJoint, ipd::CebRSJointState, sy::Float64)
 end
 
 
-function calcD(mat::CebRSJoint, ipd::CebRSJointState)
-    ndim = ipd.env.ndim
+function calcD(mat::CebRSJoint, state::CebRSJointState)
+    ndim = state.env.ndim
     ks = mat.ks
 
-    if !ipd.elastic
-        dτydsy = deriv(mat, ipd, ipd.sy)
+    if !state.elastic
+        dτydsy = deriv(mat, state, state.sy)
         # ks = ks*dτydsy/(ks+dτydsy)
         ks = dτydsy
         # @s ks
     end
 
     kn = mat.kn
-    if ipd.env.ndim==2
+    if state.env.ndim==2
         return [  ks  0.0
                  0.0   kn ]
     else
@@ -144,23 +144,23 @@ function calcD(mat::CebRSJoint, ipd::CebRSJointState)
 end
 
 
-function yield_func(mat::CebRSJoint, ipd::CebRSJointState, τ::Float64)
-    return abs(τ) - ipd.τy
+function yield_func(mat::CebRSJoint, state::CebRSJointState, τ::Float64)
+    return abs(τ) - state.τy
 end
 
 
-function stress_update_n(mat::CebRSJoint, ipd::CebRSJointState, Δu::Vect)
+function stress_update_n(mat::CebRSJoint, state::CebRSJointState, Δu::Vect)
     ks = mat.ks
     kn = mat.kn
     Δs = Δu[1]      # relative displacement
-    τini = ipd.σ[1] # initial shear stress
+    τini = state.σ[1] # initial shear stress
     τtr  = τini + ks*Δs # elastic trial
 
-    ftr  = yield_func(mat, ipd, τtr)
+    ftr  = yield_func(mat, state, τtr)
 
     if ftr<0.0
         τ = τtr
-        ipd.elastic = true
+        state.elastic = true
     else
         maxits = 30
         Δλ     = 0.0
@@ -171,9 +171,9 @@ function stress_update_n(mat::CebRSJoint, ipd::CebRSJointState, Δu::Vect)
 
         for i in 1:maxits
             # τ  = τtr - Δλ*ks*sign(τtr)
-            τy = Tau(mat, ipd.sy+Δλ)
+            τy = Tau(mat, state.sy+Δλ)
             # τ  = τy*sign(τtr)
-            dτydsy = deriv(mat, ipd, ipd.sy+Δλ)
+            dτydsy = deriv(mat, state, state.sy+Δλ)
 
             # @s τ
             # @s τy
@@ -193,14 +193,14 @@ function stress_update_n(mat::CebRSJoint, ipd::CebRSJointState, Δu::Vect)
 
             # @s Δλ
             # if Δλ<0
-                # Δλ = (abs(τtr)-ipd.τy)/mat.ks
+                # Δλ = (abs(τtr)-state.τy)/mat.ks
                 # break
             # end
 
             if i==maxits || isnan(Δλ)  
                 if Δλ<0.0
                     @s Δλ
-                    Δλ = (abs(τtr)-ipd.τy)/mat.ks
+                    Δλ = (abs(τtr)-state.τy)/mat.ks
                     break
                 end
 
@@ -211,22 +211,22 @@ function stress_update_n(mat::CebRSJoint, ipd::CebRSJointState, Δu::Vect)
                 # error()
                 # @s f
                 # @s i
-                return ipd.σ, failure("CEBJoint1D: Could not find Δλ")
+                return state.σ, failure("CEBJoint1D: Could not find Δλ")
                 # break
             end
 
         end
 
         if Δλ<0.0
-            Δλ = (abs(τtr)-ipd.τy)/mat.ks
+            Δλ = (abs(τtr)-state.τy)/mat.ks
             @s Δλ
         end
 
-        ipd.sy += Δλ
-        ipd.τy  = τy
-        τ  = ipd.τy*sign(τtr)
+        state.sy += Δλ
+        state.τy  = τy
+        τ  = state.τy*sign(τtr)
         Δτ = τ - τini
-        ipd.elastic = false
+        state.elastic = false
     end
 
     # calculate Δσ
@@ -235,37 +235,37 @@ function stress_update_n(mat::CebRSJoint, ipd::CebRSJointState, Δu::Vect)
     Δσ[1] = Δτ
 
     # update u and σ
-    ipd.u .+= Δu
-    ipd.σ .+= Δσ
+    state.u .+= Δu
+    state.σ .+= Δσ
 
     return Δσ, success()
 end
 
 
-function stress_update(mat::CebRSJoint, ipd::CebRSJointState, Δu::Vect)
+function stress_update(mat::CebRSJoint, state::CebRSJointState, Δu::Vect)
     ks = mat.ks
     kn = mat.kn
     Δs = Δu[1]      # relative displacement
-    τini = ipd.σ[1] # initial shear stress
+    τini = state.σ[1] # initial shear stress
     τtr  = τini + ks*Δs # elastic trial
 
-    ftr  = yield_func(mat, ipd, τtr)
+    ftr  = yield_func(mat, state, τtr)
 
     if ftr<0.0
         τ = τtr
-        ipd.elastic = true
+        state.elastic = true
     else
-        dτydsy = deriv(mat, ipd, ipd.sy)
+        dτydsy = deriv(mat, state, state.sy)
         # @s ks
         # @s dτydsy
-        # Δsy     = (abs(τtr)-ipd.τy)/(ks+dτydsy)
-        # Δsy     = (abs(τtr)-ipd.τy)/abs(ks+dτydsy)
-        Δsy     = (abs(τtr)-ipd.τy)/ks
-        ipd.sy += Δsy
-        ipd.τy  = Tau(mat, ipd.sy)
-        τ  = ipd.τy*sign(τtr)
+        # Δsy     = (abs(τtr)-state.τy)/(ks+dτydsy)
+        # Δsy     = (abs(τtr)-state.τy)/abs(ks+dτydsy)
+        Δsy     = (abs(τtr)-state.τy)/ks
+        state.sy += Δsy
+        state.τy  = Tau(mat, state.sy)
+        τ  = state.τy*sign(τtr)
         Δτ = τ - τini
-        ipd.elastic = false
+        state.elastic = false
     end
 
     # calculate Δσ
@@ -274,16 +274,16 @@ function stress_update(mat::CebRSJoint, ipd::CebRSJointState, Δu::Vect)
     Δσ[1] = Δτ
 
     # update u and σ
-    ipd.u .+= Δu
-    ipd.σ .+= Δσ
+    state.u .+= Δu
+    state.σ .+= Δσ
 
     return Δσ, success()
 end
 
-function ip_state_vals(mat::CebRSJoint, ipd::CebRSJointState)
+function ip_state_vals(mat::CebRSJoint, state::CebRSJointState)
     return OrderedDict(
-      :ur   => ipd.u[1] ,
-      :tau  => ipd.σ[1] ,
+      :ur   => state.u[1] ,
+      :tau  => state.σ[1] ,
       )
 end
 

@@ -97,27 +97,27 @@ function nlE(fc::Float64, εc::Float64, ε::Array{Float64,1})
     return 2*fc*(εc-εv)/εc^2
 end
 
-function yield_func(mat::DruckerPrager, ipd::DruckerPragerState, σ::Tensor2)
+function yield_func(mat::DruckerPrager, state::DruckerPragerState, σ::Tensor2)
     j1  = J1(σ)
     j2d = J2D(σ)
     α,κ = mat.α, mat.κ
     H   = mat.H
-    εpa = ipd.εpa
+    εpa = state.εpa
     return α*j1 + √j2d - κ - H*εpa
 end
 
-function calcD(mat::DruckerPrager, ipd::DruckerPragerState)
+function calcD(mat::DruckerPrager, state::DruckerPragerState)
     α   = mat.α
     H   = mat.H
-    De  = calcDe(mat.E, mat.ν, ipd.env.modeltype)
+    De  = calcDe(mat.E, mat.ν, state.env.modeltype)
 
-    if ipd.Δγ==0.0
+    if state.Δγ==0.0
         return De
     end
 
-    j2d = J2D(ipd.σ)
+    j2d = J2D(state.σ)
     if j2d != 0.0
-        s  = dev(ipd.σ)
+        s  = dev(state.σ)
         su = s/norm(s)
         V  = α*tI + su/√2 # df/dσ
         N  = V
@@ -130,16 +130,16 @@ function calcD(mat::DruckerPrager, ipd::DruckerPragerState)
     return De - inner(De,Nu) ⊗ inner(V,De) / (inner(V,De,Nu) + H)
 end
 
-function stress_update(mat::DruckerPrager, ipd::DruckerPragerState, Δε::Array{Float64,1})
-    σini = ipd.σ
-    De   = calcDe(mat.E, mat.ν, ipd.env.modeltype)
-    σtr  = ipd.σ + inner(De, Δε)
-    ftr  = yield_func(mat, ipd, σtr)
+function stress_update(mat::DruckerPrager, state::DruckerPragerState, Δε::Array{Float64,1})
+    σini = state.σ
+    De   = calcDe(mat.E, mat.ν, state.env.modeltype)
+    σtr  = state.σ + inner(De, Δε)
+    ftr  = yield_func(mat, state, σtr)
 
     if ftr < 1.e-8
         # elastic
-        ipd.Δγ = 0.0
-        ipd.σ  = σtr
+        state.Δγ = 0.0
+        state.σ  = σtr
     else
         # plastic
         K, G  = mat.E/(3.0*(1.0-2.0*mat.ν)), mat.E/(2.0*(1.0+mat.ν))
@@ -148,36 +148,36 @@ function stress_update(mat::DruckerPrager, ipd::DruckerPragerState, Δε::Array{
         j1tr  = J1(σtr)
         j2dtr = J2D(σtr)
 
-        if √j2dtr - ipd.Δγ*n*G > 0.0 # conventional return
-            ipd.Δγ = ftr/(9*α*α*n*K + n*G + H)
-            j1     = j1tr - 9*ipd.Δγ*α*n*K
-            m      = 1.0 - ipd.Δγ*n*G/√j2dtr
-            ipd.σ  = m*dev(σtr) + j1/3.0*tI
+        if √j2dtr - state.Δγ*n*G > 0.0 # conventional return
+            state.Δγ = ftr/(9*α*α*n*K + n*G + H)
+            j1     = j1tr - 9*state.Δγ*α*n*K
+            m      = 1.0 - state.Δγ*n*G/√j2dtr
+            state.σ  = m*dev(σtr) + j1/3.0*tI
         else # return to apex
             κ      = mat.κ
-            ipd.Δγ = (α*j1tr-κ-H*ipd.εpa)/(3*√3*α*K + H)
-            j1     = j1tr - 3*√3*ipd.Δγ*K
-            ipd.σ  = j1/3.0*tI
+            state.Δγ = (α*j1tr-κ-H*state.εpa)/(3*√3*α*K + H)
+            j1     = j1tr - 3*√3*state.Δγ*K
+            state.σ  = j1/3.0*tI
         end
 
-        ipd.εpa += ipd.Δγ
+        state.εpa += state.Δγ
 
     end
 
-    ipd.ε += Δε
-    Δσ     = ipd.σ - σini
+    state.ε += Δε
+    Δσ     = state.σ - σini
     return Δσ, success()
 end
 
 
-function ip_state_vals(mat::DruckerPrager, ipd::DruckerPragerState)
-    ndim  = ipd.env.ndim
-    σ, ε  = ipd.σ, ipd.ε
+function ip_state_vals(mat::DruckerPrager, state::DruckerPragerState)
+    ndim  = state.env.ndim
+    σ, ε  = state.σ, state.ε
     j1    = tr(σ)
     srj2d = √J2D(σ)
 
-    D = stress_strain_dict(σ, ε, ipd.env.modeltype)
-    D[:epa]   = ipd.εpa
+    D = stress_strain_dict(σ, ε, state.env.modeltype)
+    D[:epa]   = state.εpa
     D[:j1]    = j1
     D[:srj2d] = srj2d
 
