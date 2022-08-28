@@ -2,7 +2,7 @@
 
 
 # Assemble the global stiffness matrix
-function pm_mount_global_matrices(dom::Domain, ndofs::Int, Δt::Float64)
+function pm_mount_global_matrices(model::Model, ndofs::Int, Δt::Float64)
 
     # Assembling matrix G
 
@@ -11,7 +11,7 @@ function pm_mount_global_matrices(dom::Domain, ndofs::Int, Δt::Float64)
 
     α = 1.0 # time integration factor
 
-    for elem in dom.elems
+    for elem in model.elems
 
         ty                      = typeof(elem)
         has_stiffness_matrix    = hasmethod(elem_stiffness, (ty,))
@@ -149,13 +149,13 @@ function pm_solve_step!(G::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu
 end
 
 
-# function complete_uw_h(dom::Domain)
-#     haskey(dom.node_data, "uw") || return
-#     Uw = dom.node_data["uw"]
-#     H  = dom.node_data["h"]
+# function complete_uw_h(model::Model)
+#     haskey(model.node_data, "uw") || return
+#     Uw = model.node_data["uw"]
+#     H  = model.node_data["h"]
 
-#     for elem in dom.elems
-#         elem.shape.family==SOLID_CELL || continue
+#     for elem in model.elems
+#         elem.shape.family==BULKCELL || continue
 #         elem.shape==elem.shape.basic_shape && continue
 #         npoints  = elem.shape.npoints
 #         nbpoints = elem.shape.basic_shape.npoints
@@ -182,7 +182,7 @@ subjected to a list of boundary conditions `bcs`.
 
 # Arguments
 
-`dom` : A finite element domain
+`model` : A finite element domain
 
 `bcs` : Array of boundary conditions given as an array of pairs ( location => condition)
 
@@ -217,7 +217,7 @@ subjected to a list of boundary conditions `bcs`.
 `silent = false` : If true, no information is printed
 """
 function pm_solve!(
-    dom       :: Domain,
+    model       :: Model,
     bcs       :: Array;
     time_span :: Real    = NaN,
     end_time  :: Real    = NaN,
@@ -231,22 +231,22 @@ function pm_solve!(
     nouts     :: Int     = 0,
     outdir    :: String  = "",
     filekey   :: String  = "out",
-    printlog = false,
+    report = false,
     verbose = false
 )
 
     # Arguments checking
     @check time_span>0 || end_time>0
     verbosity = 0
-    printlog && (verbosity=1)
-    printlog && verbose && (verbosity=2)
+    report && (verbosity=1)
+    report && verbose && (verbosity=2)
 
     tol>0 || error("pm_solve! : tolerance `tol `should be greater than zero")
     Ttol>0 || error("pm_solve! : tolerance `Ttol `should be greater than zero")
 
-    env = dom.env
+    env = model.env
     env.cstage += 1
-    env.cinc    = 0
+    env.stagebits.inc    = 0
     env.transient = true
     sw = StopWatch() # timing
 
@@ -282,24 +282,24 @@ function pm_solve!(
     end
 
     # Get dofs organized according to boundary conditions
-    dofs, nu = configure_dofs!(dom, bcs) # unknown dofs first
+    dofs, nu = configure_dofs!(model, bcs) # unknown dofs first
     ndofs = length(dofs)
     umap  = 1:nu         # map for unknown displacements and pw
     pmap  = nu+1:ndofs   # map for prescribed displacements and pw
-    dom.ndofs = length(dofs)
+    model.ndofs = length(dofs)
     verbosity>0 && println("  unknown dofs: $nu")
     
     # get elevation Z for all Dofs
     Z = zeros(ndofs)
-    for node in dom.nodes
+    for node in model.nodes
         for dof in node.dofs
             Z[dof.eq_id] = node.coord[env.ndim]
         end
     end
 
     # Get global parameters
-    gammaw = get(dom.env.params, :gammaw, NaN)
-    isnan(gammaw) && error("pm_solve!: gammaw parameter was not set in Domain")
+    gammaw = get(model.env.params, :gammaw, NaN)
+    isnan(gammaw) && error("pm_solve!: gammaw parameter was not set in Model")
     gammaw > 0 || error("pm_solve: invalid value for gammaw: $gammaw")
 
     # Save initial file and loggers
@@ -313,18 +313,18 @@ function pm_solve!(
             end
         end
 
-        update_output_data!(dom) # Updates data arrays in domain
-        update_single_loggers!(dom)  # Tracking nodes, ips, elements, etc.
-        update_composed_loggers!(dom)
-        complete_uw_h(dom)
+        update_output_data!(model) # Updates data arrays in domain
+        update_single_loggers!(model)  # Tracking nodes, ips, elements, etc.
+        update_composed_loggers!(model)
+        complete_uw_h(model)
 
         if save_outs
-            save(dom, "$outdir/$filekey-0.vtu", printlog=true)
+            save(model, "$outdir/$filekey-0.vtu", report=true)
         end
     end
 
     # Get the domain current state and backup
-    State = [ ip.state for elem in dom.elems for ip in elem.ips ]
+    State = [ ip.state for elem in model.elems for ip in elem.ips ]
     StateBk = copy.(State)
 
     # Incremental analysis
@@ -340,7 +340,7 @@ function pm_solve!(
     Tout  = ΔTout        # output time for saving the next output file
 
     inc  = 0             # increment counter
-    iout = env.cout      # file output counter
+    iout = env.stagebits.out      # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
@@ -351,11 +351,11 @@ function pm_solve!(
     Fex  = zeros(ndofs)  # vector of external loads
     Uex  = zeros(ndofs)  # vector of external essential values
 
-    Uex, Fex = get_bc_vals(dom, bcs, t) # get values at time t  #TODO pick internal forces and displacements instead!
+    Uex, Fex = get_bc_vals(model, bcs, t) # get values at time t  #TODO pick internal forces and displacements instead!
 
     # Get unbalanced forces
     Fin = zeros(ndofs)
-    for elem in dom.elems
+    for elem in model.elems
         elem_internal_forces(elem, Fin)
     end
     Fex .-= Fin # add negative forces to external forces vector
@@ -371,7 +371,7 @@ function pm_solve!(
     while T < 1.0 - Ttol
         # Update counters
         inc += 1
-        env.cinc += 1
+        env.stagebits.inc += 1
 
         if inc > maxincs
             printstyled("  solver maxincs = $maxincs reached (try maxincs=0)\n", color=:red)
@@ -384,7 +384,7 @@ function pm_solve!(
 
         # Get forces and displacements from boundary conditions
         env.t = t + Δt
-        UexN, FexN = get_bc_vals(dom, bcs, t+Δt) # get values at time t+Δt
+        UexN, FexN = get_bc_vals(model, bcs, t+Δt) # get values at time t+Δt
 
         ΔUex = UexN - U
         ΔFex = FexN - F
@@ -407,7 +407,7 @@ function pm_solve!(
 
             # Try FE step
             verbosity>1 && print("    assembling... \r")
-            G, RHS = pm_mount_global_matrices(dom, ndofs, Δt)
+            G, RHS = pm_mount_global_matrices(model, ndofs, Δt)
 
             if it==1; R .+= RHS end
 
@@ -424,7 +424,7 @@ function pm_solve!(
             # Get internal forces and update data at integration points (update ΔFin)
             ΔFin .= 0.0
             ΔUt   = ΔUa + ΔUi
-            for elem in dom.elems
+            for elem in model.elems
                 elem_update!(elem, ΔUt, ΔFin, Δt)
             end
 
@@ -468,7 +468,7 @@ function pm_solve!(
                 end
             end
 
-            update_single_loggers!(dom) # Tracking nodes, ips, etc.
+            update_single_loggers!(model) # Tracking nodes, ips, etc.
 
             # Update time
             t += Δt
@@ -476,12 +476,12 @@ function pm_solve!(
 
             # Check for saving output file
             if abs(T - Tout) < Ttol && save_outs
-                env.cout += 1
-                iout = env.cout
-                update_output_data!(dom)
-                update_composed_loggers!(dom)
-                complete_uw_h(dom)
-                save(dom, "$outdir/$filekey-$iout.vtu", printlog=printlog)
+                env.stagebits.out += 1
+                iout = env.stagebits.out
+                update_output_data!(model)
+                update_composed_loggers!(model)
+                complete_uw_h(model)
+                save(model, "$outdir/$filekey-$iout.vtu", report=report)
                 Tout += ΔTout # find the next output time
             end
 
@@ -502,7 +502,7 @@ function pm_solve!(
         else
             # Restore counters
             inc -= 1
-            env.cinc -= 1
+            env.stagebits.inc -= 1
             ΔT_bk = ΔT
 
             # Restore the state to last converged increment
@@ -525,9 +525,9 @@ function pm_solve!(
     end
 
     if !save_outs
-	update_output_data!(dom)
-	complete_uw_h(dom)
-	update_composed_loggers!(dom)
+	update_output_data!(model)
+	complete_uw_h(model)
+	update_composed_loggers!(model)
     end
 
     # time spent

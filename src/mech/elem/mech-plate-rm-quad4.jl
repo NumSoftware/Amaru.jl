@@ -19,7 +19,7 @@ mutable struct PlateRM<:Mechanical
     end
 end
 
-matching_shape_family(::Type{PlateRM}) = SOLID_CELL
+matching_shape_family(::Type{PlateRM}) = BULKCELL
 
 function D_matrix(elem::PlateRM)
 
@@ -144,7 +144,7 @@ function elem_stiffness(elem::PlateRM)
 end
 
 
-function elem_update!(elem::PlateRM, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
+function elem_update!(elem::PlateRM, U::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
     dU  = U[map]
     F[map] += K*dU

@@ -185,7 +185,7 @@ function split_block(bl::BlockInset, mesh::Mesh)
         joint = newjoints[1]
         tip = joint.linked_elems[2].nodes[1]
         tipjointpts  = vcat(joint.linked_elems[1].nodes, tip)
-        tipjointcell = Cell(TIPJOINT, tipjointpts, tag=bl.tipjointtag)
+        tipjointcell = Cell(TIPJOINTCELL, tipjointpts, tag=bl.tipjointtag)
         tipjointcell.linked_elems = joint.linked_elems
         push!(mesh.elems, tipjointcell)
     end
@@ -193,7 +193,7 @@ function split_block(bl::BlockInset, mesh::Mesh)
         joint = newjoints[end]
         tip = joint.linked_elems[2].nodes[2]
         tipjointpts  = vcat(joint.linked_elems[1].nodes, tip )
-        tipjointcell = Cell(TIPJOINT, tipjointpts, tag=bl.tipjointtag)
+        tipjointcell = Cell(TIPJOINTCELL, tipjointpts, tag=bl.tipjointtag)
         tipjointcell.linked_elems = joint.linked_elems
         push!(mesh.elems, tipjointcell)
     end
@@ -283,18 +283,17 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
 
         for i in 1:n
 
-            step *= 0.5
             is_in = is_inside(ccell.shape, ccell_coords, X, εc)
+            step *= 0.5
             if is_in
                 s += step
             else
                 s -= step
             end
 
-            X =get_point(s, coords, curvetype)
-
-            R     = inverse_map(ccell.shape, ccell_coords, X)
-            bdist = bdistance(ccell.shape, R)
+            X     = get_point(s, coords, curvetype)
+            # R     = inverse_map(ccell.shape, ccell_coords, X)
+            # bdist = bdistance(ccell.shape, R)
         end
 
         # Check if end was reached

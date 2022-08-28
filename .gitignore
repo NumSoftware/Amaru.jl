@@ -6,6 +6,7 @@
 *.vtk
 *.vtu
 *.dat
+*.log
 *.pdf
 .ipynb_checkpoints
 sandbox

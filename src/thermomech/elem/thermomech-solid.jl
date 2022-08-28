@@ -17,7 +17,7 @@ mutable struct TMSolid<:Thermomechanical
     end
 end
 
-matching_shape_family(::Type{TMSolid}) = SOLID_CELL
+matching_shape_family(::Type{TMSolid}) = BULKCELL
 
 function elem_config_dofs(elem::TMSolid)
     nbnodes = elem.shape.basic_shape.npoints
@@ -162,7 +162,7 @@ function elem_stiffness(elem::TMSolid)
         @gemm J = C'*dNdR
         @gemm dNdX = dNdR*inv(J)
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         set_Bu(elem, ip, dNdX, Bu)
 
         # compute K
@@ -203,7 +203,7 @@ function elem_coupling_matrix(elem::TMSolid)
         @gemm J = C'*dNdR
         @gemm dNdX = dNdR*inv(J)
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         set_Bu(elem, ip, dNdX, Bu)
 
         # compute Cut
@@ -216,9 +216,9 @@ function elem_coupling_matrix(elem::TMSolid)
     # map
     keys = (:ux, :uy, :uz)[1:ndim]
     map_u = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-    mat_t = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nbnodes] ]
+    map_t = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nbnodes] ]
 
-    return Cut, map_u, mat_t
+    return Cut, map_u, map_t
 end
 
 # thermal conductivity
@@ -241,7 +241,7 @@ function elem_conductivity_matrix(elem::TMSolid)
         dNtdR = elem.shape.basic_shape.deriv(ip.R)
         @gemm J  = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         @gemm dNtdX = dNtdR*inv(J)
         Bt .= dNtdX'
 
@@ -275,7 +275,7 @@ function elem_mass_matrix(elem::TMSolid)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute Cut
         coef  = elem.mat.ρ*elem.mat.cv
@@ -296,11 +296,11 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C   = getcoords(elem)
-    T0     = elem.env.T0 + 273.15
+    T0k     = elem.env.T0k + 273.15
 
     keys   = (:ux, :uy, :uz)[1:ndim]
     map_u  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-    mat_t  = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nbnodes] ]
+    map_t  = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nbnodes] ]
 
     dF  = zeros(nnodes*ndim)
     Bu  = zeros(6, nnodes*ndim)
@@ -313,7 +313,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
     dNdX = Array{Float64}(undef, nnodes, ndim)
     Jp  = Array{Float64}(undef, ndim, nbnodes)
     dNtdX = Array{Float64}(undef, ndim, nbnodes)
-    dUt = DU[mat_t] # nodal temperature increments
+    dUt = DU[map_t] # nodal temperature increments
     for ip in elem.ips
         elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
@@ -321,7 +321,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
         @gemm dNdX = dNdR*inv(J)
         set_Bu(elem, ip, dNdX, Bu)
 
@@ -344,27 +344,27 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
         coef = β*detJ*ip.w*th
         dFt  -= coef*Nt*εvol
 
-        coef = detJ*ip.w*elem.mat.ρ*elem.mat.cv*th/T0
+        coef = detJ*ip.w*elem.mat.ρ*elem.mat.cv*th/T0k
         dFt -= coef*Nt*ut
 
         QQ   = ip.state.QQ
-        coef = detJ*ip.w*th/T0
+        coef = detJ*ip.w*th/T0k
         @gemv dFt += coef*Bt'*QQ
     end
 
     F[map_u] += dF
-    F[mat_t] += dFt
+    F[map_t] += dFt
 end
 =#
 
 
-function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
-    ndim   = elem.env.ndim
-    th     = elem.env.thickness
-    T0     = elem.env.T0 + 273.15
-    nnodes = length(elem.nodes)
+function elem_update!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
+    ndim    = elem.env.ndim
+    th      = elem.env.thickness
+    T0k     = get(elem.env.params, :T0, 0.0) + 273.15
+    nnodes  = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    C      = getcoords(elem)
+    C       = getcoords(elem)
 
     E = elem.mat.E
     α = elem.mat.α
@@ -375,13 +375,13 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
 
     keys   = (:ux, :uy, :uz)[1:ndim]
     map_u  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-    mat_t  = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nbnodes] ]
+    map_t  = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nbnodes] ]
 
     dU  = DU[map_u] # nodal displacement increments
-    dUt = DU[mat_t] # nodal temperature increments
+    dUt = DU[map_t] # nodal temperature increments
     Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes]
     Ut += dUt # nodal tempeture at step n+1
-    m   = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  #
+    m   = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
 
     dF  = zeros(nnodes*ndim)
     Bu  = zeros(6, nnodes*ndim)
@@ -400,7 +400,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
         invJ = inv(J)
         @gemm dNdX = dNdR*invJ
         set_Bu(elem, ip, dNdX, Bu)
@@ -430,7 +430,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
 
         # internal volumes dFt
         Δεvol = dot(m, Δε)
-        coef  = β*Δεvol*T0
+        coef  = β*Δεvol*T0k
         coef *= detJ*ip.w*th
         dFt  -= coef*Nt
 
@@ -443,7 +443,5 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         @gemv dFt += coef*Bt'*q
     end
 
-    DF[map_u] += dF
-    DF[mat_t] += dFt
-    return success()
+    return [dF; dFt], [map_u; map_t], success()
 end

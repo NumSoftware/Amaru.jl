@@ -1,19 +1,21 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 @enum(CellFamily,
-VERTEX_CELL    = 0,
-LINE_CELL      = 1,
-SOLID_CELL     = 2,
-EMBEDDED_CELL  = 3,
-JOINT_CELL     = 4,
-LINEJOINT_CELL = 5,
-TIPJOINT_CELL  = 6,
+    VERTEXCELL    = 0,
+    LINECELL      = 1,
+    BULKCELL      = 2,
+    EMBEDDEDCELL  = 3,
+    JOINTCELL     = 4,
+    LINEJOINTCELL = 5,
+    TIPJOINTCELL  = 6,
 )
+const SOLIDCELL = BULKCELL
 
 # Export
 for s in instances(CellFamily)
     @eval export $(Symbol(s))
 end
+export SOLIDCELL
 
 mutable struct CellShape
     name       ::String
@@ -44,7 +46,7 @@ include("shapes/joints.jl")
 function MakePOLYVERTEX()
     shape             = CellShape()
     shape.name        = "POLYVERTEX"
-    shape.family      = VERTEX_CELL
+    shape.family      = VERTEXCELL
     shape.ndim        = 0
     shape.npoints     = 0
     shape.vtk_type    = VTK_POLY_VERTEX
@@ -194,17 +196,13 @@ end
 
 function inverse_map(shape::CellShape, coords::Array{Float64,2}, X0::AbstractArray{Float64,1}, tol=1.0e-7)
     maxits = 20
-    ndim  = shape.ndim
-    R = zeros(ndim)
-    C = coords
+    ndim   = shape.ndim
+    R      = zeros(ndim)
+    C      = coords[:,1:ndim]
+    X      = X0[1:ndim]
+
     local ΔX::Array{Float64,1}
-
-    X = X0
-    if size(coords,2)==2
-        X = X0[1:ndim]
-    end
-
-    k = 0
+    
     for k in 1:maxits
         # calculate Jacobian
         D = shape.deriv(R)
@@ -217,10 +215,11 @@ function inverse_map(shape::CellShape, coords::Array{Float64,2}, X0::AbstractArr
         # calculate the error
         ΔX = Xt - X
         # ΔR = pinv(J)'*ΔX
-        ΔR = pinv(J)*ΔX
+        ΔR = inv(J)*ΔX # don't use pinv
 
         # updating local coords R
         R -= ΔR
+
         if norm(ΔX) < tol; break end
     end
 
@@ -235,12 +234,11 @@ end
 
 
 function is_inside(shape::CellShape, C::Array{Float64,2}, X::Array{Float64,1}, tol = 1.e-7)
-    if shape.family!=SOLID_CELL return false end
+    if shape.family!=SOLIDCELL return false end
 
     # Testing with bounding box
-    ndim = size(C,1)
-    Cmin = vec(minimum(C,dims=1))
-    Cmax = vec(maximum(C,dims=1))
+    Cmin = vec(minimum(C, dims=1))
+    Cmax = vec(maximum(C, dims=1))
     maxl = maximum(Cmax-Cmin)
     ttol = 0.1*maxl # 10% is important for curved elements
 

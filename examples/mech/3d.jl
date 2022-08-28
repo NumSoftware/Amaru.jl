@@ -59,7 +59,7 @@ md"#### FE Analysis"
 
 # ╔═╡ 706d4aa5-15e7-45e5-9bac-4e8019262bd5
 begin
-	domain = Domain(msh, materials)
+	domain = Model(msh, materials)
 	
 	loggers = [
 		:(z==1) => FaceLogger("top-face.dat"),

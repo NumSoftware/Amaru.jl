@@ -18,7 +18,7 @@ mutable struct MechEmbRod<:Mechanical
     MechEmbRod() = new()
 end
 
-matching_shape_family(::Type{MechEmbRod}) = LINE_CELL
+matching_shape_family(::Type{MechEmbRod}) = LINECELL
 
 function elem_config_dofs(elem::MechEmbRod)
     # No-op function.
@@ -59,14 +59,15 @@ function elem_init(elem::MechEmbRod)
 end
 
 function elem_displacements(elem::MechEmbRod)
-    ndim   = elem.env.ndim
-    NN     = elem.cache_NN
-    keys   = (:ux, :uy, :uz)[1:ndim]
-    Ubulk  = [ node.dofdict[key].vals[key] for node in elem.linked_elems[1].nodes for key in keys ]
+    ndim    = elem.env.ndim
+    NN      = elem.cache_NN
+    keys    = (:ux, :uy, :uz)[1:ndim]
+    Ubulk   = [ node.dofdict[key].vals[key] for node in elem.linked_elems[1].nodes for key in keys ]
+    Urod    = NN'*Ubulk
     nodemap = [ node.id for node in elem.nodes for key in keys ]
     dimmap  = [ i for node in elem.nodes for i in 1:ndim ]
 
-    return NN'*Ubulk, nodemap, dimmap
+    return Urod, nodemap, dimmap
 end
 
 function elem_stiffness(elem::MechEmbRod)
@@ -101,7 +102,7 @@ function elem_stiffness(elem::MechEmbRod)
     return NN*K*NN', map, map
 end
 
-function elem_update!(elem::MechEmbRod, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::MechEmbRod, U::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     A      = elem.mat.A
@@ -135,8 +136,7 @@ function elem_update!(elem::MechEmbRod, U::Array{Float64,1}, F::Array{Float64,1}
         dF  += coef*B'*dsig
     end
 
-    F[map] += NN*dF
-    return success()
+    return NN*dF, map, success()
 end
 
 

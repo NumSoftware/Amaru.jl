@@ -8,7 +8,7 @@ bls = [
        BlockInset( [0.5 3 0.5; 0.5 6.0 0.5], curvetype="polyline", tag="bars", jointtag="joints"),
       ]
 
-msh = Mesh(bls, printlog=false)
+msh = Mesh(bls)
 save(msh, "mesh.vtk")
 
 bar_points  = sort(msh.elems["bars"].nodes, by=get_y)
@@ -26,8 +26,8 @@ mats = [
                                  ks=(12/0.001)*5, kn=5000, A=0.005)
        ]
 
-dom = Domain(msh, mats)
-tag!(dom.elems["joints"].ips, "joint_ips")
+model = Model(msh, mats)
+tag!(model.elems["joints"].ips, "joint_ips")
 
 loggers = [
            "tip"       => NodeLogger(),
@@ -35,7 +35,7 @@ loggers = [
            "joint_ips" => IpGroupLogger()
            ]
 
-setloggers!(dom, loggers)
+setloggers!(model, loggers)
 
 bcs = [
        "fixed_points" => NodeBC(ux=0, uy=0, uz=0),
@@ -43,55 +43,29 @@ bcs = [
       ]
 
 tol = 0.01
-# tol = 0.002
-scheme = "BE"
-scheme = "FE"
-# scheme = "ME"
 scheme = "Ralston"
 nincs=20
-printlog=true
-#printlog=false
-#maxits=5
 maxits=3
-# color="blue"
-color="green"
 color="red"
-#color="black"
 
-@test solve!(dom, bcs, nincs=nincs, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, printlog=false).success
-
+addstage!(model, bcs, nincs=nincs)
 bcs[2] = "tip" => NodeBC(uy=-0.0001)
-@test solve!(dom, bcs, nincs=nincs, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, printlog=false).success
-
+addstage!(model, bcs, nincs=nincs)
 bcs[2] = "tip" => NodeBC(uy=+0.0006)
-@test solve!(dom, bcs, nincs=nincs, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, printlog=false).success
-
+addstage!(model, bcs, nincs=nincs)
 bcs[2] = "tip" => NodeBC(uy=-0.0005)
-@test solve!(dom, bcs, nincs=nincs, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, printlog=false).success
-
-try
+addstage!(model, bcs, nincs=nincs)
 bcs[2] = "tip" => NodeBC(uy=+0.005)
-@test solve!(dom, bcs, nincs=nincs, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, printlog=false).success
-catch
-end
+addstage!(model, bcs, nincs=nincs)
 
+@test solve!(model, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, report=true).success
 
-if Amaru.config.makeplots
+if @isdefined(makeplots) && makeplots
     using PyPlot
     log_jnt_ip = loggers[2].second
     tab = log_jnt_ip.table
 
-    cplot([
+    cplot(
            (x= tab[:ur], y=tab[:tau], marker="o", color=color)
-          ],
-          #"test.pdf"
          )
-
-    #log_joint_ips = loggers[3].second
-    #book = log_joint_ips.book
-    #save(log_joint_ips, "book.dat")
-    #for tab in book.tables
-        #plot(tab[:y], tab[:tau], marker="o")
-    #end
-    #show()
 end

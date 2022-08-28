@@ -7,7 +7,7 @@ blocks = [
     Block( [0 0; 1 2], nx=1, ny=4, tag="solids"),
 ]
 
-msh = Mesh(blocks, printlog=false)
+msh = Mesh(blocks)
 
 # Finite element analysis
 
@@ -19,25 +19,25 @@ cv   = 486e3  # specific heat (capacity) J/Ton/k
 materials = [
              "solids" => LinThermo(k=k, rho=rho, cv=cv)
             ]
-dom = Domain(msh, materials)
+model = Model(msh, materials)
 
 log1 = NodeGroupLogger()
 loggers = [
     :(x==0) => log1
 ]
-setloggers!(dom, loggers)
+setloggers!(model, loggers)
 
 
 bcs = [
        :(y==0) => NodeBC(ut=10.0),
        :(y==2) => NodeBC(ut=20.0),
 ]
-
-tm_solve!(dom, bcs, end_time=10000.0, tol=0.1, nincs=5, printlog=false)
+addstage!(model, bcs, tspan=10000, nincs=5)
+tm_solve!(model, tol=0.1, report=true)
 
 # Output
 
-if Amaru.config.makeplots
+if @isdefined(makeplots) && makeplots
     using PyPlot
 
     book = log1.book

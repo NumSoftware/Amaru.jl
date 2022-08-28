@@ -32,7 +32,7 @@ function get_outline_edges(cells::Array{<:AbstractCell,1}; angle=150)
 
     # Get faces
     for cell in cells
-        cell.shape.family == SOLID_CELL || continue # only bulk cells
+        cell.shape.family == BULKCELL || continue # only bulk cells
         if cell.shape.ndim==2
             hs = hash(cell)
             faces_dict[hs] = cell

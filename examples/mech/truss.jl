@@ -10,7 +10,7 @@ mats = [
         "bars" => ElasticRod(E=6.894757e7, A=0.043)
        ]
 
-dom = Domain(msh, mats, verbosity=0)
+model = Model(msh, mats, verbosity=0)
 
 bcs = [
        :(x==0 && y==0) => NodeBC(ux=0, uy=0),
@@ -20,6 +20,6 @@ bcs = [
        :(x>=0)         => BodyC(ty=-10.0)
       ]
 
-solve!(dom, bcs)
+solve!(model, bcs)
 
-mplot(dom, "truss.pdf", field="fa", colorbarlabel="axial force", colormap="gist_rainbow",  warpscale=100)
+mplot(model, "truss.pdf", field="fa", colorbarlabel="axial force", colormap="gist_rainbow",  warpscale=100)

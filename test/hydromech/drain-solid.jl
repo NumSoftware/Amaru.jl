@@ -9,7 +9,7 @@ bl4 = BlockInset( [1.5 1.2 1.6; 1.5 0.0 0.0], curvetype="polyline", cellshape=LI
 bl5 = BlockInset( [1.5 1.8 1.6; 1.5 3.0 0.0], curvetype="polyline", cellshape=LIN3, tag="drains", jointtag="joints")
 bls = [bl, bl1, bl2, bl3, bl4, bl5]
 
-mesh = Mesh(bls, printlog=false)
+mesh = Mesh(bls)
 
 gw = 10.0     # water specific weight
 A  = 0.01     # drain area
@@ -26,19 +26,19 @@ mats = [
     "drains" => LinDrainPipe(k=kb, gammaw=gw, A=A),
 ]
 
-dom = Domain(mesh, mats,gammaw=10)
+model = Model(mesh, mats,gammaw=10)
 
 # Stage 1: pore-pressure stabilization
 bcs = [
        :(z==3.0) => NodeBC(uw=0),
       ]
+addstage!(model, bcs, tspan=100)
+hm_solve!(model, tol=1e-2, report=true)
 
-hm_solve!(dom, bcs, end_time=100.0, nincs=1, tol=1e-2, nouts=0, printlog=false)
 
+model.env.t = 0.0
 
-dom.env.t = 0.0
-
-tag!(dom.elems[:lines][:nodes][:(x==1.5 && y==1.5 && z==3.0)], "input")
+tag!(model.elems.lines[:nodes][:(x==1.5 && y==1.5 && z==3.0)], "input")
 
 # Stage 2: volume application
 bcs = [
@@ -48,6 +48,5 @@ bcs = [
        :(x==1.5 && y==3.0 && z==0.0) => NodeBC(uw=0),
        "input" => NodeBC(fw=Q),
       ]
-
-
-hm_solve!(dom, bcs, end_time=100.0, nincs=1, tol=1e-2, nouts=0, printlog=false)
+addstage!(model, bcs, tspan=100)
+hm_solve!(model, tol=1e-2, report=true)

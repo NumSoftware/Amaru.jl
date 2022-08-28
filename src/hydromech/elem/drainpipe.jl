@@ -17,7 +17,7 @@ mutable struct DrainPipe<:Hydromechanical
     end
 end
 
-matching_shape_family(::Type{DrainPipe}) = LINE_CELL
+matching_shape_family(::Type{DrainPipe}) = LINECELL
 
 function elem_config_dofs(elem::DrainPipe)
     nnodes = length(elem.nodes)
@@ -42,7 +42,7 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
         detJ = norm(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # mount Bw
         Bw .= 0.0
@@ -74,7 +74,7 @@ function elem_RHS_vector(elem::DrainPipe)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
         detJ = norm(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         Jvert = J[end]/detJ
 
         # mount Bw
@@ -112,7 +112,7 @@ function elem_internal_forces(elem::DrainPipe, F::Array{Float64,1})
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
         detJ = norm(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # mount Bw
         Bw = dNdR'/detJ
@@ -127,7 +127,7 @@ function elem_internal_forces(elem::DrainPipe, F::Array{Float64,1})
     F[map_w] += dFw
 end
 
-function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, Δt::Float64)
     local A::Float64, coef::Float64, dNdR::Matrix{Float64}
 
     ndim   = elem.env.ndim
@@ -152,7 +152,7 @@ function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
         detJ = norm(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         Jvert = J[end]/detJ
 
         # mount Bw
@@ -173,8 +173,7 @@ function elem_update!(elem::DrainPipe, DU::Array{Float64,1}, DF::Array{Float64,1
         dFw += coef*Bw'*V
     end
 
-    DF[map_w] += dFw
-    return success()
+    return dFw, map_w, success()
 end
 
 

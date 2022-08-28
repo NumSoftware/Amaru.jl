@@ -52,10 +52,10 @@ materials = [
             ]
 
 # ╔═╡ 4f8c8921-2e88-460a-889c-d81ad11188ad
-md"#### FE Domain"
+md"#### FE Model"
 
 # ╔═╡ 092b1274-38e7-4a74-aba6-75b90e42ac15
-domain = Domain(msh, materials);
+domain = Model(msh, materials);
 
 # ╔═╡ 2bdb31bf-b179-44d2-9bb6-9622784ac9cb
 md"#### FE Analysis"

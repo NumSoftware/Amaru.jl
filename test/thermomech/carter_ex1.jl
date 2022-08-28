@@ -9,7 +9,7 @@ blocks = [Block([0 0.0; 0.5 0.5], nx = 2, ny = 2, cellshape = QUAD4, tag = "soli
           Block([0 0.875; 0.5 1], nx = 2, ny = 2, cellshape = QUAD4, tag = "solids"),
           ]
 
-msh = Mesh(blocks, printlog=true)
+msh = Mesh(blocks, report=true)
 
 # Finite element analysis
 
@@ -30,11 +30,11 @@ materials = ["solids" => ElasticSolidThermo(
     alpha = alpha,
 )]
 
-dom = Domain(msh, materials)
+model = Model(msh, materials)
 
 log1 = NodeGroupLogger()
 loggers = [:(x == 0.25) => log1]
-setloggers!(dom, loggers)
+setloggers!(model, loggers)
 
 
 bcs = [
@@ -46,11 +46,11 @@ bcs = [
 ]
 
 tm_solve!(
-    dom,
+    model,
     bcs,
     end_time = 13547.80876*1.0,
     tol = 0.01,
     nincs = 50,
-    printlog=true,
+    report=true,
     #nouts = 10,
 )

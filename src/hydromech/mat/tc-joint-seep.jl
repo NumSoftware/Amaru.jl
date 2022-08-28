@@ -78,7 +78,7 @@ mutable struct TCJointSeep<:AbstractTCJoint
                 end
             elseif softcurve == "hordijk"
                 wc = round(GF/(0.1947019536*ft), digits=10)
-            end    
+            end
         end
         @check wc>0      
         @check isnan(ws) || ws>0
@@ -141,7 +141,7 @@ function ip_state_vals(mat::TCJointSeep, state::TCJointSeepState)
           :js2 => state.σ[2],
           :js3 => state.σ[3],
           :jup => state.up,
-          :uwf => state.uw[3], # middle layer
+          :juw => state.uw[3], # middle layer
           :vb  => state.Vt[1],
           :vt  => state.Vt[2])
     else
@@ -151,12 +151,12 @@ function ip_state_vals(mat::TCJointSeep, state::TCJointSeepState)
           :js1 => state.σ[1],
           :js2 => state.σ[2],
           :jup => state.up,
-          :uwf => state.uw[3], # middle layer
+          :juw => state.uw[3], # middle layer
           :vb  => state.Vt[1],
           :vt  => state.Vt[2])
     end
 end
 
 function output_keys(mat::TCJointSeep)
-    return Symbol[:jw1, :js1, :jup, :uwf]
+    return Symbol[:jw1, :js1, :jup, :juw]
 end

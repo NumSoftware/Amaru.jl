@@ -59,6 +59,6 @@ Updates the state of an element given the current global vectors for essential a
 natural quantities. It also updates the global vector F.
 This function must be defined by each concrete type.
 """
-function elem_update!(elem::Mechanical, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::Mechanical, U::Array{Float64,1}, Δt::Float64)
     error("elem_update function not defined for material type $(typeof(elem.mat))")
 end

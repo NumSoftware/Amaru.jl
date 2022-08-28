@@ -17,7 +17,7 @@ mutable struct HMSolid<:Hydromechanical
     end
 end
 
-matching_shape_family(::Type{HMSolid}) = SOLID_CELL
+matching_shape_family(::Type{HMSolid}) = BULKCELL
 
 function elem_config_dofs(elem::HMSolid)
     nbnodes = elem.shape.basic_shape.npoints
@@ -164,7 +164,7 @@ function elem_stiffness(elem::HMSolid)
         @gemm J = C'*dNdR
         @gemm dNdX = dNdR*inv(J)
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         setBu(elem, ip, dNdX, Bu)
 
         # compute K
@@ -204,7 +204,7 @@ function elem_coupling_matrix(elem::HMSolid)
         @gemm J = C'*dNdR
         @gemm dNdX = dNdR*inv(J)
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         setBu(elem, ip, dNdX, Bu)
 
         # compute Cuw
@@ -242,7 +242,7 @@ function elem_conductivity_matrix(elem::HMSolid)
         dNwdR = elem.shape.basic_shape.deriv(ip.R)
         @gemm J  = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         @gemm dNwdX = dNwdR*inv(J)
 	Bw .= dNwdX'
 
@@ -277,7 +277,7 @@ function elem_compressibility_matrix(elem::HMSolid)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute Cpp
         coef  = elem.mat.S
@@ -313,7 +313,7 @@ function elem_RHS_vector(elem::HMSolid)
         dNwdR = elem.shape.basic_shape.deriv(ip.R)
         @gemm J  = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         @gemm dNwdX = dNwdR*inv(J)
         Bw .= dNwdX'
 
@@ -360,7 +360,7 @@ function elem_internal_forces(elem::HMSolid, F::Array{Float64,1})
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         @gemm dNdX = dNdR*inv(J)
         setBu(elem, ip, dNdX, Bu)
 
@@ -396,7 +396,7 @@ function elem_internal_forces(elem::HMSolid, F::Array{Float64,1})
 end
 
 
-function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::HMSolid, DU::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
@@ -430,7 +430,7 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
         invJ = inv(J)
         @gemm dNdX = dNdR*invJ
         setBu(elem, ip, dNdX, Bu)
@@ -475,8 +475,5 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
         @gemv dFw += coef*Bw'*V
     end
 
-    DF[map_u] += dF
-    DF[map_w] += dFw
-
-    return success()
+    return [dF; dFw], [map_u; map_w], success()
 end

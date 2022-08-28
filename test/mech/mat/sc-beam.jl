@@ -4,7 +4,7 @@ using Test
 # mesh generation
 
 bl  = Block( [0 0 0; 0.1 0.6 0.1], nx=1, ny=33, nz=6)
-msh = Mesh(bl, printlog=false)
+msh = Mesh(bl)
 iptag!(msh.elems[2], 100)
 tag!(msh.elems[22], 100)
 tag!(msh.elems, 100)
@@ -22,8 +22,8 @@ mats = [
 # Loggers
 log_edge = EdgeLogger(10)
 
-#dom = Domain(msh, mats, modeltype="plane-stress", thickness=1.0)
-dom = Domain(msh, mats, log_edge)
+#model = Model(msh, mats, modeltype="plane-stress", thickness=1.0)
+model = Model(msh, mats, log_edge)
 
 # Boundary conditions
 bcs = [
@@ -34,11 +34,11 @@ bcs = [
       ]
 
 try
-    @test solve!(dom, bcs, autoinc=true, nincs=1000, maxits=4, tol=0.01, printlog=false, scheme=:FE, nouts=50, maxincs=0).success
+    @test solve!(model, autoinc=true, nincs=1000, maxits=4, tol=0.01, report=false, scheme=:FE, nouts=50, maxincs=0).success
 catch
 end
 
-if Amaru.config.makeplots
+if @isdefined(makeplots) && makeplots
     using PyPlot
     tab = log_edge.table
     plot(-tab[:uz], -tab[:fz], marker="o", color="blue")

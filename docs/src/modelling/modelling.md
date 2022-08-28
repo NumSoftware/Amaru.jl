@@ -2,8 +2,8 @@
 
 ## Element
 
-## Domain
+## Model
 
-### Domain constructors
+### Model constructors
 
-### Domain functions
+### Model functions

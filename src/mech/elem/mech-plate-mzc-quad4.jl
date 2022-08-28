@@ -18,7 +18,7 @@ mutable struct PlateMZC<:Mechanical
     end
 end
 
-matching_shape_family(::Type{PlateMZC}) = SOLID_CELL
+matching_shape_family(::Type{PlateMZC}) = BULKCELL
 
 function D_matrix(elem::PlateMZC)
 
@@ -177,7 +177,7 @@ function elem_stiffness(elem::PlateMZC)
 end
 
 
-function elem_update!(elem::PlateMZC, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
+function elem_update!(elem::PlateMZC, U::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
     dU  = U[map]
     F[map] += K*dU

@@ -19,7 +19,7 @@ mutable struct PlateRM8node<:Mechanical
     end
 end
 
-matching_shape_family(::Type{PlateRM8node}) = SOLID_CELL
+matching_shape_family(::Type{PlateRM8node}) = BULKCELL
 
 function D_matrix(elem::PlateRM8node)
 
@@ -162,7 +162,7 @@ function elem_stiffness(elem::PlateRM8node)
 end
 
 
-function elem_update!(elem::PlateRM8node, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
+function elem_update!(elem::PlateRM8node, U::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
     #println(K)
     dU  = U[map]

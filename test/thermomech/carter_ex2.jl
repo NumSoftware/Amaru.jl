@@ -13,7 +13,7 @@ blocks = [Block(coord1, nx = 1, ny = 1, cellshape = TRI3, tag = "solids"),
           Block(coord4, nx = 4, ny = 4, cellshape = QUAD4, tag = "solids"),
     ]
 
-msh = Mesh(blocks, printlog=true)
+msh = Mesh(blocks, report=true)
 
 # Finite element analysis
 
@@ -33,7 +33,7 @@ materials = ["solids" => ElasticSolidThermo(
     cv = cv,
     alpha = alpha,
 )]
-dom = Domain(msh, materials)
+model = Model(msh, materials)
 
 bcs = [
      :(x^2 + y^2 >= $0.99^2) => NodeBC(ut =200.0),
@@ -44,11 +44,11 @@ bcs = [
 ]
 
 tm_solve!(
-    dom,
+    model,
     bcs,
     end_time = 16827.49004*1.0,
     tol = 0.1,
     nincs = 50,
-    printlog=true,
+    report=true,
     #nouts = 10,
 )

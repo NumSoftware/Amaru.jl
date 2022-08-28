@@ -5,21 +5,21 @@ using Test
 bls = [
        Block( [0 0 0; 1 1 0.5], nx=2, ny=2, nz=2, tag="solids"),
       ]
-msh= Mesh(bls, printlog=false)
+msh= Mesh(bls)
 
 # fem domain
 mats = [
         "solids" => VonMises(E=2.0e8, nu=0.28, fy=5.0e5)
        ]
 
-dom = Domain(msh, mats)
+model = Model(msh, mats)
 
-tag!(dom.elems.ips[1], "ip")
+tag!(model.elems.ips[1], "ip")
 log1 = IpLogger()
 loggers = [
            "ip" => log1
           ]
-setloggers!(dom, loggers)
+setloggers!(model, loggers)
 
 # boundary conditions
 bcs = [
@@ -28,10 +28,11 @@ bcs = [
     :(x==0 || x==1.0) => NodeBC(ux=0),
     :(y==0 || y==1.0) => NodeBC(uy=0),
 ]
+addstage!(model, bcs, nincs=40)
 
-@test solve!(dom, bcs, autoinc=true, nincs=40, tol=1e-2).success
+@test solve!(model, tol=1e-2, autoinc=true, report=true).success
 
-if Amaru.config.makeplots
+if @isdefined(makeplots) && makeplots
     using PyPlot
     tab = log1.table
     plot( tab[:ezz], tab[:szz], "-o")

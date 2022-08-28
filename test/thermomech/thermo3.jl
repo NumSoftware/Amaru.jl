@@ -4,7 +4,7 @@ using Amaru
 # Mesh generation
 blocks = [Block([0 0; 1 2], nx = 4, ny = 8, tag = "solids"),]
 
-msh = Mesh(blocks, printlog=false)
+msh = Mesh(blocks)
 
 # Finite element analysis
 
@@ -14,14 +14,14 @@ rho = 7.8   # densidade ton/m3
 cv = 486e3  # specific heat (capacity) J/ton/K
 
 materials = ["solids" => LinThermo(k = k, rho = rho, cv = cv)]
-dom = Domain(msh, materials)
+model = Model(msh, materials)
 
 log1 = NodeGroupLogger()
 log2 = NodeGroupLogger()
 loggers = [:(y == 1.0) => log1, :(x == 0.5) => log2]
 
 
-setloggers!(dom, loggers)
+setloggers!(model, loggers)
 
 
 bcs = [
@@ -32,8 +32,8 @@ bcs = [
 
 ]
 
-tm_solve!(dom, bcs, end_time = 500000.0, tol = 0.1, nincs = 40, printlog=false)
+tm_solve!(model,end_time = 500000.0, tol = 0.1, nincs = 40)
 # Output
-save(dom, "dom10.vtk")
+save(model, "dom10.vtk")
 save(log1, "book3y.dat")
 save(log2, "book3x.dat")

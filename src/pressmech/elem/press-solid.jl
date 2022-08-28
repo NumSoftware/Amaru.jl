@@ -16,7 +16,7 @@ mutable struct PressSolid<:PressMech
     end
 end
 
-matching_shape_family(::Type{PressSolid}) = SOLID_CELL
+matching_shape_family(::Type{PressSolid}) = BULKCELL
 
 function elem_config_dofs(elem::PressSolid)
     for node in elem.nodes
@@ -100,7 +100,7 @@ function elem_conductivity_matrix(elem::PressSolid)
         @gemm J  = C'*dNdR
         detJ = det(J)
         invJ = inv(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         @gemm dNdX = dNdR*invJ # Bp = dNdX'
 
         coef = detJ*ip.w*th
@@ -129,7 +129,7 @@ function elem_compressibility_matrix(elem::PressSolid)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute M
         coef = detJ*ip.w*th
@@ -165,7 +165,7 @@ function elem_RHS_vector(elem::PressSolid)
         @gemm J  = C'*dNdR
         @gemm dNdX = dNdR*inv(J) # Bw = dNdX'
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute Q
         K = calcK(elem.mat, ip.state)
@@ -181,7 +181,7 @@ function elem_RHS_vector(elem::PressSolid)
 end
 
 # TODO
-function elem_update!(elem::PressSolid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::PressSolid, DU::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     th     = elem.env.thickness
@@ -208,7 +208,7 @@ function elem_update!(elem::PressSolid, DU::Array{Float64,1}, DF::Array{Float64,
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
         @gemm dNdX = dNdR*inv(J) # Bw = dNdX'
 
         G  = dNdX'*Uw/elem.mat.γw # flow gradient

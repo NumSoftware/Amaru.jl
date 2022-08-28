@@ -43,7 +43,7 @@ function Base.iterate(book::DataBook, state=(nothing,1) )
 end
 
 
-function save(book::DataBook, filename::String; printlog=true)
+function save(book::DataBook, filename::String; report=true)
     _, format = splitext(filename)
     formats = (".dat", ".book")
     format in formats || error("DataBook: cannot save in  \"$format\". Suitable formats are $formats")
@@ -100,7 +100,7 @@ function save(book::DataBook, filename::String; printlog=true)
             print(f, "\n")
         end
 
-        printlog && printstyled("  file $filename written\n", color=:cyan)
+        report && printstyled("  file $filename written\n", color=:cyan)
     end
     close(f)
     return nothing

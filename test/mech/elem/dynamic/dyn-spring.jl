@@ -1,8 +1,6 @@
 using Amaru
 using Test
 
-#coords = [ 1.0; 0.0 ]
-#conns  = [ [ 1, 2 ], [1] ]
 coords = [ 0.0; 1.0 ]
 conns  = [ [ 1, 2 ], [2] ]
 
@@ -14,13 +12,13 @@ mat = [
        2 => LumpedMass(m=100.0) ,
       ]
 
-dom = Domain(msh, mat)
+model = Model(msh, mat)
 
 log1 = NodeLogger()
 logs = [
         :(x==1) => log1
        ]
-setloggers!(dom, logs)
+setloggers!(model, logs)
 
 
 bcs = [
@@ -29,12 +27,12 @@ bcs = [
        #:(x==1) => NodeBC(fx=:( t<0.1 ? -1 : 0 )),
       ]
 
-#solve!(dom, bcs)
-@test dynsolve!(dom, bcs, time_span=7, nincs=14, printlog=false)
+addstage!(model, bcs, tspan=7, nincs=14)
 
-log1.table;
+dyn_solve!(model; report=true)
 
-if Amaru.config.makeplots
+
+if @isdefined(makeplots) && makeplots
     using PyPlot
     t = log1.table
     plot(t[:t], t[:ux], "-o")

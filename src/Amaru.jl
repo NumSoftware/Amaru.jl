@@ -9,24 +9,13 @@ Amaru module implements functions and types to perform finite element analyses.
 
 **Important data types**
 
-Node, Element, Domain, Dof, Ip, NodeBC, SurfaceBC
+Node, Element, Model, Dof, Ip, NodeBC, SurfaceBC
 
 """
 module Amaru
 using Printf, StatsBase, Statistics, LinearAlgebra, SparseArrays, DelimitedFiles, Arpack
 using DataStructures, Glob, DocStringExtensions
 import DataStructures.OrderedDict, DataStructures.OrderedSet
-
-
-# Debug
-mutable struct ConfigFlags
-    debug::Bool
-    makeplots::Bool
-end
-const config = ConfigFlags(false, true)
-
-# eye function
-eye(n::Int64) = Array{Float64}(I,n,n)
 
 # Tools module
 include("tools/include.jl")
@@ -37,15 +26,18 @@ export max, min, sort, reset, getindex, sort, copy!, show
 abstract type AbstractPoint end
 abstract type AbstractCell end
 abstract type AbstractBlock<:AbstractCell end
-abstract type AbstractMesh end
+abstract type AbstractDomain end
 
 
 # FEM
 include("model-env.jl")
 export ModelEnv
 
+include("dof.jl")
+export Dof, add_dof
+
 include("node.jl")
-export Node, Dof, add_dof, get_data, setvalue!
+export Node, get_data, setvalue!
 
 # Mesh
 include("mesh/include.jl")
@@ -64,7 +56,6 @@ export getnodes, changequadrature!, get_ips, elems_ip_vals, updatemat!, setstate
 include("tag.jl")
 export tag!
 
-
 include("plot/mplot.jl")
 include("plot/cplot.jl")
 
@@ -73,11 +64,10 @@ include("bc.jl")
 export NodeBC, SurfaceBC, EdgeBC, BodyC
 
 include("logger.jl")
-export NodeLogger, IpLogger
+export NodeLogger, IpLogger, SurfaceLogger
 export NodeSumLogger, FaceLogger, EdgeLogger
 export NodeGroupLogger, IpGroupLogger
 export PointLogger, SegmentLogger
-export update_logger!
 
 include("monitor.jl")
 export NodeMonitor
@@ -85,8 +75,16 @@ export NodeSumMonitor
 export IpMonitor
 export IpGroupMonitor
 
-include("domain.jl")
-export Domain, SubDomain, reset!, setloggers!, setmonitors!
+include("stage.jl")
+export Stage
+
+include("model.jl")
+export Model
+export Domain
+export addlogger!, addmonitor!, addloggers!, addmonitors!
+export setloggers!, setmonitors!
+
+include("solver.jl")
 
 include("io.jl")
 
@@ -100,15 +98,15 @@ include("hydromech/include.jl")
 include("thermomech/include.jl")
 
 # show function for FE related types
-Base.show(io::IO, obj::Dof) = _show(io, obj, 2, "")
-Base.show(io::IO, obj::Node) = _show(io, obj, 2, "")
-Base.show(io::IO, obj::Ip) = _show(io, obj, 2, "")
-Base.show(io::IO, obj::IpState) = _show(io, obj, 2, "")
-Base.show(io::IO, obj::Element) = _show(io, obj, 2, "")
-Base.show(io::IO, obj::Material) = _show(io, obj, 2, "")
-Base.show(io::IO, obj::BC) = _show(io, obj, 2, "")
-Base.show(io::IO, obj::Facet) = _show(io, obj, 2, "")
+Base.show(io::IO, obj::Dof)            = _show(io, obj, 2, "")
+Base.show(io::IO, obj::Node)           = _show(io, obj, 2, "")
+Base.show(io::IO, obj::Ip)             = _show(io, obj, 2, "")
+Base.show(io::IO, obj::IpState)        = _show(io, obj, 2, "")
+Base.show(io::IO, obj::Element)        = _show(io, obj, 2, "")
+Base.show(io::IO, obj::Material)       = _show(io, obj, 2, "")
+Base.show(io::IO, obj::BC)             = _show(io, obj, 2, "")
+Base.show(io::IO, obj::Facet)          = _show(io, obj, 2, "")
 Base.show(io::IO, obj::AbstractLogger) = _show(io, obj, 2, "")
-Base.show(io::IO, obj::Domain) = _show(io, obj, 2, "")
+Base.show(io::IO, obj::Model)         = _show(io, obj, 2, "")
 
 end#module

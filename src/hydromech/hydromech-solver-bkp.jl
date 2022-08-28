@@ -2,12 +2,7 @@
 
 
 # Assemble the global stiffness matrix
-function hm_mount_global_matrices(dom::Domain,
-                                  ndofs::Int,
-                                  Δt::Float64,
-                                  verbosity::Int
-                                  )
-    verbosity>1 && print("    assembling... \e[K \r")
+function hm_mount_global_matrices(model::Model, ndofs::Int, Δt::Float64)
 
     # Assembling matrix G
 
@@ -16,7 +11,7 @@ function hm_mount_global_matrices(dom::Domain,
 
     α = 1.0 # time integration factor
 
-    for elem in dom.elems
+    for elem in model.elems
 
         ty = typeof(elem)
         has_stiffness_matrix    = hasmethod(elem_stiffness, (ty,))
@@ -109,15 +104,7 @@ end
 
 
 # Solves for a load/displacement increment
-function hm_solve_system!(
-                          G  :: SparseMatrixCSC{Float64, Int},
-                          DU :: Vect,
-                          DF :: Vect,
-                          nu :: Int,
-                          verbosity :: Int
-                          )
-    verbosity>1 && print("    solving... \e[K \r")
-
+function hm_solve_step!(G::SparseMatrixCSC{Float64, Int}, DU::Vect, DF::Vect, nu::Int)
     #  [  G11   G12 ]  [ U1? ]    [ F1  ]
     #  |            |  |     | =  |     |
     #  [  G21   G22 ]  [ U2  ]    [ F2? ]
@@ -126,7 +113,7 @@ function hm_solve_system!(
     umap  = 1:nu
     pmap  = nu+1:ndofs
     if nu == ndofs
-        warn("hm_solve_system!: No essential boundary conditions")
+        @warn "solve!: No essential boundary conditions."
     end
 
     # Global stifness matrix
@@ -151,29 +138,24 @@ function hm_solve_system!(
             U1  = LUfact\RHS
             F2 += G21*U1
         catch err
+            @warn "solve!: $err"
             U1 .= NaN
-            return failure("hm_solve!: $err")
         end
     end
-
-    maxU = 1e10 # maximum essential value
-    maximum(abs, U1)>maxU && warn("hm_solve_system!: Possible syngular matrix")
 
     # Completing vectors
     DU[1:nu]     .= U1
     DF[nu+1:end] .= F2
-
-    return success()
 end
 
 
-function complete_uw_h(dom::Domain)
-    haskey(dom.node_data, "uw") || return
-    Uw = dom.node_data["uw"]
-    H  = dom.node_data["h"]
+function complete_uw_h(model::Model)
+    haskey(model.node_data, "uw") || return
+    Uw = model.node_data["uw"]
+    H  = model.node_data["h"]
 
-    for elem in dom.elems
-        elem.shape.family==SOLID_CELL || continue
+    for elem in model.elems
+        elem.shape.family==BULKCELL || continue
         elem.shape==elem.shape.basic_shape && continue
         npoints  = elem.shape.npoints
         nbpoints = elem.shape.basic_shape.npoints
@@ -192,20 +174,6 @@ function complete_uw_h(dom::Domain)
 end
 
 
-function hm_update_state!(dom::Domain, ΔUt::Vect, ΔFin::Vect, Δt::Float64, verbosity::Int)
-    # Update
-    verbosity>1 && print("    updating... \r")
-
-    # Get internal forces and update data at integration points (update ΔFin)
-    ΔFin .= 0.0
-    for elem in dom.elems
-        status = elem_update!(elem, ΔUt, ΔFin, Δt)
-        failed(status) && return status
-    end
-    return success()
-end
-
-
 """
     hm_solve!(domain, bcs, options...) -> Bool
 
@@ -214,7 +182,7 @@ subjected to a list of boundary conditions `bcs`.
 
 # Arguments
 
-`dom` : A finite element domain
+`model` : A finite element domain
 
 `bcs` : Array of boundary conditions given as an array of pairs ( location => condition)
 
@@ -249,7 +217,7 @@ subjected to a list of boundary conditions `bcs`.
 `silent = false` : If true, no information is printed
 """
 function hm_solve!(
-    dom       :: Domain,
+    model       :: Model,
     bcs       :: Array;
     time_span :: Real    = NaN,
     end_time  :: Real    = NaN,
@@ -259,29 +227,26 @@ function hm_solve!(
     maxincs   :: Int     = 1000000,
     tol       :: Number  = 1e-2,
     Ttol      :: Number  = 1e-9,
-    rspan     :: Number  = 1e-2,
-    scheme    :: Union{String,Symbol} = "FE",
+    scheme    :: Symbol  = :FE,
     nouts     :: Int     = 0,
-    outdir    :: String  = ".",
+    outdir    :: String  = "",
     filekey   :: String  = "out",
-    printlog = false,
-    verbose  = false
+    report = false,
+    verbose = false
 )
 
     # Arguments checking
     @check time_span>0 || end_time>0
     verbosity = 0
-    printlog && (verbosity=1)
-    printlog && verbose && (verbosity=2)
-
-    # scheme in ("FE",) || error("hm_solve! : invalid scheme \"$scheme\"")
+    report && (verbosity=1)
+    report && verbose && (verbosity=2)
 
     tol>0 || error("hm_solve! : tolerance `tol `should be greater than zero")
     Ttol>0 || error("hm_solve! : tolerance `Ttol `should be greater than zero")
 
-    env = dom.env
+    env = model.env
     env.cstage += 1
-    env.cinc    = 0
+    env.stagebits.inc    = 0
     env.transient = true
     sw = StopWatch() # timing
 
@@ -301,14 +266,14 @@ function hm_solve!(
     verbosity>1 && println("  model type: ", env.modeltype)
 
     save_outs = nouts>0
-    if save_outs #&& !autoinc
+    if save_outs
         if nouts>nincs
             nincs = nouts
-            info("nincs changed to $nincs to match nouts")
+            @info "  nincs changed to $nincs to match nouts"
         end
         if nincs%nouts != 0
             nincs = nincs - (nincs%nouts) + nouts
-            info("nincs changed to $nincs to be a multiple of nouts")
+            @info "  nincs changed to $nincs to be a multiple of nouts"
         end
 
         strip(outdir) == "" && (outdir = ".")
@@ -317,24 +282,24 @@ function hm_solve!(
     end
 
     # Get dofs organized according to boundary conditions
-    dofs, nu = configure_dofs!(dom, bcs) # unknown dofs first
+    dofs, nu = configure_dofs!(model, bcs) # unknown dofs first
     ndofs = length(dofs)
     umap  = 1:nu         # map for unknown displacements and pw
     pmap  = nu+1:ndofs   # map for prescribed displacements and pw
-    dom.ndofs = length(dofs)
-    verbosity>0 && message("unknown dofs: $nu")
+    model.ndofs = length(dofs)
+    verbosity>0 && println("  unknown dofs: $nu")
     
     # get elevation Z for all Dofs
     Z = zeros(ndofs)
-    for node in dom.nodes
+    for node in model.nodes
         for dof in node.dofs
             Z[dof.eq_id] = node.coord[env.ndim]
         end
     end
 
     # Get global parameters
-    gammaw = get(dom.env.params, :gammaw, NaN)
-    isnan(gammaw) && error("hm_solve!: gammaw parameter was not set in Domain")
+    gammaw = get(model.env.params, :gammaw, NaN)
+    isnan(gammaw) && error("hm_solve!: gammaw parameter was not set in Model")
     gammaw > 0 || error("hm_solve: invalid value for gammaw: $gammaw")
 
     # Save initial file and loggers
@@ -347,60 +312,54 @@ function hm_solve!(
                 dof.vals[:h] = 0.0 # water head
             end
         end
-        
-        outdir = rstrip(outdir, ['/', '\\'])
-        env.outdir = outdir
-        if !isdir(outdir)
-            info("hm_solve!: creating output directory ./$outdir")
-            mkpath(outdir)
-        end
 
-        update_output_data!(dom) # Updates data arrays in domain
-        update_single_loggers!(dom)  # Tracking nodes, ips, elements, etc.
-        update_composed_loggers!(dom)
-        complete_uw_h(dom)
-        save_outs && save(dom, "$outdir/$filekey-0.vtu", printlog=printlog)
+        update_output_data!(model) # Updates data arrays in domain
+        update_single_loggers!(model)  # Tracking nodes, ips, elements, etc.
+        update_composed_loggers!(model)
+        complete_uw_h(model)
+
+        if save_outs
+            save(model, "$outdir/$filekey-0.vtu", report=true)
+        end
     end
 
     # Get the domain current state and backup
-    State = [ ip.state for elem in dom.elems for ip in elem.ips ]
+    State = [ ip.state for elem in model.elems for ip in elem.ips ]
     StateBk = copy.(State)
 
     # Incremental analysis
     t    = env.t     # current time
+    tend = t + time_span # end time
+    Δt = time_span/nincs # initial Δt value
 
     T  = 0.0
     ΔT = 1.0/nincs       # initial ΔT value
-    autoinc && (ΔT=min(ΔT,0.01))
-    ΔTbk = 0.0
+    ΔT_bk = 0.0
 
-    ΔTcheck = save_outs ? 1/nouts : 1.0
-    Tcheck  = ΔTcheck
+    ΔTout = 1.0/nouts    # output time increment for saving output file
+    Tout  = ΔTout        # output time for saving the next output file
 
     inc  = 0             # increment counter
-    iout = env.cout      # file output counter
+    iout = env.stagebits.out      # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
     ΔFin = zeros(ndofs)  # vector of internal natural values for current increment
     ΔUa  = zeros(ndofs)  # vector of essential values (e.g. displacements) for this increment
     ΔUi  = zeros(ndofs)  # vector of essential values for current iteration
-    Rc   = zeros(ndofs)  # vector of cumulated residues
 
     Fex  = zeros(ndofs)  # vector of external loads
     Uex  = zeros(ndofs)  # vector of external essential values
 
-    Uex, Fex = get_bc_vals(dom, bcs, t) # get values at time t  #TODO pick internal forces and displacements instead!
-    status = ReturnStatus()
+    Uex, Fex = get_bc_vals(model, bcs, t) # get values at time t  #TODO pick internal forces and displacements instead!
 
     # Get unbalanced forces
     Fin = zeros(ndofs)
-    for elem in dom.elems
+    for elem in model.elems
         elem_internal_forces(elem, Fin)
     end
     Fex .-= Fin # add negative forces to external forces vector
 
-    # Get global vectors from values at dofs
     for (i,dof) in enumerate(dofs)
         U[i] = dof.vals[dof.name]
         F[i] = dof.vals[dof.natname]
@@ -409,14 +368,13 @@ function hm_solve!(
     local G::SparseMatrixCSC{Float64,Int64}
     local RHS::Array{Float64,1}
 
-    while T < 1.0-Ttol
+    while T < 1.0 - Ttol
         # Update counters
         inc += 1
-        env.cinc += 1
-        env.T = T
+        env.stagebits.inc += 1
 
         if inc > maxincs
-            alert("solver maxincs = $maxincs reached (try maxincs=0)\n")
+            printstyled("  solver maxincs = $maxincs reached (try maxincs=0)\n", color=:red)
             return false
         end
 
@@ -425,79 +383,58 @@ function hm_solve!(
         verbosity>1 && println()
 
         # Get forces and displacements from boundary conditions
-        Δt = time_span*ΔT
         env.t = t + Δt
-        UexN, FexN = get_bc_vals(dom, bcs, t+Δt) # get values at time t+Δt
+        UexN, FexN = get_bc_vals(model, bcs, t+Δt) # get values at time t+Δt
 
         ΔUex = UexN - U
         ΔFex = FexN - F
 
-        ΔTcr = min(rspan, 1-T)    # time span to apply cumulated residues
-        αcr  = min(ΔT/ΔTcr, 1.0)  # fraction of cumulated residues to apply
-        T<1-rspan && (ΔFex .+= αcr.*Rc) # addition of residuals
-
         ΔUex[umap] .= 0.0
         ΔFex[pmap] .= 0.0
 
-        R   .= ΔFex
+        R   .= ΔFex    # residual
         ΔUa .= 0.0
         ΔUi .= ΔUex    # essential values at iteration i
 
         # Newton Rapshon iterations
         residue   = 0.0
+        converged = false
         maxfails  = 3  # maximum number of it. fails with residual change less than 90%
         nfails    = 0  # counter for iteration fails
-        nits      = 0
-        residue1  = 0.0
-        converged = false
-        errored   = false
         for it=1:maxits
-            nits += 1
-            it>1 && (ΔUi.=0.0) # essential values are applied only at first iteration
+            if it>1; ΔUi .= 0.0 end # essential values are applied only at first iteration
             lastres = residue # residue from last iteration
 
-            # Predictor step for FE, ME and BE
-            if scheme in ("FE", "ME", "BE")
-                G, RHS = hm_mount_global_matrices(dom, ndofs, Δt, verbosity)
+            # Try FE step
+            verbosity>1 && print("    assembling... \r")
+            G, RHS = hm_mount_global_matrices(model, ndofs, Δt)
 
-                R .+= RHS
+            if it==1; R .+= RHS end
 
-                # Solve
-                status = hm_solve_system!(G, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
-                failed(status) && (errored=true; break)
+            # Solve
+            verbosity>1 && print("    solving...   \r")
+            hm_solve_step!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
 
-                copyto!.(State, StateBk)
-                ΔUt    = ΔUa + ΔUi
-                status = hm_update_state!(dom, ΔUt, ΔFin, Δt, verbosity)
-                failed(status) && (errored=true; break)
+            # Update
+            verbosity>1 && print("    updating... \r")
 
-                residue = maximum(abs, (ΔFex-ΔFin)[umap] )
+            # Restore the state to last converged increment
+            copyto!.(State, StateBk)
+
+            # Get internal forces and update data at integration points (update ΔFin)
+            ΔFin .= 0.0
+            ΔUt   = ΔUa + ΔUi
+            for elem in model.elems
+                elem_update!(elem, ΔUt, ΔFin, Δt)
             end
 
-            # Corrector step for ME and BE
-            if residue > tol && scheme in ("ME", "BE")
-                G2, RHS = hm_mount_global_matrices(dom, ndofs, Δt, verbosity)
-                if scheme=="ME"
-                    G = 0.5*(G + G2)
-                elseif scheme=="BE"
-                    G = G2
-                end
-                status = hm_solve_system!(G, ΔUi, R, nu, verbosity)   # Changes unknown positions in ΔUi and R
-                failed(status) && (errored=true; break)
-
-                copyto!.(State, StateBk)
-                ΔUt    = ΔUa + ΔUi
-                status = hm_update_state!(dom, ΔUt, ΔFin, Δt, verbosity)
-                failed(status) && (errored=true; break)
-
-                residue = maximum(abs, (ΔFex-ΔFin)[umap])
-            end
+            residue = maximum(abs, (ΔFex-ΔFin)[umap] )
 
             # Update accumulated displacement
             ΔUa .+= ΔUi
 
             # Residual vector for next iteration
-            R .= ΔFex .- ΔFin
+            R = ΔFex - ΔFin
             R[pmap] .= 0.0  # zero at prescribed positions
 
             if verbosity>1
@@ -505,20 +442,11 @@ function hm_solve!(
                 @printf(" residue: %-10.4e\n", residue)
             end
 
-            it==1 && (residue1=residue)
-            residue < tol  && (converged=true; break)
-            isnan(residue) && break
-            it>maxits      && break
-            #it>1 && residue>lastres && break
-            residue>0.9*lastres && (nfails+=1)
-            nfails==maxfails    && break
-        end
-
-        q = 0.0 # increment size factor for autoinc
-
-        if errored
-            verbosity>1 && notify(status.message, level=3)
-            converged = false
+            if residue < tol;        converged = true ; break end
+            if isnan(residue);       converged = false; break end
+            if it > maxits;          converged = false; break end
+            if residue > 0.9*lastres;  nfails += 1 end
+            if nfails == maxfails;     converged = false; break end
         end
 
         if converged
@@ -527,7 +455,6 @@ function hm_solve!(
             F .+= ΔFin
             Uex .= UexN
             Fex .= FexN
-            Rc .= (1.0-αcr).*Rc .+ R  # update cumulated residue
 
             # Backup converged state at ips
             copyto!.(StateBk, State)
@@ -541,83 +468,71 @@ function hm_solve!(
                 end
             end
 
-            update_single_loggers!(dom)
+            update_single_loggers!(model) # Tracking nodes, ips, etc.
 
             # Update time
             t += Δt
             T += ΔT
 
             # Check for saving output file
-            if T>Tcheck-Ttol && save_outs
-                env.cout += 1
-                iout = env.cout
-                update_output_data!(dom)
-                complete_uw_h(dom)
-                update_composed_loggers!(dom)
-                save(dom, "$outdir/$filekey-$iout.vtu", printlog=printlog)
-                Tcheck += ΔTcheck # find the next output time
+            if abs(T - Tout) < Ttol && save_outs
+                env.stagebits.out += 1
+                iout = env.stagebits.out
+                update_output_data!(model)
+                update_composed_loggers!(model)
+                complete_uw_h(model)
+                save(model, "$outdir/$filekey-$iout.vtu", report=report)
+                Tout += ΔTout # find the next output time
             end
 
             if autoinc
-                if ΔTbk>0.0
-                    ΔT = min(ΔTbk, Tcheck-T)
-                    ΔTbk = 0.0
+                if ΔT_bk>0.0
+                    ΔT = ΔT_bk
                 else
-                    if nits==1
-                        q = (1+tanh(log10(tol/residue1)))^1
-                    else
-                        q = 1.0
-                    end
-
-                    ΔTtr = min(q*ΔT, 1/nincs, 1-T)
-                    if T+ΔTtr>Tcheck-Ttol
-                        ΔTbk = ΔT
-                        ΔT = Tcheck-T
-                        @assert ΔT>=0.0
-                    else
-                        ΔT = ΔTtr
-                        ΔTbk = 0.0
-                    end
+                    ΔT = min(1.5*ΔT, 1.0/nincs)
                 end
+            end
+            ΔT_bk = 0.0
+
+            # Fix ΔT in case T+ΔT>Tout
+            if T+ΔT>Tout
+                ΔT_bk = ΔT
+                ΔT = Tout-T
             end
         else
             # Restore counters
             inc -= 1
-            env.cinc -= 1
+            env.stagebits.inc -= 1
+            ΔT_bk = ΔT
 
-            copyto!.(StateBk, State)
-
+            # Restore the state to last converged increment
             if autoinc
-                verbosity>1 && notify("increment failed", level=3)
-                q = (1+tanh(log10(tol/residue1)))
-                q = clamp(q, 0.2, 0.9)
-                errored && (q=0.7)
-                ΔT = q*ΔT
+                verbosity>1 && println("    increment failed.")
+                ΔT *= 0.5
                 ΔT = round(ΔT, sigdigits=3)  # round to 3 significant digits
                 if ΔT < Ttol
-                    return failure("hm_solve!: solver did not converge")
+                    printstyled("solve!: solver did not converge \e[K \n", color=:red)
+                    return false
                 end
             else
-                return failure("hm_solve!: solver did not converge")
+                printstyled("solve!: solver did not converge \e[K \n", color=:red)
+                return false
             end
         end
 
+        # Set Δt according to ΔT
+        Δt = ΔT*time_span
     end
 
     if !save_outs
-        update_output_data!(dom)
-        complete_uw_h(dom)
-        update_composed_loggers!(dom)
+	update_output_data!(model)
+	complete_uw_h(model)
+	update_composed_loggers!(model)
     end
 
     # time spent
-    progress = @sprintf("%4.2f", T*100)
-    verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)%\e[K\n", bold=true, color=:blue) # color 111
-    if verbosity>0 
-        message("valid increments: ", inc)
-        message("time spent: ", see(sw, format=:hms))
-    end
-    getlapse(sw)>60 && sound_alert()
+    verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress 100%\e[K\n", bold=true, color=:blue) # color 111
+    verbosity==1 && println("  time spent: ", see(sw, format=:hms), "\e[K")
 
-    return success()
+    return true
 end

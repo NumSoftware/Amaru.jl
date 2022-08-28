@@ -24,10 +24,10 @@ materials = ["solids" => ElasticSolidThermo(
     cv    = cv,
     alpha = alpha,
 )]
-dom = Domain(msh, materials)
+model = Model(msh, materials)
 
 loggers = [:(y == 1) => NodeGroupLogger("book3.dat")]
-setloggers!(dom, loggers)
+setloggers!(model, loggers)
 
 bcs = [
     :(x == 0) => NodeBC(ut = 10.0),
@@ -35,17 +35,6 @@ bcs = [
     :(y == 0) => NodeBC(ux = 0, uy = 0),
     :(x == 1) => NodeBC(fx = 100.0),
 ]
+addstage!(model, bcs, tspan=3000000, nincs=10)
 
-tm_solve!(
-    dom,
-    bcs,
-    end_time = 300000.0,
-    tol      = 0.1,
-    nincs    = 10,
-    nouts    = 10,
-)
-# Output
-#save(dom, "dom3.vtk")
-#save(log1, "book3.dat")
-
-
+tm_solve!(model, tol=0.1, report=true)

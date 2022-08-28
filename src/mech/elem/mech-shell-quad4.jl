@@ -18,7 +18,7 @@ mutable struct ShellQUAD4<:Mechanical
     end
 end
 
-matching_shape_family(::Type{ShellQUAD4}) = SOLID_CELL
+matching_shape_family(::Type{ShellQUAD4}) = BULKCELL
 
 function distributed_bc(elem::ShellQUAD4, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
@@ -370,7 +370,7 @@ function elem_stiffness(elem::ShellQUAD4)
     return Kelem, map, map
 end
 
-function elem_update!(elem::ShellQUAD4, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
+function elem_update!(elem::ShellQUAD4, U::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
     dU  = U[map]
     F[map] += K*dU

@@ -137,7 +137,7 @@ function (cells::Array{<:AbstractCell,1})(filter=nothing; tag=nothing, shape=not
     end
 
     if isa(filter, Symbol)
-        families = Dict(:solids=>SOLID_CELL, :lines=>LINE_CELL, :joints=>JOINT_CELL, :linejoints=>LINEJOINT_CELL, :tipjoints=>TIPJOINT_CELL)
+        families = Dict(:solids=>BULKCELL, :lines=>LINECELL, :joints=>JOINTCELL, :linejoints=>LINEJOINTCELL, :tipjoints=>TIPJOINT)
         family = families[filter]
     end
 
@@ -168,7 +168,7 @@ function (cells::Array{<:AbstractCell,1})(filter=nothing; tag=nothing, shape=not
 
         for i in indexes
             cell = cells[i]
-            cell.shape.family == JOINT_CELL || continue
+            cell.shape.family == JOINTCELL || continue
             ndim = cell.shape.ndim+1
             @assert ndim==size(A,2)
             C = getcoords(cells[i], ndim)
@@ -198,12 +198,12 @@ function Base.getproperty(c::AbstractCell, s::Symbol)
 end
 
 function Base.getproperty(cells::Array{<:AbstractCell,1}, s::Symbol)
-    s == :solids   && return filter(cell -> cell.shape.family==SOLID_CELL, cells)
-    s == :lines    && return filter(cell -> cell.shape.family==LINE_CELL, cells)
-    s == :joints   && return filter(cell -> cell.shape.family==JOINT_CELL, cells)
-    s in (:linejoints, :joints1D, :joints1d) && return filter(cell -> cell.shape.family==LINEJOINT_CELL, cells)
-    s == :tipjoints   && return filter(cell -> cell.shape.family==TIPJOINT_CELL, cells)
-    s == :embedded && return filter(cell -> cell.shape.family==LINE_CELL && length(cell.linked_elems)>0, cells)
+    s in (:solids, :bulks) && return filter(cell -> cell.shape.family==BULKCELL, cells)
+    s == :lines    && return filter(cell -> cell.shape.family==LINECELL, cells)
+    s == :joints   && return filter(cell -> cell.shape.family==JOINTCELL, cells)
+    s in (:linejoints, :joints1D, :joints1d) && return filter(cell -> cell.shape.family==LINEJOINTCELL, cells)
+    s == :tipjoints   && return filter(cell -> cell.shape.family==TIPJOINT, cells)
+    s == :embedded && return filter(cell -> cell.shape.family==LINECELL && length(cell.linked_elems)>0, cells)
     s == :nodes && return getnodes(cells)
     s == :filter && return cells
     
@@ -213,45 +213,89 @@ function Base.getproperty(cells::Array{<:AbstractCell,1}, s::Symbol)
 end
 
 
-# Index operator for a collection of elements. This function is not type stable
-function Base.getindex(cells::Array{<:AbstractCell,1}, s::Symbol)
-    s == :all      && return cells
-    s == :solids   && return filter(cell -> cell.shape.family==SOLID_CELL, cells)
-    s == :lines    && return filter(cell -> cell.shape.family==LINE_CELL, cells)
-    s == :joints   && return filter(cell -> cell.shape.family==JOINT_CELL, cells)
-    s in (:linejoints, :joints1D, :joints1d) && return filter(cell -> cell.shape.family==LINEJOINT_CELL, cells)
-    s == :tipjoints   && return filter(cell -> cell.shape.family==TIPJOINT_CELL, cells)
-    s == :nodes   && return getnodes(cells)
-    error("getindex: $(typeof(cells)) has no property $s")
-end
+function Base.getindex(
+    cells::Array{<:AbstractCell,1}, 
+    filters::Union{Symbol,Expr,Symbolic,String,CellFamily,CellShape,Matrix}...;
+    invert=false
+    )
+    
+    filtered = collect(1:length(cells))
 
+    for filter in filters
 
-function Base.getindex(cells::Array{<:AbstractCell,1}, tag::String)
-    return filter(cell -> cell.tag==tag, cells)
-end
+        if isa(filter, Symbol)
+            if filter in (:solids, :bulks) 
+                filter=BULKCELL
+            elseif filter == :lines
+                filter=LINECELL
+            elseif filter == :joints
+                filter=JOINTCELL
+            elseif filter in (:linejoints, :joints1D, :joints1d) 
+                filter=LINEJOINTCELL
+            elseif filter == :tipjoints
+                filter=TIPJOINT
+            end
+        end
 
+        if isa(filter, Expr) || isa(filter, Symbolic) 
+            nodes = getnodes(cells)
+            pointmap = zeros(Int, maximum(node.id for node in nodes) ) # points and pointmap may have different sizes
 
-function Base.getindex(cells::Array{Ty,1}, filter_ex::Expr) where Ty<:AbstractCell
-    length(cells)==0 && return Ty[]
+            T = Bool[]
+            for (i,node) in enumerate(nodes)
+                pointmap[node.id] = i
+                x, y, z = node.coord.x, node.coord.y, node.coord.z
+                push!(T, eval_arith_expr(filter, x=x, y=y, z=z))
+            end
+    
+            filtered = Int[ i for i in filtered if all( T[pointmap[node.id]] for node in cells[i].nodes ) ]
+        elseif isa(filter, Symbol)
+            if filter==:active
+                filtered = Int[ i for i in filtered if cells[i].active ]
+            elseif filter in (:embedded, :embeddeds)
+                filtered = Int[ i for i in filtered if cells[i].shape.family==LINECELL && length(cells[i].linked_elems)>0 ]
+            else
+                error("getindex: cannot filter array of Cell with symbol $(repr(filter))")
+            end
+        elseif isa(filter, String)
+            filtered = Int[ i for i in filtered if cells[i].tag==filter ]
+        elseif isa(filter, CellFamily)
+            filtered = Int[ i for i in filtered if cells[i].shape.family==filter ]
+        elseif isa(filter, CellShape)
+            filtered = Int[ i for i in filtered if cells[i].shape==filter ]
+        elseif isa(filter, Matrix) # plane
 
-    # cells id must be set
-    nodes = unique(p->p.id, p for c in cells for p in c.nodes )
-    sort!(nodes, by=p->p.coord.x+p.coord.y+p.coord.z)
-    pointmap = zeros(Int, maximum(node.id for node in nodes) )
-    # points and pointmap may have different sizes
+            # plane normal
+            tol = 1e-5
+            A = plane # coplanar points
+            I = ones(size(A,1))
+            n = normalize(pinv(A.+tol/100)*I) # best fit normal        
 
-    T = Bool[]
-    for (i,node) in enumerate(nodes)
-        pointmap[node.id] = i
-        x, y, z = node.coord
-        push!(T, eval_arith_expr(filter_ex, x=x, y=y, z=z))
+            indexes = copy(filtered)
+            filtered = Int[]
+
+            for i in indexes
+                cell = cells[i]
+                cell.shape.family == JOINTCELL || continue
+                ndim = cell.shape.ndim+1
+                @assert ndim==size(A,2)
+                C = getcoords(cells[i], ndim)
+                I = ones(size(C,1))
+                N = pinv(C.+tol/100)*I # best fit normal 
+                norm(C*N-I)<tol || continue # check if cell is coplanar
+                normalize!(N)
+                norm(N-n)<tol || continue # check if planes are parallel
+                dot(A[1,:]-C[1,:], n)<tol && push!(filtered, i)
+            end
+        end
+
     end
 
-    R = Ty[]
-    for cell in cells
-        all( T[pointmap[node.id]] for node in cell.nodes ) && push!(R, cell)
+    if invert
+        filtered = setdiff(1:length(cells), filtered)
     end
-    return R
+
+    return cells[filtered]
 end
 
 function nearest(cells::Array{Cell,1}, coord)

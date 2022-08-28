@@ -672,7 +672,7 @@ end
 
 
 function isinverted(elem::AbstractCell)
-    elem.shape.family==LINE_CELL && return false
+    elem.shape.family==LINECELL && return false
 
     if elem.shape.ndim==2
         coords = getcoords(elem)
@@ -715,7 +715,7 @@ end
 
 
 function flip!(elem::AbstractCell)
-    elem.shape.family==LINE_CELL && return elem
+    elem.shape.family==LINECELL && return elem
 
     if elem.shape==TRI3
         nidx = [1,3,2]

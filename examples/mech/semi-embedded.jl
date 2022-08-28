@@ -22,7 +22,7 @@ mats = [
        ]
 
 
-dom = Domain(msh, mats)
+model = Model(msh, mats)
 
 bcs = [
        :(y==0 && z==0) => NodeBC(ux=0, uy=0, uz=0),
@@ -30,7 +30,7 @@ bcs = [
        :(z==1) => SurfaceBC(tz=-1000),
       ]
 
-solve!(dom, bcs, nincs=20, verbosity=1)
-save(dom, "domain.vtk")
+solve!(model,nincs=20, verbosity=1)
+save(model, "domain.vtk")
 
-mplot(dom, "beam.pdf", field="sa", fieldmult=1e-3, axis=false, opacity=0.1, dist=6, colorbarlabel="axial stress in bars")
+mplot(model, "beam.pdf", field="sa", fieldmult=1e-3, axis=false, opacity=0.1, dist=6, colorbarlabel="axial stress in bars")

@@ -313,7 +313,7 @@ function stress_update(mat::DamageConcrete, state::DamageConcreteState, Δε::Ar
     #state.damt = 1.0 - σfun(state.ε̅tmax)/state.ε̅tmax/mat.E0
     #state.damc = 1.0 + σfun(-state.ε̅cmax)/state.ε̅cmax/mat.E0
 
-    #state.env.cstage==1 && state.env.cinc==2 && error()
+    #state.env.cstage==1 && state.env.stagebits.inc==2 && error()
 
     return Δσ, success()
 end

@@ -44,7 +44,7 @@ end
 function MakeTET4()
     shape             = CellShape()
     shape.name        = "TET4"
-    shape.family      = SOLID_CELL
+    shape.family      = BULKCELL
     shape.ndim        = 3
     shape.npoints     = 4
     shape.basic_shape = shape
@@ -192,7 +192,7 @@ end
 function MakeTET10()
     shape             = CellShape()
     shape.name        = "TET10"
-    shape.family      = SOLID_CELL
+    shape.family      = BULKCELL
     shape.ndim        = 3
     shape.npoints     = 10
     shape.basic_shape = TET4
@@ -261,7 +261,7 @@ end
 function MakePYR5()
     shape             = CellShape()
     shape.name        = "PYR5"
-    shape.family      = SOLID_CELL
+    shape.family      = BULKCELL
     shape.ndim        = 3
     shape.npoints     = 5
     shape.basic_shape = shape
@@ -408,7 +408,7 @@ end
 function MakePYR13()
     shape             = CellShape()
     shape.name        = "PYR13"
-    shape.family      = SOLID_CELL
+    shape.family      = BULKCELL
     shape.ndim        = 3
     shape.npoints     = 13
     shape.basic_shape = PYR5
@@ -502,7 +502,7 @@ end
 function MakeHEX8()
     shape             = CellShape()
     shape.name        = "HEX8"
-    shape.family      = SOLID_CELL
+    shape.family      = BULKCELL
     shape.ndim        = 3
     shape.npoints     = 8
     shape.basic_shape = shape
@@ -511,7 +511,7 @@ function MakeHEX8()
     shape.edge_idxs   = edge_idxs_HEX8
     shape.facet_shape = QUAD4
     shape.nat_coords  = coords_HEX8
-    shape.quadrature  = Dict( 0 => HEX_IP2, 8 => HEX_IP2, 27 => HEX_IP3 )
+    shape.quadrature  = Dict( 0 => HEX_IP8, 8 => HEX_IP8, 27 => HEX_IP27 )
     shape.func        = shape_func_HEX8
     shape.deriv       = shape_deriv_HEX8
     return shape
@@ -688,7 +688,7 @@ end
 function MakeHEX20()
     shape             = CellShape()
     shape.name        = "HEX20"
-    shape.family      = SOLID_CELL
+    shape.family      = BULKCELL
     shape.ndim        = 3
     shape.npoints     = 20
     shape.basic_shape = HEX8
@@ -697,7 +697,7 @@ function MakeHEX20()
     shape.edge_idxs   = edge_idxs_HEX20
     shape.facet_shape = QUAD8
     shape.nat_coords  = coords_HEX20
-    shape.quadrature  = Dict( 0 => HEX_IP2, 8 => HEX_IP2, 27 => HEX_IP3 ) # Note: Reduced integration may produce spurius modes
+    shape.quadrature  = Dict( 0 => HEX_IP8, 8 => HEX_IP8, 27 => HEX_IP27 ) # Note: Reduced integration may produce spurius modes
     shape.func        = shape_func_HEX20
     shape.deriv       = shape_deriv_HEX20
     return shape
@@ -953,7 +953,7 @@ end
 function MakeHEX27()
     shape             = CellShape()
     shape.name        = "HEX27"
-    shape.family      = SOLID_CELL
+    shape.family      = BULKCELL
     shape.ndim        = 3
     shape.npoints     = 27
     shape.basic_shape = HEX8
@@ -962,7 +962,7 @@ function MakeHEX27()
     shape.edge_idxs   = edge_idxs_HEX27
     shape.facet_shape = QUAD9
     shape.nat_coords  = coords_HEX27
-    shape.quadrature  = Dict( 0 => HEX_IP3, 8 => HEX_IP2, 27 => HEX_IP3 ) # Note: Reduced integration may produce spurius modes
+    shape.quadrature  = Dict( 0 => HEX_IP27, 8 => HEX_IP8, 27 => HEX_IP27 ) # Note: Reduced integration may produce spurius modes
     shape.func        = shape_func_HEX27
     shape.deriv       = shape_deriv_HEX27
     return shape
@@ -1019,7 +1019,7 @@ end
 function MakeWED6()
     shape             = CellShape()
     shape.name        = "WED6"
-    shape.family      = SOLID_CELL
+    shape.family      = BULKCELL
     shape.ndim        = 3
     shape.npoints     = 6
     shape.basic_shape = shape
@@ -1150,7 +1150,7 @@ end
 function MakeWED15()
     shape             = CellShape()
     shape.name        = "WED15"
-    shape.family      = SOLID_CELL
+    shape.family      = BULKCELL
     shape.ndim        = 3
     shape.npoints     = 15
     shape.basic_shape = WED6

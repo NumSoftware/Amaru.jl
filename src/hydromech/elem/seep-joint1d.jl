@@ -20,7 +20,7 @@ mutable struct SeepJoint1D<:Hydromechanical
     SeepJoint1D() = new()
 end
 
-matching_shape_family(::Type{SeepJoint1D}) = LINEJOINT_CELL
+matching_shape_family(::Type{SeepJoint1D}) = LINEJOINTCELL
 
 function elem_config_dofs(elem::SeepJoint1D)
     # No need to add dofs since they will be added by linked elements
@@ -48,7 +48,6 @@ end
 function mountB(elem::SeepJoint1D, R, Ch, Ct)
     hook = elem.linked_elems[1]
     bar  = elem.linked_elems[2]
-    nnodes  = length(elem.nodes)
     nbnodes = length(bar.nodes)
     D = bar.shape.deriv(R)
     J = Ct'*D
@@ -82,9 +81,6 @@ function mountB(elem::SeepJoint1D, R, Ch, Ct)
 end
 
 function elem_conductivity_matrix(elem::SeepJoint1D)
-    nnodes = length(elem.nodes)
-    hook = elem.linked_elems[1]
-    bar  = elem.linked_elems[2]
     h    = elem.mat.h
     map_w = [ dof.eq_id for dof in elem.uw_dofs ]
     nuwnodes = length(map_w)
@@ -103,8 +99,6 @@ function elem_conductivity_matrix(elem::SeepJoint1D)
 end
 
 function elem_internal_forces(elem::SeepJoint1D, F::Array{Float64,1})
-    hook = elem.linked_elems[1]
-    bar  = elem.linked_elems[2]
     h    = elem.mat.h
 
     map_w = [ dof.eq_id for dof in elem.uw_dofs ]
@@ -124,9 +118,7 @@ function elem_internal_forces(elem::SeepJoint1D, F::Array{Float64,1})
     F[map_w] += dFw
 end
 
-function elem_update!(elem::SeepJoint1D, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
-    hook = elem.linked_elems[1]
-    bar  = elem.linked_elems[2]
+function elem_update!(elem::SeepJoint1D, DU::Array{Float64,1}, Δt::Float64)
     h    = elem.mat.h
 
     map_w = [ dof.eq_id for dof in elem.uw_dofs ]
@@ -151,8 +143,7 @@ function elem_update!(elem::SeepJoint1D, DU::Array{Float64,1}, DF::Array{Float64
         dFw += coef*Bp'*V
     end
 
-    DF[map_w] += dFw
-    return success()
+    return dFw, map_w, success()
 end
 
 function elem_extrapolated_node_vals(elem::SeepJoint1D)

@@ -21,7 +21,7 @@ mutable struct MechSolid<:Mechanical
     end
 end
 
-matching_shape_family(::Type{MechSolid}) = SOLID_CELL
+matching_shape_family(::Type{MechSolid}) = BULKCELL
 
 # function elem_init(elem::MechSolid)
 #     ipdata_ty = typeof(elem.ips[1].state)
@@ -54,6 +54,7 @@ matching_shape_family(::Type{MechSolid}) = SOLID_CELL
 function distributed_bc(elem::MechSolid, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
     return mech_solid_boundary_forces(elem, facet, key, val)
 end
+
 
 function body_c(elem::MechSolid, key::Symbol, val::Union{Real,Symbol,Expr})
     return mech_solid_body_forces(elem, key, val)
@@ -122,7 +123,7 @@ function elem_stiffness(elem::MechSolid)
         @gemm J = C'*dNdR
         @gemm dNdX = dNdR*inv(J)
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         setB(elem, ip, dNdX, B)
 
         # compute K
@@ -164,7 +165,7 @@ function elem_mass(elem::MechSolid)
 
         @gemm J = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute M
         coef = ρ*detJ*ip.w*th
@@ -178,7 +179,7 @@ function elem_mass(elem::MechSolid)
 end
 
 
-function elem_internal_forces(elem::MechSolid, F::Array{Float64,1})
+function elem_internal_forces(elem::MechSolid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
@@ -202,7 +203,6 @@ function elem_internal_forces(elem::MechSolid, F::Array{Float64,1})
         @gemm J = C'*dNdR
         @gemm dNdX = dNdR*inv(J)
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in element $(elem.id)")
         setB(elem, ip, dNdX, B)
 
         σ    = ip.state.σ
@@ -210,12 +210,11 @@ function elem_internal_forces(elem::MechSolid, F::Array{Float64,1})
         @gemv dF += coef*B'*σ
     end
     
-
-    F[map] += dF
+    return dF, map, success()
 end
 
 
-function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::MechSolid, U::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
@@ -241,18 +240,16 @@ function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1},
         @gemm J = C'*dNdR
         @gemm dNdX = dNdR*inv(J)
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
         setB(elem, ip, dNdX, B)
 
         @gemv Δε = B*dU
         Δσ, status = stress_update(elem.mat, ip.state, Δε)
-        failed(status) && return failure("MechSolid: Error at integration point $(ip.id)")
+        failed(status) && return dF, map, failure("MechSolid: Error at integration point $(ip.id)")
         coef = detJ*ip.w*th
         @gemv dF += coef*B'*Δσ
     end
 
-    F[map] += dF
-    return success()
+    return dF, map, success()
 end
 
 

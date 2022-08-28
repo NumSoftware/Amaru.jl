@@ -58,7 +58,7 @@ function update_logger!(logger::NodeLogger, domain)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, printlog=false)
+        save(logger, filename, report=false)
     end
 end
 
@@ -114,14 +114,14 @@ function update_logger!(logger::IpLogger, domain)
     isdefined(logger, :ip) || return
 
     vals = ip_vals(logger.ip)
-    vals[:out] = domain.env.cout
+    vals[:out] = domain.env.stagebits.out
     domain.env.transient && (vals[:t] = domain.env.t)
 
     push!(logger.table, vals)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, printlog=false)
+        save(logger, filename, report=false)
     end
 end
 
@@ -166,14 +166,14 @@ export FacesSumLogger, EdgesSumLogger, NodesSumLogger
 
 
 function setup_logger!(domain, filter, logger::FaceLogger)
-    if length(domain.elems[:joints]) > 0
+    if length(domain.elems.joints) > 0
         warn("setup_logger: Using FaceLogger in a mesh with joint elemets may provide wrong results.")
     end
 
     logger.filter = filter
     logger.faces = domain.faces[logger.filter]
     length(logger.faces) == 0 && warn("setup_logger: No faces found for filter expression: ", logger.filter)
-    logger.nodes = logger.faces[:nodes]
+    logger.nodes = logger.faces.nodes
 end
 
 
@@ -181,7 +181,7 @@ function setup_logger!(domain, filter, logger::EdgeLogger)
     logger.filter = filter
     logger.edges = domain.edges[logger.filter]
     length(logger.edges) == 0 && warn("setup_logger: No edges found for filter expression: ", logger.filter)
-    logger.nodes = logger.edges[:nodes]
+    logger.nodes = logger.edges.nodes
 end
 
 
@@ -202,14 +202,14 @@ function update_logger!(logger::FacetLogger, domain)
     valsU = OrderedDict( Symbol(key) => mean(tableU[key]) for key in keys(tableU) ) # gets the average of essential values
     valsF = OrderedDict( Symbol(key) => sum(tableF[key])  for key in keys(tableF) ) # gets the sum for each component
     vals  = merge(valsU, valsF)
-    vals[:out] = domain.env.cout
+    vals[:out] = domain.env.stagebits.out
     domain.env.transient && (vals[:t] = domain.env.t)
 
     push!(logger.table, vals)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, printlog=false)
+        save(logger, filename, report=false)
     end
 end
 
@@ -255,14 +255,14 @@ function update_logger!(logger::NodeSumLogger, domain)
     valsU = OrderedDict( Symbol(key) => mean(tableU[key]) for key in keys(tableU) ) # gets the average of essential values
     valsF = OrderedDict( Symbol(key) => sum(tableF[key])  for key in keys(tableF) ) # gets the sum for each component
     vals  = merge(valsU, valsF)
-    vals[:out] = domain.env.cout
+    vals[:out] = domain.env.stagebits.out
     domain.env.transient && (vals[:t] = domain.env.t)
 
     push!(logger.table, vals)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, printlog=false)
+        save(logger, filename, report=false)
     end
 end
 
@@ -302,7 +302,7 @@ function update_logger!(logger::NodeGroupLogger, domain)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, printlog=false)
+        save(logger, filename, report=false)
     end
 end
 
@@ -343,7 +343,7 @@ function update_logger!(logger::IpGroupLogger, domain)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, printlog=false)
+        save(logger, filename, report=false)
     end
 end
 
@@ -390,13 +390,13 @@ function update_logger!(logger::PointLogger, domain)
         size(V,2)==1 || continue
         vals[k] = dot(V[map], N)
     end
-    vals[:out] = domain.env.cout
+    vals[:out] = domain.env.stagebits.out
     domain.env.transient && (vals[:t] = domain.env.t)
     push!(logger.table, vals)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, printlog=false)
+        save(logger, filename, report=false)
     end
 end
 
@@ -467,7 +467,7 @@ function update_logger!(logger::SegmentLogger, domain)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, printlog=true)
+        save(logger, filename, report=true)
     end
 end
 
@@ -476,19 +476,19 @@ end
 # =========================
 
 
-function save(logger::AbstractLogger, filename::String; printlog=true)
+function save(logger::AbstractLogger, filename::String; report=true)
     if isdefined(logger, :table)
-        save(logger.table, filename, printlog=printlog)
+        save(logger.table, filename, report=report)
     else
-        save(logger.book, filename, printlog=printlog)
+        save(logger.book, filename, report=report)
     end
 end
 
 
-function reset!(logger::AbstractLogger)
-    if isdefined(logger, :table)
-        logger.table = DataTable()
-    else
-        logger.book = DataBook()
-    end
-end
+# function reset!(logger::AbstractLogger)
+#     if isdefined(logger, :table)
+#         logger.table = DataTable()
+#     else
+#         logger.book = DataBook()
+#     end
+# end

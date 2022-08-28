@@ -52,7 +52,7 @@ end
 function MakeTRI3()
     shape             = CellShape()
     shape.name        = "TRI3"
-    shape.family      = SOLID_CELL
+    shape.family      = BULKCELL
     shape.ndim        = 2
     shape.npoints     = 3
     shape.basic_shape = shape
@@ -138,7 +138,7 @@ end
 function MakeTRI6()
     shape             = CellShape()
     shape.name        = "TRI6"
-    shape.family      = SOLID_CELL
+    shape.family      = BULKCELL
     shape.ndim        = 2
     shape.npoints     = 6
     shape.basic_shape = TRI3
@@ -189,7 +189,7 @@ end
 function MakeTRI9()
     shape             = CellShape()
     shape.name        = "TRI9"
-    shape.family      = SOLID_CELL
+    shape.family      = BULKCELL
     shape.ndim        = 2
     shape.npoints     = 9
     shape.basic_shape = TRI3
@@ -241,7 +241,7 @@ end
 function MakeTRI10()
     shape             = CellShape()
     shape.name        = "TRI10"
-    shape.family      = SOLID_CELL
+    shape.family      = BULKCELL
     shape.ndim        = 2
     shape.npoints     = 10
     shape.basic_shape = TRI3
@@ -313,7 +313,7 @@ end
 function MakeQUAD4()
     shape             = CellShape()
     shape.name        = "QUAD4"
-    shape.family      = SOLID_CELL
+    shape.family      = BULKCELL
     shape.ndim        = 2
     shape.npoints     = 4
     shape.basic_shape = shape
@@ -322,7 +322,7 @@ function MakeQUAD4()
     shape.edge_idxs   = []
     shape.facet_shape = LIN2
     shape.nat_coords  = coords_QUAD4
-    shape.quadrature  = Dict( 0 => QUAD_IP2, 1 => QUAD_IP1, 4 => QUAD_IP2, 9 => QUAD_IP3, 16 => QUAD_IP4 )
+    shape.quadrature  = Dict( 0 => QUAD_IP4, 1 => QUAD_IP1, 4 => QUAD_IP4, 9 => QUAD_IP9, 16 => QUAD_IP16 )
     shape.func        = shape_func_QUAD4
     shape.deriv       = shape_deriv_QUAD4
     return shape
@@ -412,7 +412,7 @@ end
 function MakeQUAD8()
     shape             = CellShape()
     shape.name        = "QUAD8"
-    shape.family      = SOLID_CELL
+    shape.family      = BULKCELL
     shape.ndim        = 2
     shape.npoints     = 8
     shape.basic_shape = QUAD4
@@ -421,7 +421,7 @@ function MakeQUAD8()
     shape.edge_idxs   = []
     shape.facet_shape = LIN3
     shape.nat_coords  = coords_QUAD8
-    shape.quadrature  = Dict( 0 => QUAD_IP2, 1 => QUAD_IP1, 4 => QUAD_IP2, 9 => QUAD_IP3, 16 => QUAD_IP4 )
+    shape.quadrature  = Dict( 0 => QUAD_IP4, 1 => QUAD_IP1, 4 => QUAD_IP4, 9 => QUAD_IP9, 16 => QUAD_IP16 )
     shape.func        = shape_func_QUAD8
     shape.deriv       = shape_deriv_QUAD8
     return shape
@@ -516,7 +516,7 @@ end
 function MakeQUAD9()
     shape             = CellShape()
     shape.name        = "QUAD9"
-    shape.family      = SOLID_CELL
+    shape.family      = BULKCELL
     shape.ndim        = 2
     shape.npoints     = 9
     shape.basic_shape = QUAD4
@@ -525,7 +525,7 @@ function MakeQUAD9()
     shape.edge_idxs   = []
     shape.facet_shape = LIN3
     shape.nat_coords  = coords_QUAD9
-    shape.quadrature  = Dict( 0 => QUAD_IP3, 4 => QUAD_IP2, 9 => QUAD_IP3, 16 => QUAD_IP4 )
+    shape.quadrature  = Dict( 0 => QUAD_IP9, 4 => QUAD_IP4, 9 => QUAD_IP9, 16 => QUAD_IP16 )
     shape.func        = shape_func_QUAD9
     shape.deriv       = shape_deriv_QUAD9
     return shape
@@ -639,7 +639,7 @@ end
 function MakeQUAD12()
     shape             = CellShape()
     shape.name        = "QUAD12"
-    shape.family      = SOLID_CELL
+    shape.family      = BULKCELL
     shape.ndim        = 2
     shape.npoints     = 12
     shape.basic_shape = QUAD4
@@ -648,7 +648,7 @@ function MakeQUAD12()
     shape.edge_idxs   = []
     shape.facet_shape = LIN4
     shape.nat_coords  = coords_QUAD12
-    shape.quadrature  = Dict( 0 => QUAD_IP3, 4 => QUAD_IP2, 9 => QUAD_IP3, 16 => QUAD_IP4 )
+    shape.quadrature  = Dict( 0 => QUAD_IP9, 4 => QUAD_IP4, 9 => QUAD_IP9, 16 => QUAD_IP16 )
     shape.func        = shape_func_QUAD12
     shape.deriv       = shape_deriv_QUAD12
     return shape
@@ -689,7 +689,7 @@ end
 function MakeQUAD16()
     shape             = CellShape()
     shape.name        = "QUAD16"
-    shape.family      = SOLID_CELL
+    shape.family      = BULKCELL
     shape.ndim        = 2
     shape.npoints     = 16
     shape.basic_shape = QUAD4
@@ -698,7 +698,7 @@ function MakeQUAD16()
     shape.edge_idxs   = []
     shape.facet_shape = LIN4
     shape.nat_coords  = coords_QUAD16
-    shape.quadrature  = Dict( 0 => QUAD_IP4, 4 => QUAD_IP2, 9 => QUAD_IP3, 16 => QUAD_IP4 )
+    shape.quadrature  = Dict( 0 => QUAD_IP16, 4 => QUAD_IP4, 9 => QUAD_IP9, 16 => QUAD_IP16 )
     shape.func        = shape_func_QUAD16
     shape.deriv       = shape_deriv_QUAD16
     return shape

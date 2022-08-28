@@ -1,11 +1,11 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-function save_xml(dom::Domain, filename::String)
+function save_xml(model::Model, filename::String)
     io = IOBuffer()
-    nnodes = length(dom.nodes)
-    nelems = length(dom.elems)
+    nnodes = length(model.nodes)
+    nelems = length(model.elems)
 
-    env = dom.env
+    env = model.env
     attributes=OrderedDict{String,String}()
 
     fields = fieldnames(typeof(env))
@@ -17,13 +17,13 @@ function save_xml(dom::Domain, filename::String)
         attributes[string(fld)] = string(value)
     end
 
-    # Domain
-    root = Xnode("Domain", attributes=attributes)
+    # Model
+    root = Xnode("Model", attributes=attributes)
 
     # Materials
     xmats = Xnode("Materials")
     mat_dict = OrderedDict{UInt, Material}()
-    for elem in dom.elems
+    for elem in model.elems
         hs = hash(elem.mat)
         haskey(mat_dict, hs) && continue
         mat_dict[hs] = elem.mat
@@ -40,7 +40,7 @@ function save_xml(dom::Domain, filename::String)
 
     # Nodes
     xnodes = Xnode("Nodes")
-    for node in dom.nodes
+    for node in model.nodes
         atts = OrderedDict(
                            "id"=>string(node.id),
                            "tag"=>string(node.tag),
@@ -65,7 +65,7 @@ function save_xml(dom::Domain, filename::String)
 
     # Elements
     xelems = Xnode("Elements")
-    for elem in dom.elems
+    for elem in model.elems
         atts = OrderedDict(
                            "id"=>string(elem.id),
                            "shape"=>string(elem.shape.name),
@@ -101,7 +101,7 @@ function save_xml(dom::Domain, filename::String)
 
     # NodeData
     xnodedata = Xnode("NodeData")
-    for (field,D) in dom.node_data
+    for (field,D) in model.node_data
         isempty(D) && continue
         isfloat = eltype(D)<:AbstractFloat
         dtype = isfloat ? "Float64" : "Int32"
@@ -123,7 +123,7 @@ function save_xml(dom::Domain, filename::String)
 
     # ElemData
     xelemdata = Xnode("ElemData")
-    for (field,D) in dom.elem_data
+    for (field,D) in model.elem_data
         isempty(D) && continue
         isfloat = eltype(D)<:AbstractFloat
         dtype = isfloat ? "Float64" : "Int32"
@@ -150,28 +150,28 @@ function save_xml(dom::Domain, filename::String)
 end
 
 """
-    save(domain, filename, printlog=true)
+    save(domain, filename, report=true)
 
 Saves a domain object into a file. Available formats are vtu, vtk and xml.
 """
-function save(domain::Domain, filename::String; printlog=true)
+function save(domain::Model, filename::String; report=true)
     
 
     formats = (".vtk", ".vtu", ".xml")
     _, format = splitext(filename)
-    format in formats || error("save: Cannot save Domain to $filename. Available formats are $formats.")
+    format in formats || error("save: Cannot save Model to $filename. Available formats are $formats.")
 
     if format==".xml"; 
         save_xml(domain, filename)
-        printlog && printstyled( "  file $filename written \e[K \n", color=:cyan)
+        report && printstyled( "  file $filename written \e[K \n", color=:cyan)
     else
-        invoke(save, Tuple{AbstractMesh,String}, domain, filename, printlog=printlog)
+        invoke(save, Tuple{AbstractDomain,String}, domain, filename, report=report)
     end
 end
 
 
-function save(elems::Array{<:Element,1}, filename::String; printlog=true)
-    save(Domain(elems), filename, printlog=printlog)
+function save(elems::Array{<:Element,1}, filename::String; report=true)
+    save(Model(elems), filename, report=report)
 end
 
 
@@ -206,20 +206,20 @@ function setfields!(obj, dict; exclude::Tuple{Vararg{Symbol}}=())
 end
 
 
-function Domain(filename::String; printlog=true)
+function Model(filename::String; report=true)
     suitable_formats = (".xml",)
     
 
-    printlog && printstyled("Loading Domain: filename $filename\n", bold=true, color=:cyan)
+    report && printstyled("Loading Model: filename $filename\n", bold=true, color=:cyan)
 
     basename, format = splitext(filename)
 
-    format in suitable_formats || error("Domain: cannot read format \"$format\". Suitable formats are $suitable_formats.")
+    format in suitable_formats || error("Model: cannot read format \"$format\". Suitable formats are $suitable_formats.")
 
-    domain = Domain()
+    domain = Model()
     env = ModelEnv()
 
-    printlog && printstyled("  loading xml file...\r", color=:cyan)
+    report && printstyled("  loading xml file...\r", color=:cyan)
     xdoc = Xdoc(filename)
     xdomain = xdoc.root
     setfields!(env, xdomain.attributes)
@@ -227,7 +227,7 @@ function Domain(filename::String; printlog=true)
     domain.env = env
     domain.ndim = env.ndim
 
-    printlog && printstyled("  setting materials...\e[K\r", color=:cyan)
+    report && printstyled("  setting materials...\e[K\r", color=:cyan)
     materials = Material[]
     xmats = xdomain("Materials")
     for xmat in xmats.children
@@ -238,7 +238,7 @@ function Domain(filename::String; printlog=true)
         push!(materials, mat)
     end
 
-    printlog && printstyled("  setting nodes...\e[K\r", color=:cyan)
+    report && printstyled("  setting nodes...\e[K\r", color=:cyan)
     xnodes = xdomain("Nodes")
     for xnode in xnodes.children
         node = Node()
@@ -256,7 +256,7 @@ function Domain(filename::String; printlog=true)
         push!(domain.nodes, node)
     end
 
-    printlog && printstyled("  setting elements...\e[K\r", color=:cyan)
+    report && printstyled("  setting elements...\e[K\r", color=:cyan)
     xelems = xdomain("Elements")
     for xelem in xelems.children
         T = eval(Symbol(xelem.name))
@@ -276,7 +276,7 @@ function Domain(filename::String; printlog=true)
     end
 
     # Setting linked elements
-    printlog && printstyled("  setting linked elements...\e[K\r", color=:cyan)
+    report && printstyled("  setting linked elements...\e[K\r", color=:cyan)
     for (i,xelem) in enumerate(xelems.children)
         linked_str = xelem.attributes["linked_elems"]
         linked_str == "" && continue
@@ -285,7 +285,7 @@ function Domain(filename::String; printlog=true)
     end
 
     # Quadrature and initialization
-    printlog && printstyled("  setting integration points...\e[K\r", color=:cyan)
+    report && printstyled("  setting integration points...\e[K\r", color=:cyan)
     for (i,xelem) in enumerate(xelems.children)
         elem = domain.elems[i]
         nips = length(xelem.children)
@@ -307,7 +307,7 @@ function Domain(filename::String; printlog=true)
     domain.faces = get_surface(domain.elems)
     domain.edges = getedges(domain.faces)
 
-    printlog && printstyled("  setting additional data...\e[K\r", color=:cyan)
+    report && printstyled("  setting additional data...\e[K\r", color=:cyan)
 
     TYPES = Dict("Float32"=>Float32, "Float64"=>Float64, "Int32"=>Int32, "Int64"=>Int64)
     nnodes = length(domain.nodes)
@@ -339,14 +339,14 @@ function Domain(filename::String; printlog=true)
         end
     end
 
-    printlog && printstyled( "  file $filename loaded \e[K \n", color=:cyan)
+    report && printstyled( "  file $filename loaded \e[K \n", color=:cyan)
 
     return domain
 
 end
 
-function get_segment_data(dom::Domain, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=50)
-    data = dom.node_data
+function get_segment_data(model::Model, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=50)
+    data = model.node_data
     table = DataTable(["s"; collect(keys(data))])
     X1 = [X1; 0.0][1:3]
     X2 = [X2; 0.0][1:3]
@@ -357,7 +357,7 @@ function get_segment_data(dom::Domain, X1::Array{<:Real,1}, X2::Array{<:Real,1},
     for i in 1:npoints
         X = X1 + Δ*(i-1)
         s = s1 + Δs*(i-1)
-        cell = find_elem(X, dom.elems, dom._elempartition, 1e-7, Cell[])
+        cell = find_elem(X, model.elems, model._elempartition, 1e-7, Cell[])
         coords = getcoords(cell)
         R = inverse_map(cell.shape, coords, X)
         N = cell.shape.func(R)

@@ -9,7 +9,7 @@ It contains geometric fields as: nodes, elems, faces, edges, ndim, quality, etc.
 # Fields
 $(FIELDS)
 """
-mutable struct Mesh<:AbstractMesh
+mutable struct Mesh<:AbstractDomain
     "mesh dimensions"
     ndim ::Int
     " array of nodes"
@@ -54,7 +54,7 @@ function get_node(nodes::Dict{UInt64,Node}, C::AbstractArray{<:Real})
     return get(nodes, hs, nothing)
 end
 
-function Base.copy(mesh::AbstractMesh)
+function Base.copy(mesh::AbstractDomain)
     newmesh = Mesh()
     ndim = mesh.ndim
     newmesh.ndim = ndim
@@ -184,7 +184,7 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
     for cell in mesh.elems
 
         # adding cell edges
-        if cell.shape.family == SOLID_CELL #is_solid(cell.shape)
+        if cell.shape.family == BULKCELL #is_solid(cell.shape)
             for edge in getedges(cell)
                 hs = hash(edge)
                 all_edges[hs] = edge
@@ -219,7 +219,7 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
         end
 
         # embedded line cells
-        if cell.shape.family == LINE_CELL && length(cell.linked_elems)>0
+        if cell.shape.family == LINECELL && length(cell.linked_elems)>0
             edge1 = Cell(cell.shape, cell.nodes)
             edge2 = Cell(LIN2, [ cell.nodes[1], cell.linked_elems[1].nodes[1] ])
             all_edges[hash(edge1)] = edge1
@@ -324,7 +324,7 @@ end
 
 
 # Updates numbering, faces and edges in a Mesh object
-function fixup!(mesh::Mesh; printlog=false, genfacets::Bool=true, genedges::Bool=true, reorder::Bool=false)
+function fixup!(mesh::Mesh; report=false, genfacets::Bool=true, genedges::Bool=true, reorder::Bool=false)
 
     # Get ndim
     ndim = 1
@@ -346,14 +346,14 @@ function fixup!(mesh::Mesh; printlog=false, genfacets::Bool=true, genedges::Bool
 
     # Facets
     if genfacets
-        printlog && print("  finding facets...   \r")
+        report && print("  finding facets...   \r")
         mesh.faces = get_surface(mesh.elems)
     end
     ndim==2 && (mesh.edges=mesh.faces)
 
     # Edges
     if genedges && ndim==3
-        printlog && print("  finding edges...   \r")
+        report && print("  finding edges...   \r")
         mesh.edges = getedges(mesh.faces)
     end
 
@@ -481,7 +481,7 @@ function Mesh(
               conns      :: Array{Array{Int64,1},1},
               cellshapes :: Array{CellShape,1}=CellShape[];
               tag        :: String="",
-              printlog=false,
+              report=false,
              )
     
 
@@ -549,7 +549,7 @@ The printed output can be set to `verbose` or `silent`.
 julia> using Amaru;
 julia> B1 = Block([0 0; 1 1], nx=2, ny=2);
 julia> B2 = Block([1 0; 2 1], nx=3, ny=2);
-julia> Mesh(B1, B2, printlog=true)
+julia> Mesh(B1, B2, report=true)
 Mesh
   ndim: 2
   nodes: 18-element Vector{Node}:
@@ -605,7 +605,7 @@ function Mesh(
     genfacets :: Bool = true,
     genedges  :: Bool = true,
     reorder   :: Bool = true,
-    printlog=false,
+    report=false,
 )
                  
 
@@ -627,7 +627,7 @@ function Mesh(
 
     nmeshes = length(meshes)
     nblocks = length(blocks)
-    if printlog
+    if report
         printstyled("Mesh generation:\n", bold=true, color=:cyan)
         nmeshes>0 && @printf "  %5d meshes\n" nmeshes
         @printf "  %5d blocks\n" nblocks
@@ -645,20 +645,20 @@ function Mesh(
     for (i,b) in enumerate(blocks)
         # b.id = i
         split_block(b, mesh)
-        printlog && print("  spliting block ", i, "...    \r")
+        report && print("  spliting block ", i, "...    \r")
     end
 
     # Updates numbering, quality, facets and edges
-    fixup!(mesh, printlog=printlog, genfacets=genfacets, genedges=genedges, reorder=reorder)
+    fixup!(mesh, report=report, genfacets=genfacets, genedges=genedges, reorder=reorder)
 
-    if printlog
+    if report
         npoints = length(mesh.nodes)
         ncells  = length(mesh.elems)
         @printf "  %4dd mesh                             \n" mesh.ndim
         @printf "  %5d nodes\n" npoints
         @printf "  %5d cells\n" ncells
     end
-    if printlog
+    if report
         nfaces  = length(mesh.faces)
         nedges  = length(mesh.edges)
         if genfacets
@@ -834,7 +834,7 @@ end
 
 
 export get_segment_data
-function get_segment_data(msh::AbstractMesh, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; n=200)
+function get_segment_data(msh::AbstractDomain, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; n=200)
     data = msh.node_data
     table = DataTable(["s"; collect(keys(data))])
     X1 = [X1; 0.0][1:3]
@@ -871,12 +871,12 @@ function randmesh(n::Int...)
         lx, ly = (1.0, 1.0)
         nx, ny = n
         cellshape = rand((TRI3, TRI6, QUAD4, QUAD8))
-        m = Mesh(Block([0.0 0.0; lx ly], nx=nx, ny=ny, cellshape=cellshape), printlog=false)
+        m = Mesh(Block([0.0 0.0; lx ly], nx=nx, ny=ny, cellshape=cellshape), report=false)
     else
         lx, ly, lz = (1.0, 1.0, 1.0)
         nx, ny, nz = n
         cellshape = rand((TET4, TET10, HEX8, HEX20))
-        m = Mesh(Block([0.0 0.0 0.0; lx ly lz], nx=nx, ny=ny, nz=nz, cellshape=cellshape), printlog=false)
+        m = Mesh(Block([0.0 0.0 0.0; lx ly lz], nx=nx, ny=ny, nz=nz, cellshape=cellshape), report=false)
     end
 end
 

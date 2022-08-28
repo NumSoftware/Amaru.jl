@@ -7,7 +7,7 @@ bl1 = BlockInset( [1.0 1.0 1.0; 0.0 0.0 0.0], curvetype="polyline", tag="drains"
 bl2 = BlockInset( [1.0 1.0 1.0; 2.0 2.0 0.0], curvetype="polyline", tag="drains", jointtag="joints")
 bls = [bl, bl1, bl2]
 
-mesh = Mesh(bls, printlog=false)
+mesh = Mesh(bls)
 
 gw = 10.0     # water specific weight
 A  = 0.01
@@ -17,25 +17,22 @@ kj = 10
 Q  = 1       # volume em metro cubico
 
 # FEM analysis
-
 mats = [
     "solids" => LinSeep(k=k, gammaw=gw, S=0.0),
     "joints" => Joint1DLinSeep(k=kj, gammaw=gw, A=A),
     "drains" => LinDrainPipe(k=kb, gammaw=gw, A=A),
 ]
 
-dom = Domain(mesh, mats, gammaw=10)
+model = Model(mesh, mats, gammaw=10)
 
 # Stage 1: pore-pressure stabilization
 bcs = [
        :(z==1.0) => NodeBC(uw=0),
       ]
+addstage!(model, bcs, tspan=100, nincs=2, nouts=2)
+hm_solve!(model, tol=1e-2, report=true)
 
-hm_solve!(dom, bcs, end_time=100.0, nincs=1, tol=1e-2, nouts=1, printlog=false)
-
-dom.env.t = 0.0
-
-tag!(dom.elems[:solids][:nodes][:(x==1.0 && y==1.0 && z==1.0)], "input")
+tag!(model.elems.solids[:nodes][:(x==1.0 && y==1.0 && z==1.0)], "input")
 
 # Stage 2: volume application
 bcs = [
@@ -43,7 +40,5 @@ bcs = [
        :(x==2.0 && y==2.0 && z==0.0) => NodeBC(uw=0),
        "input" => NodeBC(fw=:($Q*t/100)),
       ]
-
-hm_solve!(dom, bcs, end_time=100.0, nincs=2, tol=1e-2, nouts=2, printlog=false)
-
-save(dom, "dom1.vtk")
+addstage!(model, bcs, tspan=100, nincs=2, nouts=2)
+hm_solve!(model, tol=1e-2, report=true)

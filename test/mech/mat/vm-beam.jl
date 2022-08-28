@@ -5,7 +5,7 @@ using Test
 bls = [
        Block( [0 0 -0.05; 0.05 1.0 0.05], nx=1, ny=50, nz=2, cellshape=HEX20),
       ]
-msh= Mesh(bls, printlog=false)
+msh= Mesh(bls)
 iptag!(msh.elems[end], "ip")
 
 # fem domain
@@ -23,13 +23,13 @@ bcs = [
     SurfaceBC(:(y==1 && z==0), :(uz=-0.1)),
 ]
 
-dom = Domain(msh, mat)
-mon = NodeLogger(dom.edges[:(y==1 && z==0)])
-setlogger!(dom, mon)
+model = Model(msh, mat)
+mon = NodeLogger(model.edges[:(y==1 && z==0)])
+setlogger!(model, mon)
 
-@test solve!(dom, bcs, autoinc=true, nincs=6, nouts=1, tol=1e-2, printlog=false).success
+@test solve!(model, autoinc=true, nincs=6, nouts=1, tol=1e-2).success
 
-if Amaru.config.makeplots
+if @isdefined(makeplots) && makeplots
     using PyPlot
     tab = mon.table
     plot( tab[:uz], tab[:fz], "-o")

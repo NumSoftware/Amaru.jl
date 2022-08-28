@@ -12,7 +12,7 @@ mats = [
         #MaterialBind(:all, PPRod(E=210e6, A=0.01, sig_y=500e3, H=1000)),
        ]
 
-dom = Domain(msh, mats)
+model = Model(msh, mats)
 
 bcs = [
        NodeBC(:(x==0 && y==0), :(ux=0, uy=0)),
@@ -21,5 +21,5 @@ bcs = [
       ]
 
 
-@test solve!(dom, bcs, nincs=10, printlog=false).success
+@test solve!(model,nincs=10).success
 

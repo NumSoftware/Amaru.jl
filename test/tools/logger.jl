@@ -2,11 +2,11 @@ using Amaru
 using Test
 
 bl = Block( [0 0 0; 1 1 1], nx=4, ny=4, nz=4, cellshape=HEX8, tag="solids")
-mesh = Mesh(bl, printlog=false)
+mesh = Mesh(bl)
 
 mats = [ "solids" => ElasticSolid(E=100.0, nu=0.2) ]
 
-dom = Domain(mesh, mats)
+model = Model(mesh, mats)
 
 # Loggers
 node_log1 = NodeLogger("node_log1.dat")
@@ -38,13 +38,14 @@ loggers = [
            [0.5 0.5 0.0; 1 1 0] => SegmentLogger("slog.dat"),
           ]
 
-setloggers!(dom, loggers)
+setloggers!(model, loggers)
 
 bcs = [
        :(z==0)         => NodeBC(ux=0, uy=0, uz=0 ),
        :(x==0 || x==1) => NodeBC(ux=0),
        :(z==1)         => SurfaceBC(tz=-10.0),
       ]
+addstage!(model, bcs, nincs=4, nouts=4)
 
-@test solve!(dom, bcs, nincs=4, nouts=4, printlog=false).success
-println("  uz = ", dom.nodes[:(z==1)][1].dofdict[:uz].vals)
+@test solve!(model).success
+println("  uz = ", model.nodes[:(z==1)][1].dofdict[:uz].vals)

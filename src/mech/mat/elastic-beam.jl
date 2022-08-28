@@ -77,12 +77,12 @@ end
 function ip_state_vals(mat::ElasticBeam, state::ElasticBeamState)
     vals =  OrderedDict(
       "sx'"   => state.σ[1],
-      "sx'y'" => state.σ[2],
       "ex'"   => state.ε[1],
+      "sx'y'" => state.σ[2]/SR2,
       "A"     => mat.A )
     if state.env.ndim==3
-        vals["sx'z'"] = state.σ[2]
-        vals["sx'y'"] = state.σ[3]
+        vals["sx'z'"] = state.σ[2]/SR2
+        vals["sx'y'"] = state.σ[3]/SR2
     end
     return vals
 end

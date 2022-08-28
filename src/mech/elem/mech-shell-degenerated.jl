@@ -21,7 +21,7 @@ mutable struct ShellDegenerated<:Mechanical
     end
 end
 
-matching_shape_family(::Type{ShellDegenerated}) = SOLID_CELL
+matching_shape_family(::Type{ShellDegenerated}) = BULKCELL
 
 function elem_init(elem::ShellDegenerated)
     elem.shape==QUAD8 || error("elem_init: ShellDegenerated only works with shape QUAD8.")
@@ -413,7 +413,7 @@ function elem_stiffness(elem::ShellDegenerated)
         #Bt = Tt*B
 
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
   
         #coef1 = detJ*ip.w  # check *0.5
@@ -435,7 +435,7 @@ function elem_stiffness(elem::ShellDegenerated)
 end
 
 
-function elem_update!(elem::ShellDegenerated, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
+function elem_update!(elem::ShellDegenerated, U::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
     dU  = U[map]
     F[map] += K*dU
@@ -444,7 +444,7 @@ end
 
 
 #=
-function elem_update!(elem::ShellDegenerated, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::ShellDegenerated, U::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)

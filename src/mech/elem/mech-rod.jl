@@ -22,7 +22,7 @@ mutable struct MechRod<:Mechanical
     end
 end
 
-matching_shape_family(::Type{MechRod}) = LINE_CELL
+matching_shape_family(::Type{MechRod}) = LINECELL
 
 function elem_stiffness(elem::MechRod)
     local E::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
@@ -79,7 +79,7 @@ function elem_mass(elem::MechRod)
 
         @gemm J = C'*dNdR
         detJ = norm(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute M
         coef = ρ*A*detJ*ip.w
@@ -167,9 +167,9 @@ end
 
 
 
-function elem_update!(elem::MechRod, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::MechRod, U::Array{Float64,1}, Δt::Float64)
 
-    ndim   = elem.env.ndim
+    ndim   = elem.env.ndim 
     nnodes = length(elem.nodes)
     A      = elem.mat.A
     keys   = [:ux, :uy, :uz][1:ndim]
@@ -201,8 +201,7 @@ function elem_update!(elem::MechRod, U::Array{Float64,1}, F::Array{Float64,1}, �
         dF  .+= coef*vec(B')*dsig
     end
 
-    F[map] .+= dF
-    return success()
+    return dF, map, success()
 end
 
 function elem_vals(elem::MechRod)

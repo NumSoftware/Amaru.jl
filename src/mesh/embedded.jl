@@ -1,12 +1,12 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-# Remove joint cells from mesh and set up line cells as embedded cells
+# Remove line-joint-cells from mesh and set up line cells as embedded cells
 function generate_embedded_cells!(mesh::Mesh)
 
     newcells = []
     id = 0
     for cell in mesh.elems
-        if cell.shape.family==LINEJOINT_CELL
+        if cell.shape.family==LINEJOINTCELL
             # link solid cell to line cells
             solid, line = cell.linked_elems
             line.linked_elems = [ solid ]

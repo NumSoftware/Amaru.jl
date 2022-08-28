@@ -92,6 +92,8 @@ matching_elem_type(::CyclicRSJoint) = MechRodSolidJoint
 # Creates a new instance of Ip data
 ip_state_type(mat::CyclicRSJoint) = CyclicRSJointState
 
+is_linear(state::CyclicRSJointState) = state.elastic
+
 
 function tau(mat::CyclicRSJoint, ips::CyclicRSJointState, s::Float64)
     s = abs(s)

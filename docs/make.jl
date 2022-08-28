@@ -14,7 +14,7 @@ makedocs(
         "Introduction" => "index.md",
         "Tutorial" => "tutorial/tutorial.md",
         "Mesh" =>  "meshing/meshing.md",
-        "Domain model" =>  "modelling/modelling.md",
+        "Model model" =>  "modelling/modelling.md",
         "Mechanical analysis" =>  "modelling/mech/mech.md",
     ],
     doctest = false

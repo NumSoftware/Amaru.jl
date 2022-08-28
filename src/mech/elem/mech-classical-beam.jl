@@ -19,7 +19,7 @@ mutable struct MechClassicalBeam<:Mechanical
     end
 end
 
-matching_shape_family(::Type{MechClassicalBeam}) = LINE_CELL
+matching_shape_family(::Type{MechClassicalBeam}) = LINECELL
 
 function beam_shape_func(x::Float64, L::Float64)
     N = Array{Float64}(undef,6)
@@ -73,7 +73,7 @@ function elem_map(elem::MechClassicalBeam)::Array{Int,1}
 end
 
 # Return the class of element where this material can be used
-#client_shape_class(mat::MechClassicalBeam) = LINE_CELL
+#client_shape_class(mat::MechClassicalBeam) = LINECELL
 
 function calcT(elem::MechClassicalBeam, C)
     c = (C[2,1] - C[1,1])/L
@@ -235,7 +235,7 @@ function elem_mass(elem::MechClassicalBeam)
 end
 
 
-function elem_update!(elem::MechClassicalBeam, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
+function elem_update!(elem::MechClassicalBeam, U::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
     dU  = U[map]
     F[map] += K*dU

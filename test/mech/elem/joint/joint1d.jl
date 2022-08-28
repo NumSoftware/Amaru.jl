@@ -8,7 +8,7 @@ bl2 = move!( copy(bl1), dx=0.6)
 bl3 = move!( copy(bl1), dx=0.3)
 bls = [bl, bl1, bl2, bl3 ]
 
-mesh = Mesh(bls, printlog=false)
+mesh = Mesh(bls)
 
 # FEM analysis
 
@@ -18,7 +18,7 @@ mats = [
     "bars"   => ElasticRod(E=1.e8, A=0.005),
 ]
 
-dom = Domain(mesh, mats)
+model = Model(mesh, mats)
 
 bcs = [
        :(y==0 && z==0) => NodeBC(uy=0, uz=0),
@@ -26,13 +26,6 @@ bcs = [
        :(z==1) => SurfaceBC(tz=-1000 ),
       ]
 
-mon = NodeLogger()
-loggers = [
-           :(x==0.5 && y==3.0 && z==0.5) => mon
-          ]
-
-setloggers!(dom, loggers)
-
-@test solve!(dom, bcs, nincs=20, printlog=false).success
-
-save(dom, "dom1.vtk")
+addlogger!(model, :(x==0.5 && y==3.0 && z==0.5) => NodeLogger() )
+addstage!(model, bcs, nincs=20)
+@test solve!(model, report=true).success

@@ -11,7 +11,7 @@ for shape in [ :LIN2, :LIN3, :LIN4, :TRI3, :QUAD4, :TRI6, :QUAD8 ]
     ex = quote
         const $j2shape    = $makefunc()
         $j2shape.name     = $name
-        $j2shape.family   = JOINT_CELL
+        $j2shape.family   = JOINTCELL
         $j2shape.npoints  = $shape.npoints*2
         $j2shape.basic_shape = $shape.basic_shape
         $j2shape.vtk_type    = VTK_POLY_VERTEX
@@ -40,7 +40,7 @@ for shape in [ :LIN2, :LIN3, :LIN4, :TRI3, :QUAD4, :TRI6, :QUAD8 ]
     ex = quote
         const $j3shape    = $makefunc()
         $j3shape.name     = $name
-        $j3shape.family   = JOINT_CELL
+        $j3shape.family   = JOINTCELL
         $j3shape.npoints  = $shape.npoints*2 + $shape.basic_shape.npoints
         $j3shape.basic_shape = $shape.basic_shape
         $j3shape.vtk_type    = VTK_POLY_VERTEX
@@ -65,7 +65,7 @@ J3TRI3.quadrature[0] = TRI_IP3
 function MakeJLINK2()
     shape             = CellShape()
     shape.name        = "JLINK2"
-    shape.family      = LINEJOINT_CELL
+    shape.family      = LINEJOINTCELL
     shape.ndim        = 1
     shape.npoints     = 2
     shape.basic_shape = LIN2
@@ -93,7 +93,7 @@ export JLINK2
 function MakeJLINK3()
     shape             = CellShape()
     shape.name        = "JLINK3"
-    shape.family      = LINEJOINT_CELL
+    shape.family      = LINEJOINTCELL
     shape.ndim        = 1
     shape.npoints     = 3
     shape.basic_shape = LIN3
@@ -125,10 +125,10 @@ function shape_deriv_TIPJOINT(R::AbstractArray{<:Float64,1})
 end
 
 # constructor
-function MakeTIPJOIN()
+function MakeTIPJOINT()
     shape             = CellShape()
     shape.name        = "TIPJOINT"
-    shape.family      = TIPJOINT_CELL
+    shape.family      = TIPJOINTCELL
     shape.ndim        = 0
     shape.npoints     = 1
     shape.basic_shape = LIN2
@@ -144,5 +144,5 @@ function MakeTIPJOIN()
 end
 
 # Registration
-const TIPJOINT = MakeTIPJOIN()
+const TIPJOINT = MakeTIPJOINT()
 export TIPJOINT

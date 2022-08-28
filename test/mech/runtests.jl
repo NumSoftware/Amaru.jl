@@ -1,3 +1,5 @@
+makeplots = false
+
 files = [
          # Static analysis: bulk elements
          "elem/elastic-elems.jl",
@@ -8,14 +10,16 @@ files = [
          "mat/vm.jl",
          "mat/mazars.jl",
          #"mat/sc.jl",
-         #"mat/sc-beam.jl",
 
-         # Static analysis: rod models
+         # Static analysis: rod elems
          "elem/rod/truss.jl",
          "elem/rod/pprod.jl",
-
-         # Static analysis: beam models
-         #"beam/beam.jl",
+       
+         # Static analysis: beam elems
+         "elem/beam/beam.jl",
+         
+         # Static analysis: shell elems
+         "elem/shell/shell.jl",
 
          # Static analysis: joint models
          "elem/joint/joint1d.jl",

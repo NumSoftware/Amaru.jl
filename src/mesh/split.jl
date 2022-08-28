@@ -9,7 +9,7 @@ export generate_joints_by_tag!
 
 
 """
-    generate_joints!(mesh, filter=nothing; layers=2, tag="", midnodestag="", intertags=false, printlog=false)
+    generate_joints!(mesh, filter=nothing; layers=2, tag="", midnodestag="", intertags=false, report=false)
 
 Adds joint elements between bulk elements in `mesh`.  If `filter` is supplied
 (element tag or expression), the joints are generated over a specific region
@@ -48,7 +48,7 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
         targetcells = mesh.elems.solids
         lockedcells = setdiff(mesh.elems, targetcells)
         # remove previous joints at filtered region
-        lockedcells = setdiff(lockedcells, lockedcells[:joints])
+        lockedcells = setdiff(lockedcells, lockedcells.joints)
     else
         targetcells = mesh.elems[filter].solids
         if length(targetcells)==0
@@ -56,7 +56,7 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
         end
         lockedcells = setdiff(mesh.elems, targetcells)
         # remove previous joints at filtered region
-        lockedcells = setdiff(lockedcells, lockedcells[filter][:joints])
+        lockedcells = setdiff(lockedcells, lockedcells[filter].joints)
     end
 
     if !intertags
@@ -240,7 +240,7 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
 
     # Fix cells connectivities for special interface elements
     for c in lockedcells
-        c.shape.family in (TIPJOINT_CELL, LINEJOINT_CELL) || continue
+        c.shape.family in (TIPJOINT, LINEJOINTCELL) || continue
         scell = c.linked_elems[1]
         nspts = length(scell.nodes)
         c.nodes[1:nspts] .= scell.nodes
@@ -364,7 +364,7 @@ mutable struct FacePair
 end
 
 function generate_joints_candidate!(mesh::Mesh, expr::Expr, tag::String="") # TODO: needs checking
-    solids = mesh.elems[:solids][expr]
+    solids = mesh.elems.solids[expr]
     @assert length(solids)>0
 
     # List for all paired faces
@@ -483,8 +483,8 @@ function generate_joints_by_tag_2!(mesh::Mesh; layers::Int64=2, verbose::Bool=tr
     verbose && printstyled("Mesh generation of joint elements:\n", bold=true, color=:cyan)
     cells  = mesh.elems
 
-    any(c.shape.family==JOINT_CELL for c in cells) && error("generate_joints!: mesh already contains joint elements.")
-    solids = [ c for c in cells if c.shape.family==SOLID_CELL ]
+    any(c.shape.family==JOINTCELL for c in cells) && error("generate_joints!: mesh already contains joint elements.")
+    solids = [ c for c in cells if c.shape.family==BULKCELL ]
 
 
     # List all repeated faces
@@ -563,8 +563,8 @@ function generate_joints_by_tag_2!(mesh::Mesh; layers::Int64=2, verbose::Bool=tr
     # Get points from non-separated cells
     points_dict = Dict{UInt64, Node}()
     for c in mesh.elems
-        c.shape.family == SOLID_CELL && continue # skip because they have points with same coordinates
-        c.shape.family == LINEJOINT_CELL && continue # skip because their points were already considered
+        c.shape.family == BULKCELL && continue # skip because they have points with same coordinates
+        c.shape.family == LINEJOINTCELL && continue # skip because their points were already considered
         for p in c.nodes
             points_dict[hash(p)] = p
         end
@@ -639,7 +639,7 @@ function generate_joints_by_tag_2!(mesh::Mesh; layers::Int64=2, verbose::Bool=tr
     #Copying points from mesh.nodes to mesh.elems[i].nodes if joints
 
     for c in mesh.elems
-        c.shape.family == SOLID_CELL && continue
+        c.shape.family == BULKCELL && continue
         for (i,p) in enumerate(c.nodes)
             hs = hash(p)
             f = get(pointsdict_4,hs,nothing)
@@ -672,7 +672,7 @@ function generate_joints_by_tag_2!(mesh::Mesh; layers::Int64=2, verbose::Bool=tr
     #Copying points from mesh.nodes to mesh.elems[i].nodes if solids
 
     for c in mesh.elems
-        c.shape.family == JOINT_CELL && continue
+        c.shape.family == JOINTCELL && continue
         for (i,p) in enumerate(c.nodes)
             hs = hash(p)
             f = get(pointsdict_1,hs,nothing)

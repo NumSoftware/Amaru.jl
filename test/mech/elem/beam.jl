@@ -7,7 +7,7 @@ coord = [ 0 0; 1 0 ]
 conn  = [ 1 2 ]
 
 blt = BlockTruss(coord, conn, tag="beam")
-msh = Mesh(blt, printlog=false)
+msh = Mesh(blt)
 
 # Finite element model
 
@@ -19,8 +19,8 @@ bcs =
      :(x==1 && y==0) => NodeBC(fy=-10.),
     ]
 
-#bc3 = BodyC( dom.elems, gz=-25 )
-dom = Domain(msh, mats)
+#bc3 = BodyC( model.elems, gz=-25 )
+model = Model(msh, mats)
 
-@test solve!(dom, bcs, printlog=false).success
+@test solve!(model).success
 

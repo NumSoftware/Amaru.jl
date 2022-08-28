@@ -123,7 +123,7 @@ mutable struct Block <: AbstractBlock
 
         nz==0 && (ndim=2; nz=1)
         ny==0 && (ndim=1; ny=1)
-        cellshape in shapes3d && (ndim==3 || error("Block: 3d points are required for cell shape $cellshape"))
+        cellshape in shapes3d && (ndim==3 || error("Block: 3d points and nx, ny and nz are required for cell shape $(cellshape.name)"))
 
         if ndim==1 || chord
             ncoord in (2, 3) || error("Block: invalid coordinates matrix rows ($ncoord) for dimension $ndim or chord.")

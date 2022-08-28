@@ -6,7 +6,7 @@ dis = [ -0.012, -0.095 ]
 for shape in (TRI3, TRI6, QUAD4, QUAD8, QUAD9)
     printstyled(shape.name, color=:cyan); println()
     bl = Block( [0 0; 1 1], nx=2, ny=2, cellshape=shape, tag="solids")
-    mesh = Mesh(bl, printlog=false)
+    mesh = Mesh(bl)
     tag!(mesh.faces[:(y==0)], "bottom") # bottom face
     tag!(mesh.faces[:(y==1)], "top") # top face
 
@@ -14,22 +14,22 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8, QUAD9)
         "solids" => ElasticSolid(E=100.0, nu=0.2)
     ]
 
-    dom = Domain(mesh, materials, printlog=false)
+    model = Model(mesh, materials)
 
 
     bcs = [
         "bottom" => SurfaceBC(ux=0, uy=0),
         "top"    => SurfaceBC(ty=-10.)
     ]
+    addstage!(model, bcs)
+    solve!(model).success
 
-    solve!(dom, bcs, nincs=1, printlog=false).success
-
-    top_node = dom.nodes[:(y==1)][1]
+    top_node = model.nodes[:(y==1)][1]
     ux = top_node.dofs[:ux].vals[:ux]
     uy = top_node.dofs[:uy].vals[:uy]
     @test [ux, uy] ≈ dis atol=4e-2
 
-    println( get_data(dom.nodes[:(y==1)][1]) )
+    println( get_data(model.nodes[:(y==1)][1]) )
 
 end
 
@@ -37,7 +37,7 @@ end
 for shape in (TET4, TET10, HEX8, HEX20, HEX27)
     printstyled(shape.name, color=:cyan); println()
     bl = Block( [0 0 0; 1 1 1], nx=2, ny=2, nz=2, cellshape=shape, tag="solids")
-    mesh = Mesh(bl, printlog=false)
+    mesh = Mesh(bl)
     tag!(mesh.faces[:(z==0)], "bottom") # bottom face
     tag!(mesh.faces[:(z==1)], "top") # top face
     tag!(mesh.faces[:(x==0 || x==1)], "sides") # lateral face
@@ -46,21 +46,20 @@ for shape in (TET4, TET10, HEX8, HEX20, HEX27)
         "solids" => ElasticSolid(E=100.0, nu=0.2)
     ]
 
-    dom = Domain(mesh, materials, printlog=false)
-
+    model = Model(mesh, materials)
     bcs = [
         "bottom" => SurfaceBC(ux=0, uy=0, uz=0),
         "sides"  => SurfaceBC(ux=0),
         "top"    => SurfaceBC(tz=-10.)
     ]
+    addstage!(model, bcs)
+    solve!(model).success
 
-    solve!(dom, bcs, nincs=1, printlog=false).success
-
-    top_node = dom.nodes[:(z==1)][1]
+    top_node = model.nodes[:(z==1)][1]
     uy = top_node.dofs[:uy].vals[:uy]
     uz = top_node.dofs[:uz].vals[:uz]
 
-    println( get_data(dom.nodes[:(z==1)][1]) )
+    println( get_data(model.nodes[:(z==1)][1]) )
 
     @test [uy, uz] ≈ dis atol=1e-2
 end

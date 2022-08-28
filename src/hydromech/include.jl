@@ -29,7 +29,7 @@ include("mat/tc-joint-seep.jl")
 include("mat/joint1d-lin-seep.jl")
 include("mat/joint-lin-seep.jl")
 
-# include("hydromech-solver.jl")
-include("hydromech-solver-bkp.jl")
+include("hydromech-solver.jl")
+# include("hydromech-solver-bkp.jl")
 
 export hm_solve!

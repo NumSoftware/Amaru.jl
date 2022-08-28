@@ -8,9 +8,9 @@ using Test
 # Mesh generation
 
 block = Block( [0 0 0; 1 1 1], nx=1, ny=1, nz=1, cellshape=HEX8, tag="solid")
-mesh = Mesh(block, printlog=false, reorder=false)
+mesh = Mesh(block, report=false, reorder=false)
 
-# Domain definition
+# Model definition
 
 materials = [
     "solid" => ElasticSolid(E=1.0, nu=0.3),
@@ -62,21 +62,22 @@ for (ana, bcs, dis) in zip(ana_list, bcs_list, dis_list)
 
     println("\nLoad case: $ana \n")
 
-    dom = Domain(mesh, materials, printlog=false)
-    solve!(dom, bcs, nincs=1, nouts=1, printlog=false)
+    model = Model(mesh, materials)
+    addstage!(model, bcs, nouts=1)
+    solve!(model, report=true)
 
     println("Displacements:")
-    D = get_data(dom.nodes)[[:ux, :uy, :uz]]
+    D = get_data(model.nodes)[[:ux, :uy, :uz]]
     println(D)
 
     @test dis ≈ D[:uz] atol=1e-5
 
     println("Stress:")
-    S = elems_ip_vals(dom.elems[1])[[:sxx, :syy, :szz, :syz, :sxz, :sxy]]
+    S = elems_ip_vals(model.elems[1])[[:sxx, :syy, :szz, :syz, :sxz, :sxy]]
     println(S)
 
     println("Support reactions:")
-    F = get_data(dom.nodes[:(z==0)])[[:fx, :fy, :fz]]
+    F = get_data(model.nodes[:(z==0)])[[:fx, :fy, :fz]]
     println(F)
 end
 

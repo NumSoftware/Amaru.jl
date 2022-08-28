@@ -10,6 +10,9 @@ Returns min(x,0)
 """
 neg(x) = (-abs(x)+x)/2.0
 
+# eye function
+eye(n::Int64) = Array{Float64}(I,n,n)
+
 
 """
 Returns a vector with the real roots of the quadratic polynomial ax^2 + bx + c
@@ -76,8 +79,7 @@ function cubic_roots(a,b,c,d)
     end
 end
 
-
-
+# parametric spline coefficients
 function spline_coefficients(Y::Array{Float64,1})
     n   = length(Y)
     neq = n
@@ -111,7 +113,7 @@ struct Spline
 end
 
 
-# Overloading () operator to be used with the ParamSpline structure
+# Overloading () operator to be used with the Spline structure
 function (spline::Spline)(x::Real)
     X = spline.X
     Y = spline.Y
@@ -120,7 +122,6 @@ function (spline::Spline)(x::Real)
     @assert X[1] <= x <= X[end]
     
     # Find polynomial function
-    n = length(Y)
     i = max(1, findfirst(xi->x<=xi, X) - 1)
 
     # Parametric coordinate

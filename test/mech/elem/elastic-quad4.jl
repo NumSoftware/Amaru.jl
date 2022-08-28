@@ -8,23 +8,23 @@ using Test
 # Mesh generation
 
 block = Block( [0 0; 1 1], nx=1, ny=1, cellshape=QUAD4, tag="solid")
-mesh = Mesh(block, printlog=false, reorder=false)
+mesh = Mesh(block, report=false, reorder=false)
 
-# Domain definition
+# Model definition
 
 mats = [
     "solid" => ElasticSolid(E=1.0, nu=0.25),
 ]
 
-dom = Domain(mesh, mats)
+model = Model(mesh, mats)
 
 bcs = [
     :(x==0.) => SurfaceBC(ux=0.),
     :(y==0.) => SurfaceBC(uy=0),
     :(y==1.) => SurfaceBC(ty=-1.),
 ]
-
-solve!(dom, bcs, printlog=true)
+addstage!(model, bcs, nincs=1)
+solve!(model, report=true)
 
 
 dis = 
@@ -37,15 +37,16 @@ dis =
            
 
 println("Displacements:")
-D = get_data(dom.nodes)[[:ux, :uy]]
+
+D = get_data(model.nodes)[[:ux, :uy]]
 println(D)
 
 @test dis ≈ Array(D) atol=1e-5
 
 println("Stress:")
-S = elems_ip_vals(dom.elems[1])[[:sxx, :syy, :sxy]]
+S = elems_ip_vals(model.elems[1])[[:sxx, :syy, :sxy]]
 println(S)
 
 println("Support reactions:")
-F = get_data(dom.nodes)[[:fx, :fy]]
+F = get_data(model.nodes)[[:fx, :fy]]
 println(F)

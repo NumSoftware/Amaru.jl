@@ -279,15 +279,15 @@ nothing # hide
 
 ## Finite element model
 
-To performe a finite element analysis, an instance of the `Domain` type is required.
+To performe a finite element analysis, an instance of the `Model` type is required.
 This represents the domain model and contains nodes and finite elements.
 The element instances are different from the cells in a `Mesh` object since
 the elements are constructed according to the analysis problem.
-To instantiate a `Domain` object a mesh and a list of material models objects are needed.
-The `Domain` type is used for all analysis problems, e.g. mechanical, thermal, seepage, etc.
+To instantiate a `Model` object a mesh and a list of material models objects are needed.
+The `Model` type is used for all analysis problems, e.g. mechanical, thermal, seepage, etc.
 Thus, for a particular problem, a consistent list of materials should be used.
 For example, in a mechanical analysis, all elements should be associated to mechanical material types.
-Based on the choosen materials, the `Domain` object will setup the corresponding finite elements and degrees of freedom.
+Based on the choosen materials, the `Model` object will setup the corresponding finite elements and degrees of freedom.
 
 ### Material definitions
 
@@ -306,7 +306,7 @@ nothing # hide
 
 ### Model generation
 
-The following example shows the walk through of creating a `Domain` object.
+The following example shows the walk through of creating a `Model` object.
 Note that the list of materials contains a pair relating a domain region 
 to material instance.
 ```@example
@@ -322,7 +322,7 @@ steel = ElasticSolid(E=2e8, nu=0.2) # E in kPa
 materials = [
     :(x>=0) => steel,
 ]
-model = Domain(mesh, materials)
+model = Model(mesh, materials)
 
 nothing # hide
 ```
@@ -357,7 +357,7 @@ in the ``x`` direction. Besides, the `tn` key can be used to apply traction norm
 This example shows a mechanical analysis in a steel beam.
 The left end was clamped, thus all displacements at `x==0` are set to zero.
 Also, a vertical traction is applied at the right end.
-The `solve!` function performs the calculations of a `Domain` instance
+The `solve!` function performs the calculations of a `Model` instance
 subjected to a set of boundary conditions.
 The function also updates the state variables at the elements' integration points.
 
@@ -378,14 +378,14 @@ steel = ElasticSolid(E=200e6, nu=0.2) # E in kPa
 materials = [
     :(x>=0) => steel,
 ]
-model = Domain(mesh, materials)
+model = Model(mesh, materials)
 
 bcs = [
     :(x==0) => NodeBC(ux=0, uy=0, uz=0)
     :(x==1) => SurfaceBC(tz=-1000)
 ]
 
-solve!(model, bcs, printlog=true, verbose=true)
+solve!(model, bcs, report=true, verbose=true)
 save(model, "beam.vtu")
 
 nothing # hide
@@ -428,7 +428,7 @@ materials = [
     :(x>=0.5) => steel1,
     :(x<=0.5) => steel2
 ]
-model = Domain(mesh, materials)
+model = Model(mesh, materials)
 
 bcs = [
     :(x==0) => NodeBC(ux=0, uy=0, uz=0)
@@ -463,7 +463,7 @@ nothing # hide
 
 The loggers need to be associated to the entity they track by using a filter expression, 
 coordinates or a tag string. 
-Finally, the loggers have to be linked to a `Domain` object by using the `setloggers!` function.
+Finally, the loggers have to be linked to a `Model` object by using the `setloggers!` function.
 
 ```@example loggers
 using Amaru
@@ -480,7 +480,7 @@ materials = [
     :(x>=0.5) => steel1,
     :(x<=0.5) => steel2
 ]
-model = Domain(mesh, materials)
+model = Model(mesh, materials)
 
 bcs = [
     :(x==0) => NodeBC(ux=0, uy=0, uz=0)

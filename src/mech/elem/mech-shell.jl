@@ -21,7 +21,7 @@ mutable struct MechShell<:Mechanical
     end
 end
 
-matching_shape_family(::Type{MechShell}) = SOLID_CELL
+matching_shape_family(::Type{MechShell}) = BULKCELL
 
 
 function elem_init(elem::MechShell)
@@ -199,7 +199,7 @@ function elem_stiffness(elem::MechShell)
     return K, map, map
 end
 
-function elem_update!(elem::MechShell, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
+function elem_update!(elem::MechShell, U::Array{Float64,1}, dt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     th = elem.mat.th
@@ -248,6 +248,5 @@ function elem_update!(elem::MechShell, U::Array{Float64,1}, F::Array{Float64,1},
 
     end
 
-    F[map] += dF
-    return success()
+     return dF, map, success()
 end

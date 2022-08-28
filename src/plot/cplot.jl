@@ -69,7 +69,7 @@ Plots a pyplot line chart.
 
 `tagalign       = true` : if true the tag is aligned to the curve
 
-`printlog       = false` : 
+`report       = false` : 
 
 `copypath       = ""` : path to copy ouput file
 
@@ -131,14 +131,14 @@ function cplot(
     ncol             = 0,
     xlim             = nothing,
     ylim             = nothing,
-    x2lim             = nothing,
+    x2lim            = nothing,
     equalaspect      = false,
     xscale           = "linear",
     yscale           = "linear",
     xmult            = 1.0,
     ymult            = 1.0,
-    x2mult            = 1.0,
-    y2mult            = 1.0,
+    x2mult           = 1.0,
+    y2mult           = 1.0,
     ticksinside      = true,
     axis             = true,
     arrowaxis        = false,
@@ -164,7 +164,7 @@ function cplot(
     y2scale          = "linear",
 
     copypath         = "",
-    printlog         = false
+    report         = false
 )
 
     filename = ""
@@ -185,10 +185,10 @@ function cplot(
     # isempty(filename) && (filename=fname)
     
 
-    printlog && headline("Chart plotting")
-    printlog && message("generating plot $(strip(xlabel,'$')) vs $(strip(ylabel,'$'))")
+    report && headline("Chart plotting")
+    report && message("generating plot $(strip(xlabel,'$')) vs $(strip(ylabel,'$'))")
 
-    if printlog
+    if report
         hint("Optional arguments:", level=2)
         options = "xlabel, ylabel, legendloc, xbins, ybins, grid, figsize, legendexpand, ncol,
                 xlim, ylim, xscale, yscale, fontsize, ticksinside, legendfontsize, labelspacing"
@@ -668,7 +668,7 @@ function cplot(
     else
         _, format = splitext(filename)
         plt.savefig(filename, bbox_inches="tight", pad_inches=0.01, format=format[2:end])
-        printlog && info("file $filename saved")
+        report && info("file $filename saved")
         plt.close("all")
 
         if copypath!=""
@@ -679,7 +679,7 @@ function cplot(
             end
             try
                 cp(filename, copyfile, force=true)
-                printlog && info("file $copyfile saved")
+                report && info("file $copyfile saved")
             catch err
                 notify("cplot: $filename could not be copied to $copypath")
             end

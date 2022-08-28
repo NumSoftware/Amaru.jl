@@ -79,16 +79,16 @@ include("mat/elastic-tipjoint.jl")
 include("mat/integrator.jl")
 
 # Solvers
-include("solver.jl")
+include("mech-solver.jl")
 include("dyn-solver.jl")
 include("modal-solver.jl")
 
-function reset_displacements(dom::Domain)
-    for n in dom.nodes
-        for dof in n.dofs
-            for key in (:ux, :uy: :uz)
-                haskey!(dof.vals, key) && (dof.vals[key]=0.0)
-            end
-        end
-    end
-end
+# function reset_displacements(model::Model)
+#     for n in model.nodes
+#         for dof in n.dofs
+#             for key in (:ux, :uy: :uz)
+#                 haskey!(dof.vals, key) && (dof.vals[key]=0.0)
+#             end
+#         end
+#     end
+# end

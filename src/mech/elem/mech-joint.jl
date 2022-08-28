@@ -18,7 +18,7 @@ mutable struct MechJoint<:Mechanical
 end
 
 # Return the shape family that works with this element
-matching_shape_family(::Type{MechJoint}) = JOINT_CELL
+matching_shape_family(::Type{MechJoint}) = JOINTCELL
 
 function elem_init(elem::MechJoint)
 
@@ -141,7 +141,7 @@ function elem_stiffness(elem::MechJoint)
 end
 
 
-function elem_update!(elem::MechJoint, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::MechJoint, U::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
@@ -184,13 +184,12 @@ function elem_update!(elem::MechJoint, U::Array{Float64,1}, F::Array{Float64,1},
         # internal force
         @gemv Δω = B*dU
         Δσ, status = stress_update(elem.mat, ip.state, Δω)
-        failed(status) && return status
+        failed(status) && return dF, map, status
         coef = detJ*ip.w*th
         @gemv dF += coef*B'*Δσ
     end
 
-    F[map] += dF
-    return success()
+    return dF, map, success()
 end
 
 function elem_extrapolated_node_vals(elem::MechJoint)

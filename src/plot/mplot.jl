@@ -1,7 +1,7 @@
 export mplot, mplotcolorbar
 
 const MOVETO = 1
-const LINETO = 2
+const LINECELLTO = 2
 const CURVE3 = 3
 const CURVE4 = 4
 const CLOSEPOLY = 79
@@ -13,7 +13,7 @@ function plot_data_for_cell2d(points::Array{Vec3,1}, shape::CellShape)
 
     if shape==LIN2
         verts = points
-        codes = [ MOVETO, LINETO ]
+        codes = [ MOVETO, LINECELLTO ]
     elseif shape == LIN3
         p1, p2, p3 = points
         cp    = 2*p3 - 0.5*p1 - 0.5*p2
@@ -26,7 +26,7 @@ function plot_data_for_cell2d(points::Array{Vec3,1}, shape::CellShape)
         for i in 1:n
             p2 = i<n ? points[i+1] : points[1]
             push!(verts, p2)
-            push!(codes, LINETO)
+            push!(codes, LINECELLTO)
         end
     elseif shape in (TRI6, QUAD8, QUAD9)
         n = shape==TRI6 ? 3 : 4
@@ -56,7 +56,7 @@ function plot_data_for_cell2d(points::Array{Vec3,1}, shape::CellShape)
         end
     elseif shape==JLIN2
         verts = points[1:2]
-        codes = [ MOVETO, LINETO ]
+        codes = [ MOVETO, LINECELLTO ]
     elseif shape == JLIN3
         p1, p2, p3 = points[1:3]
         cp    = 2*p3 - 0.5*p1 - 0.5*p2
@@ -160,10 +160,10 @@ function mplot(items::Union{Block, Array}, filename::String=""; args...)
     for bl in blocks
         append!(nodes, bl.nodes)
 
-        if bl.shape.family==SOLID_CELL
+        if bl.shape.family==BULKCELL
             cell = Cell(bl.shape, bl.nodes)
             push!(cells, cell)
-        elseif bl.shape.family==LINE_CELL
+        elseif bl.shape.family==LINECELL
             lines = [ Cell(LIN2, bl.nodes[i-1:i]) for i in 2:length(bl.nodes)]
             append!(cells, lines)
         else
@@ -186,7 +186,7 @@ function get_main_edges(cells::Array{<:AbstractCell,1}, angle=120)
 
     # Get edges with non-coplanar adjacent faces
     for face in cells
-        face.shape.family == SOLID_CELL || continue # only surface cells
+        face.shape.family == BULKCELL || continue # only surface cells
         face_idx = faces_dict[hash(face)]
         for edge in getedges(face)
             hs = hash(edge)
@@ -287,7 +287,7 @@ Plots a `mesh` using `PyPlot` backend. If `filename` is provided it writes a pdf
 `leaveopen     = false` : If true, leaves the plot open so other drawings can be added
 """
 function mplot(
-               mesh    ::AbstractMesh,
+               mesh    ::AbstractDomain,
                filename::String    = "";
                axis                = false,
                lw                  = 0.4,
@@ -337,20 +337,20 @@ function mplot(
                figsize             = (3,3.0),
                leaveopen           = false,
                crop                = false,
-               printlog            = false,
+               report            = false,
                copypath            = ""
               )
 
-    printlog && headline("Mesh plotting")
-    printlog && isempty(filename) && message("generating plot to file $filename")
+    report && headline("Mesh plotting")
+    report && isempty(filename) && message("generating plot to file $filename")
 
-    if printlog
+    if report
         hint("Optional arguments:", level=2)
         options = "axis, lw, markers, nodelabels, celllabels, opacity, field,
                    fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
                    colorbarlabel, colorbarlocation, colorbarorientation, colorbarpad, 
                    warpscale, hicells, elev, azim, dist, outline, outlineangle,
-                   figsize, leaveopen, printlog"
+                   figsize, leaveopen, report"
         hint(options, level=3)
         hint("Available node fields:", level=2)
         hint(join(keys(mesh.node_data), ", "), level=3)
@@ -374,7 +374,7 @@ function mplot(
         for cell in mesh.elems
             for (i,node) in enumerate(cell.nodes)
                 push!(node_ids, node.id)
-                if cell.shape.family == SOLID_CELL
+                if cell.shape.family == BULKCELL
                     newnode = Node(node.coord)
                     cell.nodes[i] = newnode
                     push!(nodes, newnode)
@@ -399,8 +399,8 @@ function mplot(
     # Get initial info from mesh
     ndim = mesh.ndim
     if ndim==2
-        areacells = [ elem for elem in mesh.elems if elem.shape.family==SOLID_CELL ]
-        linecells = [ cell for cell in mesh.elems if cell.shape.family==LINE_CELL]
+        areacells = [ elem for elem in mesh.elems if elem.shape.family==BULKCELL ]
+        linecells = [ cell for cell in mesh.elems if cell.shape.family==LINECELL]
 
         mesh.elems = [ areacells; linecells ]
         cl_ids = [ [c.id for c in areacells]; [c.id for c in linecells] ]
@@ -410,10 +410,10 @@ function mplot(
 
     elseif ndim==3
         # get surface cells and update
-        volcells  = [ elem for elem in mesh.elems if elem.shape.family==SOLID_CELL && elem.shape.ndim==3 ]
-        areacells = [ elem for elem in mesh.elems if elem.shape.family==SOLID_CELL && elem.shape.ndim==2 ]
+        volcells  = [ elem for elem in mesh.elems if elem.shape.family==BULKCELL && elem.shape.ndim==3 ]
+        areacells = [ elem for elem in mesh.elems if elem.shape.family==BULKCELL && elem.shape.ndim==2 ]
         surfcells = get_surface(volcells)
-        linecells = [ cell for cell in mesh.elems if cell.shape.family==LINE_CELL]
+        linecells = [ cell for cell in mesh.elems if cell.shape.family==LINECELL]
         outlinecells = outline ? get_outline_edges(surfcells) : Cell[]
 
         mesh.elems = [ surfcells; areacells; linecells ]
@@ -474,7 +474,7 @@ function mplot(
     if shrink<1.0
         for cell in mesh.elems
             shape = cell.shape
-            if shape.family==SOLID_CELL
+            if shape.family==BULKCELL
                 X = getcoords(cell)
                 C = vec(mean(X, dims=1))
                 for node in cell.nodes
@@ -489,7 +489,9 @@ function mplot(
     limY = collect(extrema( node.coord[2] for node in mesh.nodes) )
     limZ = collect(extrema( node.coord[3] for node in mesh.nodes) )
 
-    ll = max(norm(limX), norm(limY), norm(limZ))
+    ll = max(diff(limX)[1], diff(limY)[1], diff(limZ)[1])
+    @show limX
+    @show ll
 
     # Lazy import of PyPlot
     @eval import PyPlot:plt, matplotlib, figure, art3D, Axes3D, ioff, ColorMap, gcf
@@ -511,12 +513,6 @@ function mplot(
     # Configure plot
     if ndim==3
         ax = @eval Axes3D(figure())
-        # ax = @eval plt.axes(projection="3d")
-        try
-            ax.set_aspect("equal")
-        catch err
-            alert("mplot: Could not set aspect ratio to equal")
-        end
 
         # Set limits
         meanX = mean(limX)
@@ -528,6 +524,7 @@ function mplot(
         ax.set_xlim( meanX-ll/2, meanX+ll/2)
         ax.set_ylim( meanY-ll/2, meanY+ll/2)
         ax.set_zlim( meanZ-ll/2, meanZ+ll/2)
+        ax.set_box_aspect((diff(limX)[1], diff(limY)[1], diff(limZ)[1]))  # instead of ax.set_aspect("equal")
 
         # Labels
         ax.set_xlabel("x")
@@ -675,7 +672,7 @@ function mplot(
     has_line_field = false
     if has_field
         for (i,cell) in enumerate(mesh.elems)
-            cell.shape.family == LINE_CELL || continue
+            cell.shape.family == LINECELL || continue
             if fvals[i]!=0.0
                 has_line_field = true
                 break
@@ -693,10 +690,10 @@ function mplot(
 
         for (i,cell) in enumerate(mesh.elems)
             shape = cell.shape
-            shape.family in (SOLID_CELL, LINE_CELL) || continue
+            shape.family in (BULKCELL, LINECELL) || continue
             points = [ node.coord for node in cell.nodes ]
 
-            if shape.family==SOLID_CELL
+            if shape.family==BULKCELL
                 verts = plot_data_for_cell3d(points, shape)
 
                 if !has_field || has_line_field
@@ -726,7 +723,7 @@ function mplot(
                     # f = 0.9+0.05*abs(dot(L,N)) + 0.05*(1+dot(V,R))/2
                 end
                 fc = (f*fc[1], f*fc[2], f*fc[3], opacity)
-            elseif shape.family==LINE_CELL
+            elseif shape.family==LINECELL
                 verts = plot_data_for_cell3d(points, shape, V, 0.0075*ll*rodlw)
 
                 if has_line_field
@@ -799,14 +796,14 @@ function mplot(
         
         for (i,cell) in enumerate(mesh.elems)
             shape = cell.shape
-            shape.family in (SOLID_CELL, LINE_CELL) || continue
+            shape.family in (BULKCELL, LINECELL) || continue
             points = [ node.coord for node in cell.nodes ]
             verts, codes = plot_data_for_cell2d(points, shape)
             path  = matplotlib.path.Path(verts, codes)
             patch = matplotlib.patches.PathPatch(path)
 
 
-            if shape.family==SOLID_CELL
+            if shape.family==BULKCELL
                 if !has_field || has_line_field
                     fc = facecolor
                     ec = Tuple( (fc .+ [0.3, 0.3, 0.3, 1.0])./2 )
@@ -821,7 +818,7 @@ function mplot(
                     ec = Tuple( (fc .+ [0.3, 0.3, 0.3, 1.0])./2 )
                 end
                 push!(lineweight, lw)
-            elseif shape.family==LINE_CELL
+            elseif shape.family==LINECELL
                 if has_line_field
                     v = (fvals[i]-fieldlims[1])/(fieldlims[2]-fieldlims[1])
                     ec = cmap(v)
@@ -983,7 +980,7 @@ function mplot(
             end
         end
 
-        printlog && info("file $filename saved")
+        report && info("file $filename saved")
 
         if copypath!=""
             if isdir(copypath)
@@ -992,7 +989,7 @@ function mplot(
                 copyfile = copypath
             end
             cp(filename, copyfile, force=true)
-            printlog && info("file $copyfile saved")
+            report && info("file $copyfile saved")
         end
     end
 
@@ -1191,7 +1188,7 @@ function mplot(
     plt.rc("figure", figsize=figsize)
     maxv = 0.0
 
-    lines = [ elem.shape.family==LINE_CELL ? elem : elem.linked_elems[2] for elem in elems ]
+    lines = [ elem.shape.family==LINECELL ? elem : elem.linked_elems[2] for elem in elems ]
     coords = getcoords(getnodes(lines))
     #sumx = maximum(abs, coords[:,1])
     #sumy = maximum(abs, coords[:,2])
@@ -1259,7 +1256,7 @@ function mplot(
     dn = 0.005*xwidth
 
     for elem in elems
-        line = elem.shape.family==LINE_CELL ? elem : elem.linked_elems[2]
+        line = elem.shape.family==LINECELL ? elem : elem.linked_elems[2]
         X = [ node.coord[xidx] for node in line.nodes ]
         Y = [ node.coord[yidx] for node in line.nodes ]
         plt.plot(X, Y, "tab:gray", lw=2, solid_capstyle="round", zorder=2) # plot line

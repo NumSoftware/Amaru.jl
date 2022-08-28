@@ -8,11 +8,7 @@ bl2 = copy(bl1)
 move!(bl2, dx=0.6)
 bls = [ bl, bl1, bl2 ]
 
-msh = Mesh(bls, printlog=false)
-#msh = Mesh(bl, printlog=false)
-
-#save(msh, "msh.vtk")
-
+msh = Mesh(bls)
 
 # FEM analysis
 mats = [
@@ -21,15 +17,13 @@ mats = [
         #"embedded" => ElasticSolid(E=1.e8, A=0.005),
        ]
 
-
-dom = Domain(msh, mats)
-
+model = Model(msh, mats)
 
 bcs = [
        :(y==0 && z==0) => NodeBC(ux=0, uy=0, uz=0),
        :(y==6 && z==0) => NodeBC(ux=0, uy=0, uz=0),
        :(z==1) => SurfaceBC(tz=-1000),
       ]
+addstage!(model, bcs, nincs=20)
 
-@test solve!(dom, bcs, nincs=20, printlog=false).success
-save(dom, "dom1.vtk")
+@test solve!(model, report=true).success

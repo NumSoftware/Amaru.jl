@@ -106,7 +106,7 @@ function eigvals(T::Tensor2)::Vect
     @assert length(T) == 6
 
     t11, t22, t33, t12, t23, t13 = T
-    t23 /= SR2
+    t23 /= SR2 
     t13 /= SR2
     t12 /= SR2
     i1 = t11 + t22 + t33

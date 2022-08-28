@@ -21,7 +21,7 @@ mutable struct MechBeam<:Mechanical
     end
 end
 
-matching_shape_family(::Type{MechBeam}) = LINE_CELL
+matching_shape_family(::Type{MechBeam}) = LINECELL
 
 
 function elem_init(elem::MechBeam)
@@ -240,7 +240,7 @@ function elem_stiffness(elem::MechBeam)
 end
 
 
-function elem_update!(elem::MechBeam, U::Array{Float64,1}, F::Array{Float64,1}, dt::Float64)
+function elem_update!(elem::MechBeam, U::Array{Float64,1}, dt::Float64)
     ndim = elem.env.ndim
     nnodes = length(elem.nodes)
     thz = elem.mat.thz
@@ -281,8 +281,7 @@ function elem_update!(elem::MechBeam, U::Array{Float64,1}, F::Array{Float64,1}, 
         dF += coef*B'*Δσ
     end
 
-    F[map] += dF
-    return success()
+     return dF, map, success()
 end
 
 

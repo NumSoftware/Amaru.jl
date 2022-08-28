@@ -18,7 +18,7 @@ mutable struct ThermoSolid<:Thermomechanical
     end
 end
 
-matching_shape_family(::Type{ThermoSolid}) = SOLID_CELL
+matching_shape_family(::Type{ThermoSolid}) = BULKCELL
 
 function elem_config_dofs(elem::ThermoSolid)
     for node in elem.nodes
@@ -103,7 +103,7 @@ function elem_conductivity_matrix(elem::ThermoSolid)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J  = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         dNdX = dNdR*inv(J)
         Bt .= dNdX'
 
@@ -136,7 +136,7 @@ function elem_mass_matrix(elem::ThermoSolid)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute Cut
         coef  = elem.mat.ρ*elem.mat.cv
@@ -173,7 +173,7 @@ function elem_internal_forces(elem::ThermoSolid, F::Array{Float64,1})
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
         @gemm dNdX = dNdR*inv(J)
 
         Bt = dNdX
@@ -196,7 +196,7 @@ end
 =#
 
 
-function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     th     = elem.env.thickness
@@ -223,7 +223,7 @@ function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
         @gemm dNdX = dNdR*inv(J)
 
         Bt .= dNdX'
@@ -241,6 +241,5 @@ function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, DF::Array{Float64
         @gemv dFt += coef*Bt'*q
     end
 
-    DF[map_t] += dFt
-    return success()
+    return dFt, map_t, success()
 end

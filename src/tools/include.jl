@@ -13,6 +13,7 @@ include("quaternion.jl")
 include("tensors.jl")
 
 include("expr.jl")
+include("threads.jl")
 include("table.jl")
 include("book.jl")
 include("utils.jl")

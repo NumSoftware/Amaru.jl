@@ -39,10 +39,10 @@ bl21 = BlockInset( (1/1000)*[3*25.4 0 3*25.4; 3*25.4 136*25.4 3*25.4] , curvetyp
 
 
 mesh=Mesh(bl1, bl2, bl3, bl4, bl5, bl6, bl7, bl8, bl9, bl10, bl21, bl11, bl12, bl13, bl14, bl15, bl16, bl17, bl18, bl19, bl20,
- printlog=false)
+ report=false)
 
 
-# Domain definition
+# Model definition
 
 materials = [
     MaterialBind(:solids, DruckerPrager(E=Ec, nu=0.2, rho=roc, alpha=0.4312, kappa=3771.2) ),
@@ -51,7 +51,7 @@ materials = [
 
 ]
 
-dom = Domain(mesh, materials)
+model = Model(mesh, materials)
 
 
 
@@ -63,4 +63,4 @@ bcs = [
     ]
 
 
-modsolve!(dom, bcs, nmods=5, rayleigh=true)
+modsolve!(model,nmods=5, rayleigh=true)

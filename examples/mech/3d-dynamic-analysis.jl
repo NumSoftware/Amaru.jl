@@ -19,7 +19,7 @@ materials = [
             ]
 
 # Finite element domain
-domain = Domain(msh, materials)
+domain = Model(msh, materials)
 
 loggers = [
            :(x==0.2 && y==2 && z==0.2) => NodeLogger("end-node.dat"),

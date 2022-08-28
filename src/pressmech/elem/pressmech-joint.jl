@@ -17,7 +17,7 @@ mutable struct HydroMechJoint<:Hydromechanical
 end
 
 # Return the shape family that works with this element
-matching_shape_family(::Type{HydroMechJoint}) = JOINT_CELL
+matching_shape_family(::Type{HydroMechJoint}) = JOINTCELL
 
 function elem_config_dofs(elem::HydroMechJoint)
     nnodes = length(elem.nodes)
@@ -181,7 +181,7 @@ function elem_coupling_matrix(elem::HydroMechJoint)
 
         @gemm J = C'*dNdR
         detJ = norm2(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute Np vector
         Np = elem.shape.basic_shape.func(ip.R)
@@ -248,7 +248,7 @@ function elem_conductivity_matrix(elem::HydroMechJoint)
 
         @gemm J = C'*dNpdR
         detJ = norm2(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute Bp matrix  
         T    = matrixT(J) # rotation matrix
@@ -323,7 +323,7 @@ function elem_compressibility_matrix(elem::HydroMechJoint)
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
         @gemm J = C'*dNpdR
         detJ = norm2(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute Np matrix
         Np = elem.shape.basic_shape.func(ip.R)  
@@ -391,7 +391,7 @@ function elem_RHS_vector(elem::HydroMechJoint)
 
         @gemm J = C'*dNpdR
         detJ = norm2(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute Bp matrix
         T    = matrixT(J) #rotation matrix
@@ -477,7 +477,7 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
 
         @gemm J = dNpdR*C 
         detJ = norm2(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute Bp matrix
         T    = matrixT(J) # rotation matrix
@@ -540,7 +540,7 @@ function elem_internal_forces(elem::HydroMechJoint, F::Array{Float64,1})
 end
 =#
 
-function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, Δt::Float64)
     ndim     = elem.env.ndim
     th       = elem.env.thickness
     nnodes   = length(elem.nodes)
@@ -590,7 +590,7 @@ function elem_update!(elem::HydroMechJoint, U::Array{Float64,1}, F::Array{Float6
 
         @gemm J = C'*dNpdR
         detJ = norm2(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute Np vector
         Np = elem.shape.basic_shape.func(ip.R)

@@ -8,7 +8,7 @@ blocks = [
     Block( [0 0; 1 10], nx=1, ny=10, cellshape=QUAD4, tag="solids"),
 ]
 
-msh = Mesh(blocks, printlog=false)
+msh = Mesh(blocks)
 generate_joints!(msh, layers=3, tag="joints")
 
 
@@ -16,24 +16,24 @@ generate_joints!(msh, layers=3, tag="joints")
 # =======================
 
 # Analysis data
-load  = 10.0   
-E     = 1300.0  # Young modulus
-kappa = 4.5e-13 # Intrinsic permeability
-n     = 0.2975  # porodity 
-alpha = 1.0     # biot constant 
-nu    = 0.40    # Poisson
-eta   = 1e-6    # water viscosity
-Ks    = 1e9     # Bulk modulus of solid
-Kw    = 2e6     # Bulk modulus of fluid
-gw    = 10.0    # water specific weight
-hd    = 10.0    # drainage height
-mv    = (1+nu)*(1-2*nu)/(E*(1-nu))
-k = (kappa*gw)/eta # permeability
-cv    = k/(mv*gw)   # consolidation coefficient
-T = [ 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.6, 1.0 ]
-times = T*(hd^2/cv)
-t1 = times[1]/10
-times .+= t1
+load   = 10.0
+E      = 1300.0  # Young modulus
+kappa  = 4.5e-13 # Intrinsic permeability
+n      = 0.2975  # porosity
+alpha  = 1.0     # biot constant
+nu     = 0.40    # Poisson
+eta    = 1e-6    # water viscosity
+Ks     = 1e9     # Bulk modulus of solid
+Kw     = 2e6     # Bulk modulus of fluid
+gw     = 10.0    # water specific weight
+hd     = 10.0    # drainage height
+mv     = (1+nu)*(1-2*nu)/(E*(1-nu))
+k      = (kappa*gw)/eta # permeability
+cv     = k/(mv*gw)   # consolidation coefficient
+T      = [ 0.0, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.6, 1.0 ]
+times  = T*(hd^2/cv)
+lapses = diff(times)
+t1     = lapses[1]/10
 
 S = (alpha - n)/Ks + n/Kw 
 
@@ -50,50 +50,39 @@ for i in 1:2
         materials = materials[[1,3]]
     end
 
-    dom = Domain(msh, materials, gammaw=10)
+    model = Model(msh, materials, gammaw=10)
 
     log1 = NodeGroupLogger()
     loggers = [
         :(x==0) => log1
     ]
-    setloggers!(dom, loggers)
+    setloggers!(model, loggers)
 
 
     # Stage 1: hydrostatic pore-pressure
     # ==================================
 
     tlong = 10000*hd^2/cv
-
     bcs = [
-        :(y==0) => NodeBC(ux=0., uy=0.),
-        :(x>=0) => NodeBC(ux=0.),
-        :(y==10) => NodeBC(uw=0.),
+        :(y==0)  => NodeBC(ux=0, uy=0),
+        :(x>=0)  => NodeBC(ux=0),
+        :(y==10) => NodeBC(uw=0),
     ]
-
-    hm_solve!(dom, bcs, end_time=tlong, nincs=2, tol=1e-2, nouts=1, printlog=false)
-
-    dom.env.t = 0.0
-
+    addstage!(model, bcs, tspan=tlong, nincs=2, nouts=1)
+    hm_solve!(model, tol=1e-2, report=true)
+    model.env.t = 0.0
 
     # Stage 2: loading
-    # ================
-
-    pt(t) = -load
-    #pt(t) = t>=t1? -load : -load/t1*t
-
     bcs = [
         :(y==0)  => NodeBC(ux=0., uy=0.),
         :(x>=0)  => NodeBC(ux=0.),
         :(y==10) => SurfaceBC(ty=-load),
         :(y==10) => NodeBC(uw=0.),
     ]
-
-    hm_solve!(dom, bcs, end_time=t1, nincs=4, tol=1e-2, nouts=1, printlog=false)
-
+    addstage!(model, bcs, tspan=t1, nincs=4, nouts=1)
+    hm_solve!(model, tol=1e-2, report=true)
 
     # Stage 3: draining
-    # =================
-
     bcs = [
         :(y==0)  => NodeBC(ux=0., uy=0.),
         :(x>=0)  => NodeBC(ux=0.),
@@ -102,16 +91,15 @@ for i in 1:2
     ]
 
     Uw_vals = [] # A list with porepressure vectors
-    for t in times[1:end]
-        hm_solve!(dom, bcs, end_time=t, nincs=20, tol=1e-2, nouts=1, printlog=false)
+    for tspan in lapses
+        addstage!(model, bcs, tspan=tspan, nincs=20, nouts=1)
+        hm_solve!(model, tol=1e-2, report=true)
         push!( Uw_vals, log1.book[end][:uw] )
     end
 
 
     # Output
-    # ======
-
-    if Amaru.config.makeplots
+    if @isdefined(makeplots) && makeplots
         # Terzaghi's 1-d consolidation
         function calc_Ue(Z, T)
             sum = 0.0

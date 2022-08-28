@@ -4,7 +4,7 @@ using Test
 # mesh generation
 
 bl  = Block( [0 0; 0.2 0.1], nx=3, ny=1, cellshape=QUAD4)
-msh = Mesh(bl, printlog=false)
+msh = Mesh(bl)
 iptag!(msh.elems[2], 100)
 tag!(msh.elems[2], 100)
 #tag!(msh.elems[5], 100)
@@ -29,8 +29,8 @@ log_n3 = NodeLogger(3)
 log_n5 = NodeLogger(5)
 loggers = [log_ip, log_face, log_n3, log_n5]
 
-#dom = Domain(msh, mats, modeltype="plane-stress", thickness=1.0)
-dom = Domain(msh, mats, loggers)
+#model = Model(msh, mats, modeltype="plane-stress", thickness=1.0)
+model = Model(msh, mats, loggers)
 
 # Boundary conditions
 bcs = [
@@ -51,10 +51,10 @@ bcs = [
       ]
 
 
-@test solve!(dom, bcs, autoinc=true, nincs=100, maxits=4, tol=0.1, printlog=false, scheme=:FE, nouts=50, maxincs=0).success
+@test solve!(model, autoinc=true, nincs=100, maxits=4, tol=0.1, report=false, scheme=:FE, nouts=50, maxincs=0).success
 
 
-if Amaru.config.makeplots
+if @isdefined(makeplots) && makeplots
     using PyPlot
     tab = log_face.table
     plot(log_n5.table[:ux] - log_n3.table[:ux], log_face.table[:fy],  marker="o", color="blue")

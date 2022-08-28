@@ -25,7 +25,7 @@ mutable struct MechRodSolidJoint<:Mechanical
     MechRodSolidJoint() = new()
 end
 
-matching_shape_family(::Type{MechRodSolidJoint}) = LINEJOINT_CELL
+matching_shape_family(::Type{MechRodSolidJoint}) = LINEJOINTCELL
 
 
 function elem_init(elem::MechRodSolidJoint)
@@ -151,7 +151,7 @@ function elem_stiffness(elem::MechRodSolidJoint)
     return K, map, map
 end
 
-function elem_update!(elem::MechRodSolidJoint, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::MechRodSolidJoint, U::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     mat    = elem.mat
@@ -175,8 +175,7 @@ function elem_update!(elem::MechRodSolidJoint, U::Array{Float64,1}, F::Array{Flo
         @gemv dF += coef*B'*Δσ
     end
 
-    F[map] += dF
-    return success()
+    return dF, map, success()
 end
 
 

@@ -85,6 +85,8 @@ matching_elem_type(::CebRSJoint) = MechRodSolidJoint
 # Creates a new instance of Ip data
 ip_state_type(mat::CebRSJoint) = CebRSJointState
 
+is_linear(state::CebRSJointState) = state.elastic
+
 CEBJoint1D = CebRSJoint #! deprecated
 export CEBJoint1D
 

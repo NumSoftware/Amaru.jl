@@ -23,13 +23,13 @@ mutable struct IpMonitor<:AbstractMonitor
 end
 
 
-function setup_monitor!(domain, filter, monitor::IpMonitor)
+function setup_monitor!(model, filter, monitor::IpMonitor)
     monitor.filter = filter
     if filter isa Integer
-        monitor.ip = domain.elems[:ips][filter]
+        monitor.ip = model.elems[:ips][filter]
         return
     end
-    ips = domain.elems[:ips][filter]
+    ips = model.elems[:ips][filter]
     n = length(ips)
     n == 0 && warn("setup_monitor!: No ips found for filter expression: $(monitor.filter)")
     n >  1 && notify("setup_monitor!: More than one ip match filter expression: $(monitor.filter)")
@@ -38,24 +38,24 @@ function setup_monitor!(domain, filter, monitor::IpMonitor)
 end
 
 
-function update_monitor!(monitor::IpMonitor, domain)
+function update_monitor!(monitor::IpMonitor, model)
     isdefined(monitor, :ip) || return success()
 
     state       = ip_vals(monitor.ip)
     monitor.val = eval_arith_expr(monitor.expr; state...)
 
     # data = OrderedDict(:val=>monitor.val)
-    # data = OrderedDict(:stage=> domain.env.cstage, :T=>domain.env.T)
-    # domain.env.transient && (vals[:t] = domain.env.t)
+    # data = OrderedDict(:stage=> model.env.stagebits.stage, :T=>model.env.stagebits.T)
+    # model.env.transient && (vals[:t] = model.env.t)
 
-    monitor.vals[:stage] = domain.env.cstage
-    monitor.vals[:T]     = domain.env.T
-    domain.env.transient && (monitor.vals[:t]=dom.env.t)
+    monitor.vals[:stage] = model.env.stagebits.stage
+    monitor.vals[:T]     = model.env.stagebits.T
+    model.env.transient && (monitor.vals[:t]=model.env.t)
     push!(monitor.table, data)
 
     if monitor.filename!="" 
-        filename = joinpath(domain.env.outdir, monitor.filename)
-        save(monitor.table, filename, printlog=false)
+        filename = joinpath(model.env.outdir, monitor.filename)
+        save(monitor.table, filename, report=false)
     end
     
     return success()
@@ -105,13 +105,13 @@ function output(monitor::AbstractMonitor)
 end
 
 
-function setup_monitor!(domain, filter, monitor::NodeMonitor)
+function setup_monitor!(model, filter, monitor::NodeMonitor)
     monitor.filter = filter
     if filter isa Integer
-        monitor.node = domain.elems[:nodes][filter]
+        monitor.node = model.elems[:nodes][filter]
         return
     end
-    nodes = domain.elems[:nodes][filter]
+    nodes = model.elems[:nodes][filter]
     n = length(nodes)
     n == 0 && warn("setup_monitor!: No nodes found for filter expression: $(monitor.filter)")
     n >  1 && notify("setup_monitor!: More than one node match filter expression: $(monitor.filter)")
@@ -120,7 +120,7 @@ function setup_monitor!(domain, filter, monitor::NodeMonitor)
 end
 
 
-function update_monitor!(monitor::NodeMonitor, domain)
+function update_monitor!(monitor::NodeMonitor, model)
     isdefined(monitor, :node) || return success()
 
     for expr in monitor.expr.args
@@ -128,15 +128,15 @@ function update_monitor!(monitor::NodeMonitor, domain)
         monitor.vals[expr] = eval_arith_expr(expr; state...)
     end
 
-    monitor.vals[:stage] = domain.env.cstage
-    monitor.vals[:T]     = domain.env.T
-    domain.env.transient && (monitor.vals[:t]=dom.env.t)
+    monitor.vals[:stage] = model.env.stagebits.stage
+    monitor.vals[:T]     = model.env.stagebits.T
+    model.env.transient && (monitor.vals[:t]=model.env.t)
 
     push!(monitor.table, monitor.vals)
 
     if monitor.filename!=""
-        filename = joinpath(domain.env.outdir, monitor.filename)
-        save(monitor.table, filename, printlog=false)
+        filename = joinpath(model.env.outdir, monitor.filename)
+        save(monitor.table, filename, report=false)
     end
 
     return success()
@@ -164,14 +164,14 @@ mutable struct IpGroupMonitor<:AbstractMonitor
 end
 
 
-function setup_monitor!(domain, filter, monitor::IpGroupMonitor)
+function setup_monitor!(model, filter, monitor::IpGroupMonitor)
     monitor.filter = filter
-    monitor.ips = domain.elems[:ips][monitor.filter]
+    monitor.ips = model.elems[:ips][monitor.filter]
     length(monitor.ips)==0 && warn("setup_monitor!: No ips found for filter expression: ", monitor.filter)
 end
 
 
-function update_monitor!(monitor::IpGroupMonitor, domain)
+function update_monitor!(monitor::IpGroupMonitor, model)
     length(monitor.ips) == 0 && return success()
 
     for expr in monitor.expr.args
@@ -193,15 +193,15 @@ function update_monitor!(monitor::IpGroupMonitor, domain)
         end
     end
 
-    monitor.vals[:stage] = domain.env.cstage
-    monitor.vals[:T]     = domain.env.T
-    domain.env.transient && (monitor.vals[:t]=dom.env.t)
+    monitor.vals[:stage] = model.env.stagebits.stage
+    monitor.vals[:T]     = model.env.stagebits.T
+    model.env.transient && (monitor.vals[:t]=model.env.t)
 
     push!(monitor.table, monitor.vals)
 
     if monitor.filename!="" 
-        filename = joinpath(domain.env.outdir, monitor.filename)
-        save(monitor.table, filename, printlog=false)
+        filename = joinpath(model.env.outdir, monitor.filename)
+        save(monitor.table, filename, report=false)
     end
 
     return success()
@@ -249,14 +249,14 @@ mutable struct NodeSumMonitor<:AbstractMonitor
 end
 
 
-function setup_monitor!(domain, filter, monitor::NodeSumMonitor)
+function setup_monitor!(model, filter, monitor::NodeSumMonitor)
     monitor.filter = filter
-    monitor.nodes = domain.nodes[filter]
+    monitor.nodes = model.nodes[filter]
     length(monitor.nodes) == 0 && warn("setup_monitor: No nodes found for filter expression: ", monitor.filter)
 end
 
 
-function update_monitor!(monitor::NodeSumMonitor, domain)
+function update_monitor!(monitor::NodeSumMonitor, model)
     length(monitor.nodes) == 0 && return success()
 
     tableU = DataTable()
@@ -294,14 +294,14 @@ function update_monitor!(monitor::NodeSumMonitor, domain)
         monitor.vals[expr] = eval_arith_expr(expr; state...)
     end
 
-    monitor.vals[:stage] = domain.env.cstage
-    monitor.vals[:T]     = domain.env.T
-    domain.env.transient && (monitor.vals[:t]=dom.env.t)
+    monitor.vals[:stage] = model.env.stagebits.stage
+    monitor.vals[:T]     = model.env.stagebits.T
+    model.env.transient && (monitor.vals[:t]=model.env.t)
     push!(monitor.table, monitor.vals)
 
     if monitor.filename!="" 
-        filename = joinpath(domain.env.outdir, monitor.filename)
-        save(monitor.table, filename, printlog=false)
+        filename = joinpath(model.env.outdir, monitor.filename)
+        save(monitor.table, filename, report=false)
     end
 
     # eval stop expressions

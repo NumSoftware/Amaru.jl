@@ -20,7 +20,7 @@ mats = [
         "bars"  => PPRod(E=1.e8, A=0.005, sig_y=500e3),
        ]
 
-dom = Domain(msh, mats)
+model = Model(msh, mats)
 
 
 bcs = [
@@ -29,7 +29,7 @@ bcs = [
        :(z==1) => SurfaceBC(tz=-1000),
       ]
 
-solve!(dom, bcs, nincs=20, verbosity=1)
-save(dom, "domain.vtk")
+solve!(model,nincs=20, verbosity=1)
+save(model, "domain.vtk")
 
-mplot(dom, "beam.pdf", field="sa", fieldmult=1e-3, axis=false, opacity=0.1, dist=6, colorbarlabel="axial stress in bars")
+mplot(model, "beam.pdf", field="sa", fieldmult=1e-3, axis=false, opacity=0.1, dist=6, colorbarlabel="axial stress in bars")

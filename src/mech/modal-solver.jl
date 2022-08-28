@@ -1,10 +1,10 @@
 export modsolve!
 #Solids stiffness matrix for computing frequencies
 
-function mount_Kf(dom::Domain, ndofs::Int)
+function mount_Kf(model::Model, ndofs::Int)
 
     R, C, V = Int64[], Int64[], Float64[]
-    elems=dom.elems[:solids]
+    elems=model.elems.solids
 
     for elem in elems
        Ke, rmap, cmap = elem_stiffness(elem)
@@ -26,10 +26,10 @@ end
 
 #Solids mass matrix for computing frequencies
 
-function mount_Mf(dom::Domain, ndofs::Int)
+function mount_Mf(model::Model, ndofs::Int)
 
     R, C, V = Int64[], Int64[], Float64[]
-    elems=dom.elems[:solids]
+    elems=model.elems.solids
 
     for elem in elems
         Me, rmap, cmap = elem_mass(elem)
@@ -47,7 +47,7 @@ function mount_Mf(dom::Domain, ndofs::Int)
 end
 
 
-function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemods=true, verbosity=1, scheme::Symbol =
+function modsolve!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, savemods=true, verbosity=1, scheme::Symbol =
 :FE)
 
     if verbose
@@ -55,16 +55,16 @@ function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemo
     end
 
     # Get dofs organized according to boundary conditions
-    dofs, nu = configure_dofs!(dom, bcs)
+    dofs, nu = configure_dofs!(model, bcs)
 
     ndofs = length(dofs)
     umap  = 1:nu         # map for unknown displacements
     pmap  = nu+1:ndofs   # map for prescribed displacements
-    dom.ndofs = length(dofs)
+    model.ndofs = length(dofs)
     verbose && println("  unknown dofs: $nu")
 
-    K = mount_Kf(dom, ndofs)
-    M = mount_Mf(dom, ndofs)
+    K = mount_Kf(model, ndofs)
+    M = mount_Mf(model, ndofs)
 
     if nu>0
         K11 = K[1:nu, 1:nu]
@@ -73,7 +73,7 @@ function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemo
 
     #Delete columns and rows that corresponding at bars and joint elements
 
-    nodesbars=getnodes(dom.elems[:lines]) #nodes of bars
+    nodesbars=getnodes(model.elems.lines) #nodes of bars
 
     idsd = Array{Int64,1}() #idsd ids for delete
 
@@ -145,7 +145,7 @@ function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemo
 
         #Modals Deformed
 
-        nodessolids = getnodes(dom.elems[:solids]) #nodes of solids
+        nodessolids = getnodes(model.elems.solids) #nodes of solids
 
         idss = Array{Int64,1}() #idss ids of dof solids
 
@@ -171,8 +171,8 @@ function modsolve!(dom::Domain, bcs::Array; nmods::Int=5, rayleigh=false, savemo
                 dof.vals[dof.name] = Umod[k]
             end
 
-            save(dom, dom.filekey * "-defmod$idefmod.vtk", printlog=true) # saves current domain state for modal deformated
-            verbose && printstyled("  ", dom.filekey * "-defmod$idefmod.vtk file written (Domain)\n", color=:green)
+            save(model, model.filekey * "-defmod$idefmod.vtk", report=true) # saves current domain state for modal deformated
+            verbose && printstyled("  ", model.filekey * "-defmod$idefmod.vtk file written (Model)\n", color=:green)
             idefmod += 1
         end
 

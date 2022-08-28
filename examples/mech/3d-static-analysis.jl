@@ -20,7 +20,7 @@ materials = [
             ]
 
 # Finite element domain
-domain = Domain(msh, materials)
+domain = Model(msh, materials)
 
 loggers = [
            :(z==1) => FaceLogger("top-face.dat"),

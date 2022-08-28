@@ -17,7 +17,7 @@ mutable struct TMShell<:Thermomechanical
     end
 end
 
-matching_shape_family(::Type{TMShell}) = SOLID_CELL
+matching_shape_family(::Type{TMShell}) = BULKCELL
 
 function elem_config_dofs(elem::TMShell)
     nbnodes = elem.shape.basic_shape.npoints
@@ -430,7 +430,7 @@ function elem_coupling_matrix(elem::TMShell)
         @gemm J = C'*dNdR
         @gemm dNdX = dNdR*inv(J)
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         set_Bu1(elem, ip, dNdX, Bu)
 
         # compute Cut
@@ -468,7 +468,7 @@ function elem_conductivity_matrix(elem::TMShell)
         dNtdR = elem.shape.basic_shape.deriv(ip.R)
         @gemm J  = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         @gemm dNtdX = dNtdR*inv(J)
         Bt .= dNtdX'
 
@@ -502,7 +502,7 @@ function elem_mass_matrix(elem::TMShell)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute Cut
         coef  = elem.mat.ρ*elem.mat.cv
@@ -543,7 +543,7 @@ function elem_internal_forces(elem::TMShell, F::Array{Float64,1}, DU::Array{Floa
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
         @gemm dNdX = dNdR*inv(J)
         set_Bu(elem, ip, dNdX, Bu)
         dNtdR = elem.shape.basic_shape.deriv(ip.R)
@@ -574,7 +574,7 @@ end
 =#
 
 
-function elem_update!(elem::TMShell, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     th     = thickness   # elem.env.thickness
     T0     = elem.env.T0 + 273.15
@@ -616,7 +616,7 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, DF::Array{Float64,1},
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
         invJ = inv(J)
         @gemm dNdX = dNdR*invJ
         set_Bu(elem, ip, dNdX, Bu)

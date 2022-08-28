@@ -73,7 +73,7 @@ end
 matching_elem_type(::ElasticSolid) = MechSolid
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticSolid) = ElasticSolidState
+ip_state_type(::ElasticSolid) = ElasticSolidState
 
 
 function calcDe(E::Number, ν::Number, modeltype::String)

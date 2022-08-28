@@ -17,7 +17,7 @@ mutable struct MechSpring<:Mechanical
     end
 end
 
-matching_shape_family(::Type{MechSpring}) = LINE_CELL
+matching_shape_family(::Type{MechSpring}) = LINECELL
 
 function elem_stiffness(elem::MechSpring)
     ndim = elem.env.ndim
@@ -81,17 +81,12 @@ function elem_damping(elem::MechSpring)
 end
 
 
-function elem_update!(elem::MechSpring, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
-    ndim = elem.env.ndim
-    keys = [:ux, :uy, :uz][1:ndim]
-    #map  = Int[ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-
+function elem_update!(elem::MechSpring, U::Array{Float64,1}, Δt::Float64)
     K, map, _  = elem_stiffness(elem)
     dU = U[map]
     dF = K*dU
 
-    F[map] .+= dF
-    return
+    return dF, map, success()
 end
 
 function elem_vals(elem::MechSpring)

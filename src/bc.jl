@@ -17,12 +17,12 @@ mutable struct NodeBC<:BC
 end
 
 
-function setup_bc!(dom, filter, bc::NodeBC)
+function setup_bc!(model, filter, bc::NodeBC)
     isa(filter, Int) && (filter = [filter])
     bc.filter = filter
 
     # Filter objects according to bc criteria
-    bc.nodes  = dom.nodes[bc.filter]
+    bc.nodes  = model.nodes[bc.filter]
     length(bc.nodes)==0 && notify("setup_bc!: applying boundary conditions to empty array of nodes while evaluating expression ", string(bc.filter))
     # not_found_keys = Set()
 
@@ -83,15 +83,15 @@ mutable struct EdgeBC<:BC
 end
 
 
-function setup_bc!(dom, filter, bc::Union{SurfaceBC,EdgeBC})
+function setup_bc!(model, filter, bc::Union{SurfaceBC,EdgeBC})
     bc.filter = filter
 
     # Filter objects according to bc criteria
     if bc isa SurfaceBC
-        bc.faces = dom.faces[bc.filter]
+        bc.faces = model.faces[bc.filter]
         facets = bc.faces
     else
-        bc.edges = dom.edges[bc.filter]
+        bc.edges = model.edges[bc.filter]
         facets = bc.edges
     end
     length(facets)==0 && notify("setup_bc!: applying boundary conditions to empty array of faces/edges while evaluating expression ", string(bc.filter))
@@ -153,11 +153,11 @@ end
 ElemBC = BodyC
 
 
-function setup_bc!(dom, filter, bc::BodyC)
+function setup_bc!(model, filter, bc::BodyC)
     isa(filter, Int) && (filter = [filter])
     bc.filter = filter
     # Filter objects according to bc criteria
-    bc.elems = dom._active_elems[bc.filter]
+    bc.elems = model._active_elems[bc.filter]
     length(bc.elems)==0 && notify("setup_bc!: applying boundary conditions to empty array of elements while evaluating expression ", string(bc.filter))
 
     # Find prescribed essential bcs
@@ -196,15 +196,15 @@ end
 
 
 # Return a vector with all domain dofs and the number of unknown dofs according to bcs
-function configure_dofs!(dom, bcbinds::Array{<:Pair,1})
+function configure_dofs!(model, bcbinds::Array{<:Pair,1})
 
     # get active nodes
-    ids = [ node.id for elem in dom._active_elems for node in elem.nodes ]
+    ids = [ node.id for elem in model._active_elems for node in elem.nodes ]
     ids = sort(unique(ids)) # sort is required to preserve node numbering optimization
-    active_nodes = dom.nodes[ids]
+    active_nodes = model.nodes[ids]
 
     # All dofs
-    # dofs = Dof[dof for node in dom.nodes for dof in node.dofs]
+    # dofs = Dof[dof for node in model.nodes for dof in node.dofs]
     dofs = Dof[dof for node in active_nodes for dof in node.dofs]
 
     # Reset all dofs as natural conditions
@@ -214,7 +214,7 @@ function configure_dofs!(dom, bcbinds::Array{<:Pair,1})
 
     # Setup bcs and prescribed marker for each dof
     for (filter,bc) in bcbinds
-        setup_bc!(dom, filter, bc)
+        setup_bc!(model, filter, bc)
     end
 
     # Split dofs

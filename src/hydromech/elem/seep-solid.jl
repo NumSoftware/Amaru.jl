@@ -17,7 +17,7 @@ mutable struct SeepSolid<:Hydromechanical
     end
 end
 
-matching_shape_family(::Type{SeepSolid}) = SOLID_CELL
+matching_shape_family(::Type{SeepSolid}) = BULKCELL
 
 function elem_config_dofs(elem::SeepSolid)
     for node in elem.nodes
@@ -102,7 +102,7 @@ function elem_conductivity_matrix(elem::SeepSolid)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J  = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         @gemm dNdX = dNdR*inv(J) # Bw = dNdX'
 
         # compute H
@@ -135,7 +135,7 @@ function elem_compressibility_matrix(elem::SeepSolid)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute Cpp
         coef  = elem.mat.S
@@ -171,7 +171,7 @@ function elem_RHS_vector(elem::SeepSolid)
         @gemm J  = C'*dNdR
         @gemm dNdX = dNdR*inv(J) # Bw = dNdX'
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(elem.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute Q
         K = calcK(elem.mat, ip.state)
@@ -207,7 +207,7 @@ function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
         @gemm dNdX = dNdR*inv(J)
 
         # Bw = copy(dNdX')
@@ -228,21 +228,19 @@ function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
     F[map_w] += dFw
 end
 
-function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     th     = elem.env.thickness
 
-    map_w  = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
-
-    C   = getcoords(elem)
+    map_w = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
+    C     = getcoords(elem)
 
     dUw = DU[map_w] # nodal pore-pressure increments
     Uw  = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes ]
     Uw += dUw # nodal pore-pressure at step n+1
 
     dFw = zeros(nnodes)
-    Bw  = zeros(ndim, nnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, nnodes, ndim)
@@ -255,7 +253,7 @@ function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative jacobian determinant in cell $(cell.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
         @gemm dNdX = dNdR*inv(J) # Bw = dNdX'
 
         G  = dNdX'*Uw/elem.mat.γw # flow gradient
@@ -273,7 +271,6 @@ function elem_update!(elem::SeepSolid, DU::Array{Float64,1}, DF::Array{Float64,1
         @gemv dFw += coef*dNdX*V
     end
 
-    DF[map_w] += dFw
-    return success()
+    return dFw, map_w, success()
 end
 

@@ -37,7 +37,7 @@ end
 function MakeLIN2()
     shape             = CellShape()
     shape.name        = "LIN2"
-    shape.family      = LINE_CELL
+    shape.family      = LINECELL
     shape.ndim        = 1
     shape.npoints     = 2
     shape.basic_shape = shape
@@ -98,7 +98,7 @@ end
 function MakeLIN3()
     shape             = CellShape()
     shape.name        = "LIN3"
-    shape.family      = LINE_CELL
+    shape.family      = LINECELL
     shape.ndim        = 1
     shape.npoints     = 3
     shape.basic_shape = LIN2
@@ -129,7 +129,7 @@ const coords_LIN4 = [ -1.0,  1.0,  -1.0/3.0,  1.0/3.0 ]
 
 # shape functions
 function shape_func_LIN4(R::AbstractArray{<:Float64,1})
-    #   (-1)            '   (+1)
+    #   (-1)                (+1)
     #    @------@-----@------@  --> r
     #    1      3     4      2
 
@@ -167,7 +167,7 @@ end
 function MakeLIN4()
     shape             = CellShape()
     shape.name        = "LIN4"
-    shape.family      = LINE_CELL
+    shape.family      = LINECELL
     shape.ndim        = 1
     shape.npoints     = 4
     shape.basic_shape = LIN2

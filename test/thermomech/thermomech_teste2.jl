@@ -4,7 +4,7 @@ using Amaru
 # Mesh generation
 blocks = [Block([0 0; 1 2], nx = 4, ny = 4, tag = "solids")]
 
-msh = Mesh(blocks, printlog=true)
+msh = Mesh(blocks, report=true)
 
 # Finite element analysis
 
@@ -23,11 +23,11 @@ materials = ["solids" => ElasticSolidThermo(
     cv = cv,
     alpha = alpha,
 )]
-dom = Domain(msh, materials)
+model = Model(msh, materials)
 
 log1 = NodeGroupLogger()
 loggers = [:(x == 0.5 && y==1.0) => log1]
-setloggers!(dom, loggers)
+setloggers!(model, loggers)
 
 bcs = [
      :(y == 0) => NodeBC(ut = 100.0),
@@ -38,12 +38,12 @@ bcs = [
 ]
 
 tm_solve!(
-    dom,
+    model,
     bcs,
     end_time = 20000.0,
     tol = 0.01,
     nincs = 20,
-    printlog=true,
+    report=true,
     nouts = 10,
 )
 

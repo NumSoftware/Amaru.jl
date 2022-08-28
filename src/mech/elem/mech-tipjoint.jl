@@ -15,7 +15,7 @@ mutable struct MechTipJoint<:Mechanical
     MechTipJoint() = new()
 end
 
-matching_shape_family(::Type{MechTipJoint}) = TIPJOINT_CELL
+matching_shape_family(::Type{MechTipJoint}) = TIPJOINTCELL
 
 function mountB(elem::MechTipJoint, Ch, Ct)
     # Calculates the matrix that relates nodal displacements with relative displacements
@@ -81,7 +81,7 @@ function elem_stiffness(elem::MechTipJoint)
     return K, map, map
 end
 
-function elem_update!(elem::MechTipJoint, U::Array{Float64,1}, F::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::MechTipJoint, U::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     bulk = elem.linked_elems[1]
     rod  = elem.linked_elems[2]
@@ -100,6 +100,5 @@ function elem_update!(elem::MechTipJoint, U::Array{Float64,1}, F::Array{Float64,
     coef = Δf
     dF = coef*B'
 
-    F[map] += dF
-    return success()
+     return dF, map, success()
 end
