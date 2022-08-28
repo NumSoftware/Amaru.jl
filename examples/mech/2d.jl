@@ -37,7 +37,7 @@ begin
     Block( [0 0; 3 0.4], nx=nx, ny=ny, cellshape=QUAD8, tag="solids")
 	]
 
-	msh = Mesh(blocks, verbosity=1)
+	msh = Mesh(blocks, report=1)
 end;
 
 # ╔═╡ b421f9d2-d86f-4559-9f60-b719de92bb1d
