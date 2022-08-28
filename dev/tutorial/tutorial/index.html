@@ -25,9 +25,7 @@ Cell(TRI3, nodes, id=1, tag=&quot;triangle&quot;)</code></pre><pre class="docume
     owner: nothing
     linked_elems: 0-element Vector{Amaru.AbstractCell}</code></pre><p>There are many shapes defined in Amaru, for instance:  <code>LIN2</code>, <code>LIN3</code>, <code>TRI3</code>, <code>TRI6</code>, <code>QUAD4</code>, <code>QUAD8</code>, <code>QUAD9</code> <code>TET4</code>, <code>TET10</code>, <code>PYR5</code>, <code>WED6</code>, <code>WED15</code>, <code>HEX8</code>, <code>HEX20</code>, <code>HEX27</code>, etc.</p><h3 id="Blocks"><a class="docs-heading-anchor" href="#Blocks">Blocks</a><a id="Blocks-1"></a><a class="docs-heading-anchor-permalink" href="#Blocks" title="Permalink"></a></h3><p>Blocks are entities used to aid the generation of structured meshes in 1D, 2D and 3D. A <code>Block</code> type represents a geometric segment, area (4 or 8 point quadrilateral) or volume (8 or 20 point hexahedron). An instance of the block type  is generated from a coordinates matrix and predefined number of divisions divisions (<code>nx</code>, <code>ny</code>, <code>nz</code>) in the <span>$x$</span>, <span>$y$</span> and <span>$z$</span> directions of a local system. The block below represents a 2D <code>Block</code> with <code>nx=7</code> and <code>ny=5</code>. The <code>mplot</code> function saves the block image to a file in svg format. Other formats as pdf and png can be used.</p><pre><code class="language-julia hljs">using Amaru
 block = Block([0 0; 4 0; 3 2; 1 2], nx=7, ny=5)
-mplot(block, &quot;block.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">limX = [0.0, 4.0]
-ll = 4.0
-┌ Warning: No working GUI backend found for matplotlib
+mplot(block, &quot;block.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌ Warning: No working GUI backend found for matplotlib
 └ @ PyPlot ~/.julia/packages/PyPlot/NsAWt/src/init.jl:153</code></pre><p><img src="../block.svg" alt/></p><p>Blocks can be combined to define a complex geometry. To manipulate blocks, Amaru provides several operators as <code>copy</code>, <code>move!</code>, <code>scale!</code>, <code>rotate</code>, <code>mirror</code>, <code>array</code>, <code>polar</code>, <code>extrude</code>, etc.</p><p>For example, let&#39;s generate a square mesh with a central hole. We start with a quadratic quadrilateral block. Note that  the vertex coordinates follow the same numbering as conventional finite elements. Thus, the corner nodes are listed first, and then the middle nodes. All the nodes are listed couterclockwise.</p><pre><code class="language-julia hljs">using Amaru
 
 block1 = Block(
@@ -43,15 +41,11 @@ block1 = Block(
     ],
     cellshape=QUAD8, nx=5, ny=5
 )
-mplot(block1, &quot;block1.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">limX = [0.0, 0.7643]
-ll = 1.0</code></pre><p><img src="../block1.svg" alt/></p><p>A mirror operation can be applyed to this block to get a second one. Then, both blocks can be grouped in an array for further manipulation.</p><pre><code class="language-julia hljs">block2 = mirror(block1, base=[0, 0], axis=[0.7643, -0.7643])
+mplot(block1, &quot;block1.svg&quot;, markers=true)</code></pre><p><img src="../block1.svg" alt/></p><p>A mirror operation can be applyed to this block to get a second one. Then, both blocks can be grouped in an array for further manipulation.</p><pre><code class="language-julia hljs">block2 = mirror(block1, base=[0, 0], axis=[0.7643, -0.7643])
 blocks = [block1, block2]
-mplot(blocks, &quot;blocks.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">limX = [0.0, 1.0]
-ll = 1.0</code></pre><p><img src="../blocks.svg" alt/></p><p>The center of the circle that contains the arc is located at the coordinates (1,1). To place the center at the origin (0,0) we perform a <code>move!</code> operation.</p><pre><code class="language-julia hljs">move!(blocks, dx=-1.0, dy=-1.0)
-mplot(blocks, &quot;moved.svg&quot;, markers=true, axis=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">limX = [-1.0, 0.0]
-ll = 1.0</code></pre><p><img src="../moved.svg" alt/></p><p>Next, we can apply a <code>polar</code> operation to the current geometry to  obtain the square region with a central hole. Note that the original geometry was replicated four times (<code>n=4</code>) with different rotation angles. For this purpose a rotation axis and a base point were employed.</p><pre><code class="language-julia hljs">hole = polar(blocks, base=[0, 0], axis=[0, 0, 1], angle=360, n=4)
-mplot(hole, &quot;hole.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">limX = [-1.0, 1.0]
-ll = 2.0</code></pre><p><img src="../hole.svg" alt/></p><p>Then, an <code>extrude</code> operation is used to obtain a volume following a defined axis and length. The argument <code>n=4</code> represents the number of divisions intended along the new dimension.</p><pre><code class="language- hljs">solid = extrude(hole, axis=[0, 0, 1], length=1, n=4)
+mplot(blocks, &quot;blocks.svg&quot;, markers=true)</code></pre><p><img src="../blocks.svg" alt/></p><p>The center of the circle that contains the arc is located at the coordinates (1,1). To place the center at the origin (0,0) we perform a <code>move!</code> operation.</p><pre><code class="language-julia hljs">move!(blocks, dx=-1.0, dy=-1.0)
+mplot(blocks, &quot;moved.svg&quot;, markers=true, axis=true)</code></pre><p><img src="../moved.svg" alt/></p><p>Next, we can apply a <code>polar</code> operation to the current geometry to  obtain the square region with a central hole. Note that the original geometry was replicated four times (<code>n=4</code>) with different rotation angles. For this purpose a rotation axis and a base point were employed.</p><pre><code class="language-julia hljs">hole = polar(blocks, base=[0, 0], axis=[0, 0, 1], angle=360, n=4)
+mplot(hole, &quot;hole.svg&quot;, markers=true)</code></pre><p><img src="../hole.svg" alt/></p><p>Then, an <code>extrude</code> operation is used to obtain a volume following a defined axis and length. The argument <code>n=4</code> represents the number of divisions intended along the new dimension.</p><pre><code class="language- hljs">solid = extrude(hole, axis=[0, 0, 1], length=1, n=4)
 mplot(solid, &quot;solid.svg&quot;, markers=true, dist=13)
 nothing # hide</code></pre><p><img src="./solid.svg" alt/></p><p>Note that, the <code>solid</code> variable is an array with four blocks, as shown in the figure. This array is used to generate the structured mesh.</p><pre><code class="language- hljs">mesh = Mesh(solid)
 mplot(mesh, &quot;mesh.svg&quot;, dist=13)
@@ -61,13 +55,11 @@ nothing # hide</code></pre><p><img src="./smooth_mesh.svg" alt/></p><h2 id="Mesh
 
 block = Block([0 0 ; 2 2], nx=8, ny=6)
 mesh  = Mesh(block)
-mplot(mesh, &quot;mesh-quad4.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">limX = [0.0, 2.0]
-ll = 2.0</code></pre><p><img src="../mesh-quad4.svg" alt/></p><h3 id="Mesh-with-quadratic-cells"><a class="docs-heading-anchor" href="#Mesh-with-quadratic-cells">Mesh with quadratic cells</a><a id="Mesh-with-quadratic-cells-1"></a><a class="docs-heading-anchor-permalink" href="#Mesh-with-quadratic-cells" title="Permalink"></a></h3><pre><code class="language-julia hljs">using Amaru
+mplot(mesh, &quot;mesh-quad4.svg&quot;, markers=true)</code></pre><p><img src="../mesh-quad4.svg" alt/></p><h3 id="Mesh-with-quadratic-cells"><a class="docs-heading-anchor" href="#Mesh-with-quadratic-cells">Mesh with quadratic cells</a><a id="Mesh-with-quadratic-cells-1"></a><a class="docs-heading-anchor-permalink" href="#Mesh-with-quadratic-cells" title="Permalink"></a></h3><pre><code class="language-julia hljs">using Amaru
 
 block = Block([0 0 ; 2 2], nx=8, ny=6, cellshape=QUAD8)
 mesh  = Mesh(block)
-mplot(mesh, &quot;mesh-quad8.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">limX = [0.0, 2.0]
-ll = 2.0</code></pre><p><img src="../mesh-quad8.svg" alt/></p><h3 id="Simple-3D-mesh"><a class="docs-heading-anchor" href="#Simple-3D-mesh">Simple 3D mesh</a><a id="Simple-3D-mesh-1"></a><a class="docs-heading-anchor-permalink" href="#Simple-3D-mesh" title="Permalink"></a></h3><pre><code class="language- hljs">using Amaru
+mplot(mesh, &quot;mesh-quad8.svg&quot;, markers=true)</code></pre><p><img src="../mesh-quad8.svg" alt/></p><h3 id="Simple-3D-mesh"><a class="docs-heading-anchor" href="#Simple-3D-mesh">Simple 3D mesh</a><a id="Simple-3D-mesh-1"></a><a class="docs-heading-anchor-permalink" href="#Simple-3D-mesh" title="Permalink"></a></h3><pre><code class="language- hljs">using Amaru
 block = Block([0 0 0; 2 4 3], nx=3, ny=6, nz=6)
 mesh = Mesh(block)
 mplot(mesh, &quot;mesh-hex8.svg&quot;, markers=true)
@@ -87,8 +79,7 @@ block1 = Block(
 )
 block2 = mirror(block1, base=[0, 0], axis=[0.7643, -0.7643])
 mesh = Mesh(block1, block2)
-mplot(mesh, &quot;mesh-2d.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">limX = [0.0, 1.0]
-ll = 1.0</code></pre><p><img src="../mesh-2d.svg" alt/></p><h3 id="Mesh-with-cells-growing-in-the-x-direction"><a class="docs-heading-anchor" href="#Mesh-with-cells-growing-in-the-x-direction">Mesh with cells growing in the <span>$x$</span> direction</a><a id="Mesh-with-cells-growing-in-the-x-direction-1"></a><a class="docs-heading-anchor-permalink" href="#Mesh-with-cells-growing-in-the-x-direction" title="Permalink"></a></h3><pre><code class="language-julia hljs">using Amaru
+mplot(mesh, &quot;mesh-2d.svg&quot;, markers=true)</code></pre><p><img src="../mesh-2d.svg" alt/></p><h3 id="Mesh-with-cells-growing-in-the-x-direction"><a class="docs-heading-anchor" href="#Mesh-with-cells-growing-in-the-x-direction">Mesh with cells growing in the <span>$x$</span> direction</a><a id="Mesh-with-cells-growing-in-the-x-direction-1"></a><a class="docs-heading-anchor-permalink" href="#Mesh-with-cells-growing-in-the-x-direction" title="Permalink"></a></h3><pre><code class="language-julia hljs">using Amaru
 
 R = 5.0
 r = 1.0
@@ -102,8 +93,7 @@ block = BlockGrid(
 )
 
 mesh = Mesh(block)
-mplot(mesh, &quot;mesh-rate.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">limX = [0.0, 5.0]
-ll = 5.0</code></pre><p><img src="../mesh-rate.svg" alt/></p><h3 id="D-mesh-obtained-revolving-the-last-example"><a class="docs-heading-anchor" href="#D-mesh-obtained-revolving-the-last-example">3D mesh obtained revolving the last example</a><a id="D-mesh-obtained-revolving-the-last-example-1"></a><a class="docs-heading-anchor-permalink" href="#D-mesh-obtained-revolving-the-last-example" title="Permalink"></a></h3><pre><code class="language- hljs">mesh = revolve(mesh, minangle=0, maxangle=90)
+mplot(mesh, &quot;mesh-rate.svg&quot;, markers=true)</code></pre><p><img src="../mesh-rate.svg" alt/></p><h3 id="D-mesh-obtained-revolving-the-last-example"><a class="docs-heading-anchor" href="#D-mesh-obtained-revolving-the-last-example">3D mesh obtained revolving the last example</a><a id="D-mesh-obtained-revolving-the-last-example-1"></a><a class="docs-heading-anchor-permalink" href="#D-mesh-obtained-revolving-the-last-example" title="Permalink"></a></h3><pre><code class="language- hljs">mesh = revolve(mesh, minangle=0, maxangle=90)
 changeaxes!(mesh, &quot;xzy&quot;)
 rotate!(mesh, axis=[0,0,1], angle=90)
 mplot(mesh, &quot;mesh-rev.svg&quot;, azim=-45) 
@@ -267,4 +257,4 @@ cplot(
     ylabel = raw&quot;$\sigma_{xx}$ [MPa]&quot;,
 )
 
-nothing # hide</code></pre><p><img src="./uz_vs_fz.svg" alt/></p><p><img src="./x_vs_uz.svg" alt/></p><p><img src="./x_vs_sxx.svg" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Introduction</a><a class="docs-footer-nextpage" href="../../meshing/meshing/">Mesh »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Sunday 28 August 2022 21:54">Sunday 28 August 2022</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+nothing # hide</code></pre><p><img src="./uz_vs_fz.svg" alt/></p><p><img src="./x_vs_uz.svg" alt/></p><p><img src="./x_vs_sxx.svg" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Introduction</a><a class="docs-footer-nextpage" href="../../meshing/meshing/">Mesh »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Sunday 28 August 2022 22:18">Sunday 28 August 2022</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
