@@ -490,8 +490,6 @@ function mplot(
     limZ = collect(extrema( node.coord[3] for node in mesh.nodes) )
 
     ll = max(diff(limX)[1], diff(limY)[1], diff(limZ)[1])
-    @show limX
-    @show ll
 
     # Lazy import of PyPlot
     @eval import PyPlot:plt, matplotlib, figure, art3D, Axes3D, ioff, ColorMap, gcf

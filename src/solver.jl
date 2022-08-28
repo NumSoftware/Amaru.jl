@@ -195,9 +195,12 @@ function solve_system!(
 end
 
 
-function stage_iterator!(name::String, stage_solver!::Function, model::Model; report = false, outdir = ".", args...)
+function stage_iterator!(name::String, stage_solver!::Function, model::Model; args...)
 
-    args   = merge(NamedTuple(args), (;report, outdir))
+    autoinc = get(args, :autoinc, false)
+    outdir  = get(args, :outdir, ".")
+    report  = get(args, :report, false)
+
     env    = model.env
     cstage = findfirst(st->st.status!=:done, model.stages)
     cstage === nothing && error("stage_iterator!: No stages have been set for $name")
