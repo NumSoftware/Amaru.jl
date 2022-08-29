@@ -61,5 +61,3 @@ bcs = [
 addstage!(model, bcs, tspan=0.05, nincs=1000, nouts=4)
 
 dyn_solve!(model, report=true, autoinc=true, alpha=0.0, beta=0.0)
-#using Glob
-#rm.(glob("*.vtk"))

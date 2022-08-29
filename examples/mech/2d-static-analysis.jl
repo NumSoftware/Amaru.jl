@@ -20,7 +20,7 @@ materials = [
 # Finite element model
 # =====================
 
-model = Model(msh, materials, use_cache=false)
+model = Model(msh, materials)
 
 addlogger!(model, :(x==1.5 && y==0) => NodeLogger("one-node.dat"))
 addlogger!(model, :(y<0.025) => IpGroupLogger("ip-list.dat"))
@@ -31,7 +31,6 @@ bcs = [
     :(x==3 && y==0) => NodeBC(uy=0),
     :(y==0.4)       => SurfaceBC(ty=:(-0.1*x)), # triangular load
 ]
-
 addstage!(model, bcs, nincs=51, nouts=5)
 
 # Perform the finite element analysis

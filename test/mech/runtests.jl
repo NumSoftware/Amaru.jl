@@ -30,14 +30,6 @@ files = [
          # Static analysis: embeddeed and semi-embedded elements
          "elem/inset/embedded.jl",
          "elem/inset/ceb.jl",
-
-         # Dynamic analysis:
-         "elem/dynamic/dyn-spring.jl",
-         "elem/dynamic/dyn-solid.jl",
         ]
 
-for file in files
-    printstyled("\nRunning file ", file,"...\n", color=:yellow, bold=true)
-    include(file)
-    println()
-end
+runfiles(files)
