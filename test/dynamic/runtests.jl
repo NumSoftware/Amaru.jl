@@ -1,6 +1,6 @@
 files = [
-         "elem/dynamic/dyn-spring.jl",
-         "elem/dynamic/dyn-solid.jl",
+         "dyn-spring.jl",
+         "dyn-solid.jl",
         ]
 
 runfiles(files)
