@@ -34,7 +34,7 @@ bcs = [
       ]
 
 try
-    @test solve!(model, autoinc=true, nincs=1000, maxits=4, tol=0.01, report=false, scheme=:FE, nouts=50, maxincs=0).success
+    @test solve!(model, autoinc=true, nincs=1000, maxits=4, tol=0.01, quiet=true, scheme=:FE, nouts=50, maxincs=0).success
 catch
 end
 

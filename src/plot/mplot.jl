@@ -337,20 +337,20 @@ function mplot(
                figsize             = (3,3.0),
                leaveopen           = false,
                crop                = false,
-               report            = false,
+               quiet            = false,
                copypath            = ""
               )
 
-    report && headline("Mesh plotting")
-    report && isempty(filename) && message("generating plot to file $filename")
+    quiet || headline("Mesh plotting")
+    quiet || isempty(filename) && message("generating plot to file $filename")
 
-    if report
+    if !quiet
         hint("Optional arguments:", level=2)
         options = "axis, lw, markers, nodelabels, celllabels, opacity, field,
                    fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
                    colorbarlabel, colorbarlocation, colorbarorientation, colorbarpad, 
                    warpscale, hicells, elev, azim, dist, outline, outlineangle,
-                   figsize, leaveopen, report"
+                   figsize, leaveopen, quiet"
         hint(options, level=3)
         hint("Available node fields:", level=2)
         hint(join(keys(mesh.node_data), ", "), level=3)
@@ -978,7 +978,7 @@ function mplot(
             end
         end
 
-        report && info("file $filename saved")
+        quiet || info("file $filename saved")
 
         if copypath!=""
             if isdir(copypath)
@@ -987,7 +987,7 @@ function mplot(
                 copyfile = copypath
             end
             cp(filename, copyfile, force=true)
-            report && info("file $copyfile saved")
+            quiet || info("file $copyfile saved")
         end
     end
 
@@ -1412,4 +1412,3 @@ function mplot(
     end
 
 end
-

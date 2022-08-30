@@ -2,7 +2,7 @@
 
 function smooth!(
     mesh::Mesh; 
-    report = false,
+    quiet = false,
     scheme  = "laplacian",
     tol     = 1e-3,
     maxit   = 10,
@@ -11,11 +11,11 @@ function smooth!(
     extraargs...
 )
     if scheme=="laplacian"
-        laplacian_smooth!(mesh; report=report, tol=tol, maxit=maxit, binsize=binsize, filekey=filekey, extraargs...)
+        laplacian_smooth!(mesh; quiet=quiet, tol=tol, maxit=maxit, binsize=binsize, filekey=filekey, extraargs...)
     elseif scheme=="fitting"
-        fitting_smooth!(mesh; smart=false, report=report, tol=tol, maxit=maxit, binsize=binsize, filekey=filekey, extraargs...)
+        fitting_smooth!(mesh; smart=false, quiet=quiet, tol=tol, maxit=maxit, binsize=binsize, filekey=filekey, extraargs...)
     elseif scheme=="smartfitting"
-        fitting_smooth!(mesh; smart=true, extended=true, report=report, tol=tol, maxit=maxit, binsize=binsize, filekey=filekey, extraargs...)
+        fitting_smooth!(mesh; smart=true, extended=true, quiet=quiet, tol=tol, maxit=maxit, binsize=binsize, filekey=filekey, extraargs...)
     end
 
     return mesh
@@ -725,7 +725,7 @@ end
 
 
 export fast_smooth2!
-function fast_smooth2!(mesh::Mesh; report=false, alpha::Float64=1.0, target::Float64=0.97,
+function fast_smooth2!(mesh::Mesh; quiet=true, alpha::Float64=1.0, target::Float64=0.97,
                  fixed::Bool=false, maxit::Int64=30, mintol::Float64=1e-3, tol::Float64=1e-4,
                  facetol=1e-4, savesteps::Bool=false, savedata::Bool=false, binsize::Float64=0.05,
                  filekey::String="smooth", conds=nothing, extended=false, smart=false)
@@ -733,8 +733,8 @@ function fast_smooth2!(mesh::Mesh; report=false, alpha::Float64=1.0, target::Flo
     # tol   : tolerance in change of mesh quality for succesive iterations
     # mintol: tolerance in change of worst cell quality in a mesh for succesive iterations
 
-    #report && printstyled("Mesh smoothing:\n", bold=true, color=:cyan)
-    #report && printstyled("Mesh fast-$(smart ? "smart-" : "")cells-fitting smoothing:\n", bold=true, color=:cyan)
+    #quiet || printstyled("Mesh smoothing:\n", bold=true, color=:cyan)
+    #quiet || printstyled("Mesh fast-$(smart ? "smart-" : "")cells-fitting smoothing:\n", bold=true, color=:cyan)
 
     # check for not allowed cells
     for c in mesh.elems
@@ -784,13 +784,13 @@ function fast_smooth2!(mesh::Mesh; report=false, alpha::Float64=1.0, target::Flo
     hist  = fit(Histogram, Q, 0.0:binsize:1.0, closed=:right).weights
     push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:binsize:1-binsize,hist)))
 
-    report && @printf("%4s  %5s  %5s  %5s  %5s  %5s  %5s  %7s  %9s  %10s\n", "it", "qmin", "q1", "q2", "q3", "qmax", "qavg", "sdev", "time", "histogram (0:$binsize:1]")
-    report && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", 0, qmin, q1, q2, q3, qmax, q, dev, "-")
-    report && println("  ", str_histogram(hist))
+    quiet || @printf("%4s  %5s  %5s  %5s  %5s  %5s  %5s  %7s  %9s  %10s\n", "it", "qmin", "q1", "q2", "q3", "qmax", "qavg", "sdev", "time", "histogram (0:$binsize:1]")
+    quiet || @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", 0, qmin, q1, q2, q3, qmax, q, dev, "-")
+    quiet || println("  ", str_histogram(hist))
 
     #nits = 0
     mesh.elem_data["quality"] = Q
-    savesteps && save(mesh, "$filekey-0.vtk", report=true)
+    savesteps && save(mesh, "$filekey-0.vtk")
 
 
     
@@ -802,7 +802,7 @@ function fast_smooth2!(mesh::Mesh; report=false, alpha::Float64=1.0, target::Flo
         XX = find_weighted_pos(mesh, patches, extended, alpha, qmin, in_border)
 
         # Save last step file with current forces
-        #savesteps && save(mesh, "$filekey-$(i-1).vtk", report=true)
+        #savesteps && save(mesh, "$filekey-$(i-1).vtk")
 
         # Update mesh
         for node in mesh.nodes
@@ -870,7 +870,7 @@ function fast_smooth2!(mesh::Mesh; report=false, alpha::Float64=1.0, target::Flo
         new_qmin <= 0.0 && error("smooth!: got negative quality value (qmin=$new_qmin).")
 
         mesh.elem_data["quality"] = Q
-        savesteps && save(mesh, "$filekey-$i.vtk", report=true)
+        savesteps && save(mesh, "$filekey-$i.vtk")
 
         Δq    = abs(q - new_q)
         Δqmin = new_qmin - qmin
@@ -886,8 +886,8 @@ function fast_smooth2!(mesh::Mesh; report=false, alpha::Float64=1.0, target::Flo
         hist = fit(Histogram, Q, 0.0:binsize:1.0, closed=:right).weights
         push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:binsize:1-binsize,hist)))
 
-        report && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", i, qmin, q1, q2, q3, qmax, q, dev, see(sw, format=:ms))
-        report && println("  ", str_histogram(hist))
+        quiet || @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", i, qmin, q1, q2, q3, qmax, q, dev, see(sw, format=:ms))
+        quiet || println("  ", str_histogram(hist))
 
         if Δq<tol && Δqmin<mintol && i>1
             break
@@ -897,7 +897,7 @@ function fast_smooth2!(mesh::Mesh; report=false, alpha::Float64=1.0, target::Flo
     end
     # Set forces to zero for the last step
     #mesh.node_data["forces"] = zeros(length(mesh.nodes), 3)
-    #savesteps && save(mesh, "$filekey-$nits.vtk", report=true)
+    #savesteps && save(mesh, "$filekey-$nits.vtk")
 
     savedata && save(stats, "$filekey-stats.dat")
     savedata && save(hists, "$filekey-hists.dat")
@@ -906,7 +906,7 @@ function fast_smooth2!(mesh::Mesh; report=false, alpha::Float64=1.0, target::Flo
 end
 
 
-function fast_smooth!(mesh::Mesh; report=false, alpha::Float64=1.0, target::Float64=0.97,
+function fast_smooth!(mesh::Mesh; quiet=true, alpha::Float64=1.0, target::Float64=0.97,
                  fixed::Bool=false, maxit::Int64=30, mintol::Float64=1e-3, tol::Float64=1e-4,
                  facetol=1e-4, savesteps::Bool=false, savedata::Bool=false, binsize::Float64=0.05,
                  filekey::String="smooth", conds=nothing, extended=false, smart=false)
@@ -914,8 +914,8 @@ function fast_smooth!(mesh::Mesh; report=false, alpha::Float64=1.0, target::Floa
     # tol   : tolerance in change of mesh quality for succesive iterations
     # mintol: tolerance in change of worst cell quality in a mesh for succesive iterations
 
-    #report && printstyled("Mesh smoothing:\n", bold=true, color=:cyan)
-    report && printstyled("Mesh fast-$(smart ? "smart-" : "")cells-fitting smoothing:\n", bold=true, color=:cyan)
+    #quiet || printstyled("Mesh smoothing:\n", bold=true, color=:cyan)
+    quiet || printstyled("Mesh fast-$(smart ? "smart-" : "")cells-fitting smoothing:\n", bold=true, color=:cyan)
 
     # check for not allowed cells
     for c in mesh.elems
@@ -965,13 +965,13 @@ function fast_smooth!(mesh::Mesh; report=false, alpha::Float64=1.0, target::Floa
     hist  = fit(Histogram, Q, 0.0:binsize:1.0, closed=:right).weights
     push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:binsize:1-binsize,hist)))
 
-    report && @printf("%4s  %5s  %5s  %5s  %5s  %5s  %5s  %7s  %9s  %10s\n", "it", "qmin", "q1", "q2", "q3", "qmax", "qavg", "sdev", "time", "histogram (0:$binsize:1]")
-    report && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", 0, qmin, q1, q2, q3, qmax, q, dev, "-")
-    report && println("  ", str_histogram(hist))
+    quiet || @printf("%4s  %5s  %5s  %5s  %5s  %5s  %5s  %7s  %9s  %10s\n", "it", "qmin", "q1", "q2", "q3", "qmax", "qavg", "sdev", "time", "histogram (0:$binsize:1]")
+    quiet || @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", 0, qmin, q1, q2, q3, qmax, q, dev, "-")
+    quiet || println("  ", str_histogram(hist))
 
     #nits = 0
     mesh.elem_data["quality"] = Q
-    savesteps && save(mesh, "$filekey-0.vtk", report=true)
+    savesteps && save(mesh, "$filekey-0.vtk")
 
     for i in 1:maxit
 
@@ -981,7 +981,7 @@ function fast_smooth!(mesh::Mesh; report=false, alpha::Float64=1.0, target::Floa
         D = find_disps(mesh, patches, extended, alpha, qmin, in_border)
 
         # Save last step file with current forces
-        #savesteps && save(mesh, "$filekey-$(i-1).vtk", report=true)
+        #savesteps && save(mesh, "$filekey-$(i-1).vtk")
 
         # Update mesh
         for node in mesh.nodes
@@ -1049,7 +1049,7 @@ function fast_smooth!(mesh::Mesh; report=false, alpha::Float64=1.0, target::Floa
         new_qmin <= 0.0 && error("smooth!: got negative quality value (qmin=$new_qmin).")
 
         mesh.elem_data["quality"] = Q
-        savesteps && save(mesh, "$filekey-$i.vtk", report=true)
+        savesteps && save(mesh, "$filekey-$i.vtk")
 
         Δq    = abs(q - new_q)
         Δqmin = new_qmin - qmin
@@ -1065,8 +1065,8 @@ function fast_smooth!(mesh::Mesh; report=false, alpha::Float64=1.0, target::Floa
         hist = fit(Histogram, Q, 0.0:binsize:1.0, closed=:right).weights
         push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:binsize:1-binsize,hist)))
 
-        report && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", i, qmin, q1, q2, q3, qmax, q, dev, see(sw, format=:ms))
-        report && println("  ", str_histogram(hist))
+        quiet || @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", i, qmin, q1, q2, q3, qmax, q, dev, see(sw, format=:ms))
+        quiet || println("  ", str_histogram(hist))
 
         if Δq<tol && Δqmin<mintol && i>1
             break
@@ -1076,7 +1076,7 @@ function fast_smooth!(mesh::Mesh; report=false, alpha::Float64=1.0, target::Floa
     end
     # Set forces to zero for the last step
     #mesh.node_data["forces"] = zeros(length(mesh.nodes), 3)
-    #savesteps && save(mesh, "$filekey-$nits.vtk", report=true)
+    #savesteps && save(mesh, "$filekey-$nits.vtk")
 
     savedata && save(stats, "$filekey-stats.dat")
     savedata && save(hists, "$filekey-hists.dat")
@@ -1086,7 +1086,7 @@ end
 
 
 
-function fitting_smooth!(mesh::Mesh; report=false, alpha::Float64=1.0, target::Float64=0.97,
+function fitting_smooth!(mesh::Mesh; quiet=true, alpha::Float64=1.0, target::Float64=0.97,
                  fixed::Bool=false, maxit::Int64=10, mintol::Float64=2e-2, tol::Float64=1e-3,
                  facetol=1e-4, savesteps::Bool=false, savedata::Bool=false, binsize::Float64=0.05,
                  filekey::String="smooth", conds=nothing, extended=false, smart=false)
@@ -1094,7 +1094,7 @@ function fitting_smooth!(mesh::Mesh; report=false, alpha::Float64=1.0, target::F
     # tol   : tolerance in change of mesh quality for succesive iterations
     # mintol: tolerance in change of worst cell quality in a mesh for succesive iterations
 
-    report && printstyled("Mesh $(smart ? "smart-" : "")cells-fitting smoothing:\n", bold=true, color=:cyan)
+    quiet || printstyled("Mesh $(smart ? "smart-" : "")cells-fitting smoothing:\n", bold=true, color=:cyan)
 
     # check for not allowed cells
     for c in mesh.elems
@@ -1126,9 +1126,9 @@ function fitting_smooth!(mesh::Mesh; report=false, alpha::Float64=1.0, target::F
     hist  = fit(Histogram, Q, 0.0:binsize:1.0, closed=:right).weights
     push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:binsize:1-binsize,hist)))
 
-    report && @printf("%4s  %5s  %5s  %5s  %5s  %5s  %5s  %7s  %9s  %10s\n", "it", "qmin", "q1", "q2", "q3", "qmax", "qavg", "sdev", "time", "histogram (0:$binsize:1]")
-    report && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", 0, qmin, q1, q2, q3, qmax, q, dev, "-")
-    report && println("  ", str_histogram(hist))
+    quiet || @printf("%4s  %5s  %5s  %5s  %5s  %5s  %5s  %7s  %9s  %10s\n", "it", "qmin", "q1", "q2", "q3", "qmax", "qavg", "sdev", "time", "histogram (0:$binsize:1]")
+    quiet || @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", 0, qmin, q1, q2, q3, qmax, q, dev, "-")
+    quiet || println("  ", str_histogram(hist))
 
 
     # Lagrange multipliers matrix
@@ -1143,7 +1143,7 @@ function fitting_smooth!(mesh::Mesh; report=false, alpha::Float64=1.0, target::F
         sw = StopWatch()
 
         # Forces vector needed for smoothing
-        #report && print("calculating forces...")
+        #quiet || print("calculating forces...")
         F   = force_bc(mesh, E, nu, alpha, extended)
 
         if ndim==2
@@ -1153,21 +1153,21 @@ function fitting_smooth!(mesh::Mesh; report=false, alpha::Float64=1.0, target::F
         end
 
         # Save last step file with current forces
-        savesteps && save(mesh, "$filekey-$(i-1).vtk", report=true)
+        savesteps && save(mesh, "$filekey-$(i-1).vtk")
         # Augmented forces vector
         F   = vcat( F, zeros(nbc) )
         # global stiffness plus LM
-        #report && print("\rmounting stiffness matrix...")
+        #quiet || print("\rmounting stiffness matrix...")
         K = mountKg(mesh, E, nu, A)
-        #report && println("\r")
+        #quiet || println("\r")
 
         # Solve system
-        #report && print("\rsolving system...         ")
+        #quiet || print("\rsolving system...         ")
         LUf = lu(K)
         U = LUf\F
 
         # Update mesh
-        #report && print("\rupdating mesh...  ")
+        #quiet || print("\rupdating mesh...  ")
         for node in mesh.nodes
             id = node.id
             X0 = [node.coord.x, node.coord.y, node.coord.z][1:ndim]
@@ -1235,8 +1235,8 @@ function fitting_smooth!(mesh::Mesh; report=false, alpha::Float64=1.0, target::F
         hist = fit(Histogram, Q, 0.0:binsize:1.0, closed=:right).weights
         push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:binsize:1-binsize,hist)))
 
-        report && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", i, qmin, q1, q2, q3, qmax, q, dev, see(sw, format=:ms))
-        report && println("  ", str_histogram(hist))
+        quiet || @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", i, qmin, q1, q2, q3, qmax, q, dev, see(sw, format=:ms))
+        quiet || println("  ", str_histogram(hist))
 
         nits = i
 
@@ -1250,7 +1250,7 @@ function fitting_smooth!(mesh::Mesh; report=false, alpha::Float64=1.0, target::F
 
     # Set forces to zero for the last step
     mesh.node_data["forces"] = zeros(length(mesh.nodes), 3)
-    savesteps && save(mesh, "$filekey-$nits.vtk", report=true)
+    savesteps && save(mesh, "$filekey-$nits.vtk")
 
     savedata && save(stats, "$filekey-stats.dat")
     savedata && save(hists, "$filekey-hists.dat")
@@ -1268,12 +1268,12 @@ laplacian_smooth!(mesh; maxit, verbose, mintol, tol, savesteps, savedata, fileke
 
 Smooths a finite element mesh using Laplacian smoothing (standard, weighted, smart).
 """
-function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, report=false, fixed=false,
+function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, quiet=true, fixed=false,
     mintol::Float64=1e-2, tol::Float64=1e-4, facetol::Float64=1e-5,
     savesteps::Bool=false, savedata::Bool=false, binsize::Float64=0.05,
     filekey::String="smooth", smart=false, weighted=false)
 
-    report && printstyled("Mesh $(smart ? "smart-" : "")$(weighted ? "weighted-" : "")Laplacian smoothing:\n", bold=true, color=:cyan)
+    quiet || printstyled("Mesh $(smart ? "smart-" : "")$(weighted ? "weighted-" : "")Laplacian smoothing:\n", bold=true, color=:cyan)
 
     ndim = mesh.ndim
 
@@ -1310,7 +1310,7 @@ function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, report=false, fixed=fals
         map_pn[ snode.node.id ] = i
     end
 
-    savesteps && save(mesh, "$filekey-0.vtk", report=true)
+    savesteps && save(mesh, "$filekey-0.vtk")
 
     # stats
     Q    = Float64[ c.quality for c in mesh.elems]
@@ -1327,13 +1327,13 @@ function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, report=false, fixed=fals
     hist  = fit(Histogram, Q, 0.0:binsize:1.0, closed=:right).weights
     push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:binsize:1-binsize,hist)))
 
-    #report && @printf("  it: %2d  qmin: %7.5f  qavg: %7.5f  dev: %7.5f", 0, qmin, q, dev)
-    #report && @printf("  it: %2d  q-range: %5.3f…%5.3f  qavg: %5.3f  dev: %7.5f", 0, qmin, qmax, q, dev)
-    #report && println("  hist: ", fit(Histogram, Q, 0.5:binsize:1.0, closed=:right).weights)
-    report && @printf("%4s  %5s  %5s  %5s  %5s  %5s  %5s  %7s  %9s  %10s\n", "it", "qmin", "q1", "q2", "q3", "qmax", "qavg", "sdev", "time", "histogram (0:$binsize:1]")
-    report && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", 0, qmin, q1, q2, q3, qmax, q, dev, "-")
-    #report && println("  ", fit(Histogram, Q, 0.3:binsize:1.0, closed=:right).weights)
-    report && println("  ", str_histogram(hist))
+    #quiet || @printf("  it: %2d  qmin: %7.5f  qavg: %7.5f  dev: %7.5f", 0, qmin, q, dev)
+    #quiet || @printf("  it: %2d  q-range: %5.3f…%5.3f  qavg: %5.3f  dev: %7.5f", 0, qmin, qmax, q, dev)
+    #quiet || println("  hist: ", fit(Histogram, Q, 0.5:binsize:1.0, closed=:right).weights)
+    quiet || @printf("%4s  %5s  %5s  %5s  %5s  %5s  %5s  %7s  %9s  %10s\n", "it", "qmin", "q1", "q2", "q3", "qmax", "qavg", "sdev", "time", "histogram (0:$binsize:1]")
+    quiet || @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", 0, qmin, q1, q2, q3, qmax, q, dev, "-")
+    #quiet || println("  ", fit(Histogram, Q, 0.3:binsize:1.0, closed=:right).weights)
+    quiet || println("  ", str_histogram(hist))
 
     # find center node and update node position
     for i in 1:maxit
@@ -1417,7 +1417,7 @@ function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, report=false, fixed=fals
         new_qmin    = minimum(Q)
 
         mesh.elem_data["quality"] = Q
-        savesteps && save(mesh, "$filekey-$i.vtk", report=true)
+        savesteps && save(mesh, "$filekey-$i.vtk")
 
         #if any(Q .== 0.0)
             #error("smooth!: Smooth procedure got invalid element(s).")
@@ -1437,9 +1437,9 @@ function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, report=false, fixed=fals
         hist = fit(Histogram, Q, 0.0:binsize:1.0, closed=:right).weights
         push!(hists, OrderedDict(Symbol(r) => v for (r,v) in zip(0.0:binsize:1-binsize,hist)))
 
-        report && @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", i, qmin, q1, q2, q3, qmax, q, dev, see(sw, format=:ms))
-        #report && println("  ", fit(Histogram, Q, 0.3:binsize:1.0, closed=:right).weights)
-        report && println("  ", str_histogram(hist))
+        quiet || @printf("%4d  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %5.3f  %7.5f  %9s", i, qmin, q1, q2, q3, qmax, q, dev, see(sw, format=:ms))
+        #quiet || println("  ", fit(Histogram, Q, 0.3:binsize:1.0, closed=:right).weights)
+        quiet || println("  ", str_histogram(hist))
 
         #Δqmin<0.0 && break
 

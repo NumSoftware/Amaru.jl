@@ -5,7 +5,7 @@ using Amaru
 # Mesh generation
 blocks = [Block([0 0; 1 2], nx=4, ny=8, tag="solids"),]
 
-msh = Mesh(blocks, report=true)
+msh = Mesh(blocks)
 
 # Finite element analysis
 
@@ -31,4 +31,4 @@ bcs = [:(y == 0) => NodeBC(ut=100.0),
        :(y == 2) => NodeBC(ut=20.0),
 ]
 
-tm_solve!(model,end_time=9000, tol=0.1, nincs=10, nouts=10, report=true)
+tm_solve!(model,end_time=9000, tol=0.1, nincs=10, nouts=10)

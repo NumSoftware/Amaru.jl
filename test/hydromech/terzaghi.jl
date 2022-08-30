@@ -49,7 +49,7 @@ bcs = [
     :(z==10) => NodeBC(uw=0.),
 ]
 addstage!(model, bcs, tspan=tlong, nincs=2, nouts=1)
-hm_solve!(model, tol=1e-2, report=true)
+hm_solve!(model, tol=1e-2)
 model.env.t = 0.0
 
 # Stage 2: loading
@@ -60,7 +60,7 @@ bcs = [
     :(z==10) => NodeBC(uw=0.),
 ]
 addstage!(model, bcs, tspan=t1, nincs=4, nouts=1)
-hm_solve!(model, tol=1e-2, report=true)
+hm_solve!(model, tol=1e-2)
 
 # Stage 3: draining
 bcs = [
@@ -73,7 +73,7 @@ bcs = [
 Uw_vals = [] # A list with porepressure vectors
 for tspan in lapses
     addstage!(model, bcs, tspan=tspan, nincs=20, nouts=1)
-    hm_solve!(model, tol=1e-2, report=true)
+    hm_solve!(model, tol=1e-2)
     push!( Uw_vals, log1.book[end][:uw] )
 end
 

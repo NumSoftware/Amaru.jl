@@ -8,7 +8,7 @@ using Test
 # Mesh generation
 
 block = Block( [0 0 0; 1 1 1], nx=1, ny=1, nz=1, cellshape=HEX8, tag="solid")
-mesh = Mesh(block, report=false, reorder=false)
+mesh = Mesh(block, quiet=true, reorder=false)
 
 # Model definition
 
@@ -64,7 +64,7 @@ for (ana, bcs, dis) in zip(ana_list, bcs_list, dis_list)
 
     model = Model(mesh, materials)
     addstage!(model, bcs, nouts=1)
-    solve!(model, report=true)
+    solve!(model)
 
     println("Displacements:")
     D = get_data(model.nodes)[[:ux, :uy, :uz]]

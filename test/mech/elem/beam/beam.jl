@@ -24,7 +24,7 @@ bcs =
    :(x==1) => NodeBC(fx=1, fy=2),
 ]
 addstage!(model, bcs)
-solve!(model, report=true)
+solve!(model)
 
 
 # 3D beam
@@ -51,4 +51,4 @@ bcs =
    :(x==1) => NodeBC(fx=1, fz=2),
 ]
 addstage!(model, bcs)
-solve!(model, report=true)
+solve!(model)

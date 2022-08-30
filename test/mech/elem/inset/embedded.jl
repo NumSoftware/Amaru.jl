@@ -26,4 +26,4 @@ bcs = [
       ]
 addstage!(model, bcs, nincs=20)
 
-@test solve!(model, report=true).success
+@test solve!(model).success

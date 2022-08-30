@@ -502,7 +502,7 @@ end
 
 
 # TODO: Improve column width for string items
-function save(table::DataTable, filename::String; report=false, digits::Array=[])
+function save(table::DataTable, filename::String; quiet=true, digits::Array=[])
     suitable_formats = (".dat", ".table", ".tex")
 
     basename, format = splitext(filename)
@@ -542,7 +542,7 @@ function save(table::DataTable, filename::String; report=false, digits::Array=[]
             end
         end
 
-        report && printstyled("  file $filename written\n", color=:cyan)
+        quiet || printstyled("  file $filename written\n", color=:cyan)
     end
 
     if format==".tex"

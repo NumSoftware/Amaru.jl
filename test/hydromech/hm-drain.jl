@@ -35,7 +35,7 @@ bcs = [
        :(y==2.0) => NodeBC(uw=0),
       ]
 addstage!(model, bcs, tspan=100, nincs=2, nouts=2)
-hm_solve!(model, tol=1e-2, report=true)
+hm_solve!(model, tol=1e-2)
 
 model.env.t = 0.0
 
@@ -47,4 +47,4 @@ bcs = [
       ]
 
 addstage!(model, bcs, tspan=600, nincs=2, nouts=2)
-hm_solve!(model, tol=1e-2, report=true)
+hm_solve!(model, tol=1e-2)

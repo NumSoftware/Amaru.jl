@@ -58,7 +58,7 @@ addstage!(model, bcs, nincs=nincs)
 bcs[2] = "tip" => NodeBC(uy=+0.005)
 addstage!(model, bcs, nincs=nincs)
 
-@test solve!(model, autoinc=true, scheme=scheme, tol=tol, maxits=maxits, report=true).success
+@test solve!(model, autoinc=true, scheme=scheme, tol=tol, maxits=maxits).success
 
 if @isdefined(makeplots) && makeplots
     using PyPlot

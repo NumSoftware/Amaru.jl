@@ -24,7 +24,7 @@ bcs = [
        :(x>=0)         => BodyC(wy=-10.0)
       ]
 addstage!(model, bcs)
-@test solve!(model, report=true).success
+@test solve!(model).success
 
 
 # 3D Truss plus self weight

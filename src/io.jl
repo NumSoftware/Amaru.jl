@@ -150,11 +150,11 @@ function save_xml(model::Model, filename::String)
 end
 
 """
-    save(domain, filename, report=true)
+    save(domain, filename)
 
 Saves a domain object into a file. Available formats are vtu, vtk and xml.
 """
-function save(domain::Model, filename::String; report=true)
+function save(domain::Model, filename::String; quiet=false)
     
 
     formats = (".vtk", ".vtu", ".xml")
@@ -163,15 +163,15 @@ function save(domain::Model, filename::String; report=true)
 
     if format==".xml"; 
         save_xml(domain, filename)
-        report && printstyled( "  file $filename written \e[K \n", color=:cyan)
+        quiet || printstyled( "  file $filename written \e[K \n", color=:cyan)
     else
-        invoke(save, Tuple{AbstractDomain,String}, domain, filename, report=report)
+        invoke(save, Tuple{AbstractDomain,String}, domain, filename, quiet=quiet)
     end
 end
 
 
-function save(elems::Array{<:Element,1}, filename::String; report=true)
-    save(Model(elems), filename, report=report)
+function save(elems::Array{<:Element,1}, filename::String; quiet=false)
+    save(Model(elems), filename, quiet=quiet)
 end
 
 
@@ -206,11 +206,11 @@ function setfields!(obj, dict; exclude::Tuple{Vararg{Symbol}}=())
 end
 
 
-function Model(filename::String; report=true)
+function Model(filename::String; quiet=false)
     suitable_formats = (".xml",)
     
 
-    report && printstyled("Loading Model: filename $filename\n", bold=true, color=:cyan)
+    quiet || printstyled("Loading Model: filename $filename\n", bold=true, color=:cyan)
 
     basename, format = splitext(filename)
 
@@ -219,7 +219,7 @@ function Model(filename::String; report=true)
     domain = Model()
     env = ModelEnv()
 
-    report && printstyled("  loading xml file...\r", color=:cyan)
+    quiet || printstyled("  loading xml file...\r", color=:cyan)
     xdoc = Xdoc(filename)
     xdomain = xdoc.root
     setfields!(env, xdomain.attributes)
@@ -227,7 +227,7 @@ function Model(filename::String; report=true)
     domain.env = env
     domain.ndim = env.ndim
 
-    report && printstyled("  setting materials...\e[K\r", color=:cyan)
+    quiet || printstyled("  setting materials...\e[K\r", color=:cyan)
     materials = Material[]
     xmats = xdomain("Materials")
     for xmat in xmats.children
@@ -238,7 +238,7 @@ function Model(filename::String; report=true)
         push!(materials, mat)
     end
 
-    report && printstyled("  setting nodes...\e[K\r", color=:cyan)
+    quiet || printstyled("  setting nodes...\e[K\r", color=:cyan)
     xnodes = xdomain("Nodes")
     for xnode in xnodes.children
         node = Node()
@@ -256,7 +256,7 @@ function Model(filename::String; report=true)
         push!(domain.nodes, node)
     end
 
-    report && printstyled("  setting elements...\e[K\r", color=:cyan)
+    quiet || printstyled("  setting elements...\e[K\r", color=:cyan)
     xelems = xdomain("Elements")
     for xelem in xelems.children
         T = eval(Symbol(xelem.name))
@@ -276,7 +276,7 @@ function Model(filename::String; report=true)
     end
 
     # Setting linked elements
-    report && printstyled("  setting linked elements...\e[K\r", color=:cyan)
+    quiet || printstyled("  setting linked elements...\e[K\r", color=:cyan)
     for (i,xelem) in enumerate(xelems.children)
         linked_str = xelem.attributes["linked_elems"]
         linked_str == "" && continue
@@ -285,7 +285,7 @@ function Model(filename::String; report=true)
     end
 
     # Quadrature and initialization
-    report && printstyled("  setting integration points...\e[K\r", color=:cyan)
+    quiet || printstyled("  setting integration points...\e[K\r", color=:cyan)
     for (i,xelem) in enumerate(xelems.children)
         elem = domain.elems[i]
         nips = length(xelem.children)
@@ -307,7 +307,7 @@ function Model(filename::String; report=true)
     domain.faces = get_surface(domain.elems)
     domain.edges = getedges(domain.faces)
 
-    report && printstyled("  setting additional data...\e[K\r", color=:cyan)
+    quiet || printstyled("  setting additional data...\e[K\r", color=:cyan)
 
     TYPES = Dict("Float32"=>Float32, "Float64"=>Float64, "Int32"=>Int32, "Int64"=>Int64)
     nnodes = length(domain.nodes)
@@ -339,7 +339,7 @@ function Model(filename::String; report=true)
         end
     end
 
-    report && printstyled( "  file $filename loaded \e[K \n", color=:cyan)
+    quiet || printstyled( "  file $filename loaded \e[K \n", color=:cyan)
 
     return domain
 

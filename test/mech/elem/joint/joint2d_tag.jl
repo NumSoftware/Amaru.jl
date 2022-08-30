@@ -28,6 +28,6 @@ bcs = [
        :(x==0.3) => SurfaceBC(ux=2.0*1.7e-4)
       ]
 
-@test solve!(model, autoinc=true, nincs=20, maxits=3, tol=0.01, report=false, scheme=:ME, nouts=10).success
+@test solve!(model, autoinc=true, nincs=20, maxits=3, tol=0.01, quiet=true, scheme=:ME, nouts=10).success
 
 

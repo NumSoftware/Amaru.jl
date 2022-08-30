@@ -71,7 +71,7 @@ end
 
 
 function update_embedded_disps!(active_elems::Array{<:Element,1}, U::Matx)
-    for elem in active_elems.embedded
+    for elem in active_elems.embeddeds
         Ue, nodemap, dimmap = elem_displacements(elem)
         U[nodemap, dimmap] .= Ue
     end
@@ -112,7 +112,7 @@ subjected to a set of boundary conditions `bcs`.
 
 `outkey = ""` : File key for output files
 
-`report = false` : verbosity level from 0 (silent) to 2 (verbose)
+`quiet = false` : verbosity level from 0 (silent) to 2 (verbose)
 
 """
 function mech_solve!(model::Model; args...)
@@ -133,7 +133,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
     maxincs :: Int     = 1000000,
     outdir  :: String  = ".",
     outkey  :: String  = "out",
-    report  :: Bool    = false
+    quiet  :: Bool    = false
     )
 
     println(logfile, "Mechanical FE analysis: Stage $(stage.id)")
@@ -163,7 +163,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
     println(logfile, "unknown dofs: $nu")
     message(sline, "  unknown dofs: $nu")
 
-    report && nu==ndofs && message(sline, "solve_system!: No essential boundary conditions", Base.warn_color)
+    quiet || nu==ndofs && message(sline, "solve_system!: No essential boundary conditions", Base.warn_color)
 
     if stage.id == 1
         # Setup quantities at dofs
@@ -177,7 +177,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
         update_single_loggers!(model)
         update_composed_loggers!(model)
         update_monitors!(model)
-        save_outs && save(model, "$outdir/$outkey-0.vtu", report=false)
+        save_outs && save(model, "$outdir/$outkey-0.vtu", quiet=true)
     end
 
     # Get the domain current state and backup
@@ -229,7 +229,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
         println(logfile, "  inc $inc")
         
         if inc > maxincs
-            report && message(sline, "solver maxincs = $maxincs reached (try maxincs=0)", Base.default_color_error)
+            quiet || message(sline, "solver maxincs = $maxincs reached (try maxincs=0)", Base.default_color_error)
             return failure("$maxincs reached")
         end
 
@@ -341,7 +341,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
             println(logfile, sysstatus.message)
             converged = false
         end
-        report && sysstatus.message!="" && message(sline, sysstatus.message, Base.default_color_warn)
+        quiet || sysstatus.message!="" && message(sline, sysstatus.message, Base.default_color_warn)
 
         if converged
             # Update forces and displacement for the current stage
@@ -373,7 +373,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
                 update_embedded_disps!(active_elems, model.node_data["U"])
 
                 update_composed_loggers!(model)
-                save(model, "$outdir/$outkey-$iout.vtu", report=false) #!
+                save(model, "$outdir/$outkey-$iout.vtu", quiet=true) #!
 
                 Tcheck += ΔTcheck # find the next output time
             end

@@ -22,10 +22,10 @@ function message(sline::StatusLine, msg::String, color::Symbol=:default)
 end
 
 function progress_bar(T::Float64)
-    dwidth = displaysize(stdout)[2]-2
-    width = max(2, min(25, dwidth-35))
+    dwidth  = displaysize(stdout)[2]-2
+    width   = max(2, min(25, dwidth-35))
     ch_done = T*width
-    frac = ch_done - floor(ch_done)
+    frac    = ch_done - floor(ch_done)
 
     barl = repeat(['━'], floor(Int, ch_done))
     barr = Char[]
@@ -57,14 +57,15 @@ function progress_bar(T::Float64)
 
     iscolor = get(stdout, :color, false)
     if iscolor
-        color = :blue
-        # color = 33
-        enable_ansi  = get(Base.text_colors, color, Base.text_colors[:default])
-        disable_ansi = get(Base.disable_text_style, color, Base.text_colors[:default])
-        barls = string(enable_ansi, barls, disable_ansi)
-        enable_ansi  = get(Base.text_colors, :light_black, Base.text_colors[:default])
-        disable_ansi = get(Base.disable_text_style, :light_black, Base.text_colors[:default])
-        barrs = string(enable_ansi, barrs, disable_ansi)
+        color        = :blue
+        enable_color = get(Base.text_colors, color, Base.text_colors[:default])
+        enable_bold  = get(Base.text_colors, :bold, Base.text_colors[:default])
+        normal_color  = get(Base.disable_text_style, :normal, Base.text_colors[:default])
+        disable_bold = get(Base.disable_text_style, :bold, Base.text_colors[:default])
+        barls        = string(enable_color, enable_bold, barls, disable_bold, normal_color)
+        enable_color = get(Base.text_colors, :light_black, Base.text_colors[:default])
+        normal_color = get(Base.disable_text_style, :bold, Base.text_colors[:default])
+        barrs        = string(enable_color, barrs, normal_color)
     end
 
     return barls*barrs
@@ -94,6 +95,7 @@ function run_status_line(sline::StatusLine)
         ΔT = env.stagebits.ΔT
         progress = @sprintf("%5.3f", T*100)
         bar = progress_bar(T)
+        
         # line 1:
         printstyled("  inc $(env.stagebits.inc) output $(env.stagebits.out)", bold=true, color=:light_blue)
         if env.transient
@@ -104,6 +106,7 @@ function run_status_line(sline::StatusLine)
         res = round(env.stagebits.residue,sigdigits=4)
 
         printstyled(" dT=$dT res=$res\e[K\n", bold=true, color=:light_blue)
+        
         # line 2:
         printstyled("  $(see(sline.sw)) ", bold=true, color=:light_blue)
         print(bar)
@@ -199,15 +202,15 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
 
     autoinc = get(args, :autoinc, false)
     outdir  = get(args, :outdir, ".")
-    report  = get(args, :report, false)
+    quiet   = get(args, :quiet, false)
+    env     = model.env
 
-    env    = model.env
     cstage = findfirst(st->st.status!=:done, model.stages)
     cstage === nothing && error("stage_iterator!: No stages have been set for $name")
 
     solstatus = success()
 
-    if report && cstage==1 
+    if quiet || cstage==1 
         printstyled(name, "\n", bold=true, color=:cyan)
         println("  active threads: ", Threads.nthreads())
         println("  model type: ", env.modeltype)
@@ -222,7 +225,6 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
     end
 
 
-
     if cstage==1
         logfile = open("solve.log", "w")
     else
@@ -235,8 +237,9 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
         
         env.stagebits.stage = stage.id
         env.stagebits.inc   = 0
+        env.stagebits.T = 0.0
 
-        if report
+        if !quiet
             # printstyled("Mechanical FE analysis", bold=true, color=:cyan)
             if stage.id>1 || length(model.stages)>1
                 printstyled("Stage $(stage.id)\n", bold=true, color=:cyan)
@@ -247,11 +250,11 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
         if save_outs
             if nouts > nincs
                 nincs = nouts
-                report && info("nincs changed to $(nincs) to match nouts")
+                quiet || info("nincs changed to $(nincs) to match nouts")
             end
             if nincs%nouts != 0 && !autoinc
                 stage.nincs = nincs - (nincs%nouts) + nouts
-                report && info("nincs changed to $nincs to be multiple of nouts")
+                quiet || info("nincs changed to $nincs to be multiple of nouts")
             end
             stage.nincs = nincs
             stage.nouts = nouts
@@ -259,7 +262,7 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
 
         sw = StopWatch() # timing
         sline = StatusLine(model, stage, sw)
-        if report
+        if !quiet
             print("\e[?25l") # disable cursor
             sline_task = @async run_status_line(sline)
         end
@@ -281,7 +284,7 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
             stage.status = :failed
         end
 
-        if report
+        if !quiet
             wait(sline_task)
             print("\e[?25h") # enable cursor
             solstatus.message != "" && println(solstatus.message)

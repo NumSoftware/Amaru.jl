@@ -29,7 +29,7 @@ bcs = [
 
 addstage!(model, bcs, tspan=7, nincs=14)
 
-dyn_solve!(model; report=true)
+dyn_solve!(model; quiet=false)
 
 
 if @isdefined(makeplots) && makeplots

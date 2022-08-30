@@ -35,4 +35,4 @@ bcs = [
 addstage!(model, bcs, tspan=1, nincs=2, nouts=1)
 
 # Solving
-hm_solve!(model, tol=1e-2, report=true)
+hm_solve!(model, tol=1e-2)

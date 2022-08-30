@@ -13,7 +13,7 @@ mats = [
       ]
 
 model = Model(msh, mats)
-
+ 
 tag!(model.elems.ips[1], "ip")
 log1 = IpLogger()
 loggers = [
@@ -32,7 +32,7 @@ addstage!(model, bcs, nincs=10)
 bcs[2] = :(z==0.5) => NodeBC(uz=+0.008)
 addstage!(model, bcs, nincs=10)
 
-@test solve!(model, tol=1e-2, autoinc=true, report=true).success
+@test solve!(model, tol=1e-2, autoinc=true).success
 
 # boundary conditions
 # bcs[2] = :(z==0.5) => NodeBC(uz=+0.008)

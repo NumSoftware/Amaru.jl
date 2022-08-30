@@ -157,7 +157,7 @@ function setup_bc!(model, filter, bc::BodyC)
     isa(filter, Int) && (filter = [filter])
     bc.filter = filter
     # Filter objects according to bc criteria
-    bc.elems = model._active_elems[bc.filter]
+    bc.elems = model.elems.active[bc.filter]
     length(bc.elems)==0 && notify("setup_bc!: applying boundary conditions to empty array of elements while evaluating expression ", string(bc.filter))
 
     # Find prescribed essential bcs
@@ -199,7 +199,7 @@ end
 function configure_dofs!(model, bcbinds::Array{<:Pair,1})
 
     # get active nodes
-    ids = [ node.id for elem in model._active_elems for node in elem.nodes ]
+    ids = [ node.id for elem in model.elems.active for node in elem.nodes ]
     ids = sort(unique(ids)) # sort is required to preserve node numbering optimization
     active_nodes = model.nodes[ids]
 

@@ -51,7 +51,7 @@ bcs = [
       ]
 
 
-@test solve!(model, autoinc=true, nincs=100, maxits=4, tol=0.1, report=false, scheme=:FE, nouts=50, maxincs=0).success
+@test solve!(model, autoinc=true, nincs=100, maxits=4, tol=0.1, quiet=true, scheme=:FE, nouts=50, maxincs=0).success
 
 
 if @isdefined(makeplots) && makeplots

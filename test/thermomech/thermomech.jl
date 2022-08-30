@@ -37,4 +37,4 @@ bcs = [
 ]
 addstage!(model, bcs, tspan=3000000, nincs=10)
 
-tm_solve!(model, tol=0.1, report=true)
+tm_solve!(model, tol=0.1)

@@ -26,10 +26,10 @@ end
 function setup_monitor!(model, filter, monitor::IpMonitor)
     monitor.filter = filter
     if filter isa Integer
-        monitor.ip = model.elems[:ips][filter]
+        monitor.ip = model.elems.ips[filter]
         return
     end
-    ips = model.elems[:ips][filter]
+    ips = model.elems.ips[filter]
     n = length(ips)
     n == 0 && warn("setup_monitor!: No ips found for filter expression: $(monitor.filter)")
     n >  1 && notify("setup_monitor!: More than one ip match filter expression: $(monitor.filter)")
@@ -55,7 +55,7 @@ function update_monitor!(monitor::IpMonitor, model)
 
     if monitor.filename!="" 
         filename = joinpath(model.env.outdir, monitor.filename)
-        save(monitor.table, filename, report=false)
+        save(monitor.table, filename, quiet=true)
     end
     
     return success()
@@ -108,10 +108,10 @@ end
 function setup_monitor!(model, filter, monitor::NodeMonitor)
     monitor.filter = filter
     if filter isa Integer
-        monitor.node = model.elems[:nodes][filter]
+        monitor.node = model.elems.nodes[filter]
         return
     end
-    nodes = model.elems[:nodes][filter]
+    nodes = model.elems.nodes[filter]
     n = length(nodes)
     n == 0 && warn("setup_monitor!: No nodes found for filter expression: $(monitor.filter)")
     n >  1 && notify("setup_monitor!: More than one node match filter expression: $(monitor.filter)")
@@ -136,7 +136,7 @@ function update_monitor!(monitor::NodeMonitor, model)
 
     if monitor.filename!=""
         filename = joinpath(model.env.outdir, monitor.filename)
-        save(monitor.table, filename, report=false)
+        save(monitor.table, filename, quiet=true)
     end
 
     return success()
@@ -166,7 +166,7 @@ end
 
 function setup_monitor!(model, filter, monitor::IpGroupMonitor)
     monitor.filter = filter
-    monitor.ips = model.elems[:ips][monitor.filter]
+    monitor.ips = model.elems.ips[monitor.filter]
     length(monitor.ips)==0 && warn("setup_monitor!: No ips found for filter expression: ", monitor.filter)
 end
 
@@ -201,7 +201,7 @@ function update_monitor!(monitor::IpGroupMonitor, model)
 
     if monitor.filename!="" 
         filename = joinpath(model.env.outdir, monitor.filename)
-        save(monitor.table, filename, report=false)
+        save(monitor.table, filename, quiet=true)
     end
 
     return success()
@@ -301,7 +301,7 @@ function update_monitor!(monitor::NodeSumMonitor, model)
 
     if monitor.filename!="" 
         filename = joinpath(model.env.outdir, monitor.filename)
-        save(monitor.table, filename, report=false)
+        save(monitor.table, filename, quiet=true)
     end
 
     # eval stop expressions

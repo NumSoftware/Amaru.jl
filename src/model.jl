@@ -9,7 +9,7 @@ A type that represents a finite element model.
 $(FIELDS)
 """
 mutable struct Model<:AbstractDomain
-    "domain dimensions"
+    "model dimensions"
     ndim ::Int
     "array of nodes"
     nodes::Array{Node,1}
@@ -67,8 +67,8 @@ mutable struct Model<:AbstractDomain
     end
 end
 
-const Model = Model
-export Model
+const Domain = Model
+export Domain
 
 
 """
@@ -87,7 +87,7 @@ Uses a mesh and a list of meterial especifications to construct a finite element
 `modeltype`
 `thickness`
 `filekey = ""` : File key for output files
-`report = false` : If true, provides information of the domain construction
+`quiet = false` : If true, provides information of the model construction
 
 """
 function Model(
@@ -96,7 +96,7 @@ function Model(
     modeltype :: String = "", # or "plane-stress", "plane-strain", "axysimmetric", "3d"
     ndim      :: Int = 0,
     thickness :: Real = 1.0,
-    report    :: Bool = false,
+    quiet    :: Bool = false,
     params... # extra parameters required for specific solvers
 )
 
@@ -125,13 +125,13 @@ function Model(
     # Save a mesh reference
     #model.mesh = mesh
 
-    report && printstyled("Model setup:\n", bold=true, color=:cyan)
+    quiet || printstyled("Model setup:\n", bold=true, color=:cyan)
 
     # Setting nodes
     model.nodes = copy.(mesh.nodes)
 
     # Setting new elements
-    report && print("  setting elements...\r")
+    quiet || print("  setting elements...\r")
     ncells    = length(mesh.elems)
     model.elems = Array{Element,1}(undef, ncells)
     for (filter, mat) in matbinds
@@ -220,13 +220,13 @@ function Model(
         elem_init(elem)
     end
 
-    if report
-        print("  ", model.ndim, "D domain $modeltype model      \n")
+    if !quiet
+        print("  ", model.ndim, "D model $modeltype model      \n")
         @printf "  %5d nodes\n" length(model.nodes)
         @printf "  %5d elements\n" length(model.elems)
     end
 
-    if report
+    if !quiet
         if model.ndim==2
             @printf "  %5d edges\n" length(model.faces)
         else
@@ -244,9 +244,6 @@ function Model(
 
     return model
 end
-
-Domain = Model
-
 
 export addstage!
 
@@ -271,9 +268,9 @@ function addlogger!(model::Model, logpair::Pair)
 end
 
 """
-    addloggers!(domain, loggers)
+    addloggers!(model, loggers)
 
-Register the loggers from the array `loggers` into `domain`.
+Register the loggers from the array `loggers` into `model`.
 
 """
 function addloggers!(model::Model, loggers::Array{<:Pair,1})
@@ -291,9 +288,9 @@ function addmonitor!(model::Model, monpair::Pair)
 end
 
 """
-    addmonitors!(domain, loggers)
+    addmonitors!(model, loggers)
 
-Register monitors from the array `loggers` into `domain`.
+Register monitors from the array `loggers` into `model`.
 
 """
 function addmonitors!(model::Model, monitors::Array{<:Pair,1})
@@ -307,22 +304,22 @@ setmonitors! = addmonitors!
 
 # Functions for updating loggers
 
-function update_single_loggers!(domain::Model)
-    for logger in domain.loggers
-        isa(logger, SingleLogger) && update_logger!(logger, domain)
+function update_single_loggers!(model::Model)
+    for logger in model.loggers
+        isa(logger, SingleLogger) && update_logger!(logger, model)
     end
 end
 
 
-function update_composed_loggers!(domain::Model)
-    for logger in domain.loggers
-        isa(logger, ComposedLogger) && update_logger!(logger, domain)
+function update_composed_loggers!(model::Model)
+    for logger in model.loggers
+        isa(logger, ComposedLogger) && update_logger!(logger, model)
     end
 end
 
-function update_monitors!(domain::Model)
-    for monitor in domain.monitors
-        rstatus = update_monitor!(monitor, domain)
+function update_monitors!(model::Model)
+    for monitor in model.monitors
+        rstatus = update_monitor!(monitor, model)
         failed(rstatus) && return rstatus
     end
     return success()
@@ -330,18 +327,18 @@ end
 
 
 function Model(elems::Array{<:Element,1})
-    domain = Model()
+    model = Model()
 
     # Copying nodes
     nodesset = OrderedSet(node for elem in elems for node in elem.nodes)
     nodes    = collect(Node, nodesset)
-    domain.nodes = copy.(nodes)
+    model.nodes = copy.(nodes)
 
     # Map for nodes
     nodemap = zeros(Int, maximum(node.id for node in nodes))
     for (i,node) in enumerate(nodes)
         nodemap[node.id] = i 
-        domain.nodes[i].id = i
+        model.nodes[i].id = i
     end
 
     # Map for elements
@@ -356,18 +353,18 @@ function Model(elems::Array{<:Element,1})
         node.coord.y != 0.0 && (ndim=2)
         node.coord.z != 0.0 && (ndim=3; break)
     end
-    domain.ndim = ndim
-    domain.env.ndim = ndim
+    model.ndim = ndim
+    model.env.ndim = ndim
 
     # Setting elements
     for (i,elem) in enumerate(elems)
         #@show elem.nodes
         nodeidxs = [ nodemap[node.id] for node in elem.nodes]
         elemnodes = nodes[nodeidxs]
-        newelem = new_element(typeof(elem), elem.shape, elemnodes, elem.tag, domain.env)
+        newelem = new_element(typeof(elem), elem.shape, elemnodes, elem.tag, model.env)
         newelem.id = i
         newelem.mat = elem.mat
-        push!(domain.elems, newelem)
+        push!(model.elems, newelem)
     end
     
     # Setting linked elements
@@ -376,14 +373,14 @@ function Model(elems::Array{<:Element,1})
         for lelem in elem.linked_elems
             idx = elemmap[lelem.id]
             idx==0 && (missing_linked=true; continue)
-            push!(domain.elems[i].linked_elems, domain.elems[idx])
+            push!(model.elems[i].linked_elems, model.elems[idx])
         end
     end
-    missing_linked && error("Model: Missing linked elements while generating a domain from a list of elements.")
+    missing_linked && error("Model: Missing linked elements while generating a model from a list of elements.")
 
     # Setting quadrature
     ip_id = 0
-    for (newelem, elem) in zip(domain.elems, elems)
+    for (newelem, elem) in zip(model.elems, elems)
         setquadrature!(newelem, length(elem.ips))   # ips
         for ip in newelem.ips      # ip ids
             ip_id += 1
@@ -393,27 +390,27 @@ function Model(elems::Array{<:Element,1})
     end
 
     # Copying states
-    for (newelem, elem) in zip(domain.elems, elems)
+    for (newelem, elem) in zip(model.elems, elems)
         for i in 1:length(elem.ips)
             copyto!(newelem.ips[i].state, elem.ips[i].state)
         end
     end
 
     # Setting faces and edges
-    domain.faces = get_surface(domain.elems)
-    domain.edges = getedges(domain.faces)
+    model.faces = get_surface(model.elems)
+    model.edges = getedges(model.faces)
 
     # Setting data
-    update_output_data!(domain)
+    update_output_data!(model)
 
-    return domain
+    return model
 
 end
 
 
 
 function update_output_data!(model::Model)
-    # Updates data arrays in the domain
+    # Updates data arrays in the model
     model.node_data = OrderedDict()
     model.elem_data = OrderedDict()
 
@@ -666,13 +663,16 @@ function nodal_patch_recovery(model::Model)
     all_fields_idx = OrderedDict( key=>i for (i,key) in enumerate(all_fields_set) )
     nfields = length(all_fields_set)
 
-    # @withthreads begin
+    nfields==0 && return zeros(Float64, nnodes, nfields), Symbol[]
+
+    @withthreads begin # it fails sometimes trying to append to a matrix
         # matrices for all nodal values and repetitions
         V_vals =  zeros(Float64, nnodes, nfields)
         V_reps =  zeros(Int64  , nnodes, nfields)
 
         # patch recovery
         for patch in patches
+
             length(patch) == 0 && continue
 
             # list of fields
@@ -747,7 +747,7 @@ function nodal_patch_recovery(model::Model)
             end
         end
 
-    # end
+    end
 
     # average values
     V_vals ./= V_reps

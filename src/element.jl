@@ -270,61 +270,10 @@ end
 
 
 function Base.getproperty(elems::Array{<:Element,1}, s::Symbol)
-    s == :solids && return filter(elem -> elem.shape.family==BULKCELL, elems)
-    s == :lines && return filter(elem -> elem.shape.family==LINECELL, elems)
-    s == :embedded && return filter(elem -> elem.shape.family==LINECELL && length(elem.linked_elems)>0, elems)
-    s in (:linejoints, :joints1d, :joints1D) && return filter(elem -> elem.shape.family==LINEJOINTCELL, elems)
-    s == :tipjoints && return filter(elem -> elem.shape.family==TIPJOINT, elems)
-    s == :linked && return Element[ lnk_elem for elem in elems for lnk_elem in elem.linked_elems]
-    s == :joints && return filter(elem -> elem.shape.family==JOINTCELL, elems)
-    s == :nodes && return getnodes(elems)
     s == :ips   && return get_ips(elems)
-    s == :filter && return elems
-    error("type Array{Element,1} has no property $s")
+    return invoke(getproperty, Tuple{Array{<:AbstractCell,1}, Symbol}, elems, s)
 end
 
-
-# Index operator for a collection of elements
-function Base.getindex(elems::Array{<:Element,1}, s::Symbol)
-    s == :all && return elems
-    s == :solids && return filter(elem -> elem.shape.family==BULKCELL, elems)
-    s == :lines && return filter(elem -> elem.shape.family==LINECELL, elems)
-    s == :embedded && return filter(elem -> elem.shape.family==LINECELL && length(elem.linked_elems)>0, elems)
-    s == :linked && return Element[ lnk_elem for elem in elems for lnk_elem in elem.linked_elems]
-    s in (:linejoints, :joints1d, :joints1D) && return filter(elem -> elem.shape.family==LINEJOINTCELL, elems)
-    s == :tipjoints && return filter(elem -> elem.shape.family==TIPJOINT, elems)
-    s == :joints && return filter(elem -> elem.shape.family==JOINTCELL, elems)
-    s == :nodes && return getnodes(elems)
-    s == :ips && return get_ips(elems)
-    error("Element getindex: Invalid symbol $s")
-end
-
-
-# # Index operator for a collection of elements using a string
-# function Base.getindex(elems::Array{<:Element,1}, tag::String)
-#     return [ elem for elem in elems if elem.tag==tag ]
-# end
-
-
-# # Index operator for a collection of elements using an expression
-# function Base.getindex(elems::Array{<:Element,1}, filter_ex::Expr)
-#     length(elems)==0 && return Element[]
-
-#     nodes = elems[:nodes]
-#     nodemap = zeros(Int, maximum(node.id for node in nodes) )
-#     T = Bool[]
-#     for (i,node) in enumerate(nodes)
-#         nodemap[node.id] = i
-#         x, y, z = node.coord
-#         push!(T, eval_arith_expr(filter_ex, x=x, y=y, z=z))
-#     end
-
-#     R = Element[]
-#     for elem in elems
-#         all( T[nodemap[node.id]] for node in elem.nodes ) && push!(R, elem)
-#     end
-#     return R
-# end
 
 # General element sorting
 function Base.sort!(elems::Array{<:Element,1})

@@ -60,7 +60,7 @@ bl20  = Block( [4.3 4.0 2.7;4.6 4.3 2.9], nx=1, ny=1, nz=1, cellshape=HEX20)
 bl21  = Block( [4.3 4.0 2.9;4.6 4.3 3.0], nx=1, ny=1, nz=1, cellshape=HEX20)
 
 
-mesh=Mesh(bl1,bl2,bl3,bl4,bl5,bl6,bl7,bl8,bl9,bl10,bl11,bl12,bl13,bl14,bl15,bl16,bl17,bl18,bl19,bl20,bl21,report=true)
+mesh=Mesh(bl1,bl2,bl3,bl4,bl5,bl6,bl7,bl8,bl9,bl10,bl11,bl12,bl13,bl14,bl15,bl16,bl17,bl18,bl19,bl20,bl21)
 
 
 #Definition of the material
@@ -80,6 +80,6 @@ bcs = [
 
 
 
-dynsolve!(model,tspan=33.0, sism=true, tds=30.9, tss=0.0, nincs=50, report=true, nouts=10, autoinc=true, alpha=0.0, beta=0.0)
+dynsolve!(model,tspan=33.0, sism=true, tds=30.9, tss=0.0, nincs=50, nouts=10, autoinc=true, alpha=0.0, beta=0.0)
 
 #@test model.nodes[25].dofdict[:uz].vals[:uz] ≈ -0.0123

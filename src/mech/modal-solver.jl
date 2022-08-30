@@ -1,67 +1,157 @@
-export modsolve!
+export mod_solve!
 #Solids stiffness matrix for computing frequencies
 
-function mount_Kf(model::Model, ndofs::Int)
+# function mount_Kf(model::Model, ndofs::Int)
 
-    R, C, V = Int64[], Int64[], Float64[]
-    elems=model.elems.solids
+#     R, C, V = Int64[], Int64[], Float64[]
+#     elems=model.elems.solids
 
-    for elem in elems
-       Ke, rmap, cmap = elem_stiffness(elem)
-        nr, nc = size(Ke)
-        for i in 1:nr
-            for j in 1:nc
-                push!(R, rmap[i])
-                push!(C, cmap[j])
-                push!(V, Ke[i,j])
+#     for elem in elems
+#        Ke, rmap, cmap = elem_stiffness(elem)
+#         nr, nc = size(Ke)
+#         for i in 1:nr
+#             for j in 1:nc
+#                 push!(R, rmap[i])
+#                 push!(C, cmap[j])
+#                 push!(V, Ke[i,j])
+#             end
+#         end
+#     end
+
+
+#     return sparse(R, C, V, ndofs, ndofs)
+
+# end
+
+
+# #Solids mass matrix for computing frequencies
+
+# function mount_Mf(model::Model, ndofs::Int)
+
+#     R, C, V = Int64[], Int64[], Float64[]
+#     elems=model.elems.solids
+
+#     for elem in elems
+#         Me, rmap, cmap = elem_mass(elem)
+#         nr, nc = size(Me)
+#         for i in 1:nr
+#             for j in 1:nc
+#                 push!(R, rmap[i])
+#                 push!(C, cmap[j])
+#                 push!(V, Me[i,j])
+#             end
+#         end
+#     end
+
+#     return sparse(R, C, V, ndofs, ndofs)
+# end
+
+
+function mod_solve!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, save=true, quiet=false)
+
+    quiet || printstyled("FEM modal analysis:\n", bold=true, color=:cyan)
+
+    # get only bulk elements
+    model = Model(model.elems.bulks)
+
+    @show model.elems |> length
+    @show model.elems["right"] |> length
+
+    # get dofs organized according to boundary conditions
+    dofs, nu    = configure_dofs!(model, bcs)
+    ndofs       = length(dofs)
+    model.ndofs = length(dofs)
+    quiet || println("  unknown dofs: $nu")
+
+    K11 = mount_K(model.elems, ndofs)[1:nu, 1:nu]
+    M11 = mount_M(model.elems, ndofs)[1:nu, 1:nu]
+
+    m11 = zeros(nu) #Vetor of inverse matrix mass
+    for i in 1:size(M11,2)
+        m11[i] = 1.0/M11[i,i]
+    end
+
+    # inverse of the lumped matrix in vector form
+    P = m11.*K11
+
+    # eingenvalues and eingenvectors
+    Eig = eigs(P, nev=20, which=:SM)
+    w0  = Eig[1] # frequencies
+    wi  = copy(w0)
+
+    # select logical and possible vals
+    filter = isreal.(wi) .&& real(wi).>0
+    wi     = real[wi[filter]] # only positive real values
+    filter = filter[ unique(i -> wi[i], 1:length(wi)) ]
+    wi     = wi[filter] # unique values
+    perm   = sortperm(wi)
+    perm   = perm[nmods] # only nmods
+    wi     = wi[perm] # sorted
+    filter = filter[perm]
+    v      = Eig[2][:, filter]
+
+    w = wi.^0.5
+
+    if save
+        for i in 1:nmods
+            U = v[:,i] # modal displacements
+
+            for (k,dof) in enumerate(dofs)
+                dof.vals[dof.name] = U[k]
             end
+
+            save(model, model.env.outkey * "-mod$i.vtu")
+            idefmod += 1
         end
     end
 
 
-    return sparse(R, C, V, ndofs, ndofs)
+    # reset displacement values
+    for dof in dofs
+        dof.vals[dof.name] = 0.0
+    end
+
+    # show("Modal Frequencies rad/s")
+    # @show w
+    #show("Modal Shapes rad/s")
+    #@show v
+
+    if rayleigh
+        #Rayleigh-Ritz method for Damping
+
+        println("What is the damping relationship 1 (xi1 = c/c_c)?")
+        xi1 = parse(Float64,chomp(readline()))
+        println("What is the damping relationship 2 (xi2 = c/c_c)?")
+        xi2 = parse(Float64,chomp(readline()))
+
+
+        #Interacting with the user for select the correct frequêncies based on modal deformated
+
+        println("See the vtk files of the modal deformated and decide")
+        print("What is the first frequency that you want?")
+        w1 = w[parse(Int,chomp(readline()))]
+        print("What is the second frequency that you want?")
+        w2 = w[parse(Int,chomp(readline()))]
+
+        alpha = 2 * ((w1 ^ 2) * w2 * xi2 - w1 * (w2 ^ 2) * xi1) / ((w1 ^ 2)-(w2 ^ 2))
+        beta  = 2 * (w1 * xi1 - w2 * xi2)/((w1 ^ 2) - (w2 ^ 2))
+
+        info("Rayleigh alpha: ", alpha)
+        info("Rayleigh beta:", beta)
+    end
 
 end
 
+function modsolvex!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, save=true, quiet=false)
 
-#Solids mass matrix for computing frequencies
-
-function mount_Mf(model::Model, ndofs::Int)
-
-    R, C, V = Int64[], Int64[], Float64[]
-    elems=model.elems.solids
-
-    for elem in elems
-        Me, rmap, cmap = elem_mass(elem)
-        nr, nc = size(Me)
-        for i in 1:nr
-            for j in 1:nc
-                push!(R, rmap[i])
-                push!(C, cmap[j])
-                push!(V, Me[i,j])
-            end
-        end
-    end
-
-    return sparse(R, C, V, ndofs, ndofs)
-end
-
-
-function modsolve!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, savemods=true, verbosity=1, scheme::Symbol =
-:FE)
-
-    if verbose
-        printstyled("FEM modal analysis:\n", bold=true, color=:cyan)
-    end
+    quiet || printstyled("FEM modal analysis:\n", bold=true, color=:cyan)
 
     # Get dofs organized according to boundary conditions
     dofs, nu = configure_dofs!(model, bcs)
 
     ndofs = length(dofs)
-    umap  = 1:nu         # map for unknown displacements
-    pmap  = nu+1:ndofs   # map for prescribed displacements
     model.ndofs = length(dofs)
-    verbose && println("  unknown dofs: $nu")
+    !quiet && println("  unknown dofs: $nu")
 
     K = mount_Kf(model, ndofs)
     M = mount_Mf(model, ndofs)
@@ -141,7 +231,7 @@ function modsolve!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, savem
 
     w = w.^0.5
 
-    if savemods
+    if save
 
         #Modals Deformed
 
@@ -171,8 +261,7 @@ function modsolve!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, savem
                 dof.vals[dof.name] = Umod[k]
             end
 
-            save(model, model.filekey * "-defmod$idefmod.vtk", report=true) # saves current domain state for modal deformated
-            verbose && printstyled("  ", model.filekey * "-defmod$idefmod.vtk file written (Model)\n", color=:green)
+            save(model, model.filekey * "-defmod$idefmod.vtk") # saves current domain state for modal deformated
             idefmod += 1
         end
 
@@ -215,13 +304,8 @@ function modsolve!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, savem
         alpha = 2 * ((w1 ^ 2) * w2 * xi2 - w1 * (w2 ^ 2) * xi1) / ((w1 ^ 2)-(w2 ^ 2))
         beta  = 2 * (w1 * xi1 - w2 * xi2)/((w1 ^ 2) - (w2 ^ 2))
 
-        show("The Rayleigh Alpha Value is:")
-
-        @show alpha
-
-        show("The Rayleigh Betha Value is:")
-
-        @show beta
+        info("Rayleigh alpha: ", alpha)
+        info("Rayleigh beta:", beta)
 
     end
 

@@ -28,4 +28,4 @@ bcs = [
 
 addlogger!(model, :(x==0.5 && y==3.0 && z==0.5) => NodeLogger() )
 addstage!(model, bcs, nincs=20)
-@test solve!(model, report=true).success
+@test solve!(model).success

@@ -52,7 +52,9 @@ end
 
 function setquadrature!(elem::MechShell, n::Int=0)
 
-    # n = 9
+    if n in (8, 18)
+        n = div(n,2)
+    end
     ip2d = get_ip_coords(elem.shape, n)
     ip1d = get_ip_coords(LIN2, 2)
     n = size(ip2d,1)

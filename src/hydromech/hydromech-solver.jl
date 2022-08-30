@@ -263,7 +263,7 @@ function hm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     maxincs :: Int     = 1000000,
     outdir  :: String  = ".",
     outkey  :: String  = "out",
-    report  :: Bool    = false
+    quiet  :: Bool    = false
     )
 
     println(logfile, "Hydromechanical FE analysis: Stage $(stage.id)")
@@ -294,7 +294,7 @@ function hm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     println(logfile, "unknown dofs: $nu")
     message(sline, "  unknown dofs: $nu")
 
-    report && nu==ndofs && message(sline, "solve_system!: No essential boundary conditions", Base.warn_color)
+    quiet || nu==ndofs && message(sline, "solve_system!: No essential boundary conditions", Base.warn_color)
 
     if stage.id == 1
         # Setup quantities at dofs
@@ -312,7 +312,7 @@ function hm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
         update_composed_loggers!(model)
         update_monitors!(model)
         complete_uw_h(model)
-        save_outs && save(model, "$outdir/$outkey-0.vtu", report=false)
+        save_outs && save(model, "$outdir/$outkey-0.vtu", quiet=true)
     end
 
     # get elevation Z for all Dofs
@@ -383,7 +383,7 @@ function hm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
         println(logfile, "  inc $inc")
         
         if inc > maxincs
-            report && message(sline, "solver maxincs = $maxincs reached (try maxincs=0)", Base.default_color_error)
+            quiet || message(sline, "solver maxincs = $maxincs reached (try maxincs=0)", Base.default_color_error)
             return failure("$maxincs reached")
         end
 
@@ -485,7 +485,7 @@ function hm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
             println(logfile, sysstatus.message)
             converged = false
         end
-        report && sysstatus.message!="" && message(sline, sysstatus.message, Base.default_color_warn)
+        quiet || sysstatus.message!="" && message(sline, sysstatus.message, Base.default_color_warn)
 
         if converged
             # Update nodal natural and essential values for the current stage
@@ -524,7 +524,7 @@ function hm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
                 # update_embedded_disps!(active_elems, model.node_data["U"])
 
                 update_composed_loggers!(model)
-                save(model, "$outdir/$outkey-$iout.vtu", report=false)
+                save(model, "$outdir/$outkey-$iout.vtu", quiet=true)
 
                 Tcheck += ΔTcheck # find the next output time
             end

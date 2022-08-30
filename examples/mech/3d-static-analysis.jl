@@ -7,7 +7,7 @@ blocks = [
     Block( [0 0 0; 1 1 1], nx=1, ny=1, nz=1, cellshape=HEX8, tag="solids"),
 ]
 
-msh = Mesh(blocks, report=true);
+msh = Mesh(blocks);
 #mplot(msh, "mesh.pdf", field="cell-id")
 
 
@@ -30,7 +30,7 @@ bcs = [
 addstage!(model, bcs, nincs=4, nouts=1)
 
 # Perform the finite element analysis
-solve!(model, report=true)
+solve!(model)
 
 # save(model, "model.vtu")
 # mplot(model, "model.pdf", field="uy")

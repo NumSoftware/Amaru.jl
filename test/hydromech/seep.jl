@@ -34,7 +34,7 @@ bcs = [
 ]
 
 addstage!(model, bcs, tspan=500)
-hm_solve!(model, tol=0.1, report=true)
+hm_solve!(model, tol=0.1)
 
 # Output
 if @isdefined(makeplots) && makeplots

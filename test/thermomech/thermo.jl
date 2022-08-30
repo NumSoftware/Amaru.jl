@@ -8,7 +8,6 @@ blocks = [
 ]
 
 msh = Mesh(blocks)
-
 # Finite element analysis
 
 # Analysis data
@@ -33,7 +32,7 @@ bcs = [
        :(y==2) => NodeBC(ut=20.0),
 ]
 addstage!(model, bcs, tspan=10000, nincs=5)
-tm_solve!(model, tol=0.1, report=true)
+tm_solve!(model, tol=0.1)
 
 # Output
 

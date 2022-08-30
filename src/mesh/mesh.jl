@@ -324,7 +324,7 @@ end
 
 
 # Updates numbering, faces and edges in a Mesh object
-function fixup!(mesh::Mesh; report=false, genfacets::Bool=true, genedges::Bool=true, reorder::Bool=false)
+function fixup!(mesh::Mesh; quiet=true, genfacets::Bool=true, genedges::Bool=true, reorder::Bool=false)
 
     # Get ndim
     ndim = 1
@@ -346,14 +346,14 @@ function fixup!(mesh::Mesh; report=false, genfacets::Bool=true, genedges::Bool=t
 
     # Facets
     if genfacets
-        report && print("  finding facets...   \r")
+        quiet || print("  finding facets...   \r")
         mesh.faces = get_surface(mesh.elems)
     end
     ndim==2 && (mesh.edges=mesh.faces)
 
     # Edges
     if genedges && ndim==3
-        report && print("  finding edges...   \r")
+        quiet || print("  finding edges...   \r")
         mesh.edges = getedges(mesh.faces)
     end
 
@@ -481,7 +481,7 @@ function Mesh(
               conns      :: Array{Array{Int64,1},1},
               cellshapes :: Array{CellShape,1}=CellShape[];
               tag        :: String="",
-              report=false,
+              quiet=true,
              )
     
 
@@ -549,7 +549,7 @@ The printed output can be set to `verbose` or `silent`.
 julia> using Amaru;
 julia> B1 = Block([0 0; 1 1], nx=2, ny=2);
 julia> B2 = Block([1 0; 2 1], nx=3, ny=2);
-julia> Mesh(B1, B2, report=true)
+julia> Mesh(B1, B2)
 Mesh
   ndim: 2
   nodes: 18-element Vector{Node}:
@@ -605,7 +605,7 @@ function Mesh(
     genfacets :: Bool = true,
     genedges  :: Bool = true,
     reorder   :: Bool = true,
-    report=false,
+    quiet=true,
 )
                  
 
@@ -627,7 +627,7 @@ function Mesh(
 
     nmeshes = length(meshes)
     nblocks = length(blocks)
-    if report
+    if !quiet
         printstyled("Mesh generation:\n", bold=true, color=:cyan)
         nmeshes>0 && @printf "  %5d meshes\n" nmeshes
         @printf "  %5d blocks\n" nblocks
@@ -645,20 +645,20 @@ function Mesh(
     for (i,b) in enumerate(blocks)
         # b.id = i
         split_block(b, mesh)
-        report && print("  spliting block ", i, "...    \r")
+        quiet || print("  spliting block ", i, "...    \r")
     end
 
     # Updates numbering, quality, facets and edges
-    fixup!(mesh, report=report, genfacets=genfacets, genedges=genedges, reorder=reorder)
+    fixup!(mesh, quiet=quiet, genfacets=genfacets, genedges=genedges, reorder=reorder)
 
-    if report
+    if !quiet
         npoints = length(mesh.nodes)
         ncells  = length(mesh.elems)
         @printf "  %4dd mesh                             \n" mesh.ndim
         @printf "  %5d nodes\n" npoints
         @printf "  %5d cells\n" ncells
     end
-    if report
+    if !quiet
         nfaces  = length(mesh.faces)
         nedges  = length(mesh.edges)
         if genfacets
@@ -871,12 +871,12 @@ function randmesh(n::Int...)
         lx, ly = (1.0, 1.0)
         nx, ny = n
         cellshape = rand((TRI3, TRI6, QUAD4, QUAD8))
-        m = Mesh(Block([0.0 0.0; lx ly], nx=nx, ny=ny, cellshape=cellshape), report=false)
+        m = Mesh(Block([0.0 0.0; lx ly], nx=nx, ny=ny, cellshape=cellshape), quiet=true)
     else
         lx, ly, lz = (1.0, 1.0, 1.0)
         nx, ny, nz = n
         cellshape = rand((TET4, TET10, HEX8, HEX20))
-        m = Mesh(Block([0.0 0.0 0.0; lx ly lz], nx=nx, ny=ny, nz=nz, cellshape=cellshape), report=false)
+        m = Mesh(Block([0.0 0.0 0.0; lx ly lz], nx=nx, ny=ny, nz=nz, cellshape=cellshape), quiet=true)
     end
 end
 

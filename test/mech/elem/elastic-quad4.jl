@@ -8,7 +8,7 @@ using Test
 # Mesh generation
 
 block = Block( [0 0; 1 1], nx=1, ny=1, cellshape=QUAD4, tag="solid")
-mesh = Mesh(block, report=false, reorder=false)
+mesh = Mesh(block, quiet=true, reorder=false)
 
 # Model definition
 
@@ -24,7 +24,7 @@ bcs = [
     :(y==1.) => SurfaceBC(ty=-1.),
 ]
 addstage!(model, bcs, nincs=1)
-solve!(model, report=true)
+solve!(model)
 
 
 dis = 

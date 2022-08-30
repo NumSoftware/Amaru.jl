@@ -34,7 +34,7 @@ bcs = [
 addstage!(model, bcs, nincs=51, nouts=5)
 
 # Perform the finite element analysis
-solve!(model, report=true)
+solve!(model)
 
 # save(model, "model.vtu")
 # mplot(model, "model.pdf", field="uy")

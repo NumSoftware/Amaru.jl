@@ -152,7 +152,7 @@ function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
     maxincs :: Int     = 1000000,
     outdir  :: String  = ".",
     outkey  :: String  = "out",
-    report  :: Bool    = false
+    quiet  :: Bool    = false
     )
 
     println(logfile, "Dynamic FE analysis: Stage $(stage.id)")
@@ -239,7 +239,7 @@ function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
         update_single_loggers!(model)
         update_composed_loggers!(model)
         update_monitors!(model)
-        save_outs && save(model, "$outdir/$outkey-0.vtu", report=false)
+        save_outs && save(model, "$outdir/$outkey-0.vtu", quiet=true)
     end
 
     # Get the domain current state and backup
@@ -287,7 +287,7 @@ function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
         println(logfile, "  inc $inc")
 
         if inc > maxincs
-            report && message(sline, "solver maxincs = $maxincs reached (try maxincs=0)", Base.default_color_error)
+            quiet || message(sline, "solver maxincs = $maxincs reached (try maxincs=0)", Base.default_color_error)
             return failure("$maxincs reached")
         end
 
@@ -407,7 +407,7 @@ function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
                 update_embedded_disps!(active_elems, model.node_data["U"])
 
                 update_composed_loggers!(model)
-                save(model, "$outdir/$outkey-$iout.vtu", report=false) #!
+                save(model, "$outdir/$outkey-$iout.vtu", quiet=true) #!
 
                 Tcheck += ΔTcheck # find the next output time
             end
@@ -493,14 +493,14 @@ function dynsolvex!(
                    beta      :: Real    = 0.0,
                    outdir    :: String  = "",
                    filekey   :: String  = "out",
-                   report = false,
+                   quiet = false,
                    verbose = false
                   )
 
     # Arguments checking
     verbosity = 0
-    report && (report=false)
-    report && verbose && (verbosity=2)
+    quiet || (quiet=true)
+    quiet || verbose && (verbosity=2)
 
     tol>0 || error("solve! : tolerance should be greater than zero")
     Ttol>0 || error("solve! : tolerance `Ttol `should be greater than zero")
@@ -613,7 +613,7 @@ function dynsolvex!(
         update_output_data!(model)
         update_single_loggers!(model)
         update_composed_loggers!(model)
-        save(model, "$outdir/$filekey-0.vtu", report=true)
+        save(model, "$outdir/$filekey-0.vtu")
     end
 
     # Incremental analysis
@@ -761,7 +761,7 @@ function dynsolvex!(
                 iout = env.stagebits.out
                 update_output_data!(model)
                 update_composed_loggers!(model)
-                save(model, "$outdir/$filekey-$iout.vtu", report=false)
+                save(model, "$outdir/$filekey-$iout.vtu", quiet=true)
                 TT += dT # find the next output time
             end
 

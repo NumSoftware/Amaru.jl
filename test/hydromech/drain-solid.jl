@@ -33,12 +33,12 @@ bcs = [
        :(z==3.0) => NodeBC(uw=0),
       ]
 addstage!(model, bcs, tspan=100)
-hm_solve!(model, tol=1e-2, report=true)
+hm_solve!(model, tol=1e-2)
 
 
 model.env.t = 0.0
 
-tag!(model.elems.lines[:nodes][:(x==1.5 && y==1.5 && z==3.0)], "input")
+tag!(model.elems.lines.nodes[:(x==1.5 && y==1.5 && z==3.0)], "input")
 
 # Stage 2: volume application
 bcs = [
@@ -49,4 +49,4 @@ bcs = [
        "input" => NodeBC(fw=Q),
       ]
 addstage!(model, bcs, tspan=100)
-hm_solve!(model, tol=1e-2, report=true)
+hm_solve!(model, tol=1e-2)

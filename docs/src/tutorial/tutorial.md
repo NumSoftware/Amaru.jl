@@ -385,7 +385,7 @@ bcs = [
     :(x==1) => SurfaceBC(tz=-1000)
 ]
 
-solve!(model, bcs, report=true, verbose=true)
+solve!(model, bcs, verbose=true)
 save(model, "beam.vtu")
 
 nothing # hide

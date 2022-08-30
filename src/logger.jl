@@ -58,7 +58,7 @@ function update_logger!(logger::NodeLogger, domain)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, report=false)
+        save(logger, filename, quiet=true)
     end
 end
 
@@ -82,13 +82,13 @@ end
 function setup_logger!(domain, filter, logger::IpLogger)
     logger.filter = filter
     if filter isa Integer
-        logger.ip = domain.elems[:ips][filter]
+        logger.ip = domain.elems.ips[filter]
         return
     end
     if filter isa AbstractArray
         X = Vec3(filter)
         x, y, z = X
-        ips = domain.elems[:ips][:(x==$x && y==$y && z==$z)]
+        ips = domain.elems.ips[:(x==$x && y==$y && z==$z)]
         n = length(ips)
 
         if n==0
@@ -101,7 +101,7 @@ function setup_logger!(domain, filter, logger::IpLogger)
         return
     end
 
-    ips = domain.elems[:ips][filter]
+    ips = domain.elems.ips[filter]
     n = length(ips)
     n == 0 && warn("setup_logger: No ips found for filter expression: $(logger.filter)")
     n >  1 && notify("setup_logger: More than one ip match filter expression: $(logger.filter)")
@@ -121,7 +121,7 @@ function update_logger!(logger::IpLogger, domain)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, report=false)
+        save(logger, filename, quiet=true)
     end
 end
 
@@ -209,7 +209,7 @@ function update_logger!(logger::FacetLogger, domain)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, report=false)
+        save(logger, filename, quiet=true)
     end
 end
 
@@ -262,7 +262,7 @@ function update_logger!(logger::NodeSumLogger, domain)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, report=false)
+        save(logger, filename, quiet=true)
     end
 end
 
@@ -302,7 +302,7 @@ function update_logger!(logger::NodeGroupLogger, domain)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, report=false)
+        save(logger, filename, quiet=true)
     end
 end
 
@@ -325,7 +325,7 @@ end
 
 function setup_logger!(domain, filter, logger::IpGroupLogger)
     logger.filter = filter
-    logger.ips = domain.elems[:ips][logger.filter]
+    logger.ips = domain.elems.ips[logger.filter]
     length(logger.ips)==0 && warn("setup_logger: No ips found for filter expression: ", logger.filter)
     sort!(logger.ips, by=ip->sum(ip.coord))
 end
@@ -343,7 +343,7 @@ function update_logger!(logger::IpGroupLogger, domain)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, report=false)
+        save(logger, filename, quiet=true)
     end
 end
 
@@ -396,7 +396,7 @@ function update_logger!(logger::PointLogger, domain)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, report=false)
+        save(logger, filename, quiet=true)
     end
 end
 
@@ -467,7 +467,7 @@ function update_logger!(logger::SegmentLogger, domain)
 
     if logger.filename!="" 
         filename = joinpath(domain.env.outdir, logger.filename)
-        save(logger, filename, report=true)
+        save(logger, filename)
     end
 end
 
@@ -476,11 +476,11 @@ end
 # =========================
 
 
-function save(logger::AbstractLogger, filename::String; report=true)
+function save(logger::AbstractLogger, filename::String; quiet=false)
     if isdefined(logger, :table)
-        save(logger.table, filename, report=report)
+        save(logger.table, filename, quiet=quiet)
     else
-        save(logger.book, filename, report=report)
+        save(logger.book, filename, quiet=quiet)
     end
 end
 

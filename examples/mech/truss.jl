@@ -10,7 +10,7 @@ mats = [
         "bars" => ElasticRod(E=6.894757e7, A=0.043)
        ]
 
-model = Model(msh, mats, report=0)
+model = Model(msh, mats)
 
 bcs = [
        :(x==0 && y==0) => NodeBC(ux=0, uy=0),

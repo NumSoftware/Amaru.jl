@@ -10,7 +10,7 @@ bl2 = copy(bl1)
 move!(bl2, dx=0.6)
 bls = [ bl, bl1, bl2 ]
 
-msh = Mesh(bls, report=true)
+msh = Mesh(bls)
 
 # FEM analysis
 # ============
@@ -29,7 +29,7 @@ bcs = [
 ]
 addstage!(model, bcs, nincs=20)
 
-solve!(model, report=true)
+solve!(model)
 save(model, "domain.vtk")
 
 mplot(model, "beam.pdf", 

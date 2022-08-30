@@ -30,7 +30,7 @@ bcs = [
 ]
 addstage!(model, bcs, nincs=40)
 
-@test solve!(model, tol=1e-2, autoinc=true, report=true).success
+@test solve!(model, tol=1e-2, autoinc=true).success
 
 if @isdefined(makeplots) && makeplots
     using PyPlot

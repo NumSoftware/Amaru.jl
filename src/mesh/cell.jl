@@ -193,21 +193,14 @@ function Base.getproperty(c::AbstractCell, s::Symbol)
     s == :faces  && return getfaces(c)
     s == :edges  && return getedges(c)
     s == :extent && return cell_extent(c)
-    s == :points && return c.nodes
     return getfield(c, s)
 end
 
 function Base.getproperty(cells::Array{<:AbstractCell,1}, s::Symbol)
-    s in (:solids, :bulks) && return filter(cell -> cell.shape.family==BULKCELL, cells)
-    s == :lines    && return filter(cell -> cell.shape.family==LINECELL, cells)
-    s == :joints   && return filter(cell -> cell.shape.family==JOINTCELL, cells)
-    s in (:linejoints, :joints1D, :joints1d) && return filter(cell -> cell.shape.family==LINEJOINTCELL, cells)
-    s == :tipjoints   && return filter(cell -> cell.shape.family==TIPJOINT, cells)
-    s == :embedded && return filter(cell -> cell.shape.family==LINECELL && length(cell.linked_elems)>0, cells)
-    s == :nodes && return getnodes(cells)
+    s in (:all, :solids, :bulks, :lines, :joints, :linejoints, :tipjoints, :embeddeds) && return cells[s]
+    s == :nodes  && return getnodes(cells)
     s == :filter && return cells
-    
-    s == :active   && return filter(cell -> cell.active, cells)
+    s == :active && return filter(cell -> cell.active, cells)
 
     error("type $(typeof(cells)) has no property $s")
 end
@@ -250,10 +243,14 @@ function Base.getindex(
     
             filtered = Int[ i for i in filtered if all( T[pointmap[node.id]] for node in cells[i].nodes ) ]
         elseif isa(filter, Symbol)
-            if filter==:active
+            if filter==:all
+                # do nothing (don't filter)
+            elseif filter==:active
                 filtered = Int[ i for i in filtered if cells[i].active ]
             elseif filter in (:embedded, :embeddeds)
                 filtered = Int[ i for i in filtered if cells[i].shape.family==LINECELL && length(cells[i].linked_elems)>0 ]
+            elseif filter == :shells
+                filtered = Int[ i for i in filtered if cells[i].shape.family==BULKCELL && cells[i].shape.ndim==2 ]
             else
                 error("getindex: cannot filter array of Cell with symbol $(repr(filter))")
             end

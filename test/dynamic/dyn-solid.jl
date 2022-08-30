@@ -25,4 +25,4 @@ bcs = [
 
 addstage!(model, bcs, tspan=0.1, nincs=100, nouts=20)
 
-dyn_solve!(model, report=true, autoinc=true, alpha=4.2038, beta=174.2803e-6)
+dyn_solve!(model, autoinc=true, alpha=4.2038, beta=174.2803e-6)

@@ -34,7 +34,7 @@ macro withthreads(ex)
         # generating expressions and replaceing inner variables
         initializers = ex.args[1:end-1]
         init_exp     = Expr(:block)
-        append_exp   = Expr(:block)
+        reduce_exp   = Expr(:block)
         locals_exp   = Expr(:local)
         fetchvar     = Symbol("#_res")
 
@@ -48,7 +48,7 @@ macro withthreads(ex)
             inilenvar = Symbol("#_$(var)_ini")
             push!(init_exp.args, ini )
             push!(init_exp.args, :( $inilenvar = length($var) ))
-            push!(append_exp.args, 
+            push!(reduce_exp.args, 
                 :(
                     if $inilenvar==0
                         append!($var, $fetchvar[$i])
@@ -118,7 +118,7 @@ macro withthreads(ex)
                 $(esc(init_exp))
                 for tid in 1:nt
                     $(esc(fetchvar)) = fetch(tasks[tid])
-                    $(esc(append_exp))
+                    $(esc(reduce_exp))
                 end
             finally
                 ccall(:jl_exit_threaded_region, Cvoid, ())
