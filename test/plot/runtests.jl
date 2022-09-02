@@ -1,6 +1,6 @@
 files = [
-         # Plotting
          "mplot.jl",
+         "cplot.jl",
         ]
 
 runfiles(files)
