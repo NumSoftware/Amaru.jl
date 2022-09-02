@@ -113,58 +113,55 @@ cplot([
 
 """
 function cplot(
-    args...;
-    # data::Array{<:NamedTuple}, 
-    # fname::String = "";
-    # filename::String = "",
-    xlabel           = L"x",
-    ylabel           = L"y",
-    x2label           = L"x2",
-    y2label           = L"y2",
-    xbins            = 10,
-    ybins            = 8,
-    grid             = true,
-    figsize          = (3.2,2.2),
-    legendloc        = "best",
-    legendexpand     = false,
-    bbox_to_anchor   = nothing,
-    ncol             = 0,
-    xlim             = nothing,
-    ylim             = nothing,
-    x2lim            = nothing,
-    equalaspect      = false,
-    xscale           = "linear",
-    yscale           = "linear",
-    xmult            = 1.0,
-    ymult            = 1.0,
-    x2mult           = 1.0,
-    y2mult           = 1.0,
-    ticksinside      = true,
-    axis             = true,
-    arrowaxis        = false,
-    xticks           = nothing,
-    xticklabels      = [],
-    yticks           = nothing,
-    yticklabels      = [],
-    fontsize         = 6.5,
-    legendfontsize   = 0,
-    textfontsize     = 0,
-    labelspacing     = 0.5, 
-    annotations      = [],  # e.g. [ (text="C1", pos=(x,y)), ]
+    args...; # data and filename
+    xlabel         = L"x",
+    ylabel         = L"y",
+    xbins          = 10,
+    ybins          = 8,
+    grid           = true,
+    figsize        = (3.2,2.2),
+    legendloc      = "best",
+    legendexpand   = false,
+    bbox_to_anchor = nothing,
+    ncol           = 0,
+    xlim           = nothing,
+    ylim           = nothing,
+    equalaspect    = false,
+    xscale         = "linear",
+    yscale         = "linear",
+    xmult          = 1.0,
+    ymult          = 1.0,
+    ticksinside    = true,
+    axis           = true,
+    arrowaxis      = false,
+    xticks         = nothing,
+    xticklabels    = [],
+    yticks         = nothing,
+    yticklabels    = [],
+    fontsize       = 6.5,
+    legendfontsize = 0,
+    textfontsize   = 0,
+    labelspacing   = 0.5,
+    annotations    = [],        # e.g. [ (text="C1", pos=(x,y)), ]
 
-    tagpos           = 0.5,
-    tagloc           = "top",   # e.g. 1,2,3,4
-    tagdist          = 0.005, 
-    tagfontsize      = 0,
-    tagcolor         = "black",
-    tagalign         = true,
+    tagpos      = 0.5,
+    tagloc      = "top",   # e.g. 1, 2, 3, 4
+    tagdist     = 0.005,
+    tagfontsize = 0,
+    tagcolor    = "black",
+    tagalign    = true,
     
-    y2bins           = 8,
-    y2lim            = nothing,
-    y2scale          = "linear",
+    x2label = L"x2",
+    y2label = L"y2",
+    x2mult  = 1.0,
+    y2mult  = 1.0,
+    y2bins  = 8,
+    x2lim   = nothing,
+    y2lim   = nothing,
+    y2scale = "linear",
 
-    copypath         = "",
-    quiet         = false
+    copypath = "",
+    quiet    = false
 )
 
     filename = ""
@@ -176,30 +173,28 @@ function cplot(
         elseif arg isa NamedTuple
             push!(data, arg)
         else
-            @show typeof(arg)
-            error("cplot: wrong argument type")
+            error("cplot: wrong argument type $(typeof(arg))")
         end
     end
-
-
-    # isempty(filename) && (filename=fname)
-    
 
     quiet || headline("Chart plotting")
     quiet || message("generating plot $(strip(xlabel,'$')) vs $(strip(ylabel,'$'))")
 
+    options = "xlabel, ylabel, xbins, ybins, grid, figsize, legendloc, legendexpand, bbox_to_anchor, ncol, xlim, ylim, equalaspect, xscale, yscale, xmult, ymult, ticksinside, axis, arrowaxis, xticks, xticklabels, yticks, yticklabels, fontsize, legendfontsize, textfontsize, labelspacing, annotations, tagpos, tagloc, tagdist, tagfontsize, tagcolor, tagalign, x2label, y2label, x2mult, y2mult, y2bins, x2lim, y2lim, y2scale, copypath, quiet"
+    curveoptions = "x, y, color, ls, lw, marker, ms, mfc, label, tag, tagpos, tagloc, tagdist, tagfontsize, tagcolor, tagalign"
+
     if !quiet
-        hint("Optional arguments:", level=2)
-        options = "xlabel, ylabel, legendloc, xbins, ybins, grid, figsize, legendexpand, ncol,
-                xlim, ylim, xscale, yscale, fontsize, ticksinside, legendfontsize, labelspacing"
+        hint("Arguments:", level=2)
+        hint("args: plot data and optional filename", level=3)
+
+        hint("Optional named arguments:", level=2)
         hint(options, level=3)
 
-        hint("Arguments and optional arguments per curve:", level=2)
-        options = "x, y, color, ls, lw, marker, ms, mfc, label, tag, tagpos, tagloc, tagdist, tagfontsize, tagcolor, tagalign, at_y2"
-        hint(options, level=3)
+        hint("Optional named arguments per curve:", level=2)
+        hint(curveoptions, level=3)
     end
 
-    @eval import PyPlot:plt, matplotlib, figure, ioff, gcf
+    @eval import PyPlot:plt, matplotlib, figure, gcf
 
     line_styles = ("-", "--", "-.", ":", "", " ", "None", nothing)
     markers     = (".", ",", "o", "v", "^", "<", ">", "1", "2", "3", "4", "8", "s", "p", "*", "h", "H", "+", "x", "D", "d", "|", "_", "P", "X", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, "None", nothing, " ", "")
@@ -274,14 +269,17 @@ function cplot(
     tagfontsize==0 && (tagfontsize=fontsize)
     textfontsize==0 && (textfontsize=fontsize-0.5)
 
+    isinter = plt.isinteractive()
+
     if filename!=""
+        plt.ioff()
+
         # plt.rc("text", usetex=true)
         plt.rc("font", family="STIXGeneral", size=fontsize)
         plt.rc("mathtext", fontset="cm")
         plt.rc("lines", scale_dashes=true)
-
         plt.close("all")
-        plt.ioff()
+
         plt.rc("xtick", labelsize=fontsize)
         plt.rc("ytick", labelsize=fontsize)
         plt.rc("lines", lw=0.7)
@@ -289,14 +287,12 @@ function cplot(
         plt.rc("axes" , linewidth=0.5)
         plt.rc("figure", figsize=figsize)
         plt.rc("legend", fontsize=legendfontsize)
+
     else
         plt.rc("font", family="STIXGeneral", size=fontsize+3)
         plt.rc("mathtext", fontset="cm")
-        plt.ion()
+        # plt.ion()
     end
-
-    # Newx axes
-    # ax = plt.axes()
 
     # Set axis limits
     xlim!==nothing && plt.xlim(xlim) 
@@ -327,6 +323,14 @@ function cplot(
         ax_xy.tick_params(which="major", axis="x", direction="in")
         ax_xy.tick_params(which="major", axis="y", direction="in")
     end
+
+    # check data plot named arguments
+    for (i,line) in enumerate(data)
+        for arg in keys(line)
+            contains(curveoptions, string(arg)) || error("cplot: wrong argument '$arg' for curve $i")
+        end
+    end
+
 
     # Find new axes: x2, y2
     for line in data
@@ -598,26 +602,24 @@ function cplot(
             end
         else # pos is a scalar
             len = 0.0
+            partial = [ len ]
             for i in 2:length(X)
                 len += √((X[i]-X[i-1])^2 + (Y[i]-Y[i-1])^2)
+                push!(partial, len)
             end
             lpos = pos*len
-            len = 0.0
+            
+            i = findfirst(z->z>=lpos, partial)
+            i==1 && (i=2)
+            len  = partial[i]
+            dlen = partial[i] - partial[i-1]
 
-            for i in 2:length(X)
-                dlen = √((X[i]-X[i-1])^2 + (Y[i]-Y[i-1])^2)
-                len += dlen
-                if len>=lpos
-                    x = X[i] - (len-lpos)/dlen*(X[i]-X[i-1])
-                    y = Y[i] - (len-lpos)/dlen*(Y[i]-Y[i-1])
-                    α = atand(Y[i]-Y[i-1], X[i]-X[i-1])
-                    dx = dist*abs(cosd(α))
-                    dy = dist*abs(sind(α))
-                    break
-                end
-            end
+            x  = X[i] - (len-lpos)/dlen*(X[i]-X[i-1])
+            y  = Y[i] - (len-lpos)/dlen*(Y[i]-Y[i-1])
+            α  = atand(Y[i]-Y[i-1], X[i]-X[i-1])
+            dx = dist*abs(cosd(α))
+            dy = dist*abs(sind(α))
         end
-
 
         # Default location "top"
         if loc in ("top", "t", 't')
@@ -647,8 +649,8 @@ function cplot(
             # @s α
             90<α<=180 && (α=α-180)
             -180<α<=-90 && (α=α+180)
-            # @s α
-            angle = ax_xy.transAxes.transform_angles([α], [1.0 1.0])[1]
+            angle = α
+            # angle = ax_xy.transAxes.transform_angles([α], [1.0 1.0])[1] # not required
         else
             angle = 0.0
         end
@@ -658,13 +660,14 @@ function cplot(
             # backgroundcolor="white",
             fontsize=tagfontsize, 
             rotation=angle, rotation_mode="anchor",
-            transform=ax_xy.transAxes
+            # transform=ax_xy.transAxes # not required
         )
     end
 
     # show or save plot
     if filename=="" 
-        plt.fignum_exists(ax_xy.figure.number) || plt.show()
+        # plt.fignum_exists(ax_xy.figure.number) || plt.show()
+        plt.show()
     else
         _, format = splitext(filename)
         plt.savefig(filename, bbox_inches="tight", pad_inches=0.01, format=format[2:end])
@@ -684,6 +687,7 @@ function cplot(
                 notify("cplot: $filename could not be copied to $copypath")
             end
         end
+        isinter && plt.ion()
     end
 
     return @eval gcf()

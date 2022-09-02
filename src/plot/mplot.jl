@@ -337,7 +337,7 @@ function mplot(
                figsize             = (3,3.0),
                leaveopen           = false,
                crop                = false,
-               quiet            = false,
+               quiet               = false,
                copypath            = ""
               )
 
@@ -495,6 +495,8 @@ function mplot(
     @eval import PyPlot:plt, matplotlib, figure, art3D, Axes3D, ioff, ColorMap, gcf
     #@eval ioff()
     #@eval ion()
+    isinter = plt.isinteractive()
+    filename!="" && plt.ioff()
 
     if facecolor isa String
         facecolor = matplotlib.colors.to_rgba(facecolor)
@@ -713,7 +715,6 @@ function mplot(
                 if ligth
                     #f = 0.7+0.3*abs(dot(L,N)*(1-dot(V,R))/2)
                     #f = 0.6+0.3*abs(dot(L,N)) + 0.2*(1-dot(V,R))/2
-                    
                     # f = 0.6+0.2*abs(dot(L,N)) + 0.2*(1+dot(V,R))/2
                     f = 0.8 + 0.1*abs(dot(L,N)) + 0.1*(1+dot(V,R))/2
                     f = min(f, 1.0)
@@ -771,7 +772,7 @@ function mplot(
             end
         end
 
-        cltn = @eval art3D[:Poly3DCollection]($all_verts, facecolor=$facecolors, edgecolor=$edgecolor, lw=$lineweight, alpha=$opacity) # ! lineweight is not working in Poly3DCollection
+        cltn = @eval art3D.Poly3DCollection($all_verts, facecolor=$facecolors, edgecolor=$edgecolor, lw=$lineweight, alpha=$opacity) # ! lineweight is not working in Poly3DCollection
         ax.add_collection3d(cltn)
 
         if has_field && colorbar
@@ -861,6 +862,7 @@ function mplot(
 
         if colorbarmax
             ticks = [ cbar.get_ticks(); fieldlims[2] ]
+            # @show ticks
             label = @sprintf("%g", round(fieldlims[2], sigdigits=3))
             if colorbarorientation=="vertical"
                 labels = cbar.ax.get_yticklabels()
@@ -868,6 +870,7 @@ function mplot(
                 labels = cbar.ax.get_xticklabels()
             end
             labels = [ labels; label ]
+            # @show labels
             cbar.set_ticks(ticks)
             cbar.set_ticklabels(labels)
         end
@@ -959,7 +962,6 @@ function mplot(
     end
 
     if filename==""
-        #plt.show()
         return @eval gcf()
     else
         _, format = splitext(filename)
@@ -989,6 +991,8 @@ function mplot(
             cp(filename, copyfile, force=true)
             quiet || info("file $copyfile saved")
         end
+
+        isinter && ion()
     end
 
     # Do not close if in IJulia
@@ -998,8 +1002,7 @@ function mplot(
 
     leaveopen || plt.close("all")
 
-    return @eval gcf()
-
+    return nothing
 end
 
 
@@ -1176,8 +1179,8 @@ function mplot(
     minmax           = false
 )
     
-    @eval import PyPlot:plt, matplotlib, figure, gca, gcf, ioff
-    #@eval ioff()
+    @eval import PyPlot:plt, matplotlib, figure, gca, gcf, isinteractive, ion, iof
+    filename != "" && ioff()
 
     # @assert barscale>0
 
@@ -1411,4 +1414,5 @@ function mplot(
         end
     end
 
+    return @eval gcf()
 end
