@@ -1,7 +1,7 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 export dynsolve!
-
+using DelimitedFiles
 
 # Assemble the global mass matrix
 function mount_M(elems::Array{<:Element,1}, ndofs::Int )
@@ -145,6 +145,10 @@ function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
     alpha   :: Real  = 0.0,
     beta    :: Real  = 0.0,
     sism    :: Bool  = false,
+    tss     :: Real = 0.0,
+    tds     :: Real = 0.0,
+    sism_file  :: String = " ",
+    sism_dir   :: String = "fx",
     Ttol    :: Real  = 1e-9,
     rspan   :: Real  = 1e-2,
     maxits  :: Int     = 5,
@@ -206,11 +210,9 @@ function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
 
         #If the problem is sismic, read the sismic acelerations asking to user the file's name AS:SeismicAcelerations
         if sism==true
-            print("What is the .dat file name of the sismic acelerations?")
-            AS = readdlm("$(chomp(readline())).dat")
+            AS = readdlm(sism_file)
             AS= 9.81*AS
-            print("What is the key correspond to sismic direction (fx, fy, fz)?")
-            keysis = Symbol(readline())
+            keysis = Symbol(sism_dir)
         end
 
         # Initial accelerations
@@ -295,7 +297,7 @@ function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
 
         # If the problem has a sism, the force sismic is added
         if sism && tss<=t+Δt && tds+tss>=t+Δt
-            M = mount_M(model,ndofs)
+            M = mount_M(model.elems, ndofs)
             Fex = sismic_force(model, bcs, M, Fex, AS, keysis, t+Δt, tds)
         end
 
@@ -648,7 +650,7 @@ function dynsolvex!(
 
         # If the problem has a sism, the force sismic is added
         if sism && tss<=t+Δt && tds+tss>=t+Δt
-            M = mount_M(model,ndofs)
+            M = mount_M(model.elems, ndofs)
             Fex = sismic_force(model, bcs, M,Fex,AS,keysis,t+Δt,tds)
         end
 
