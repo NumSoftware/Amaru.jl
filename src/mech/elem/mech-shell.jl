@@ -162,25 +162,25 @@ end
 
 function elem_stiffness(elem::MechShell)
     nnodes = length(elem.nodes)
-    th = elem.mat.th
-    ndof = 6
-    nstr = 6
-    C = getcoords(elem)
-    K = zeros(ndof*nnodes, ndof*nnodes)
-    B = zeros(nstr, ndof*nnodes)
-    L = zeros(3,3)
-    Rrot = zeros(5,ndof)
-    Bil = zeros(nstr,5)
-    Bi = zeros(nstr,ndof)
+    th     = elem.mat.th
+    ndof   = 6
+    nstr   = 6
+    C      = getcoords(elem)
+    K      = zeros(ndof*nnodes, ndof*nnodes)
+    B      = zeros(nstr, ndof*nnodes)
+    L      = zeros(3,3)
+    Rrot   = zeros(5,ndof)
+    Bil    = zeros(nstr,5)
+    Bi     = zeros(nstr,ndof)
 
     for ip in elem.ips
-        N = elem.shape.func(ip.R)
+        N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
-        J2D = C'*dNdR
+        J2D  = C'*dNdR
         set_rot_x_xp(elem, J2D, L)
-        J′ = [ L*J2D [ 0,0,th/2]  ]
+        J′    = [ L*J2D [ 0,0,th/2]  ]
         invJ′ = inv(J′)
-        dNdR = [ dNdR zeros(nnodes) ]
+        dNdR  = [ dNdR zeros(nnodes) ]
         dNdX′ = dNdR*invJ′
 
         D = calcD(elem.mat, ip.state)

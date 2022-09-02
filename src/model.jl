@@ -42,7 +42,6 @@ mutable struct Model<:AbstractDomain
 
     # Auxiliary data
     _elempartition::ElemPartition
-    _active_elems::Array{Element,1}
 
     function Model()
         this = new()
@@ -60,9 +59,8 @@ mutable struct Model<:AbstractDomain
         this.env = ModelEnv()
 
         this._elempartition = ElemPartition()
-        this._active_elems = Element[]
-        this.node_data = OrderedDict()
-        this.elem_data  = OrderedDict()
+        this.node_data      = OrderedDict()
+        this.elem_data      = OrderedDict()
         return this
     end
 end
@@ -125,7 +123,7 @@ function Model(
     # Save a mesh reference
     #model.mesh = mesh
 
-    quiet || printstyled("Model setup:\n", bold=true, color=:cyan)
+    quiet || printstyled("Model setup\n", bold=true, color=:cyan)
 
     # Setting nodes
     model.nodes = copy.(mesh.nodes)
@@ -162,9 +160,6 @@ function Model(
             model.elems[cell.id] = elem
         end
     end
-
-    # Initialize active elements
-    model._active_elems = model.elems
 
     # Check if all elements have material defined
     undefined_elem_shapes = Set{String}()
@@ -208,7 +203,7 @@ function Model(
     ip_id = 0
     for elem in model.elems
         elem_config_dofs(elem)  # dofs
-        setquadrature!(elem)   # ips
+        setquadrature!(elem)    # ips
         for ip in elem.ips      # ip ids
             ip_id += 1
             ip.id = ip_id

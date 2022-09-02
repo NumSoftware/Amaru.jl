@@ -1,5 +1,5 @@
 # Loading the finite element package Amaru
-using Amaru
+using Amaru, LaTeXStrings
 using Test
 
 

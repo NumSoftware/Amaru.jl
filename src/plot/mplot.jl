@@ -133,13 +133,13 @@ end
 """
     mplot(blocks, filename="", kwargs...)
 
-Plots an array of blocks using `PyPlot` backend. If filename is provided it saves the output in a pdf file.
+Plots an array of blocks using `PyPlot` backend
 
 # Arguments
 
 `blocks` : An array of `Block` objects. Subarrays are also supported.
 
-`filename` = ""` : If provided, a pdf file with the output is saved
+`filename` = ""` : If provided, a file with the output is saved
 
 # See also
 
@@ -209,18 +209,19 @@ function get_main_edges(cells::Array{<:AbstractCell,1}, angle=120)
 end
 
 
-import PyCall: PyObject, pyimport, @pydef # required
+# import PyCall: PyObject, pyimport, @pydef # required
+import PyPlot:plt, matplotlib, figure, art3D, Axes3D, ColorMap, gcf
 
 """
     mplot(mesh, filename="", kwargs...)
 
-Plots a `mesh` using `PyPlot` backend. If `filename` is provided it writes a pdf file containing the plot.
+Plots a `mesh` using `PyPlot` backend.
 
 # Arguments
 
 `mesh` : A finite element mesh
 
-`filename = ""` : If provided, a pdf file with the output is saved
+`filename = ""` : If provided, a file with the output is saved
 
 # Keyword arguments
 
@@ -246,7 +247,7 @@ Plots a `mesh` using `PyPlot` backend. If `filename` is provided it writes a pdf
 
 `arrowscale    = 0.0` : Factor multiplied to `vectorfield` values
 
-`colormap      = nothing` : Colormap according to PyPlot
+`colormap      = "coolwarm"` : Colormap according to PyPlot
 
 `colormaplims  = (0.0, 1.0)` : Colormap range to be used
 
@@ -278,9 +279,7 @@ Plots a `mesh` using `PyPlot` backend. If `filename` is provided it writes a pdf
 
 `dist          = 10.0` : 3D plot distance from observer
 
-`outline       = true` : Highlight main edges of 3D meshes in the pdf output
-
-`outlineangle  = 100` : Limit angle to identify main edges
+`outline       = true` : Highlight main edges of 3D meshes in the saved output
 
 `figsize       = (3,3.0)` : Figure size
 
@@ -309,7 +308,7 @@ function mplot(
                shrink              = 1.0,
                opacity             = 1.0,
                lightvector         = nothing,
-               colormap            = nothing,
+               colormap            = "coolwarm",
                colormaplims        = (0.0,1.0),
                shrinkcolors        = false,
                darkcolors          = false,
@@ -491,10 +490,6 @@ function mplot(
 
     ll = max(diff(limX)[1], diff(limY)[1], diff(limZ)[1])
 
-    # Lazy import of PyPlot
-    @eval import PyPlot:plt, matplotlib, figure, art3D, Axes3D, ioff, ColorMap, gcf
-    #@eval ioff()
-    #@eval ion()
     isinter = plt.isinteractive()
     filename!="" && plt.ioff()
 
@@ -891,6 +886,11 @@ function mplot(
     # Draw nodes
     if markers
         if ndim==3
+            coords = [ node.coord for cell in mesh.elems.solids for node in cell.nodes ]
+
+            # X = [ node.coord.x for node in mesh.nodes ]
+            # Y = [ node.coord.y for node in mesh.nodes ]
+            # Z = [ node.coord.z for node in mesh.nodes ]
             X = getindex.(coords,1)
             Y = getindex.(coords,2)
             Z = getindex.(coords,3)
@@ -967,7 +967,7 @@ function mplot(
         _, format = splitext(filename)
         plt.savefig(filename, bbox_inches="tight", pad_inches=0.00, format=format[2:end])
 
-        if crop
+        if crop && format==".pdf"
             if Sys.islinux()
                 cmd = `pdfcrop $filename $filename`
                 out = Pipe()
@@ -992,7 +992,7 @@ function mplot(
             quiet || info("file $copyfile saved")
         end
 
-        isinter && ion()
+        isinter && plt.ion()
     end
 
     # Do not close if in IJulia
@@ -1033,10 +1033,10 @@ function mplotcolorbar(
     # @eval ioff()
 
     # fix PyPlot
-    @eval import PyPlot:getproperty, LazyPyModule
-    if ! @eval hasmethod(getproperty, (LazyPyModule, AbstractString))
-        @eval Base.getproperty(lm::LazyPyModule, s::AbstractString) = getproperty(PyObject(lm), s)
-    end
+    # @eval import PyPlot:getproperty, LazyPyModule
+    # if ! @eval hasmethod(getproperty, (LazyPyModule, AbstractString))
+    #     @eval Base.getproperty(lm::LazyPyModule, s::AbstractString) = getproperty(PyObject(lm), s)
+    # end
 
     plt.close("all")
 
@@ -1179,7 +1179,7 @@ function mplot(
     minmax           = false
 )
     
-    @eval import PyPlot:plt, matplotlib, figure, gca, gcf, isinteractive, ion, iof
+    @eval import PyPlot:plt, matplotlib, figure, gca, gcf
     filename != "" && ioff()
 
     # @assert barscale>0

@@ -38,7 +38,7 @@ For example, a `TRI3` shape represents the shape of a linear triangular
 finite element.
 
 ```@example
-using Amaru;
+using Amaru
 node1 = Node(0.0, 0.0, id=1)
 node2 = Node(1.0, 0.0, id=2)
 node3 = Node(1.0, 1.0, id=3)
@@ -385,7 +385,9 @@ bcs = [
     :(x==1) => SurfaceBC(tz=-1000)
 ]
 
-solve!(model, bcs, verbose=true)
+addstage!(model, bcs)
+
+solve!(model, quiet=true)
 save(model, "beam.vtu")
 
 nothing # hide
@@ -417,7 +419,7 @@ The `tol` paramter specifies the maximum force discrepancy between internal and 
 using Amaru
 
 # Mesh generation
-block = Block([0 0 0; 1 0.1 0.1], nx=20, ny=2, nz=3, cellshape=HEX8)
+block = Block([0 0 0; 1 0.1 0.1], nx=20, ny=2, nz=4, cellshape=HEX8)
 mesh = Mesh(block)
 
 # Analysis model
@@ -435,7 +437,9 @@ bcs = [
     :(x==1) => SurfaceBC(uz=-0.04)
 ]
 
-solve!(model, bcs, tol=0.01, autoinc=true)
+addstage!(model, bcs)
+
+solve!(model, tol=0.01, autoinc=true, quiet=true)
 nothing # hide
 ```
 
@@ -496,8 +500,9 @@ loggers = [
 ]
 
 setloggers!(model, loggers)
+addstage!(model, bcs, nouts=2)
 
-solve!(model, bcs, tol=0.01, nouts=2, autoinc=true)
+solve!(model, tol=0.01, autoinc=true, quiet=true)
 
 nothing # hide
 ```
@@ -529,10 +534,8 @@ using Amaru
 
 tip = DataTable("tip.table")
 cplot(
-    [
-        (x=tip.uz, y=tip.fz, marker="o"),
-    ],
-    filename = "uz_vs_fz.svg",
+    (x=tip.uz, y=tip.fz, marker="o"),
+    "uz_vs_fz.svg",
     xmult  = 1e3,
     xlabel = raw"$u_z$ [mm]",
     ylabel = raw"$f_z$ [kN]",
@@ -540,10 +543,8 @@ cplot(
 
 topgroup = DataBook("topgroup.book").tables[end]
 cplot(
-    [
-        (x=topgroup.x, y=topgroup.uz, marker="o"),
-    ],
-    filename = "x_vs_uz.svg",
+    (x=topgroup.x, y=topgroup.uz, marker="o"),
+    "x_vs_uz.svg",
     ymult  = 1e3,
     xlabel = raw"$x$ [m]",
     ylabel = raw"$u_z$ [mm]",
@@ -552,11 +553,9 @@ cplot(
 top = DataBook("top.book").tables[end]
 bottom = DataBook("bottom.book").tables[end]
 cplot(
-    [
-        (x=top.x, y=top.sxx, marker="o", label="top"),
-        (x=bottom.x, y=bottom.sxx, marker="o", label="bottom"),
-    ],
-    filename = "x_vs_sxx.svg",
+    (x=top.x, y=top.sxx, marker="o", label="top"),
+    (x=bottom.x, y=bottom.sxx, marker="o", label="bottom"),
+    "x_vs_sxx.svg",
     ymult  = 1e-3,
     xlabel = raw"$x$ [m]",
     ylabel = raw"$\sigma_{xx}$ [MPa]",

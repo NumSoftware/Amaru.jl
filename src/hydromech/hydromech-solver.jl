@@ -1,6 +1,5 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-
 # Assemble the global stiffness matrix
 function hm_mount_global_matrices(model::Model,
                                   ndofs::Int,

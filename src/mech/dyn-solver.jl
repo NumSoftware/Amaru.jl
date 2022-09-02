@@ -1,8 +1,5 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export dynsolve!
-using DelimitedFiles
-
 # Assemble the global mass matrix
 function mount_M(elems::Array{<:Element,1}, ndofs::Int )
 

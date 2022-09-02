@@ -2,7 +2,6 @@
 
 export elem_config_dofs, elem_init, elem_stiffness, elem_mass, elem_update!, elem_vals
 export set_state
-export solve!
 
 include("elem/mech.jl")
 include("elem/distributed.jl")
@@ -82,6 +81,8 @@ include("mat/integrator.jl")
 include("mech-solver.jl")
 include("dyn-solver.jl")
 include("modal-solver.jl")
+
+export mech_solve!, solve!
 
 # function reset_displacements(model::Model)
 #     for n in model.nodes

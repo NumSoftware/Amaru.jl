@@ -12,7 +12,9 @@ blocks = [
 ]
 
 println("Blocks 2D")
-mplot(blocks, "out.pdf")
+mplot(blocks, "out.pdf",
+    markers=true
+)
 println( @test isfile("out.pdf") )
 rm("out.pdf")
 

@@ -16,6 +16,7 @@ makedocs(
         "Mesh" =>  "meshing/meshing.md",
         "Model model" =>  "modelling/modelling.md",
         "Mechanical analysis" =>  "modelling/mech/mech.md",
+        "Plotting" =>  "plotting/plotting.md",
     ],
     doctest = false
 )
