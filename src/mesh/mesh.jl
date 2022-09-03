@@ -992,20 +992,16 @@ function UMesh0(
     end
 
     # Mesh generation
-    @eval begin
-        coords         = $coords
-        sizes          = $_sizes
-        lines          = $lineindexes
-        surfaces       = $polyindexes
-        ndim           = $ndim
-        npoints        = $npoints
-        embeddedpoints = $_embpoints
-        recombine      = $recombine
+    # let begin
+        sizes          = _sizes
+        lines          = lineindexes
+        surfaces       = polyindexes
+        embeddedpoints = _embpoints
 
-        try import Gmsh.gmsh
-        catch
-            error("Missing Gmsh package")
-        end
+        # try import Gmsh.gmsh
+        # catch
+        #     error("Missing Gmsh package")
+        # end
 
         gmsh.initialize()
         gmsh.option.setNumber("General.Terminal", 1)
@@ -1044,7 +1040,7 @@ function UMesh0(
         end
 
         if ndim==3
-            gmsh.model.geo.addSurfaceLoop(collect(1:nsurfs-$nembsurfaces), 1)
+            gmsh.model.geo.addSurfaceLoop(collect(1:nsurfs-nembsurfaces), 1)
             gmsh.model.geo.addVolume([1], 1)
             global ipg += 1
             gmsh.model.addPhysicalGroup(3, [1], ipg) # ndim, entities, tag
@@ -1063,7 +1059,7 @@ function UMesh0(
         end
 
         # Embedded surfaces
-        for i in nsurfs-$nembsurfaces+1:nsurfs
+        for i in nsurfs-nembsurfaces+1:nsurfs
             for l in surfaces[i]
                 gmsh.model.mesh.embed(1,[abs(l)],3,1)
             end
@@ -1090,7 +1086,7 @@ function UMesh0(
         tempfile = "_temp.vtk"
         gmsh.write(tempfile)
         gmsh.finalize()
-    end
+    # end
 
     mesh = Mesh(tempfile)
     rm(tempfile)
@@ -1207,22 +1203,18 @@ function UMesh(
     vol_idxs = Int[ sdict[hash(s)] for s in polym.polygons]
 
     # Mesh generation
-    @eval begin
-        coords         = $coords
-        sizes          = $sizeslist
-        lines          = $line_idxs
-        surfaces       = $surf_idxs
-        vol            = $vol_idxs
-        ndim           = $ndim
-        npoints        = $npoints
-        embpoints      = $embpoint_idxs
-        emblines       = $embldict
-        recombine      = $recombine
+    # @eval begin
+        sizes          = sizeslist
+        lines          = line_idxs
+        surfaces       = surf_idxs
+        vol            = vol_idxs
+        embpoints      = embpoint_idxs
+        emblines       = embldict
 
-        try import Gmsh.gmsh
-        catch
-            error("Missing Gmsh package")
-        end
+        # try import Gmsh.gmsh
+        # catch
+        #     error("Missing Gmsh package")
+        # end
 
         gmsh.initialize()
         gmsh.option.setNumber("General.Terminal", 1)
@@ -1294,7 +1286,7 @@ function UMesh(
         tempfile = "_temp.vtk"
         gmsh.write(tempfile)
         gmsh.finalize()
-    end
+    # end
 
     mesh = Mesh(tempfile)
     rm(tempfile)

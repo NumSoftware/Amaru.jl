@@ -13,9 +13,9 @@ Node, Element, Model, Dof, Ip, NodeBC, SurfaceBC
 
 """
 module Amaru
-using Printf, StatsBase, Statistics, LinearAlgebra, SparseArrays, DelimitedFiles, Arpack
-using DataStructures, Glob, DocStringExtensions
-import DataStructures.OrderedDict, DataStructures.OrderedSet
+using StatsBase, Statistics, LinearAlgebra, SparseArrays, Arpack, Gmsh
+using Printf, DelimitedFiles, DataStructures, Glob, DocStringExtensions
+import DataStructures: OrderedDict, OrderedSet
 
 # Tools module
 include("tools/include.jl")
