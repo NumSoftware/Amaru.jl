@@ -234,7 +234,7 @@ mutable struct NodeSumMonitor<:AbstractMonitor
         # add _min and _max extra values
         extra = :()
         for ex in [ expr.args; stop.args ]
-            for var in get_vars(ex)
+            for var in getvars(ex)
                 varstr = string(var)
                 length(varstr)>4 || continue
                 _, optstr = split(varstr, '_')
