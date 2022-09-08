@@ -25,10 +25,10 @@ Q 107.6 -85.359188 171.159188 -148.918376
 Q 155.225732 -165.275948 154.926356 -188.12 
 Q 99.466952 -188.12 44.040812 -188.12 
 Q 44.040812 -104.96 44.040812 -21.8 
-" id="m3f260afbaa" style="stroke:#9ea2a6;stroke-width:0.4;"/>
+" id="m5767944303" style="stroke:#9ea2a6;stroke-width:0.4;"/>
     </defs>
-    <g clip-path="url(#p24e343f58c)">
-     <use style="fill:#f0f8ff;stroke:#9ea2a6;stroke-width:0.4;" x="0" xlink:href="#m3f260afbaa" y="191.62"/>
+    <g clip-path="url(#p1282cce3c4)">
+     <use style="fill:#f0f8ff;stroke:#9ea2a6;stroke-width:0.4;" x="0" xlink:href="#m5767944303" y="191.62"/>
     </g>
    </g>
    <g id="line2d_1">
@@ -52,23 +52,23 @@ C -0.670975 -0.389685 -0.75 -0.198902 -0.75 0
 C -0.75 0.198902 -0.670975 0.389685 -0.53033 0.53033 
 C -0.389685 0.670975 -0.198902 0.75 0 0.75 
 z
-" id="m85d720ddc6"/>
+" id="md88c04617d"/>
     </defs>
     <g>
-     <use x="44.040812" xlink:href="#m85d720ddc6" y="169.82"/>
-     <use x="171.159188" xlink:href="#m85d720ddc6" y="42.701624"/>
-     <use x="154.926356" xlink:href="#m85d720ddc6" y="3.5"/>
-     <use x="44.040812" xlink:href="#m85d720ddc6" y="3.5"/>
-     <use x="107.6" xlink:href="#m85d720ddc6" y="106.260812"/>
-     <use x="159.134252" xlink:href="#m85d720ddc6" y="24.722432"/>
-     <use x="99.475268" xlink:href="#m85d720ddc6" y="3.5"/>
-     <use x="44.040812" xlink:href="#m85d720ddc6" y="86.66"/>
+     <use x="44.040812" xlink:href="#md88c04617d" y="169.82"/>
+     <use x="171.159188" xlink:href="#md88c04617d" y="42.701624"/>
+     <use x="154.926356" xlink:href="#md88c04617d" y="3.5"/>
+     <use x="44.040812" xlink:href="#md88c04617d" y="3.5"/>
+     <use x="107.6" xlink:href="#md88c04617d" y="106.260812"/>
+     <use x="159.134252" xlink:href="#md88c04617d" y="24.722432"/>
+     <use x="99.475268" xlink:href="#md88c04617d" y="3.5"/>
+     <use x="44.040812" xlink:href="#md88c04617d" y="86.66"/>
     </g>
    </g>
   </g>
  </g>
  <defs>
-  <clipPath id="p24e343f58c">
+  <clipPath id="p1282cce3c4">
    <rect height="166.32" width="167.4" x="23.9" y="3.5"/>
   </clipPath>
  </defs>
