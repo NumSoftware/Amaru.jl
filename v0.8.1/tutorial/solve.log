@@ -1,0 +1,86 @@
+Mechanical FE analysis: Stage 1
+unknown dofs: 708
+  inc 1
+    it 1  residue: 4.0670e-12
+  inc 2
+    it 1  residue: 5.5850e-12
+  inc 3
+    it 1  residue: 1.0856e-11
+  inc 4
+    it 1  residue: 1.2304e-11
+  inc 5
+    it 1  residue: 3.0561e-11
+  inc 6
+    it 1  residue: 3.9278e-11
+  inc 7
+    it 1  residue: 5.3030e+01
+    it 2  residue: 1.1523e+01
+    it 3  residue: 8.1084e-01
+    it 4  residue: 1.9240e-01
+    it 5  residue: 4.2259e-02
+      increment failed
+  inc 7
+    it 1  residue: 7.4968e+00
+    it 2  residue: 6.6121e-02
+    it 3  residue: 1.4346e-03
+  inc 8
+    it 1  residue: 4.4165e+00
+    it 2  residue: 5.4884e-02
+    it 3  residue: 2.9782e-03
+  inc 9
+    it 1  residue: 2.9152e-01
+    it 2  residue: 2.0891e-02
+    it 3  residue: 1.4728e-03
+  inc 10
+    it 1  residue: 6.7841e+00
+    it 2  residue: 1.1162e-01
+    it 3  residue: 4.9122e-03
+  inc 11
+    it 1  residue: 4.6134e-01
+    it 2  residue: 1.9579e-02
+    it 3  residue: 1.2024e-03
+  inc 12
+    it 1  residue: 5.7687e+00
+    it 2  residue: 1.3240e-01
+    it 3  residue: 7.7593e-03
+  inc 13
+    it 1  residue: 7.4454e+00
+    it 2  residue: 2.1588e-01
+    it 3  residue: 1.6797e-02
+    it 4  residue: 1.4833e-03
+  inc 14
+    it 1  residue: 4.5824e+00
+    it 2  residue: 1.6332e-01
+    it 3  residue: 1.3604e-02
+    it 4  residue: 1.2110e-03
+  inc 15
+    it 1  residue: 4.1604e+00
+    it 2  residue: 1.0720e-01
+    it 3  residue: 6.6258e-03
+  inc 16
+    it 1  residue: 4.4664e-01
+    it 2  residue: 2.6899e-02
+    it 3  residue: 2.7113e-03
+  inc 17
+    it 1  residue: 9.6986e-01
+    it 2  residue: 4.2510e-02
+    it 3  residue: 3.3834e-03
+  inc 18
+    it 1  residue: 2.9834e+00
+    it 2  residue: 8.9976e-02
+    it 3  residue: 6.9211e-03
+  inc 19
+    it 1  residue: 1.0180e+00
+    it 2  residue: 2.0211e-02
+    it 3  residue: 2.6577e-03
+  inc 20
+    it 1  residue: 5.2043e-01
+    it 2  residue: 1.7138e-02
+    it 3  residue: 2.0390e-03
+  inc 21
+    it 1  residue: 7.2503e+00
+    it 2  residue: 1.6982e-01
+    it 3  residue: 7.7797e-03
+  inc 22
+    it 1  residue: 9.9113e-02
+    it 2  residue: 4.9291e-03
