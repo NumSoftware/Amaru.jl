@@ -158,20 +158,21 @@ function solve_system!(
         RHS = F1 - K12*U2
         
         try
-            try
+            # try
                 LUfact = lu(K11)
                 U1 = LUfact\RHS
-            catch err
-                if typeof(err)==SingularException
-                    # Regularization attempt
-                    msg = "$msg\nsolve_system!: Syngular matrix - regularization attempt"
-                    S = spdiagm([ 1/maximum(abs, K11[i,:]) for i in 1:nu ])
-                    LUfact = lu(S*K11)
-                    U1  = (LUfact\(S*RHS))
-                else
-                    return failure("$msg\nsolve_system!: $err")
-                end
-            end
+            # catch err
+            #     err isa InterruptException && rethrow(err)
+            #     if typeof(err)==SingularException
+            #         # Regularization attempt
+            #         msg = "$msg\nsolve_system!: Syngular matrix - regularization attempt"
+            #         S = spdiagm([ 1/maximum(abs, K11[i,:]) for i in 1:nu ])
+            #         LUfact = lu(S*K11)
+            #         U1  = (LUfact\(S*RHS))
+            #     else
+            #         return failure("$msg\nsolve_system!: $err")
+            #     end
+            # end
 
             F2 += K21*U1
         catch err
@@ -267,13 +268,18 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
             sline_task = @async run_status_line(sline)
         end
 
+        interrupted = false
         try
             solstatus = stage_solver!(model, stage, logfile, sline; args...)
         catch err
             stage.status = :failed
             flush(logfile)
             print("\e[?25h") # enable cursor
-            rethrow(err)
+            if err isa InterruptException
+                interrupted = true
+            else
+                rethrow(err)
+            end
         end
         close(logfile)
 
@@ -290,6 +296,10 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
             solstatus.message != "" && println(solstatus.message)
         end
         getlapse(sw)>60 && sound_alert()
+        if interrupted
+            alert("Interrupted")
+            break
+        end
 
     end
     return solstatus
