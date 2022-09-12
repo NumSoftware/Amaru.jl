@@ -192,7 +192,7 @@ function elem_stiffness(elem::MechShell)
         K += coef*B'*D*B
     end
 
-    δ = 1e-7
+    δ = 1e-5
     for i in 1:ndof*nnodes
         K[i,i] += δ
     end

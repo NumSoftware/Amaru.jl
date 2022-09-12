@@ -118,7 +118,8 @@ function cplot(
     ylabel         = L"y",
     xbins          = 10,
     ybins          = 8,
-    grid           = true,
+    showgrid       = true,
+    ticklength     = NaN,
     figsize        = (3.2,2.2),
     legendloc      = "best",
     legendexpand   = false,
@@ -180,7 +181,7 @@ function cplot(
     quiet || headline("Chart plotting")
     quiet || message("generating plot $(strip(xlabel,'$')) vs $(strip(ylabel,'$'))")
 
-    options = "xlabel, ylabel, xbins, ybins, grid, figsize, legendloc, legendexpand, bbox_to_anchor, ncol, xlim, ylim, equalaspect, xscale, yscale, xmult, ymult, ticksinside, axis, arrowaxis, xticks, xticklabels, yticks, yticklabels, fontsize, legendfontsize, textfontsize, labelspacing, annotations, tagpos, tagloc, tagdist, tagfontsize, tagcolor, tagalign, x2label, y2label, x2mult, y2mult, y2bins, x2lim, y2lim, y2scale, copypath, quiet"
+    options = "xlabel, ylabel, xbins, ybins, showgrid, ticklength, figsize, legendloc, legendexpand, bbox_to_anchor, ncol, xlim, ylim, equalaspect, xscale, yscale, xmult, ymult, ticksinside, axis, arrowaxis, xticks, xticklabels, yticks, yticklabels, fontsize, legendfontsize, textfontsize, labelspacing, annotations, tagpos, tagloc, tagdist, tagfontsize, tagcolor, tagalign, x2label, y2label, x2mult, y2mult, y2bins, x2lim, y2lim, y2scale, copypath, quiet"
     curveoptions = "x, y, color, ls, lw, marker, ms, mfc, label, tag, tagpos, tagloc, tagdist, tagfontsize, tagcolor, tagalign"
 
     if !quiet
@@ -193,8 +194,6 @@ function cplot(
         hint("Optional named arguments per curve:", level=2)
         hint(curveoptions, level=3)
     end
-
-    @eval import PyPlot:plt, matplotlib, figure, gcf
 
     line_styles = ("-", "--", "-.", ":", "", " ", "None", nothing)
     markers     = (".", ",", "o", "v", "^", "<", ">", "1", "2", "3", "4", "8", "s", "p", "*", "h", "H", "+", "x", "D", "d", "|", "_", "P", "X", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, "None", nothing, " ", "")
@@ -362,6 +361,8 @@ function cplot(
         end
     end
 
+    ticklength >= 0&& ax_xy.tick_params(axis="both", which="both",length=ticklength)
+
     # Plot curves
     haslegend = false
     for (i, line) in enumerate(data)
@@ -399,7 +400,7 @@ function cplot(
 
     plt.sca(ax_xy)
 
-    grid && plt.grid(color="lightgrey", which="both", ls="dotted", lw=0.3)
+    showgrid && plt.grid(color="lightgrey", which="both", ls="dotted", lw=0.3)
     xscale=="linear" && plt.locator_params(axis="x", nbins=xbins)
     yscale=="linear" && plt.locator_params(axis="y", nbins=ybins)
 
@@ -432,7 +433,7 @@ function cplot(
         # get width and height of axes object to compute 
         # matching arrowhead length and width
 
-        dps = @eval plt.gcf().dpi_scale_trans.inverted()
+        dps = plt.gcf().dpi_scale_trans.inverted()
         bbox = ax_xy.get_window_extent().transformed(dps)
         width, height = bbox.width, bbox.height
 
@@ -490,26 +491,26 @@ function cplot(
         frame.set_linewidth(0.5)
     end
 
-    # ax= axesdict["xy"]
-    # Tick parameters
-    # ax = plt.gca()
-
-
     # print text
     if length(annotations)>0
         for line in annotations
             x, y     = get(line, :pos, (0.5, 0.5))
-            # x        = get(line, :x, 0.5)
-            # y        = get(line, :x, 0.5)
+            if haskey(line, :xy)
+                xy = line[:xy]
+                x, y = (ax_xy.transData+ax_xy.transAxes.inverted()).transform(xy)
+            end
+
             fontsize = get(line, :fontsize, tagfontsize)
             text     = string(get(line, :text, ""))
             arrowcoord = get(line, :arrowcoord, nothing)
             
             
             if arrowcoord===nothing
+                # mpl 3.2
                 ax_xy.text(x, y, text, fontsize=textfontsize, transform=ax_xy.transAxes, ha="center", va="center")
             else
-                xa, ya = (ax_xy.transData+ax_xy.transAxes.inverted()).transform([x,y])
+                # xa, ya = (ax_xy.transData+ax_xy.transAxes.inverted()).transform([x,y])
+                xa, ya = x, y
                 dx = abs(x-xa)*figsize[1]/figsize[2]
                 dy = abs(y-ya)
                 if dx>dy
@@ -560,10 +561,6 @@ function cplot(
             color = get(line, :color, "C$(i-1)")
             color = 0.85.*matplotlib.colors.to_rgb(color)
         end
-
-        XY    = (ax_xy.transData+ax_xy.transAxes.inverted()).transform([X Y])
-        X     = XY[:,1]
-        Y     = XY[:,2]
 
         x = y = 0.0
         dx = dy = 0.0
@@ -644,9 +641,6 @@ function cplot(
 
         if align
             align && (ha="center")
-            
-            # println()
-            # @s α
             90<α<=180 && (α=α-180)
             -180<α<=-90 && (α=α+180)
             angle = α
@@ -660,7 +654,6 @@ function cplot(
             # backgroundcolor="white",
             fontsize=tagfontsize, 
             rotation=angle, rotation_mode="anchor",
-            # transform=ax_xy.transAxes # not required
         )
     end
 
@@ -690,7 +683,7 @@ function cplot(
         isinter && plt.ion()
     end
 
-    return @eval gcf()
+    return gcf()
 
 end
 
