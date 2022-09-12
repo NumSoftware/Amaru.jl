@@ -271,7 +271,7 @@ end
 function mech_shell_body_forces(elem::Element, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     th    = elem.mat.th
-    suitable_keys = (:tx, :ty, :tz, :tn)
+    suitable_keys = (:wx, :wy, :wz, :wn)
 
     # Check keys
     key in suitable_keys || error("mech_shell_body_forces: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
@@ -296,13 +296,13 @@ function mech_shell_body_forces(elem::Element, key::Symbol, val::Union{Real,Symb
 
         x, y, z = X
         vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
-        if key == :tx
+        if key == :wx
             Q = [vip, 0.0, 0.0]
-        elseif key == :ty
+        elseif key == :wy
             Q = [0.0, vip, 0.0]
-        elseif key == :tz
+        elseif key == :wz
             Q = [0.0, 0.0, vip]
-        elseif key == :tn
+        elseif key == :wn
             n = cross(J[:,1], J[:,2])
             Q = vip*normalize(n)
         end
