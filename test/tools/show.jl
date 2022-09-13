@@ -22,8 +22,8 @@ bcs = [
 addstage!(model, bcs, nincs=3)
 solve!(model)
 
-table = loadtable("node.dat")
-book  = loadbook("nodes.dat")
+table = DataTable("node.dat")
+book  = DataBook("nodes.dat")
 
 rm("node.dat")
 rm("nodes.dat")

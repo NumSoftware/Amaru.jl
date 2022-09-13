@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export DataTable, datatable, push!, save, loadtable, randtable
+export DataTable, datatable, push!, save, randtable
 export compress, resize, filter, cut!, clamp!, denoise!
 export getheader
 
@@ -204,16 +204,10 @@ function Base.getindex(table::DataTable, rows, cols::Array{<:KeyType,1})
 end
 
 
-
-
 function Base.Array(table::DataTable)
     return hcat(getcolumns(table)...)    
 end
 
-
-# function Base.getindex(table::DataTable, rowindex::Int, colidx::Int)
-#     return getcolumns(table)[colidx][rowindex]
-# end
 
 function Base.getindex(table::DataTable, rowindex::Union{Int,Colon,OrdinalRange{Int,Int},Array{Int,1}}, colidx::Int)
     return getcolumns(table)[colidx][rowindex]
@@ -223,10 +217,6 @@ end
 function Base.getindex(table::DataTable, rowindex::Int, colon::Colon)
     return [ column[rowindex] for column in getcolumns(table)]
 end
-
-# function Base.getindex(table::DataTable, rows, cols::Union{Colon,OrdinalRange{Int,Int},Array{Int,1}})
-#     return return getcolumns(table)[colidx][rows]
-# end
 
 
 function Base.lastindex(table::DataTable)
@@ -250,9 +240,8 @@ end
 sprintf(fmt, args...) = @eval @sprintf($fmt, $(args...))
 
 
-
 function Base.filter(table::DataTable, expr::Expr)
-    fields = get_vars(expr)
+    fields = getvars(expr)
     vars   = Dict{Symbol, Float64}()
     nr     = nrows(table)
     idxs   = falses(nr)
@@ -643,10 +632,6 @@ function DataTable(filename::String, delim='\t')
 end
 
 
-# Functions for backwards compatibility
-loadtable(filename::String, delim='\t') = DataTable(filename, delim)
-
-
 # TODO: Improve display. Include column datatype
 function Base.show(io::IO, table::DataTable)
     columns = getcolumns(table)
@@ -743,4 +728,4 @@ function Base.show(io::IO, table::DataTable)
 end
 
 
-randtable() = DataTable(["x","y","z"], [0:10 rand().*(sin.(0:10).+(0:10)) rand().*(cos.(0:10).+(0:10)) ])
+randtable() = DataTable(["x","y","z"], Any[0:10 rand().*(sin.(0:10).+(0:10)) rand().*(cos.(0:10).+(0:10)) ])

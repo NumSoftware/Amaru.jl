@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export DataBook, databook, push!, save, loadbook
+export DataBook, databook, push!, save
 
 
 # DataBook type
@@ -152,10 +152,6 @@ function DataBook(filename::String)
     close(f)
     return book
 end
-
-
-# function for backwards compatibility
-loadbook(filename::String) = DataBook(filename)
 
 
 function Base.show(io::IO, book::DataBook)
