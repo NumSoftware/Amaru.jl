@@ -4,6 +4,7 @@ files = [
          "generation.jl",
          "io.jl",
          "operations.jl",
+         "extrude.jl",
          "extrapolation.jl",
          "smoothing.jl",
          "revolve.jl",

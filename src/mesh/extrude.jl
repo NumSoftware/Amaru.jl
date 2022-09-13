@@ -32,7 +32,7 @@ Block
   tag: ""
 ```
 """
-function extrude(block::Block; axis=[0,0,1], length::Number=1.0, n::Int=1)::Block
+function extrude(block::Block; axis=[0,0,1], length::Number=1.0, n::Int=1, quiet=true)::Block
 
     if axis==:x
         axis = Vec3(1,0,0)
@@ -70,35 +70,72 @@ function extrude(block::Block; axis=[0,0,1], length::Number=1.0, n::Int=1)::Bloc
 
 end
 
-function extrude(blocks::Array; axis=[0,0,1], length=1.0::Number, n=1::Int)
-    return extrude.(blocks, axis=axis, length=length, n=n)
+function extrude(blocks::Array; axis=[0,0,1], length=1.0::Number, n=1::Int, quiet=true)
+    return extrude.(blocks, axis=axis, length=length, n=n, quiet=quiet)
 end
 
 
 # Generates a new mesh obtained by extrusion of a 2D mesh
 """
-    extrude(mesh, [axis=[0,0,1],] [length=1.0,] [n=1,] [verbosity=1,] [genedges=false])
+    extrude(mesh; length=1.0, n=1, axis=nothing, quiet=true, lagrangian=false)
 
 Generates a 3D mesh by extruding a planar `mesh` using 
 a direction `axis`, a `length` and a number of divisions `n`.
 """
-function extrude(mesh::Mesh; axis=[0,0,1], length::Number=1.0, n::Int=1, quiet=true, lagrangian=false)
-    if axis==:x
-        axis = Vec3(1,0,0)
-    elseif axis==:y
-        axis = Vec3(0,1,0)
-    elseif axis==:z
-        axis = Vec3(0,0,1)
+function extrude(mesh::Mesh; length::Real=1.0, n::Int=1, axis=nothing, quiet=true, lagrangian=false)
+    
+    quiet || printstyled("Mesh extrude:\n", bold=true, color=:cyan)
+
+    @check n>0
+    
+    if axis !== nothing
+        if axis==:x
+            axis = Vec3(1,0,0)
+        elseif axis==:y
+            axis = Vec3(0,1,0)
+        elseif axis==:z
+            axis = Vec3(0,0,1)
+        else
+            ax = Vec3(normalize(axis))
+        end
     end
 
-    axis = Vec3(normalize(axis))
+    # check cells
+    for cell in mesh.elems
+        celldim = cell.shape.ndim
+        celldim==1 && mesh.ndim==3 && axis===nothing && error("extrude: cannot extrude cell of shape $(cell.shape.name) in dimension 3 using normal")    
+        celldim==3 && error("extrude: cannot extrude cell of shape $(cell.shape.name)")
+    end
 
-    quiet || printstyled("Mesh extrude:\n", bold=true, color=:cyan)
-    Δl = length/n
+    # compute normals
+    if axis===nothing
+        nnodes  = Base.length(mesh.nodes)
+        normals = zeros(nnodes, 3)
+        counts  = zeros(nnodes)
+        for cell in mesh.elems
+            celldim = cell.shape.ndim
+            # coords  = getcoords(cell, celldim)
+            coords  = getcoords(cell)
+            natcoords = cell.shape.nat_coords
+            for (i,node) in enumerate(cell.nodes)
+                R = natcoords[i,:]
+                J = coords'*cell.shape.deriv(R)
+                if celldim==1
+                    N = Vec3(normalize([-J[2], J[1]]))
+                else
+                    N = Vec3(normalize(cross(J[:,1], J[:,2])))
+                end
+                normals[node.id, :] .+= N
+                counts[node.id] += 1
+            end
+        end
 
-    # Generate new cells
+        normals ./= counts
+    end
+
+    # generate new cells
     cells = Cell[]
-
+    Δl    = length/n
     for l in range(0, step=Δl, length=n)
         for cell in mesh.elems
 
@@ -152,7 +189,10 @@ function extrude(mesh::Mesh; axis=[0,0,1], length::Number=1.0, n::Int=1, quiet=t
 
             nodes = Node[]
             for (node,li) in zip(cell.nodes[nidx], ls[lidx])
-                coord = node.coord + li*axis
+                if axis===nothing
+                    ax = Vec3(normals[node.id, :])
+                end
+                coord = node.coord + li*ax
                 push!(nodes, Node(coord))
             end
 
@@ -162,7 +202,7 @@ function extrude(mesh::Mesh; axis=[0,0,1], length::Number=1.0, n::Int=1, quiet=t
         end
     end
 
-    # Merge points
+    # merge points
     node_dict = Dict{UInt64,Node}( hash(n) => n for c in cells for n in c.nodes )
 
     for cell in cells
@@ -170,7 +210,7 @@ function extrude(mesh::Mesh; axis=[0,0,1], length::Number=1.0, n::Int=1, quiet=t
     end
     nodes = collect(values(node_dict))
 
-    # New mesh
+    # new mesh
     newmesh = Mesh()
     newmesh.nodes = nodes
     newmesh.elems = cells
