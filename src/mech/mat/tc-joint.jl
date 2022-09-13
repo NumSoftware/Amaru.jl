@@ -369,22 +369,23 @@ function stress_update(mat::AbstractTCJoint, state::AbstractTCJointState, Δw::A
     Ftr  = yield_func(mat, state, σtr, σmax)
 
     # Elastic and EP integration
-    if σmax == 0.0 && state.w[1] >= 0.0
-        # Return to apex:
-        if ndim==3
-            r1 = [ σtr[1]/kn, σtr[2]/ks, σtr[3]/ks ]
-            r = r1/norm(r1)
-            state.Δλ = norm(r1)
-        else
-            r1 = [ σtr[1]/kn, σtr[2]/ks ]
-            r = r1/norm(r1)
-            state.Δλ = norm(r1)  
-        end
+    # if σmax == 0.0 && state.w[1] >= 0.0
+    #     # Return to apex:
+    #     if ndim==3
+    #         r1 = [ σtr[1]/kn, σtr[2]/ks, σtr[3]/ks ]
+    #         r = r1/norm(r1)
+    #         state.Δλ = norm(r1)
+    #     else
+    #         r1 = [ σtr[1]/kn, σtr[2]/ks ]
+    #         r = r1/norm(r1)
+    #         state.Δλ = norm(r1)  
+    #     end
 
-        state.up += state.Δλ
-        state.σ = σtr - state.Δλ*De*r
+    #     state.up += state.Δλ
+    #     state.σ = σtr - state.Δλ*De*r
 
-    elseif Ftr <= 0.0
+    # else
+    if Ftr <= 0.0
         state.Δλ = 0.0
         state.σ  = copy(σtr) 
 
