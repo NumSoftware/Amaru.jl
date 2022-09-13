@@ -30,7 +30,7 @@ cplot(
     ybins     = 5,
     xmult     = 10.0,
     ymult     = 2.0,
-    grid      = false,
+    showgrid  = false,
     xlim      = (0,10),
     legendloc = 6,
     figsize   = (3,2),
