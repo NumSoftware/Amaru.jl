@@ -56,6 +56,7 @@ export getnodes, changequadrature!, get_ips, elems_ip_vals, updatemat!, setstate
 include("tag.jl")
 export tag!
 
+import PyPlot:plt, matplotlib, figure, art3D, Axes3D, ColorMap, gcf
 include("plot/mplot.jl")
 include("plot/cplot.jl")
 
