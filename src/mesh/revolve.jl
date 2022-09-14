@@ -1,20 +1,21 @@
 
 """
-    revolve(mesh; base=[0,0,0], axis=[0,0,1], minangle=0, maxangle=360, angle=360, n=8, collapse=true)
+    revolve(mesh; base=[0,0,0], axis=[0,0,1], minangle=0, maxangle=360, angle=360, n=8, collapse=true, lagrangian=false)
 
-Generates a 3D mesh by revolving a 2D `mesh` using a `base` point, 
-a direction `axis`, a rotation `angle` and a number of divisions `n`.
-If `collapse` is true, elements with concident nodes are collapsed
-into simpler elements with fewer nodes.
+Generates a 3D mesh by revolving a 1D o3 2D `mesh` using a `base` point, 
+an `axis`, a rotation `angle` and a number of divisions `n`.
+If `collapse` is true, each element with concident nodes is collapsed
+into simpler element with fewer nodes. If lagrangian is true, lagrangian elements
+are generated when posible.
 """
 function revolve(mesh::Mesh; 
-                 base::AbstractArray{<:Real,1} = [0.0,0.0,0.0],
-                 axis::AbstractArray{<:Real,1} = [0.0,1.0,0.0],
-                 minangle::Real = 0,
-                 maxangle::Real = 360,
-                 angle::Real = NaN,
-                 n::Int=8,
-                 collapse::Bool=true,
+                 base::AbstractArray{<:Real,1} = [0,0,0],
+                 axis::AbstractArray{<:Real,1} = [0,0,1],
+                 minangle  ::Real = 0,
+                 maxangle  ::Real = 360,
+                 angle     ::Real = NaN,
+                 n         ::Int  = 8,
+                 collapse  ::Bool = true,
                  lagrangian::Bool = false
                 )
     @assert length(axis)==3
@@ -201,3 +202,74 @@ function revolve(mesh::Mesh;
     return newmesh
 end
 
+"""
+    revolve(node; base=[0,0,0], axis=[0,0,1], minangle=0, maxangle=360, angle=360, n=8)
+
+Generates a mesh composed by LIN3 elements by revolving a `node` using a `base` point, 
+an `axis`, a rotation `angle` and a number of divisions `n`.
+"""
+function revolve(node::Node; 
+    base    ::AbstractArray{<:Real,1} = [0,0,0],
+    axis    ::AbstractArray{<:Real,1} = [0,0,1],
+    minangle::Real = 0,
+    maxangle::Real = 360,
+    angle   ::Real = NaN,
+    n       ::Int  = 8,
+)
+
+    @assert length(axis)==3
+    @assert length(base)==3
+    @assert n>0
+ 
+    axis = Vec3(normalize(axis))
+    base = Vec3(base)
+ 
+    if !isnan(angle)
+        minangle = 0
+        maxangle = angle
+    end
+ 
+    @assert 0<=minangle<360
+    @assert 0<maxangle<=360
+    @assert minangle<maxangle
+ 
+    cells = Cell[]
+    minθ = minangle*pi/180
+    maxθ = maxangle*pi/180
+    Δθ = (maxθ-minθ)/n
+
+    for θ in range(minθ,step=Δθ,length=n)
+        θhalf = θ + Δθ/2
+        θend  = θ + Δθ
+
+        Rini  = Quaternion(cos(θ/2), axis[1]*sin(θ/2), axis[2]*sin(θ/2), axis[3]*sin(θ/2))
+        Rhalf = Quaternion(cos(θhalf/2), axis[1]*sin(θhalf/2), axis[2]*sin(θhalf/2), axis[3]*sin(θhalf/2))
+        Rend  = Quaternion(cos(θend/2), axis[1]*sin(θend/2), axis[2]*sin(θend/2), axis[3]*sin(θend/2))
+
+        nodes = Node[]
+        for R in (Rend, Rini, Rhalf)
+            coord = base + R*(node.coord-base)*conj(R)
+            push!(nodes, Node(coord))
+        end
+
+        newcell = Cell(LIN3, nodes)
+        push!(cells, newcell)
+    end
+
+    # Merge points
+    point_dict = Dict{UInt64,Node}( hash(n) => n for c in cells for n in c.nodes )
+
+    for cell in cells
+        cell.nodes = Node[ point_dict[hash(n)] for n in cell.nodes ]
+    end
+    nodes = collect(values(point_dict))
+
+    # New mesh
+    newmesh = Mesh()
+    newmesh.nodes = nodes
+    newmesh.elems = cells
+    fixup!(newmesh, reorder=true)
+
+    return newmesh
+
+end
