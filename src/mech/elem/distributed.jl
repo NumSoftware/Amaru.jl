@@ -53,9 +53,9 @@ function mech_line_distributed_forces(elem::Element, key::Symbol, val::Union{Rea
             Q[3] = vip
         elseif key == :qn
             if  ndim==2
-                n = [J[1,2], -J[1,1]]
+                n = [J[2], -J[1]]
             else
-                n = cross(J[1,:], J[2,:])
+                n = cross(J[:,1], J[:,2])
             end
             Q = vip*normalize(n)
         end
@@ -127,9 +127,9 @@ function mech_solid_boundary_forces(elem::Element, facet::Cell, key::Symbol, val
             Q[3] = vip
         elseif key in (:tn , :qn)
             if  ndim==2
-                n = [J[1,2], -J[1,1]]
+                n = [J[2], -J[1]]
             else
-                n = cross(J[1,:], J[2,:])
+                n = cross(J[:,1], J[:,2])
             end
             Q = vip*normalize(n)
         end
