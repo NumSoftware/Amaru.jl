@@ -1,175 +1,70 @@
+export mod_solve!
 #Solids stiffness matrix for computing frequencies
 
-#function mount_Kf(model::Model, ndofs::Int)
-#    R, C, V = Int64[], Int64[], Float64[]
-#    elems=model.elems.solids
-#    for elem in elems
-#       Ke, rmap, cmap = elem_stiffness(elem)
-#        nr, nc = size(Ke)
-#        for i in 1:nr
-#            for j in 1:nc
-#                push!(R, rmap[i])
-#                push!(C, cmap[j])
-#                push!(V, Ke[i,j])
-#            end
-#        end
-#    end
-#    return sparse(R, C, V, ndofs, ndofs)
-#end
-#
-##Solids mass matrix for computing frequencies
-#function mount_Mf(model::Model, ndofs::Int)
-#    R, C, V = Int64[], Int64[], Float64[]
-#    elems=model.elems.solids
-#    for elem in elems
-#        Me, rmap, cmap = elem_mass(elem)
-#        nr, nc = size(Me)
-#        for i in 1:nr
-#            for j in 1:nc
-#                push!(R, rmap[i])
-#                push!(C, cmap[j])
-#                push!(V, Me[i,j])
-#            end
-#        end
-#    end
-#    return sparse(R, C, V, ndofs, ndofs)
-#end
+# function mount_Kf(model::Model, ndofs::Int)
 
-#function mount_Kf(elems::Array{<:Element,1}, ndofs::Int )
-#
-#    @withthreads begin
-#        R, C, V = Int64[], Int64[], Float64[]
-#
-#        for elem in elems
-#            Ke, rmap, cmap = elem_stiffness(elem)
-#
-#            nr, nc = size(Ke)
-#            for i in 1:nr
-#                for j in 1:nc
-#                    val = Ke[i,j]
-#                    abs(val) < eps() && continue
-#                    push!(R, rmap[i])
-#                    push!(C, cmap[j])
-#                    push!(V, val)
-#                end
-#            end
-#        end
-#    end
-#
-#    local K
-#    try
-#        K = sparse(R, C, V, ndofs, ndofs)
-#    catch err
-#        @show err
-#    end
-#
-#    yield()
-#
-#    return K
-#end
-#
-## Assemble the global mass matrix
-#function mount_Mf(elems::Array{<:Element,1}, ndofs::Int )
-#
-#    @withthreads begin
-#        R, C, V = Int64[], Int64[], Float64[]
-#
-#        for elem in elems
-#            Me, rmap, cmap = elem_mass(elem)
-#
-#            nr, nc = size(Me)
-#            for i in 1:nr
-#                for j in 1:nc
-#                    val = Me[i,j]
-#                    abs(val) < eps() && continue
-#                    push!(R, rmap[i])
-#                    push!(C, cmap[j])
-#                    push!(V, val)
-#                end
-#            end
-#        end
-#    end
-#
-#    local M
-#    try
-#        M = sparse(R, C, V, ndofs, ndofs)
-#    catch err
-#        @show err
-#    end
-#
-#    yield()
-#
-#    return M
-#end
+#     R, C, V = Int64[], Int64[], Float64[]
+#     elems=model.elems.solids
 
-export mod_solve!
-function mod_solve!(model::Model; args...)
-    name = "Modal solver"
-    st = stage_iterator!(name, mod_stage_solver!, model; args...)
-    return st
-end
+#     for elem in elems
+#        Ke, rmap, cmap = elem_stiffness(elem)
+#         nr, nc = size(Ke)
+#         for i in 1:nr
+#             for j in 1:nc
+#                 push!(R, rmap[i])
+#                 push!(C, cmap[j])
+#                 push!(V, Ke[i,j])
+#             end
+#         end
+#     end
 
-function mod_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::StatusLine;
-    nmods       :: Int = 5, 
-    rayleigh    :: Bool = false, 
-    save        :: Bool = true, 
-    quiet       :: Bool = false)
-    
-    #stage = model.stages[1]
-    println(logfile, "Modal analysis FE: Stage $(stage.id)")
-    #quiet || printstyled("FEM modal analysis:\n Stage $(stage.id)", bold=true, color=:cyan)
-    stage.status = :solving
-    solstatus = success()
-    bcs = stage.bcs
+
+#     return sparse(R, C, V, ndofs, ndofs)
+
+# end
+
+
+# #Solids mass matrix for computing frequencies
+
+# function mount_Mf(model::Model, ndofs::Int)
+
+#     R, C, V = Int64[], Int64[], Float64[]
+#     elems=model.elems.solids
+
+#     for elem in elems
+#         Me, rmap, cmap = elem_mass(elem)
+#         nr, nc = size(Me)
+#         for i in 1:nr
+#             for j in 1:nc
+#                 push!(R, rmap[i])
+#                 push!(C, cmap[j])
+#                 push!(V, Me[i,j])
+#             end
+#         end
+#     end
+
+#     return sparse(R, C, V, ndofs, ndofs)
+# end
+
+
+function mod_solve!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, save=true, quiet=false)
+
+    quiet || printstyled("FEM modal analysis:\n", bold=true, color=:cyan)
 
     # get only bulk elements
     model = Model(model.elems.bulks)
 
-    #@show model.elems |> length
-    #@show model.elems["right"] |> length
+    @show model.elems |> length
+    @show model.elems["right"] |> length
 
     # get dofs organized according to boundary conditions
-    dofs, nu    = configure_dofs!(model, stage.bcs)
+    dofs, nu    = configure_dofs!(model, bcs)
     ndofs       = length(dofs)
     model.ndofs = length(dofs)
-    env       = model.env
-    save_outs = stage.nouts > 0
+    quiet || println("  unknown dofs: $nu")
 
-    #quiet || println("  unknown dofs: $nu")
-    println(logfile, "unknown dofs: $nu")
-    message(sline, "  unknown dofs: $nu")
-
-    quiet || nu==ndofs && message(sline, "solve_system!: No essential boundary conditions", Base.warn_color)
-
-    if stage.id == 1
-        # Setup quantities at dofs
-        for dof in dofs
-            dof.vals[dof.name]    = 0.0
-            dof.vals[dof.natname] = 0.0
-        end
-
-        # Save initial file and loggers
-        update_output_data!(model)
-        update_single_loggers!(model)
-        update_composed_loggers!(model)
-        update_monitors!(model)
-        save_outs && save(model, "$outdir/$outkey-0.vtu", quiet=true)
-    end
-
-    # Get active elements
-    for elem in stage.toactivate
-        elem.active = true
-    end
-    #active_elems = filter(elem -> elem.active, model.elems)
-    active_elems = model.elems
-
-    K11 = mount_K(active_elems, ndofs)
-    M11 = mount_M(active_elems, ndofs)
-    #print("HOLA", ndofs, "ADIOS")
-    #K11 = mount_Kf(active_elems, ndofs)
-    #M11 = mount_Mf(active_elems, ndofs)
-    #K11 = mount_Kf(model, ndofs)
-    #M11 = mount_Mf(model, ndofs)
+    K11 = mount_K(model.elems, ndofs)[1:nu, 1:nu]
+    M11 = mount_M(model.elems, ndofs)[1:nu, 1:nu]
 
     m11 = zeros(nu) #Vetor of inverse matrix mass
     for i in 1:size(M11,2)
@@ -196,8 +91,7 @@ function mod_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
     v      = Eig[2][:, filter]
 
     w = wi.^0.5
-    #print("HOLA", save,nmods)
-    #print(v)
+
     if save
         for i in 1:nmods
             U = v[:,i] # modal displacements
@@ -205,10 +99,12 @@ function mod_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
             for (k,dof) in enumerate(dofs)
                 dof.vals[dof.name] = U[k]
             end
+
             save(model, model.env.outkey * "-mod$i.vtu")
             idefmod += 1
         end
     end
+
 
     # reset displacement values
     for dof in dofs
@@ -243,8 +139,6 @@ function mod_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
         info("Rayleigh alpha: ", alpha)
         info("Rayleigh beta:", beta)
     end
-
-    return solstatus
 
 end
 
