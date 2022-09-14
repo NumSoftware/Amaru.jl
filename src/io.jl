@@ -155,7 +155,6 @@ end
 Saves a domain object into a file. Available formats are vtu, vtk and xml.
 """
 function save(domain::Model, filename::String; quiet=false)
-    
 
     formats = (".vtk", ".vtu", ".xml")
     _, format = splitext(filename)

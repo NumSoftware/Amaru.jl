@@ -47,21 +47,25 @@ export mod_solve!
 # end
 
 
-function mod_solve!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, save=true, quiet=false)
+function mod_solve!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, outdir="", quiet=false)
 
     quiet || printstyled("FEM modal analysis:\n", bold=true, color=:cyan)
 
     # get only bulk elements
     model = Model(model.elems.bulks)
 
-    @show model.elems |> length
-    @show model.elems["right"] |> length
-
     # get dofs organized according to boundary conditions
     dofs, nu    = configure_dofs!(model, bcs)
+
     ndofs       = length(dofs)
     model.ndofs = length(dofs)
     quiet || println("  unknown dofs: $nu")
+
+    # setup quantities at dofs
+    for dof in dofs
+        dof.vals[dof.name]    = 0.0
+        dof.vals[dof.natname] = 0.0
+    end
 
     K11 = mount_K(model.elems, ndofs)[1:nu, 1:nu]
     M11 = mount_M(model.elems, ndofs)[1:nu, 1:nu]
@@ -79,32 +83,30 @@ function mod_solve!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, save
     w0  = Eig[1] # frequencies
     wi  = copy(w0)
 
-    # select logical and possible vals
-    filter = isreal.(wi) .&& real(wi).>0
-    wi     = real[wi[filter]] # only positive real values
-    filter = filter[ unique(i -> wi[i], 1:length(wi)) ]
-    wi     = wi[filter] # unique values
-    perm   = sortperm(wi)
-    perm   = perm[nmods] # only nmods
-    wi     = wi[perm] # sorted
+    # select possible vals
+    filter = [ i for i in eachindex(wi) if isreal(wi[i]) && real(wi[i])>0 ]
+    filter = filter[ unique(i -> wi[i], filter) ]
+    perm   = sortperm(real(wi[filter]))[1:nmods]
     filter = filter[perm]
+
+    wi     = wi[filter] # sorted
     v      = Eig[2][:, filter]
 
     w = wi.^0.5
 
-    if save
-        for i in 1:nmods
-            U = v[:,i] # modal displacements
+    update_output_data!(model)
+    save(model, joinpath(outdir, "mod-0.vtu"))
 
-            for (k,dof) in enumerate(dofs)
-                dof.vals[dof.name] = U[k]
-            end
+    # save modes
+    for i in 1:nmods
+        U = v[:,i] # modal displacements
 
-            save(model, model.env.outkey * "-mod$i.vtu")
-            idefmod += 1
+        for (k,dof) in enumerate(dofs[1:nu])
+            dof.vals[dof.name] = U[k]
         end
+        update_output_data!(model)
+        save(model, joinpath(outdir, "mod-$i.vtu"))
     end
-
 
     # reset displacement values
     for dof in dofs
@@ -274,13 +276,6 @@ function modsolvex!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, save
     end
 
     show("Modal Frequencies rad/s")
-
-    @show w
-
-    #show("Modal Shapes rad/s")
-
-    #@show v
-
 
     if rayleigh
 
