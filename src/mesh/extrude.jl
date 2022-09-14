@@ -171,8 +171,8 @@ function extrude(mesh::Mesh; length::Real=1.0, n::Int=1, axis=nothing, quiet=tru
             elseif cell.shape==TRI6
                 newshape = WED15
                 ls = [l, l+Δl/2, l+Δl]
-                nidx = [1:4;1:4]
-                lidx = [1,1,1,1,2,2,2,2]
+                nidx = [1:3;1:3;4:6;4:6;1:3]
+                lidx = [1,1,1,3,3,3,1,1,1,3,3,3,2,2,2]
             elseif cell.shape==QUAD8
                 newshape = HEX20
                 ls = [l, l+Δl/2, l+Δl]
