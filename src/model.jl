@@ -326,8 +326,8 @@ function Model(elems::Array{<:Element,1})
 
     # Copying nodes
     nodesset = OrderedSet(node for elem in elems for node in elem.nodes)
-    nodes    = collect(Node, nodesset)
-    model.nodes = copy.(nodes)
+    model.nodes = copy.(collect(Node, nodesset))
+    nodes    = model.nodes
 
     # Map for nodes
     nodemap = zeros(Int, maximum(node.id for node in nodes))
