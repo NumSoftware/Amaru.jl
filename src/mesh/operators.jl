@@ -54,7 +54,7 @@ end
 
 Moves each `Block` in the array `blocks` according to `dx`, `dy` and `dz`.
 """
-function move!(blocks::Array{<:AbstractBlock,1}; dx=0.0, dy=0.0, dz=0.0)
+function move!(blocks::Array; dx=0.0, dy=0.0, dz=0.0)
     move!.(blocks, dx=dx, dy=dy, dz=dz)
     return blocks
 end
