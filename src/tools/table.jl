@@ -618,7 +618,7 @@ function save(table::DataTable, filename::String; quiet=true, digits::Array=[])
 end
 
 
-function DataTable(filename::String, delim='\t')
+function DataTable(filename::String, delim::Char='\t')
     basename, format = splitext(filename)
     formats = (".dat", ".table")
     format in formats || error("DataTable: cannot read \"$format\". Suitable formats are $formats")
