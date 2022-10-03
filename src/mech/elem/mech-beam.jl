@@ -125,6 +125,7 @@ end
 function set_rot_x_xp(elem::MechBeam, J::Matx, R::Matx)
     ndim = elem.env.ndim
     V1 = normalize(vec(J))
+    V1 = round.(V1, digits=14)
 
     if ndim==2
         V2 = [ -V1[2], V1[1] ]
