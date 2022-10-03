@@ -109,11 +109,11 @@ const ALL_ISO_SHAPES = [
 
 # dictionary (ndim,nfpoints,nlayers) => joint_shape
 _joint_ndim_nfpoints_nlayers_dict = Dict( 
-    (2,2,2)=>:JLIN2 , (2,3,2)=>:JLIN3 , (2,4,2)=>:JLIN4 , (3,3,2)=>:JTRI3 , (3,4,2)=>:JQUAD4 , (3,6,2)=>:JTRI6 , (3,8,2)=>:JQUAD8,
-    (2,2,3)=>:J3LIN2, (2,3,2)=>:J3LIN3, (2,4,2)=>:J3LIN4, (3,3,2)=>:J3TRI3, (3,4,2)=>:J3QUAD4, (3,6,2)=>:J3TRI6, (3,8,2)=>:J3QUAD8,
+    (2,2,2)=>JLIN2 , (2,3,2)=>JLIN3 , (2,4,2)=>JLIN4 , (3,3,2)=>JTRI3 , (3,4,2)=>JQUAD4 , (3,6,2)=>JTRI6 , (3,8,2)=>JQUAD8,
+    (2,2,3)=>J3LIN2, (2,3,2)=>J3LIN3, (2,4,2)=>J3LIN4, (3,3,2)=>J3TRI3, (3,4,2)=>J3QUAD4, (3,6,2)=>J3TRI6, (3,8,2)=>J3QUAD8,
 )
 
-function get_shape_from_vtk(vtk_type::VTKCellType, npoints::Int64, ndim::Int64, nlayers::Int64=0)::CellShape
+function get_shape_from_vtk(vtk_type::VTKCellType, npoints::Int64, ndim::Int64, nlayers::Int64=0)
     # vtk_type: VTK cell code
     # npoints : total number of cell points
     # ndim    : analysis dimension
@@ -132,6 +132,12 @@ function get_shape_from_vtk(vtk_type::VTKCellType, npoints::Int64, ndim::Int64, 
         # dictionary (ndim,nfpoints,nlayers) => joint_shape
         shapedict = _joint_ndim_nfpoints_nlayers_dict
         nfpoints = div(npoints,nlayers)
+        # @show ndim
+        # @show nfpoints
+        # @show nlayers
+
+        # @show haskey(shapedict, (ndim, nfpoints, nlayers))
+        
         if haskey(shapedict, (ndim, nfpoints, nlayers))
             return shapedict[(ndim, nfpoints, nlayers)]
         end
