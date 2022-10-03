@@ -38,6 +38,11 @@ export extrude
 include("revolve.jl")
 export revolve
 
+include("convex_hull.jl")
+
+include("slice.jl")
+export slice
+
 include("smooth.jl")
 export smooth!, laplacian_smooth!, fast_smooth!
 
