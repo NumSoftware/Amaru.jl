@@ -8,19 +8,21 @@ If `collapse` is true, each element with concident nodes is collapsed
 into simpler element with fewer nodes. If lagrangian is true, lagrangian elements
 are generated when posible.
 """
-function revolve(mesh::Mesh; 
-                 base::AbstractArray{<:Real,1} = [0,0,0],
-                 axis::AbstractArray{<:Real,1} = [0,0,1],
-                 minangle  ::Real = 0,
-                 maxangle  ::Real = 360,
-                 angle     ::Real = NaN,
-                 n         ::Int  = 8,
-                 collapse  ::Bool = true,
-                 lagrangian::Bool = false
-                )
-    @assert length(axis)==3
-    @assert length(base)==3
-    @assert n>0
+function revolve(
+    mesh::Mesh; 
+    base::AbstractArray{<:Real,1} = Float64[],
+    axis::AbstractArray{<:Real,1} = Float64[],
+    minangle  ::Real = 0,
+    maxangle  ::Real = 360,
+    angle     ::Real = NaN,
+    n         ::Int  = 8,
+    collapse  ::Bool = true,
+    lagrangian::Bool = false
+    )
+
+    @check length(base)==3
+    @check length(axis)==3
+    @check n>0
 
     axis = Vec3(normalize(axis))
     base = Vec3(base)
@@ -30,14 +32,14 @@ function revolve(mesh::Mesh;
         maxangle = angle
     end
 
-    @assert 0<=minangle<360
-    @assert 0<maxangle<=360
-    @assert minangle<maxangle
+    @check 0<=minangle<360
+    @check 0<maxangle<=360
+    @check minangle<maxangle
 
     cells = Cell[]
-    minθ = minangle*pi/180
-    maxθ = maxangle*pi/180
-    Δθ = (maxθ-minθ)/n
+    minθ  = minangle*pi/180
+    maxθ  = maxangle*pi/180
+    Δθ    = (maxθ-minθ)/n
 
     if !collapse
         # move points that lie at the axis
