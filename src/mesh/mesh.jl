@@ -882,414 +882,118 @@ end
 
 
 
-export UMesh
+function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
+    gmsh.initialize()
+    gmsh.option.setNumber("General.Terminal", 1)
+    gmsh.model.add("t1")
 
-function UMesh0(
-               polym::Union{Polygon,PolygonMesh},
-               sizes::Array=[];
-               embedded::Array=[],
-               embpoints::Array=[],
-               emblines::Array=[],
-               embsurfaces::Array=[],
-               size::Real=NaN,
-               recombine=false
-             )
-    if polym isa Polygon
-        polym = PolygonMesh([polym])
+    # add points
+    ndim = 2
+    for p in geo.entities
+        p isa Point || continue
+        sz = p.size==0 ? size : p.size
+        gmsh.model.geo.addPoint(p.coord.x, p.coord.y, p.coord.z, sz, p.id)
+        p.coord.z != 0.0 && (ndim=3)
     end
 
-    nembsurfaces = length(embsurfaces)
-    if nembsurfaces>0
-        @show length(polym.polygons)
-        polym = PolygonMesh([polym.polygons; embsurfaces])
-        @show length(polym.polygons)
-    end
+    # add lines
+    for l in geo.entities
+        l isa AbstractCurve || continue
 
-    coords = getcoords(polym)
-    ndim = sum(abs, coords[:,end])==0.0 ? 2 : 3
-    npoints = Base.size(coords,1)
-    pdict = Dict{Point, Int}( p=>i for (i,p) in enumerate(polym.points) )
-    ldict = Dict{UInt, Int}( hash(l)=>i for (i,l) in enumerate(polym.lines) )
-
-    if isnan(size)
-        bb = bounding_box(polym.points)
-        size = maximum(diff(bb, dims=1))/3
-    end
-
-    # Set sizes
-    _sizes = zeros(npoints)
-    _sizes .= size
-    for (filter,s) in sizes
-        points = polym.points[filter]
-        for p in points
-            _sizes[pdict[p]] = s
-        end
-    end
-
-    # Set embedded points in surfaces
-    _embpoints = Dict{Int,Int}() # point id => surf id
-    polydict = Dict{UInt, Int}( hash(poly)=>i for (i,poly) in enumerate(polym.polygons) )
-    for (filter,X) in embedded
-        polygons = polym.polygons[filter]
-        length(polygons)==0 && continue
-        poly = polygons[1]
-        coords = [coords; X']
-        push!(_sizes, size)
-        _embpoints[ Base.size(coords,1) ] = polydict[hash(poly)]
-    end
-
-    for line in emblines
-        p1, p2 = line.points
-        polygon = [ poly for poly in polym.polygons if contains(poly, p1) || contains(poly, p2) ]
-        length(polygons)==0 && continue
-        poly = polygons[1]
-
-
-    end
-
-    # Set embedded surfaces in volume
-    # _embsurfaces = Array{Int,1}[]  # surf id => vol 1
-    # for (i,S) in enumerate(embsurfaces)
-    #     npoints = Base.size(coords,1)
-    #     # @show coords
-    #     # @show S
-    #     coords = [coords; S]
-    #     surf = [ 1, 2, 3, 4 ] .+ npoints
-    #     push!(_embsurfaces, surf)
-    # end
-
-
-    # Find point indexes for lines
-    pdict = Dict{Point, Int}( p=>i for (i,p) in enumerate(polym.points) )
-    lineindexes = Array{Int,1}[]
-    for line in polym.lines
-        idx = Int[ pdict[p] for p in line.points ]
-        push!(lineindexes, idx)
-    end
-
-    # Find line indexes for polygons
-    polyindexes = Array{Int,1}[]
-    for poly in polym.polygons
-        idx = Int[ ldict[hash(l)] for l in poly.lines]
-        push!(polyindexes, idx)
-    end
-
-    # Fix sign in line indexes for polygons
-    for loop in polyindexes
-        if !(lineindexes[loop[1]][end] in lineindexes[loop[2]])
-            loop[1] = -loop[1]
+        if l isa Line
+            p1 = l.points[1].id
+            p2 = l.points[2].id
+            gmsh.model.geo.addLine(p1, p2, l.id)
+        else
+            p1 = l.points[1].id
+            pc = l.points[2].id
+            p2 = l.points[3].id
+            gmsh.model.geo.addCircleArc(p1, pc, p2, l.id)
         end
 
-        for i in 2:length(loop)
-            lineidx = loop[i]
-            line = lineidx>0 ? lineindexes[lineidx] : reverse(lineindexes[abs(lineidx)])
-            lastlineidx = loop[i-1]
-            lastline = lastlineidx>0 ? lineindexes[lastlineidx] : reverse(lineindexes[abs(lastlineidx)])
-            if line[1]!=lastline[end]
-                loop[i] = -lineidx
-            end
-        end
+
     end
 
-    # Mesh generation
-    # let begin
-        sizes          = _sizes
-        lines          = lineindexes
-        surfaces       = polyindexes
-        embeddedpoints = _embpoints
+    function get_loop_idxs(loop::Loop)
+        l_idxs = [ l.id for l in loop.lines ]
+        l_conn = [ [ p.id for p in l.points] for l in loop.lines ]
 
-        # try import Gmsh.gmsh
-        # catch
-        #     error("Missing Gmsh package")
-        # end
-
-        gmsh.initialize()
-        gmsh.option.setNumber("General.Terminal", 1)
-        gmsh.model.add("model01")
-
-        npoints = size(coords,1)
-
-        # adding points
-        for i in 1:npoints
-            #gmsh.model.geo.addPoint(coords[i,1], coords[i,2], ndim==2 ? 0.0 : coords[i,3], sizes[i], i)
-            gmsh.model.geo.addPoint(coords[i,1], coords[i,2], coords[i,3], sizes[i], i)
+        if !(l_conn[1][end] in l_conn[2])
+            l_idxs[1] *= -1
         end
 
-        # adding lines
-        nlines = length(lines)
-        for (i,line) in enumerate(lines)
-            if length(line)==2 # line
-                gmsh.model.geo.addLine(line[1], line[2], i)
-            else # circle arc
-                gmsh.model.geo.addCircleArc(line[1], line[2], line[3], i)
+
+        for i in 2:length(l_conn)
+            last_pidx = l_idxs[i-1]>0 ? l_conn[i-1][end] : l_conn[i-1][1]
+            if l_conn[i][1]!=last_pidx
+                l_idxs[i] *= -1
             end
         end
 
-        # PhysicalGroup index
-        ipg = 0
+        return l_idxs
+    end
 
-        # adding surfaces
-        nsurfs = length(surfaces)
-        for (i,loop) in enumerate(surfaces)
-            gmsh.model.geo.addCurveLoop(loop, i)
-            gmsh.model.geo.addPlaneSurface([i], i)
-            if ndim==2
-                global ipg += 1
-                gmsh.model.addPhysicalGroup(2, [i], ipg) # ndim, entities, tag
-            end
+    # add loops
+    for loop in geo.entities
+        loop isa Loop || continue
+
+        line_idxs = get_loop_idxs(loop)
+        gmsh.model.geo.addCurveLoop(line_idxs, loop.id)
+    end
+
+    # add surfaces
+    for surf in geo.entities
+        surf isa Surface || continue
+
+        lo_idxs = [ lo.id for lo in surf.loops ]
+        gmsh.model.geo.addPlaneSurface(lo_idxs, surf.id) # surf and holes, surf tag
+    end
+    surf_idxs = [ surf.id for surf in geo.entities if surf isa Surface ]
+
+    # add volumes
+    for vol in geo.entities
+        vol isa Volume || continue
+        surf_idxs = [ surf.id for surf in vol.surfaces ]
+
+        gmsh.model.geo.addSurfaceLoop(surf_idxs, vol.id)
+        gmsh.model.geo.addVolume([vol.id], vol.id) # not considering volume holes
+    end
+    vol_idxs = [ vol.id for vol in geo.entities if vol isa Volume ]
+
+    # generate mesh
+    gmsh.model.geo.synchronize()
+    gmsh.option.setNumber("Mesh.Algorithm", 5) # Delaunay
+
+    for l in geo.entities
+        l isa Line || continue
+        # transfinite
+        if l.n>0
+            # @show l.n+1
+            gmsh.model.mesh.set_transfinite_curve(l.id, l.n+1)
         end
+    end
 
-        if ndim==3
-            gmsh.model.geo.addSurfaceLoop(collect(1:nsurfs-nembsurfaces), 1)
-            gmsh.model.geo.addVolume([1], 1)
-            global ipg += 1
-            gmsh.model.addPhysicalGroup(3, [1], ipg) # ndim, entities, tag
-        end
+    if ndim==2
+        gmsh.model.addPhysicalGroup(2, surf_idxs) # ndim, entities, tags
+        gmsh.model.mesh.generate(2)
+    else
+        gmsh.model.addPhysicalGroup(3, vol_idxs) # ndim, entities, tags
+        gmsh.model.mesh.generate(3)
+    end
 
-        gmsh.model.geo.synchronize()
+    quadratic && gmsh.model.mesh.setOrder(2) # quadratic elements
 
-        # Embedded points
-        for (k,v) in embeddedpoints
-            gmsh.model.mesh.embed(0,[k],2,v)
-        end
-
-        # Embedded lines
-        for (k,v) in embeddedlines
-            gmsh.model.mesh.embed(1,[k],ndim,v)
-        end
-
-        # Embedded surfaces
-        for i in nsurfs-nembsurfaces+1:nsurfs
-            for l in surfaces[i]
-                gmsh.model.mesh.embed(1,[abs(l)],3,1)
-            end
-            # for (i,loop) in enumerate(surfaces)
-            #     gmsh.model.geo.addCurveLoop(loop, nsurfs+i)
-            #     gmsh.model.geo.addPlaneSurface([nsurfs+i], nsurfs+i)
-            # end
-            gmsh.model.mesh.embed(2,[i],3,1)
-        end
-        
-
-        # Recombine
-        if recombine
-            for (i,loop) in enumerate(surfaces)
-                gmsh.model.mesh.setRecombine(2, i)
-            end
-            gmsh.model.mesh.recombine()
-        end
-
-        gmsh.model.mesh.generate(ndim)
-
-        gmsh.model.mesh.smooth()
-
-        tempfile = "_temp.vtk"
-        gmsh.write(tempfile)
-        gmsh.finalize()
-    # end
-
+    tempfile = "_temp.vtk"
+    gmsh.write(tempfile)
+    # gmsh.write("temp.geo")
+    gmsh.finalize()
     mesh = Mesh(tempfile)
     rm(tempfile)
-    return mesh
 
-end
-
-
-
-function UMesh(
-    polym      ::Union{Polygon,PolygonMesh},
-    # points     
-    sizes      ::Array=[];
-    size       ::Real =NaN,
-    embpoints  ::Array=Point[],
-    emblines   ::Array=Line[],
-    embsurfaces::Array=[],
-    recombine         =false
-)
-
-             
-    if polym isa Polygon
-        polym = PolygonMesh([polym])
+    for elem in mesh.elems
+        isinverted(elem) && flip!(elem)
     end
 
-    points = Point[ polym.points; embpoints ]
-    lines  = [ polym.lines; emblines ]
-    surfs  = [ polym.polygons; embsurfaces ]
-    npoints = length(points)
-
-    coords = getcoords(points)
-    ndim = sum(abs, coords[:,end])==0.0 ? 2 : 3
-
-    pdict = Dict{Point, Int}( p=>i for (i,p) in enumerate(points) )
-    ldict = Dict{UInt, Int}( hash(l)=>i for (i,l) in enumerate(lines) )
-    sdict = Dict{UInt, Int}( hash(s)=>i for (i,s) in enumerate(surfs) )
-
-    if isnan(size)
-        bb = bounding_box(polym.points)
-        size = maximum(diff(bb, dims=1))/3
-    end
-
-    # Set sizes
-    sizeslist = fill(size, npoints)
-    for (filter,s) in sizes
-        points = polym.points[filter]
-        for p in points
-           sizeslist[pdict[p]] = s
-        end
-    end
-
-    # Set embedded points in surfaces
-    embpdict = Dict{Int,Int}() # point id => surf id
-    for p in embpoints
-        pid = pdict[p]
-        surf = [ s for s in polym.polygons if contains(s, p) ][1]
-        sid = sdict[hash(surf)]
-        embpdict[pid] = sid
-    end
-
-    # Set embedded lines in surfaces
-    embldict = Dict{Int,Int}() # line id => surf id
-    for l in emblines
-        lid = ldict[hash(l)]
-        p1, p2 = l.points
-        surf = [ s for s in polym.polygons if contains(s, p1) && contains(s, p2)  ][1]
-        sid = sdict[hash(surf)]
-        @show sid
-        embldict[lid] = sid
-    end
-    @show embldict
-
-    # Find embedded point indexes
-    embpoint_idxs = [ pdict[p] for p in embpoints ]
-
-    # Find point indexes for lines
-    line_idxs = Array{Int,1}[]
-    for l in lines
-        idx = Int[ pdict[p] for p in l.points ]
-        push!(line_idxs, idx)
-    end
-
-    # embline_idxs = Array{Int,1}[]
-    # for l in emblines
-    #     idx = Int[ pdict[p] for p in l.points ]
-    #     push!(embline_idxs, idx)
-    # end
-
-    # Find line indexes for surfaces
-    surf_idxs = Array{Int,1}[]
-    for poly in surfs
-        idx = Int[ ldict[hash(l)] for l in poly.lines]
-        push!(surf_idxs, idx)
-    end
-
-    # Fix sign in line indexes in surfs
-    for loop in surf_idxs
-        if !(line_idxs[loop[1]][end] in line_idxs[loop[2]])
-            loop[1] = -loop[1]
-        end
-
-        for i in 2:length(loop)
-            lineidx = loop[i]
-            line = lineidx>0 ? line_idxs[lineidx] : reverse(line_idxs[abs(lineidx)])
-            lastlineidx = loop[i-1]
-            lastline = lastlineidx>0 ? line_idxs[lastlineidx] : reverse(line_idxs[abs(lastlineidx)])
-            if line[1]!=lastline[end]
-                loop[i] = -lineidx
-            end
-        end
-    end
-
-    # Find surf indexes for volumes
-    vol_idxs = Int[ sdict[hash(s)] for s in polym.polygons]
-
-    # Mesh generation
-    # @eval begin
-        sizes          = sizeslist
-        lines          = line_idxs
-        surfaces       = surf_idxs
-        vol            = vol_idxs
-        embpoints      = embpoint_idxs
-        emblines       = embldict
-
-        # try import Gmsh.gmsh
-        # catch
-        #     error("Missing Gmsh package")
-        # end
-
-        gmsh.initialize()
-        gmsh.option.setNumber("General.Terminal", 1)
-        gmsh.model.add("model01")
-
-        npoints = size(coords,1)
-
-        # adding points
-        for i in 1:npoints
-            gmsh.model.geo.addPoint(coords[i,1], coords[i,2], coords[i,3], sizes[i], i)
-        end
-
-        # adding lines
-        # nlines = length(lines)
-        for (i,line) in enumerate(lines)
-            if length(line)==2 # line
-                gmsh.model.geo.addLine(line[1], line[2], i)
-            else # circle arc
-                gmsh.model.geo.addCircleArc(line[1], line[2], line[3], i)
-            end
-        end
-
-        # PhysicalGroup index
-        ipg = 0
-
-        # adding surfaces
-        nsurfs = length(surfaces)
-        for (i,loop) in enumerate(surfaces)
-            gmsh.model.geo.addCurveLoop(loop, i)
-            gmsh.model.geo.addPlaneSurface([i], i)
-            if ndim==2
-                global ipg += 1
-                gmsh.model.addPhysicalGroup(2, [i], ipg) # ndim, entities, tag
-            end
-        end
-
-        if ndim==3
-            gmsh.model.geo.addSurfaceLoop(vol, 1)
-            gmsh.model.geo.addVolume([1], 1)
-            global ipg += 1
-            gmsh.model.addPhysicalGroup(3, [1], ipg) # ndim, entities, tag
-        end
-
-        gmsh.model.geo.synchronize()
-
-        # Embedded points
-        for (k,v) in embpoints
-            gmsh.model.mesh.embed(0,[k],2,v)
-        end
-
-        # Embedded lines
-        for (k,v) in emblines
-            @show emblines
-            gmsh.model.mesh.embed(1,[k],2,v)
-        end      
-
-        # Recombine
-        if recombine
-            for (i,loop) in enumerate(surfaces)
-                gmsh.model.mesh.setRecombine(2, i)
-            end
-            gmsh.model.mesh.recombine()
-        end
-
-        gmsh.model.mesh.generate(ndim)
-
-        gmsh.model.mesh.smooth()
-
-        tempfile = "_temp.vtk"
-        gmsh.write(tempfile)
-        gmsh.finalize()
-    # end
-
-    mesh = Mesh(tempfile)
-    rm(tempfile)
     return mesh
 
 end
