@@ -128,12 +128,16 @@ end
 
 
 # Print arrays of objects
-function _show(io::IO, x::AbstractArray, maxdepth::Int, indent::String="", tab::String="    ")
+function _show(io::IO, x::Union{AbstractArray, AbstractSet}, maxdepth::Int, indent::String="", tab::String="    ")
+    summ = summary(x)
     n = length(x)
     if n==0
-        print(io, summary(x))
+        print(io, summ)
         return
     end
+
+    isset = x isa AbstractSet
+    isset && (x = collect(x))
 
     if eltype(x) <: Number
         if n<20 
@@ -143,16 +147,16 @@ function _show(io::IO, x::AbstractArray, maxdepth::Int, indent::String="", tab::
                 return
             end
         end
-        print(io, summary(x))
+        print(io, summ)
         return
     end
 
-    print(io, summary(x))
+    print(io, summ)
 
     maxdepth==0 && return
 
     print(io, ":")
-    maxn = 8
+    maxn = 20
     half = div(maxn,2)
     idx = n<=maxn ? [1:n;] : [1:half; n-half+1:n]
     for i in idx
@@ -169,5 +173,4 @@ function _show(io::IO, x::AbstractArray, maxdepth::Int, indent::String="", tab::
             print(io, indent*tab, "⋮")
         end
     end
-    return
 end
