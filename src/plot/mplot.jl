@@ -210,7 +210,8 @@ end
 
 
 # import PyCall: PyObject, pyimport, @pydef # required
-import PyPlot:plt, matplotlib, figure, art3D, Axes3D, ColorMap, gcf
+import PyCall: pyimport
+import PyPlot: plt, matplotlib, figure, art3D, Axes3D, ColorMap, gcf
 
 """
     mplot(mesh, filename="", kwargs...)
@@ -507,7 +508,7 @@ function mplot(
 
     # Configure plot
     if ndim==3
-        ax = @eval Axes3D(figure())
+        ax = Axes3D(figure())
 
         # Set limits
         meanX = mean(limX)
@@ -691,9 +692,12 @@ function mplot(
             if shape.family==BULKCELL
                 verts = plot_data_for_cell3d(points, shape)
 
+                has_line_field && continue
+
                 if !has_field || has_line_field
+                    # op = has_line_field ? 0.0 : opacity
                     fc = (0.94, 0.97, 1.0, opacity)
-                    ec = (0.4, 0.4, 0.4, 1-0.75*(1-opacity))
+                    # ec = (0.4, 0.4, 0.4, 1-0.75*(1-opacity))
                     # ec = (0.4, 0.4, 0.4, opacity)
                     ec = (0.5, 0.5, 0.5, opacity)
                 else
@@ -701,6 +705,7 @@ function mplot(
                     fc = cmap(v)
                     ec = Tuple( (fc .+ [0.2, 0.2, 0.2, opacity])./2 )
                 end
+
                 ew = lw
 
                 N = get_facet_normal(cell)
@@ -726,7 +731,7 @@ function mplot(
                 else
                     ec = rodcolor 
                 end
-                fc = (0.0, 0.0, 0.0, 0.0)
+                # fc = (0.0, 0.0, 0.0, 0.0)
                 fc = ec
                 ew = rodlw  #! lineweight is not working in Poly3DCollection
                 ew = lw
@@ -767,7 +772,7 @@ function mplot(
             end
         end
 
-        cltn = @eval art3D.Poly3DCollection($all_verts, facecolor=$facecolors, edgecolor=$edgecolor, lw=$lineweight, alpha=$opacity) # ! lineweight is not working in Poly3DCollection
+        cltn = art3D.Poly3DCollection(all_verts, facecolor=facecolors, edgecolor=edgecolor, lw=lineweight, alpha=opacity) # ! lineweight is not working in Poly3DCollection
         ax.add_collection3d(cltn)
 
         if has_field && colorbar
@@ -962,10 +967,10 @@ function mplot(
     end
 
     if filename==""
-        return @eval gcf()
+        return gcf()
     else
         _, format = splitext(filename)
-        plt.savefig(filename, bbox_inches="tight", pad_inches=0.00, format=format[2:end])
+        plt.savefig(filename, bbox_inches="tight", pad_inches=0.0, format=format[2:end])
 
         if crop && format==".pdf"
             if Sys.islinux()
@@ -997,7 +1002,7 @@ function mplot(
 
     # Do not close if in IJulia
     if isdefined(Main, :IJulia) && Main.IJulia.inited
-        return
+        return nothing
     end
 
     leaveopen || plt.close("all")
@@ -1028,8 +1033,7 @@ function mplotcolorbar(
     #divergingcolor    = false,
 )    
 
-    # Lazy import of PyPlot
-    @eval import PyPlot:plt, matplotlib, figure, art3D, Axes3D, ioff, ColorMap, gca, gcf
+    # import PyPlot:plt, matplotlib, figure, art3D, Axes3D, ioff, ColorMap, gca, gcf
     # @eval ioff()
 
     # fix PyPlot
@@ -1046,9 +1050,9 @@ function mplotcolorbar(
     plt.rc("legend", fontsize=fontsize)
     plt.rc("figure", figsize=figsize) # suggested size (4.5,3)
 
-    fig   = @eval plt.figure()
+    fig   = plt.figure()
     scale = 0.5
-    axes  = @eval gcf().add_axes([0, 0, $scale/$aspect, $scale])
+    axes  = gcf().add_axes([0, 0, scale/aspect, scale])
 
     cmap = matplotlib.cm.get_cmap(colormap)
 
@@ -1179,7 +1183,7 @@ function mplot(
     minmax           = false
 )
     
-    @eval import PyPlot:plt, matplotlib, figure, gca, gcf
+    # @eval import PyPlot:plt, matplotlib, figure, gca, gcf
     filename != "" && ioff()
 
     # @assert barscale>0
@@ -1415,4 +1419,244 @@ function mplot(
     end
 
     return @eval gcf()
+end
+
+
+function mplot(geo::GeoModel, filename::String;
+    axis=false,
+    quiet=false,
+    azim=45,
+    elev=30, 
+    dist=10.0,
+    crop=false,
+    copypath="",
+    )
+    # check dimension
+    ndim = 2
+    X = Float64[]
+    Y = Float64[]
+    Z = Float64[]
+    for p in geo.entities
+        p isa Point || continue
+        push!(X, p.coord[1])
+        push!(Y, p.coord[2])
+        push!(Z, p.coord[3])
+        if p.coord[3] != 0.0
+            ndim = 3
+        end
+    end
+
+    # Data limits
+    limX = collect(extrema(X))
+    limY = collect(extrema(Y))
+    limZ = collect(extrema(Z))
+    ll = max(diff(limX)[1], diff(limY)[1], diff(limZ)[1])
+
+    plt.close("all")
+
+    # Configure plot
+    if ndim==3
+        ax = Axes3D(figure())
+
+        # Set limits
+        meanX = mean(limX)
+        meanY = mean(limY)
+        meanZ = mean(limZ)
+        limX = [meanX-ll/2, meanX+ll/2]
+        limY = [meanY-ll/2, meanY+ll/2]
+        limZ = [meanZ-ll/2, meanZ+ll/2]
+        ax.set_xlim( meanX-ll/2, meanX+ll/2)
+        ax.set_ylim( meanY-ll/2, meanY+ll/2)
+        ax.set_zlim( meanZ-ll/2, meanZ+ll/2)
+        ax.set_box_aspect((diff(limX)[1], diff(limY)[1], diff(limZ)[1]))  # instead of ax.set_aspect("equal")
+
+        # Labels
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.set_zlabel("z")
+        axis == false && plt.axis("off")
+
+        ax.view_init(elev=elev, azim=azim)
+        ax.dist = dist
+    else
+        ax = plt.axes()
+        ax.set_aspect("equal", "datalim")
+
+        # Set limits
+        ax.set_xlim(limX...)
+        ax.set_ylim(limY...)
+
+        # Labels
+        ax.set_xlabel.("x")
+        ax.set_ylabel.("y")
+        axis == false && plt.axis("off")
+    end
+
+
+    # draw surfaces
+    if ndim==2 
+        # plot all lines
+        all_patches = []
+        edgecolor   = []
+        facecolors  = []
+        lineweight  = []
+        for s in geo.entities
+            s isa Surface || continue
+            
+            points = getpoints(s.loops[1])
+            npoints = length(points)
+            verts = [ p.coord[1:2] for p in points ]
+            push!(verts, verts[1])
+            # verts = [ verts; [ verts[1] ] ]
+            codes = [ MOVETO; repeat([LINECELLTO], npoints) ]
+            # @show verts
+            # @show codes
+            path  = matplotlib.path.Path(verts, codes)
+            patch = matplotlib.patches.PathPatch(path)
+
+            ec = (0.0, 0.0, 0.0, 0.0)
+            fc = "aliceblue"
+
+            push!(edgecolor, ec)
+            push!(facecolors, fc)
+            push!(all_patches, patch)
+        end
+        cltn = matplotlib.collections.PatchCollection(all_patches, edgecolor=edgecolor, facecolor=facecolors, lw=lineweight)
+        ax.add_collection(cltn) 
+    
+        # plot all lines
+        all_patches = []
+        edgecolor   = []
+        facecolors  = []
+        lineweight  = []
+    
+        # draw lines
+        for l in geo.entities
+            l isa Line || continue
+            verts = [ p.coord[1:2] for p in l.points ]
+            # @show verts
+            codes = [ MOVETO, LINECELLTO ]
+            path  = matplotlib.path.Path(verts, codes)
+            patch = matplotlib.patches.PathPatch(path)
+            ec = (0.4, 0.4, 0.4, 1.0)
+            fc = (0.0, 0.0, 0.0, 0.0)
+                
+            push!(edgecolor, ec)
+            push!(facecolors, fc)
+            push!(all_patches, patch)
+    
+        end
+    
+        cltn = matplotlib.collections.PatchCollection(all_patches, edgecolor=edgecolor, facecolor=facecolors, lw=lineweight)
+        ax.add_collection(cltn) 
+    elseif ndim==3
+        all_verts = []
+        edgecolors = []
+        facecolors = []
+        lineweight = []
+
+        for s in geo.entities
+            s isa Surface || continue
+            
+            points = getpoints(s.loops[1])
+            npoints = length(points)
+            verts = [ p.coord for p in points ]
+            ec = (0, 0, 0, 1.0)
+            fc = "aliceblue"
+            
+            push!(edgecolors, ec)
+            push!(facecolors, fc)
+            push!(all_verts, verts)
+        end
+
+        cltn = art3D.Poly3DCollection(all_verts, facecolor=facecolors, edgecolor=edgecolors, lw=0.5, alpha=1) # ! lineweight is not working in Poly3DCollection
+        ax.add_collection3d(cltn)
+    end
+
+    # Draw node numbers
+    for o in geo.entities
+        if o isa Point
+            x = o.coord[1] + 0.01*ll
+            y = o.coord[2] - 0.01*ll
+            z = o.coord[3] - 0.01*ll
+            ndim==2 && ax.text(x, y, o.id, va="top", ha="left", backgroundcolor="none")
+            ndim==3 && ax.text(x, y, z, o.id, fontsize=4, va="center", ha="center", backgroundcolor="none")
+        elseif o isa Line
+            verts = [ p.coord for p in o.points ]
+            C = sum(verts)/length(verts)
+            x = C[1] + 0.01*ll
+            y = C[2] - 0.01*ll
+            z = C[3] - 0.01*ll
+            ndim==2 && ax.text(x, y, o.id, color="blue", va="top", ha="left", backgroundcolor="none")
+            # ndim==3 && ax.text(x, y, z, o.id, color="blue", va="center", ha="center", backgroundcolor="none")
+        elseif o isa Surface
+            points = getpoints(o.loops[1])
+            verts = [ p.coord for p in points ]
+            C = sum(verts)/length(verts)
+            x = C[1]
+            y = C[2]
+            z = C[3]
+            ndim==2 && ax.text(x, y, o.id, color="red", va="center", ha="center", backgroundcolor="none")
+            ndim==3 && ax.text(x, y, z, o.id, fontsize=4, color="red", va="center", ha="center", backgroundcolor="none")
+        end
+    end
+
+    # if nodelabels
+    #     nnodes = length(X)
+    #     for i in 1:nnodes
+    #         x = X[i] + 0.01*L
+    #         y = Y[i] - 0.01*L
+    #         z = Z[i] - 0.01*L
+    #         if ndim==3
+    #             ax.text(x, y, z, i, va="center", ha="center", backgroundcolor="none")
+    #         else
+    #             ax.text(x, y, i, va="top", ha="left", backgroundcolor="none")
+    #         end
+    #     end
+    # end
+
+  #  # Draw cell numbers
+  #  if celllabels && ndim==2
+  #      for i in 1:ncells
+  #          coo = getcoords(cells[i])
+  #          x = mean(coo[:,1])
+  #          y = mean(coo[:,2])
+  #          ax.text(x, y, i, va="top", ha="left", color="blue", backgroundcolor="none", size=8)
+  #      end
+  #  end
+
+
+    if filename!=""
+        _, format = splitext(filename)
+        plt.savefig(filename, bbox_inches="tight", pad_inches=0.00, format=format[2:end])
+
+        if crop && format==".pdf"
+            if Sys.islinux()
+                cmd = `pdfcrop $filename $filename`
+                out = Pipe()
+                err = Pipe()
+                run(pipeline(ignorestatus(cmd), stdout=out, stderr=err))
+                close(out.in)
+                close(err.in)
+            else
+                alert("crop option is not available on $(Sys.KERNEL)")
+            end
+        end
+
+        quiet || info("file $filename saved")
+
+        if copypath!=""
+            if isdir(copypath)
+                copyfile = joinpath(copypath, basename(filename))
+            else
+                copyfile = copypath
+            end
+            cp(filename, copyfile, force=true)
+            quiet || info("file $copyfile saved")
+        end
+
+        # isinter && plt.ion()
+    end
+
+    return gcf()
 end
