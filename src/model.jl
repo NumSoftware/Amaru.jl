@@ -94,7 +94,7 @@ function Model(
     modeltype :: String = "", # or "plane-stress", "plane-strain", "axysimmetric", "3d"
     ndim      :: Int = 0,
     thickness :: Real = 1.0,
-    quiet    :: Bool = false,
+    quiet     :: Bool = false,
     params... # extra parameters required for specific solvers
 )
 
@@ -107,6 +107,11 @@ function Model(
 
     model  = Model()
     model.ndim = ndim
+
+    if ndim==3 && thickness!=1.0
+        thickness = 1.0
+        quiet || info("ignoring thickness parameter in a 3d model")
+    end
 
     # Environment data
     env = model.env
