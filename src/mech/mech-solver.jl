@@ -98,8 +98,6 @@ subjected to a set of boundary conditions `bcs`.
 
 `autoinc = false` : Sets automatic increments size. The first increment size will be `1/nincs`
 
-`maxincs = 1000000` : Maximum number of increments
-
 `tol     = 1e-2` : Tolerance for the maximum absolute error in forces vector
 
 `Ttol     = 1e-9` : Pseudo-time tolerance
@@ -125,15 +123,14 @@ solve! = mech_solve!
 
 function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::StatusLine; 
     tol     :: Number  = 1e-2,
-    Ttol    :: Number  = 1e-9,
+    Ttol    :: Number  = 1e-8,
     rspan   :: Number  = 1e-2,
     scheme  :: String  = "FE",
     maxits  :: Int     = 5,
     autoinc :: Bool    = false,
-    maxincs :: Int     = 1000000,
     outdir  :: String  = ".",
     outkey  :: String  = "out",
-    quiet  :: Bool    = false
+    quiet   :: Bool    = false
     )
 
     println(logfile, "Mechanical FE analysis: Stage $(stage.id)")
@@ -227,11 +224,6 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
         env.stagebits.inc = inc
 
         println(logfile, "  inc $inc")
-        
-        if inc > maxincs
-            quiet || message(sline, "solver maxincs = $maxincs reached (try maxincs=0)", Base.default_color_error)
-            return failure("$maxincs reached")
-        end
 
         ΔUex, ΔFex = ΔT*Uex, ΔT*Fex     # increment of external vectors
 
