@@ -887,13 +887,21 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
     gmsh.option.setNumber("General.Terminal", 1)
     gmsh.model.add("t1")
 
+    isvolumemesh = false
+    for v in geo.entities
+        if v isa Volume
+            isvolumemesh = true
+            break
+        end
+    end
+
     # add points
-    ndim = 2
+    # ndim = 2
     for p in geo.entities
         p isa Point || continue
         sz = p.size==0 ? size : p.size
         gmsh.model.geo.addPoint(p.coord.x, p.coord.y, p.coord.z, sz, p.id)
-        p.coord.z != 0.0 && (ndim=3)
+        # p.coord.z != 0.0 && (ndim=3)
     end
 
     # add lines
@@ -973,25 +981,62 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
         end
     end
 
-    if ndim==2
-        gmsh.model.addPhysicalGroup(2, surf_idxs) # ndim, entities, tags
-        gmsh.model.mesh.generate(2)
+    if !isvolumemesh
+        gmsh.model.addPhysicalGroup(2, surf_idxs) # ndim, entities
+        # gmsh.model.mesh.generate(2)
     else
-        gmsh.model.addPhysicalGroup(3, vol_idxs) # ndim, entities, tags
-        gmsh.model.mesh.generate(3)
+        tagset = Set([ vol.tag for vol in geo.entities if vol isa Volume  ])
+        tagsdict = Dict( tag=>i for (i,tag) in enumerate(tagset) )
+        for (tag, gidx) in tagsdict
+            vol_idxs = [ vol.id for vol in geo.entities if vol isa Volume && vol.tag==tag]
+            gmsh.model.addPhysicalGroup(3, vol_idxs, gidx) # ndim, entities, group_id
+        end
+
+        # tagsdict = Dict( tag=>i for (i,tag) in enumerate(tagset) )
+        # for v in geo.entities
+        #     v isa Volume || continue
+        #     gmsh.model.addPhysicalGroup(3, [v.id], tagsdict[v.tag]) # ndim, entities
+        # end
+
+        # xx1 = gmsh.model.addPhysicalGroup(3, vol_idxs, 100) # ndim, entities
+        # @show xx1
+        # gmsh.model.mesh.generate(3)
     end
+
+    try
+        logfile = "_gmsh.log"
+        open(logfile, "w") do out
+            redirect_stdout(out) do
+                gmsh.model.mesh.generate(isvolumemesh ? 3 : 2)
+            end
+        end
+        rm(logfile)
+    catch err
+        error("Error generating unstructured mesh.")
+    end
+
 
     quadratic && gmsh.model.mesh.setOrder(2) # quadratic elements
 
     tempfile = "_temp.vtk"
     gmsh.write(tempfile)
-    # gmsh.write("temp.geo")
     gmsh.finalize()
     mesh = Mesh(tempfile)
     rm(tempfile)
 
+    # flip elements
     for elem in mesh.elems
         isinverted(elem) && flip!(elem)
+    end
+
+    # set tags
+    if !isvolumemesh
+
+    else
+        invtagsdict = Dict( i=>tag for (tag,i) in tagsdict )
+        for elem in mesh.elems
+            elem.tag = invtagsdict[ mesh.elem_data["CellEntityIds"][elem.id] ]
+        end
     end
 
     return mesh
