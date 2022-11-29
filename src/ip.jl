@@ -48,6 +48,7 @@ function Base.copyto!(dst::IpState, src::IpState)
             #error("copyto!(::IpState, ::IpState): unsupported field type: $(typeof(val))")
         end
     end
+    return dst
 end
 
 
