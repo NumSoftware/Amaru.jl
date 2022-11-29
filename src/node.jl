@@ -228,6 +228,18 @@ function Base.getproperty(nodes::Array{Node,1}, s::Symbol)
     error("type Array{Node,1} has no property $s")
 end
 
+function nearest(nodes::Array{Node,1}, coord)
+    n = length(nodes)
+    D = zeros(n)
+    X = vec(coord)
+
+    for (i,node) in enumerate(nodes)
+        D[i] = norm(X-node.coord)
+    end
+
+    return nodes[sortperm(D)[1]]
+end
+
 function setvalue!(dof::Dof, sym_val::Pair)
     sym, val = sym_val
     if haskey(dof.vals, sym)
