@@ -1,7 +1,7 @@
 name = "Amaru"
 uuid = "4cf2564c-d31b-5d58-bf70-2c153d6f88fd"
 authors = ["Raul Durand and others"]
-version = "v0.6"
+version = "v0.6.1"
 
 [deps]
 Arpack = "7d9fca2a-8960-54d3-9f78-7d1dccf2cb97"
