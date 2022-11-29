@@ -95,25 +95,29 @@ mutable struct Surface<:GeoEntity
     loops::Array{Loop,1}
     volumes::Array
     id::Int
+    tag::String
+    # id::Int
 
-    function Surface(loops::Loop...; id=0)
-        return new([loops...], Volume[], id)
+    function Surface(loops::Loop...; id=0, tag="")
+        return new([loops...], Volume[], id, tag)
     end
 end
 
 Base.show(io::IO, surf::Surface) = _show(io, surf, 2, "")
 
 
-
 mutable struct Volume<:GeoEntity # related to SurfaceLoop
     surfaces::Array{Surface,1}
     id::Int
+    tag::String
 
-    function Volume(surfs::Array{Surface,1})
-        return new(surfs)
+    function Volume(surfs::Array{Surface,1}; tag="")
+        return new(surfs, -1, tag)
     end
+end
 
- end
+Base.show(io::IO, volume::Volume) = _show(io, volume, 2, "")
+
 
 
 function getcoords(surf::Surface)
@@ -154,7 +158,6 @@ function Base.getproperty(set::OrderedSet{<:GeoEntity}, s::Symbol)
     s==:volumes && return [ent for ent in set if ent isa Volume]
     return getfield(set, s)
 end
-
 
 
 
@@ -500,8 +503,8 @@ function addline!(geo::GeoModel, p1::Point, p2::Point; n=0)
                     push!(geo.entities, lo)
                 end
 
-                s1 = addsurface!(geo, loops[1])
-                s2 = addsurface!(geo, loops[2])
+                s1 = addsurface!(geo, loops[1], tag=ovs.tag)
+                s2 = addsurface!(geo, loops[2], tag=ovs.tag)
                 for vol in ovs.volumes
                     push!(s1.volumes, vol)
                     push!(s2.volumes, vol)
@@ -766,9 +769,9 @@ function Base.delete!(geo::GeoModel, loop::Loop)
 end
 
 
-function addsurface!(geo::GeoModel, loops::Loop...)
+function addsurface!(geo::GeoModel, loops::Loop...; tag="")
     # @show "adding surface"
-    s = Surface(loops...)
+    s = Surface(loops..., tag=tag)
     ss = getkey(geo.entities.dict, s, nothing)
     ss === nothing || return ss
 
@@ -814,8 +817,8 @@ function Base.delete!(geo::GeoModel, surf::Surface)
 end
 
 
-function addvolume!(geo::GeoModel, surfaces::Array{Surface,1})
-    v = Volume(surfaces)
+function addvolume!(geo::GeoModel, surfaces::Array{Surface,1}; tag="")
+    v = Volume(surfaces, tag=tag)
     vv = getkey(geo.entities.dict, v, nothing)
     vv===nothing || return v
 
@@ -863,6 +866,7 @@ function extrude!(geo::GeoModel, surf::Surface; axis=[0,0,1], length=1.0)
     for lo in surf.loops
         for line in lo.lines
             s = extrude!(geo, line, axis=axis, length=length)
+            s.tag = surf.tag
             push!(surfs, s)
         end
     end
@@ -892,10 +896,10 @@ function extrude!(geo::GeoModel, surf::Surface; axis=[0,0,1], length=1.0)
         push!(geo.entities, lo)
     end
 
-    s = addsurface!(geo, loops...)
+    s = addsurface!(geo, loops..., tag=surf.tag)
     push!(surfs, s)
 
-    v = addvolume!(geo, surfs)
+    v = addvolume!(geo, surfs, tag=surf.tag)
 
     for s in surfs
         push!(s.volumes, v)
@@ -910,3 +914,28 @@ function extrude!(m::GeoModel, surfs::Array{Surface,1}; axis=[0,0,1], length=1.0
     end
 end
 
+export picksurface
+
+function picksurface(geo::GeoModel, coord)
+    p = Point(coord)
+    for s in geo.entities
+        s isa Surface || continue
+        isin = inside(p, s.loops[1])
+        # @show isin
+        # @show length(s.loops)
+        if isin && length(s.loops)>=2
+            for lo in s.loops
+                if inside(p, lo)
+                    isin = false
+                    break
+                end
+            end
+        end
+        isin && return s
+    end
+    return nothing
+end
+
+function tag!(s::Surface, tag::String)
+    s.tag = tag
+end
