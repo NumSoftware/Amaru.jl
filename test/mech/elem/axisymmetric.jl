@@ -33,7 +33,7 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
     # 3D
     printstyled("3d version", color=:cyan); println()
 
-    mesh = revolve(mesh, n=12)
+    mesh = revolve(mesh, base=[0,0,0], axis=[0,1,0], n=12)
     model = Model(mesh, materials, modeltype="3d")
 
     bcs = [
