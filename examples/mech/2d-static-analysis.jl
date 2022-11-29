@@ -24,7 +24,7 @@ model = Model(msh, materials)
 
 addlogger!(model, :(x==1.5 && y==0) => NodeLogger("one-node.dat"))
 addlogger!(model, :(y<0.025) => IpGroupLogger("ip-list.dat"))
-addmonitor!(model, :(x==3 && y==0.4) => NodeMonitor(:uy))
+addmonitor!(model, :(x==3 && y==0.4) => NodeLogger(:uy))
 
 bcs = [
     :(x==0 && y==0) => NodeBC(ux=0, uy=0),

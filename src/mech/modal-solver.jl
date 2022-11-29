@@ -113,6 +113,16 @@ function mod_solve!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, outd
         dof.vals[dof.name] = 0.0
     end
 
+    # show modal frequencies
+    if !quiet
+        message("modal frequencies:")
+        for i in 1:nmods
+            # @show i
+            # println("ω$i = ", abs(w[i]))
+            info("ω$i = ", abs(w[i]))
+        end
+    end
+
     # show("Modal Frequencies rad/s")
     # @show w
     #show("Modal Shapes rad/s")
@@ -135,8 +145,8 @@ function mod_solve!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, outd
         print("What is the second frequency that you want?")
         w2 = w[parse(Int,chomp(readline()))]
 
-        alpha = 2 * ((w1 ^ 2) * w2 * xi2 - w1 * (w2 ^ 2) * xi1) / ((w1 ^ 2)-(w2 ^ 2))
-        beta  = 2 * (w1 * xi1 - w2 * xi2)/((w1 ^ 2) - (w2 ^ 2))
+        alpha = 2*(w1^2*w2*xi2 - w1*w2^2*xi1) / (w1^2-w2^2)
+        beta  = 2*(w1*xi1 - w2*xi2)/(w1^2 - w2^2)
 
         info("Rayleigh alpha: ", alpha)
         info("Rayleigh beta:", beta)

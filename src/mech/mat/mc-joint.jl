@@ -36,6 +36,13 @@ mutable struct MCJoint<:Material
     end
 
     function MCJoint(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear")
+        @check GF>0 || Gf>0 || wc>0
+        @check E>0.0    
+        @check 0<=nu<0.5
+        @check ft>=0  
+        @check mu>=0  
+        @check zeta>0
+        @check softcurve in ("linear", "bilinear", "hordijk", "smooth")
 
         if isnan(wc)
             if softcurve == "linear"
@@ -48,19 +55,12 @@ mutable struct MCJoint<:Material
                     wc = round((8*GF- 6*Gf)/ft, digits=10)
                     ws = round(1.5*Gf/ft, digits=10)
                 end
-            elseif softcurve == "hordijk"
-                wc = round(GF/(0.1947019536*ft), digits=10)  
+            elseif softcurve=="hordijk" || softcurve=="smooth"
+                wc = round(GF/(0.1947019536*ft), digits=10) 
             end    
         end
 
-        E>0.0      || error("Invalid value for E: $E")
-        0<=nu<0.5  || error("Invalid value for nu: $nu")
-        ft>=0      || error("Invalid value for ft: $ft")
-        mu>0       || error("Invalid value for mu: $mu")
-        zeta>0     || error("Invalid value for zeta: $zeta")
-        wc>0       || error("Invalid value for wc: $wc")
-        (isnan(ws) || ws>0) || error("Invalid value for ws: $ws")
-        softcurve in ("linear", "bilinear", "hordijk") || error("Invalid softcurve: softcurve must to be linear or bilinear or hordijk")
+        @check isnan(ws) || ws>0
 
         this = new(E, nu, ft, mu, zeta, wc, ws, softcurve)
         return this
@@ -149,6 +149,15 @@ function calc_σmax(mat::MCJoint, state::MCJointState, up::Float64)
             z = 0.0
         end
         σmax = z*mat.σmax0
+    elseif mat.softcurve == "smooth"
+        if up == 0.0
+            z = 1.0
+        elseif 0.0 < up < mat.wc
+            z = 1.0 - exp(0.09454*(1.0-mat.wc/up))
+        else
+            z = 0.0
+        end
+        σmax = z*mat.σmax0
     end
 
     return σmax
@@ -182,11 +191,14 @@ function σmax_deriv(mat::MCJoint, state::MCJointState, up::Float64)
             dz = 0.0
         end
         dσmax = dz*mat.σmax0
+    elseif mat.softcurve == "smooth"
+        if 0.0 < up < mat.wc
+            dz = 0.09454*exp(0.09454*(1.0-mat.wc/up))/(up/mat.wc)^2
+        else
+            dz = 0.0
+        end
+        dσmax = dz*mat.σmax0
     end
-
-    # if dσmax==0.0
-    #     dσmax = mat.E*mat.ζ/state.h*1e-2
-    # end
 
     return dσmax
 end

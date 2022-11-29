@@ -276,7 +276,7 @@ function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
 
         env.stagebits.ΔT = ΔT
         Δt = tspan*ΔT
-        t = t + Δt
+        # t = t + Δt
         env.t = t
 
         # Update counters
@@ -387,7 +387,7 @@ function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
                 dof.vals[as] = A[i]
             end
 
-            update_single_loggers!(model)
+            # update_single_loggers!(model)
 
             # Update time t and Δt
             T += ΔT

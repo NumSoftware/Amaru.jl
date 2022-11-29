@@ -16,7 +16,7 @@ mutable struct TCJointState<:AbstractTCJointState
         ndim = env.ndim
         this.σ   = zeros(ndim)
         this.w   = zeros(ndim)
-        this.up = 0.0
+        this.up  = 0.0
         this.Δλ  = 0.0
         this.h   = 0.0
         return this
@@ -44,31 +44,34 @@ mutable struct TCJoint<:AbstractTCJoint
     end
 
     function TCJoint(;E=NaN, nu=NaN, fc=NaN, ft=NaN, zeta=NaN, alpha=1.5, gamma=0.1, theta=1.5, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="hordijk")
-        @check GF>0 || Gf>0
+        @check GF>0 || Gf>0 || wc>0
         @check E>0.0    
         @check 0<=nu<0.5
         @check fc<0  
         @check ft>=0  
         @check zeta>0
-        @check softcurve in ("linear", "bilinear", "hordijk")
+        @check softcurve in ("linear", "bilinear", "hordijk", "smooth")
         
         if isnan(wc)
             if softcurve == "linear"
-                wc = round(2*GF/ft, digits=10)
+                wc = round(2*GF/ft, sigdigits=5)
             elseif softcurve == "bilinear"
                 if isnan(Gf)
-                    wc = round(5*GF/ft, digits=10)
-                    ws = round(wc*0.15, digits=10)
+                    wc = round(5*GF/ft, sigdigits=5)
+                    ws = round(wc*0.15, sigdigits=5)
                 else
-                    wc = round((8*GF- 6*Gf)/ft, digits=10)
-                    ws = round(1.5*Gf/ft, digits=10)
+                    wc = round((8*GF- 6*Gf)/ft, sigdigits=5)
+                    ws = round(1.5*Gf/ft, sigdigits=5)
                 end
-            elseif softcurve == "hordijk"
-                wc = round(GF/(0.1947019536*ft), digits=10)  
+            elseif softcurve=="hordijk"
+                wc = round(GF/(0.1947019536*ft), sigdigits=5)  
+            elseif softcurve=="smooth"
+                wc = round(GF/(0.1947019536*ft), sigdigits=5)  
+                # wc = round(6*GF/ft, sigdigits=5)  
+                # wc = round(5.14*GF/ft, sigdigits=5)  
             end    
         end
         
-        @check wc>0
         @check isnan(ws) || ws>0
 
         a = (2*alpha*ft + alpha*fc - fc - √(alpha^2*fc^2 - 4*alpha^2*fc*ft + 4*alpha^2*ft^2 - 2*alpha*fc^2 + fc^2)) / (4*alpha-2)
@@ -83,7 +86,7 @@ end
 function paramsdict(mat::AbstractTCJoint)
     params = OrderedDict( string(field)=> getfield(mat, field) for field in fieldnames(typeof(mat)) )
 
-    mat.softcurve == "hordijk" && ( params["GF"] = 0.1943*mat.ft*mat.wc )
+    mat.softcurve in ("hordijk", "smooth") && ( params["GF"] = 0.1943*mat.ft*mat.wc )
     return params
 end
 
@@ -188,8 +191,32 @@ function calc_σmax(mat::AbstractTCJoint, state::AbstractTCJointState, up::Float
         else
             z = 0.0
         end
-        σmax = z*mat.ft 
+        σmax = z*mat.ft
+    elseif mat.softcurve == "smooth"
+        # c = 1.5
+        # a = 1.19311
+        # c = 0.0
+        # a = 1.09913
+        # c = 2.0
+        # a = 1.24787
+        c = 0.1 
+        a = 1.10366
+        # a = 1.07946
+        m = 0.55
+        a = 1.30837
+        if up == 0.0
+            z = 1.0
+        elseif 0.0 < up < mat.wc
+            x = up/mat.wc
+            # z = (1.0 - x)^c*(1.0 - a^(1.0 - 1.0/x))
+            z = 1.0 - a^(1.0 - 1.0/x^m)
+        else
+            z = 0.0
+        end
+        σmax = z*mat.ft
     end
+
+    # @show mat.softcurve
 
     return σmax
 end
@@ -221,7 +248,34 @@ function deriv_σmax_upa(mat::AbstractTCJoint, state::AbstractTCJointState, up::
             dz = 0.0
         end
         dσmax = dz*mat.ft 
+    elseif mat.softcurve == "smooth"
+        # c = 1.5
+        # a = 1.19311
+        # c = 0.0
+        # a = 1.09913
+        # c = 2.0
+        # a = 1.24787
+        c = 0.1
+        a = 1.10366
+        # a = 1.07946
+        m = 0.55
+        a = 1.30837
+
+        if up == 0.0
+            dz = 0.0
+        elseif up < mat.wc
+            x = up/mat.wc
+            # dz = c*(1.0-x)^(c-1)*(a^(1.0-1.0/x)-1.0) - (a^(1.0-1.0/x)*log(a)*(1.0-x)^c)/x^2
+            dz =  - (a^(1.0-1.0/x^m)*m*log(a))/x^(m+1)
+
+        else
+            dz = 0.0
+        end
+        dσmax = dz*mat.ft 
     end
+
+    # @show mat.softcurve
+
 
     return dσmax
 end
@@ -303,7 +357,52 @@ function calc_Δλ(mat::AbstractTCJoint, state::AbstractTCJointState, σtr::Arra
 end
 
 
+function consistentD(mat::AbstractTCJoint, state::AbstractTCJointState)
+    # numerical approximation
+    # seems not to work under compressive loads
+
+    ndim = state.env.ndim
+    σmax = calc_σmax(mat, state, state.up)
+
+    if state.Δλ == 0.0
+        kn, ks = calc_kn_ks(mat, state)
+        De = diagm([kn, ks, ks][1:ndim])
+        return De
+    # elseif σmax == 0.0 && state.w[1] >= 0.0
+    #     kn, ks = calc_kn_ks(mat, state)
+    #     De = diagm([kn, ks, ks][1:ndim])
+    #     Dep = De*1e-4
+    #     # Dep = De*1e-3
+    #     return Dep
+    end
+
+    Dep = zeros(ndim, ndim)
+    V = zeros(ndim)
+    h = √eps()
+    h = eps()^(1/3)
+
+    # iteration for all w components
+    for j in 1:ndim
+        statej = copy(state)
+        V[j] = 1.0
+        Δw = h*V
+        Δσ, succeeded = stress_update(mat, statej, Δw)
+        # @show Δw
+        # @show Δσ
+        Dep[:,j] .= Δσ./h
+        V[j] = 0.0
+    end
+
+    # @show Dep
+    # error()
+
+    return Dep
+end
+
+
 function mountD(mat::AbstractTCJoint, state::AbstractTCJointState)
+    # return consistentD(mat, state)
+
     ndim = state.env.ndim
     kn, ks = calc_kn_ks(mat, state)
     θ = mat.θ
@@ -405,7 +504,7 @@ function stress_update(mat::AbstractTCJoint, state::AbstractTCJointState, Δw::A
                 state.σ = [σtr[1]/(1 + 2*state.Δλ*kn), σtr[2]/(1 + 2*state.Δλ*ks)]
             else
                 state.σ = [σtr[1], σtr[2]/(1 + 2*state.Δλ*ks)]
-            end    
+            end
         end
 
         r = potential_derivs(mat, state, state.σ)

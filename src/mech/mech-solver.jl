@@ -379,11 +379,12 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
                     ΔT = min(ΔTbk, Tcheck-T)
                     ΔTbk = 0.0
                 else
-                    if nits==1
+                    # if nits==1
                         q = (1+tanh(log10(tol/residue1)))^1
-                    else
-                        q = 1.0
-                    end
+                    # else
+                        # q = 1.3
+                    # end
+                    q = max(q, 1.1)
 
                     ΔTtr = min(q*ΔT, 1/nincs, 1-T)
                     if T+ΔTtr>Tcheck-Ttol
