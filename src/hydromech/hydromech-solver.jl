@@ -254,12 +254,11 @@ end
 
 function hm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::StatusLine; 
     tol     :: Number  = 1e-2,
-    Ttol    :: Number  = 1e-9,
+    Ttol    :: Number  = 1e-8,
     rspan   :: Number  = 1e-2,
     scheme  :: String  = "FE",
     maxits  :: Int     = 5,
     autoinc :: Bool    = false,
-    maxincs :: Int     = 1000000,
     outdir  :: String  = ".",
     outkey  :: String  = "out",
     quiet  :: Bool    = false
@@ -380,11 +379,6 @@ function hm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
         env.stagebits.inc = inc
 
         println(logfile, "  inc $inc")
-        
-        if inc > maxincs
-            quiet || message(sline, "solver maxincs = $maxincs reached (try maxincs=0)", Base.default_color_error)
-            return failure("$maxincs reached")
-        end
 
         # Get forces and displacements from boundary conditions
         Δt = tspan*ΔT
