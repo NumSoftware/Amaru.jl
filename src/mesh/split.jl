@@ -9,19 +9,28 @@ export generate_joints_by_tag!
 
 
 """
-    generate_joints!(mesh, filter=nothing; layers=2, tag="", midnodestag="", intertags=false, quiet=true)
+    generate_joints!(mesh, filter=nothing; layers=2, tag="", midnodestag="", onlybetweenregions=false, quiet=true)
 
 Adds joint elements between bulk elements in `mesh`.  If `filter` is supplied
 (element tag or expression), the joints are generated over a specific region
-only.  All generated joints get the supplied `tag`.  If `intertags` is
+only.  All generated joints get the supplied `tag`.  If `onlybetweenregions` is
 `true`, joints are generated only between regions specified by bulk element
 tags.  In this case, the joints get specific tags according to the regions
 they are linking.  Joints can be generated with 2 or 3 `layers`. 
 For three layers, all middle points in joints receive a `midnodestag`, if provided.
 """
-function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing; intertags::Bool=false, layers::Int64=2, verbose::Bool=false, tag="", midnodestag="")
+function generate_joints!(
+    mesh              ::Mesh,
+    filter            ::Union{Expr,String,Nothing}=nothing;
+    onlybetweenregions::Bool=false,
+    autotag           ::Bool=false,
+    layers            ::Int64=2,
+    tag               ::String="",
+    quiet             ::Bool=false,
+    midnodestag       ::String=""
+)
 
-    verbose && printstyled("Mesh generation of joint elements:\n", bold=true, color=:cyan)
+    quiet || printstyled("Mesh generation of joint elements:\n", bold=true, color=:cyan)
 
     layers in (2,3) || error("generate_joints!: wrong number of layers ($layers).")
 
@@ -41,6 +50,7 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
                             (QUAD4,3) => J3QUAD4,
                             (QUAD8,3) => J3QUAD8,
                            )
+    onlybetweenregions && (autotag=true)
 
     # Target and locked cells
     # locked cells include solids, lines, beams, etc.
@@ -59,7 +69,7 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
         lockedcells = setdiff(lockedcells, lockedcells[filter].joints)
     end
 
-    if !intertags
+    if !onlybetweenregions
         # Splitting: generating new nodes
         for c in targetcells
             for (i,p) in enumerate(c.nodes)
@@ -163,7 +173,6 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
             end
         end
 
-
         # Get joint faces (now with new nodes)
         trial_faces = Face[]
         for tag in tag_set
@@ -208,8 +217,15 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
         #jshape = joint_shape(f1.shape)
         jshape = joint_shape_dict[(f1.shape,layers)]
 
-        if intertags && tag==""
-            tag = join( sort([f1.owner.tag, f2.owner.tag]), "-" )
+        # if tag=="" && autotag
+        if autotag
+            tagA, tagB = sort([f1.owner.tag, f2.owner.tag]) 
+            if tagA==tagB
+                tag = "joint-"*tagA
+            else
+                tag = "joint-"*tagA*"-"*tagB
+            end
+            # tag = join( sort([f1.owner.tag, f2.owner.tag]), "-" )
         end
         cell = Cell(jshape, con, tag=tag)
         cell.linked_elems = [f1.owner, f2.owner]
@@ -274,7 +290,7 @@ function generate_joints!(mesh::Mesh, filter::Union{Expr,String,Nothing}=nothing
     fixup!(mesh, reorder=true)
 
 
-    if verbose
+    if !quiet
         @printf "  %4dd mesh                             \n" mesh.ndim
         @printf "  %5d points\n" length(mesh.nodes)
         @printf "  %5d total cells\n" length(mesh.elems)
