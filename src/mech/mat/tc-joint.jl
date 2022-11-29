@@ -33,7 +33,7 @@ mutable struct TCJoint<:AbstractTCJoint
     ζ ::Float64       # factor ζ controls the elastic relative displacements (formerly α)
     wc::Float64       # critical crack opening
     ws::Float64       # openning at inflection (where the curve slope changes)
-    softcurve::String # softening curve model ("linear" or bilinear" or "hordijk")
+    softcurve::String # softening curve model ("linear" or bilinear" or "hordijk" or "soft")
     α::Float64        # curvature coefficient
     γ::Float64        # factor for βres
     θ::Float64        # fator for the surface reduction speed
@@ -50,7 +50,7 @@ mutable struct TCJoint<:AbstractTCJoint
         @check fc<0  
         @check ft>=0  
         @check zeta>0
-        @check softcurve in ("linear", "bilinear", "hordijk", "smooth")
+        @check softcurve in ("linear", "bilinear", "hordijk", "soft")
         
         if isnan(wc)
             if softcurve == "linear"
@@ -65,7 +65,7 @@ mutable struct TCJoint<:AbstractTCJoint
                 end
             elseif softcurve=="hordijk"
                 wc = round(GF/(0.1947019536*ft), sigdigits=5)  
-            elseif softcurve=="smooth"
+            elseif softcurve=="soft"
                 wc = round(GF/(0.1947019536*ft), sigdigits=5)  
                 # wc = round(6*GF/ft, sigdigits=5)  
                 # wc = round(5.14*GF/ft, sigdigits=5)  
@@ -86,7 +86,7 @@ end
 function paramsdict(mat::AbstractTCJoint)
     params = OrderedDict( string(field)=> getfield(mat, field) for field in fieldnames(typeof(mat)) )
 
-    mat.softcurve in ("hordijk", "smooth") && ( params["GF"] = 0.1943*mat.ft*mat.wc )
+    mat.softcurve in ("hordijk", "soft") && ( params["GF"] = 0.1943*mat.ft*mat.wc )
     return params
 end
 
@@ -192,7 +192,7 @@ function calc_σmax(mat::AbstractTCJoint, state::AbstractTCJointState, up::Float
             z = 0.0
         end
         σmax = z*mat.ft
-    elseif mat.softcurve == "smooth"
+    elseif mat.softcurve == "soft"
         # c = 1.5
         # a = 1.19311
         # c = 0.0
@@ -248,7 +248,7 @@ function deriv_σmax_upa(mat::AbstractTCJoint, state::AbstractTCJointState, up::
             dz = 0.0
         end
         dσmax = dz*mat.ft 
-    elseif mat.softcurve == "smooth"
+    elseif mat.softcurve == "soft"
         # c = 1.5
         # a = 1.19311
         # c = 0.0
