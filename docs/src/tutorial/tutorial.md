@@ -244,10 +244,10 @@ nothing # hide
 
 ### 3D mesh obtained revolving the last example
 ```@example x
-mesh = revolve(mesh, minangle=0, maxangle=90)
+mesh = revolve(mesh, minangle=0, maxangle=90, base=[0,0,0], axis=[0,1,0])
 changeaxes!(mesh, "xzy")
 rotate!(mesh, axis=[0,0,1], angle=90)
-mplot(mesh, "mesh-rev.svg", azim=-45) 
+mplot(mesh, "mesh-rev.svg", azim=-45)
 nothing # hide
 ```
 ![](./mesh-rev.svg)
@@ -270,7 +270,7 @@ nothing # hide
 ### 3D mesh obtained revolving the last example
 
 ```@example y
-mesh = revolve(mesh, n=24, axis=[0,0,1]) # surface by revolution
+mesh = revolve(mesh, n=24, axis=[0,0,1], base=[0,0,0]) # surface by revolution
 mplot(mesh, "mesh-surf.svg", elev=15)
 nothing # hide
 ```
