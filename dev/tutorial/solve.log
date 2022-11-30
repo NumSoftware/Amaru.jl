@@ -1,17 +1,17 @@
 Mechanical FE analysis: Stage 1
 unknown dofs: 708
   inc 1
-    it 1  residue: 4.0670e-12
+    it 1  residue: 2.1278e-12
   inc 2
-    it 1  residue: 5.5850e-12
+    it 1  residue: 6.2770e-12
   inc 3
-    it 1  residue: 1.0856e-11
+    it 1  residue: 6.0929e-12
   inc 4
-    it 1  residue: 1.2304e-11
+    it 1  residue: 2.2723e-11
   inc 5
-    it 1  residue: 3.0561e-11
+    it 1  residue: 2.5668e-11
   inc 6
-    it 1  residue: 3.9278e-11
+    it 1  residue: 4.9360e-11
   inc 7
     it 1  residue: 5.3030e+01
     it 2  residue: 1.1523e+01
