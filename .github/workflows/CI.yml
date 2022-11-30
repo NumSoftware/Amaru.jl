@@ -19,7 +19,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python3 -m pip install --upgrade pip
-          pip install matplotlib==2.2
+          pip install matplotlib
       - uses: julia-actions/setup-julia@latest
         with:
           version: '1.8'
