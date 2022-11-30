@@ -208,8 +208,10 @@ end
 
 function Base.getindex(
     cells::Array{<:AbstractCell,1}, 
-    filters::Union{Symbol,Expr,Symbolic,String,CellFamily,CellShape,Matrix}...;
-    invert=false
+    filters::Union{Symbol,Expr,Symbolic,String,CellFamily,CellShape}...;
+    normal = nothing,
+    plane  = nothing,
+    invert = false
     )
     
     filtered = collect(1:length(cells))
@@ -260,32 +262,43 @@ function Base.getindex(
             filtered = Int[ i for i in filtered if cells[i].shape.family==filter ]
         elseif isa(filter, CellShape)
             filtered = Int[ i for i in filtered if cells[i].shape==filter ]
-        elseif isa(filter, Matrix) # plane
-
-            # plane normal
-            tol = 1e-5
-            A = plane # coplanar points
-            I = ones(size(A,1))
-            n = normalize(pinv(A.+tol/100)*I) # best fit normal        
-
-            indexes = copy(filtered)
-            filtered = Int[]
-
-            for i in indexes
-                cell = cells[i]
-                cell.shape.family == JOINTCELL || continue
-                ndim = cell.shape.ndim+1
-                @assert ndim==size(A,2)
-                C = getcoords(cells[i], ndim)
-                I = ones(size(C,1))
-                N = pinv(C.+tol/100)*I # best fit normal 
-                norm(C*N-I)<tol || continue # check if cell is coplanar
-                normalize!(N)
-                norm(N-n)<tol || continue # check if planes are parallel
-                dot(A[1,:]-C[1,:], n)<tol && push!(filtered, i)
-            end
         end
 
+    end
+
+
+    
+    if !isnothing(normal) || !isnothing(plane)
+        indexes = copy(filtered)
+        filtered = Int[]
+        tol = 1e-8
+
+        if !isnothing(normal)
+            n = normalize(normal) # best fit normal
+            dim = length(n)
+        else
+            # filter is a plane: a matrix with at least three points
+            A = plane # coplanar points
+            I = ones(size(A,1))
+            n = normalize(pinv(A.+tol/100)*I) # best fit normal   
+            dim = size(A,2)
+        end
+
+        for i in indexes
+            cell = cells[i]
+
+            ndim = cell.shape.ndim+1
+            @assert dim==ndim
+            C = getcoords(cells[i], ndim)
+            N = cellnormal(cell)
+            isnothing(N) && continue
+            isparallelto(N,n) || continue
+
+            if !isnothing(plane)
+                dot(A[1,:]-C[1,:], n)<tol || continue # check if faces are coplanar
+            end
+            push!(filtered, i)
+        end
     end
 
     if invert
@@ -293,6 +306,60 @@ function Base.getindex(
     end
 
     return cells[filtered]
+end
+
+function cellnormal(cell::AbstractCell)
+    iscoplanar(cell) || return nothing
+    
+    tol = 1e-8
+    ndim = cell.shape.ndim+1
+    C = getcoords(cell, ndim)
+    I = ones(size(C,1))
+    N = pinv(C.+tol/100)*I # best fit normal 
+    normalize!(N)
+    return N
+end
+
+function isparallelto(A,B)
+    tol = 1e-8
+
+    dotAB = dot(A,B)
+    normAB = norm(A)*norm(B)
+    abs(dotAB-normAB) < tol && return true
+    abs(dotAB+normAB) < tol && return true
+    return false
+end
+
+
+function iscoplanar(cell::AbstractCell)
+    tol = 1e-8
+
+    coords = getcoords(cell, 3)
+    
+    # find a plane
+    X1 = coords[1,:]
+    X2 = coords[2,:]
+    X1X2 = X2-X1
+
+    # look for a non-colinear point
+    local X, N
+    for i in 3:length(cell.nodes)
+        X = coords[i,:]
+        X1X = X-X1
+        N = cross(X1X2, X1X)
+        norm(N) > tol && break
+    end
+    
+    # test the plane at each point
+    for i in 3:length(cell.nodes)
+        X = coords[i,:]
+
+        if dot(X-X1, N) > tol
+            return false
+        end
+    end
+
+    return true
 end
 
 function nearest(cells::Array{Cell,1}, coord)
