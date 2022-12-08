@@ -982,7 +982,14 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
     end
 
     if !isvolumemesh
-        gmsh.model.addPhysicalGroup(2, surf_idxs) # ndim, entities
+        tagset = Set([ surf.tag for surf in geo.entities if surf isa Surface ])
+        tagsdict = Dict( tag=>i for (i,tag) in enumerate(tagset) )
+        for (tag, gidx) in tagsdict
+            surf_idxs = [ surf.id for surf in geo.entities if surf isa Surface && surf.tag==tag]
+            gmsh.model.addPhysicalGroup(2, surf_idxs, gidx) # ndim, entities, group_id
+        end
+
+        # gmsh.model.addPhysicalGroup(2, surf_idxs) # ndim, entities
         # gmsh.model.mesh.generate(2)
     else
         tagset = Set([ vol.tag for vol in geo.entities if vol isa Volume  ])
@@ -1031,7 +1038,10 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
 
     # set tags
     if !isvolumemesh
-
+        invtagsdict = Dict( i=>tag for (tag,i) in tagsdict )
+        for elem in mesh.elems
+            elem.tag = invtagsdict[ mesh.elem_data["CellEntityIds"][elem.id] ]
+        end
     else
         invtagsdict = Dict( i=>tag for (tag,i) in tagsdict )
         for elem in mesh.elems
