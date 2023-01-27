@@ -6,7 +6,7 @@
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:date>2023-01-27T16:50:54.289742</dc:date>
+    <dc:date>2023-01-27T16:51:47.539610</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -35,13 +35,13 @@ Q 64.309188 103.510812 127.868376 39.951624
 Q 111.93492 23.594052 111.635544 0.75 
 Q 56.17614 0.75 0.75 0.75 
 Q 0.75 83.91 0.75 167.07 
-" clip-path="url(#p750889806b)" style="fill: #f0f8ff; stroke: #9ea2a6; stroke-width: 0.4"/>
+" clip-path="url(#pfee93a23fd)" style="fill: #f0f8ff; stroke: #9ea2a6; stroke-width: 0.4"/>
     <path d="M 0.75 167.07 
 Q 83.91 167.07 167.07 167.07 
 Q 167.07 111.64386 167.07 56.184456 
 Q 144.225948 55.88508 127.868376 39.951624 
 Q 64.309188 103.510812 0.75 167.07 
-" clip-path="url(#p750889806b)" style="fill: #f0f8ff; stroke: #9ea2a6; stroke-width: 0.4"/>
+" clip-path="url(#pfee93a23fd)" style="fill: #f0f8ff; stroke: #9ea2a6; stroke-width: 0.4"/>
    </g>
    <g id="line2d_1">
     <path d="M 0.75 167.07 
@@ -62,7 +62,7 @@ L 145.847568 51.97656
 L 64.309188 103.510812 
 " style="fill: none"/>
     <defs>
-     <path id="mf4f91ab8b1" d="M 0 0.75 
+     <path id="m8c8e22e816" d="M 0 0.75 
 C 0.198902 0.75 0.389685 0.670975 0.53033 0.53033 
 C 0.670975 0.389685 0.75 0.198902 0.75 0 
 C 0.75 -0.198902 0.670975 -0.389685 0.53033 -0.53033 
@@ -75,28 +75,28 @@ z
 "/>
     </defs>
     <g>
-     <use xlink:href="#mf4f91ab8b1" x="0.75" y="167.07"/>
-     <use xlink:href="#mf4f91ab8b1" x="127.868376" y="39.951624"/>
-     <use xlink:href="#mf4f91ab8b1" x="111.635544" y="0.75"/>
-     <use xlink:href="#mf4f91ab8b1" x="0.75" y="0.75"/>
-     <use xlink:href="#mf4f91ab8b1" x="64.309188" y="103.510812"/>
-     <use xlink:href="#mf4f91ab8b1" x="115.84344" y="21.972432"/>
-     <use xlink:href="#mf4f91ab8b1" x="56.184456" y="0.75"/>
-     <use xlink:href="#mf4f91ab8b1" x="0.75" y="83.91"/>
-     <use xlink:href="#mf4f91ab8b1" x="0.75" y="167.07"/>
-     <use xlink:href="#mf4f91ab8b1" x="167.07" y="167.07"/>
-     <use xlink:href="#mf4f91ab8b1" x="167.07" y="56.184456"/>
-     <use xlink:href="#mf4f91ab8b1" x="127.868376" y="39.951624"/>
-     <use xlink:href="#mf4f91ab8b1" x="83.91" y="167.07"/>
-     <use xlink:href="#mf4f91ab8b1" x="167.07" y="111.635544"/>
-     <use xlink:href="#mf4f91ab8b1" x="145.847568" y="51.97656"/>
-     <use xlink:href="#mf4f91ab8b1" x="64.309188" y="103.510812"/>
+     <use xlink:href="#m8c8e22e816" x="0.75" y="167.07"/>
+     <use xlink:href="#m8c8e22e816" x="127.868376" y="39.951624"/>
+     <use xlink:href="#m8c8e22e816" x="111.635544" y="0.75"/>
+     <use xlink:href="#m8c8e22e816" x="0.75" y="0.75"/>
+     <use xlink:href="#m8c8e22e816" x="64.309188" y="103.510812"/>
+     <use xlink:href="#m8c8e22e816" x="115.84344" y="21.972432"/>
+     <use xlink:href="#m8c8e22e816" x="56.184456" y="0.75"/>
+     <use xlink:href="#m8c8e22e816" x="0.75" y="83.91"/>
+     <use xlink:href="#m8c8e22e816" x="0.75" y="167.07"/>
+     <use xlink:href="#m8c8e22e816" x="167.07" y="167.07"/>
+     <use xlink:href="#m8c8e22e816" x="167.07" y="56.184456"/>
+     <use xlink:href="#m8c8e22e816" x="127.868376" y="39.951624"/>
+     <use xlink:href="#m8c8e22e816" x="83.91" y="167.07"/>
+     <use xlink:href="#m8c8e22e816" x="167.07" y="111.635544"/>
+     <use xlink:href="#m8c8e22e816" x="145.847568" y="51.97656"/>
+     <use xlink:href="#m8c8e22e816" x="64.309188" y="103.510812"/>
     </g>
    </g>
   </g>
  </g>
  <defs>
-  <clipPath id="p750889806b">
+  <clipPath id="pfee93a23fd">
    <rect x="0.21" y="0.75" width="167.4" height="166.32"/>
   </clipPath>
  </defs>
