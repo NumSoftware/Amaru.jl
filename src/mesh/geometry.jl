@@ -38,8 +38,6 @@ Base.:(==)(x::Point, y::Point) = (hash(x) == hash(y))
 # Base.isequal(x::Point, y::Point) = (hash(x) == hash(y))
 
 
-
-
 abstract type AbstractCurve<:GeoEntity
 end
 
@@ -377,6 +375,11 @@ function findloops(p1, p2)
         end 
     end
 
+    # @show length(loops)
+    if length(loops)>2  # TODO: FIXME!
+        loops = loops[1:2]
+    end
+
     return loops
 end
 
@@ -484,6 +487,28 @@ function addline!(geo::GeoModel, p1::Point, p2::Point; n=0)
             coplanar(lo) && push!(loops, lo)
         end
 
+        # check if one loop overlaps the other
+        # if length(loops)==2
+        #     if overlaps(loops[1], loops[2])
+        #         loops = [ loops[1] ]
+        #     elseif overlaps(loops[2], loops[1])
+        #         loops = [ loops[2] ]
+        #     end
+        # end
+
+        nloops = length(loops)
+        indices = trues(nloops)
+        for i in 1:nloops
+            for j in 1:nloops
+                i==j && continue
+                if overlaps(loops[i], loops[j])
+                    indices[j] = false
+                    break
+                end
+            end
+        end
+        loops = loops[indices]
+
         # check if there two loops that overlaps the same surface
         if length(loops)==2
             ovs = nothing # overlapped surface
@@ -518,6 +543,30 @@ function addline!(geo::GeoModel, p1::Point, p2::Point; n=0)
                 continue
             end
         end
+
+
+        loopsX = []
+
+        # check a loop overlaps any existing surface
+        # if length(loops)==2
+
+        #     for lo in loops
+        #         over = false
+        #         for s in geo.entities
+        #             s isa Surface || continue
+        #             if overlaps(lo, s)
+        #                 over = true
+        #                 break
+        #             end
+        #         end
+                
+        #         if over==false
+        #             push!(loopsX, lo)
+        #         end
+        #     end
+        # end
+
+        # loops = loopsX
 
         for lo in loops
             addloop!(geo, lo)
@@ -659,6 +708,26 @@ function inside(p::Point, points::Array{Point,1}; withborder=true)
 
 end
 
+
+# check if loop geometry overlaps another loop
+function overlaps(lo1::Loop, lo2::Loop; withborder=true)
+    tol = 1e-8
+    N1, h1 = getplane(lo1)
+    N2, h2 = getplane(lo2)
+
+    # check if loop and surface are coplanar
+    (h1!=h2 || norm(cross(N1,N2))>tol) && return false
+
+    points = getpoints(lo1)
+    spoints = getpoints(lo2)
+
+    # check if all loop points are inside the other loop
+    for p in points
+        inside(p, spoints, withborder=withborder) || return false
+    end
+
+    return true
+end
 
 # check if loop geometry overlaps a surface
 function overlaps(lo::Loop, s::Surface; withborder=true)
