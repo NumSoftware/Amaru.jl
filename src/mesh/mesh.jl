@@ -1010,6 +1010,21 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
         # gmsh.model.mesh.generate(3)
     end
 
+    # embed points
+    for p in geo.entities
+        p isa Point || continue
+        length(p.adj)==0 || continue
+    
+        # search surfaces
+        for s in geo.entities
+            s isa Surface || continue
+            if inside(p, s.loops[1])
+                gmsh.model.mesh.embed(0,[p.id],2,s.id)
+            end
+        end
+
+    end
+
     try
         logfile = "_gmsh.log"
         open(logfile, "w") do out
@@ -1036,7 +1051,7 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
         isinverted(elem) && flip!(elem)
     end
 
-    # set tags
+    # set tags for elements
     if !isvolumemesh
         invtagsdict = Dict( i=>tag for (tag,i) in tagsdict )
         for elem in mesh.elems
@@ -1048,6 +1063,22 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
             elem.tag = invtagsdict[ mesh.elem_data["CellEntityIds"][elem.id] ]
         end
     end
+
+    # set tag for nodes
+    ptagdict = Dict()
+    for p in geo.entities
+        p isa Point || continue
+        p.tag!="" || continue
+        ptagdict[p.coord] = p.tag
+    end
+    
+    for node in mesh.nodes
+        tag = get(ptagdict, node.coord, "")
+        tag != "" || continue
+        node.tag = tag
+    end
+
+    fixup!(mesh, reorder=true)
 
     return mesh
 

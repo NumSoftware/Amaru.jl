@@ -46,13 +46,14 @@ mutable struct Line<:AbstractCurve
     surfaces::Array
     n::Int 
     id::Int
+    tag::String
     
-    function Line(p1::Point, p2::Point; n=0, id=0)
-        return new([p1, p2], [], n, id)
+    function Line(p1::Point, p2::Point; n=0, id=0, tag="")
+        return new([p1, p2], [], n, id, tag)
     end
 
-    function Line(points::Array{Point,1}; n=0, id=0)
-        return new(points, [], n, id)
+    function Line(points::Array{Point,1}; n=0, id=0, tag="")
+        return new(points, [], n, id, tag)
     end
 end
 
@@ -75,6 +76,7 @@ Base.hash(l::AbstractCurve) = hash( sort(collect(n.id for n in l.points)) )
 Base.:(==)(x::Line, y::Line) = (hash(x) == hash(y))
 
 Base.show(io::IO, line::Line) = _show(io, line, 2, "")
+
 
 
 mutable struct Loop<:GeoEntity # related to CurveLoop
@@ -118,6 +120,7 @@ Base.show(io::IO, volume::Volume) = _show(io, volume, 2, "")
 
 
 
+
 function getcoords(surf::Surface)
     return Float64[ p.coord[j] for p in surf.points, j=1:3 ]
 end
@@ -158,6 +161,37 @@ function Base.getproperty(set::OrderedSet{<:GeoEntity}, s::Symbol)
 end
 
 
+function getentity(geo::GeoModel, e::GeoEntity)
+    return getkey(geo.entities.dict, e, nothing)
+end
+
+function getentity(geo::GeoModel, p::Point)
+    pp = getkey(geo.entities.dict, p, nothing)
+    pp===nothing || return pp
+    
+    tol = 1e-8
+    for pp in geo.entities
+        pp isa Point || continue
+        norm(p.coord-pp.coord)<tol && return pp
+    end
+
+    return nothing
+end
+
+function getpoint(geo::GeoModel, p::Point)
+    pp = getkey(geo.entities.dict, p, nothing)
+    pp===nothing || return pp
+    
+    tol = 1e-8
+    for pp in geo.entities
+        pp isa Point || continue
+        norm(p.coord-pp.coord)<tol && return pp
+    end
+
+    return nothing
+end
+
+
 
 @enum(GeoFindStatus,
     OUTSIDE  = 0,
@@ -166,9 +200,9 @@ end
     ATBORDER = 3,
 )
 
-function Base.copy(m::GeoModel, p::Point; dx=0.0, dy=0.0, dz=0.0)
+function Base.copy(geo::GeoModel, p::Point; dx=0.0, dy=0.0, dz=0.0)
     pp = Point(p.coord .+ [dx, dy, dz]; size=p.size, tag=p.tag)
-    pp = addpoint!(m, pp)
+    pp = addpoint!(geo, pp)
     return pp
 end
 
@@ -206,18 +240,7 @@ function point_in_line(p::Point, l::Line)
 end
 
 
-function getpoint(geo::GeoModel, p::Point)
-    pp = getkey(geo.entities.dict, p, nothing)
-    pp===nothing || return pp
-    
-    tol = 1e-8
-    for pp in geo.entities
-        pp isa Point || continue
-        norm(p.coord-pp.coord)<tol && return pp
-    end
 
-    return nothing
-end
 
 
 function addpoint!(geo::GeoModel, p::Point)
@@ -244,8 +267,8 @@ function addpoint!(geo::GeoModel, p::Point)
         p2 = l.points[end]
         if point_in_segment(p.coord, p1.coord, p2.coord)
             # delete old and create two new lines
-            l1 = addlinenoloops(geo, p1, p, n=div(l.n,2))
-            l2 = addlinenoloops(geo, p, p2, n=div(l.n,2))
+            l1 = addsingleline!(geo, p1, p, n=div(l.n,2), tag=l.tag)
+            l2 = addsingleline!(geo, p, p2, n=div(l.n,2), tag=l.tag)
 
             for s in l.surfaces
                 # fix loops that include l
@@ -273,13 +296,13 @@ function addpoint!(geo::GeoModel, p::Point)
     return p
 end
 
-function addpoint!(geo::GeoModel, x, y, z; size=0.0)
-    return addpoint!(geo, Point(x,y,z; size=size))
+function addpoint!(geo::GeoModel, x, y, z; size=0.0, tag="")
+    return addpoint!(geo, Point(x,y,z; size=size, tag=tag))
 end
 
-function addpoint!(geo::GeoModel, X::Array; size=0.0)
+function addpoint!(geo::GeoModel, X::Array; size=0.0, tag="")
     X = Vec3(X)
-    return addpoint!(geo, Point(X[1],X[2],X[3]; size=size))
+    return addpoint!(geo, Point(X[1],X[2],X[3]; size=size, tag=tag))
 end
 
 
@@ -376,6 +399,7 @@ function findloops(p1, p2)
     end
 
     # @show length(loops)
+    
     if length(loops)>2  # TODO: FIXME!
         loops = loops[1:2]
     end
@@ -383,22 +407,119 @@ function findloops(p1, p2)
     return loops
 end
 
+
+function getcurveswithendpoint(geo::GeoModel, p::Point)
+    curves = []
+    for c in geo.entities
+        c isa AbstractCurve || continue
+        if p==c.points[1] || p==c.points[2]
+            push!(curves, p)
+        end
+    end
+    return curves
+end
+
+
+function findloops(curve::AbstractCurve)
+    loops = Loop[]
+    p1 = curve.points[1]
+    p2 = curve.points[end]
+    (length(p1.adj)==1 || length(p2.adj)==1) && return loops
+    
+    visited = [ p1 ]
+    prev = Dict{Point,AbstractCurve}()
+    queue = [ p1 ]
+
+
+    # loops = []
+    # closing_segs = [  ]
+
+    while length(queue)>0
+        pq = popfirst!(queue)
+
+        # Get adjacent points and curves
+        adjacents = Point[]
+        for c in geo.entities
+            c isa AbstractCurve || continue
+            padj = nothing
+            if p==c.points[1] || p==c.points[2]
+                if p==c.points[1]
+                    padj = c.points[end]
+                else
+                    padj = c.points[1]
+                end
+                push!(adjacents, padj)
+                prev[padj] = (pq, c)
+            end
+        end
+
+        for p in adjacents
+            if p in visited # loop found
+                px = p
+                loop = []
+            end
+        end
+
+    end
+
+    while length(queue)>0
+        pp = popfirst!(queue)
+        for p in pp.adj
+            (haskey(prev, pp) && p == prev[pp]) && continue
+            (pp,p) in closing_segs && continue
+            if p in visited  # there is loop
+                px = p
+                loop = [ px ]
+                while px!=p1
+                    px = prev[px]
+                    pushfirst!(loop, px)
+                end
+
+                px = pp
+                push!(loop, pp)
+                while px!=p1
+                    px = prev[px]
+                    push!(loop, px)
+                end
+                pop!(loop) # p1 was added twice
+
+                p2 in loop || continue
+                
+                push!(loops, loop)
+                push!(closing_segs, (p,pp))
+                continue
+            end
+            push!(queue, p)
+            push!(visited, p)
+            prev[p] = pp
+        end 
+    end
+
+    # @show length(loops)
+    
+    if length(loops)>2  # TODO: FIXME!
+        loops = loops[1:2]
+    end
+
+    return loops
+end
+
+
 function getline(geo::GeoModel, p1::Point, p2::Point)
     l = Line(p1, p2)
     return getkey(geo.entities.dict, l, nothing)
 end
 
-function addlinenoloops(geo::GeoModel, p1::Point, p2::Point; n=0)
+# This fuction just adds a line without searching for loops
+function addsingleline!(geo::GeoModel, p1::Point, p2::Point; n=0, tag="")
     ll = getline(geo, p1, p2)
-    # l = Line(p1, p2, n=n)
-    # ll = getkey(geo.entities.dict, l, nothing)
 
     if ll!==nothing
         ll.n = n
         return ll
     end
 
-    l = Line(p1, p2)
+    l = Line(p1, p2, tag=tag)
     geo._id +=1
     l.id = geo._id
     push!(geo.entities, l)
@@ -408,13 +529,13 @@ function addlinenoloops(geo::GeoModel, p1::Point, p2::Point; n=0)
     return l
 end
 
-function addline!(geo::GeoModel, X1, X2; n=0)
+function addline!(geo::GeoModel, X1, X2; n=0, tag="")
     p1 = addpoint!(geo, X1)
     p2 = addpoint!(geo, X2)
-    return addline!(geo, p1, p2; n=n)
+    return addline!(geo, p1, p2; n=n, tag=tag)
 end
 
-function addline!(geo::GeoModel, p1::Point, p2::Point; n=0)
+function addline!(geo::GeoModel, p1::Point, p2::Point; n=0, tag="")
     ll = getline(geo, p1, p2)
     # l = Line(p1, p2, n=n)
     # ll = getkey(geo.entities.dict, l, nothing)
@@ -454,7 +575,7 @@ function addline!(geo::GeoModel, p1::Point, p2::Point; n=0)
         p1 = points[i]
         p2 = points[i+1]
 
-        l = Line(p1, p2, n=0)
+        l = Line(p1, p2, n=0, tag=tag)
         ll = getkey(geo.entities.dict, l, nothing)
     
         ll===nothing || continue
@@ -510,6 +631,7 @@ function addline!(geo::GeoModel, p1::Point, p2::Point; n=0)
         loops = loops[indices]
 
         # check if there two loops that overlaps the same surface
+
         if length(loops)==2
             ovs = nothing # overlapped surface
             for s in geo.entities
@@ -542,10 +664,11 @@ function addline!(geo::GeoModel, p1::Point, p2::Point; n=0)
 
                 continue
             end
+
         end
 
 
-        loopsX = []
+        # loopsX = []
 
         # check a loop overlaps any existing surface
         # if length(loops)==2
@@ -592,6 +715,67 @@ function Base.delete!(geo::GeoModel, l::Line)
             l in lo.lines && delete!(geo, s)
         end
     end
+end
+
+
+function getarc(geo::GeoModel, p1::Point, p2::Point, p3::Point)
+    a = Arc(p1, p2, p3)
+    return getkey(geo.entities.dict, a, nothing)
+end
+
+# This fuction just adds an arc without searching for loops
+function addsinglearc!(geo::GeoModel, p1::Point, p2::Point, p3::Point; n=0, tag="")
+    aa = getarc(geo, p1, p2, p3)
+
+    if aa!==nothing
+        aa.n = n
+        return aa
+    end
+
+    a = Arc(p1, p2, p3, tag=tag)
+    geo._id +=1
+    a.id = geo._id
+    push!(geo.entities, a)
+    push!(p1.adj, p3)
+    push!(p3.adj, p1)
+
+    return a
+end
+
+function addarc!(geo::GeoModel, p1::Point, p2::Point, p3::Point; n=0, tag="")
+    aa = getentity(geo, Arc(p1, p2, p3))
+    ll===nothing || return aa
+
+    # addsinglearc!(geo, p1, p2, p3; n, tag)
+    geo._id +=1
+    l.id = geo._id
+    push!(geo.entities, l)
+    push!(p1.adj, p3)
+    push!(p3.adj, p1)
+
+    # find loops pts if any loops
+    loops_pts = findloops(p1, p3)
+    loops = Loop[]
+
+    # find plane loops
+    for pts in loops_pts
+        # convert pts to loop
+        lines = AbstractCurve[]
+        n = length(pts)
+        for i in 1:n
+            j = i*sign(n-i) + 1
+            # c = getentity(Line(pts[i], pts[j]
+            l = Line(pts[i], pts[j])
+            l = getkey(geo.entities.dict, l, nothing)
+            push!(lines, l)
+        end
+
+        # add loop
+        lo = Loop(lines...)
+        coplanar(lo) && push!(loops, lo)
+    end
+
+
 end
 
 
@@ -682,29 +866,41 @@ end
 
 # checks if point is inside loop
 function inside(p::Point, lo::Loop; withborder=true)
-    return inside(p, getpoints(lo); withborder)
+    N, h = getplane(lo)
+    return inside(p, getpoints(lo), N; withborder)
 end
 
-function inside(p::Point, points::Array{Point,1}; withborder=true)
+function inside(p::Point, points::Array{Point,1}, normal::Array{Float64,1}; withborder=true)
     tol = 1e-8
     n = length(points)
     θ = 0.0
+    normal = normalize(normal)
     for i in 1:n
         j = i*sign(n-i) + 1
         V1 = points[i].coord - p.coord
         V2 = points[j].coord - p.coord
-
+        
         len1 = norm(V1)
         len2 = norm(V2)
 
         if len1*len2==0 # on vertex
             return withborder
         end
+
         val = clamp(dot(V1,V2)/(len1*len2), -1.0, 1.0) 
-        θ += acos(val)
+
+        N = normalize(cross(V1, V2))
+        revsign = 1.0
+        if norm(N-normal)>tol
+            revsign = -1.0
+        end
+
+        # @show points[i].id
+        # @show acos(val)
+        θ += revsign*acos(val)
     end
 
-    return abs(2*pi-θ)<tol
+    return abs(2*pi-abs(θ))<tol
 
 end
 
@@ -719,11 +915,10 @@ function overlaps(lo1::Loop, lo2::Loop; withborder=true)
     (h1!=h2 || norm(cross(N1,N2))>tol) && return false
 
     points = getpoints(lo1)
-    spoints = getpoints(lo2)
 
     # check if all loop points are inside the other loop
     for p in points
-        inside(p, spoints, withborder=withborder) || return false
+        inside(p, lo2, withborder=withborder) || return false
     end
 
     return true
@@ -739,11 +934,12 @@ function overlaps(lo::Loop, s::Surface; withborder=true)
     (h1!=h2 || norm(cross(N1,N2))>tol) && return false
 
     points = getpoints(lo)
-    spoints = getpoints(s.loops[1])
+    # spoints = getpoints(s.loops[1])
 
     # check if all loop points are inside surface main loop
     for p in points
-        inside(p, spoints, withborder=withborder) || return false
+        inside(p, s.loops[1], withborder=withborder) || return false
+        # inside(p, spoints, withborder=withborder) || return false
 
         # chek if p is outside hole loops
         if length(s.loops)>1
@@ -912,10 +1108,10 @@ function extrude!(geo::GeoModel, line::Line; axis=[0,0,1], length=1.0)
     # p3 = addpoint!(m, p3)
     p4 = copy(geo, p1, dx=dx, dy=dy, dz=dz)
     p3 = copy(geo, p2, dx=dx, dy=dy, dz=dz)
-    l1 = addlinenoloops(geo, p1, p2)
-    l2 = addlinenoloops(geo, p2, p3)
-    l3 = addlinenoloops(geo, p3, p4)
-    l4 = addlinenoloops(geo, p4, p1)
+    l1 = addsingleline!(geo, p1, p2, tag=line.tag)
+    l2 = addsingleline!(geo, p2, p3, tag=line.tag)
+    l3 = addsingleline!(geo, p3, p4, tag=line.tag)
+    l4 = addsingleline!(geo, p4, p1, tag=line.tag)
 
     # lo = addloop!(m, l1, l2, l3, l4)
     lo = Loop(l1, l2, l3, l4)
@@ -948,6 +1144,7 @@ function extrude!(geo::GeoModel, surf::Surface; axis=[0,0,1], length=1.0)
             points = Point[]
             for p in line.points
                 pp = Point(p.coord .+ length.*axis)
+                pp.tag = p.tag
                 pp = addpoint!(geo, pp)
                 push!(points, pp)
             end

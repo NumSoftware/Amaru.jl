@@ -73,7 +73,7 @@ function generate_joints!(
         # Splitting: generating new nodes
         for c in targetcells
             for (i,p) in enumerate(c.nodes)
-                newp = Node(p.coord)
+                newp = Node(p.coord, tag=p.tag)
                 newp.id = -1
                 c.nodes[i] = newp
             end
