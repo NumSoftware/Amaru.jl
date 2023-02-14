@@ -199,8 +199,7 @@ function calc_σmax(mat::AbstractTCJoint, state::AbstractTCJointState, up::Float
         # a = 1.09913
         # c = 2.0
         # a = 1.24787
-        c = 0.1 
-        a = 1.10366
+        # a = 1.10366
         # a = 1.07946
         m = 0.55
         a = 1.30837
@@ -249,15 +248,6 @@ function deriv_σmax_upa(mat::AbstractTCJoint, state::AbstractTCJointState, up::
         end
         dσmax = dz*mat.ft 
     elseif mat.softcurve == "soft"
-        # c = 1.5
-        # a = 1.19311
-        # c = 0.0
-        # a = 1.09913
-        # c = 2.0
-        # a = 1.24787
-        c = 0.1
-        a = 1.10366
-        # a = 1.07946
         m = 0.55
         a = 1.30837
 
@@ -266,7 +256,8 @@ function deriv_σmax_upa(mat::AbstractTCJoint, state::AbstractTCJointState, up::
         elseif up < mat.wc
             x = up/mat.wc
             # dz = c*(1.0-x)^(c-1)*(a^(1.0-1.0/x)-1.0) - (a^(1.0-1.0/x)*log(a)*(1.0-x)^c)/x^2
-            dz =  - (a^(1.0-1.0/x^m)*m*log(a))/x^(m+1)
+            # dz =  - (a^(1.0-1.0/x^m)*m*log(a))/x^(m+1)
+            dz =  -m*log(a)*a^(1-x^-m)*x^(-m-1)/mat.wc
 
         else
             dz = 0.0
