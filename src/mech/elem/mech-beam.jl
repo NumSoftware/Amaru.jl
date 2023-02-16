@@ -45,6 +45,7 @@ end
 
 function setquadrature!(elem::MechBeam, n::Int=0)
     ndim = elem.env.ndim
+
     ipL = get_ip_coords(LIN2, n) # longitudinal
     ipT = get_ip_coords(LIN2, 2) # transversal
     
@@ -57,10 +58,10 @@ function setquadrature!(elem::MechBeam, n::Int=0)
         for j in 1:2
             for k in 1:nk
                 if ndim==2
-                    R = [ ipT[i,1], ipT[j,1], 0.0 ]
+                    R = [ ipL[i,1], ipT[j,1], 0.0 ]
                     w = ipL[i,4]*ipT[j,4]
                 else
-                    R = [ ipT[i,1], ipT[j,1], ipL[k,1] ]
+                    R = [ ipL[i,1], ipT[j,1], ipT[k,1] ]
                     w = ipL[i,4]*ipT[j,4]*ipT[k,4]
                 end
                 m = (i-1)*nj*nk + (j-1)*nk + k
