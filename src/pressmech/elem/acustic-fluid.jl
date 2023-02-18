@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-mutable struct PressSolid<:PressMech
+mutable struct AcusticFluid<:Element
     id    ::Int
     shape ::CellShape
 
@@ -11,30 +11,30 @@ mutable struct PressSolid<:PressMech
     active::Bool
     env::ModelEnv
 
-    function PressSolid();
+    function AcusticFluid();
         return new()
     end
 end
 
-matching_shape_family(::Type{PressSolid}) = BULKCELL
+matching_shape_family(::Type{AcusticFluid}) = BULKCELL
 
-function elem_config_dofs(elem::PressSolid)
+function elem_config_dofs(elem::AcusticFluid)
     for node in elem.nodes
         add_dof(node, :up, :fp)
     end
 end
 
-function elem_init(elem::PressSolid)
+function elem_init(elem::AcusticFluid)
 end
 
 
-function distributed_bc(elem::PressSolid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::AcusticFluid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     th    = elem.env.thickness
-    suitable_keys = (:tq,) # tq: fluid volumes per area
+    suitable_keys = (:tq,:ax,:ay,:az) # tq: mass flow acceleration?, ax: x acceleration
 
     # Check keys
-    key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable in a PressSolid element")
+    key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable in a AcusticFluid element")
 
     target = facet!=nothing ? facet : elem
     nodes  = target.nodes
@@ -59,7 +59,6 @@ function distributed_bc(elem::PressSolid, facet::Union{Facet,Nothing}, key::Symb
         N = shape.func(R)
         D = shape.deriv(R)
         @gemm J = C'*D
-        nJ = norm2(J)
         X = C'*N
         if ndim==2
             x, y = X
@@ -71,6 +70,31 @@ function distributed_bc(elem::PressSolid, facet::Union{Facet,Nothing}, key::Symb
             x, y, z = X
             vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
         end
+
+        if key in (:ax, :ay, :az, :an)
+            vip *= -elem.mat.rho
+        end
+
+        if  ndim==2
+            n = [J[2], -J[1]]
+        else
+            n = cross(J[:,1], J[:,2])
+        end
+        normalize!(n)
+
+        
+        if key in (:ax)
+            Q[1] = vip
+        elseif key in (:ay)
+            Q[2] = vip
+        elseif key in (:az)
+            Q[3] = vip
+        elseif key in (:an)
+            Q = vip*n
+        end
+        
+        vip = dot(n, Q)
+
         coef = vip*norm(J)*w*th
         F .+= coef*N # F is a vector
     end
@@ -82,16 +106,15 @@ function distributed_bc(elem::PressSolid, facet::Union{Facet,Nothing}, key::Symb
 end
 
 
-# hydraulic conductivity
-function elem_conductivity_matrix(elem::PressSolid)
+# acustic fluid stiffness
+function elem_fluid_stiffness(elem::AcusticFluid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
     C      = getcoords(elem)
     K      = zeros(nnodes, nnodes)
-    dNdX   = zeros(nnodes, ndim)
-    ΓBp    = zeros(ndim, nnodes)
-    J     = Array{Float64}(undef, ndim, ndim)
+    dNdX   = zeros(nnodes, ndim) # cartesian derivatives
+    J      = Array{Float64}(undef, ndim, ndim) # Jacobian
 
     for ip in elem.ips
         elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
@@ -104,8 +127,7 @@ function elem_conductivity_matrix(elem::PressSolid)
         @gemm dNdX = dNdR*invJ # Bp = dNdX'
 
         coef = detJ*ip.w*th
-        @gemm ΓBp = invJ*Bp
-        @gemm K += coef*ΓBp'*ΓBp
+        @gemm K += coef*dNdX'*dNdX
     end
 
     # map
@@ -114,7 +136,7 @@ function elem_conductivity_matrix(elem::PressSolid)
     return K, map, map
 end
 
-function elem_compressibility_matrix(elem::PressSolid)
+function elem_mass_matrix(elem::AcusticFluid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
@@ -133,7 +155,7 @@ function elem_compressibility_matrix(elem::PressSolid)
 
         # compute M
         coef = detJ*ip.w*th
-        M   -= coef*N*N'
+        M    = coef*N*N'
     end
 
     # map
@@ -143,7 +165,7 @@ function elem_compressibility_matrix(elem::PressSolid)
 end
 
 #TODO 
-function elem_RHS_vector(elem::PressSolid)
+function elem_RHS_vector(elem::AcusticFluid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
@@ -181,7 +203,7 @@ function elem_RHS_vector(elem::PressSolid)
 end
 
 # TODO
-function elem_update!(elem::PressSolid, DU::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::AcusticFluid, DU::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     th     = elem.env.thickness
