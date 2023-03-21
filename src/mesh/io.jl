@@ -221,6 +221,14 @@ function save_vtu(mesh::AbstractDomain, filename::String; desc::String="")
         mesh.elem_data["inset-data"] = inset_data
     end
 
+    # Add tag info
+    tags = sort(unique([elem.tag for elem in mesh.elems]))
+    if length(tags)>1
+        tag_dict = Dict( tag=>i for (i,tag) in enumerate(tags) )
+        T = [ tag_dict[elem.tag] for elem in mesh.elems ]
+        mesh.elem_data["tag"] = T
+    end
+
     # Write cell data
     has_elem_data  = !isempty(mesh.elem_data)
 
@@ -530,6 +538,11 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
                 cell.shape = get_shape_from_vtk(VTK_POLY_VERTEX, n, ndim, nlayers)
             end
         end
+    end
+
+    # Flip cells
+    for cell in mesh.elems
+        isinverted(cell) && flip!(cell)
     end
 
     # remaining polyvertex cells
