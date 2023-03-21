@@ -6,11 +6,11 @@
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:date>2023-02-16T22:14:48.990425</dc:date>
+    <dc:date>2023-03-21T19:21:47.079659</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
-      <dc:title>Matplotlib v3.7.0, https://matplotlib.org/</dc:title>
+      <dc:title>Matplotlib v3.7.1, https://matplotlib.org/</dc:title>
      </cc:Agent>
     </dc:creator>
    </cc:Work>
@@ -39,18 +39,18 @@ z
 " style="fill: #ffffff"/>
    </g>
    <image xlink:href="data:image/png;base64,
-iVBORw0KGgoAAAANSUhEUgAAAAcAAABdCAYAAABpR3xCAAAA4ElEQVR4nLXTyW0DMRBEUS49TkopOGjHJB9si5si4BuAgHX9+FXVFCY/Pr9W2vyiXteOpYiP2MNSK0zF1guxIViiHJo3UKcEoAfJjIunwKw1q5ODTuFN579A/GMpSlHs/vVuYmmWsv2ObsyoMhVb2Wk4D2ElzFw70JnZCbMmDpJJmAALzdkBlyDN2TBoaa1iy1CsYFZnHqeduQsqNunO3GWq03DiEVJjLAYtda6BzqXO1dQpc9LUoMnYF2Jtdnz243V6yuCgjjv7H2PPTcGGR+i/MG8g1o4fdLZv3fncd74BEQqKT2uLcG8AAAAASUVORK5CYII=" id="imaged8c512b0e1" transform="scale(1 -1) translate(0 -66.96)" x="142.56" y="-49.68" width="5.04" height="66.96"/>
+iVBORw0KGgoAAAANSUhEUgAAAAcAAABdCAYAAABpR3xCAAAA4ElEQVR4nLXTyW0DMRBEUS49TkopOGjHJB9si5si4BuAgHX9+FXVFCY/Pr9W2vyiXteOpYiP2MNSK0zF1guxIViiHJo3UKcEoAfJjIunwKw1q5ODTuFN579A/GMpSlHs/vVuYmmWsv2ObsyoMhVb2Wk4D2ElzFw70JnZCbMmDpJJmAALzdkBlyDN2TBoaa1iy1CsYFZnHqeduQsqNunO3GWq03DiEVJjLAYtda6BzqXO1dQpc9LUoMnYF2Jtdnz243V6yuCgjjv7H2PPTcGGR+i/MG8g1o4fdLZv3fncd74BEQqKT2uLcG8AAAAASUVORK5CYII=" id="image55bf0dc9de" transform="scale(1 -1) translate(0 -66.96)" x="142.56" y="-49.68" width="5.04" height="66.96"/>
    <g id="matplotlib.axis_1"/>
    <g id="matplotlib.axis_2">
     <g id="ytick_1">
      <g id="line2d_1">
       <defs>
-       <path id="m216bcffed3" d="M 0 0 
+       <path id="me86d37ec94" d="M 0 0 
 L 3.5 0 
 " style="stroke: #000000; stroke-width: 0.8"/>
       </defs>
       <g>
-       <use xlink:href="#m216bcffed3" x="147.834" y="110.427749" style="stroke: #000000; stroke-width: 0.8"/>
+       <use xlink:href="#me86d37ec94" x="147.834" y="110.427749" style="stroke: #000000; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_1">
@@ -126,7 +126,7 @@ z
     <g id="ytick_2">
      <g id="line2d_2">
       <g>
-       <use xlink:href="#m216bcffed3" x="147.834" y="101.3385" style="stroke: #000000; stroke-width: 0.8"/>
+       <use xlink:href="#me86d37ec94" x="147.834" y="101.3385" style="stroke: #000000; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_2">
@@ -163,7 +163,7 @@ z
     <g id="ytick_3">
      <g id="line2d_3">
       <g>
-       <use xlink:href="#m216bcffed3" x="147.834" y="92.24925" style="stroke: #000000; stroke-width: 0.8"/>
+       <use xlink:href="#me86d37ec94" x="147.834" y="92.24925" style="stroke: #000000; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_3">
@@ -205,7 +205,7 @@ z
     <g id="ytick_4">
      <g id="line2d_4">
       <g>
-       <use xlink:href="#m216bcffed3" x="147.834" y="83.16" style="stroke: #000000; stroke-width: 0.8"/>
+       <use xlink:href="#me86d37ec94" x="147.834" y="83.16" style="stroke: #000000; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_4">
@@ -218,7 +218,7 @@ z
     <g id="ytick_5">
      <g id="line2d_5">
       <g>
-       <use xlink:href="#m216bcffed3" x="147.834" y="74.07075" style="stroke: #000000; stroke-width: 0.8"/>
+       <use xlink:href="#me86d37ec94" x="147.834" y="74.07075" style="stroke: #000000; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_5">
@@ -233,7 +233,7 @@ z
     <g id="ytick_6">
      <g id="line2d_6">
       <g>
-       <use xlink:href="#m216bcffed3" x="147.834" y="64.9815" style="stroke: #000000; stroke-width: 0.8"/>
+       <use xlink:href="#me86d37ec94" x="147.834" y="64.9815" style="stroke: #000000; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_6">
@@ -248,7 +248,7 @@ z
     <g id="ytick_7">
      <g id="line2d_7">
       <g>
-       <use xlink:href="#m216bcffed3" x="147.834" y="55.892251" style="stroke: #000000; stroke-width: 0.8"/>
+       <use xlink:href="#me86d37ec94" x="147.834" y="55.892251" style="stroke: #000000; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_7">
