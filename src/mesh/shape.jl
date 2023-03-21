@@ -189,13 +189,12 @@ function bdistance(shape::CellShape, R::Array{Float64,1})
 
     r, s, t = R
     bshape = shape.basic_shape
-    if bshape == TRI3  return min(r, s, 1.0-r-s) end
-    if bshape == QUAD4 return min(1.0 - abs(r), 1.0 - abs(s)) end
-    if bshape == TET4  return min(r, s, t, 1.0-r-s-t) end
-    if bshape == HEX8  return min(1.0 - abs(r), 1.0 - abs(s), 1.0 - abs(t)) end
-    if bshape == WED6
-        return min(r, s, 1.0-r-s, 1.0-abs(t))
-    end
+    if bshape == TRI3  return min(r, s, 1-r-s) end
+    if bshape == QUAD4 return min(1 - abs(r), 1 - abs(s)) end
+    if bshape == TET4  return min(r, s, t, 1-r-s-t) end
+    if bshape == HEX8  return min(1 - abs(r), 1 - abs(s), 1 - abs(t)) end
+    if bshape == WED6  return min(r, s, 1-r-s, 1 - abs(t)) end
+    if bshape == PYR5  return min(t, 1-r-t, 1+r-t, 1-s-t, 1+s-t) end
     error("No boundary distance for shape ($shape)")
 end
 
@@ -240,7 +239,7 @@ end
 
 
 function is_inside(shape::CellShape, C::Array{Float64,2}, X::Array{Float64,1}, tol = 1.e-7)
-    if shape.family!=SOLIDCELL return false end
+    if shape.family!=BULKCELL return false end
 
     # Testing with bounding box
     Cmin = vec(minimum(C, dims=1))
