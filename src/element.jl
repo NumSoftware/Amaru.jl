@@ -7,7 +7,7 @@
     Element
 
 An abstract type to represent a finite element.
-Concrete types are specific to a certain analysis type.
+Concrete types are specific to certain analysis types.
 """
 abstract type Element<:AbstractCell
     #Element subtypes must have the following fields:
@@ -132,7 +132,7 @@ function setquadrature!(elem::Element, n::Int=0)
         C     = getcoords(bar)
         shape = bar.shape
     end
-    if shape.family==TIPJOINT
+    if shape.family==TIPJOINTCELL
         C = reshape(elem.nodes[1].coord, (1,3))
     end
 
