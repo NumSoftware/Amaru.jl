@@ -906,7 +906,7 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
 
     # add lines
     for l in geo.entities
-        l isa AbstractCurve || continue
+        l isa Curve || continue
 
         if l isa Line
             p1 = l.points[1].id
@@ -923,8 +923,8 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
     end
 
     function get_loop_idxs(loop::Loop)
-        l_idxs = [ l.id for l in loop.lines ]
-        l_conn = [ [ p.id for p in l.points] for l in loop.lines ]
+        l_idxs = [ l.id for l in loop.curves ]
+        l_conn = [ [ p.id for p in l.points] for l in loop.curves ]
 
         if !(l_conn[1][end] in l_conn[2])
             l_idxs[1] *= -1
@@ -981,6 +981,12 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
         end
     end
 
+    for s in geo.entities
+        s isa Surface || continue
+        s.recombine && gmsh.model.mesh.set_recombine(2, s.id)
+        s.transfinite && gmsh.model.mesh.set_transfinite_surface(s.id)
+    end
+
     if !isvolumemesh
         tagset = Set([ surf.tag for surf in geo.entities if surf isa Surface ])
         tagsdict = Dict( tag=>i for (i,tag) in enumerate(tagset) )
@@ -1024,27 +1030,27 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
         end
 
     end
-
+    
+    tempfile = "_temp.vtk"
+    logfile = "_gmsh.log"
     try
-        logfile = "_gmsh.log"
         open(logfile, "w") do out
             redirect_stdout(out) do
                 gmsh.model.mesh.generate(isvolumemesh ? 3 : 2)
+                gmsh.write(tempfile)
             end
         end
-        rm(logfile)
     catch err
         error("Error generating unstructured mesh.")
     end
-
-
+    
     quadratic && gmsh.model.mesh.setOrder(2) # quadratic elements
-
-    tempfile = "_temp.vtk"
-    gmsh.write(tempfile)
+    recombine && gmsh.model.mesh.recombine()
+    
     gmsh.finalize()
     mesh = Mesh(tempfile)
-    rm(tempfile)
+    rm(tempfile, force=true)
+    rm(logfile, force=true)
 
     # flip elements
     for elem in mesh.elems
