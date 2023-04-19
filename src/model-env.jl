@@ -7,6 +7,7 @@ mutable struct StageBits
     stage  ::Int      # Current stage
     inc    ::Int      # Current increment
     out    ::Int      # Current output file number
+    inlinearrange::Bool # Flag to chek if analysis is still in linear range
 end
 
 mutable struct ModelEnv
@@ -35,7 +36,7 @@ mutable struct ModelEnv
         # this.cinc   = 0 # current increment
         # this.cout   = 0 # output files counter
         this.outdir = ""
-        this.stagebits = StageBits(0.0, 0.0, 0.0, 0, 0, 0)
+        this.stagebits = StageBits(0.0, 0.0, 0.0, 0, 0, 0, true)
 
         this.params = Dict()
         return this

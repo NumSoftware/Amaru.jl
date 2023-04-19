@@ -66,6 +66,7 @@ mutable struct Model<:AbstractDomain
 end
 
 const Domain = Model
+const FEModel = Model
 export Domain
 
 
@@ -84,7 +85,6 @@ Uses a mesh and a list of meterial especifications to construct a finite element
 
 `modeltype`
 `thickness`
-`filekey = ""` : File key for output files
 `quiet = false` : If true, provides information of the model construction
 
 """
@@ -183,6 +183,13 @@ function Model(
             push!(model.elems[cell.id].linked_elems, model.elems[lcell.id])
         end
     end
+
+    # # Setting element references in nodes
+    # for elem in mesh.elems
+    #     for node in elem.nodes
+    #         push!(node.elems, elem)
+    #     end
+    # end
 
     # Setting faces
     model.faces = Face[]
@@ -304,22 +311,22 @@ setmonitors! = addmonitors!
 
 # Functions for updating loggers
 
-function update_single_loggers!(model::Model)
+function update_single_loggers!(model::Model; flush=true)
     for logger in model.loggers
-        isa(logger, SingleLogger) && update_logger!(logger, model)
+        isa(logger, SingleLogger) && update_logger!(logger, model; flush)
     end
 end
 
 
-function update_composed_loggers!(model::Model)
+function update_multiloggers!(model::Model)
     for logger in model.loggers
-        isa(logger, ComposedLogger) && update_logger!(logger, model)
+        isa(logger, MultiLogger) && update_logger!(logger, model)
     end
 end
 
-function update_monitors!(model::Model)
+function update_monitors!(model::Model; flush=true)
     for monitor in model.monitors
-        rstatus = update_monitor!(monitor, model)
+        rstatus = update_monitor!(monitor, model; flush)
         failed(rstatus) && return rstatus
     end
     return success()
@@ -763,7 +770,6 @@ function nodal_local_recovery(model::Model)
     # The element type should implement the elem_extrapolated_node_vals function
     # Note: nodal ids must be numbered starting from 1
 
-    ndim = model.env.ndim
     nnodes = length(model.nodes)
 
     # all local data from elements
