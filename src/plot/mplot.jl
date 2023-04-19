@@ -1,7 +1,7 @@
 export mplot, mplotcolorbar
 
 const MOVETO = 1
-const LINECELLTO = 2
+const LINETO = 2
 const CURVE3 = 3
 const CURVE4 = 4
 const CLOSEPOLY = 79
@@ -13,7 +13,7 @@ function plot_data_for_cell2d(points::Array{Vec3,1}, shape::CellShape)
 
     if shape==LIN2
         verts = points
-        codes = [ MOVETO, LINECELLTO ]
+        codes = [ MOVETO, LINETO ]
     elseif shape == LIN3
         p1, p2, p3 = points
         cp    = 2*p3 - 0.5*p1 - 0.5*p2
@@ -26,7 +26,7 @@ function plot_data_for_cell2d(points::Array{Vec3,1}, shape::CellShape)
         for i in 1:n
             p2 = i<n ? points[i+1] : points[1]
             push!(verts, p2)
-            push!(codes, LINECELLTO)
+            push!(codes, LINETO)
         end
     elseif shape in (TRI6, QUAD8, QUAD9)
         n = shape==TRI6 ? 3 : 4
@@ -56,7 +56,7 @@ function plot_data_for_cell2d(points::Array{Vec3,1}, shape::CellShape)
         end
     elseif shape==JLIN2
         verts = points[1:2]
-        codes = [ MOVETO, LINECELLTO ]
+        codes = [ MOVETO, LINETO ]
     elseif shape == JLIN3
         p1, p2, p3 = points[1:3]
         cp    = 2*p3 - 0.5*p1 - 0.5*p2
@@ -364,14 +364,14 @@ function mplot(
 
     field !== nothing && (field=string(field))
 
-    mesh = copy(mesh) # copy of original mesh
+    mmesh = copy(mesh) # copy of original mmesh
 
     if shrink < 1.0
         nodes = Node[]
         node_ids = Int[]
 
         # Detach bulk elements by duplicating nodes
-        for cell in mesh.elems
+        for cell in mmesh.elems
             for (i,node) in enumerate(cell.nodes)
                 push!(node_ids, node.id)
                 if cell.shape.family == BULKCELL
@@ -383,44 +383,44 @@ function mplot(
                 end
             end
         end
-        mesh.nodes = nodes
+        mmesh.nodes = nodes
 
         # update nodal data
-        for (field, data) in mesh.node_data
-            mesh.node_data[field] = data[node_ids,:]
+        for (field, data) in mmesh.node_data
+            mmesh.node_data[field] = data[node_ids,:]
         end
 
         # update node ids
-        for (i,node) in enumerate(mesh.nodes)
+        for (i,node) in enumerate(mmesh.nodes)
             node.id = i
         end
     end
 
-    # Get initial info from mesh
-    ndim = mesh.ndim
+    # Get initial info from mmesh
+    ndim = mmesh.ndim
     if ndim==2
-        areacells = [ elem for elem in mesh.elems if elem.shape.family==BULKCELL ]
-        linecells = [ cell for cell in mesh.elems if cell.shape.family==LINECELL]
+        areacells = [ elem for elem in mmesh.elems if elem.shape.family==BULKCELL ]
+        linecells = [ cell for cell in mmesh.elems if cell.shape.family==LINECELL]
 
-        mesh.elems = [ areacells; linecells ]
+        mmesh.elems = [ areacells; linecells ]
         cl_ids = [ [c.id for c in areacells]; [c.id for c in linecells] ]
 
-        mesh.nodes = getnodes(mesh.elems)
-        pt_ids = [ p.id for p in mesh.nodes ]
+        mmesh.nodes = getnodes(mmesh.elems)
+        pt_ids = [ p.id for p in mmesh.nodes ]
 
     elseif ndim==3
         # get surface cells and update
-        volcells  = [ elem for elem in mesh.elems if elem.shape.family==BULKCELL && elem.shape.ndim==3 ]
-        areacells = [ elem for elem in mesh.elems if elem.shape.family==BULKCELL && elem.shape.ndim==2 ]
+        volcells  = [ elem for elem in mmesh.elems if elem.shape.family==BULKCELL && elem.shape.ndim==3 ]
+        areacells = [ elem for elem in mmesh.elems if elem.shape.family==BULKCELL && elem.shape.ndim==2 ]
         surfcells = get_surface(volcells)
-        linecells = [ cell for cell in mesh.elems if cell.shape.family==LINECELL]
+        linecells = [ cell for cell in mmesh.elems if cell.shape.family==LINECELL]
         outlinecells = outline ? get_outline_edges(surfcells) : Cell[]
 
-        mesh.elems = [ surfcells; areacells; linecells ]
+        mmesh.elems = [ surfcells; areacells; linecells ]
         cl_ids = [ [c.owner.id for c in surfcells]; [c.id for c in linecells]; [c.id for c in areacells] ]
 
-        mesh.nodes = getnodes(mesh.elems)
-        pt_ids = [ p.id for p in mesh.nodes ]
+        mmesh.nodes = getnodes(mmesh.elems)
+        pt_ids = [ p.id for p in mmesh.nodes ]
 
         # observer and light vectors
         V = Vec3( cosd(elev)*cosd(azim), cosd(elev)*sind(azim), sind(elev) )
@@ -434,35 +434,35 @@ function mplot(
     end
 
     # update data
-    for (field, data) in mesh.node_data
-        mesh.node_data[field] = data[pt_ids,:]
+    for (field, data) in mmesh.node_data
+        mmesh.node_data[field] = data[pt_ids,:]
     end
-    for (field, data) in mesh.elem_data
-        mesh.elem_data[field] = data[cl_ids]
+    for (field, data) in mmesh.elem_data
+        mmesh.elem_data[field] = data[cl_ids]
     end
 
     # update node ids
-    for (i,node) in enumerate(mesh.nodes)
+    for (i,node) in enumerate(mmesh.nodes)
         node.id = i
     end
     
     # update cell ids
-    for (i,cell) in enumerate(mesh.elems)
+    for (i,cell) in enumerate(mmesh.elems)
         cell.id = i
     end
     
-    connect = [ [ node.id for node in cell.nodes ] for cell in mesh.elems  ]
+    connect = [ [ node.id for node in cell.nodes ] for cell in mmesh.elems  ]
 
-    ncells = length(mesh.elems)
-    nnodes = length(mesh.nodes)
-    node_data = mesh.node_data
-    elem_data = mesh.elem_data
+    ncells = length(mmesh.elems)
+    nnodes = length(mmesh.nodes)
+    node_data = mmesh.node_data
+    elem_data = mmesh.elem_data
   
     # Change coords if warping
     if warpscale>0.0
         if haskey(node_data, "U")
             U = node_data["U"]
-            for (i,node) in enumerate(mesh.nodes)
+            for (i,node) in enumerate(mmesh.nodes)
                 node.coord = node.coord + warpscale*U[i,:]  
             end
         else
@@ -472,7 +472,7 @@ function mplot(
 
     # Change coords if shrink
     if shrink<1.0
-        for cell in mesh.elems
+        for cell in mmesh.elems
             shape = cell.shape
             if shape.family==BULKCELL
                 X = getcoords(cell)
@@ -483,11 +483,12 @@ function mplot(
             end
         end
     end
+    
 
     # Data limits
-    limX = collect(extrema( node.coord[1] for node in mesh.nodes) )
-    limY = collect(extrema( node.coord[2] for node in mesh.nodes) )
-    limZ = collect(extrema( node.coord[3] for node in mesh.nodes) )
+    limX = collect(extrema( node.coord[1] for node in mmesh.nodes) )
+    limY = collect(extrema( node.coord[2] for node in mmesh.nodes) )
+    limZ = collect(extrema( node.coord[3] for node in mmesh.nodes) )
 
     ll = max(diff(limX)[1], diff(limY)[1], diff(limZ)[1])
 
@@ -532,8 +533,8 @@ function mplot(
         ax.set_aspect("equal", "datalim")
 
         # Set limits
-        # limX .+= [ -0.01*ll, 0.1*ll]
-        # limY .+= [ -0.01*ll, 0.1*ll]
+        limX .+= [ -0.01*ll, 0.01*ll]
+        limY .+= [ -0.01*ll, 0.01*ll]
         ax.set_xlim(limX...)
         ax.set_ylim(limY...)
 
@@ -667,7 +668,7 @@ function mplot(
     # Check for line field
     has_line_field = false
     if has_field
-        for (i,cell) in enumerate(mesh.elems)
+        for (i,cell) in enumerate(mmesh.elems)
             cell.shape.family == LINECELL || continue
             if fvals[i]!=0.0
                 has_line_field = true
@@ -684,9 +685,10 @@ function mplot(
         facecolors = []
         lineweight = []
 
-        for (i,cell) in enumerate(mesh.elems)
+        for (i,cell) in enumerate(mmesh.elems)
             shape = cell.shape
             shape.family in (BULKCELL, LINECELL) || continue
+            cell.active || continue
             points = [ node.coord for node in cell.nodes ]
 
             if shape.family==BULKCELL
@@ -793,7 +795,7 @@ function mplot(
         lineweight  = []
 
         
-        for (i,cell) in enumerate(mesh.elems)
+        for (i,cell) in enumerate(mmesh.elems)
             shape = cell.shape
             shape.family in (BULKCELL, LINECELL) || continue
             points = [ node.coord for node in cell.nodes ]
@@ -891,17 +893,17 @@ function mplot(
     # Draw nodes
     if markers
         if ndim==3
-            coords = [ node.coord for cell in mesh.elems.solids for node in cell.nodes ]
+            coords = [ node.coord for cell in mmesh.elems.solids for node in cell.nodes ]
 
-            # X = [ node.coord.x for node in mesh.nodes ]
-            # Y = [ node.coord.y for node in mesh.nodes ]
-            # Z = [ node.coord.z for node in mesh.nodes ]
+            # X = [ node.coord.x for node in mmesh.nodes ]
+            # Y = [ node.coord.y for node in mmesh.nodes ]
+            # Z = [ node.coord.z for node in mmesh.nodes ]
             X = getindex.(coords,1)
             Y = getindex.(coords,2)
             Z = getindex.(coords,3)
             ax.scatter(X, Y, Z, color=markerscolor, marker="o", s=ms)
         else
-            subcoords = [ node.coord for cell in mesh.elems.solids for node in cell.nodes ]
+            subcoords = [ node.coord for cell in mmesh.elems.solids for node in cell.nodes ]
 
             X = getindex.(subcoords,1)
             Y = getindex.(subcoords,2)
@@ -911,7 +913,7 @@ function mplot(
 
    # Node markers on line cells
     if rodmarkers && ndim==2
-        subcoords = [ node.coord for cell in mesh.elems.lines for node in cell.nodes ]
+        subcoords = [ node.coord for cell in mmesh.elems.lines for node in cell.nodes ]
         X = getindex.(subcoords,1)
         Y = getindex.(subcoords,2)
 
@@ -936,30 +938,38 @@ function mplot(
   #      end
   #  end
 
-  #  # Draw node numbers
-  #  if nodelabels
-  #      nnodes = length(X)
-  #      for i in 1:nnodes
-  #          x = X[i] + 0.01*L
-  #          y = Y[i] - 0.01*L
-  #          z = Z[i] - 0.01*L
-  #          if ndim==3
-  #              ax.text(x, y, z, i, va="center", ha="center", backgroundcolor="none")
-  #          else
-  #              ax.text(x, y, i, va="top", ha="left", backgroundcolor="none")
-  #          end
-  #      end
-  #  end
+    # Draw node numbers
+    if nodelabels
+        # nnodes = length(X)
+        nnodes = length(mesh.nodes)
+        for i in 1:nnodes
+            x, y, z = mesh.nodes[i].coord .+ [0.015, -0.03, -0.02]*ll
+            # @show  i
+            # @show  mesh.nodes[i].coord 
+            # x = nodes[i].coords.x
+            # x = nodes[i].coords.x
+            # x = X[i] + 0.01*L
+            # y = Y[i] - 0.01*L
+            # z = Z[i] - 0.01*L
+            if ndim==3
+                ax.text(x, y, z, mesh.nodes[i].id, va="center", ha="center", backgroundcolor="none")
+            else
+                ax.text(x, y, mesh.nodes[i].id, va="top", ha="left", backgroundcolor="none")
+            end
+        end
+    end
 
-  #  # Draw cell numbers
-  #  if celllabels && ndim==2
-  #      for i in 1:ncells
-  #          coo = getcoords(cells[i])
-  #          x = mean(coo[:,1])
-  #          y = mean(coo[:,2])
-  #          ax.text(x, y, i, va="top", ha="left", color="blue", backgroundcolor="none", size=8)
-  #      end
-  #  end
+    # Draw cell numbers
+    if celllabels && ndim==2
+        ncells = length(mesh.elems)
+        for i in 1:ncells
+            coo = getcoords(mesh.elems[i])
+            x = mean(coo[:,1]) + 0.015*ll
+            y = mean(coo[:,2]) - 0.035*ll
+            # ax.text(x, y, "($i)", va="top", ha="left", color="blue", backgroundcolor="none")
+            ax.text(x, y, "($(mesh.elems[i].id))", va="top", ha="left", backgroundcolor="none")
+        end
+    end
 
     if ndim==3
         ax.view_init(elev=elev, azim=azim)
@@ -1502,20 +1512,60 @@ function mplot(geo::GeoModel, filename::String;
         lineweight  = []
         for s in geo.entities
             s isa Surface || continue
-            
             points = getpoints(s.loops[1])
             npoints = length(points)
-            verts = [ p.coord[1:2] for p in points ]
-            push!(verts, verts[1])
+            # verts = [ p.coord[1:2] for p in points ]
+            # push!(verts, verts[1])
             # verts = [ verts; [ verts[1] ] ]
-            codes = [ MOVETO; repeat([LINECELLTO], npoints) ]
+            # codes = [ MOVETO; repeat([LINETO], npoints) ]
             # @show verts
             # @show codes
+
+
+            # verts = [ s.loops[1].curves[1].points[1].coord[1:2] ]
+            verts = []
+            codes = []
+            for (i,c) in enumerate(s.loops[1].curves)
+                p1 = points[i]
+                p2 = i<npoints ? points[i+1] : points[1]
+                c = getcurve(geo, p1, p2)
+
+                if i==1 
+                    push!(verts, p1.coord[1:2])
+                    push!(codes, MOVETO)
+                end
+
+                if c isa Line
+                    push!(verts, p2.coord[1:2])
+                    push!(codes, LINETO)
+
+                else
+                    p3 = p2
+                    p2 = c.points[2]
+                    P1, P2, P3 = p1.coord, p2.coord, p3.coord
+                    r = norm(P3-P2)
+                    α = acos(clamp(dot(P1-P2, P3-P2)/r^2, -1, 1))
+                    θ = α/2
+                    N = normalize(cross(P1-P2, P3-P2))
+                    # N = normalize(N)
+                    R = Quaternion(cos(θ/2), N[1]*sin(θ/2), N[2]*sin(θ/2), N[3]*sin(θ/2))
+                    P = P2 + R*(P1-P2)*conj(R)
+
+                    CP = 2*P - 0.5*P1 - 0.5*P3
+
+                    append!(verts, [CP[1:2], P3[1:2]])
+                    append!(codes, [CURVE3, CURVE3])
+                end
+            end
+
             path  = matplotlib.path.Path(verts, codes)
             patch = matplotlib.patches.PathPatch(path)
 
             ec = (0.0, 0.0, 0.0, 0.0)
+            ec = (0.4, 0.4, 0.4, 1.0)
+
             fc = "aliceblue"
+            # fc = (0.0, 0.0, 0.0, 0.0)
 
             push!(edgecolor, ec)
             push!(facecolors, fc)
@@ -1530,15 +1580,36 @@ function mplot(geo::GeoModel, filename::String;
         facecolors  = []
         lineweight  = []
     
-        # draw lines
-        for l in geo.entities
-            l isa Line || continue
-            verts = [ p.coord[1:2] for p in l.points ]
-            # @show verts
-            codes = [ MOVETO, LINECELLTO ]
+        # draw curves
+        for c in geo.entities
+            c isa Curve || continue
+
+            if c isa Line
+                verts = [ p.coord[1:2] for p in c.points ]
+                codes = [ MOVETO, LINETO ]
+            else
+                p1 = c.points[1]
+                p2 = c.points[2]
+                p3 = c.points[3]
+
+                P1, P2, P3 = p1.coord, p2.coord, p3.coord
+                r = norm(P3-P2)
+                α = acos(clamp(dot(P1-P2, P3-P2)/r^2, -1, 1))
+                θ = α/2
+                N = normalize(cross(P1-P2, P3-P2))
+                R = Quaternion(cos(θ/2), N[1]*sin(θ/2), N[2]*sin(θ/2), N[3]*sin(θ/2))
+                P = P2 + R*(P1-P2)*conj(R)
+
+                CP = 2*P - 0.5*P1 - 0.5*P3
+
+                verts = [P1[1:2], CP[1:2], P3[1:2]]
+                codes = [MOVETO, CURVE3, CURVE3]
+
+            end
             path  = matplotlib.path.Path(verts, codes)
             patch = matplotlib.patches.PathPatch(path)
             ec = (0.4, 0.4, 0.4, 1.0)
+            # ec = (0.0, 0.0, 0.0, 0.0)
             fc = (0.0, 0.0, 0.0, 0.0)
                 
             push!(edgecolor, ec)
@@ -1547,7 +1618,7 @@ function mplot(geo::GeoModel, filename::String;
     
         end
     
-        cltn = matplotlib.collections.PatchCollection(all_patches, edgecolor=edgecolor, facecolor=facecolors, lw=lineweight)
+        cltn = matplotlib.collections.PatchCollection(all_patches, edgecolor=edgecolor, facecolor=facecolors, lw=0)
         ax.add_collection(cltn) 
     elseif ndim==3
         all_verts = []
@@ -1588,7 +1659,28 @@ function mplot(geo::GeoModel, filename::String;
             y = C[2] - 0.01*ll
             z = C[3] - 0.01*ll
             ndim==2 && ax.text(x, y, o.id, color="blue", va="top", ha="left", backgroundcolor="none")
-            # ndim==3 && ax.text(x, y, z, o.id, color="blue", va="center", ha="center", backgroundcolor="none")
+            ndim==3 && ax.text(x, y, z, o.id, fontsize=4, color="blue", va="center", ha="center", backgroundcolor="none")
+        elseif o isa Curve
+            p1 = o.points[1]
+            p2 = o.points[2]
+            p3 = o.points[3]
+
+            P1, P2, P3 = p1.coord, p2.coord, p3.coord
+            r = norm(P3-P2)
+            α = acos(clamp(dot(P1-P2, P3-P2)/r^2, -1, 1))
+            θ = α/2
+            N = normalize(cross(P1-P2, P3-P2))
+            # N = normalize(N)
+            R = Quaternion(cos(θ/2), N[1]*sin(θ/2), N[2]*sin(θ/2), N[3]*sin(θ/2))
+            C = P2 + R*(P1-P2)*conj(R)
+            # C = P2 + 1.3*r*normalize(P-P2)
+            # @show C
+
+            x = C[1] + 0.01*ll
+            y = C[2] - 0.01*ll
+            z = C[3] - 0.01*ll
+            ndim==2 && ax.text(x, y, o.id, color="blue", va="top", ha="left", backgroundcolor="none")
+            ndim==3 && ax.text(x, y, z, o.id, fontsize=4, color="blue", va="center", ha="center", backgroundcolor="none")
         elseif o isa Surface
             points = getpoints(o.loops[1])
             verts = [ p.coord for p in points ]
