@@ -195,7 +195,7 @@ function cplot(
         hint(curveoptions, level=3)
     end
 
-    line_styles = ("-", "--", "-.", ":", "", " ", "None", nothing)
+    line_styles = ("-", "solid", "--", "dashed", "-.", "dashdot", ":", "dotted", "", " ", "None", nothing)
     markers     = (".", ",", "o", "v", "^", "<", ">", "1", "2", "3", "4", "8", "s", "p", "*", "h", "H", "+", "x", "D", "d", "|", "_", "P", "X", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, "None", nothing, " ", "")
     colors      = ("C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9",
                    "c", "b", "w", "g", "y", "k", "r", "m",
@@ -497,7 +497,8 @@ function cplot(
             x, y     = get(line, :pos, (0.5, 0.5))
             if haskey(line, :xy)
                 xy = line[:xy]
-                x, y = (ax_xy.transData+ax_xy.transAxes.inverted()).transform(xy)
+                # x, y = (ax_xy.transData+ax_xy.transAxes.inverted()).transform(xy)
+                x, y = xy
             end
 
             fontsize = get(line, :fontsize, tagfontsize)
@@ -509,12 +510,18 @@ function cplot(
                 # mpl 3.2
                 ax_xy.text(x, y, text, fontsize=textfontsize, transform=ax_xy.transAxes, ha="center", va="center")
             else
-                # xa, ya = (ax_xy.transData+ax_xy.transAxes.inverted()).transform([x,y])
-                xa, ya = x, y
-                dx = abs(x-xa)*figsize[1]/figsize[2]
-                dy = abs(y-ya)
+                arrowcoord = arrowcoord.*[xmult, ymult]
+                xmin, xmax = ax_xy.get_xlim() 
+                ymin, ymax = ax_xy.get_ylim()
+                xa = (arrowcoord[1]-xmin)/(xmax-xmin)
+                ya = (arrowcoord[2]-ymin)/(ymax-ymin)
+
+                # xa, ya = (ax_xy.transData+ax_xy.transAxes.inverted()).transform([x,y]) # Does not work
+                dx = abs(x-xa)/(xmax-xmin)*figsize[1]
+                dy = abs(y-ya)/(ymax-ymin)*figsize[2]
+
                 if dx>dy
-                    angleA = -90
+                    angleA = 90
                     angleB = 180
                 else
                     angleA = 0
@@ -526,7 +533,7 @@ function cplot(
                     # textcoords = "figure fraction",
                     textcoords = "axes fraction",
                     fontsize   = textfontsize,
-                    xy         = (arrowcoord[1]*xmult, arrowcoord[2]*ymult),
+                    xy         = (arrowcoord[1], arrowcoord[2]),
                     arrowprops = Dict(
                         "lw"              => 0.3,
                         "arrowstyle"      => "->",
@@ -692,6 +699,5 @@ function cplot(
     fname::String = "";
     args...
 )
-
     cplot(data..., fname; args...)
 end
