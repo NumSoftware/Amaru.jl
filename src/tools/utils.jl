@@ -103,3 +103,50 @@ function align(arr::Array{<:AbstractString,1}, pat::AbstractString)
     maxidx = maximum(idxs)
     return [ replace(str, pat => " "^(maxidx-idxs[i])*pat, count=1)  for (i,str) in enumerate(arr) ]
 end
+
+export latex
+function latex(M::Array; digits=3)
+    l = IOBuffer()
+
+    m = size(M, 1)
+    n = size(M, 2)
+    
+
+    # widths calculation
+    etype = eltype(M)
+    width = etype<:Integer ? 6 : 12-digits
+
+    # printing header
+    level = 1
+    indent = "    "
+    println(l, indent^level, raw"\begin{pmatrix}" )
+    level = 2
+    # printing body
+    for i in 1:m
+        print(l, indent^level)
+        for j in 1:n
+            item = M[i,j]
+            if etype<:AbstractFloat
+                if isnan(item)
+                    item = "NaN"
+                else
+                    item = sprintf("%$width.$(digits)f", item)
+                end
+                print(l, lpad(string(item), width))
+            elseif etype<:Integer
+                item = @sprintf("%6d", item)
+                print(l, lpad(item, width))
+            else
+                print(l, rpad(item, width))
+            end
+            j<n && print(l, " & ")
+        end
+        println(l, raw" \\\\")
+    end
+    # printing ending
+    level = 1
+    println(l, indent^level, raw"\end{pmatrix}")
+
+    return String(take!(l))
+end
+
