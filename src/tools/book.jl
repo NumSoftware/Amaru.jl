@@ -139,7 +139,7 @@ function DataBook(filename::String)
             for item in items
                 try
                     char1 = item[1]
-                    isnumeric(char1) || char1 in ('+','-') ?  push!(row, Meta.parse(item)) : push!(row, item)
+                    isnumeric(char1) || char1 in ('+','-') ?  push!(row, parse(Float64, item)) : push!(row, item)
                 catch err
                     @error "DataBook: Error while reading value '$item' at line $i"
                     throw(err)
