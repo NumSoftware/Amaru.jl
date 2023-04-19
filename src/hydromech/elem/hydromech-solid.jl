@@ -244,7 +244,7 @@ function elem_conductivity_matrix(elem::HMSolid)
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         @gemm dNwdX = dNwdR*inv(J)
-	Bw .= dNwdX'
+	    Bw .= dNwdX'
 
         # compute H
         K = calcK(elem.mat, ip.state)
