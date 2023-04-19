@@ -8,6 +8,7 @@
 *.dat
 *.log
 *.pdf
+*.svg
 .ipynb_checkpoints
 sandbox
 **/vault
