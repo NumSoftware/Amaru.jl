@@ -81,6 +81,7 @@ export Stage
 
 include("model.jl")
 export Model
+export FEModel
 export Domain
 export addlogger!, addmonitor!, addloggers!, addmonitors!
 export setloggers!, setmonitors!
@@ -97,6 +98,9 @@ include("hydromech/include.jl")
 
 # Thermomechanical module
 include("thermomech/include.jl")
+
+# Acoustic module
+include("acousticmech/include.jl")
 
 # show function for FE related types
 Base.show(io::IO, obj::Dof)            = _show(io, obj, 2, "")
