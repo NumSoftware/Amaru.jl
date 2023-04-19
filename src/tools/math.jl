@@ -13,6 +13,14 @@ neg(x) = (-abs(x)+x)/2.0
 # eye function
 eye(n::Int64) = Array{Float64}(I,n,n)
 
+function signedmaxabs(x, y)
+    if abs(x)>abs(y)
+        return x
+    else
+        return y
+    end
+end
+
 
 """
 Returns a vector with the real roots of the quadratic polynomial ax^2 + bx + c
