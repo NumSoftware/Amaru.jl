@@ -172,10 +172,11 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
         # Save initial file and loggers
         update_output_data!(model)
         update_single_loggers!(model)
-        update_composed_loggers!(model)
+        update_multiloggers!(model)
         update_monitors!(model)
         save_outs && save(model, "$outdir/$outkey-0.vtu", quiet=true)
     end
+    lastflush = time()
 
     # Get the domain current state and backup
     State = [ ip.state for elem in active_elems for ip in elem.ips ]
@@ -216,7 +217,6 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
     local K::SparseMatrixCSC{Float64,Int64}
 
     while T < 1.0-Ttol
-        # sleep(0.0)
         env.stagebits.ΔT = ΔT
 
         # Update counters
@@ -364,15 +364,19 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
                 update_output_data!(model)
                 update_embedded_disps!(active_elems, model.node_data["U"])
 
-                update_composed_loggers!(model)
+                update_multiloggers!(model)
                 save(model, "$outdir/$outkey-$iout.vtu", quiet=true) #!
 
                 Tcheck += ΔTcheck # find the next output time
             end
 
-            update_single_loggers!(model)
-            update_monitors!(model)
-            flush(logfile)
+            flushfiles = time()-lastflush>5 || T >= 1.0-Ttol
+            update_single_loggers!(model, flush=flushfiles)
+            update_monitors!(model, flush=flushfiles)
+            if flushfiles
+                flush(logfile)
+                lastflush = time()
+            end
 
             if autoinc
                 if ΔTbk>0.0
@@ -386,7 +390,12 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
                     # end
                     q = max(q, 1.1)
 
-                    ΔTtr = min(q*ΔT, 1/nincs, 1-T)
+                    if env.stagebits.inlinearrange
+                        ΔTtr = min(q*ΔT, 0.1, 1-T)
+                    else
+                        ΔTtr = min(q*ΔT, 1/nincs, 1-T)
+                    end
+
                     if T+ΔTtr>Tcheck-Ttol
                         ΔTbk = ΔT
                         ΔT = Tcheck-T
@@ -399,6 +408,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
             end
         else
             # Restore counters
+            env.stagebits.inlinearrange = false
             inc -= 1
             env.stagebits.inc -= 1
 
@@ -412,11 +422,11 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
                 ΔT = q*ΔT
                 ΔT = round(ΔT, sigdigits=3)  # round to 3 significant digits
                 if ΔT < Ttol
-                    solstatus = failure("solver did not converge")
+                    solstatus = failure("Solver did not converge.")
                     break
                 end
             else
-                solstatus = failure("solver did not converge")
+                solstatus = failure("Solver did not converge. Try `autoinc=true`. ")
                 break
             end
         end
@@ -424,7 +434,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
 
     if !save_outs
         update_output_data!(model)
-        update_composed_loggers!(model)
+        update_multiloggers!(model)
     end
 
     return solstatus
