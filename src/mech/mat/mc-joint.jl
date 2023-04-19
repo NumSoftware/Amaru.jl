@@ -24,7 +24,7 @@ end
 mutable struct MCJoint<:Material
     E  ::Float64      # Young's modulus
     ν  ::Float64      # Poisson ratio
-    σmax0::Float64    # tensile strength (internal variable)
+    ft ::Float64      # tensile strength (internal variable)
     μ  ::Float64      # tangent of friction angle
     ζ  ::Float64      # factor ζ controls the elastic relative displacements (formerly α)
     wc ::Float64      # critical crack opening
@@ -35,14 +35,14 @@ mutable struct MCJoint<:Material
         return  MCJoint(;prms...)
     end
 
-    function MCJoint(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear")
+    function MCJoint(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="hordijk")
         @check GF>0 || Gf>0 || wc>0
         @check E>0.0    
         @check 0<=nu<0.5
         @check ft>=0  
         @check mu>=0  
         @check zeta>0
-        @check softcurve in ("linear", "bilinear", "hordijk", "smooth")
+        @check softcurve in ("linear", "bilinear", "hordijk", "soft")
 
         if isnan(wc)
             if softcurve == "linear"
@@ -55,7 +55,7 @@ mutable struct MCJoint<:Material
                     wc = round((8*GF- 6*Gf)/ft, digits=10)
                     ws = round(1.5*Gf/ft, digits=10)
                 end
-            elseif softcurve=="hordijk" || softcurve=="smooth"
+            elseif softcurve=="hordijk" || softcurve=="soft"
                 wc = round(GF/(0.1947019536*ft), digits=10) 
             end    
         end
@@ -121,18 +121,18 @@ end
 function calc_σmax(mat::MCJoint, state::MCJointState, up::Float64)
     if mat.softcurve == "linear"
         if up < mat.wc
-            a = mat.σmax0
-            b = mat.σmax0/mat.wc
+            a = mat.ft 
+            b = mat.ft /mat.wc
         else
             a = 0.0
             b = 0.0
         end
         σmax = a - b*up
     elseif mat.softcurve == "bilinear"
-        σs = 0.25*mat.σmax0
+        σs = 0.25*mat.ft 
         if up < mat.ws
-            a  = mat.σmax0 
-            b  = (mat.σmax0 - σs)/mat.ws
+            a  = mat.ft  
+            b  = (mat.ft  - σs)/mat.ws
         elseif up < mat.wc
             a  = mat.wc*σs/(mat.wc-mat.ws)
             b  = σs/(mat.wc-mat.ws)
@@ -148,16 +148,19 @@ function calc_σmax(mat::MCJoint, state::MCJointState, up::Float64)
         else
             z = 0.0
         end
-        σmax = z*mat.σmax0
-    elseif mat.softcurve == "smooth"
+        σmax = z*mat.ft 
+    elseif mat.softcurve == "soft"
+        m = 0.55
+        a = 1.30837
         if up == 0.0
             z = 1.0
         elseif 0.0 < up < mat.wc
-            z = 1.0 - exp(0.09454*(1.0-mat.wc/up))
+            x = up/mat.wc
+            z = 1.0 - a^(1.0 - 1.0/x^m)
         else
             z = 0.0
         end
-        σmax = z*mat.σmax0
+        σmax = z*mat.ft
     end
 
     return σmax
@@ -168,15 +171,15 @@ function σmax_deriv(mat::MCJoint, state::MCJointState, up::Float64)
     # ∂σmax/∂up = dσmax
     if mat.softcurve == "linear"
         if up < mat.wc
-            b = mat.σmax0/mat.wc
+            b = mat.ft /mat.wc
         else
             b = 0.0
         end
         dσmax = -b
     elseif mat.softcurve == "bilinear"
-        σs = 0.25*mat.σmax0
+        σs = 0.25*mat.ft 
         if up < mat.ws
-            b  = (mat.σmax0 - σs)/mat.ws
+            b  = (mat.ft  - σs)/mat.ws
         elseif up < mat.wc
             b  = σs/(mat.wc-mat.ws)
         else
@@ -190,14 +193,20 @@ function σmax_deriv(mat::MCJoint, state::MCJointState, up::Float64)
         else
             dz = 0.0
         end
-        dσmax = dz*mat.σmax0
-    elseif mat.softcurve == "smooth"
-        if 0.0 < up < mat.wc
-            dz = 0.09454*exp(0.09454*(1.0-mat.wc/up))/(up/mat.wc)^2
+        dσmax = dz*mat.ft 
+    elseif mat.softcurve == "soft"
+        m = 0.55
+        a = 1.30837
+
+        if up == 0.0
+            dz = 0.0
+        elseif up < mat.wc
+            x = up/mat.wc
+            dz =  -m*log(a)*a^(1-x^-m)*x^(-m-1)/mat.wc
         else
             dz = 0.0
         end
-        dσmax = dz*mat.σmax0
+        dσmax = dz*mat.ft 
     end
 
     return dσmax
@@ -258,11 +267,11 @@ function calc_Δλ(mat::MCJoint, state::MCJointState, σtr::Array{Float64,1})
              end
         end
                  
-        r      = potential_derivs(mat, state, σ)
-        norm_r = norm(r)
-        up    = state.up + Δλ*norm_r
-        σmax   = calc_σmax(mat, state, up)
-        m      = σmax_deriv(mat, state, up)
+        r        = potential_derivs(mat, state, σ)
+        norm_r   = norm(r)
+        up       = state.up + Δλ*norm_r
+        σmax     = calc_σmax(mat, state, up)
+        m        = σmax_deriv(mat, state, up)
         dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
 
         if ndim == 3
