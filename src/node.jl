@@ -10,15 +10,17 @@ $(TYPEDFIELDS)
 """
 mutable struct Node<:AbstractPoint
     "identification number"
-    id      ::Int
+    id     ::Int
     "coordinates vector"
-    coord   ::Vec3
+    coord  ::Vec3
     "string tag used to group nodes"
-    tag     ::String
+    tag    ::String
     "array of degrees of freedom"
-    dofs    ::Array{Dof,1}
+    dofs   ::Array{Dof,1}
     "dictionary of degrees of freedom"
-    dofdict ::OrderedDict{Symbol,Dof}
+    dofdict::OrderedDict{Symbol,Dof}
+    # "elements that share the node"
+    # elems  ::Array{AbstractCell,1}
 
     @doc """
         $(TYPEDSIGNATURES)
@@ -26,18 +28,19 @@ mutable struct Node<:AbstractPoint
     Constructs an uninitiallised `Node`.
     """
     function Node()
-        this = new()
-        this.id = -1
-        this.coord = Vec3()
-        this.dofs = Dof[]
+        this         = new()
+        this.id      = -1
+        this.coord   = Vec3()
+        this.dofs    = Dof[]
         this.dofdict = OrderedDict{Symbol,Dof}()
+        # this.elems   = []
         return this
     end
 
     @doc """
         $(TYPEDSIGNATURES)
 
-    Constructs an `Node` with coordinates `x`, `y` and `z`. 
+    Constructs a `Node` with coordinates `x`, `y` and `z`.
     A `tag` string can be provided optionally.
 
     # Examples
@@ -58,8 +61,8 @@ mutable struct Node<:AbstractPoint
         y = round(y, digits=8) + 0.0
         z = round(z, digits=8) + 0.0
         
-        this = new(id, Vec3(x,y,z), tag)
-        this.dofs = Dof[]
+        this         = new(id, Vec3(x,y,z), tag)
+        this.dofs    = Dof[]
         this.dofdict = OrderedDict{Symbol,Dof}()
         return this
     end
@@ -67,7 +70,7 @@ mutable struct Node<:AbstractPoint
     @doc """
         $(TYPEDSIGNATURES)
 
-    Constructs an `Node` with coordinates privided in the `X` vector. 
+    Constructs a `Node` with coordinates provided in the `X` vector.
     A `tag` string can be provided optionally.
 
     # Examples
