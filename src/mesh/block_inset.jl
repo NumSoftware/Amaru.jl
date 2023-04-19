@@ -185,7 +185,7 @@ function split_block(bl::BlockInset, mesh::Mesh)
         joint = newjoints[1]
         tip = joint.linked_elems[2].nodes[1]
         tipjointpts  = vcat(joint.linked_elems[1].nodes, tip)
-        tipjointcell = Cell(TIPJOINTCELL, tipjointpts, tag=bl.tipjointtag)
+        tipjointcell = Cell(TIPJOINT, tipjointpts, tag=bl.tipjointtag)
         tipjointcell.linked_elems = joint.linked_elems
         push!(mesh.elems, tipjointcell)
     end
@@ -193,7 +193,7 @@ function split_block(bl::BlockInset, mesh::Mesh)
         joint = newjoints[end]
         tip = joint.linked_elems[2].nodes[2]
         tipjointpts  = vcat(joint.linked_elems[1].nodes, tip )
-        tipjointcell = Cell(TIPJOINTCELL, tipjointpts, tag=bl.tipjointtag)
+        tipjointcell = Cell(TIPJOINT, tipjointpts, tag=bl.tipjointtag)
         tipjointcell.linked_elems = joint.linked_elems
         push!(mesh.elems, tipjointcell)
     end
