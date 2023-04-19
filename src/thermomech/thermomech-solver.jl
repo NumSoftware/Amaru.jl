@@ -232,7 +232,7 @@ function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
         # Save initial file and loggers
         update_output_data!(model)
         update_single_loggers!(model)
-        update_composed_loggers!(model)
+        update_multiloggers!(model)
         update_monitors!(model)
         complete_ut_T(model)
         save_outs && save(model, "$outdir/$outkey-0.vtu", quiet=true)
@@ -434,7 +434,7 @@ function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
                 update_output_data!(model)
                 # update_embedded_disps!(active_elems, model.node_data["U"])
 
-                update_composed_loggers!(model)
+                update_multiloggers!(model)
                 save(model, "$outdir/$outkey-$iout.vtu", quiet=true)
 
                 Tcheck += ΔTcheck # find the next output time
@@ -494,7 +494,7 @@ function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     if !save_outs
         update_output_data!(model)
         complete_ut_T(model)
-        update_composed_loggers!(model)
+        update_multiloggers!(model)
     end
 
     return solstatus
