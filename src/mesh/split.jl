@@ -256,7 +256,7 @@ function generate_joints!(
 
     # Fix cells connectivities for special interface elements
     for c in lockedcells
-        c.shape.family in (TIPJOINT, LINEJOINTCELL) || continue
+        c.shape.family in (TIPJOINTCELL, LINEJOINTCELL) || continue
         scell = c.linked_elems[1]
         nspts = length(scell.nodes)
         c.nodes[1:nspts] .= scell.nodes
