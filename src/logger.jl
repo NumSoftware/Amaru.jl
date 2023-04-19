@@ -5,7 +5,7 @@
 
 abstract type AbstractLogger end
 abstract type SingleLogger<:AbstractLogger end
-abstract type ComposedLogger<:AbstractLogger end
+abstract type MultiLogger<:AbstractLogger end
 
 
 # Node logger
@@ -22,17 +22,17 @@ mutable struct NodeLogger<:SingleLogger
     end
 end
 
-function setup_logger!(domain, filter, logger::NodeLogger)
+function setup_logger!(model, filter, logger::NodeLogger)
     logger.filter = filter
 
     if filter isa AbstractArray
         X = Vec3(filter)
         x, y, z = X
-        nodes = domain.nodes[:(x==$x && y==$y && z==$z)]
+        nodes = model.nodes[:(x==$x && y==$y && z==$z)]
         n = length(nodes)
 
         if n==0
-            logger.node = nearest(domain.nodes, X)
+            logger.node = nearest(model.nodes, X)
             notify("setup_logger: No node found at $(logger.filter). Picking the nearest at $(logger.node.coord)")
         else
             logger.node = nodes[1]
@@ -40,7 +40,7 @@ function setup_logger!(domain, filter, logger::NodeLogger)
         return
     end
 
-    nodes = domain.nodes[filter]
+    nodes = model.nodes[filter]
     n = length(nodes)
     n == 0 && warn("setup_logger: No nodes found for filter expression: ", logger.filter)
     n >  1 && notify("setup_logger: More than one node match filter expression: ", logger.filter)
@@ -49,15 +49,15 @@ function setup_logger!(domain, filter, logger::NodeLogger)
     return nothing
 end
 
-function update_logger!(logger::NodeLogger, domain)
+function update_logger!(logger::NodeLogger, model; flush=true)
     isdefined(logger, :node) || return
 
     vals = node_vals(logger.node)
-    domain.env.transient && (vals[:t] = domain.env.t)
+    model.env.transient && (vals[:t] = model.env.t)
     push!(logger.table, vals)
 
-    if logger.filename!="" 
-        filename = joinpath(domain.env.outdir, logger.filename)
+    if logger.filename!="" && flush
+        filename = joinpath(model.env.outdir, logger.filename)
         save(logger, filename, quiet=true)
     end
 end
@@ -79,20 +79,20 @@ mutable struct IpLogger<:SingleLogger
 end
 
 
-function setup_logger!(domain, filter, logger::IpLogger)
+function setup_logger!(model, filter, logger::IpLogger)
     logger.filter = filter
     if filter isa Integer
-        logger.ip = domain.elems.ips[filter]
+        logger.ip = model.elems.ips[filter]
         return
     end
     if filter isa AbstractArray
         X = Vec3(filter)
         x, y, z = X
-        ips = domain.elems.ips[:(x==$x && y==$y && z==$z)]
+        ips = model.elems.ips[:(x==$x && y==$y && z==$z)]
         n = length(ips)
 
         if n==0
-            logger.ip = nearest(domain.elems.ips, X)
+            logger.ip = nearest(model.elems.ips, X)
             X = round.(logger.ip.coord, sigdigits=5)
             notify("setup_logger: No ip found at $(logger.filter). Picking the nearest at $X")
         else
@@ -101,7 +101,7 @@ function setup_logger!(domain, filter, logger::IpLogger)
         return
     end
 
-    ips = domain.elems.ips[filter]
+    ips = model.elems.ips[filter]
     n = length(ips)
     n == 0 && warn("setup_logger: No ips found for filter expression: $(logger.filter)")
     n >  1 && notify("setup_logger: More than one ip match filter expression: $(logger.filter)")
@@ -110,17 +110,17 @@ function setup_logger!(domain, filter, logger::IpLogger)
 end
 
 
-function update_logger!(logger::IpLogger, domain)
+function update_logger!(logger::IpLogger, model; flush=true)
     isdefined(logger, :ip) || return
 
     vals = ip_vals(logger.ip)
-    vals[:out] = domain.env.stagebits.out
-    domain.env.transient && (vals[:t] = domain.env.t)
+    vals[:out] = model.env.stagebits.out
+    model.env.transient && (vals[:t] = model.env.t)
 
     push!(logger.table, vals)
 
-    if logger.filename!="" 
-        filename = joinpath(domain.env.outdir, logger.filename)
+    if logger.filename!="" && flush
+        filename = joinpath(model.env.outdir, logger.filename)
         save(logger, filename, quiet=true)
     end
 end
@@ -165,27 +165,27 @@ EdgesSumLogger = EdgeLogger
 export FacesSumLogger, EdgesSumLogger, NodesSumLogger
 
 
-function setup_logger!(domain, filter, logger::FaceLogger)
-    if length(domain.elems.joints) > 0
-        warn("setup_logger: Using FaceLogger in a mesh with joint elemets may provide wrong results.")
+function setup_logger!(model, filter, logger::FaceLogger)
+    if length(model.elems.joints) > 0
+        warn("setup_logger: Using FaceLogger in a mesh with joint elements may provide wrong results.")
     end
 
     logger.filter = filter
-    logger.faces = domain.faces[logger.filter]
+    logger.faces = model.faces[logger.filter]
     length(logger.faces) == 0 && warn("setup_logger: No faces found for filter expression: ", logger.filter)
     logger.nodes = logger.faces.nodes
 end
 
 
-function setup_logger!(domain, filter, logger::EdgeLogger)
+function setup_logger!(model, filter, logger::EdgeLogger)
     logger.filter = filter
-    logger.edges = domain.edges[logger.filter]
+    logger.edges = model.edges[logger.filter]
     length(logger.edges) == 0 && warn("setup_logger: No edges found for filter expression: ", logger.filter)
     logger.nodes = logger.edges.nodes
 end
 
 
-function update_logger!(logger::FacetLogger, domain)
+function update_logger!(logger::FacetLogger, model; flush=true)
     length(logger.nodes)==0 && return
 
     tableU = DataTable()
@@ -202,13 +202,13 @@ function update_logger!(logger::FacetLogger, domain)
     valsU = OrderedDict( Symbol(key) => mean(tableU[key]) for key in keys(tableU) ) # gets the average of essential values
     valsF = OrderedDict( Symbol(key) => sum(tableF[key])  for key in keys(tableF) ) # gets the sum for each component
     vals  = merge(valsU, valsF)
-    vals[:out] = domain.env.stagebits.out
-    domain.env.transient && (vals[:t] = domain.env.t)
+    vals[:out] = model.env.stagebits.out
+    model.env.transient && (vals[:t] = model.env.t)
 
     push!(logger.table, vals)
 
-    if logger.filename!="" 
-        filename = joinpath(domain.env.outdir, logger.filename)
+    if logger.filename!="" && flush
+        filename = joinpath(model.env.outdir, logger.filename)
         save(logger, filename, quiet=true)
     end
 end
@@ -231,14 +231,14 @@ end
 
 NodesSumLogger = NodeSumLogger
 
-function setup_logger!(domain, filter, logger::NodeSumLogger)
+function setup_logger!(model, filter, logger::NodeSumLogger)
     logger.filter = filter
-    logger.nodes = domain.nodes[filter]
+    logger.nodes = model.nodes[filter]
     length(logger.nodes) == 0 && warn("setup_logger: No nodes found for filter expression: ", logger.filter)
 end
 
 
-function update_logger!(logger::NodeSumLogger, domain)
+function update_logger!(logger::NodeSumLogger, model; flush=true)
     length(logger.nodes) == 0 && return
 
     tableU = DataTable()
@@ -255,13 +255,13 @@ function update_logger!(logger::NodeSumLogger, domain)
     valsU = OrderedDict( Symbol(key) => mean(tableU[key]) for key in keys(tableU) ) # gets the average of essential values
     valsF = OrderedDict( Symbol(key) => sum(tableF[key])  for key in keys(tableF) ) # gets the sum for each component
     vals  = merge(valsU, valsF)
-    vals[:out] = domain.env.stagebits.out
-    domain.env.transient && (vals[:t] = domain.env.t)
+    vals[:out] = model.env.stagebits.out
+    model.env.transient && (vals[:t] = model.env.t)
 
     push!(logger.table, vals)
 
-    if logger.filename!="" 
-        filename = joinpath(domain.env.outdir, logger.filename)
+    if logger.filename!="" && flush
+        filename = joinpath(model.env.outdir, logger.filename)
         save(logger, filename, quiet=true)
     end
 end
@@ -271,7 +271,7 @@ end
 # ===========================
 
 
-mutable struct NodeGroupLogger<:ComposedLogger
+mutable struct NodeGroupLogger<:MultiLogger
     filename ::String
     filter   ::Union{Symbol,String,Expr}
     book     ::DataBook
@@ -283,15 +283,34 @@ mutable struct NodeGroupLogger<:ComposedLogger
 end
 
 
-function setup_logger!(domain, filter, logger::NodeGroupLogger)
+function setup_logger!(model, filter, logger::NodeGroupLogger)
     logger.filter = filter
-    logger.nodes = domain.nodes[filter]
+    logger.nodes  = model.nodes[filter]
     length(logger.nodes) == 0 && warn("setup_logger: No nodes found for filter expression: ", logger.filter)
+
+    # first try to sort nodes according to its elements (useful for nodes with the same coordintates)
+    dists = zeros(length(logger.nodes))
+    for elem in model.elems
+        elem.shape.family in (JOINTCELL, LINEJOINTCELL, TIPJOINTCELL) && continue
+        for (i,node) in enumerate(logger.nodes)
+            if node in elem.nodes
+                dists[i] = sum(elem.coords)
+            end
+        end
+    end
+
+    # check if distances vector is valid
+    if !(0.0 in dists)
+        idxs = sortperm(dists)
+        logger.nodes = logger.nodes[idxs]
+    end
+
+    # sort nodes
     sort!(logger.nodes, by=n->sum(n.coord))
 end
 
 
-function update_logger!(logger::NodeGroupLogger, domain)
+function update_logger!(logger::NodeGroupLogger, model; flush=true)
     length(logger.nodes) == 0 && return
 
     table = DataTable()
@@ -300,8 +319,8 @@ function update_logger!(logger::NodeGroupLogger, domain)
     end
     push!(logger.book, table)
 
-    if logger.filename!="" 
-        filename = joinpath(domain.env.outdir, logger.filename)
+    if logger.filename!="" && flush
+        filename = joinpath(model.env.outdir, logger.filename)
         save(logger, filename, quiet=true)
     end
 end
@@ -311,7 +330,7 @@ end
 # =========================
 
 
-mutable struct IpGroupLogger<:ComposedLogger
+mutable struct IpGroupLogger<:MultiLogger
     filename ::String
     filter   ::Union{Symbol,String,Expr}
     book     ::DataBook
@@ -323,15 +342,15 @@ mutable struct IpGroupLogger<:ComposedLogger
 end
 
 
-function setup_logger!(domain, filter, logger::IpGroupLogger)
+function setup_logger!(model, filter, logger::IpGroupLogger)
     logger.filter = filter
-    logger.ips = domain.elems.ips[logger.filter]
+    logger.ips = model.elems.ips[logger.filter]
     length(logger.ips)==0 && warn("setup_logger: No ips found for filter expression: ", logger.filter)
     sort!(logger.ips, by=ip->sum(ip.coord))
 end
 
 
-function update_logger!(logger::IpGroupLogger, domain)
+function update_logger!(logger::IpGroupLogger, model; flush=true)
     length(logger.ips) == 0 && return
 
     table = DataTable()
@@ -341,8 +360,8 @@ function update_logger!(logger::IpGroupLogger, domain)
 
     push!(logger.book, table)
 
-    if logger.filename!="" 
-        filename = joinpath(domain.env.outdir, logger.filename)
+    if logger.filename!="" && flush
+        filename = joinpath(model.env.outdir, logger.filename)
         save(logger, filename, quiet=true)
     end
 end
@@ -352,7 +371,7 @@ end
 # ==================
 
 
-mutable struct PointLogger<:ComposedLogger
+mutable struct PointLogger<:MultiLogger
     filename ::String
     filter   ::Array{Float64,1}
     table    ::DataTable
@@ -368,20 +387,20 @@ mutable struct PointLogger<:ComposedLogger
 end
 
 
-function setup_logger!(domain, filter, logger::PointLogger)
+function setup_logger!(model, filter, logger::PointLogger)
     filter isa Array{<:Number,1} || error("setup_logger!: Cannot set PointLogger. Filter should be a coordinates array.")
     logger.filter = filter
     X = filter
     # find elem and R
-    elem = find_elem(X, domain.elems, domain._elempartition)
+    elem = find_elem(X, model.elems, model._elempartition)
     elem===nothing && error("setup_logger!: Cannot set PointLogger. Coordinate ($X) outside mesh.")
     logger.elem = elem
     logger.R = inverse_map(elem, X)
 end
 
 
-function update_logger!(logger::PointLogger, domain)
-    data  = domain.node_data
+function update_logger!(logger::PointLogger, model; flush=true)
+    data  = model.node_data
     X = logger.filter
     N = logger.elem.shape.func(logger.R)
     map = [ n.id for n in logger.elem.nodes ]
@@ -390,12 +409,12 @@ function update_logger!(logger::PointLogger, domain)
         size(V,2)==1 || continue
         vals[k] = dot(V[map], N)
     end
-    vals[:out] = domain.env.stagebits.out
-    domain.env.transient && (vals[:t] = domain.env.t)
+    vals[:out] = model.env.stagebits.out
+    model.env.transient && (vals[:t] = model.env.t)
     push!(logger.table, vals)
 
-    if logger.filename!="" 
-        filename = joinpath(domain.env.outdir, logger.filename)
+    if logger.filename!="" && flush
+        filename = joinpath(model.env.outdir, logger.filename)
         save(logger, filename, quiet=true)
     end
 end
@@ -405,7 +424,7 @@ end
 # ====================
 
 
-mutable struct SegmentLogger<:ComposedLogger
+mutable struct SegmentLogger<:MultiLogger
     filename ::String
     filter   ::Array{Float64,2}
     book     ::DataBook
@@ -422,7 +441,7 @@ mutable struct SegmentLogger<:ComposedLogger
 end
 
 
-function setup_logger!(domain, filter, logger::SegmentLogger)
+function setup_logger!(model, filter, logger::SegmentLogger)
     logger.filter = filter
     X1 = filter[1,:]
     X2 = filter[2,:]
@@ -431,7 +450,7 @@ function setup_logger!(domain, filter, logger::SegmentLogger)
 
     # find cells and Rs
     for X in Xs
-        elem = find_elem(X, domain.elems, domain._elempartition)
+        elem = find_elem(X, model.elems, model._elempartition)
         elem===nothing && error("setup_logger!: Cannot set SegmentLogger. Coordinate ($X) outside mesh.")
         R = inverse_map(elem, X)
         push!(logger.elems, elem)
@@ -440,9 +459,9 @@ function setup_logger!(domain, filter, logger::SegmentLogger)
 end
 
 
-function update_logger!(logger::SegmentLogger, domain)
-    ndim = domain.env.ndim
-    data  = domain.node_data
+function update_logger!(logger::SegmentLogger, model; flush=true)
+    ndim = model.env.ndim
+    data  = model.node_data
     coord_labels = ["x", "y", "z"][1:ndim]
     labels = [ k for (k,V) in data if size(V,2)==1 ]
     table = DataTable(["s"; coord_labels; labels])
@@ -465,8 +484,8 @@ function update_logger!(logger::SegmentLogger, domain)
 
     push!(logger.book, table)
 
-    if logger.filename!="" 
-        filename = joinpath(domain.env.outdir, logger.filename)
+    if logger.filename!="" && flush
+        filename = joinpath(model.env.outdir, logger.filename)
         save(logger, filename)
     end
 end
