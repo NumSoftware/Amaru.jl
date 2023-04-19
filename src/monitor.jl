@@ -38,7 +38,7 @@ function setup_monitor!(model, filter, monitor::IpMonitor)
 end
 
 
-function update_monitor!(monitor::IpMonitor, model)
+function update_monitor!(monitor::IpMonitor, model; flush=true)
     isdefined(monitor, :ip) || return success()
 
     state       = ip_vals(monitor.ip)
@@ -53,7 +53,7 @@ function update_monitor!(monitor::IpMonitor, model)
     model.env.transient && (monitor.vals[:t]=model.env.t)
     push!(monitor.table, data)
 
-    if monitor.filename!="" 
+    if monitor.filename!="" && flush
         filename = joinpath(model.env.outdir, monitor.filename)
         save(monitor.table, filename, quiet=true)
     end
@@ -120,7 +120,7 @@ function setup_monitor!(model, filter, monitor::NodeMonitor)
 end
 
 
-function update_monitor!(monitor::NodeMonitor, model)
+function update_monitor!(monitor::NodeMonitor, model; flush=true)
     isdefined(monitor, :node) || return success()
 
     for expr in monitor.expr.args
@@ -134,7 +134,7 @@ function update_monitor!(monitor::NodeMonitor, model)
 
     push!(monitor.table, monitor.vals)
 
-    if monitor.filename!=""
+    if monitor.filename!="" && flush
         filename = joinpath(model.env.outdir, monitor.filename)
         save(monitor.table, filename, quiet=true)
     end
@@ -171,7 +171,7 @@ function setup_monitor!(model, filter, monitor::IpGroupMonitor)
 end
 
 
-function update_monitor!(monitor::IpGroupMonitor, model)
+function update_monitor!(monitor::IpGroupMonitor, model; flush=true)
     length(monitor.ips) == 0 && return success()
 
     for expr in monitor.expr.args
@@ -199,7 +199,7 @@ function update_monitor!(monitor::IpGroupMonitor, model)
 
     push!(monitor.table, monitor.vals)
 
-    if monitor.filename!="" 
+    if monitor.filename!="" && flush
         filename = joinpath(model.env.outdir, monitor.filename)
         save(monitor.table, filename, quiet=true)
     end
@@ -256,7 +256,7 @@ function setup_monitor!(model, filter, monitor::NodeSumMonitor)
 end
 
 
-function update_monitor!(monitor::NodeSumMonitor, model)
+function update_monitor!(monitor::NodeSumMonitor, model; flush=true)
     length(monitor.nodes) == 0 && return success()
 
     tableU = DataTable()
@@ -299,7 +299,7 @@ function update_monitor!(monitor::NodeSumMonitor, model)
     model.env.transient && (monitor.vals[:t]=model.env.t)
     push!(monitor.table, monitor.vals)
 
-    if monitor.filename!="" 
+    if monitor.filename!="" && flush
         filename = joinpath(model.env.outdir, monitor.filename)
         save(monitor.table, filename, quiet=true)
     end
