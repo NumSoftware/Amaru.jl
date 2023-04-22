@@ -1,13 +1,13 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export LinearAcusticFluid
+export LinearAcousticFluid
 
-mutable struct LinearAcusticFluidState<:IpState
+mutable struct LinearAcousticFluidState<:IpState
     env::ModelEnv
     up ::Float64          # pressure
     # V  ::Array{Float64,1} # fluid velocity?
     
-    function LinearAcusticFluidState(env::ModelEnv=ModelEnv())
+    function LinearAcousticFluidState(env::ModelEnv=ModelEnv())
         this = new(env)
         # this.V  = zeros(env.ndim)
         this.up = 0.0
@@ -16,12 +16,12 @@ mutable struct LinearAcusticFluidState<:IpState
 end
 
 
-mutable struct LinearAcusticFluid<:Material
+mutable struct LinearAcousticFluid<:Material
     ρ::Float64 # densidade
     c::Float64 # sound speed
     # μ::Float64 # viscocity
 
-    function LinearAcusticFluid(;rho=NaN, c=NaN)
+    function LinearAcousticFluid(;rho=NaN, c=NaN)
         @check rho>0
         @check c>0
 
@@ -31,18 +31,18 @@ mutable struct LinearAcusticFluid<:Material
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::LinearAcusticFluid) = AcusticFluid
+matching_elem_type(::LinearAcousticFluid) = AcousticFluid
 
 # Type of corresponding state structure
-ip_state_type(::LinearAcusticFluid) = LinearAcusticFluidState
+ip_state_type(::LinearAcousticFluid) = LinearAcousticFluidState
 
 
-function update_state!(mat::LinearAcusticFluid, state::LinearAcusticFluidState, Δup::Float64, G::Array{Float64,1}, Δt::Float64)
+function update_state!(mat::LinearAcousticFluid, state::LinearAcousticFluidState, Δup::Float64, G::Array{Float64,1}, Δt::Float64)
     return nothing
 end
 
 
-function ip_state_vals(mat::LinearAcusticFluid, state::LinearAcusticFluidState)
+function ip_state_vals(mat::LinearAcousticFluid, state::LinearAcousticFluidState)
     D = OrderedDict{Symbol, Float64}()
     D[:up] = state.up
     # D[:vx] = state.V[1]

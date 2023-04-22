@@ -8,9 +8,9 @@ function am_mount_M(elems::Array{<:Element,1}, ndofs::Int )
 
         for elem in elems
             ty = typeof(elem)
-            hasmethod(elem_acustic_mass, (ty,)) || continue
+            hasmethod(elem_acoustic_mass, (ty,)) || continue
 
-            Me, rmap, cmap = elem_acustic_mass(elem)
+            Me, rmap, cmap = elem_acoustic_mass(elem)
 
             nr, nc = size(Me)
             for i in 1:nr
@@ -38,9 +38,9 @@ function am_mount_K(elems::Array{<:Element,1}, ndofs::Int )
 
         for elem in elems
             ty = typeof(elem)
-            hasmethod(elem_acustic_stiffness, (ty,)) || continue
+            hasmethod(elem_acoustic_stiffness, (ty,)) || continue
 
-            Ke, rmap, cmap = elem_acustic_stiffness(elem)
+            Ke, rmap, cmap = elem_acoustic_stiffness(elem)
 
             nr, nc = size(Ke)
             for i in 1:nr
@@ -130,7 +130,7 @@ subjected to a list of boundary conditions `bcs`.
 `silent = false` : If true, no information is printed
 """
 function am_solve!(model::Model; args...)
-    name = "Acustic solver"
+    name = "Acoustic solver"
     st = stage_iterator!(name, am_stage_solver!, model; args...)
     return st
 end
@@ -148,7 +148,7 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     quiet  :: Bool    = false
                   )
 
-    println(logfile, "Acustic FE analysis: Stage $(stage.id)")
+    println(logfile, "Acoustic FE analysis: Stage $(stage.id)")
     stage.status = :solving
 
     solstatus = success()

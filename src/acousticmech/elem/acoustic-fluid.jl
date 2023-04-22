@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-mutable struct AcusticFluid<:Element
+mutable struct AcousticFluid<:Element
     id    ::Int
     shape ::CellShape
 
@@ -12,31 +12,31 @@ mutable struct AcusticFluid<:Element
     linked_elems::Array{Element,1}
     env   ::ModelEnv
 
-    function AcusticFluid();
+    function AcousticFluid();
         return new()
     end
 end
 
-matching_shape_family(::Type{AcusticFluid}) = BULKCELL
+matching_shape_family(::Type{AcousticFluid}) = BULKCELL
 
-function elem_config_dofs(elem::AcusticFluid)
+function elem_config_dofs(elem::AcousticFluid)
     for node in elem.nodes
         add_dof(node, :up, :qp)
     end
 end
 
-function elem_init(elem::AcusticFluid)
+function elem_init(elem::AcousticFluid)
     
 end
 
 
-function distributed_bc(elem::AcusticFluid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::AcousticFluid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     th    = elem.env.thickness
     suitable_keys = (:tq,:ax,:ay,:az) # tq: mass flow acceleration?, ax: x acceleration
 
     # Check keys
-    key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable in a AcusticFluid element")
+    key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable in a AcousticFluid element")
 
     target = facet!=nothing ? facet : elem
     nodes  = target.nodes
@@ -108,8 +108,8 @@ function distributed_bc(elem::AcusticFluid, facet::Union{Facet,Nothing}, key::Sy
 end
 
 
-# acustic fluid stiffness
-function elem_acustic_stiffness(elem::AcusticFluid)
+# acoustic fluid stiffness
+function elem_acoustic_stiffness(elem::AcousticFluid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
@@ -138,7 +138,7 @@ function elem_acustic_stiffness(elem::AcusticFluid)
     return K, map, map
 end
 
-function elem_acustic_mass(elem::AcusticFluid)
+function elem_acoustic_mass(elem::AcousticFluid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
@@ -167,7 +167,7 @@ function elem_acustic_mass(elem::AcusticFluid)
 end
 
 #TODO 
-function elem_RHS_vector(elem::AcusticFluid)
+function elem_RHS_vector(elem::AcousticFluid)
     ndim   = elem.env.ndim
     th     = elem.env.thickness
     nnodes = length(elem.nodes)
@@ -205,7 +205,7 @@ function elem_RHS_vector(elem::AcusticFluid)
 end
 
 # TODO
-function elem_update!(elem::AcusticFluid, DU::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::AcousticFluid, DU::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     th     = elem.env.thickness
