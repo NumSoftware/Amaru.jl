@@ -21,6 +21,8 @@ mutable struct Cell<:AbstractCell
     nodes  ::Array{Node,1}
     "string tag used to group cells"
     tag    ::String
+    "defines if the element is active"
+    active ::Bool
     "cell quality in the range from 0 to 1"
     quality::Float64              # quality index: surf/(reg_surf)
     "defines if it is an embedded cell"
@@ -60,12 +62,13 @@ mutable struct Cell<:AbstractCell
       linked_elems: 0-element Vector{Amaru.AbstractCell}
     ```
     """
-    function Cell(shape::CellShape, nodes::Array{Node,1}; tag::String="", owner=nothing, id::Int=-1)
+    function Cell(shape::CellShape, nodes::Array{Node,1}; tag::String="", owner=nothing, id::Int=-1, active=true)
         this = new()
         this.id = id
         this.shape = shape
         this.nodes = copy(nodes)
         this.tag = tag
+        this.active  = active
         this.quality = 0.0
         this.embedded= false
         this.crossed = false

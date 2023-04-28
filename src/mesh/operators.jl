@@ -673,6 +673,7 @@ end
 
 function isinverted(elem::AbstractCell)
     elem.shape.family==LINECELL && return false
+    elem.shape.family==LINEJOINTCELL && return false
 
     if elem.shape.ndim==2
         coords = getcoords(elem)
@@ -707,7 +708,7 @@ function isinverted(elem::AbstractCell)
         V2 = X3-X1
         V3 = X4-X1
     else
-        error("isinverted: Cell shape $(cell.shape.name) is not supported")
+        error("isinverted: Cell shape $(elem.shape.name) is not supported")
     end
 
     return dot(cross(V1,V2),V3)<0

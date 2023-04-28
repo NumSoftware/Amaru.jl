@@ -364,6 +364,10 @@ function mplot(
 
     field !== nothing && (field=string(field))
 
+    if length(mesh.elems.active)==0
+        error("mplot: No active elements")
+    end
+
     mmesh = copy(mesh) # copy of original mmesh
 
     if shrink < 1.0
@@ -399,27 +403,27 @@ function mplot(
     # Get initial info from mmesh
     ndim = mmesh.ndim
     if ndim==2
-        areacells = [ elem for elem in mmesh.elems if elem.shape.family==BULKCELL ]
-        linecells = [ cell for cell in mmesh.elems if cell.shape.family==LINECELL]
+        areacells = [ elem for elem in mmesh.elems.active if elem.shape.family==BULKCELL ]
+        linecells = [ cell for cell in mmesh.elems.active if cell.shape.family==LINECELL]
 
         mmesh.elems = [ areacells; linecells ]
         cl_ids = [ [c.id for c in areacells]; [c.id for c in linecells] ]
 
-        mmesh.nodes = getnodes(mmesh.elems)
+        mmesh.nodes = getnodes(mmesh.elems.active)
         pt_ids = [ p.id for p in mmesh.nodes ]
 
     elseif ndim==3
         # get surface cells and update
-        volcells  = [ elem for elem in mmesh.elems if elem.shape.family==BULKCELL && elem.shape.ndim==3 ]
-        areacells = [ elem for elem in mmesh.elems if elem.shape.family==BULKCELL && elem.shape.ndim==2 ]
+        volcells  = [ elem for elem in mmesh.elems.active if elem.shape.family==BULKCELL && elem.shape.ndim==3 ]
+        areacells = [ elem for elem in mmesh.elems.active if elem.shape.family==BULKCELL && elem.shape.ndim==2 ]
         surfcells = get_surface(volcells)
-        linecells = [ cell for cell in mmesh.elems if cell.shape.family==LINECELL]
+        linecells = [ cell for cell in mmesh.elems.active if cell.shape.family==LINECELL]
         outlinecells = outline ? get_outline_edges(surfcells) : Cell[]
 
         mmesh.elems = [ surfcells; areacells; linecells ]
         cl_ids = [ [c.owner.id for c in surfcells]; [c.id for c in linecells]; [c.id for c in areacells] ]
 
-        mmesh.nodes = getnodes(mmesh.elems)
+        mmesh.nodes = getnodes(mmesh.elems.active)
         pt_ids = [ p.id for p in mmesh.nodes ]
 
         # observer and light vectors
@@ -688,7 +692,11 @@ function mplot(
         for (i,cell) in enumerate(mmesh.elems)
             shape = cell.shape
             shape.family in (BULKCELL, LINECELL) || continue
-            cell.active || continue
+            
+            # @show cell.active
+            # cell.active || continue
+            # @show "xxxxxxxxxxxxxxxxxx"
+            
             points = [ node.coord for node in cell.nodes ]
 
             if shape.family==BULKCELL

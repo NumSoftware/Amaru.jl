@@ -63,7 +63,7 @@ function Base.copy(mesh::AbstractDomain)
     for elem in mesh.elems
         idxs = [ node.id for node in elem.nodes ]
         newelemnodes = newmesh.nodes[idxs]
-        newelem = Cell(elem.shape, newelemnodes, tag=elem.tag, id=elem.id)
+        newelem = Cell(elem.shape, newelemnodes, tag=elem.tag, id=elem.id, active=elem.active)
         push!(newmesh.elems, newelem)
     end
 
