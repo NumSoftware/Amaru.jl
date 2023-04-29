@@ -22,16 +22,18 @@ mutable struct ElasticShell<:Material
     E::Float64
     nu::Float64
     th::Float64
+    ρ::Float64
 
     function ElasticShell(prms::Dict{Symbol,Float64})
         return  ElasticShell(;prms...)
     end
 
-    function ElasticShell(;E=NaN, nu=NaN, thickness=0.1)
+    function ElasticShell(;E=NaN, nu=NaN, thickness=NaN, rho=0.0)
         E>0.0 || error("Invalid value for E: $E")
         (0<=nu<0.5) || error("Invalid value for nu: $nu")
         thickness >0.0 || error("Invalid value for thickness: $thickness")
-        this = new(E, nu, thickness)
+        rho<0.0      && error("Invalid value for rho: $rho")
+        this = new(E, nu, thickness, rho)
         return this
     end
 end

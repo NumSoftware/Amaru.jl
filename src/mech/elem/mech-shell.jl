@@ -201,6 +201,45 @@ function elem_stiffness(elem::MechShell)
     return K, map, map
 end
 
+
+function elem_mass(elem::MechShell)
+        nnodes = length(elem.nodes)
+        th     = elem.mat.th
+        ndof   = 6
+        ρ      = elem.mat.ρ
+        C      = getcoords(elem)
+        M      = zeros(nnodes*ndof, nnodes*ndof)
+        N      = zeros(ndof, nnodes*ndof)
+        L      = zeros(3,3)
+    
+        for ip in elem.ips
+            elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+    
+            # compute N matrix
+            Ni    = elem.shape.func(ip.R)
+            dNdR = elem.shape.deriv(ip.R)
+            J2D  = C'*dNdR
+            set_rot_x_xp(elem, J2D, L)
+            J′   = [ L*J2D [ 0,0,th/2]  ] 
+                                  
+            detJ′ = det(J′)
+            @assert detJ′>0
+
+            for i in 1:nnodes
+                for j in 1:ndof
+                    N[j, (i-1)*ndof+j] = Ni[i]
+                end
+            end
+
+            # compute M
+            coef = ρ*detJ′*ip.w*th
+            @gemm M += coef*N'*N
+        end
+    
+        map = elem_map(elem)
+        return M, map, map
+end
+
 function elem_update!(elem::MechShell, U::Array{Float64,1}, dt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
