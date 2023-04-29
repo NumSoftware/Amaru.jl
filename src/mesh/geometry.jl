@@ -254,15 +254,7 @@ end
 
 function addpoint!(geo::GeoModel, p::Point)
     pp = getpoint(geo, p)
-    # pp = getkey(geo.entities.dict, p, nothing)
     pp===nothing || return pp
-
-    # check if point is close to existing points
-    # for pp in geo.entities
-        # pp isa Point || continue
-        # tol = 1e-8
-        # norm(p.coord-pp.coord)<tol && return pp
-    # end
 
     # add point
     geo._id +=1
@@ -1173,7 +1165,6 @@ function extrude!(geo::GeoModel, line::Line; axis=[0,0,1], length=1.0)
     l3 = addsingleline!(geo, p3, p4, tag=line.tag)
     l4 = addsingleline!(geo, p4, p1, tag=line.tag)
 
-    # lo = addloop!(m, l1, l2, l3, l4)
     lo = Loop(l1, l2, l3, l4)
 
     geo._id +=1
