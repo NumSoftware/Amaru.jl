@@ -1166,10 +1166,6 @@ function extrude!(geo::GeoModel, line::Line; axis=[0,0,1], length=1.0)
     dx = length*axis[1]
     dy = length*axis[2]
     dz = length*axis[3]
-    # p4 = Point(p1.coord .+ length.*axis)
-    # p3 = Point(p2.coord .+ length.*axis)
-    # p4 = addpoint!(m, p4)
-    # p3 = addpoint!(m, p3)
     p4 = copy(geo, p1, dx=dx, dy=dy, dz=dz)
     p3 = copy(geo, p2, dx=dx, dy=dy, dz=dz)
     l1 = addsingleline!(geo, p1, p2, tag=line.tag)
