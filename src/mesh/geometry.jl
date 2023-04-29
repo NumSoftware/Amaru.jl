@@ -1255,10 +1255,8 @@ function picksurface(geo::GeoModel, coord)
     for s in geo.entities
         s isa Surface || continue
         isin = inside(p, s.loops[1])
-        # @show isin
-        # @show length(s.loops)
         if isin && length(s.loops)>=2
-            for lo in s.loops
+            for lo in s.loops[2:end]
                 if inside(p, lo)
                     isin = false
                     break
