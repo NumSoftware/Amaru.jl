@@ -693,10 +693,6 @@ function mplot(
             shape = cell.shape
             shape.family in (BULKCELL, LINECELL) || continue
             
-            # @show cell.active
-            # cell.active || continue
-            # @show "xxxxxxxxxxxxxxxxxx"
-            
             points = [ node.coord for node in cell.nodes ]
 
             if shape.family==BULKCELL
