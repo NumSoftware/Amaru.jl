@@ -159,6 +159,21 @@ function setB(elem::MechShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx,
     end 
 end
 
+function setNN(elem::MechShell, N::Vect, L::Matx, Rrot::Matx, NNil::Matx, NNi::Matx, NN::Matx)
+    nnodes = length(N)
+    ndof = 6
+    for i in 1:nnodes
+        Rrot[1:3,1:3] .= L
+        # Rrot[4:5,4:6] .= L[1:2,:]
+        # Rrot[1:3,1:3] .= elem.Dlmn[i]
+        Rrot[4:5,4:6] .= elem.Dlmn[i][1:2,:]
+
+        c = (i-1)*ndof
+        @gemm NNi = NNil*Rrot
+        NN[:, c+1:c+6] .= N[i].*Rrot
+    end 
+end
+
 
 function elem_stiffness(elem::MechShell)
     nnodes = length(elem.nodes)
@@ -178,7 +193,7 @@ function elem_stiffness(elem::MechShell)
         dNdR = elem.shape.deriv(ip.R)
         J2D  = C'*dNdR
         set_rot_x_xp(elem, J2D, L)
-        J′    = [ L*J2D [ 0,0,th/2]  ]
+        J′   = [ L*J2D [ 0,0,th/2]  ]
         invJ′ = inv(J′)
         dNdR  = [ dNdR zeros(nnodes) ]
         dNdX′ = dNdR*invJ′
@@ -201,7 +216,6 @@ function elem_stiffness(elem::MechShell)
     return K, map, map
 end
 
-
 function elem_mass(elem::MechShell)
         nnodes = length(elem.nodes)
         th     = elem.mat.th
@@ -209,14 +223,19 @@ function elem_mass(elem::MechShell)
         ρ      = elem.mat.ρ
         C      = getcoords(elem)
         M      = zeros(nnodes*ndof, nnodes*ndof)
-        N      = zeros(ndof, nnodes*ndof)
+        NN     = zeros(5, nnodes*ndof)
         L      = zeros(3,3)
+        Rrot   = zeros(5,ndof)
+
+        
+        NNil    = zeros(5,5)
+        NNi     = zeros(5,ndof)
     
         for ip in elem.ips
             elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
     
             # compute N matrix
-            Ni    = elem.shape.func(ip.R)
+            N    = elem.shape.func(ip.R)
             dNdR = elem.shape.deriv(ip.R)
             J2D  = C'*dNdR
             set_rot_x_xp(elem, J2D, L)
@@ -225,17 +244,19 @@ function elem_mass(elem::MechShell)
             detJ′ = det(J′)
             @assert detJ′>0
 
-            for i in 1:nnodes
-                for j in 1:ndof
-                    N[j, (i-1)*ndof+j] = Ni[i]
-                end
-            end
+            setNN(elem, N, L, Rrot, NNil, NNi, NN)
+
+            # for i in 1:nnodes
+            #     for j in 1:ndof
+            #         NN[j, (i-1)*ndof+j] = N[i]
+            #     end
+            # end
 
             # compute M
-            coef = ρ*detJ′*ip.w*th
-            @gemm M += coef*N'*N
+            coef = ρ*detJ′*ip.w
+            @gemm M += coef*NN'*NN
         end
-    
+
         map = elem_map(elem)
         return M, map, map
 end
@@ -260,17 +281,12 @@ function elem_update!(elem::MechShell, U::Array{Float64,1}, dt::Float64)
     Bi = zeros(6,ndof)
     Δε = zeros(6)
 
-    # Dn = [ elem.Dlmn[i][3,j] for i in 1:nnodes, j in 1:3 ] # nx3
-
-
     for ip in elem.ips
         N = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R) # 3xn
         
-        # J = [ C'*dNdR + th/2*ip.R[3]*Dn'*dNdR   th/2*Dn'*N ] # 3x3
         J2D = C'*dNdR
         set_rot_x_xp(elem, J2D, L)
-        # J′ = L*J
         J′ = [ L*J2D [ 0,0,th/2]  ]
         invJ′ = inv(J′)
 
@@ -282,7 +298,6 @@ function elem_update!(elem::MechShell, U::Array{Float64,1}, dt::Float64)
         Δσ, status = stress_update(elem.mat, ip.state, Δε)
         failed(status) && return failure("MechShell: Error at integration point $(ip.id)")
 
-        # detJ = det(J)
         detJ′ = det(J′)
         coef = detJ′*ip.w
         dF += coef*B'*Δσ
