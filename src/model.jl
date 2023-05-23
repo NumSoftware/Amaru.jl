@@ -708,7 +708,8 @@ function nodal_patch_recovery(model::Model)
 
                     # number of polynomial terms
                     if ndim==3
-                        nterms = m>=10 ? 10 : m>=7 ? 7 : m>=4 ? 4 : 1
+                        # there were problems when using 10 terms
+                        nterms = m>=7 ? 7 : m>=4 ? 4 : 1
                     else
                         nterms = m>=6 ? 6 : m>=4 ? 4 : m>=3 ? 3 : 1
                     end
