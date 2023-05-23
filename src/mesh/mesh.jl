@@ -951,10 +951,14 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
 
     # add surfaces
     for surf in geo.entities
-        surf isa Surface || continue
+        surf isa AbstractSurface || continue
 
         lo_idxs = [ lo.id for lo in surf.loops ]
-        gmsh.model.geo.addPlaneSurface(lo_idxs, surf.id) # surf and holes, surf tag
+        if surf isa PlaneSurface
+            gmsh.model.geo.addPlaneSurface(lo_idxs, surf.id) # plane surface
+        else
+            gmsh.model.geo.addSurfaceFilling(lo_idxs, surf.id) # filling surf
+        end
     end
     surf_idxs = [ surf.id for surf in geo.entities if surf isa Surface ]
 
@@ -982,16 +986,16 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
     end
 
     for s in geo.entities
-        s isa Surface || continue
+        s isa AbstractSurface || continue
         s.recombine && gmsh.model.mesh.set_recombine(2, s.id)
         s.transfinite && gmsh.model.mesh.set_transfinite_surface(s.id)
     end
 
     if !isvolumemesh
-        tagset = Set([ surf.tag for surf in geo.entities if surf isa Surface ])
+        tagset = Set([ surf.tag for surf in geo.entities if surf isa AbstractSurface ])
         tagsdict = Dict( tag=>i for (i,tag) in enumerate(tagset) )
         for (tag, gidx) in tagsdict
-            surf_idxs = [ surf.id for surf in geo.entities if surf isa Surface && surf.tag==tag]
+            surf_idxs = [ surf.id for surf in geo.entities if surf isa AbstractSurface && surf.tag==tag]
             gmsh.model.addPhysicalGroup(2, surf_idxs, gidx) # ndim, entities, group_id
         end
 
@@ -1023,7 +1027,7 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
     
         # search surfaces
         for s in geo.entities
-            s isa Surface || continue
+            s isa AbstractSurface || continue
             if inside(p, s.loops[1])
                 gmsh.model.mesh.embed(0,[p.id],2,s.id)
             end
@@ -1038,6 +1042,7 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
             redirect_stdout(out) do
                 gmsh.model.mesh.generate(isvolumemesh ? 3 : 2)
                 gmsh.write(tempfile)
+                gmsh.write("file.geo_unrolled")
             end
         end
     catch err

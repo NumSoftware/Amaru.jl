@@ -1,5 +1,5 @@
-export Point, Line, Loop, Surface, GeoModel
-export addpoint!, addline!, addarc!, addloop!, addsurface!, addvolume!
+export Point, Line, Loop, PlaneSurface, Surface, GeoModel
+export addpoint!, addline!, addarc!, addloop!, addplanesurface!, addvolume!
 
 abstract type GeoEntity
 end
@@ -64,8 +64,8 @@ mutable struct Arc<:Curve
     id::Int
     tag::String
 
-    function Arc(p1::Point, p2::Point, p3::Point; n=0, id=0)
-        return new([p1, p2, p3], [], n, id)
+    function Arc(p1::Point, p2::Point, p3::Point; n=0, id=0, tag="")
+        return new([p1, p2, p3], [], n, id, tag)
     end
 end
 
@@ -84,6 +84,9 @@ Base.show(io::IO, c::Curve) = _show(io, c, 2, "")
 # Base.show(io::IO, line::Line) = _show(io, line, 2, "")
 
 
+
+
+
 mutable struct Loop<:GeoEntity # related to CurveLoop
     curves::Array{Curve,1}
     id::Int
@@ -100,14 +103,29 @@ end
 
 Base.show(io::IO, loop::Loop) = _show(io, loop, 2, "")
 
-mutable struct Surface<:GeoEntity
+abstract type AbstractSurface<:GeoEntity
+end
+
+mutable struct PlaneSurface<:AbstractSurface
     loops::Array{Loop,1}
     volumes::Array
     id::Int
     tag::String
     transfinite::Bool
     recombine::Bool
-    # id::Int
+
+    function PlaneSurface(loops::Loop...; id=0, tag="")
+        return new([loops...], Volume[], id, tag, false, false)
+    end
+end
+
+mutable struct Surface<:AbstractSurface
+    loops::Array{Loop,1}
+    volumes::Array
+    id::Int
+    tag::String
+    transfinite::Bool
+    recombine::Bool
 
     function Surface(loops::Loop...; id=0, tag="")
         return new([loops...], Volume[], id, tag, false, false)
@@ -118,11 +136,11 @@ Base.show(io::IO, surf::Surface) = _show(io, surf, 2, "")
 
 
 mutable struct Volume<:GeoEntity # related to SurfaceLoop
-    surfaces::Array{Surface,1}
+    surfaces::Array{AbstractSurface,1}
     id::Int
     tag::String
 
-    function Volume(surfs::Array{Surface,1}; tag="")
+    function Volume(surfs::Array{<:AbstractSurface,1}; tag="")
         return new(surfs, -1, tag)
     end
 end
@@ -130,15 +148,13 @@ end
 Base.show(io::IO, volume::Volume) = _show(io, volume, 2, "")
 
 
+# function getcoords(surf::PlaneSurface)
+#     return Float64[ p.coord[j] for p in surf.points, j=1:3 ]
+# end
 
-
-function getcoords(surf::Surface)
-    return Float64[ p.coord[j] for p in surf.points, j=1:3 ]
-end
-
-function getcoords(points::Array{Point,1})
-    return Float64[ p.coord[j] for p in points, j=1:3 ]
-end
+# function getcoords(points::Array{Point,1})
+#     return Float64[ p.coord[j] for p in points, j=1:3 ]
+# end
 
 
 mutable struct GeoModel
@@ -166,7 +182,7 @@ end
 function Base.getproperty(set::OrderedSet{<:GeoEntity}, s::Symbol)
     s==:points && return [ent for ent in set if ent isa Point]
     s==:lines && return [ent for ent in set if ent isa Line]
-    s==:surfaces && return [ent for ent in set if ent isa Surface]
+    s==:surfaces && return [ent for ent in set if ent isa AbstractSurface]
     s==:volumes && return [ent for ent in set if ent isa Volume]
     return getfield(set, s)
 end
@@ -609,6 +625,32 @@ function addsingleline!(geo::GeoModel, p1::Point, p2::Point; n=0, tag="")
     return l
 end
 
+# function getarc(geo::GeoModel, p1::Point, p2::Point, p3::Point)
+#     arc = Line(p1, p2, p3)
+#     return getkey(geo.entities.dict, arc, nothing)
+# end
+
+# This fuction just adds an arc without searching for loops
+function addsinglearc!(geo::GeoModel, p1::Point, p2::Point, p3::Point; n=0, tag="")
+    p1 = getpoint(geo, p1)
+    p2 = getpoint(geo, p2)
+    p3 = getpoint(geo, p3)
+
+    a = Arc(p1, p2, p3, n=n, tag=tag)
+    aa = getentity(geo, a)
+    aa===nothing || return aa
+
+    # add arc
+    geo._id +=1
+    a.id = geo._id
+    push!(geo.entities, a)
+    push!(p1.adj, p3)
+    push!(p3.adj, p1)
+
+    return a
+
+end
+
 function addline!(geo::GeoModel, X1, X2; n=0, tag="")
     p1 = addpoint!(geo, X1)
     p2 = addpoint!(geo, X2)
@@ -660,7 +702,7 @@ function addarc!(geo::GeoModel, p1::Point, p2::Point, p3::Point; n=0, tag="")
     p2 = getpoint(geo, p2)
     p3 = getpoint(geo, p3)
 
-    a = Arc(p1, p2, p3, n=n)
+    a = Arc(p1, p2, p3, n=n, tag=tag)
     aa = getentity(geo, a)
     aa===nothing || return aa
 
@@ -684,113 +726,113 @@ function addloops!(geo::GeoModel, c::Curve)
     end
 end
 
-function addline!2(geo::GeoModel, p1::Point, p2::Point; n=0, tag="")
-    ll = getline(geo, p1, p2)
+# function addline!2(geo::GeoModel, p1::Point, p2::Point; n=0, tag="")
+#     ll = getline(geo, p1, p2)
 
-    ll===nothing || return ll
+#     ll===nothing || return ll
 
-    l = Line(p1, p2)
-    points = Point[ ]
+#     l = Line(p1, p2)
+#     points = Point[ ]
 
-    # check if line intersects other lines
-    for li in geo.entities
-        li isa Line || continue
-        p = intersection(li, l)
-        p === nothing && continue
-        p = addpoint!(geo, p)
-        push!(points, p)
-    end
+#     # check if line intersects other lines
+#     for li in geo.entities
+#         li isa Line || continue
+#         p = intersection(li, l)
+#         p === nothing && continue
+#         p = addpoint!(geo, p)
+#         push!(points, p)
+#     end
 
-    # sort points    
-    push!(points, p1)
-    push!(points, p2)
-    unique!(points)
-    sort!(points, by=x->norm(x.coord-p1.coord))
+#     # sort points    
+#     push!(points, p1)
+#     push!(points, p2)
+#     unique!(points)
+#     sort!(points, by=x->norm(x.coord-p1.coord))
 
-    # add points
-    for p in points
-        addpoint!(geo, p) # may update some loops
-    end
+#     # add points
+#     for p in points
+#         addpoint!(geo, p) # may update some loops
+#     end
 
-    # add lines
-    npts = length(points)
-    for i in 1:npts-1
-        p1 = points[i]
-        p2 = points[i+1]
+#     # add lines
+#     npts = length(points)
+#     for i in 1:npts-1
+#         p1 = points[i]
+#         p2 = points[i+1]
 
-        l = Line(p1, p2, n=0, tag=tag)
-        ll = getkey(geo.entities.dict, l, nothing)
-        ll===nothing || continue
+#         l = Line(p1, p2, n=0, tag=tag)
+#         ll = getkey(geo.entities.dict, l, nothing)
+#         ll===nothing || continue
 
-        # add single lines
-        geo._id +=1
-        l.id = geo._id
-        push!(geo.entities, l)
-        push!(p1.adj, p2)
-        push!(p2.adj, p1)
+#         # add single lines
+#         geo._id +=1
+#         l.id = geo._id
+#         push!(geo.entities, l)
+#         push!(p1.adj, p2)
+#         push!(p2.adj, p1)
 
-        # find coplanar loops
-        loops = findloops(geo, l)
-        loops = [ lo for lo in loops if coplanar(lo) ]
+#         # find coplanar loops
+#         loops = findloops(geo, l)
+#         loops = [ lo for lo in loops if coplanar(lo) ]
 
-        # check if resulting loop overlap each other
-        nloops = length(loops)
-        indices = trues(nloops)
-        for i in 1:nloops
-            for j in 1:nloops
-                i==j && continue
-                if overlaps(loops[i], loops[j])
-                    indices[j] = false
-                    break
-                end
-            end
-        end
-        loops = loops[indices]
+#         # check if resulting loop overlap each other
+#         nloops = length(loops)
+#         indices = trues(nloops)
+#         for i in 1:nloops
+#             for j in 1:nloops
+#                 i==j && continue
+#                 if overlaps(loops[i], loops[j])
+#                     indices[j] = false
+#                     break
+#                 end
+#             end
+#         end
+#         loops = loops[indices]
 
-        # check if there two loops that overlaps the same surface
-        if length(loops)==2
-            ovs = nothing # overlapped surface
-            for s in geo.entities
-                s isa Surface || continue
-                if overlaps(loops[1], s) && overlaps(loops[2], s)
-                    ovs = s
-                    break
-                end
-            end
+#         # check if there two loops that overlaps the same surface
+#         if length(loops)==2
+#             ovs = nothing # overlapped surface
+#             for s in geo.entities
+#                 s isa PlaneSurface || continue
+#                 if overlaps(loops[1], s) && overlaps(loops[2], s)
+#                     ovs = s
+#                     break
+#                 end
+#             end
 
-            if ovs!==nothing
-                # add loops manually
-                for lo in loops
-                    geo._id +=1
-                    lo.id = geo._id
-                    push!(geo.entities, lo)
-                end
+#             if ovs!==nothing
+#                 # add loops manually
+#                 for lo in loops
+#                     geo._id +=1
+#                     lo.id = geo._id
+#                     push!(geo.entities, lo)
+#                 end
 
-                s1 = addsurface!(geo, loops[1], tag=ovs.tag)
-                s2 = addsurface!(geo, loops[2], tag=ovs.tag)
-                for vol in ovs.volumes
-                    push!(s1.volumes, vol)
-                    push!(s2.volumes, vol)
-                    push!(vol.surfaces, s1)
-                    push!(vol.surfaces, s2)
-                    idx = findfirst(s->s==ovs, vol.surfaces)
-                    deleteat!(vol.surfaces, idx)
-                end
-                delete!(geo, ovs)
+#                 s1 = addplanesurface!(geo, loops[1], tag=ovs.tag)
+#                 s2 = addplanesurface!(geo, loops[2], tag=ovs.tag)
+#                 for vol in ovs.volumes
+#                     push!(s1.volumes, vol)
+#                     push!(s2.volumes, vol)
+#                     push!(vol.surfaces, s1)
+#                     push!(vol.surfaces, s2)
+#                     idx = findfirst(s->s==ovs, vol.surfaces)
+#                     deleteat!(vol.surfaces, idx)
+#                 end
+#                 delete!(geo, ovs)
 
-                continue
-            end
+#                 continue
+#             end
 
-        end
+#         end
 
-        for lo in loops
-            addloop!(geo, lo) # may add a new surface
-        end
+#         for lo in loops
+#             addloop!(geo, lo) # may add a new surface
+#         end
 
-    end
+#     end
 
-    return l
-end
+#     return l
+# end
 
 
 function Base.delete!(geo::GeoModel, l::Line)
@@ -810,29 +852,29 @@ function Base.delete!(geo::GeoModel, l::Line)
 end
 
 
-function getarc(geo::GeoModel, p1::Point, p2::Point, p3::Point)
-    a = Arc(p1, p2, p3)
-    return getkey(geo.entities.dict, a, nothing)
-end
+# function getarc(geo::GeoModel, p1::Point, p2::Point, p3::Point)
+#     a = Arc(p1, p2, p3)
+#     return getkey(geo.entities.dict, a, nothing)
+# end
 
-# This fuction just adds an arc without searching for loops
-function addsinglearc!(geo::GeoModel, p1::Point, p2::Point, p3::Point; n=0, tag="")
-    aa = getarc(geo, p1, p2, p3)
+# # This fuction just adds an arc without searching for loops
+# function addsinglearc!(geo::GeoModel, p1::Point, p2::Point, p3::Point; n=0, tag="")
+#     aa = getarc(geo, p1, p2, p3)
 
-    if aa!==nothing
-        aa.n = n
-        return aa
-    end
+#     if aa!==nothing
+#         aa.n = n
+#         return aa
+#     end
 
-    a = Arc(p1, p2, p3, tag=tag)
-    geo._id +=1
-    a.id = geo._id
-    push!(geo.entities, a)
-    push!(p1.adj, p3)
-    push!(p3.adj, p1)
+#     a = Arc(p1, p2, p3, tag=tag)
+#     geo._id +=1
+#     a.id = geo._id
+#     push!(geo.entities, a)
+#     push!(p1.adj, p3)
+#     push!(p3.adj, p1)
 
-    return a
-end
+#     return a
+# end
 
 
 function getpoints(lo::Loop)
@@ -981,7 +1023,7 @@ function overlaps(lo1::Loop, lo2::Loop; withborder=true)
 end
 
 # check if loop geometry overlaps a surface
-function overlaps(lo::Loop, s::Surface; withborder=true)
+function overlaps(lo::Loop, s::PlaneSurface; withborder=true)
     tol = 1e-8
     N1, h1 = getplane(lo)
     N2, h2 = getplane(s.loops[1])
@@ -1035,7 +1077,7 @@ function addloop!(geo::GeoModel, lo::Loop)
 
     # find if loop overlaps existing surface
     for s in geo.entities
-        s isa Surface || continue
+        s isa PlaneSurface || continue
 
         # check if lo is a hole
         if overlaps(lo, s, withborder=false)
@@ -1055,7 +1097,16 @@ function addloop!(geo::GeoModel, lo::Loop)
         end
     end
 
-    s = addsurface!(geo, lo)
+    # hasarc = false
+    # for l in lo
+    #     l isa Arc && hasarc=true
+    # end
+
+    # if hasarc
+        # s = addsurface!(geo, lo)
+    # else
+    # end
+    s = addplanesurface!(geo, lo)
 
     # check if there are loops that represet holes for this surface
     for loop in geo.entities
@@ -1074,7 +1125,7 @@ function Base.delete!(geo::GeoModel, loop::Loop)
 
     # delete surfaces associated with that loop
     for surf in geo.entities
-        surf isa Surface || continue
+        surf isa PlaneSurface || continue
         if length(surf.loops)==1
             loop==surf.loops[1] && delete!(geo, surf)
             continue
@@ -1089,6 +1140,26 @@ function Base.delete!(geo::GeoModel, loop::Loop)
 
 end
 
+
+function addplanesurface!(geo::GeoModel, loops::Loop...; tag="")
+    # @show "adding surface"
+    s = PlaneSurface(loops..., tag=tag)
+    ss = getkey(geo.entities.dict, s, nothing)
+    ss === nothing || return ss
+
+    geo._id +=1
+    s.id = geo._id
+    push!(geo.entities, s)
+
+    # update edges
+    for lo in s.loops
+        for l in lo.curves
+            push!(l.surfaces, s)
+        end
+    end
+
+    return s
+end
 
 function addsurface!(geo::GeoModel, loops::Loop...; tag="")
     # @show "adding surface"
@@ -1110,7 +1181,7 @@ function addsurface!(geo::GeoModel, loops::Loop...; tag="")
     return s
 end
 
-function Base.delete!(geo::GeoModel, surf::Surface)
+function Base.delete!(geo::GeoModel, surf::PlaneSurface)
     # @show "deleting surface"
 
     delete!(geo.entities, surf)
@@ -1124,7 +1195,7 @@ function Base.delete!(geo::GeoModel, surf::Surface)
         # check if other surfaces uses this loop    
         found = false
         for s in geo.entities
-            s isa Surface || continue
+            s isa PlaneSurface || continue
             if lo in s.loops
                 found = true
                 break
@@ -1138,7 +1209,7 @@ function Base.delete!(geo::GeoModel, surf::Surface)
 end
 
 
-function addvolume!(geo::GeoModel, surfaces::Array{Surface,1}; tag="")
+function addvolume!(geo::GeoModel, surfaces::Array{<:AbstractSurface,1}; tag="")
     v = Volume(surfaces, tag=tag)
     vv = getkey(geo.entities.dict, v, nothing)
     vv===nothing || return v
@@ -1171,12 +1242,35 @@ function extrude!(geo::GeoModel, line::Line; axis=[0,0,1], length=1.0)
     lo.id = geo._id
     push!(geo.entities, lo)
 
+    s = addplanesurface!(geo, lo)
+    return s
+end
+
+function extrude!(geo::GeoModel, arc::Arc; axis=[0,0,1], length=1.0)
+    p1, p2, p3 = arc.points
+    dx = length*axis[1]
+    dy = length*axis[2]
+    dz = length*axis[3]
+    p4 = copy(geo, p3, dx=dx, dy=dy, dz=dz)
+    p5 = copy(geo, p2, dx=dx, dy=dy, dz=dz)
+    p6 = copy(geo, p1, dx=dx, dy=dy, dz=dz)
+    c1 = addsinglearc!(geo, p1, p2, p3, tag=arc.tag)
+    c2 = addsingleline!(geo, p3, p4, tag=arc.tag)
+    c3 = addsinglearc!(geo, p4, p5, p6, tag=arc.tag)
+    c4 = addsingleline!(geo, p6, p1, tag=arc.tag)
+
+    lo = Loop(c1, c2, c3, c4)
+
+    geo._id +=1
+    lo.id = geo._id
+    push!(geo.entities, lo)
+
     s = addsurface!(geo, lo)
     return s
 end
 
-function extrude!(geo::GeoModel, surf::Surface; axis=[0,0,1], length=1.0)
-    surfs = [ surf ]
+function extrude!(geo::GeoModel, surf::AbstractSurface; axis=[0,0,1], length=1.0)
+    surfs = AbstractSurface[ surf ]
 
     # extrude lateral lines
     for lo in surf.loops
@@ -1190,10 +1284,10 @@ function extrude!(geo::GeoModel, surf::Surface; axis=[0,0,1], length=1.0)
     # find lid loops
     loops = Loop[]
     for lo in surf.loops
-        lines = Line[]
+        lines = Curve[]
         for line in lo.curves
             points = Point[]
-            for p in line.points
+            for p in line.points[[1,end]]
                 pp = Point(p.coord .+ length.*axis)
                 pp.tag = p.tag
                 pp = addpoint!(geo, pp)
@@ -1213,7 +1307,7 @@ function extrude!(geo::GeoModel, surf::Surface; axis=[0,0,1], length=1.0)
         push!(geo.entities, lo)
     end
 
-    s = addsurface!(geo, loops..., tag=surf.tag)
+    s = addplanesurface!(geo, loops..., tag=surf.tag)
     push!(surfs, s)
 
     v = addvolume!(geo, surfs, tag=surf.tag)
@@ -1225,7 +1319,7 @@ function extrude!(geo::GeoModel, surf::Surface; axis=[0,0,1], length=1.0)
     return v
 end
 
-function extrude!(m::GeoModel, surfs::Array{Surface,1}; axis=[0,0,1], length=1.0)
+function extrude!(m::GeoModel, surfs::Vector{<:AbstractSurface}; axis=[0,0,1], length=1.0)
     for s in surfs
         extrude!(m, s; axis=axis, length=length)
     end
@@ -1240,7 +1334,7 @@ end
 function picksurface(geo::GeoModel, coord)
     p = Point(coord)
     for s in geo.entities
-        s isa Surface || continue
+        s isa PlaneSurface || continue
         isin = inside(p, s.loops[1])
         if isin && length(s.loops)>=2
             for lo in s.loops[2:end]
@@ -1255,6 +1349,6 @@ function picksurface(geo::GeoModel, coord)
     return nothing
 end
 
-function tag!(s::Surface, tag::String)
+function tag!(s::AbstractSurface, tag::String)
     s.tag = tag
 end
