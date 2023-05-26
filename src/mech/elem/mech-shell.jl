@@ -159,17 +159,16 @@ function setB(elem::MechShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx,
     end 
 end
 
-function setNN(elem::MechShell, N::Vect, L::Matx, Rrot::Matx, NNil::Matx, NNi::Matx, NN::Matx)
+function setNN(elem::MechShell, N::Vect, L::Matx, Rrot::Matx, NN::Matx)
     nnodes = length(N)
     ndof = 6
     for i in 1:nnodes
         Rrot[1:3,1:3] .= L
-        # Rrot[4:5,4:6] .= L[1:2,:]
-        # Rrot[1:3,1:3] .= elem.Dlmn[i]
-        Rrot[4:5,4:6] .= elem.Dlmn[i][1:2,:]
+        Rrot[4:5,4:6] .= L[1:2,:].*0
+        # Rrot[4:5,4:6] .= elem.Dlmn[i][1:2,:]
 
         c = (i-1)*ndof
-        @gemm NNi = NNil*Rrot
+        # @gemm NNi = NNil*Rrot
         NN[:, c+1:c+6] .= N[i].*Rrot
     end 
 end
@@ -232,8 +231,6 @@ function elem_mass(elem::MechShell)
         NNi     = zeros(5,ndof)
     
         for ip in elem.ips
-            elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
-    
             # compute N matrix
             N    = elem.shape.func(ip.R)
             dNdR = elem.shape.deriv(ip.R)
@@ -244,7 +241,7 @@ function elem_mass(elem::MechShell)
             detJ′ = det(J′)
             @assert detJ′>0
 
-            setNN(elem, N, L, Rrot, NNil, NNi, NN)
+            setNN(elem, N, L, Rrot, NN)
 
             # for i in 1:nnodes
             #     for j in 1:ndof
