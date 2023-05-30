@@ -1161,6 +1161,22 @@ function addplanesurface!(geo::GeoModel, loops::Loop...; tag="")
     return s
 end
 
+
+function addplanesurface!(geo::GeoModel, points::Array; tag="")
+    n = length(points)
+    pointsarr = []
+    for p in points
+        push!(pointsarr, addpoint!(geo, p))
+    end
+
+    for i in 1:n
+        j = i<n ? i+1 : 1
+        addline!(geo, pointsarr[i], pointsarr[j])
+    end
+
+end
+
+
 function addsurface!(geo::GeoModel, loops::Loop...; tag="")
     # @show "adding surface"
     s = Surface(loops..., tag=tag)
@@ -1180,6 +1196,7 @@ function addsurface!(geo::GeoModel, loops::Loop...; tag="")
 
     return s
 end
+
 
 function Base.delete!(geo::GeoModel, surf::PlaneSurface)
     # @show "deleting surface"
