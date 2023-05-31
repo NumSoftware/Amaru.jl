@@ -21,7 +21,7 @@ matching_shape_family(::Type{AcousticFluid}) = BULKCELL
 
 function elem_config_dofs(elem::AcousticFluid)
     for node in elem.nodes
-        add_dof(node, :up, :qp)
+        add_dof(node, :up, :fq) # up: pressure; fq: mass acceleration (e.g. kg/s2)
     end
 end
 
@@ -33,7 +33,7 @@ end
 function distributed_bc(elem::AcousticFluid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     th    = elem.env.thickness
-    suitable_keys = (:tq,:ax,:ay,:az) # tq: mass flow acceleration?, ax: x acceleration
+    suitable_keys = (:tq,) # tq: mass acceleration per area?, ax: x acceleration
 
     # Check keys
     key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable in a AcousticFluid element")
@@ -48,10 +48,10 @@ function distributed_bc(elem::AcousticFluid, facet::Union{Facet,Nothing}, key::S
 
     # Calculate the target coordinates matrix
     C = getcoords(nodes, ndim)
+    
 
     # Calculate the nodal values
     F     = zeros(nnodes)
-    J     = Array{Float64}(undef, ndim, ndim)
     shape = target.shape
     ips   = get_ip_coords(shape)
 
@@ -60,7 +60,8 @@ function distributed_bc(elem::AcousticFluid, facet::Union{Facet,Nothing}, key::S
         w = R[end]
         N = shape.func(R)
         D = shape.deriv(R)
-        @gemm J = C'*D
+
+        J = C'*D
         X = C'*N
         if ndim==2
             x, y = X
@@ -73,29 +74,12 @@ function distributed_bc(elem::AcousticFluid, facet::Union{Facet,Nothing}, key::S
             vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
         end
 
-        if key in (:ax, :ay, :az, :an)
-            vip *= -elem.mat.rho
-        end
-
         if  ndim==2
             n = [J[2], -J[1]]
         else
             n = cross(J[:,1], J[:,2])
         end
         normalize!(n)
-
-        
-        if key in (:ax)
-            Q[1] = vip
-        elseif key in (:ay)
-            Q[2] = vip
-        elseif key in (:az)
-            Q[3] = vip
-        elseif key in (:an)
-            Q = vip*n
-        end
-        
-        vip = dot(n, Q)
 
         coef = vip*norm(J)*w*th
         F .+= coef*N # F is a vector
@@ -129,7 +113,9 @@ function elem_acoustic_stiffness(elem::AcousticFluid)
         Bp = dNdX'
 
         coef = detJ*ip.w*th
-        @gemm K += coef*Bp'*Bp
+
+        # @gemm 
+        K += coef*Bp'*Bp
     end
 
     # map
@@ -155,8 +141,10 @@ function elem_acoustic_mass(elem::AcousticFluid)
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
+        c = elem.mat.c # sound speed
+
         # compute M
-        coef = detJ*ip.w*th
+        coef = detJ*ip.w*th/c^2
         M    = coef*N*N'
     end
 
@@ -205,52 +193,56 @@ function elem_RHS_vector(elem::AcousticFluid)
 end
 
 # TODO
-function elem_update!(elem::AcousticFluid, DU::Array{Float64,1}, Δt::Float64)
+function elem_update!(elem::AcousticFluid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     th     = elem.env.thickness
 
-    map_w  = [ node.dofdict[:up].eq_id for node in elem.nodes ]
+    map_p  = [ node.dofdict[:up].eq_id for node in elem.nodes ]
 
     C   = getcoords(elem)
 
-    dUw = DU[map_w] # nodal pore-pressure increments
-    Uw  = [ node.dofdict[:up].vals[:up] for node in elem.nodes ]
-    Uw += dUw # nodal pore-pressure at step n+1
+    dUp = DU[map_p] # nodal pore-pressure increments
+    P  = [ node.dofdict[:up].vals[:up] for node in elem.nodes ]
+    P += dUp # nodal pore-pressure at step n+1
+    A  = [ node.dofdict[:up].vals[:ap] for node in elem.nodes ]
 
-    dFw = zeros(nnodes)
-    Bw  = zeros(ndim, nnodes)
+    K, m, m = elem_acoustic_stiffness(elem)
+    M, m, m = elem_acoustic_mass(elem)
 
-    J  = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, nnodes, ndim)
+    dF = K*P + M*A
 
-    for ip in elem.ips
-        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+    # dFw = zeros(nnodes)
+    # Bw  = zeros(ndim, nnodes)
 
-        # compute Bu matrix
-        N    = elem.shape.func(ip.R)
-        dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
-        detJ = det(J)
-        detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
-        @gemm dNdX = dNdR*inv(J) # Bw = dNdX'
+    # J  = Array{Float64}(undef, ndim, ndim)
+    # dNdX = Array{Float64}(undef, nnodes, ndim)
 
-        G  = dNdX'*Uw/elem.mat.γw # flow gradient
-        G[end] += 1.0; # gradient due to gravity
+    # for ip in elem.ips
+    #     elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
-        Δuw = N'*dUw # interpolation to the integ. point
+    #     # compute Bu matrix
+    #     N    = elem.shape.func(ip.R)
+    #     dNdR = elem.shape.deriv(ip.R)
+    #     @gemm J = C'*dNdR
+    #     detJ = det(J)
+    #     detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
+    #     @gemm dNdX = dNdR*inv(J) # Bw = dNdX'
 
-        V = update_state!(elem.mat, ip.state, Δuw, G, Δt)
+    #     Δuw = N'*dUp # interpolation to the integ. point
 
-        coef  = elem.mat.S
-        coef *= detJ*ip.w*th
-        dFw  -= coef*N*Δuw
+    #     V = update_state!(elem.mat, ip.state, Δuw, G, Δt)
 
-        coef = Δt*detJ*ip.w*th
-        @gemv dFw += coef*dNdX*V
-    end
+    #     coef  = elem.mat.S
+    #     coef *= detJ*ip.w*th
+    #     dFw  -= coef*N*Δuw
 
-    DF[map_w] += dFw
-    return success()
+    #     coef = Δt*detJ*ip.w*th
+    #     @gemv dFw += coef*dNdX*V
+    # end
+
+    return dF, map, success()
+    # DF[map_p] += dF
+    # return success()
 end
 

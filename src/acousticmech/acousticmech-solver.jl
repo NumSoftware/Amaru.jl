@@ -135,7 +135,6 @@ function am_solve!(model::Model; args...)
     return st
 end
 
-
 function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::StatusLine; 
     tol     :: Number  = 1e-2,
     Ttol    :: Number  = 1e-9,
@@ -168,6 +167,11 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
 
     # Get dofs organized according to boundary conditions
     dofs, nu = configure_dofs!(model, stage.bcs) # unknown dofs first
+    # global DOFS = dofs
+    # global CC = stage.bcs
+    # error()
+
+
     ndofs    = length(dofs)
     umap     = 1:nu         # map for unknown bcs
     pmap     = nu+1:ndofs   # map for prescribed bcs
@@ -177,7 +181,38 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
 
     quiet || nu==ndofs && message(sline, "solve_system!: No essential boundary conditions", Base.warn_color)
 
+    # Dictionary of data keys related with a dof
+    components_dict = Dict( 
+                            :up => (:up, :fq, :vp, :ap),
+                            :ux => (:ux, :fx, :vx, :ax),
+                            :uy => (:uy, :fy, :vy, :ay),
+                            :uz => (:uz, :fz, :vz, :az),
+                            :rx => (:rx, :mx, :vrx, :arx),
+                            :ry => (:ry, :my, :vry, :ary),
+                            :rz => (:rz, :mz, :vrz, :arz))
+
     if stage.id == 1
+        for dof in dofs
+            us, fs, vs, as = components_dict[dof.name]
+            dof.vals[us] = 0.0
+            dof.vals[fs] = 0.0
+            dof.vals[vs] = 0.0
+            dof.vals[as] = 0.0
+        end
+
+        # Initial accelerations
+        A = zeros(ndofs)
+        V = zeros(ndofs)
+        Uex, Fex = get_bc_vals(model, bcs) # get values at time t
+
+        # Initial values at nodes
+        for (i,dof) in enumerate(dofs)
+            us, fs, vs, as = components_dict[dof.name]
+            dof.vals[vs] = V[i]
+            dof.vals[as] = A[i]
+            dof.vals[fs] = Fex[i]
+        end
+
         # Setup quantities at dofs
         for dof in dofs
             dof.vals[dof.name]    = 0.0
@@ -192,7 +227,6 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
         # complete_ut_T(model)
         save_outs && save(model, "$outdir/$outkey-0.vtu", quiet=true)
     end
-
 
     # Get the domain current state and backup
     State = [ ip.state for elem in model.elems for ip in elem.ips ]
@@ -218,6 +252,8 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     ΔUa  = zeros(ndofs)  # vector of essential values (e.g. displacements) for this increment
     ΔUi  = zeros(ndofs)  # vector of essential values for current iteration
     Rc   = zeros(ndofs)  # vector of cumulated residues
+    Fina = zeros(ndofs)  # current internal forces
+
     sysstatus = ReturnStatus()
 
     # Get boundary conditions
@@ -235,6 +271,8 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
         U[i] = dof.vals[dof.name]
         F[i] = dof.vals[dof.natname]
     end
+
+    @show 10000000
 
     local G::SparseMatrixCSC{Float64,Int64}
     local RHS::Array{Float64,1}
@@ -256,6 +294,7 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
         # Get forces and displacements from boundary conditions
         Δt = tspan*ΔT
         env.t = t + Δt
+
         UexN, FexN = get_bc_vals(model, bcs, t+Δt) # get values at time t+Δt
 
         ΔUex = UexN - U
@@ -308,7 +347,8 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
 
             Fina = Fin + ΔFin            
 
-            TFin = Fina + C*Va + M*Aa  # Internal force including dynamic effects
+            # TFin = Fina + C*Va + M*Aa  # Internal force including dynamic effects
+            TFin = Fina + M*Aa  # Internal force including dynamic effects
 
             residue = maximum(abs, (Fex-TFin)[umap] )
             
