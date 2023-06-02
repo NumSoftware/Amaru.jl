@@ -159,15 +159,16 @@ function setB(elem::MechShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx,
     end 
 end
 
-function setNN(elem::MechShell, ip::Ip, N::Vect, NNi::Matx, L::Matx, Rrot::Matx, NN::Matx)
+function setNN(elem::MechShell, ip::Ip, N::Vect, NNil::Matx, NNi::Matx, L::Matx, Rrot::Matx, NN::Matx)
     nnodes = length(N)
     ndof = 6
     th = elem.mat.th
     ζ = ip.R[3]
-    R = zeros(3,5)
-    NN_A  = zeros(3,5)
-    NN_B  = zeros(3,5)
-    NNi = zeros(3,6)
+    # R = zeros(3,5)
+    # NN_A  = zeros(3,5)
+    # NN_B  = zeros(3,5)
+    # NNi  = zeros(3,6)
+    # NNil = zeros(3,5)
 
     for i in 1:nnodes
         
@@ -176,23 +177,31 @@ function setNN(elem::MechShell, ip::Ip, N::Vect, NNi::Matx, L::Matx, Rrot::Matx,
         # Rrot[1:3,1:3] .= elem.Dlmn[i]
         Rrot[4:5,4:6] .= elem.Dlmn[i][1:2,:]
 
-        R[1:3,4:5] .= elem.Dlmn[i][1:2,:]'
+        # R[1:3,4:5] .= elem.Dlmn[i][1:2,:]'
         #@show R
         #error()
 
-        NN_A[1,1] = N[i]
-        NN_A[2,2] = N[i]
-        NN_A[3,3] = N[i]
+        NNil[1,1] = N[i]
+        NNil[2,2] = N[i]
+        NNil[3,3] = N[i]
+        NNil[1,5] = th/2*ζ*N[i]
+        NNil[2,4] = -th/2*ζ*N[i]
 
-        NN_B = R*ζ*(th/2)*N[i]
+        # NN_A[1,1] = N[i]
+        # NN_A[2,2] = N[i]
+        # NN_A[3,3] = N[i]
+
+        # NN_B = R*ζ*(th/2)*N[i]
 
         c = (i-1)*ndof
         #@show size(NN_A+NN_B)
        # error()
 
-        @gemm NNi = (NN_A+NN_B)*Rrot
+        # @gemm NNi = (NN_A+NN_B)*Rrot
         #@show NNi
         #error()
+
+        @gemm NNi = NNil*Rrot
 
         NN[:, c+1:c+6] .= NNi
 
@@ -251,13 +260,12 @@ function elem_mass(elem::MechShell)
         ρ      = elem.mat.ρ
         C      = getcoords(elem)
         M      = zeros(nnodes*ndof, nnodes*ndof)
-        NN     = zeros(3, nnodes*ndof)
         L      = zeros(3,3)
         Rrot   = zeros(5,ndof)
-
         
-        NNil    = zeros(5,5)
-        NNi     = zeros(5,ndof)
+        NN     = zeros(3, nnodes*ndof)
+        NNil    = zeros(3,5)
+        NNi     = zeros(3,ndof)
     
         for ip in elem.ips
             # compute N matrix
@@ -270,13 +278,7 @@ function elem_mass(elem::MechShell)
             detJ′ = det(J′)
             @assert detJ′>0
 
-            setNN(elem, ip, N, NNi, L, Rrot, NN)
-
-            # for i in 1:nnodes
-            #     for j in 1:ndof
-            #         NN[j, (i-1)*ndof+j] = N[i]
-            #     end
-            # end
+            setNN(elem, ip, N, NNil, NNi, L, Rrot, NN)
 
             # compute M
             coef = ρ*detJ′*ip.w
@@ -300,7 +302,6 @@ function elem_update!(elem::MechShell, U::Array{Float64,1}, dt::Float64)
     C = getcoords(elem)
     B = zeros(6, ndof*nnodes)
 
-    J  = Array{Float64}(undef, ndim, ndim)
     L = zeros(3,3)
     Rrot = zeros(5,ndof)
     Bil = zeros(6,5)
