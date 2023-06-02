@@ -159,20 +159,49 @@ function setB(elem::MechShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx,
     end 
 end
 
-function setNN(elem::MechShell, N::Vect, L::Matx, Rrot::Matx, NN::Matx)
+function setNN(elem::MechShell, ip::Ip, N::Vect, NNi::Matx, L::Matx, Rrot::Matx, NN::Matx)
     nnodes = length(N)
     ndof = 6
+    th = elem.mat.th
+    ζ = ip.R[3]
+    R = zeros(3,5)
+    NN_A  = zeros(3,5)
+    NN_B  = zeros(3,5)
+    NNi = zeros(3,6)
+
     for i in 1:nnodes
+        
         Rrot[1:3,1:3] .= L
-        Rrot[4:5,4:6] .= L[1:2,:].*0
-        # Rrot[4:5,4:6] .= elem.Dlmn[i][1:2,:]
+        # Rrot[4:5,4:6] .= L[1:2,:]
+        # Rrot[1:3,1:3] .= elem.Dlmn[i]
+        Rrot[4:5,4:6] .= elem.Dlmn[i][1:2,:]
+
+        R[1:3,4:5] .= elem.Dlmn[i][1:2,:]'
+        #@show R
+        #error()
+
+        NN_A[1,1] = N[i]
+        NN_A[2,2] = N[i]
+        NN_A[3,3] = N[i]
+
+        NN_B = R*ζ*(th/2)*N[i]
 
         c = (i-1)*ndof
-        # @gemm NNi = NNil*Rrot
-        NN[:, c+1:c+6] .= N[i].*Rrot
-    end 
-end
+        #@show size(NN_A+NN_B)
+       # error()
 
+        @gemm NNi = (NN_A+NN_B)*Rrot
+        #@show NNi
+        #error()
+
+        NN[:, c+1:c+6] .= NNi
+
+        #NN[:, c+1:c+5] = NN_A + NN_B
+       
+    end 
+    #@show NN
+    #error()
+end
 
 function elem_stiffness(elem::MechShell)
     nnodes = length(elem.nodes)
@@ -218,11 +247,11 @@ end
 function elem_mass(elem::MechShell)
         nnodes = length(elem.nodes)
         th     = elem.mat.th
-        ndof   = 6
+        ndof   = 6 #6
         ρ      = elem.mat.ρ
         C      = getcoords(elem)
         M      = zeros(nnodes*ndof, nnodes*ndof)
-        NN     = zeros(5, nnodes*ndof)
+        NN     = zeros(3, nnodes*ndof)
         L      = zeros(3,3)
         Rrot   = zeros(5,ndof)
 
@@ -241,7 +270,7 @@ function elem_mass(elem::MechShell)
             detJ′ = det(J′)
             @assert detJ′>0
 
-            setNN(elem, N, L, Rrot, NN)
+            setNN(elem, ip, N, NNi, L, Rrot, NN)
 
             # for i in 1:nnodes
             #     for j in 1:ndof
