@@ -108,9 +108,10 @@ end
 
 
 """
-    slice(mesh; base=[0,0,0], axis=[0,0,1])
+    slice(mesh; base, axis)
 
-Generates a 2D mesh by slicing a 3D `mesh` using a plane difeined by a `base` point and an `axis`.
+Generates a planar mesh by slicing a 3D `mesh` using a plane defined by a `base` point and an `axis`.
+The original nodal data is interpolated to the nodes of the resulting mesh.
 """
 function slice(
     mesh::AbstractDomain; 
@@ -135,9 +136,8 @@ function slice(
     end
 
     edges = collect(values(edgedict))
-    @show length(edges)
 
-    # find intersections
+    # find intersection points between edges and the plane
     edgeint = Dict{UInt, Node}()
     tolξ = 1e-9
     for edge in edges
@@ -159,12 +159,11 @@ function slice(
         fa*fb > 0.0 && continue
 
         Xi = (Xa+Xb)/2
-        n = floor(Int, log(2, 2/tolξ)) + 1
+        n  = floor(Int, log(2, 2/tolξ)) + 1
         Xi = Vec3(0,0,0)
-        C = getcoords(edge)
-        a = -1.0
-        b = +1.0
-        # fi = 0.0
+        C  = getcoords(edge)
+        a  = -1.0
+        b  = +1.0
         for i in 1:n
             ξ = (a+b)/2
             N = edge.shape.func([ξ])
@@ -179,23 +178,15 @@ function slice(
                 a = ξ
             end
             fi == 0 && break
-            # @show fi
         end
 
         Xi = round.(Xi, digits=8)
-        # @show dot(Xi-base, axis)
-        # @show fi
-        
         edgeint[hash(edge)] = Node(Xi)
     end
-    # error()
-
-    @show length(edgeint)
 
     # mount slice elements
     newcells = Cell[]
     for cell in mesh.elems
-        # nodes = Node[]
         nodedict = Dict{UInt,Node}()
         for edge in cell.edges
             Xi = get(edgeint, hash(edge), nothing)
@@ -227,14 +218,11 @@ function slice(
     for (key,data) in mesh.node_data
         haskey(newmesh.node_data, key) && continue
         count = zeros(Int, nnodes)
-        sz = size(data)
-        dim = length(sz)
+        sz    = size(data)
+        dim   = length(sz)
         if dim==1
             newdata = zeros(eltype(data), nnodes)
         else
-            # @show sz
-            # @show eltype(data)
-
             newdata = zeros(eltype(data), nnodes, sz[2])
         end
 
