@@ -102,22 +102,34 @@ end
 Computes the eigenvalues of a second order tensor written in Mandel notation.
 The eigenvalues are sorted from highest to lowest
 """
-function eigvals(T::Tensor2)::Vect
+function eigvals(T::Tensor2)
     @assert length(T) == 6
 
-    t11, t22, t33, t12, t23, t13 = T
-    t23 /= SR2 
-    t13 /= SR2
-    t12 /= SR2
+    # full notation
+    F = [ T[1]      T[6]/SR2  T[5]/SR2 ;
+          T[6]/SR2  T[2]      T[4]/SR2 ;
+          T[5]/SR2  T[4]/SR2  T[3]     ]
+    L, _ = eigen!(F, permute=false, scale=false)
+
+    # put biggest eigenvalue first
+    return sort!(L, rev=true)
+end
+
+"""
+This function is not precise enouugh...
+"""
+function eigvals2(T::Tensor2)::Vect
+    @assert length(T) == 6
+
+    t11, t22, t33, t12, t23, t13 = T[1], T[2], T[3], T[4]/SR2, T[5]/SR2, T[6]/SR2
+
     i1 = t11 + t22 + t33
     i2 = t11*t22 + t22*t33 + t11*t33 - t12*t12 - t23*t23 - t13*t13
 
-    if i1==0.0 && i2==0.0
-        return zeros(3)
-    end
+    i1==0.0 && i2==0.0 && return zeros(3)
 
-    i3 = t11*(t22*t33 - t23*t23) - t12*(t12*t33 - t23*t13) + t13*(t12*t23 - t22*t13)
-    val = round( (2*i1^3 - 9*i1*i2 + 27*i3 )/( 2*(i1^2 - 3*i2)^(3/2) ), digits=14 )
+    i3  = t11*(t22*t33 - t23*t23) - t12*(t12*t33 - t23*t13) + t13*(t12*t23 - t22*t13)
+    val = (2*i1^3 - 9*i1*i2 + 27*i3 )/( 2*(i1^2 - 3*i2)^(3/2) )
     val = clamp(val, -1.0, 1.0) # to avoid 1.000000000000001
 
     θ = 1/3*acos( val )
@@ -146,10 +158,13 @@ function LinearAlgebra.eigen(T::Tensor2)
     @assert length(T) == 6
 
     # full notation
-    F = [ T[1]      T[6]/SR2  T[5]/SR2 ;
-          T[6]/SR2  T[2]      T[4]/SR2 ;
-          T[5]/SR2  T[4]/SR2  T[3]     ]
-    L, V = eigen(F, permute=false, scale=false)
+    T4oR2 = T[4]/SR2
+    T5oR2 = T[5]/SR2
+    T6oR2 = T[6]/SR2
+    F = [ T[1]   T6oR2  T5oR2
+          T6oR2  T[2]   T4oR2
+          T5oR2  T4oR2  T[3]     ]
+    L, V = eigen!(F, permute=false, scale=false)
 
     # put biggest eigenvalue first
     p = sortperm(L, rev=true)
@@ -244,14 +259,14 @@ from stress and strain tensors defined in Mandel notation.
 @inline function stress_strain_dict(σ::Tensor2, ε::Tensor2, modeltype::String)
     
     if modeltype in ("plane-stress","plane-strain")
-        s1, s2, _ = eigvals(σ)
+        s1, _, s3 = eigvals(σ)
         return OrderedDict{Symbol,Float64}(
             :sxx => σ[1],
             :syy => σ[2],
             :szz => σ[3],
             :sxy => σ[6]/SR2,
             :s1  => s1,
-            :s2  => s2,
+            :s3  => s3,
             :exx => ε[1],
             :eyy => ε[2],
             :ezz => ε[3],
