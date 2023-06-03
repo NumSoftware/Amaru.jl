@@ -254,6 +254,13 @@ end
 
 export addstage!
 
+"""
+    $(TYPEDSIGNATURES)
+
+Adds an stage to the current finite element `model` with the corresponding boundary conditions 
+`bcs`. The number of increments `nincs` and the number of output files `nouts` can be specified.
+`nouts` should be equal to or a multiple of `nincs`. In transient analyses `tspan` represents the simulated time span.
+"""
 function addstage!(model::Model, bcs::Array;
     nincs   :: Int     = 1,
     nouts   :: Int     = 0,
@@ -275,7 +282,7 @@ function addlogger!(model::Model, logpair::Pair)
 end
 
 """
-    addloggers!(model, loggers)
+    $(TYPEDSIGNATURES)
 
 Register the loggers from the array `loggers` into `model`.
 
