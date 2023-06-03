@@ -98,9 +98,9 @@ subjected to a set of boundary conditions `bcs`.
 
 `autoinc = false` : Sets automatic increments size. The first increment size will be `1/nincs`
 
-`tol     = 1e-2` : Tolerance for the maximum absolute error in forces vector
+`rtol     = 1e-2` : Tolerance for the maximum absolute error in forces vector
 
-`Ttol     = 1e-9` : Pseudo-time tolerance
+`Tmin     = 1e-8` : Pseudo-time tolerance
 
 `scheme  = "FE"` : Predictor-corrector scheme at each increment. Available schemes are "FE", "ME", "BE", "Ralston"
 
@@ -123,7 +123,8 @@ solve! = mech_solve!
 
 function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::StatusLine; 
     tol     :: Number  = 1e-2,
-    Ttol    :: Number  = 1e-8,
+    rtol    :: Number  = 1e-2,
+    Tmin    :: Number  = 1e-8,
     rspan   :: Number  = 1e-2,
     scheme  :: String  = "FE",
     maxits  :: Int     = 5,
@@ -144,6 +145,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
     bcs       = stage.bcs
     env       = model.env
     save_outs = stage.nouts > 0
+    ftol      = tol
 
     # Get active elements
     for elem in stage.toactivate
@@ -177,6 +179,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
         save_outs && save(model, "$outdir/$outkey-0.vtu", quiet=true)
     end
     lastflush = time()
+    flushinterval = 4
 
     # Get the domain current state and backup
     State = [ ip.state for elem in active_elems for ip in elem.ips ]
@@ -216,7 +219,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
 
     local K::SparseMatrixCSC{Float64,Int64}
 
-    while T < 1.0-Ttol
+    while T < 1.0-Tmin
         env.stagebits.ΔT = ΔT
 
         # Update counters
@@ -241,31 +244,36 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
         nfails    = 0  # counter for iteration fails
         nits      = 0
         residue1  = 0.0
+        err       = 0.0
+        ures1     = 0.0
+        res       = 0.0
         converged = false
-        errored   = false
+        syserror   = false
+        # ftol = eps()^0.5
+        # ftol = 0.001
         for it=1:maxits
             yield()
 
             nits += 1
             it>1 && (ΔUi.=0.0) # essential values are applied only at first iteration
-            lastres = residue # residue from last iteration
+            lastres = err # residue from last iteration
 
             # Predictor step for FE, ME and BE
             if scheme in ("FE", "ME", "BE")
                 K = mount_K(active_elems, ndofs)
                 sysstatus = solve_system!(K, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
-                failed(sysstatus) && (errored=true; break)
+                failed(sysstatus) && (syserror=true; break)
 
                 copyto!.(State, StateBk)
                 ΔUt   = ΔUa + ΔUi
                 ΔFin, sysstatus = update_state!(active_elems, ΔUt, 0.0)
-                failed(sysstatus) && (errored=true; break)
+                failed(sysstatus) && (syserror=true; break)
                 
-                residue = maximum(abs, (ΔFex-ΔFin)[umap])
+                res = maximum(abs, (ΔFex-ΔFin)[umap])
             end
 
             # Corrector step for ME and BE
-            if residue > tol && scheme in ("ME", "BE")
+            if res > ftol && scheme in ("ME", "BE")
                 K2 = mount_K(active_elems, ndofs)
                 if scheme=="ME"
                     K = 0.5*(K + K2)
@@ -273,14 +281,14 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
                     K = K2
                 end
                 sysstatus = solve_system!(K, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
-                failed(sysstatus) && (errored=true; break)
+                failed(sysstatus) && (syserror=true; break)
 
                 copyto!.(State, StateBk)
                 ΔUt   = ΔUa + ΔUi
                 ΔFin, sysstatus = update_state!(active_elems, ΔUt, 0.0)
-                failed(sysstatus) && (errored=true; break)
+                failed(sysstatus) && (syserror=true; break)
 
-                residue = maximum(abs, (ΔFex-ΔFin)[umap])
+                res = maximum(abs, (ΔFex-ΔFin)[umap])
             end
 
             if scheme=="Ralston"
@@ -288,25 +296,25 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
                 K = mount_K(active_elems, ndofs)
                 ΔUit = 2/3*ΔUi
                 sysstatus = solve_system!(K, ΔUit, 2/3*R, nu)   # Changes unknown positions in ΔUi and R
-                failed(sysstatus) && (errored=true; break)
+                failed(sysstatus) && (syserror=true; break)
 
                 copyto!.(State, StateBk)
                 ΔUt = ΔUa + ΔUit
                 ΔFin, sysstatus = update_state!(active_elems, ΔUt, 0.0)
-                failed(sysstatus) && (errored=true; break)
+                failed(sysstatus) && (syserror=true; break)
 
                 # Corrector step
                 K2 = mount_K(active_elems, ndofs)
                 K = 0.25*K + 0.75*K2
                 sysstatus = solve_system!(K, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
-                failed(sysstatus) && (errored=true; break)
+                failed(sysstatus) && (syserror=true; break)
 
                 copyto!.(State, StateBk)
                 ΔUt   = ΔUa + ΔUi
                 ΔFin, sysstatus = update_state!(active_elems, ΔUt, 0.0)
-                failed(sysstatus) && (errored=true; break)
+                failed(sysstatus) && (syserror=true; break)
 
-                residue = maximum(abs, (ΔFex-ΔFin)[umap])
+                res = maximum(abs, (ΔFex-ΔFin)[umap])
             end
 
             # Update accumulated displacement
@@ -316,20 +324,41 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
             R .= ΔFex .- ΔFin
             R[pmap] .= 0.0  # zero at prescribed positions
 
-            @printf(logfile, "    it %d  residue: %-10.4e\n", it, residue)
+            err = norm(ΔUi, Inf)/norm(ΔUa, Inf)
+            err = norm(ΔUi)/norm(ΔUa)
 
-            it==1 && (residue1=residue)
-            residue < tol  && (converged=true; break)
-            isnan(residue) && break
-            it>maxits      && break
-            it>1 && residue>lastres && break
-            residue>0.9*lastres && (nfails+=1)
-            nfails==maxfails    && break
+
+
+            @printf(logfile, "    it %d  residue: %-10.5e\n", it, res)
+
+            # tol1 = rtol*maximum(abs, ΔFin)
+            # residue = norm((ΔFex-ΔFin)[umap])
+            # tol1 = rtol*norm(ΔFin, Inf)
+
+            # println()
+            # @show T
+            # @show ΔT
+            # @show it
+            # @show res
+            # @show err
+
+            it==1 && (res1=err)
+            it==2 && (err2=err)
+            it>1  && (env.stagebits.inlinearrange=false)
+            res<ftol && (converged=true; break)
+            err<rtol  && (converged=true; break)
+
+            isnan(res) && break
+            it>maxits   && break
+
+            it>1 && err>lastres && break
+            # err>0.9*lastres && (nfails+=1)
+            # nfails==maxfails    && break
         end
 
         q = 0.0 # increment size factor for autoinc
 
-        if errored
+        if syserror
             println(logfile, sysstatus.message)
             converged = false
         end
@@ -353,10 +382,10 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
             # Update time
             T += ΔT
             env.stagebits.T = T
-            env.stagebits.residue = residue
+            env.stagebits.residue = res
 
             # Check for saving output file
-            if T>Tcheck-Ttol && save_outs
+            if T>Tcheck-Tmin && save_outs
                 env.stagebits.out += 1
                 iout = env.stagebits.out
                 rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
@@ -370,12 +399,13 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
                 Tcheck += ΔTcheck # find the next output time
             end
 
-            flushfiles = time()-lastflush>5 || T >= 1.0-Ttol
+            flushfiles = time()-lastflush>flushinterval || T >= 1.0-Tmin
             update_single_loggers!(model, flush=flushfiles)
             update_monitors!(model, flush=flushfiles)
             if flushfiles
                 flush(logfile)
                 lastflush = time()
+                GC.gc()
             end
 
             if autoinc
@@ -383,11 +413,11 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
                     ΔT = min(ΔTbk, Tcheck-T)
                     ΔTbk = 0.0
                 else
-                    # if nits==1
-                        q = (1+tanh(log10(tol/residue1)))^1
-                    # else
-                        # q = 1.3
-                    # end
+                    if nits==1
+                        q = 1+tanh(log10(ftol/res))
+                    else
+                        q = 1+tanh(log10(rtol/err))
+                    end
                     q = max(q, 1.1)
 
                     if env.stagebits.inlinearrange
@@ -396,7 +426,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
                         ΔTtr = min(q*ΔT, 1/nincs, 1-T)
                     end
 
-                    if T+ΔTtr>Tcheck-Ttol
+                    if T+ΔTtr>Tcheck-Tmin
                         ΔTbk = ΔT
                         ΔT = Tcheck-T
                         @assert ΔT>=0.0
@@ -408,7 +438,6 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
             end
         else
             # Restore counters
-            env.stagebits.inlinearrange = false
             inc -= 1
             env.stagebits.inc -= 1
 
@@ -416,12 +445,17 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
 
             if autoinc
                 println(logfile, "      increment failed")
-                q = (1+tanh(log10(tol/residue1)))
+                if nits==1
+                    q = 1+tanh(log10(ftol/res))
+                else
+                    q = 1+tanh(log10(rtol/err))
+                end
+                # q = (1+tanh(log10(rtol/ures1)))
                 q = clamp(q, 0.2, 0.9)
-                errored && (q=0.7)
+                syserror && (q=0.7)
                 ΔT = q*ΔT
                 ΔT = round(ΔT, sigdigits=3)  # round to 3 significant digits
-                if ΔT < Ttol
+                if ΔT < Tmin
                     solstatus = failure("Solver did not converge.")
                     break
                 end
