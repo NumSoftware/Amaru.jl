@@ -128,13 +128,13 @@ mplot(mesh, &quot;mesh.svg&quot;, dist=13)</code></pre><pre class="documenter-ex
 mplot(smooth_mesh, &quot;smooth_mesh.svg&quot;, dist=13)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh Laplacian smoothing:
   it   qmin     q1     q2     q3   qmax   qavg     sdev       time  histogram (0:0.05:1]
    0  0.662  0.764  0.820  0.868  0.930  0.813  0.07626          -  [             ▂▄▆▇▅▆ ]
-   1  0.688  0.770  0.838  0.909  0.956  0.834  0.07929  0m  0.10s  [             ▂▃▄▆▅▇▁]
-   2  0.688  0.785  0.855  0.911  0.956  0.846  0.07911  0m  0.16s  [             ▁▃▄▃▅▇_]
-   3  0.694  0.793  0.863  0.922  0.966  0.852  0.07937  0m  0.06s  [             ▁▃▃▂▅▇▁]
-   4  0.700  0.799  0.872  0.929  0.973  0.856  0.07920  0m  0.06s  [              ▃▂▃▄▇▁]
-   5  0.706  0.805  0.878  0.930  0.977  0.858  0.07879  0m  0.06s  [              ▃▁▅▄▇▁]
-   6  0.712  0.810  0.883  0.929  0.981  0.860  0.07830  0m  0.29s  [              ▄▁▆▅▇▂]
-   7  0.718  0.813  0.886  0.927  0.983  0.860  0.07784  0m  0.05s  [              ▄▁▇▅▇▃]
+   1  0.688  0.770  0.838  0.909  0.956  0.834  0.07929  0m  0.08s  [             ▂▃▄▆▅▇▁]
+   2  0.688  0.785  0.855  0.911  0.956  0.846  0.07911  0m  0.05s  [             ▁▃▄▃▅▇_]
+   3  0.694  0.793  0.863  0.922  0.966  0.852  0.07937  0m  0.12s  [             ▁▃▃▂▅▇▁]
+   4  0.700  0.799  0.872  0.929  0.973  0.856  0.07920  0m  0.04s  [              ▃▂▃▄▇▁]
+   5  0.706  0.805  0.878  0.930  0.977  0.858  0.07879  0m  0.05s  [              ▃▁▅▄▇▁]
+   6  0.712  0.810  0.883  0.929  0.981  0.860  0.07830  0m  0.05s  [              ▄▁▆▅▇▂]
+   7  0.718  0.813  0.886  0.927  0.983  0.860  0.07784  0m  0.10s  [              ▄▁▇▅▇▃]
 Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
@@ -477,42 +477,33 @@ tip = DataTable(&quot;tip.table&quot;)</code></pre><pre class="documenter-exampl
  │  3.2e-18 │  2.8e-15 │     -0.014 │ -1.1e-12 │ -1.9e-14 │ -77.7817 │ 0.0 │ 
  │  1.1e-18 │  3.2e-15 │     -0.018 │ -4.1e-12 │  1.2e-12 │ -100.005 │ 0.0 │ 
  │  1.3e-18 │  1.1e-15 │      -0.02 │ -2.0e-12 │  1.3e-12 │ -111.117 │ 1.0 │ 
- │ -1.4e-19 │ -1.1e-17 │     -0.024 │ -9.1e-13 │  7.3e-15 │ -128.254 │ 1.0 │ 
- │ -9.9e-20 │ -1.2e-17 │     -0.028 │  1.1e-12 │ -7.7e-14 │ -140.724 │ 1.0 │ 
- │ -9.0e-20 │ -1.4e-17 │    -0.0288 │ -9.6e-14 │ -1.6e-15 │ -142.645 │ 1.0 │ 
- │ -1.5e-19 │ -1.5e-17 │   -0.02968 │  6.2e-13 │  1.3e-14 │ -144.556 │ 1.0 │ 
- │ -1.4e-19 │ -1.5e-17 │  -0.030648 │ -4.7e-13 │  1.3e-14 │ -146.356 │ 1.0 │ 
- │ -1.4e-19 │ -1.6e-17 │ -0.0317128 │ -7.1e-13 │  5.9e-15 │  -148.03 │ 1.0 │ 
- │ -1.8e-19 │ -1.7e-17 │ -0.0328841 │ -1.8e-13 │ -2.3e-14 │ -149.759 │ 1.0 │ 
- │ -1.6e-19 │ -1.7e-17 │ -0.0341725 │  1.2e-13 │ -1.3e-15 │  -151.51 │ 1.0 │ 
- │ -2.2e-19 │ -1.9e-17 │ -0.0355897 │ -7.7e-13 │  3.2e-14 │ -153.259 │ 1.0 │ 
- │ -1.8e-19 │ -1.8e-17 │ -0.0371487 │  4.1e-13 │ -5.5e-15 │  -155.06 │ 1.0 │ 
- │ -2.9e-19 │ -1.8e-17 │ -0.0388636 │ -2.4e-13 │  2.1e-14 │ -156.843 │ 1.0 │ 
- │ -2.3e-19 │ -2.0e-17 │      -0.04 │ -2.0e-13 │ -5.5e-15 │ -157.969 │ 2.0 │ </code></pre><pre><code class="language-julia hljs">using Amaru
+ │ -1.4e-19 │ -6.4e-18 │     -0.024 │  4.3e-13 │  8.2e-14 │ -128.265 │ 1.0 │ 
+ │ -1.2e-19 │  3.0e-17 │ -0.0314299 │ -9.6e-13 │ -8.0e-14 │ -147.577 │ 1.0 │ 
+ │  4.5e-19 │  1.1e-15 │      -0.04 │  1.1e-12 │ -7.8e-15 │ -157.956 │ 2.0 │ </code></pre><pre><code class="language-julia hljs">using Amaru
 
 long = DataBook(&quot;topgroup.book&quot;).tables[end]</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">
- │    x │   y │   z │        ux │       fx │       uy │       fy │       uz │       fz │ 
- │  0.0 │ 0.1 │ 0.1 │       0.0 │ -3.2e+02 │  0.0e+00 │  1.1e+02 │  0.0e+00 │  1.1e+02 │ 
- │ 0.05 │ 0.1 │ 0.1 │ 0.0003274 │  4.9e-04 │ -1.4e-04 │  5.4e-04 │ -1.9e-04 │  4.0e-05 │ 
- │  0.1 │ 0.1 │ 0.1 │  0.000727 │  3.7e-04 │ -1.5e-04 │  1.2e-03 │ -7.1e-04 │  2.9e-04 │ 
- │ 0.15 │ 0.1 │ 0.1 │ 0.0010784 │ -8.5e-05 │ -1.1e-04 │  6.5e-04 │ -1.6e-03 │  2.5e-04 │ 
- │  0.2 │ 0.1 │ 0.1 │ 0.0013471 │ -1.0e-04 │ -6.6e-05 │  6.2e-05 │ -2.9e-03 │ -9.7e-06 │ 
- │ 0.25 │ 0.1 │ 0.1 │ 0.0015526 │ -4.5e-06 │ -4.5e-05 │  2.8e-06 │ -4.3e-03 │ -2.9e-06 │ 
- │  0.3 │ 0.1 │ 0.1 │ 0.0017239 │  1.9e-07 │ -3.2e-05 │ -2.3e-07 │ -6.0e-03 │  1.3e-07 │ 
- │ 0.35 │ 0.1 │ 0.1 │ 0.0018695 │  3.5e-08 │ -2.5e-05 │  4.1e-08 │ -7.8e-03 │  4.7e-08 │ 
- │  0.4 │ 0.1 │ 0.1 │ 0.0020028 │ -2.2e-16 │ -2.4e-05 │ -2.2e-14 │ -9.7e-03 │  6.2e-15 │ 
- │ 0.45 │ 0.1 │ 0.1 │ 0.0021251 │ -1.8e-15 │ -2.2e-05 │ -5.1e-14 │ -1.2e-02 │  5.7e-14 │ 
- │  0.5 │ 0.1 │ 0.1 │ 0.0022369 │ -3.2e-14 │ -2.0e-05 │ -5.8e-14 │ -1.4e-02 │ -1.5e-13 │ 
- │ 0.55 │ 0.1 │ 0.1 │  0.002338 │  6.9e-14 │ -1.8e-05 │ -6.7e-14 │ -1.6e-02 │  1.4e-13 │ 
- │  0.6 │ 0.1 │ 0.1 │ 0.0024285 │ -2.5e-14 │ -1.6e-05 │ -8.3e-14 │ -1.9e-02 │ -2.1e-13 │ 
- │ 0.65 │ 0.1 │ 0.1 │ 0.0025083 │ -9.6e-14 │ -1.4e-05 │ -4.0e-14 │ -2.1e-02 │ -3.3e-13 │ 
- │  0.7 │ 0.1 │ 0.1 │ 0.0025775 │ -8.0e-14 │ -1.2e-05 │  5.6e-14 │ -2.4e-02 │ -4.8e-14 │ 
- │ 0.75 │ 0.1 │ 0.1 │ 0.0026361 │ -5.5e-14 │ -9.8e-06 │  1.1e-13 │ -2.6e-02 │ -3.5e-14 │ 
- │  0.8 │ 0.1 │ 0.1 │  0.002684 │ -6.6e-14 │ -7.9e-06 │  8.2e-14 │ -2.9e-02 │  2.0e-13 │ 
- │ 0.85 │ 0.1 │ 0.1 │ 0.0027212 │ -1.7e-13 │ -5.9e-06 │  1.1e-13 │ -3.2e-02 │  2.6e-13 │ 
- │  0.9 │ 0.1 │ 0.1 │ 0.0027478 │  4.0e-14 │ -3.9e-06 │  1.5e-13 │ -3.4e-02 │  9.0e-13 │ 
- │ 0.95 │ 0.1 │ 0.1 │ 0.0027639 │ -1.9e-14 │ -1.9e-06 │  8.6e-14 │ -3.7e-02 │  2.0e-13 │ 
- │  1.0 │ 0.1 │ 0.1 │ 0.0027693 │ -1.1e-13 │ -7.0e-07 │ -3.6e-14 │ -4.0e-02 │ -4.8e+00 │ </code></pre><h2 id="Plotting"><a class="docs-heading-anchor" href="#Plotting">Plotting</a><a id="Plotting-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting" title="Permalink"></a></h2><p>Amaru provides a chart ploting function <code>cplot</code> to ease the visualization of the data stored in <code>DataTable</code> and <code>DataBook</code> objects.</p><pre><code class="language-julia hljs">using Amaru
+ │    x │   y │   z │         ux │       fx │       uy │       fy │       uz │       fz │ 
+ │  0.0 │ 0.1 │ 0.1 │        0.0 │ -3.2e+02 │  0.0e+00 │  1.1e+02 │  0.0e+00 │  1.1e+02 │ 
+ │ 0.05 │ 0.1 │ 0.1 │ 0.00032734 │  1.7e+00 │ -1.5e-04 │  1.7e+00 │ -1.9e-04 │  1.3e+00 │ 
+ │  0.1 │ 0.1 │ 0.1 │ 0.00072782 │  4.4e-01 │ -1.5e-04 │  1.6e+00 │ -7.1e-04 │ -5.8e-02 │ 
+ │ 0.15 │ 0.1 │ 0.1 │  0.0010797 │  6.4e-01 │ -1.1e-04 │  1.5e+00 │ -1.6e-03 │  1.5e+00 │ 
+ │  0.2 │ 0.1 │ 0.1 │  0.0013476 │  5.6e-02 │ -6.6e-05 │  3.2e-01 │ -2.9e-03 │  8.1e-01 │ 
+ │ 0.25 │ 0.1 │ 0.1 │  0.0015527 │ -3.2e-01 │ -4.5e-05 │ -1.1e-01 │ -4.3e-03 │ -3.6e-01 │ 
+ │  0.3 │ 0.1 │ 0.1 │  0.0017241 │  2.2e-01 │ -3.2e-05 │  2.3e-01 │ -6.0e-03 │ -7.3e-02 │ 
+ │ 0.35 │ 0.1 │ 0.1 │  0.0018695 │ -1.2e-01 │ -2.5e-05 │  1.9e-01 │ -7.8e-03 │  3.5e-02 │ 
+ │  0.4 │ 0.1 │ 0.1 │  0.0020027 │ -3.1e-13 │ -2.4e-05 │  6.3e-13 │ -9.7e-03 │  1.7e-12 │ 
+ │ 0.45 │ 0.1 │ 0.1 │  0.0021251 │  2.6e-13 │ -2.2e-05 │  1.5e-13 │ -1.2e-02 │  2.5e-13 │ 
+ │  0.5 │ 0.1 │ 0.1 │  0.0022368 │  1.1e-12 │ -2.0e-05 │ -3.5e-13 │ -1.4e-02 │ -1.7e-12 │ 
+ │ 0.55 │ 0.1 │ 0.1 │  0.0023379 │ -1.4e-13 │ -1.8e-05 │ -6.5e-13 │ -1.6e-02 │ -2.3e-12 │ 
+ │  0.6 │ 0.1 │ 0.1 │  0.0024284 │ -7.2e-13 │ -1.6e-05 │  3.9e-13 │ -1.9e-02 │ -3.3e-13 │ 
+ │ 0.65 │ 0.1 │ 0.1 │  0.0025082 │ -2.4e-13 │ -1.4e-05 │ -4.5e-13 │ -2.1e-02 │  2.6e-12 │ 
+ │  0.7 │ 0.1 │ 0.1 │  0.0025774 │ -1.0e-12 │ -1.2e-05 │  2.8e-13 │ -2.4e-02 │  6.3e-13 │ 
+ │ 0.75 │ 0.1 │ 0.1 │  0.0026359 │  1.1e-12 │ -9.8e-06 │ -1.6e-12 │ -2.6e-02 │ -5.2e-12 │ 
+ │  0.8 │ 0.1 │ 0.1 │  0.0026838 │ -6.7e-13 │ -7.9e-06 │  4.1e-13 │ -2.9e-02 │  9.4e-13 │ 
+ │ 0.85 │ 0.1 │ 0.1 │  0.0027211 │ -5.3e-13 │ -5.9e-06 │ -3.5e-13 │ -3.2e-02 │  3.6e-12 │ 
+ │  0.9 │ 0.1 │ 0.1 │  0.0027477 │  5.6e-13 │ -3.9e-06 │ -6.7e-13 │ -3.4e-02 │ -3.8e-12 │ 
+ │ 0.95 │ 0.1 │ 0.1 │  0.0027637 │ -1.5e-12 │ -1.9e-06 │ -1.5e-12 │ -3.7e-02 │ -3.1e-13 │ 
+ │  1.0 │ 0.1 │ 0.1 │  0.0027692 │  4.2e-13 │ -7.0e-07 │ -2.1e-13 │ -4.0e-02 │ -4.8e+00 │ </code></pre><h2 id="Plotting"><a class="docs-heading-anchor" href="#Plotting">Plotting</a><a id="Plotting-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting" title="Permalink"></a></h2><p>Amaru provides a chart ploting function <code>cplot</code> to ease the visualization of the data stored in <code>DataTable</code> and <code>DataBook</code> objects.</p><pre><code class="language-julia hljs">using Amaru
 
 tip = DataTable(&quot;tip.table&quot;)
 cplot(
@@ -588,4 +579,4 @@ cplot(
   Optional named arguments per curve:
     x, y, color, ls, lw, marker, ms, mfc, label, tag, tagpos, tagloc, tagdist,
     tagfontsize, tagcolor, tagalign
-  file x_vs_sxx.svg saved</code></pre><p><img src="../uz_vs_fz.svg" alt/></p><p><img src="../x_vs_uz.svg" alt/></p><p><img src="../x_vs_sxx.svg" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Introduction</a><a class="docs-footer-nextpage" href="../../meshing/meshing/">Mesh »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Saturday 3 June 2023 22:33">Saturday 3 June 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+  file x_vs_sxx.svg saved</code></pre><p><img src="../uz_vs_fz.svg" alt/></p><p><img src="../x_vs_uz.svg" alt/></p><p><img src="../x_vs_sxx.svg" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Introduction</a><a class="docs-footer-nextpage" href="../../meshing/meshing/">Mesh »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Saturday 3 June 2023 22:36">Saturday 3 June 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
