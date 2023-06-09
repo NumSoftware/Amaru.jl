@@ -82,6 +82,7 @@ function run_status_line(sline::StatusLine)
     while true
         # sleep(0.1) # !fixme
 
+        print("\r")
         nlines>0 && print("\e[$(nlines)A")
 
         # Print messages
@@ -200,18 +201,17 @@ end
 
 
 function stage_iterator!(name::String, stage_solver!::Function, model::Model; args...)
-
     autoinc = get(args, :autoinc, false)
     outdir  = get(args, :outdir, ".")
     quiet   = get(args, :quiet, false)
     env     = model.env
-
+    
     cstage = findfirst(st->st.status!=:done, model.stages)
-    cstage === nothing && error("stage_iterator!: No stages have been set for $name")
+    cstage === nothing && throw(AmaruException("stage_iterator!: No stages have been set for $name"))
 
     solstatus = success()
 
-    if quiet || cstage==1 
+    if !quiet && cstage==1 
         printstyled(name, "\n", bold=true, color=:cyan)
         println("  active threads: ", Threads.nthreads())
         println("  model type: ", env.modeltype)
@@ -232,7 +232,10 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
         logfile = open("solve.log", "a")
     end
 
+    
     for stage in model.stages[cstage:end]
+        stage.status = :solving
+
         nincs  = stage.nincs
         nouts  = stage.nouts
         
@@ -241,10 +244,9 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
         env.stagebits.T = 0.0
 
         if !quiet
-            # printstyled("Mechanical FE analysis", bold=true, color=:cyan)
-            if stage.id>1 || length(model.stages)>1
+            # if stage.id>1 || length(model.stages)>1
                 printstyled("Stage $(stage.id)\n", bold=true, color=:cyan)
-            end
+            # end
         end
 
         save_outs = stage.nouts > 0
@@ -265,24 +267,34 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
         sline = StatusLine(model, stage, sw)
         if !quiet
             print("\e[?25l") # disable cursor
-            sline_task = @async run_status_line(sline)
+            sline_task = Threads.@spawn run_status_line(sline)
         end
 
-        interrupted = false
+        runerror = nothing
         try
             solstatus = stage_solver!(model, stage, logfile, sline; args...)
-        catch err
-            stage.status = :failed
+        catch err            
+            runerror = err
             flush(logfile)
-            print("\e[?25h") # enable cursor
             if err isa InterruptException
-                interrupted = true
+                stage.status = :interrupted
             else
-                rethrow(err)
+                stage.status = :error
             end
         end
         close(logfile)
 
+        if !quiet
+            wait(sline_task)
+            print("\e[?25h") # enable cursor
+            solstatus.message != "" && println(solstatus.message)
+        end
+
+        if stage.status == :interrupted 
+            throw(AmaruException("The analysis was interrupted"))
+        elseif stage.status == :error
+            throw(runerror) 
+        end
 
         if succeeded(solstatus)
             stage.status = :done
@@ -290,16 +302,7 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
             stage.status = :failed
         end
 
-        if !quiet
-            wait(sline_task)
-            print("\e[?25h") # enable cursor
-            solstatus.message != "" && println(solstatus.message)
-        end
         getlapse(sw)>60 && sound_alert()
-        if interrupted
-            alert("Interrupted")
-            break
-        end
 
     end
     return solstatus

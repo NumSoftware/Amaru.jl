@@ -8,7 +8,11 @@ abstract type AbstractMonitor end
 
 # Ip Monitor
 # ==========
+"""
+    $(TYPEDEF)
 
+Monitor type for a single integration point.
+"""
 mutable struct IpMonitor<:AbstractMonitor
     expr     ::Union{Symbol,Expr}
     val      ::Number
@@ -17,12 +21,33 @@ mutable struct IpMonitor<:AbstractMonitor
     table    ::DataTable
     ip       ::Ip
 
+    @doc """
+    $(TYPEDSIGNATURES)
+    
+    Returns a IpMonitor for a given expression or symbol (`expr`). This monitor will
+    record the corresponding data during the finite element analysis.
+    The data recorded can be stored in the optional `filename`.
+        
+
+    # Example
+    ```julia-repl
+    julia> model = randmodel(2,2)
+
+    julia> monitors = [
+        :(x==0.5 && y==1.0) => IpMonitor(:sxx, "sxx.dat")
+        :(x==0.5 && y==0.0) => IpMonitor(:eyy, "eyy.dat")
+    ]
+
+    julia> addmonitors!(model, monitors)
+    ```
+    """
     function IpMonitor(expr::Union{Symbol,Expr}, filename::String="")
         return new(expr, NaN, filename, :(), DataTable())
     end
 end
 
 
+# IpMonitor
 function setup_monitor!(model, filter, monitor::IpMonitor)
     monitor.filter = filter
     if filter isa Integer
@@ -63,7 +88,11 @@ end
 
 # Node Monitor
 # ============
+"""
+    $(TYPEDEF)
 
+Monitor type for a single node.
+"""
 mutable struct NodeMonitor<:AbstractMonitor
     expr     ::Union{Symbol,Expr}
     vals     ::OrderedDict # stores current values
@@ -72,6 +101,25 @@ mutable struct NodeMonitor<:AbstractMonitor
     table    ::DataTable
     node     ::Node
 
+    @doc """
+    $(TYPEDSIGNATURES)
+    
+    Returns a NodeMonitor for a given expression or symbol (`expr`). This monitor will
+    record the corresponding data during the finite element analysis.
+    The data recorded can be stored in the optional `filename`.
+        
+    # Example
+    ```julia-repl
+    julia> model = randmodel(2,2)
+
+    julia> monitors = [
+        :(x==0.5 && y==1.0) => NodeMonitor(:fx, "fx.dat")
+        :(x==0.5 && y==0.0) => NodeMonitor(:uy, "uy.dat")
+    ]
+
+    julia> addmonitors!(model, monitors)
+    ```
+    """
     function NodeMonitor(expr::Union{Symbol,Expr}, filename::String="")
         if expr isa Symbol || expr.head == :call
             expr = :($expr,)
@@ -211,7 +259,11 @@ end
 # Logger for the sum of nodes
 # ===========================
 
+"""
+    $(TYPEDEF)
 
+Monitor type tha represent the resultant of a group of nodes.
+"""
 mutable struct NodeSumMonitor<:AbstractMonitor
     expr     ::Union{Symbol,Expr}
     vals     ::OrderedDict # stores current values
@@ -222,6 +274,26 @@ mutable struct NodeSumMonitor<:AbstractMonitor
     stopexpr ::Expr
     _extra   ::Expr # extra symbols
 
+    @doc """
+    $(TYPEDSIGNATURES)
+    
+    Returns a NodeSumMonitor for a given expression or symbol (`expr`). This monitor will
+    record the corresponding data during the finite element analysis.
+    The data recorded can be stored in the optional `filename`.
+    The `stop` expresion can be used to stop the analysis if the expresion becomes true.
+
+    # Example
+    ```julia-repl
+    julia> model = randmodel(2,2)
+
+    julia> monitors = [
+        :(y==1.0) => NodeSumMonitor(:fx, "fx.dat")
+        :(y==0.0) => NodeSumMonitor(:fy, "fy.dat"; stop = :(uy>0.01))
+    ]
+
+    julia> addmonitors!(model, monitors)
+    ```
+    """
     function NodeSumMonitor(expr::Union{Symbol,Expr}, filename::String=""; stop=Expr=:())
         if expr isa Symbol || expr.head == :call
             expr = :($expr,)
@@ -262,7 +334,6 @@ function update_monitor!(monitor::NodeSumMonitor, model; flush=true)
     tableU = DataTable()
     tableF = DataTable()
     for node in monitor.nodes
-        # TODO: valsF may be improved by calculating the internal forces components
         nvals = node_vals(node)
         valsU  = OrderedDict( dof.name => nvals[dof.name] for dof in node.dofs )
         valsF  = OrderedDict( dof.natname => nvals[dof.natname] for dof in node.dofs )

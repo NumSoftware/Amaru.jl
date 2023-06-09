@@ -1042,7 +1042,7 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
             redirect_stdout(out) do
                 gmsh.model.mesh.generate(isvolumemesh ? 3 : 2)
                 gmsh.write(tempfile)
-                gmsh.write("file.geo_unrolled")
+                # gmsh.write("file.geo_unrolled")
             end
         end
     catch err

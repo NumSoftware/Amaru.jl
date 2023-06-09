@@ -193,8 +193,8 @@ function update_logger!(logger::FacetLogger, model; flush=true)
     for node in logger.nodes
         # TODO: valsF may be improved by calculating the internal forces components
         nvals = node_vals(node)
-        valsU  = OrderedDict( dof.name => nvals[dof.name] for dof in node.dofs )
-        valsF  = OrderedDict( dof.natname => nvals[dof.natname] for dof in node.dofs )
+        valsU = OrderedDict( dof.name => nvals[dof.name] for dof in node.dofs )
+        valsF = OrderedDict( dof.natname => nvals[dof.natname] for dof in node.dofs )
         push!(tableF, valsF)
         push!(tableU, valsU)
     end
