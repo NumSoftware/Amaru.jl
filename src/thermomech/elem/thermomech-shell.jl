@@ -20,14 +20,16 @@ end
 matching_shape_family(::Type{TMShell}) = BULKCELL
 
 function elem_config_dofs(elem::TMShell)
-    # 
-    for (i, node) in enumerate(elem.nodes)
-            add_dof(node, :ux, :fx)
-            add_dof(node, :uy, :fy)
-            elem.env.ndim==3 && add_dof(node, :uz, :fz)
-        # if  i<=(nbnodes)
-            add_dof(node, :ut, :ft)
-        # end
+    ndim = elem.env.ndim
+    ndim in (1,2) && error("MechShell: Shell elements do not work in $(ndim)d analyses")
+    for node in elem.nodes
+        add_dof(node, :ux, :fx)
+        add_dof(node, :uy, :fy)
+        add_dof(node, :uz, :fz)
+        add_dof(node, :rx, :mx)
+        add_dof(node, :ry, :my)
+        add_dof(node, :rz, :mz)
+        add_dof(node, :ut, :ft) # VERIFICAR
     end
 end
 
@@ -102,19 +104,7 @@ function body_c(elem::TMShell, key::Symbol, val::Union{Real,Symbol,Expr})
     return mech_shell_body_forces(elem, key, val)
 end
 
-function elem_config_dofs(elem::TMShell)
-    ndim = elem.env.ndim
-    ndim in (1,2) && error("MechShell: Shell elements do not work in $(ndim)d analyses")
-    for node in elem.nodes
-        add_dof(node, :ux, :fx)
-        add_dof(node, :uy, :fy)
-        add_dof(node, :uz, :fz)
-        add_dof(node, :rx, :mx)
-        add_dof(node, :ry, :my)
-        add_dof(node, :rz, :mz)
-        add_dof(node, :ut, :ft) # VERIFICAR
-    end
-end
+
 
 @inline function elem_map_u(elem::TMShell)
     keys =(:ux, :uy, :uz, :rx, :ry, :rz)

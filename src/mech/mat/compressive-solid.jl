@@ -68,11 +68,11 @@ function yield_func(mat::CompressiveSolid, state::CompressiveSolidState, σ::Arr
     return calc_py(mat, state, εvp) - p
 end
 
-@inline function yield_derivs(mat::AbstractTCJoint, state::AbstractTCJointState, σ::Array{Float64,1}, σmax::Float64)
+@inline function yield_derivs(mat::CompressiveSolid, state::CompressiveSolidState, σ::Array{Float64,1}, σmax::Float64)
     return [ -1/3, -1/3, -1/3, 0.0, 0.0, 0.0 ]
 end
 
-function calcD(mat::DruckerPrager, state::DruckerPragerState)
+function calcD(mat::CompressiveSolid, state::CompressiveConcreteState)
     α   = mat.α
     De  = calcDe(mat.E, mat.ν, state.env.modeltype)
 
@@ -89,7 +89,7 @@ end
 
 
 
-function stress_update(mat::DruckerPrager, state::DruckerPragerState, Δε::Array{Float64,1})
+function stress_update(mat::CompressiveSolid, state::CompressiveConcreteState, Δε::Array{Float64,1})
     σini = state.σ
     De   = calcDe(mat.E, mat.ν, state.env.modeltype)
     σtr  = state.σ + inner(De, Δε)
