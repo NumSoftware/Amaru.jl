@@ -128,12 +128,12 @@ mplot(mesh, &quot;mesh.svg&quot;, dist=13)</code></pre><pre class="documenter-ex
 mplot(smooth_mesh, &quot;smooth_mesh.svg&quot;, dist=13)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh Laplacian smoothing:
   it   qmin     q1     q2     q3   qmax   qavg     sdev       time  histogram (0:0.05:1]
    0  0.662  0.764  0.820  0.868  0.930  0.813  0.07626          -  [             ▂▄▆▇▅▆ ]
-   1  0.688  0.770  0.838  0.909  0.956  0.834  0.07929  0m  0.16s  [             ▂▃▄▆▅▇▁]
-   2  0.688  0.785  0.855  0.911  0.956  0.846  0.07911  0m  0.04s  [             ▁▃▄▃▅▇_]
-   3  0.694  0.793  0.863  0.922  0.966  0.852  0.07937  0m  0.04s  [             ▁▃▃▂▅▇▁]
+   1  0.688  0.770  0.838  0.909  0.956  0.834  0.07929  0m  0.07s  [             ▂▃▄▆▅▇▁]
+   2  0.688  0.785  0.855  0.911  0.956  0.846  0.07911  0m  0.08s  [             ▁▃▄▃▅▇_]
+   3  0.694  0.793  0.863  0.922  0.966  0.852  0.07937  0m  0.03s  [             ▁▃▃▂▅▇▁]
    4  0.700  0.799  0.872  0.929  0.973  0.856  0.07920  0m  0.04s  [              ▃▂▃▄▇▁]
-   5  0.706  0.805  0.878  0.930  0.977  0.858  0.07879  0m  0.21s  [              ▃▁▅▄▇▁]
-   6  0.712  0.810  0.883  0.929  0.981  0.860  0.07830  0m  0.03s  [              ▄▁▆▅▇▂]
+   5  0.706  0.805  0.878  0.930  0.977  0.858  0.07879  0m  0.04s  [              ▃▁▅▄▇▁]
+   6  0.712  0.810  0.883  0.929  0.981  0.860  0.07830  0m  0.07s  [              ▄▁▆▅▇▂]
    7  0.718  0.813  0.886  0.927  0.983  0.860  0.07784  0m  0.03s  [              ▄▁▇▅▇▃]
 Mesh plotting
   Optional arguments:
@@ -349,9 +349,6 @@ save(model, &quot;beam.vtu&quot;)</code></pre><pre class="documenter-example-out
     336 edges
       1 materials
       0 loggers
-Mechanical solver
-  active threads: 1
-  model type: 3d
   file beam.vtu saved </code></pre><p>The <code>mplot</code> function allow to save a plot of the domain in several formats (e.g. &quot;pdf&quot;, &quot;svg&quot;, &quot;png&quot;, etc.). In this case, the deformed state is plot using a mangnification scale of 100. Also the <span>$u_y$</span> field is displayed and the corresponding label is placed next to the colorbar. To adjunst the point of view, the <code>azim</code>, <code>elev</code> and <code>dist</code> parameters can be set. They represent, respectively, the azimut, elevation angle and distance to the rendered domain.</p><pre><code class="language-julia hljs">mplot(model, &quot;beam.svg&quot;, warpscale=100, field=:uz, colorbarlabel=raw&quot;$u_z$&quot;, colorbarscale=0.4, azim=-90, elev=30, dist=7)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
@@ -394,10 +391,7 @@ solve!(model, tol=0.01, autoinc=true, quiet=true)</code></pre><pre class="docume
     256 faces
     512 edges
       2 materials
-      0 loggers
-Mechanical solver
-  active threads: 1
-  model type: 3d</code></pre><pre><code class="language-julia hljs">mplot(model, &quot;beam-vm.svg&quot;, warpscale=10, field=:sxx, fieldmult=1e-3, colorbarlabel=raw&quot;$\sigma_{xx}$&quot;, colorbarscale=0.4, azim=-90, dist=7)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
+      0 loggers</code></pre><pre><code class="language-julia hljs">mplot(model, &quot;beam-vm.svg&quot;, warpscale=10, field=:sxx, fieldmult=1e-3, colorbarlabel=raw&quot;$\sigma_{xx}$&quot;, colorbarscale=0.4, azim=-90, dist=7)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
      fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
@@ -456,9 +450,6 @@ solve!(model, tol=0.01, autoinc=true, quiet=true)</code></pre><pre class="docume
       0 loggers
   setup_logger: No ip found at [0.05, 0.05, 0.1]. Picking the nearest at
   [0.039434, 0.039434, 0.092956]
-Mechanical solver
-  active threads: 1
-  model type: 3d
   file ./top.book written
   file ./bottom.book written
   file ./top.book written
@@ -579,4 +570,4 @@ cplot(
   Optional named arguments per curve:
     x, y, color, ls, lw, marker, ms, mfc, label, tag, tagpos, tagloc, tagdist,
     tagfontsize, tagcolor, tagalign
-  file x_vs_sxx.svg saved</code></pre><p><img src="../uz_vs_fz.svg" alt/></p><p><img src="../x_vs_uz.svg" alt/></p><p><img src="../x_vs_sxx.svg" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Introduction</a><a class="docs-footer-nextpage" href="../../meshing/meshing/">Mesh »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Friday 9 June 2023 22:21">Friday 9 June 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+  file x_vs_sxx.svg saved</code></pre><p><img src="../uz_vs_fz.svg" alt/></p><p><img src="../x_vs_uz.svg" alt/></p><p><img src="../x_vs_sxx.svg" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Introduction</a><a class="docs-footer-nextpage" href="../../meshing/meshing/">Mesh »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Friday 9 June 2023 23:14">Friday 9 June 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
