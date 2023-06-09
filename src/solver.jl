@@ -273,6 +273,11 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
         runerror = nothing
         try
             solstatus = stage_solver!(model, stage, logfile, sline; args...)
+            if succeeded(solstatus)
+                stage.status = :done
+            else
+                stage.status = :failed
+            end
         catch err            
             runerror = err
             flush(logfile)
@@ -294,12 +299,6 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
             throw(AmaruException("The analysis was interrupted"))
         elseif stage.status == :error
             throw(runerror) 
-        end
-
-        if succeeded(solstatus)
-            stage.status = :done
-        else
-            stage.status = :failed
         end
 
         getlapse(sw)>60 && sound_alert()
