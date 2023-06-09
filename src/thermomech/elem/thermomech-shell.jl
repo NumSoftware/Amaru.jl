@@ -20,14 +20,14 @@ end
 matching_shape_family(::Type{TMShell}) = BULKCELL
 
 function elem_config_dofs(elem::TMShell)
-    nbnodes = elem.shape.basic_shape.npoints
+    # 
     for (i, node) in enumerate(elem.nodes)
             add_dof(node, :ux, :fx)
             add_dof(node, :uy, :fy)
             elem.env.ndim==3 && add_dof(node, :uz, :fz)
-        if  i<=(nbnodes)
+        # if  i<=(nbnodes)
             add_dof(node, :ut, :ft)
-        end
+        # end
     end
 end
 
@@ -116,9 +116,13 @@ function elem_config_dofs(elem::TMShell)
     end
 end
 
-function elem_map(elem::TMShell)
-    keys =(:ux, :uy, :uz, :rx, :ry, :rz, :ut)
+@inline function elem_map_u(elem::TMShell)
+    keys =(:ux, :uy, :uz, :rx, :ry, :rz)
     return [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
+end
+
+@inline function elem_map_t(elem::TMShell)
+    return [ node.dofdict[:ut].eq_id for node in elem.nodes ]
 end
 
 
@@ -220,7 +224,7 @@ function elem_coupling_matrix(elem::TMShell)
     #ndim   = elem.env.ndim
     #th     = elem.env.thickness
     #nnodes = length(elem.nodes)
-    #nbnodes = elem.shape.basic_shape.npoints
+    #
     #C   = getcoords(elem)
     #Bu  = zeros(6, nnodes*ndim)
     #Cut = zeros(nnodes*ndim, nbnodes) # u-t coupling matrix
@@ -231,7 +235,7 @@ function elem_coupling_matrix(elem::TMShell)
     #β    = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) # thermal stress modulus
 
     nnodes = length(elem.nodes)
-    nbnodes = elem.shape.basic_shape.npoints
+    # 
     ndim   = elem.env.ndim
 
     th     = elem.mat.thickness
@@ -246,7 +250,7 @@ function elem_coupling_matrix(elem::TMShell)
     Bi     = zeros(nstr,ndof)
 
     C   = getcoords(elem)
-    Cut = zeros(ndof*nnodes, nbnodes) # u-t coupling matrix
+    Cut = zeros(ndof*nnodes, nnodes) # u-t coupling matrix
     m    = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
     β    = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) # ther
 
@@ -273,18 +277,20 @@ function elem_coupling_matrix(elem::TMShell)
         detJ′ = det(J′)
         @assert detJ′>0
         # compute Cut
-        Nt    = elem.shape.basic_shape.func(ip.R)
         coef  = β
         coef *= detJ′*ip.w*th
-        mNt   = m*Nt'
-        @gemm Cut -= coef*B'*mNt
+        mN   = m*N'
+        @gemm Cut -= coef*B'*mN
     end
     # map
-    keys = (:ux, :uy, :uz)[1:ndim]
-    map_u = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-    mat_t = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nbnodes] ]
+    map_u = elem_map_u(elem)
+    map_t = elem_map_t(elem)
 
-    return Cut, map_u, mat_t
+    # keys = (:ux, :uy, :uz)[1:ndim]
+    # map_u = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
+    # mat_t = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nnodes] ]
+
+    return Cut, map_u, map_t
 end
 
 # thermal conductivity
@@ -292,65 +298,67 @@ function elem_conductivity_matrix(elem::TMShell)
     ndim   = elem.env.ndim
     th     = elem.mat.thickness   # elem.env.thickness
     nnodes = length(elem.nodes)
-    nbnodes = elem.shape.basic_shape.npoints
     C      = getcoords(elem)
     H      = zeros(nnodes, nnodes)
-    dNtdX  = zeros(nnodes, ndim)
     Bt     = zeros(ndim, nnodes)
-    KBt    = zeros(ndim, nnodes)
-    J    = Array{Float64}(undef, ndim, ndim)
+    L      = zeros(3,3)
 
     for ip in elem.ips
-        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        dNdR = elem.shape.deriv(ip.R)
+        J2D  = C'*dNdR
 
-        dNdR  = elem.shape.deriv(ip.R)
-        dNtdR = elem.shape.basic_shape.deriv(ip.R)
-        @gemm J  = C'*dNdR
-        detJ = det(J)
-        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
-        @gemm dNtdX = dNtdR*inv(J)
-        Bt .= dNtdX'
+        set_rot_x_xp(elem, J2D, L)
+        J′    = [ L*J2D [ 0,0,th/2]  ]
+        invJ′ = inv(J′)
+        dNdR  = [ dNdR zeros(nnodes) ]
+        dNdX′ = dNdR*invJ′
+        Bt   .= dNdX′'
 
-        # compute H
         K = calcK(elem.mat, ip.state)
-        coef = detJ*ip.w*th
-        @gemm KBt = K*Bt
-        @gemm H  -= coef*Bt'*KBt
+        detJ′ = det(J′)
+        @assert detJ′>0
+        
+        coef = detJ′*ip.w*th
+        H += coef*Bt'*K*Bt
+
     end
 
-    # map
-    map = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nbnodes] ]
+    map = elem_map_t(elem)
 
     return H, map, map
 end
 
-function elem_mass_matrix(elem::TMShell)
+function elem_mass_matrix_t(elem::TMShell)
     ndim   = elem.env.ndim
-    th     = thickness   # elem.env.thickness
+    th     = elem.mat.thickness
     nnodes = length(elem.nodes)
-    nbnodes = elem.shape.basic_shape.npoints
+    
     C      = getcoords(elem)
     M      = zeros(nnodes, nnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
+    L      = zeros(3,3)
+
 
     for ip in elem.ips
-        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
-
-        Nt   = elem.shape.basic_shape.func(ip.R)
+        N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
-        detJ = det(J)
-        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
+        J2D  = C'*dNdR
+
+        set_rot_x_xp(elem, J2D, L)
+        J′    = [ L*J2D [ 0,0,th/2]  ]
+        detJ′ = det(J′)
+        @assert detJ′>0
 
         # compute Cut
         coef  = elem.mat.ρ*elem.mat.cv
-        coef *= detJ*ip.w*th
-        M    -= coef*Nt*Nt'
+        coef *= detJ′*ip.w*th
+
+        M    -= coef*N*N'
     end
 
     # map
-    map = [  node.dofdict[:ut].eq_id for node in elem.nodes[1:nbnodes]  ]
+    map = map_t(elem)
 
     return M, map, map
 end
@@ -360,7 +368,7 @@ function elem_internal_forces(elem::TMShell, F::Array{Float64,1}, DU::Array{Floa
     ndim   = elem.env.ndim
     th     = thickness   # elem.env.thickness
     nnodes = length(elem.nodes)
-    nbnodes = elem.shape.basic_shape.npoints
+    
     C   = getcoords(elem)
     T0     = elem.env.T0 + 273.15
     keys   = (:ux, :uy, :uz)[1:ndim]
@@ -385,7 +393,7 @@ function elem_internal_forces(elem::TMShell, F::Array{Float64,1}, DU::Array{Floa
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
         @gemm dNdX = dNdR*inv(J)
         set_Bu(elem, ip, dNdX, Bu)
-        dNtdR = elem.shape.basic_shape.deriv(ip.R)
+        dNtdR = elem.shape.deriv(ip.R)
         Jp = dNtdR*Ct
         @gemm dNtdX = inv(Jp)*dNtdR
         Bt = dNtdX
@@ -400,9 +408,9 @@ function elem_internal_forces(elem::TMShell, F::Array{Float64,1}, DU::Array{Floa
         ε    = ip.state.ε
         εvol = dot(m, ε)
         coef = β*detJ*ip.w*th
-        dFt  -= coef*Nt*εvol
+        dFt  -= coef*N*εvol
         coef = detJ*ip.w*elem.mat.ρ*elem.mat.cv*th/T0
-        dFt -= coef*Nt*ut
+        dFt -= coef*N*ut
         QQ   = ip.state.QQ
         coef = detJ*ip.w*th/T0
         @gemv dFt += coef*Bt'*QQ
@@ -418,7 +426,7 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     th     = thickness   # elem.env.thickness
     T0     = elem.env.T0 + 273.15
     nnodes = length(elem.nodes)
-    nbnodes = elem.shape.basic_shape.npoints
+    
     C      = getcoords(elem)
 
     E = elem.mat.E
@@ -460,17 +468,17 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
         @gemm dNdX = dNdR*invJ
         set_Bu(elem, ip, dNdX, Bu)
 
-        dNtdR = elem.shape.basic_shape.deriv(ip.R)
+        dNtdR = elem.shape.deriv(ip.R)
         @gemm dNtdX = dNtdR*invJ
 
-        # compute Nt
-        Nt = elem.shape.basic_shape.func(ip.R)
+        # compute N
+        N = elem.shape.func(ip.R)
 
         # compute Δε
         @gemv Δε = Bu*dU
 
         # compute Δut
-        Δut = Nt'*dUt # interpolation to the integ. point
+        Δut = N'*dUt # interpolation to the integ. point
 
         # compute thermal gradient G
         Bt .= dNtdX'
@@ -487,11 +495,11 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
         Δεvol = dot(m, Δε)
         coef  = β*Δεvol*T0
         coef *= detJ*ip.w*th
-        dFt  -= coef*Nt
+        dFt  -= coef*N
 
         coef  = ρ*cv
         coef *= detJ*ip.w*th
-        dFt  -= coef*Nt*Δut
+        dFt  -= coef*N*Δut
 
         coef  = Δt
         coef *= detJ*ip.w*th
