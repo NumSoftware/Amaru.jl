@@ -91,12 +91,12 @@ function setquadrature!(elem::TMShell, n::Int=0)
 
 end
 
-#=
+
 # DUVIDA!!!!!!
 function distributed_bc(elem::TMShell, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
     return mech_shell_boundary_forces(elem, facet, key, val)
 end
-=#
+
 
 function body_c(elem::TMShell, key::Symbol, val::Union{Real,Symbol,Expr})
     return mech_shell_body_forces(elem, key, val)
@@ -112,11 +112,12 @@ function elem_config_dofs(elem::TMShell)
         add_dof(node, :rx, :mx)
         add_dof(node, :ry, :my)
         add_dof(node, :rz, :mz)
+        add_dof(node, :ut, :ft) # VERIFICAR
     end
 end
 
 function elem_map(elem::TMShell)
-    keys =(:ux, :uy, :uz, :rx, :ry, :rz)
+    keys =(:ux, :uy, :uz, :rx, :ry, :rz, :ut)
     return [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
 end
 
