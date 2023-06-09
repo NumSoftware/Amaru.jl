@@ -3,14 +3,14 @@
 mutable struct TMShell<:Thermomechanical
     id    ::Int
     shape ::CellShape
-
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
     mat   ::Material
     active::Bool
     linked_elems::Array{Element,1}
-    env::ModelEnv
+    env   ::ModelEnv
+    Dlmn::Array{ Array{Float64,2}, 1}
 
     function TMShell();
         return new()
@@ -32,413 +32,251 @@ function elem_config_dofs(elem::TMShell)
 end
 
 function elem_init(elem::TMShell)
-    nothing
+    
+    nnodes = length(elem.nodes)
+    Dlmn = Array{Float64,2}[]
+    C = getcoords(elem)
+
+    for i in 1:nnodes
+        Ri = elem.shape.nat_coords[i,:]
+        dNdR = elem.shape.deriv(Ri)
+        J = C'*dNdR
+
+        V1 = J[:,1]
+        V2 = J[:,2]
+        V3 = cross(V1, V2)
+        V2 = cross(V3, V1)
+        normalize!(V1)
+        normalize!(V2)
+        normalize!(V3)
+
+        push!(Dlmn, [V1'; V2'; V3' ])
+    end
+    elem.Dlmn = Dlmn
+
+    return nothing
 end
 
+function setquadrature!(elem::TMShell, n::Int=0)
 
-function distributed_bc(elem::TMShell, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
-    ndim  = elem.env.ndim
-    th     = thickness   # elem.env.thickness
-    suitable_keys = (:tx, :ty, :tz, :tn, :tq)
+    if n in (8, 18)
+        n = div(n,2)
+    end
+    ip2d = get_ip_coords(elem.shape, n)
+    ip1d = get_ip_coords(LIN2, 2)
+    n = size(ip2d,1)
 
-    # Check keys
-    key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
-    (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
-
-    target = facet!=nothing ? facet : elem
-    nodes  = target.nodes
-    nnodes = length(nodes)
-    t      = elem.env.t
-
-    # Force boundary condition
-    nnodes = length(nodes)
-
-    # Calculate the target coordinates matrix
-    C = getcoords(nodes, ndim)
-
-    # Vector with values to apply
-    Q = zeros(ndim)
-
-    # Calculate the nodal values
-    F     = zeros(nnodes, ndim)
-    shape = target.shape
-    ips   = get_ip_coords(shape)
-
-    if key == :tq # energy per area
-        for i in 1:size(ips,1)
-            R = vec(ips[i,:])
-            w = R[end]
-            N = shape.func(R)
-            D = shape.deriv(R)
-            J = C'*D
-            nJ = norm2(J)
-            X = C'*N
-            if ndim==2
-                x, y = X
-                vip = eval_arith_expr(val, t=t, x=x, y=y)
-            else
-                x, y, z = X
-                vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
-            end
-            coef = vip*nJ*w
-            F .+= N*coef # F is a vector
+    resize!(elem.ips, 2*n)
+    for k in 1:2
+        for i in 1:n
+            R = [ ip2d[i,1:2]; ip1d[k,1] ]
+            w = ip2d[i,4]*ip1d[k,4]
+            j = (k-1)*n + i
+            elem.ips[j] = Ip(R, w)
+            elem.ips[j].id = j
+            elem.ips[j].state = ip_state_type(elem.mat)(elem.env)
+            elem.ips[j].owner = elem
         end
-
-        # generate a map
-        map  = [ node.dofdict[:ut].eq_id for node in target.nodes ]
-
-        return F, map
     end
 
-    for i in 1:size(ips,1)
-        R = vec(ips[i,:])
-        w = R[end]
+    # finding ips global coordinates
+    C     = getcoords(elem)
+    shape = elem.shape
+
+    for ip in elem.ips
+        R = [ ip.R[1:2]; 0.0 ]
         N = shape.func(R)
-        D = shape.deriv(R)
-        J = C'*D
-        X = C'*N
-        if ndim==2
-            x, y = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y)
-            if key == :tx
-                Q = [vip, 0.0]
-            elseif key == :ty
-                Q = [0.0, vip]
-            elseif key == :tn
-                n = [J[1,2], -J[1,1]]
-                Q = vip*normalize(n)
-            end
-            if elem.env.modeltype=="axisymmetric"
-                th = 2*pi*X[1]
-            end
-        else
-            x, y, z = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
-            if key == :tx
-                Q = [vip, 0.0, 0.0]
-            elseif key == :ty
-                Q = [0.0, vip, 0.0]
-            elseif key == :tz
-                Q = [0.0, 0.0, vip]
-            elseif key == :tn && ndim==3
-                n = cross(J[1,:], J[2,:])
-                Q = vip*normalize(n)
-            end
-        end
-        coef = norm2(J)*w*th
-        @gemm F += coef*N*Q' # F is a matrix
+        ip.coord = C'*N
     end
 
-    # generate a map
-    keys = (:ux, :uy, :uz)[1:ndim]
-    map  = [ node.dofdict[key].eq_id for node in target.nodes for key in keys ]
-
-    return reshape(F', nnodes*ndim), map
-end
-
-# the strain-displacement matrix for membrane forces
-function Dm_maxtrix(elem::TMShell)
-
-    coef1 = elem.mat.t*elem.mat.E/(1-elem.mat.nu^2)
-    coef2 = elem.mat.nu*coef1
-    coef3 = coef1*(1-elem.mat.nu)/2
-
-        Dm = [coef1  coef2 0
-                  coef2  coef1 0
-                  0      0     coef3]
-    return Dm
-end
-
-# the strain-displacement matrix for bending moments
-function Db_maxtrix(elem::TMShell)
-
-    Dm = Dm_maxtrix(elem)
-
-    Db = Dm*(elem.mat.t^2/12)
-
-    return Db
-end
-
-# the strain-displacement matrix for shear forces
-
-function Ds_maxtrix(elem::TMShell)
-
-    coef = elem.mat.t*(5/6)*elem.mat.E/(2*(1+elem.mat.nu))
-
-            Ds = [coef    0
-                        0     coef]
-    return Ds
-end
-
-# Rotation Matrix
-function RotMatrix(elem::TMShell, J::Matrix{Float64})
-    
-    Z = zeros(1,2) # zeros(2,1)
-
-    if size(J,1)==2
-        J = [J
-             Z]
-    else
-        J = J
-    end
-    
-    L1 = vec(J[:,1])
-    L2 = vec(J[:,2])
-    L3 = cross(L1, L2)  # L1 is normal to the first element face
-    L2 = cross(L1, L3)
-    normalize!(L1)
-    normalize!(L2)
-    normalize!(L3)
-
-    Z1 = zeros(1,2) # Z = zeros(1,3)
-
-    Rot = [ L2' Z1
-    L1' Z1
-    L3' Z1
-    Z1   L2'
-    Z1   L1']
-
-    return Rot
-             
-end
-
-function setBb(elem::TMShell, N::Vect, dNdX::Matx, Bb::Matx)
-    nnodes = length(elem.nodes)
-    # ndim, nnodes = size(dNdX)
-
-    ndof = 5
-    Bb .= 0.0
-   
-    for i in 1:nnodes
-        dNdx = dNdX[i,1]
-        dNdy = dNdX[i,2]
-        j    = i-1
-
-        Bb[1,4+j*ndof] = -dNdx  
-        Bb[2,5+j*ndof] = -dNdy   
-        Bb[3,4+j*ndof] = -dNdy 
-        Bb[3,5+j*ndof] = -dNdx 
-
-    end
-end
-
-function setBm(elem::TMShell, N::Vect, dNdX::Matx, Bm::Matx)
-    nnodes = length(elem.nodes)
-    # ndim, nnodes = size(dNdX)
-    ndof = 5
-    Bm .= 0.0
-   
-    for i in 1:nnodes
-        dNdx = dNdX[i,1]
-        dNdy = dNdX[i,2]
-        j    = i-1
-
-        Bm[1,1+j*ndof] = dNdx  
-        Bm[2,2+j*ndof] = dNdy   
-        Bm[3,1+j*ndof] = dNdy 
-        Bm[3,2+j*ndof] = dNdx 
-
-    end
-end
-
-function setBs_bar(elem::TMShell, N::Vect, dNdX::Matx, Bs_bar::Matx)
-    nnodes = length(elem.nodes)
-
-    cx = [ 0 1 0 -1]
-    cy = [-1 0 1 0 ]
-
-    Bs_bar .= 0.0
-    Ns= zeros(4,1)
-    
-    for i in 1:nnodes
-      Ns[1] = (1-cx[i])*(1-cy[i])/4
-      Ns[2] = (1+cx[i])*(1-cy[i])/4
-      Ns[3] = (1+cx[i])*(1+cy[i])/4
-      Ns[4] = (1-cx[i])*(1+cy[i])/4
-
-      bs1  = [ dNdX[1,1] -Ns[1]    0
-               dNdX[1,2]     0 -Ns[1]];
-
-      bs2  = [ dNdX[2,1] -Ns[2]    0
-               dNdX[2,2]     0 -Ns[2]]
-
-      bs3  = [ dNdX[3,1] -Ns[3]    0
-               dNdX[3,2]     0 -Ns[3]]
-
-      bs4  = [ dNdX[4,1] -Ns[4]    0
-               dNdX[4,2]     0 -Ns[4]]
-
-          bs = [bs1 bs2 bs3 bs4]
-
-          Bs_bar[2*i-1:2*i,:] = bs[1:2,:]
-    end
 end
 
 #=
-function elem_map(elem::TMShell)::Array{Int,1}
-
-    #if elem.env.ndim==2
-    #    dof_keys = (:ux, :uy, :uz, :rx, :ry)
-    #else
-    #    dof_keys = (:ux, :uy, :uz, :rx, :ry, :rz) # VERIFICAR
-    #end
-
-    dof_keys = (:ux, :uy, :uz, :rx, :ry)
-
-    vcat([ [node.dofdict[key].eq_id for key in dof_keys] for node in elem.nodes]...)
-
+# DUVIDA!!!!!!
+function distributed_bc(elem::TMShell, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
+    return mech_shell_boundary_forces(elem, facet, key, val)
 end
 =#
 
-function elem_stiffness(elem::TMShell)
-    ndim   = elem.env.ndim
+function body_c(elem::TMShell, key::Symbol, val::Union{Real,Symbol,Expr})
+    return mech_shell_body_forces(elem, key, val)
+end
 
-    nnodes = length(elem.nodes)
-
-    Db = Db_maxtrix(elem)
-    Dm = Dm_maxtrix(elem)
-    Ds = Ds_maxtrix(elem)
-
-    Bb = zeros(3, nnodes*5)
-    Bm = zeros(3, nnodes*5)
-    Bs_bar = zeros(8,nnodes*3)
-
-    c  = zeros(8,8)
-    nr = 5   
-    nc = 5
-    R = zeros(nnodes*nr, nnodes*nc)
-    K = zeros( nnodes*5 , nnodes*5 )
-
-    C = getcoords(elem)
-
-    if size(C,2)==2
-        cxyz  = zeros(4,3)
-        cxyz[:,1:2]  = C
-    else
-        cxyz = C
+function elem_config_dofs(elem::TMShell)
+    ndim = elem.env.ndim
+    ndim in (1,2) && error("MechShell: Shell elements do not work in $(ndim)d analyses")
+    for node in elem.nodes
+        add_dof(node, :ux, :fx)
+        add_dof(node, :uy, :fy)
+        add_dof(node, :uz, :fz)
+        add_dof(node, :rx, :mx)
+        add_dof(node, :ry, :my)
+        add_dof(node, :rz, :mz)
     end
+end
 
-    for ip in elem.ips      
-        # compute shape Jacobian
+function elem_map(elem::TMShell)
+    keys =(:ux, :uy, :uz, :rx, :ry, :rz)
+    return [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
+end
+
+
+# Rotation Matrix
+function set_rot_x_xp(elem::TMShell, J::Matx, R::Matx)
+    V1 = J[:,1]
+    V2 = J[:,2]
+    V3 = cross(V1, V2)
+    V2 = cross(V3, V1)
+
+    normalize!(V1)
+    normalize!(V2)
+    normalize!(V3)
+
+    R[1,:] .= V1
+    R[2,:] .= V2
+    R[3,:] .= V3
+end
+
+function setB(elem::TMShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx, Bil::Matx, Bi::Matx, B::Matx)
+    nnodes = size(dNdX,1)
+    th = elem.mat.thickness
+    # Note that matrix B is designed to work with tensors in Mandel's notation
+
+    ndof = 6
+    for i in 1:nnodes
+        ζ = ip.R[3]
+        Rrot[1:3,1:3] .= L
+        # Rrot[4:5,4:6] .= L[1:2,:]
+        # Rrot[1:3,1:3] .= elem.Dlmn[i]
+        Rrot[4:5,4:6] .= elem.Dlmn[i][1:2,:]
+        dNdx = dNdX[i,1]
+        dNdy = dNdX[i,2]
+        Ni = N[i]
+
+        Bil[1,1] = dNdx;                                                                                Bil[1,5] = dNdx*ζ*th/2
+                             Bil[2,2] = dNdy;                           Bil[2,4] = -dNdy*ζ*th/2
+                                                  
+                                                  Bil[4,3] = dNdy/SR2;  Bil[4,4] = -1/SR2*Ni
+                                                  Bil[5,3] = dNdx/SR2;                                  Bil[5,5] = 1/SR2*Ni
+        Bil[6,1] = dNdy/SR2; Bil[6,2] = dNdx/SR2;                       Bil[6,4] = -1/SR2*dNdx*ζ*th/2;  Bil[6,5] = 1/SR2*dNdy*ζ*th/2
+
+        c = (i-1)*ndof
+        @gemm Bi = Bil*Rrot
+        B[:, c+1:c+6] .= Bi
+    end 
+end
+
+function elem_stiffness(elem::TMShell)
+    nnodes = length(elem.nodes)
+    th     = elem.mat.thickness
+    ndof   = 6
+    nstr   = 6
+    C      = getcoords(elem)
+    K      = zeros(ndof*nnodes, ndof*nnodes)
+    B      = zeros(nstr, ndof*nnodes)
+    L      = zeros(3,3)
+    Rrot   = zeros(5,ndof)
+    Bil    = zeros(nstr,5)
+    Bi     = zeros(nstr,ndof)
+
+    for ip in elem.ips
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
+        J2D  = C'*dNdR
+        set_rot_x_xp(elem, J2D, L)
+        J′   = [ L*J2D [ 0,0,th/2]  ]
+        invJ′ = inv(J′)
+        dNdR  = [ dNdR zeros(nnodes) ]
+        dNdX′ = dNdR*invJ′
 
-        J = cxyz'*dNdR
+        D = calcD(elem.mat, ip.state)
+        detJ′ = det(J′)
+        @assert detJ′>0
+        
+        setB(elem, ip, N, L, dNdX′, Rrot, Bil, Bi, B)
+        coef = detJ′*ip.w
+        K += coef*B'*D*B
+    end
 
-        Ri = RotMatrix(elem, J)
-        Ri′ = Ri[1:2, 1:3]
-    
-        ctxy = cxyz*Ri[1:3, 1:3]' # Rotate coordinates to element mid plane
-      
-        dNdX = dNdR*pinv(J)
+    δ = 1e-5
+    for i in 1:ndof*nnodes
+        K[i,i] += δ
+    end
 
-        dNdX′ = dNdX*(Ri′)'
-              
-        for i in 1:nnodes
-            R[(i-1)*nr+1:i*nr, (i-1)*nc+1:i*nc] = Ri
-        end     
-   
-        J1 = ctxy'*dNdR
-        invJ1  =  pinv(J1)
-        detJ1 = norm2(J1)
-
-        for i in 1:nnodes
-            c[(i-1)*2+1:i*2, (i-1)*2+1:i*2] = J1[1:2,1:2]
-        end
-
-        setBb(elem, N, dNdX′, Bb)
-        setBm(elem, N, dNdX′, Bm)
-        setBs_bar(elem, N, dNdX′, Bs_bar)
-
-                    T_mat = [ 1  0  0  0  0  0  0  0
-                              0  0  0  1  0  0  0  0
-                              0  0  0  0  1  0  0  0
-                              0  0  0  0  0  0  0  1 ]
-
-                    P_mat = [ 1  -1   0   0
-                              0   0   1   1
-                              1   1   0   0
-                              0   0   1  -1 ]
-       
-                    A_mat = [ 1  ip.R[2] 0    0
-                              0    0  1  ip.R[1]]
-      
-                    bmat_ss = invJ1[1:2, 1:2]* A_mat * inv(P_mat) * T_mat * c * Bs_bar
-
-                    bmat_s1 = [0  0 bmat_ss[1, 1]
-                               0  0 bmat_ss[2, 1]]
-
-                    bmat_s2 = [0  0 bmat_ss[1, 4]
-                               0  0 bmat_ss[2, 4]]
-
-                    bmat_s3 = [0  0 bmat_ss[1, 7]
-                               0  0 bmat_ss[2, 7]]
-
-                    bmat_s4 = [0  0 bmat_ss[1,10]
-                               0  0 bmat_ss[2,10]]
-
-                    bmat_s1 = [bmat_s1*Ri[1:3, 1:3]  bmat_ss[:,2:3]]
-                    bmat_s2 = [bmat_s2*Ri[1:3, 1:3] bmat_ss[:,5:6]]
-                    bmat_s3 = [bmat_s3*Ri[1:3, 1:3] bmat_ss[:,8:9]]
-                    bmat_s4 = [bmat_s4*Ri[1:3, 1:3] bmat_ss[:,11:12]]
-
-                    bmat_s = [bmat_s1 bmat_s2 bmat_s3 bmat_s4]
-
-                    coef = detJ1*ip.w
-
-                     Kb =    Bb'*Db*Bb*coef 
-                     Km = R'*Bm'*Dm*Bm*R*coef 
-                     Ks = bmat_s'*Ds*bmat_s*coef 
-
-                     K += (Kb + Km + Ks)
-            end
-            
-    # map
-    keys = (:ux, :uy, :uz)[1:ndim]
-    map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-    #map = elem_map(elem) 
-
+    map = elem_map(elem)
     return K, map, map
 end
 
-
+#=
+# DUVIDA !!!!!!!!!!!!!!
 @inline function set_Bu1(elem::Element, ip::Ip, dNdX::Matx, B::Matx)
     setB(elem, ip, dNdX, B) # using function setB from mechanical analysis
 end
-
+=#
 
 # matrix C
 function elem_coupling_matrix(elem::TMShell)
-    ndim   = elem.env.ndim
-    th     = t   # elem.env.thickness
+    #ndim   = elem.env.ndim
+    #th     = elem.env.thickness
+    #nnodes = length(elem.nodes)
+    #nbnodes = elem.shape.basic_shape.npoints
+    #C   = getcoords(elem)
+    #Bu  = zeros(6, nnodes*ndim)
+    #Cut = zeros(nnodes*ndim, nbnodes) # u-t coupling matrix
+
+    #J    = Array{Float64}(undef, ndim, ndim)
+    #dNdX = Array{Float64}(undef, nnodes, ndim)
+    #m    = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
+    #β    = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) # thermal stress modulus
+
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
-    C   = getcoords(elem)
-    Bu  = zeros(6, nnodes*ndim)
-    Cut = zeros(nnodes*ndim, nbnodes) # u-t coupling matrix
+    ndim   = elem.env.ndim
 
-    J    = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, nnodes, ndim)
+    th     = elem.mat.thickness
+    ndof   = 6
+    nstr   = 6
+    C      = getcoords(elem)
+    K      = zeros(ndof*nnodes, ndof*nnodes)
+    B      = zeros(nstr, ndof*nnodes)
+    L      = zeros(3,3)
+    Rrot   = zeros(5,ndof)
+    Bil    = zeros(nstr,5)
+    Bi     = zeros(nstr,ndof)
+
+    C   = getcoords(elem)
+    Cut = zeros(ndof*nnodes, nbnodes) # u-t coupling matrix
     m    = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
-    β    = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) # thermal stress modulus
+    β    = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) # ther
 
     for ip in elem.ips
         elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix
+        #dNdR = elem.shape.deriv(ip.R)
+        #@gemm J = C'*dNdR
+        #@gemm dNdX = dNdR*inv(J)
+        #detJ = det(J)
+        #detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
+        
+        N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
-        @gemm dNdX = dNdR*inv(J)
-        detJ = det(J)
-        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
-        set_Bu1(elem, ip, dNdX, Bu)
+        J2D  = C'*dNdR
+        set_rot_x_xp(elem, J2D, L)
+        J′   = [ L*J2D [ 0,0,th/2]  ]
+        invJ′ = inv(J′)
+        dNdR  = [ dNdR zeros(nnodes) ]
+        dNdX′ = dNdR*invJ′      
+        setB(elem, ip, N, L, dNdX′, Rrot, Bil, Bi, B)
 
+        detJ′ = det(J′)
+        @assert detJ′>0
         # compute Cut
         Nt    = elem.shape.basic_shape.func(ip.R)
         coef  = β
-        coef *= detJ*ip.w*th
+        coef *= detJ′*ip.w*th
         mNt   = m*Nt'
-        @gemm Cut -= coef*Bu'*mNt
+        @gemm Cut -= coef*B'*mNt
     end
     # map
     keys = (:ux, :uy, :uz)[1:ndim]
@@ -451,7 +289,7 @@ end
 # thermal conductivity
 function elem_conductivity_matrix(elem::TMShell)
     ndim   = elem.env.ndim
-    th     = thickness   # elem.env.thickness
+    th     = elem.mat.thickness   # elem.env.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C      = getcoords(elem)
