@@ -22,6 +22,61 @@ function mount_K(elems::Array{<:Element,1}, ndofs::Int )
         end
     end
 
+    # nelems = length(elems)
+    # pool = Array{Any}(undef, nelems)
+
+    # Ri = Array{Array{Int,1}}(undef, nelems)
+    # Ci = Array{Array{Int,1}}(undef, nelems)
+    # Vi = Array{Array{Float64,1}}(undef, nelems)
+
+    # # Threads.nthreads()>1 && LinearAlgebra.BLAS.set_num_threads(1)
+
+
+    # @time begin
+    #     # ccall(:jl_enter_threaded_region, Cvoid, ())
+    #     @sync for elem in elems
+    #     # Threads.@threads for elem in elems
+
+
+    #         Threads.@spawn begin
+    #             Ke, rmap, cmap = elem_stiffness(elem)
+
+    #             I, J, V = findnz(sparse(Ke))
+    #             Ri[elem.id] = rmap[I]
+    #             Ci[elem.id] = cmap[J]
+    #             Vi[elem.id] = V
+
+    #         end
+
+            
+    #     end
+    #     # ccall(:jl_exit_threaded_region, Cvoid, ())
+
+    #     println("100")
+
+            
+    #     R = reduce(vcat, Ri)
+    #     C = reduce(vcat, Ci)
+    #     V = reduce(vcat, Vi)
+    #     # Threads.nthreads()==1 && LinearAlgebra.BLAS.set_num_threads(8)
+        
+    #     # R = reduce(vcat, p[1] for p in pool)
+    #     # println("200")
+    #     # C = reduce(vcat, p[2] for p in pool)
+    #     # println("200")
+    #     # V = reduce(vcat, p[3] for p in pool)
+    #     # R, C, V = Int64[], Int64[], Float64[]
+
+
+
+        
+    # end
+    
+    
+    # println("xxxxxxx")
+    
+    # error()
+    
     local K
     try
         K = sparse(R, C, V, ndofs, ndofs)
@@ -135,7 +190,6 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
     )
 
     println(logfile, "Mechanical FE analysis: Stage $(stage.id)")
-    stage.status = :solving
 
     solstatus = success()
     scheme in ("FE", "ME", "BE", "Ralston") || error("solve! : invalid scheme \"$(scheme)\"")

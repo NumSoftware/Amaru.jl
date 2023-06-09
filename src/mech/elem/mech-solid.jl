@@ -70,7 +70,7 @@ function setB(elem::Element, ip::Ip, dNdX::Matx, B::Matx)
             j = i-1
             B[1,1+j*ndim] = dNdX[i,1]
             B[2,2+j*ndim] = dNdX[i,2]
-            B[6,1+j*ndim] = dNdX[i,2]/SR2; 
+            B[6,1+j*ndim] = dNdX[i,2]/SR2
             B[6,2+j*ndim] = dNdX[i,1]/SR2
         end
         if elem.env.modeltype=="axisymmetric"
