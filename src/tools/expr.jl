@@ -188,43 +188,6 @@ function Base.replace(expr::Expr, pair::Pair)
     return expr
 end
 
-export @check
-macro check(expr)
-    exprs = replace(string(expr), " "=>"")
-    vars = getvars(expr)
-
-    return quote
-        if !$(esc(expr)) # Eval boolean expression
-            # Get function name
-            st = stacktrace(backtrace())
-            fname = :_
-            for frm in st
-                if frm.func != :backtrace && frm.func!= Symbol("macro expansion")
-                    fname = frm.func
-                    break
-                end
-            end
-
-            # Prepare message
-            if length($vars)==1
-                prm = $(string(vars[1]))
-                val = $(esc(vars[1]))
-                msg = "Invalid value for parameter $prm ($val) which must satisfy $($(exprs))"
-            else
-                prms = $(join(vars, ", ", " and "))
-                msg = "Parameters $prms must satisfy $($(exprs))"
-            end
-
-            sname = replace(string(fname), r"#\d*"=>"")
-            sname != "" && (msg="$sname: $msg")
-            error(msg)
-        end
-    end
-end
-
-
-
-
 
 # const x = Symbolic(:x)
 # const y = Symbolic(:y)

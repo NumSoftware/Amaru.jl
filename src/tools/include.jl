@@ -21,6 +21,7 @@ include("stopwatch.jl")
 include("xml.jl")
 
 include("tex.jl")
+include("error.jl")
 
 Base.show(io::IO, obj::Xnode) = _show(io, obj, 3, "")
 Base.show(io::IO, obj::Xdoc)  = _show(io, obj, 3, "")
