@@ -198,7 +198,7 @@ function elem_stiffness(elem::TMShell)
         K[i,i] += δ
     end
 
-    map = elem_map(elem)
+    map = elem_map_u(elem)
     return K, map, map
 end
 
@@ -413,7 +413,7 @@ end
 
 function elem_update!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
-    th     = thickness   # elem.env.thickness
+    th     = elem.mat.thickness
     T0     = elem.env.T0 + 273.15
     nnodes = length(elem.nodes)
     
