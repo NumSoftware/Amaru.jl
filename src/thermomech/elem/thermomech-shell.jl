@@ -416,7 +416,8 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     th     = elem.mat.thickness
     T0     = get(elem.env.params, :T0, 0.0) + 273.15
     nnodes = length(elem.nodes)
-    
+    ndof = 6
+
     C      = getcoords(elem)
 
     E = elem.mat.E
@@ -425,53 +426,55 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     nu = elem.mat.nu
     cv = elem.mat.cv
     β = E*α/(1-2*nu)
+    
+    map_t = elem_map_t(elem)
 
-    keys   = (:ux, :uy, :uz)[1:ndim]
-    map_u  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-    mat_t  = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nbnodes] ]
-
-    dU  = DU[map_u] # nodal displacement increments
-    dUt = DU[mat_t] # nodal temperature increments
+    #dU  = DU[map_u] # nodal displacement increments
+    dUt = DU[map_t] # nodal temperature increments
     Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes]
     Ut += dUt # nodal tempeture at step n+1
     m   = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  #
 
-    dF  = zeros(nnodes*ndim)
-    Bu  = zeros(6, nnodes*ndim)
     dFt = zeros(nnodes)
     Bt  = zeros(ndim, nnodes)
 
-    J     = Array{Float64}(undef, ndim, ndim)
-    dNdX  = Array{Float64}(undef, nnodes, ndim)
-    dNtdX = Array{Float64}(undef, nbnodes, ndim)
+    map_u = elem_map_u(elem)
+    dU = DU[map_u]
+    dF = zeros(length(dU))
+
+    B = zeros(6, ndof*nnodes)
+
+    L = zeros(3,3)
+    Rrot = zeros(5,ndof)
+    Bil = zeros(6,5)
+    Bi = zeros(6,ndof)
     Δε = zeros(6)
 
     for ip in elem.ips
-        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        #elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute Bu and Bt matrices
-        dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
-        detJ = det(J)
-        detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
-        invJ = inv(J)
-        @gemm dNdX = dNdR*invJ
-        set_Bu(elem, ip, dNdX, Bu)
-
-        dNtdR = elem.shape.deriv(ip.R)
-        @gemm dNtdX = dNtdR*invJ
-
-        # compute N
         N = elem.shape.func(ip.R)
+        dNdR = elem.shape.deriv(ip.R) # 3xn
+        
+        J2D = C'*dNdR
+        set_rot_x_xp(elem, J2D, L)
+        J′ = [ L*J2D [ 0,0,th/2]  ]
+        invJ′ = inv(J′)
+
+        dNdR = [ dNdR zeros(nnodes) ]
+        dNdX′ = dNdR*invJ′
+
+        setB(elem, ip, N, L, dNdX′, Rrot, Bil, Bi, B)
 
         # compute Δε
-        @gemv Δε = Bu*dU
+        @gemv Δε = B*dU
 
         # compute Δut
         Δut = N'*dUt # interpolation to the integ. point
 
         # compute thermal gradient G
-        Bt .= dNtdX'
+        Bt .= dNdX′
         G  = Bt*Ut
 
         # internal force dF
@@ -479,7 +482,7 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
         Δσ -= β*Δut*m # get total stress
 
         coef = detJ*ip.w*th
-        @gemv dF += coef*Bu'*Δσ
+        @gemv dF += coef*B'*Δσ
 
         # internal volumes dFt
         Δεvol = dot(m, Δε)
