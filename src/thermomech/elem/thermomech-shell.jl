@@ -414,7 +414,7 @@ end
 function elem_update!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     th     = elem.mat.thickness
-    T0     = elem.env.T0 + 273.15
+    T0     = get(elem.env.params, :T0, 0.0) + 273.15
     nnodes = length(elem.nodes)
     
     C      = getcoords(elem)
