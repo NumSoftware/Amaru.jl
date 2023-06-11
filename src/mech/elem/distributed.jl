@@ -210,13 +210,12 @@ function mech_solid_body_forces(elem::Element, key::Symbol, val::Union{Real,Symb
 end
 
 function mech_shell_boundary_forces(elem::Element, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
-    ndim  = elem.env.ndim
-    th    = elem.mat.th
+    ndim = 3
     suitable_keys = (:tx, :ty, :tz, :tn)
 
     # Check keys
-    key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable as distributed bc at element of type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
-    (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
+    key in suitable_keys || error("mech_shell_boundary_forces: boundary condition $key is not applicable as distributed bc at element of type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
+    idx = key==:tx ? 1 : key==:ty ? 2 : key==:tz ? 3 : 0
 
     nodes  = facet.nodes
     nnodes = length(nodes)
@@ -246,23 +245,19 @@ function mech_shell_boundary_forces(elem::Element, facet::Cell, key::Symbol, val
 
         x, y, z = X
         vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
-        if key == :tx
-            Q = [vip, 0.0, 0.0]
-        elseif key == :ty
-            Q = [0.0, vip, 0.0]
-        elseif key == :tz
-            Q = [0.0, 0.0, vip]
-        elseif key == :tn
+        if key==:tn
             n = cross(J[:,1], J[:,2])
-            Q = vip*normalize(n)
+            Q = vip*normalize!(n)
+        else
+            Q[idx] = vip
         end
 
-        coef = norm2(J)*w*th
+        coef = norm2(J)*w
         @gemm F += coef*N*Q' # F is a matrix
     end
 
     # generate a map
-    keys = (:ux, :uy, :uz)[1:ndim]
+    keys = (:ux, :uy, :uz)
     map  = [ node.dofdict[key].eq_id for node in facet.nodes for key in keys ]
 
     return reshape(F', nnodes*ndim), map
@@ -270,51 +265,12 @@ end
 
 
 function mech_shell_body_forces(elem::Element, key::Symbol, val::Union{Real,Symbol,Expr})
-    ndim  = elem.env.ndim
-    th    = elem.mat.th
-    suitable_keys = (:wx, :wy, :wz, :wn)
+    suitable_keys = (:wx, :wy, :wz)
 
     # Check keys
     key in suitable_keys || error("mech_shell_body_forces: boundary condition $key is not applicable as body forces at element of type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
 
-    nodes  = elem.nodes
-    nnodes = length(nodes)
-    t      = elem.env.t
+    newkey = key==:wx ? :tx : key==:wy ? :ty : :tz
+    val    = val/elem.mat.th
 
-    C = getcoords(nodes, ndim)
-    Q = zeros(ndim) # Vector with values to apply
-    F     = zeros(nnodes, ndim) # Nodal values
-    shape = elem.shape
-    ips   = get_ip_coords(shape)
-
-    for i in 1:size(ips,1)
-        R = vec(ips[i,:])
-        w = R[end]
-        N = shape.func(R)
-        D = shape.deriv(R)
-        J = C'*D
-        X = C'*N
-
-        x, y, z = X
-        vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
-        if key == :wx
-            Q = [vip, 0.0, 0.0]
-        elseif key == :wy
-            Q = [0.0, vip, 0.0]
-        elseif key == :wz
-            Q = [0.0, 0.0, vip]
-        elseif key == :wn
-            n = cross(J[:,1], J[:,2])
-            Q = vip*normalize(n)
-        end
-
-        coef = norm2(J)*w*th
-        @gemm F += coef*N*Q' # F is a matrix
-    end
-
-    # generate a map
-    keys = (:ux, :uy, :uz)
-    map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-
-    return reshape(F', nnodes*ndim), map
-end
+    return mech_shell_boundary
