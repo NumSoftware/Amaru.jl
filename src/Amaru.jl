@@ -82,7 +82,7 @@ export IpGroupMonitor
 include("stage.jl")
 export Stage
 
-include("model.jl")
+include("fe-model.jl")
 export Model
 export FEModel
 export Domain
