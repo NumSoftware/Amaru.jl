@@ -326,12 +326,6 @@ end
 # Updates numbering, faces and edges in a Mesh object
 function fixup!(mesh::Mesh; quiet=true, genfacets::Bool=true, genedges::Bool=true, reorder::Bool=false)
 
-    # Get ndim
-    # ndim = 1
-    # for point in mesh.nodes
-    #     point.coord.y != 0.0 && (ndim=2)
-    #     point.coord.z != 0.0 && (ndim=3; break)
-    # end
     @assert mesh.env.ndim!=0
 
     # Numberig nodes
@@ -339,9 +333,10 @@ function fixup!(mesh::Mesh; quiet=true, genfacets::Bool=true, genedges::Bool=tru
         p.id = i 
     end
 
-    # Numberig cells
-    for (i,c) in enumerate(mesh.elems )
-        c.id = i;
+    # Numberig cells and setting env
+    for (i,elem) in enumerate(mesh.elems)
+        elem.id = i
+        elem.env = mesh.env
     end
 
     # Facets
@@ -398,7 +393,6 @@ end
 
 function join_mesh!(mesh::Mesh, m2::Mesh)
 
-    @show mesh.env.ndim
     mesh.env.ndim = max(mesh.env.ndim, m2.env.ndim)
 
     pointdict = Dict{UInt, Node}()
@@ -709,7 +703,7 @@ function stats(mesh::Mesh)
 
     bin = (maxl-minl)/10
     hist  = fit(Histogram, L, minl:bin:maxl, closed=:right).weights
-    @show hist
+    # @show hist
     lmod = (findmax(hist)[2]-1)*bin + bin/2
 
     @printf "  lmin = %7.5f\n" minl
