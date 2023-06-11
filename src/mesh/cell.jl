@@ -415,7 +415,7 @@ end
 # gets all facets of a cell
 function getfaces(cell::AbstractCell)
     # Return a cell with the same shape in case of a 2D cell in 3D space
-    cell.env.ndim==3 && cell.shape.ndim==2 && return [ Cell(shape, nodes, tag=cell.tag, owner=cell) ]
+    cell.env.ndim==3 && cell.shape.ndim==2 && return [ Cell(cell.shape, cell.nodes, tag=cell.tag, owner=cell) ]
 
     faces  = Cell[]
     all_faces_idxs = cell.shape.facet_idxs
