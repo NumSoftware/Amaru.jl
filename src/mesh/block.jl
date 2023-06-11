@@ -96,7 +96,7 @@ mutable struct Block <: AbstractBlock
         shape     = nothing,
         )
 
-        if shape !== nothing
+        if cellshape===nothing && shape!==nothing
             notify("Block: argument shape was deprecated. Please use cellshape instead")
             cellshape = shape
         end
@@ -188,7 +188,6 @@ end
 function split_block(bl::Block, msh::Mesh)
     nx, ny, nz = bl.nx, bl.ny, bl.nz
     rx, ry, rz = bl.rx, bl.ry, bl.rz
-    # shape  = bl.shape # cell shape
     coords = getcoords(bl.nodes)
     cellshape = bl.cellshape
 
@@ -279,14 +278,13 @@ function split_block(bl::Block, msh::Mesh)
         p_arr = Array{Node}(undef, nx+1, ny+1)
         for j = 1:ny+1
             for i = 1:nx+1
+                # r = (2.0/nx)*(i-1) - 1.0
+                # s = (2.0/ny)*(j-1) - 1.0 
                 r = -1.0 + 2.0*(rx==1 ? (1/nx)*(i-1) : (1-rx^(i-1))/(1-rx^nx))
                 s = -1.0 + 2.0*(ry==1 ? (1/ny)*(j-1) : (1-ry^(j-1))/(1-ry^ny))
                 
-                # r = (2.0/nx)*(i-1) - 1.0
-                # s = (2.0/ny)*(j-1) - 1.0 
                 N = bl.shape.func([r, s])
                 C = N'*coords
-                # @s typeof(C)
                 p::Any = nothing
                 if i in (1, nx+1) || j in (1, ny+1)
                     C = round.(C, digits=8)
@@ -336,7 +334,7 @@ function split_block(bl::Block, msh::Mesh)
         p_arr = Array{Node}(undef, 2*nx+1, 2*ny+1)
         for j = 1:2*ny+1
             for i = 1:2*nx+1
-                if cellshape==QUAD8 && iseven(i) && iseven(j) continue end
+                cellshape==QUAD8 && iseven(i) && iseven(j) && continue
 
                 # r = (1.0/nx)*(i-1) - 1.0
                 # s = (1.0/ny)*(j-1) - 1.0
@@ -387,7 +385,7 @@ function split_block(bl::Block, msh::Mesh)
         p_arr = Array{Node}(undef, 3*nx+1, 3*ny+1)
         for j = 1:3*ny+1
             for i = 1:3*nx+1
-                if cellshape==QUAD12 && (i-1)%3>0 && (j-1)%3>0 continue end
+                cellshape==QUAD12 && (i-1)%3>0 && (j-1)%3>0 && continue
 
                 # r = ((2/3)/nx)*(i-1) - 1.0
                 # s = ((2/3)/ny)*(j-1) - 1.0
@@ -539,12 +537,12 @@ function split_block(bl::Block, msh::Mesh)
         for k = 1:nz+1
             for j = 1:ny+1
                 for i = 1:nx+1
-                    r = -1.0 + 2.0*(rx==1 ? (1/nx)*(i-1) : (1-rx^(i-1))/(1-rx^nx))
-                    s = -1.0 + 2.0*(ry==1 ? (1/ny)*(j-1) : (1-ry^(j-1))/(1-ry^ny))
-                    t = -1.0 + 2.0*(rz==1 ? (1/nz)*(k-1) : (1-rz^(k-1))/(1-rz^nz))
                     # r = (2.0/nx)*(i-1) - 1.0
                     # s = (2.0/ny)*(j-1) - 1.0
                     # t = (2.0/nz)*(k-1) - 1.0
+                    r = -1.0 + 2.0*(rx==1 ? (1/nx)*(i-1) : (1-rx^(i-1))/(1-rx^nx))
+                    s = -1.0 + 2.0*(ry==1 ? (1/ny)*(j-1) : (1-ry^(j-1))/(1-ry^ny))
+                    t = -1.0 + 2.0*(rz==1 ? (1/nz)*(k-1) : (1-rz^(k-1))/(1-rz^nz))
                     N = bl.shape.func([r, s, t])
                     C = N'*coords
                     p::Any = nothing
@@ -580,12 +578,12 @@ function split_block(bl::Block, msh::Mesh)
                         push!(msh.elems, cell)
                     end
                     if cellshape==TET4
-                        push!( msh.elems, Cell(cellshape, [p2, p4, p1, p8], tag=bl.tag) , env=msh.env)
-                        push!( msh.elems, Cell(cellshape, [p2, p1, p5, p8], tag=bl.tag) , env=msh.env)
-                        push!( msh.elems, Cell(cellshape, [p2, p5, p6, p8], tag=bl.tag) , env=msh.env)
-                        push!( msh.elems, Cell(cellshape, [p2, p6, p7, p8], tag=bl.tag) , env=msh.env)
-                        push!( msh.elems, Cell(cellshape, [p2, p3, p4, p8], tag=bl.tag) , env=msh.env)
-                        push!( msh.elems, Cell(cellshape, [p2, p7, p3, p8], tag=bl.tag) , env=msh.env)
+                        push!( msh.elems, Cell(cellshape, [p2, p4, p1, p8], tag=bl.tag, env=msh.env) )
+                        push!( msh.elems, Cell(cellshape, [p2, p1, p5, p8], tag=bl.tag, env=msh.env) )
+                        push!( msh.elems, Cell(cellshape, [p2, p5, p6, p8], tag=bl.tag, env=msh.env) )
+                        push!( msh.elems, Cell(cellshape, [p2, p6, p7, p8], tag=bl.tag, env=msh.env) )
+                        push!( msh.elems, Cell(cellshape, [p2, p3, p4, p8], tag=bl.tag, env=msh.env) )
+                        push!( msh.elems, Cell(cellshape, [p2, p7, p3, p8], tag=bl.tag, env=msh.env) )
                     end
                     if cellshape==PYR5
                         C = (p1.coord+p2.coord+p3.coord+p4.coord+p5.coord+p6.coord+p7.coord+p8.coord)/8
@@ -688,12 +686,12 @@ function split_block(bl::Block, msh::Mesh)
                         p27 = p_arr[i+1, j+1, k+1]
 
                         if cellshape==TET10
-                            push!( msh.elems, Cell(cellshape, [p2, p4, p1, p8, p25, p12, p9, p27, p20, p21], tag=bl.tag) , env=msh.env)
-                            push!( msh.elems, Cell(cellshape, [p2, p1, p5, p8, p9, p17, p23, p27, p21, p16], tag=bl.tag) , env=msh.env)
-                            push!( msh.elems, Cell(cellshape, [p2, p5, p6, p8, p23, p13, p18, p27, p16, p26], tag=bl.tag) , env=msh.env)
-                            push!( msh.elems, Cell(cellshape, [p2, p6, p7, p8, p18, p14, p22, p27, p26, p15], tag=bl.tag) , env=msh.env)
-                            push!( msh.elems, Cell(cellshape, [p2, p3, p4, p8, p10, p11, p25, p27, p24, p20], tag=bl.tag) , env=msh.env)
-                            push!( msh.elems, Cell(cellshape, [p2, p7, p3, p8, p22, p19, p10, p27, p15, p24], tag=bl.tag) , env=msh.env)
+                            push!( msh.elems, Cell(cellshape, [p2, p4, p1, p8, p25, p12, p9,  p27, p20, p21], tag=bl.tag, env=msh.env) )
+                            push!( msh.elems, Cell(cellshape, [p2, p1, p5, p8, p9,  p17, p23, p27, p21, p16], tag=bl.tag, env=msh.env) )
+                            push!( msh.elems, Cell(cellshape, [p2, p5, p6, p8, p23, p13, p18, p27, p16, p26], tag=bl.tag, env=msh.env) )
+                            push!( msh.elems, Cell(cellshape, [p2, p6, p7, p8, p18, p14, p22, p27, p26, p15], tag=bl.tag, env=msh.env) )
+                            push!( msh.elems, Cell(cellshape, [p2, p3, p4, p8, p10, p11, p25, p27, p24, p20], tag=bl.tag, env=msh.env) )
+                            push!( msh.elems, Cell(cellshape, [p2, p7, p3, p8, p22, p19, p10, p27, p15, p24], tag=bl.tag, env=msh.env) )
                         else
                             cell = Cell(cellshape, [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24, p25, p26, p27], tag=bl.tag, env=msh.env)
                             push!(msh.elems, cell)
