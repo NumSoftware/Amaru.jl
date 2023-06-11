@@ -14,7 +14,7 @@ mats = [
         "bars" => ElasticRod(E=6.894757e7, A=0.043)
        ]
 
-model = Model(msh, mats)
+model = FEModel(msh, mats)
 
 bcs = [
        :(x==0 && y==0) => NodeBC(ux=0, uy=0),
@@ -35,7 +35,7 @@ conn  = [[1, 3], [1, 2], [2, 3]]  # matriz de conectividades
 msh = Mesh(coord, conn)
 tag!(msh.elems, "bars")
 
-model = Model(msh, mats)
+model = FEModel(msh, mats)
 
 bcs = [
        :(x==0 && y==0 && z==0) => NodeBC(ux=0),

@@ -33,7 +33,7 @@ materials = ["solids" => ElasticSolidThermo(
     cv = cv,
     alpha = alpha,
 )]
-model = Model(msh, materials)
+model = FEModel(msh, materials)
 
 bcs = [
      :(x^2 + y^2 >= $0.99^2) => NodeBC(ut =200.0),

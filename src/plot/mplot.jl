@@ -401,7 +401,7 @@ function mplot(
     end
 
     # Get initial info from mmesh
-    ndim = mmesh.ndim
+    ndim = mmesh.env.ndim
     if ndim==2
         areacells = [ elem for elem in mmesh.elems.active if elem.shape.family==BULKCELL ]
         linecells = [ cell for cell in mmesh.elems.active if cell.shape.family==LINECELL]

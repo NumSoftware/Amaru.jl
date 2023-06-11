@@ -29,8 +29,8 @@ log_n3 = NodeLogger(3)
 log_n5 = NodeLogger(5)
 loggers = [log_ip, log_face, log_n3, log_n5]
 
-#model = Model(msh, mats, modeltype="plane-stress", thickness=1.0)
-model = Model(msh, mats, loggers)
+#model = FEModel(msh, mats, modeltype="plane-stress", thickness=1.0)
+model = FEModel(msh, mats, loggers)
 
 # Boundary conditions
 bcs = [

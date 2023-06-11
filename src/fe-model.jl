@@ -8,9 +8,9 @@ A type that represents a finite element model.
 # Fields
 $(FIELDS)
 """
-mutable struct Model<:AbstractDomain
-    "model dimensions"
-    ndim ::Int
+mutable struct FEModel<:AbstractDomain
+    # "model dimensions"
+    # ndim ::Int
     "array of nodes"
     nodes::Array{Node,1}
     "array of cells"
@@ -43,14 +43,13 @@ mutable struct Model<:AbstractDomain
     # Auxiliary data
     _elempartition::ElemPartition
 
-    function Model()
+    function FEModel()
         this = new()
 
         this.nodes = []
         this.elems = []
         this.faces = []
         this.edges = []
-        this.ndim  = 0
 
         this.loggers = []
         this.monitors = []
@@ -65,15 +64,13 @@ mutable struct Model<:AbstractDomain
     end
 end
 
-const Domain = Model
-const FEModel = Model
-export Domain
+const Model = FEModel
 
 
 """
-    Model(mesh, mats, options...)
+    FEModel(mesh, mats, options...)
 
-Uses a mesh and a list of meterial especifications to construct a finite element `Model`.
+Uses a mesh and a list of meterial especifications to construct a finite element `FEModel`.
 
 # Arguments
 
@@ -88,32 +85,31 @@ Uses a mesh and a list of meterial especifications to construct a finite element
 `quiet = false` : If true, provides information of the model construction
 
 """
-function Model(
+function FEModel(
     mesh      :: Mesh,
     matbinds  :: Array{<:Pair,1};
     modeltype :: String = "", # or "plane-stress", "plane-strain", "axysimmetric", "3d"
-    ndim      :: Int = 0,
     thickness :: Real = 1.0,
     quiet     :: Bool = false,
     params... # extra parameters required for specific solvers
 )
 
-    ndim = max(ndim, mesh.ndim)
+    ndim = mesh.env.ndim
+    @assert ndim>0
 
     if modeltype==""
         modeltype = ndim==2 ? "plane-strain" : "3d"
     end
     modeltype in ("plane-stress", "plane-strain", "axisymmetric", "3d") || error("Model: Invalid modeltype $modeltype")
 
-    model  = Model()
-    model.ndim = ndim
 
     if ndim==3 && thickness!=1.0
         thickness = 1.0
         quiet || info("ignoring thickness parameter in a 3d model")
     end
 
-    # Environment data
+    # FEModel and environment data
+    model  = FEModel()
     env = model.env
     env.ndim = ndim
     env.modeltype = modeltype
@@ -223,18 +219,21 @@ function Model(
     end
 
     # Initializing elements
+    @show mesh.env.ndim
+    @show model.env.ndim
+    @show model.elems[1].env.ndim
     for elem in model.elems
         elem_init(elem)
     end
 
     if !quiet
-        print("  ", model.ndim, "D model $modeltype model      \n")
+        print("  ", model.env.ndim, "D model $modeltype model      \n")
         @printf "  %5d nodes\n" length(model.nodes)
         @printf "  %5d elements\n" length(model.elems)
     end
 
     if !quiet
-        if model.ndim==2
+        if model.env.ndim==2
             @printf "  %5d edges\n" length(model.faces)
         else
             @printf "  %5d faces\n" length(model.faces)
@@ -340,8 +339,8 @@ function update_monitors!(model::Model; flush=true)
 end
 
 
-function Model(elems::Array{<:Element,1})
-    model = Model()
+function FEModel(elems::Array{<:Element,1})
+    model = FEModel()
 
     # Copying nodes
     nodesset = OrderedSet(node for elem in elems for node in elem.nodes)

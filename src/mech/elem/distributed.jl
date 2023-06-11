@@ -1,12 +1,13 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
+# Distributed natural boundary conditions for line elements
 function mech_line_distributed_forces(elem::Element, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim = elem.env.ndim
     suitable_keys = (:qx, :qy, :qz, :qn, :wx, :wy, :wz)
     isedgebc = key in (:qx, :qy, :qz, :qn) 
     
     # Check keys
-    key in suitable_keys || error("mech_line_distributed_forces: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
+    key in suitable_keys || error("mech_line_distributed_forces: boundary condition $key is not applicable as distributed bc at element of type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
     (key in (:wz,:qz) && ndim==2) && error("mech_line_distributed_forces: boundary condition $key is not applicable in a 2D analysis")
     (key == :qn && ndim==3) && error("mech_line_distributed_forces: boundary condition $key is not applicable in a 3D analysis")
 
@@ -71,14 +72,14 @@ function mech_line_distributed_forces(elem::Element, key::Symbol, val::Union{Rea
 end
 
 
-# Distributed natural boundary conditions for faces and edges
+# Distributed natural boundary conditions for faces and edges of bulk elements
 function mech_solid_boundary_forces(elem::Element, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     suitable_keys = (:qx, :qy, :qz, :qn, :tx, :ty, :tz, :tn)
     isedgebc = key in (:qx, :qy, :qz, :qn) 
     
     # Check keys
-    key in suitable_keys || error("mech_solid_boundary_forces: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
+    key in suitable_keys || error("mech_solid_boundary_forces: boundary condition $key is not applicable as distributed bc at element of type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
     key in (:tz,:qz) && ndim==2 && error("mech_solid_boundary_forces: boundary condition $key is not applicable in a 2D analysis")
     isedgebc && elem.env.modeltype=="axisymmetric" && error("mech_solid_boundary_forces: boundary condition $key is not applicable in a axisymmetric analysis")
     isedgebc && facet.shape.ndim==2 && error("mech_solid_boundary_forces: boundary condition $key is not applicable on surfaces")
@@ -145,14 +146,14 @@ function mech_solid_boundary_forces(elem::Element, facet::Cell, key::Symbol, val
     return reshape(F', nnodes*ndim), map
 end
 
-
+# Body forces for bulk elements
 function mech_solid_body_forces(elem::Element, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     th    = elem.env.thickness
     suitable_keys = (:wx, :wy, :wz)
 
     # Check keys
-    key in suitable_keys || error("mech_solid_body_forces: condition $key is not applicable as distributed bc at element with type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
+    key in suitable_keys || error("mech_solid_body_forces: condition $key is not applicable as distributed bc at element of type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
     (key == :wx && ndim==2) && error("mech_solid_body_forces: key $key is not applicable in a 2D analysis")
 
     nodes  = elem.nodes
@@ -214,7 +215,7 @@ function mech_shell_boundary_forces(elem::Element, facet::Cell, key::Symbol, val
     suitable_keys = (:tx, :ty, :tz, :tn)
 
     # Check keys
-    key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
+    key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable as distributed bc at element of type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
     (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
 
     nodes  = facet.nodes
@@ -274,7 +275,7 @@ function mech_shell_body_forces(elem::Element, key::Symbol, val::Union{Real,Symb
     suitable_keys = (:wx, :wy, :wz, :wn)
 
     # Check keys
-    key in suitable_keys || error("mech_shell_body_forces: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
+    key in suitable_keys || error("mech_shell_body_forces: boundary condition $key is not applicable as body forces at element of type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
 
     nodes  = elem.nodes
     nnodes = length(nodes)

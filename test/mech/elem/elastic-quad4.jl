@@ -16,7 +16,7 @@ mats = [
     "solid" => ElasticSolid(E=1.0, nu=0.25),
 ]
 
-model = Model(mesh, mats)
+model = FEModel(mesh, mats)
 
 bcs = [
     :(x==0.) => SurfaceBC(ux=0.),

@@ -17,7 +17,7 @@ mats = [
         #"embedded" => ElasticSolid(E=1.e8, A=0.005),
        ]
 
-model = Model(msh, mats)
+model = FEModel(msh, mats)
 
 bcs = [
        :(y==0 && z==0) => NodeBC(ux=0, uy=0, uz=0),

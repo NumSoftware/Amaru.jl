@@ -33,6 +33,8 @@ mutable struct Cell<:AbstractCell
     owner  ::Union{AbstractCell,Nothing}  # owner cell if this cell is a face/edge
     "array of coupled cells"
     linked_elems::Array{AbstractCell,1}   # neighbor cells in case of joint cell
+    "mesh environment"
+    env::MeshEnv                 # mesh environment variables
 
     @doc """
         $(SIGNATURES)
@@ -62,7 +64,7 @@ mutable struct Cell<:AbstractCell
       linked_elems: 0-element Vector{Amaru.AbstractCell}
     ```
     """
-    function Cell(shape::CellShape, nodes::Array{Node,1}; tag::String="", owner=nothing, id::Int=-1, active=true)
+    function Cell(shape::CellShape, nodes::Array{Node,1}; env::MeshEnv=MeshEnv(0), tag::String="", owner=nothing, id::Int=-1, active=true)
         this = new()
         this.id = id
         this.shape = shape
@@ -74,6 +76,7 @@ mutable struct Cell<:AbstractCell
         this.crossed = false
         this.owner   = owner
         this.linked_elems = []
+        this.env     = env
         return this
     end
 end
@@ -411,14 +414,16 @@ end
 
 # gets all facets of a cell
 function getfaces(cell::AbstractCell)
-    faces  = Cell[]
+    # Return a cell with the same shape in case of a 2D cell in 3D space
+    cell.env.ndim==3 && cell.shape.ndim==2 && return [ Cell(shape, nodes, tag=cell.tag, owner=cell) ]
 
+    faces  = Cell[]
     all_faces_idxs = cell.shape.facet_idxs
     facet_shape    = cell.shape.facet_shape
 
-    if facet_shape==() return faces end
+    facet_shape==() && return faces
 
-    sameshape  = typeof(facet_shape) == CellShape # check if all facets have the same shape
+    sameshape = typeof(facet_shape) == CellShape # check if all facets have the same shape
 
     # Iteration for each facet
     for (i, face_idxs) in enumerate(all_faces_idxs)
@@ -434,7 +439,7 @@ end
 
 # gets all edges of a cell
 function getedges(cell::AbstractCell)
-    if cell.shape.ndim==2 return getfaces(cell) end
+    # cell.shape.ndim==2 && return getfaces(cell)
 
     edges  = Cell[]
     all_edge_idxs = cell.shape.edge_idxs

@@ -23,7 +23,7 @@ mats = [
     "drains" => LinDrainPipe(k=kb, gammaw=gw, A=A),
 ]
 
-model = Model(mesh, mats, gammaw=10)
+model = FEModel(mesh, mats, gammaw=10)
 
 # Stage 1: pore-pressure stabilization
 bcs = [

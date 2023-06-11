@@ -30,7 +30,7 @@ t1     = lapses[1]/10
 materials = [
     "solids" => ElasticSolidLinSeep(E=E, nu=nu, k=k, gammaw=gw)
 ]
-model = Model(msh, materials, gammaw=10)
+model = FEModel(msh, materials, gammaw=10)
 
 log1 = NodeGroupLogger()
 loggers = [

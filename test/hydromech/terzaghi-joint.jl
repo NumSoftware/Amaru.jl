@@ -50,7 +50,7 @@ for i in 1:2
         materials = materials[[1,3]]
     end
 
-    model = Model(msh, materials, gammaw=10)
+    model = FEModel(msh, materials, gammaw=10)
 
     log1 = NodeGroupLogger()
     loggers = [

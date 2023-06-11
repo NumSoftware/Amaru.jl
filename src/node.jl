@@ -168,6 +168,21 @@ end
     #error("Element getindex: Invalid symbol $s")
 #end
 
+"""
+    $(SIGNATURES)
+
+Get the maximum dimension of of a `nodes` collection.
+"""
+function getndim(nodes::Array{Node,1})
+    sumy = sum(node.coord.y for node in nodes)
+    sumz = sum(node.coord.z for node in nodes)
+    ndim = 3
+    sumz==0 && (ndim=2)
+    sumy+sumz==0 && (ndim=1)
+
+    return ndim
+end
+
 # Index operator for an collection of nodes
 function Base.getindex(nodes::Array{Node,1}, s::String)
     R = [ node for node in nodes if node.tag==s ]

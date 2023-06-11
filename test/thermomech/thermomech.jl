@@ -24,7 +24,7 @@ materials = ["solids" => ElasticSolidThermo(
     cv    = cv,
     alpha = alpha,
 )]
-model = Model(msh, materials)
+model = FEModel(msh, materials)
 
 loggers = [:(y == 1) => NodeGroupLogger("book3.dat")]
 setloggers!(model, loggers)

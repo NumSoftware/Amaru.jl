@@ -24,6 +24,8 @@ function revolve(
     @check length(axis)==3
     @check n>0
 
+    @check mesh.env.ndim<3
+
     axis = Vec3(normalize(axis))
     base = Vec3(base)
 
@@ -196,7 +198,8 @@ function revolve(
     end
 
     # New mesh
-    newmesh = Mesh()
+    ndim = sum(node.coord.z for node in nodes)==0 ? 2 : 3
+    newmesh = Mesh(ndim)
     newmesh.nodes = nodes
     newmesh.elems = cells
     fixup!(newmesh, reorder=true)
@@ -267,7 +270,8 @@ function revolve(node::Node;
     nodes = collect(values(point_dict))
 
     # New mesh
-    newmesh = Mesh()
+    ndim = sum(node.coord.z for node in nodes)==0 : 2 : 3
+    newmesh = Mesh(ndim)
     newmesh.nodes = nodes
     newmesh.elems = cells
     fixup!(newmesh, reorder=true)

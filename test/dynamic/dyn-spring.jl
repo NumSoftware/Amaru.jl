@@ -12,7 +12,7 @@ mat = [
        2 => LumpedMass(m=100.0) ,
       ]
 
-model = Model(msh, mat)
+model = FEModel(msh, mat)
 
 log1 = NodeLogger()
 logs = [

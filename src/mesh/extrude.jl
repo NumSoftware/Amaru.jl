@@ -210,8 +210,11 @@ function extrude(mesh::Mesh; length::Real=1.0, n::Int=1, axis=nothing, quiet=tru
     end
     nodes = collect(values(node_dict))
 
+    # get ndim
+    ndim = sum(node.coord.z for node in nodes)==0 ? 2 : 3
+
     # new mesh
-    newmesh = Mesh()
+    newmesh = Mesh(ndim)
     newmesh.nodes = nodes
     newmesh.elems = cells
     fixup!(newmesh, reorder=true)

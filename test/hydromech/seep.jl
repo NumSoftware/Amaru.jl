@@ -20,7 +20,7 @@ gw   = 10.0    # water specific weight
 materials = [
     "solids" => LinSeep(k=k, gammaw=gw)
 ]
-model = Model(msh, materials, gammaw=10)
+model = FEModel(msh, materials, gammaw=10)
 
 log1 = NodeGroupLogger()
 loggers = [

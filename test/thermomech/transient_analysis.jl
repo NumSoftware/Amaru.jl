@@ -15,7 +15,7 @@ rho = 7.8   # densidade ton/m3
 cv = 486    # specific heat (capacity) kJ/ton/K
 
 materials = ["solids" => LinThermo(k=k, rho=rho, cv=cv)]
-model = Model(msh, materials)
+model = FEModel(msh, materials)
 #model.env.T0 = 0
 
 

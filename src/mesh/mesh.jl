@@ -10,8 +10,6 @@ It contains geometric fields as: nodes, elems, faces, edges, ndim, quality, etc.
 $(FIELDS)
 """
 mutable struct Mesh<:AbstractDomain
-    "mesh dimensions"
-    ndim ::Int
     " array of nodes"
     nodes::Array{Node,1} 
     " array of elements (cells)"
@@ -24,6 +22,8 @@ mutable struct Mesh<:AbstractDomain
     node_data::OrderedDict{String,Array}
     "element data dictionary"
     elem_data ::OrderedDict{String,Array}
+    "mesh environment"
+    env::MeshEnv
 
     _pointdict::Dict{UInt64,Node}
     _elempartition::ElemPartition
@@ -34,17 +34,18 @@ mutable struct Mesh<:AbstractDomain
     Constructs an unitialized mesh object to be used in finite element analyses.
     It contains geometric fields as: nodes, elems, faces, edges, ndim, quality, etc.
     """
-    function Mesh()
+    function Mesh(ndim=0)
         this = new()
         this.nodes = []
-        this._pointdict = Dict{UInt64, Node}()
         this.elems  = []
         this.faces  = []
         this.edges  = []
-        this.ndim   = 0
-        this._elempartition = ElemPartition()
+        # this.ndim   = 0
         this.node_data = OrderedDict()
         this.elem_data = OrderedDict()
+        this.env = MeshEnv(ndim)
+        this._pointdict = Dict{UInt64, Node}()
+        this._elempartition = ElemPartition()
         return this
     end
 end
@@ -55,9 +56,8 @@ function get_node(nodes::Dict{UInt64,Node}, C::AbstractArray{<:Real})
 end
 
 function Base.copy(mesh::AbstractDomain)
-    newmesh = Mesh()
-    ndim = mesh.ndim
-    newmesh.ndim = ndim
+    ndim = mesh.env.ndim
+    newmesh = Mesh(ndim)
     newmesh.nodes = copy.(mesh.nodes)
 
     for elem in mesh.elems
@@ -327,12 +327,12 @@ end
 function fixup!(mesh::Mesh; quiet=true, genfacets::Bool=true, genedges::Bool=true, reorder::Bool=false)
 
     # Get ndim
-    ndim = 1
-    for point in mesh.nodes
-        point.coord.y != 0.0 && (ndim=2)
-        point.coord.z != 0.0 && (ndim=3; break)
-    end
-    mesh.ndim = ndim
+    # ndim = 1
+    # for point in mesh.nodes
+    #     point.coord.y != 0.0 && (ndim=2)
+    #     point.coord.z != 0.0 && (ndim=3; break)
+    # end
+    @assert mesh.env.ndim!=0
 
     # Numberig nodes
     for (i,p) in enumerate(mesh.nodes) 
@@ -349,10 +349,10 @@ function fixup!(mesh::Mesh; quiet=true, genfacets::Bool=true, genedges::Bool=tru
         quiet || print("  finding facets...   \r")
         mesh.faces = get_surface(mesh.elems)
     end
-    ndim==2 && (mesh.edges=mesh.faces)
+    mesh.env.ndim==2 && (mesh.edges=mesh.faces)
 
     # Edges
-    if genedges && ndim==3
+    if genedges && mesh.env.ndim==3
         quiet || print("  finding edges...   \r")
         mesh.edges = getedges(mesh.faces)
     end
@@ -379,7 +379,8 @@ function fixup!(mesh::Mesh; quiet=true, genfacets::Bool=true, genedges::Bool=tru
     mesh.elem_data["quality"]   = Q
     mesh.elem_data["elem-id"]   = collect(1:length(mesh.elems))
     mesh.elem_data["cell-type"] = [ Int(cell.shape.vtk_type) for cell in mesh.elems ]
-    mesh.elem_data["tag"] = T 
+    mesh.elem_data["tag"] = T
+
 
     return nothing
 end
@@ -396,6 +397,9 @@ end
 
 
 function join_mesh!(mesh::Mesh, m2::Mesh)
+
+    @show mesh.env.ndim
+    mesh.env.ndim = max(mesh.env.ndim, m2.env.ndim)
 
     pointdict = Dict{UInt, Node}()
     for m in (mesh, m2)
@@ -477,11 +481,11 @@ Mesh
 ```
 """
 function Mesh(
-              coordinates:: Array{<:Real},
-              conns      :: Array{Array{Int64,1},1},
-              cellshapes :: Array{CellShape,1}=CellShape[];
-              tag        :: String="",
-              quiet=true,
+              coordinates::Array{<:Real},
+              conns      ::Array{Array{Int64,1},1},
+              cellshapes ::Array{CellShape,1}=CellShape[];
+              tag        ::String="",
+              quiet      ::Bool=true,
              )
     
 
@@ -496,6 +500,7 @@ function Mesh(
 
     # Get ndim
     ndim = size(coordinates,2)
+    env  = MeshEnv(ndim)
 
     cells = Cell[]
     for i in 1:m
@@ -505,15 +510,14 @@ function Mesh(
         else
             shape = get_shape_from_ndim_npoints(length(pts), ndim)
         end
-        cell = Cell(shape, pts, tag=tag)
+        cell = Cell(shape, pts, tag=tag, env=env)
         push!(cells, cell)
     end
 
-    mesh = Mesh()
+    mesh = Mesh(ndim)
     mesh.nodes = nodes
-    mesh.elems  = cells
+    mesh.elems = cells
     fixup!(mesh, reorder=false) # no node ordering
-    mesh.ndim = ndim # force ndim
 
     return mesh
 end
@@ -601,13 +605,13 @@ Mesh
 ```
 """
 function Mesh(
-    items     :: Union{Mesh, AbstractBlock, Array{<:Union{AbstractBlock, Array},1}}...;
-    genfacets :: Bool = true,
-    genedges  :: Bool = true,
-    reorder   :: Bool = true,
-    quiet=true,
+    items     ::Union{Mesh, AbstractBlock, Array{<:Union{AbstractBlock, Array},1}}...;
+    ndim      ::Int = 0,
+    genfacets ::Bool = true,
+    genedges  ::Bool = true,
+    reorder   ::Bool = true,
+    quiet     ::Bool=true,
 )
-                 
 
     # Flatten items list
     fitems = flatten(items)
@@ -625,6 +629,11 @@ function Mesh(
         end
     end
 
+    # Find ndim
+    blndim = maximum(bl.ndim for bl in blocks)
+    ndim!=0 && blndim>ndim && error("Mesh: Found blocks with greater dimension than provided ndim ($ndim)")
+    ndim = max(ndim, blndim)
+
     nmeshes = length(meshes)
     nblocks = length(blocks)
     if !quiet
@@ -634,7 +643,7 @@ function Mesh(
     end
 
     # New mesh object
-    mesh = Mesh()
+    mesh = Mesh(ndim)
 
     # Join meshes
     for m in meshes
@@ -643,7 +652,6 @@ function Mesh(
 
     # Split blocks: generates nodes and cells
     for (i,b) in enumerate(blocks)
-        # b.id = i
         split_block(b, mesh)
         quiet || print("  spliting block ", i, "...    \r")
     end
@@ -654,7 +662,7 @@ function Mesh(
     if !quiet
         npoints = length(mesh.nodes)
         ncells  = length(mesh.elems)
-        @printf "  %4dd mesh                             \n" mesh.ndim
+        @printf "  %4dd mesh                             \n" mesh.env.ndim
         @printf "  %5d nodes\n" npoints
         @printf "  %5d cells\n" ncells
     end
@@ -685,13 +693,13 @@ function stats(mesh::Mesh)
 
     npoints = length(mesh.nodes)
     ncells  = length(mesh.elems)
-    @printf "  %3dd mesh                             \n" mesh.ndim
+    @printf "  %3dd mesh                             \n" mesh.env.ndim
     @printf "  %4d nodes\n" npoints
     @printf "  %4d cells\n" ncells
 
     L = Float64[]
     for elem in mesh.elems.solids
-        l = cell_extent(elem)^(1/mesh.ndim)
+        l = cell_extent(elem)^(1/mesh.env.ndim)
         push!(L, l)
     end
     lavg = mean(L)
@@ -713,12 +721,16 @@ end
 
 
 function Mesh(elems::Array{Cell,1})
-    newmesh = Mesh()
-    newmesh.nodes = copy.(getnodes(elems))
+    length(elems)==0 && return Mesh()
+
     digs = 8
-    for node in newmesh.nodes
+    nodes = copy.(getnodes(elems))
+    for node in nodes
         round!(node.coord, digits=digs)
     end
+
+    newmesh = Mesh(getndim(nodes))
+    newmesh.nodes = nodes
 
     newmesh._pointdict = Dict{UInt64,Node}(hash(node)=>node for node in newmesh.nodes)
 
@@ -736,8 +748,9 @@ end
 
 function Mesh(mesh::Mesh, filter::Union{String,Expr,Symbol})
     elems = mesh.elems[filter]
+    length(elems)==0 && return Mesh()
+
     elemids = [ elem.id for elem in elems ]
-    length(elems)==0 && warn("Mesh: no elements found using filter $(repr(filter))")
 
     nodedict = OrderedDict{Int,Node}()
     for elem in elems
@@ -746,8 +759,9 @@ function Mesh(mesh::Mesh, filter::Union{String,Expr,Symbol})
         end
     end
     nodeids  = collect(keys(nodedict))
-
-    newmesh = Mesh()
+    nodes = collect(values(nodedict))
+    
+    newmesh = Mesh(getndim(nodes))
     newmesh.nodes = collect(values(nodedict))
 
     for elem in elems
@@ -770,16 +784,16 @@ function Mesh(mesh::Mesh, filter::Union{String,Expr,Symbol})
 end
 
 
-function slice(mesh::Mesh, normal::Array{Float64,1})
-    mesh = Mesh()
-    return mesh
-end
+# function slice(mesh::Mesh, normal::Array{Float64,1})
+    # mesh = Mesh()
+    # return mesh
+# end
 
 
-function clip(mesh::Mesh, normal::Array{Float64,1})
-    mesh = Mesh()
-    return mesh
-end
+# function clip(mesh::Mesh, normal::Array{Float64,1})
+    # mesh = Mesh()
+    # return mesh
+# end
 
 
 function threshold(mesh::Mesh, field::Union{Symbol,String}, minval::Float64, maxval::Float64)

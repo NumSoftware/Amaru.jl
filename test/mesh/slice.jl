@@ -4,7 +4,7 @@ bl = Block([0 0 0; 1 1 1], nx=15, ny=15, nz=15, cellshape=HEX8)
 mesh = Mesh(bl)
 
 mat = [ :bulks => ElasticSolid(E=100, nu=0.2) ]
-model = Model(mesh, mat)
+model = FEModel(mesh, mat)
 
 bcs = [
     :(z==0) => NodeBC(ux=0, uy=0, uz=0)

@@ -8,6 +8,8 @@ export CellShape, ALL_ISO_SHAPES, CellFamily
 export get_ip_coords, get_shape_from_vtk
 export inverse_map, extrapolator
 
+include("mesh-env.jl")
+
 #include("point.jl")
 export Node, Cell, hash, get_x, get_y, get_z
 include("cell.jl")

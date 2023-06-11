@@ -22,7 +22,7 @@ nincs = 50
 
 T = Amaru.DTable([:s1,:s2])
 
-model = Model(msh, mats)
+model = FEModel(msh, mats)
 tag!(model.elems[1].ips[1], "ip")
 logs = [
         "ip" => IpLogger(),

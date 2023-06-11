@@ -30,7 +30,7 @@ materials = ["solids" => ElasticSolidThermo(
     alpha = alpha,
 )]
 
-model = Model(msh, materials)
+model = FEModel(msh, materials)
 
 log1 = NodeGroupLogger()
 loggers = [:(x == 0.25) => log1]

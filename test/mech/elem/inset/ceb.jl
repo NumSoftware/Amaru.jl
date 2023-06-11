@@ -26,7 +26,7 @@ mats = [
                                  ks=(12/0.001)*5, kn=5000, A=0.005)
        ]
 
-model = Model(msh, mats)
+model = FEModel(msh, mats)
 tag!(model.elems["joints"].ips, "joint_ips")
 
 loggers = [

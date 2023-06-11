@@ -6,7 +6,7 @@ mesh = Mesh(bl)
 
 mats = [ "solids" => ElasticSolid(E=100.0, nu=0.2) ]
 
-model = Model(mesh, mats)
+model = FEModel(mesh, mats)
 
 # Loggers
 node_log1 = NodeLogger("node_log1.dat")

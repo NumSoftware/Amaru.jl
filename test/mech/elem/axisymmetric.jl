@@ -8,12 +8,13 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
 
     bl = Block( [0 0; 1 1], nx=4, ny=4, cellshape=shape, tag="solids")
     mesh = Mesh(bl)
+    @show mesh.env.ndim
 
     materials = [
         "solids" => ElasticSolid(E=100.0, nu=0.2)
     ]
 
-    model = Model(mesh, materials, modeltype="axisymmetric")
+    model = FEModel(mesh, materials, modeltype="axisymmetric")
 
     bcs = [
            :(x==0) => SurfaceBC(ux=0),
@@ -34,7 +35,8 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
     printstyled("3d version", color=:cyan); println()
 
     mesh = revolve(mesh, base=[0,0,0], axis=[0,1,0], n=12)
-    model = Model(mesh, materials, modeltype="3d")
+    @show mesh.env.ndim
+    model = FEModel(mesh, materials, modeltype="3d")
 
     bcs = [
            :(x==0 && y==0) => NodeBC(ux=0, uy=0),

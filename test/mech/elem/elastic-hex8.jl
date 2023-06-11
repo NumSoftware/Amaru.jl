@@ -62,7 +62,7 @@ for (ana, bcs, dis) in zip(ana_list, bcs_list, dis_list)
 
     println("\nLoad case: $ana \n")
 
-    model = Model(mesh, materials)
+    model = FEModel(mesh, materials)
     addstage!(model, bcs, nouts=1)
     solve!(model)
 

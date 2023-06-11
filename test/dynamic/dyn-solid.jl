@@ -14,7 +14,7 @@ materials = [
     "solids" => ElasticSolid(E=30e6, nu=0.2, rho=24.0)
 ]
 
-model = Model(mesh, materials)
+model = FEModel(mesh, materials)
 
 # Finite element modeling
 bcs = [

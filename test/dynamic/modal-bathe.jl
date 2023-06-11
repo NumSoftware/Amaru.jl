@@ -51,7 +51,7 @@ materials = [
 
 ]
 
-model = Model(mesh, materials)
+model = FEModel(mesh, materials)
 
 
 

@@ -12,7 +12,7 @@ mats = [
        "solids" => DruckerPrager(E=100., nu=0.25, alpha=0.05, kappa=0.1)
       ]
 
-model = Model(msh, mats)
+model = FEModel(msh, mats)
  
 tag!(model.elems.ips[1], "ip")
 log1 = IpLogger()

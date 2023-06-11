@@ -45,7 +45,7 @@ materials = [
     :linejoints => ElasticJoint1D(ks=1.e7, kn=1.e7, A=Aa) 
 ]
 
-model = Model(mesh, materials)
+model = FEModel(mesh, materials)
 
 # Finite element modeling
 P = (((-13.5)/0.00022480894387096)/1000)

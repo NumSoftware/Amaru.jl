@@ -20,7 +20,7 @@ bcs =
     ]
 
 #bc3 = BodyC( model.elems, gz=-25 )
-model = Model(msh, mats)
+model = FEModel(msh, mats)
 
 @test solve!(model).success
 

@@ -469,25 +469,22 @@ end
 # =====================
 function Mesh(coords, connects, vtk_types, node_data, elem_data)
 
-    mesh = Mesh()
     npoints = size(coords,1)
     ncells  = length(connects)
 
     # Setting points
+    nodes = Node[]
     for i in 1:npoints
         X = coords[i,:]
         node = Node(X)
         node.id = i
-        push!(mesh.nodes, node)
+        push!(nodes, node)
     end
 
-    # Set ndim
-    ndim = 1
-    for node in mesh.nodes
-        node.coord.y != 0.0 && (ndim=2)
-        node.coord.z != 0.0 && (ndim=3; break)
-    end
-    mesh.ndim = ndim
+    # Mesh object
+    ndim = getndim(nodes)
+    mesh = Mesh(ndim)
+    mesh.nodes = nodes
 
     # Setting cells
     has_polyvertex = false
@@ -857,7 +854,7 @@ function Mesh(filename::String; reorder=false, quiet=true)
         ncells  = length(mesh.elems)
         nfaces  = length(mesh.faces)
         nedges  = length(mesh.edges)
-        println("  ", mesh.ndim, "d                   ")
+        println("  ", mesh.env.ndim, "d                   ")
         @printf "  %5d points\n" npoints
         @printf "  %5d cells\n" ncells
         @printf "  %5d faces\n" nfaces

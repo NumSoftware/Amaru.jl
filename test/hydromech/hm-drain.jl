@@ -25,7 +25,7 @@ mats = [
     "drains" => LinDrainPipe(k=kb, gammaw=gw, A=A),
 ]
 
-model = Model(mesh, mats, gammaw=10)
+model = FEModel(mesh, mats, gammaw=10)
 
 changequadrature!(model.elems.lines, 3)
 

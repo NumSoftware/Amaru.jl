@@ -20,7 +20,7 @@ mats = [
 ]
 
 
-model = Model(msh, mats)
+model = FEModel(msh, mats)
 
 
 # Boundary conditions

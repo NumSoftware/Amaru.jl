@@ -12,6 +12,7 @@ that represents the inset curve and can be:
 `closed=true` can be used if a closed inset curve is required.
 """
 mutable struct BlockInset <: AbstractBlock
+    ndim     ::Int
     nodes    ::Array{Node,1}
     curvetype::Union{Int,AbstractString} # 0:polyline, 1:closed polyline, 2: lagrangian, 3:cubic Bezier with inner points
     closed   ::Bool
@@ -33,6 +34,7 @@ mutable struct BlockInset <: AbstractBlock
 
     function BlockInset(
         coords::Array{<:Real,2}; 
+        ndim::Int = 0,
         curvetype = 0,
         closed::Bool    = false,
         embedded::Bool  = false,
@@ -63,7 +65,7 @@ mutable struct BlockInset <: AbstractBlock
 
         closed && (tipjoint=:none)
         embedded && (tipjoint=:none)
-        this = new(nodes, ctype, closed, embedded, LIN2, cellshape, tag, jointtag, tipjointtag, tipjoint, tol, toln, tolc, lam, id)
+        this = new(ndim, nodes, ctype, closed, embedded, LIN2, cellshape, tag, jointtag, tipjointtag, tipjoint, tol, toln, tolc, lam, id)
         this.icount = 0
         this.ε  = tol
         this.εn = toln

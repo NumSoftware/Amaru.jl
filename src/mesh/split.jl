@@ -291,7 +291,7 @@ function generate_joints!(
 
 
     if !quiet
-        @printf "  %4dd mesh                             \n" mesh.ndim
+        @printf "  %4dd mesh                             \n" mesh.env.ndim
         @printf "  %5d points\n" length(mesh.nodes)
         @printf "  %5d total cells\n" length(mesh.elems)
         @printf "  %5d new joint cells\n" length(jointcells)
@@ -728,7 +728,7 @@ function generate_joints_by_tag_2!(mesh::Mesh; layers::Int64=2, verbose::Bool=tr
     fixup!(mesh, reorder=true)
 
     if verbose
-        @printf "  %4dd mesh                             \n" mesh.ndim
+        @printf "  %4dd mesh                             \n" mesh.env.ndim
         @printf "  %5d points\n" length(mesh.nodes)
         @printf "  %5d total cells\n" length(mesh.elems)
         @printf "  %5d new joint cells\n" length(jcells)

@@ -18,7 +18,7 @@ cv   = 486e3  # specific heat (capacity) J/Ton/k
 materials = [
              "solids" => LinThermo(k=k, rho=rho, cv=cv)
             ]
-model = Model(msh, materials)
+model = FEModel(msh, materials)
 
 log1 = NodeGroupLogger()
 loggers = [

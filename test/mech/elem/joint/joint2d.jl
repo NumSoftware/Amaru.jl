@@ -3,24 +3,47 @@ using Test
 
 # mesh generation
 
-bl  = Block( [0 0; 0.2 0.1], nx=2, ny=6, cellshape=QUAD4, tag="solids")
-msh = Mesh(bl)
+bl1  = Block( [0 0; 0.075 0; 0.125 0.1; 0 0.1], nx=1, ny=1, cellshape=QUAD4)
+bl2  = Block( [0.075 0; 0.2 0; 0.2 0.1; 0.125 0.1], nx=1, ny=1, cellshape=QUAD4)
+
+# straight
+bl1  = Block( [0 0; 0.1 0; 0.1 0.1; 0 0.1], nx=1, ny=1, cellshape=QUAD4)
+bl2  = Block( [0.1 0; 0.2 0; 0.2 0.1; 0.1 0.1], nx=1, ny=1, cellshape=QUAD4)
+
+msh = Mesh(bl1, bl2)
+mplot(msh, "msh.pdf")
+
+
 generate_joints!(msh, tag="joints")
+
+# msh.nodes[5].coord[1] = 0.15
+# msh.nodes[6].coord[1] = 0.15
+
+tag!(msh.elems[BULKCELL, :(x<=0.125)].nodes, "left")
+tag!(msh.elems[BULKCELL, :(x>=0.075)].nodes, "right")
 
 # finite element analysis
 
 E = 27.e6
+
 allmats = [
-    "solids" => ElasticSolid(E=E, nu=0.2),
-    "joints" => MCJoint(E=E, nu=0.2, ft=2.4e3, mu=1.4, zeta=5.0, wc=1.7e-4, ws=1.85e-5, softcurve="hordijk" ),
-    "joints" => ElasticJoint(E=E, nu=0.2, zeta=5.0)
+    :bulks => ElasticSolid(E=E, nu=0.2),
+    # :joints => MCJoint(E=E, nu=0.2, ft=2.4e3, mu=1.4, zeta=5.0, wc=1.7e-4, ws=1.85e-5, softcurve="hordijk" ),
+    # :joints => MCJoint(E=E, nu=0.2, ft=2.4e3, mu=1.4, zeta=5.0, wc=1.7e-4, ws=1.85e-5, softcurve="soft" ),
+
+    :joints => TCJoint(E=E, nu=0.2, fc=-24e3, ft=2.4e3, zeta=5.0, wc=1.7e-4, alpha=1.5, gamma=0.1, theta=1.5, softcurve="hordijk" ),
+    # :joints => TCJoint(E=E, nu=0.2, fc=-24e3, ft=2.4e3, zeta=5.0, wc=1.7e-4, alpha=1.5, gamma=0.1, theta=1.5, softcurve="soft" ),
+
+    :joints => TCFJoint(E=E, nu=0.2, fc=-24e3, ft=2.4e3, zeta=5.0, wc=1.7e-4, alpha=0.3, mu=0.1, softcurve="hordijk" ),
+    # :joints => TCFJoint(E=E, nu=0.2, fc=-24e3, ft=2.4e3, zeta=5.0, wc=1.7e-4, alpha=0.3, mu=0.1, softcurve="soft" ),
+    # :joints => ElasticJoint(E=E, nu=0.2, zeta=5.0)
 ]
 
 for i in (2,3)
 
     mats = allmats[[1,i]]
 
-    model = Model(msh, mats, modeltype="plane-stress", thickness=1.0)
+    model = FEModel(msh, mats, modeltype="plane-stress", thickness=1.0)
 
     # Loggers
     tag!(model.elems["joints"].ips, "jips")
@@ -32,16 +55,33 @@ for i in (2,3)
 
     # Boundary conditions
     bcs = [
-           :(x==0)   => SurfaceBC(ux=0, uy=0 ),
-           :(x==0.2) => SurfaceBC(ux=2.0*1.7e-4),
-          ]
-    addstage!(model, bcs, nincs=20, nouts=10)
-    @test solve!(model, autoinc=true, maxits=3, tol=0.01, scheme="ME").success
+        "left" => NodeBC(ux=0, uy=0),
+        
+        # "right" => NodeBC(ux=-2e-5, uy=2e-4),
+        # "right" => NodeBC(ux=2e-5, uy=1e-5),
+        "right" => NodeBC(ux=1e-4, uy=3e-4),
+
+        # "right" => NodeBC(ux=2e-4),
+        # "right" => NodeBC(ux=-5e-5),
+        # "right" => NodeBC(uy=2e-4),
+    ]
+    addstage!(model, bcs, nincs=10, nouts=20)
+    # @test solve!(model, autoinc=true, maxits=3, tol=0.01, scheme="Ralston").success
+
+    quiet = false
+    quiet = true
+    solve!(model, autoinc=true, maxits=3, tol=0.01, rspan=0.01, scheme="Ralston", quiet=quiet)
 
     if @isdefined(makeplots) && makeplots
         using PyPlot
         table = log1.table
-        #plot(table[:up], table[:s1])
-        plot(table[:jw1], table[:js1])
+        # plot(table[:jup], table[:js1], marker="o")
+        # plot(table[:jup], table[:js2], marker="o")
+
+        # plot(table[:jw1], table[:js1], marker="o")
+        # plot(table[:jw2], table[:js2], marker="o")
+        plot(table[:js1], table[:js2], marker="o")
     end
+
+
 end

@@ -23,7 +23,7 @@ bcs = [
     SurfaceBC(:(y==1 && z==0), :(uz=-0.1)),
 ]
 
-model = Model(msh, mat)
+model = FEModel(msh, mat)
 mon = NodeLogger(model.edges[:(y==1 && z==0)])
 setlogger!(model, mon)
 

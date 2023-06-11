@@ -47,6 +47,8 @@ aid the generation of structured meshes by subdivision.
 $(FIELDS)
 """
 mutable struct Block <: AbstractBlock
+    "dimensions"
+    ndim::Int
     "array of vertices"
     nodes::Array{Node,1}
     "block shape"
@@ -91,11 +93,10 @@ mutable struct Block <: AbstractBlock
         r ::Real = 0.0,
         cellshape = nothing,
         tag       = "",
-        # id        = -1,
         shape     = nothing,
         )
 
-        if shape != nothing
+        if shape !== nothing
             notify("Block: argument shape was deprecated. Please use cellshape instead")
             cellshape = shape
         end
@@ -157,7 +158,7 @@ mutable struct Block <: AbstractBlock
             nodes[i].id = i
         end
 
-        return new(nodes, shape, cellshape, nx, ny, nz, rx, ry, rz, tag)
+        return new(ndim, nodes, shape, cellshape, nx, ny, nz, rx, ry, rz, tag)
     end
 end
 

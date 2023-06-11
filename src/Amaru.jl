@@ -60,6 +60,9 @@ import PyPlot:plt, matplotlib, figure, art3D, Axes3D, ColorMap, gcf
 include("plot/mplot.jl")
 include("plot/cplot.jl")
 
+# import CairoMakie
+using LaTeXStrings
+
 # Boundary conditions
 include("bc.jl")
 export NodeBC, SurfaceBC, EdgeBC, BodyC

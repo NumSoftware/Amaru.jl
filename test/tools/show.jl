@@ -5,7 +5,7 @@ bl  = Block( [0 0; 1 1], nx=4, ny=4, cellshape=QUAD9, tag="solids")
 msh = Mesh(bl)
 
 mats = [ "solids" =>  ElasticSolid(E=100.0, nu=0.2) ]
-model = Model(msh, mats)
+model = FEModel(msh, mats)
 
 loggers = [
         :(x==1 && y==1) => NodeLogger("node.dat"),

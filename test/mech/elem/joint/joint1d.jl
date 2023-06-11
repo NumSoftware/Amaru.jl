@@ -18,7 +18,7 @@ mats = [
     "bars"   => ElasticRod(E=1.e8, A=0.005),
 ]
 
-model = Model(mesh, mats)
+model = FEModel(mesh, mats)
 
 bcs = [
        :(y==0 && z==0) => NodeBC(uy=0, uz=0),

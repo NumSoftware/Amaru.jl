@@ -144,7 +144,7 @@ function MakeTRI6()
     shape.basic_shape = TRI3
     shape.vtk_type    = VTK_QUADRATIC_TRIANGLE
     shape.facet_idxs  = facet_idxs_TRI6
-    shape.edge_idxs   = []
+    shape.edge_idxs   = facet_idxs_TRI6
     shape.facet_shape = LIN3
     shape.nat_coords  = coords_TRI6
     shape.quadrature  = Dict( 0 => TRI_IP3,  3 => TRI_IP3,  6 => TRI_IP6 )
@@ -319,7 +319,7 @@ function MakeQUAD4()
     shape.basic_shape = shape
     shape.vtk_type    = VTK_QUAD
     shape.facet_idxs  = facet_idxs_QUAD4
-    shape.edge_idxs   = []
+    shape.edge_idxs   = facet_idxs_QUAD4
     shape.facet_shape = LIN2
     shape.nat_coords  = coords_QUAD4
     shape.quadrature  = Dict( 0 => QUAD_IP4, 1 => QUAD_IP1, 4 => QUAD_IP4, 9 => QUAD_IP9, 16 => QUAD_IP16 )
@@ -418,7 +418,7 @@ function MakeQUAD8()
     shape.basic_shape = QUAD4
     shape.vtk_type    = VTK_QUADRATIC_QUAD
     shape.facet_idxs  = facet_idxs_QUAD8
-    shape.edge_idxs   = []
+    shape.edge_idxs   = facet_idxs_QUAD8
     shape.facet_shape = LIN3
     shape.nat_coords  = coords_QUAD8
     shape.quadrature  = Dict( 0 => QUAD_IP4, 1 => QUAD_IP1, 4 => QUAD_IP4, 9 => QUAD_IP9, 16 => QUAD_IP16 )
@@ -522,7 +522,7 @@ function MakeQUAD9()
     shape.basic_shape = QUAD4
     shape.vtk_type    = VTK_BIQUADRATIC_QUAD
     shape.facet_idxs  = facet_idxs_QUAD9
-    shape.edge_idxs   = []
+    shape.edge_idxs   = facet_idxs_QUAD9
     shape.facet_shape = LIN3
     shape.nat_coords  = coords_QUAD9
     shape.quadrature  = Dict( 0 => QUAD_IP9, 4 => QUAD_IP4, 9 => QUAD_IP9, 16 => QUAD_IP16 )
@@ -645,7 +645,7 @@ function MakeQUAD12()
     shape.basic_shape = QUAD4
     shape.vtk_type    = VTK_POLYGON
     shape.facet_idxs  = facet_idxs_QUAD12
-    shape.edge_idxs   = []
+    shape.edge_idxs   = facet_idxs_QUAD12
     shape.facet_shape = LIN4
     shape.nat_coords  = coords_QUAD12
     shape.quadrature  = Dict( 0 => QUAD_IP9, 4 => QUAD_IP4, 9 => QUAD_IP9, 16 => QUAD_IP16 )
@@ -695,7 +695,7 @@ function MakeQUAD16()
     shape.basic_shape = QUAD4
     shape.vtk_type    = VTK_POLY_VERTEX
     shape.facet_idxs  = facet_idxs_QUAD16
-    shape.edge_idxs   = []
+    shape.edge_idxs   = facet_idxs_QUAD16
     shape.facet_shape = LIN4
     shape.nat_coords  = coords_QUAD16
     shape.quadrature  = Dict( 0 => QUAD_IP16, 4 => QUAD_IP4, 9 => QUAD_IP9, 16 => QUAD_IP16 )

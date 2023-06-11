@@ -5,10 +5,11 @@ using Amaru
 coord = [ 0 0; 1 0; 0.5 0.5]
 n     = 2
 bl    = Block(coord, nx=n, cellshape = LIN3, tag="beam")
-msh   = Mesh(bl)
+@show bl.ndim
+msh   = Mesh(bl, ndim=2)
 
 mats  = [ "beam" => ElasticBeam(E=1e4, nu=0, thz=0.1, thy=0.1) ]
-model = Model(msh, mats, ndim=2)
+model = FEModel(msh, mats)
 
 monitors = [
     :(x==0) => NodeMonitor(:(mz))
@@ -32,10 +33,10 @@ solve!(model)
 coord = [ 0 0 0; 1 0 0; 0.5 0 0.5]
 n     = 2
 bl    = Block(coord, nx=n, cellshape = LIN3, tag="beam")
-msh   = Mesh(bl)
+msh   = Mesh(bl, ndim=3)
 
 mats  = [ "beam" => ElasticBeam(E=1e4, nu=0, thz=0.1, thy=0.1) ]
-model = Model(msh, mats, ndim=3)
+model = FEModel(msh, mats)
 
 monitors = [
     :(x==0) => NodeMonitor(:(my))

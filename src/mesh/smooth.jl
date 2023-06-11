@@ -273,7 +273,7 @@ end
 
 # Mount global stiffness matrix
 function mountKg(mesh::Mesh, E::Float64, nu::Float64, A)
-    ndim = mesh.ndim
+    ndim = mesh.env.ndim
     ndof = ndim*length(mesh.nodes)
     R, C, V = Int64[], Int64[], Float64[]
 
@@ -385,7 +385,7 @@ end
 # Mount global matrix A
 function mountA(mesh::Mesh, fixed::Bool, conds, facetol)
     # get border faces
-    ndim = mesh.ndim
+    ndim = mesh.env.ndim
     nnodes = length(mesh.nodes)
     surf_cells = get_surface(mesh.elems)
     surf_nodes, surf_patches = get_patches(surf_cells)
@@ -535,7 +535,7 @@ end
 # Mount a vector with nodal forces
 function force_bc(mesh::Mesh, E::Float64, nu::Float64, α::Float64, extended::Bool)
     n    = length(mesh.nodes)
-    ndim = mesh.ndim
+    ndim = mesh.env.ndim
     Fbc  = zeros(n*ndim)
     if extended
         qmin = minimum(c.quality for c in mesh.elems)
@@ -598,7 +598,7 @@ end
 function find_disps(mesh::Mesh, patches, extended, α, qmin, in_border)
     n    = length(mesh.nodes)
     m    = length(mesh.elems)
-    ndim = mesh.ndim
+    ndim = mesh.env.ndim
     UU = zeros(n,ndim)
     W  = ones(m) # qualities
 
@@ -653,7 +653,7 @@ function find_weighted_pos(mesh::Mesh, patches, extended, α, qmin, in_border)
 
     n    = length(mesh.nodes)
     m    = length(mesh.elems)
-    ndim = mesh.ndim
+    ndim = mesh.env.ndim
     UU   = zeros(n,ndim)
     W    = ones(m) # area/volume
     QQ   = ones(m) # qualities
@@ -743,7 +743,7 @@ function fast_smooth2!(mesh::Mesh; quiet=true, alpha::Float64=1.0, target::Float
         end
     end
 
-    ndim = mesh.ndim
+    ndim = mesh.env.ndim
     nnodes = length(mesh.nodes)
 
     nodes, patches = get_patches(mesh)  # key nodes and corresponding patches
@@ -924,7 +924,7 @@ function fast_smooth!(mesh::Mesh; quiet=true, alpha::Float64=1.0, target::Float6
         end
     end
 
-    ndim = mesh.ndim
+    ndim = mesh.env.ndim
     nnodes = length(mesh.nodes)
 
     nodes, patches = get_patches(mesh)  # key nodes and corresponding patches
@@ -1107,7 +1107,7 @@ function fitting_smooth!(mesh::Mesh; quiet=true, alpha::Float64=1.0, target::Flo
     E  = 1.0
     nu = 0.0
 
-    ndim = mesh.ndim
+    ndim = mesh.env.ndim
     nnodes = length(mesh.nodes)
     nodes, patches = get_patches(mesh)  # key nodes and corresponding patches
 
@@ -1275,7 +1275,7 @@ function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, quiet=true, fixed=false,
 
     quiet || printstyled("Mesh $(smart ? "smart-" : "")$(weighted ? "weighted-" : "")Laplacian smoothing:\n", bold=true, color=:cyan)
 
-    ndim = mesh.ndim
+    ndim = mesh.env.ndim
 
     # find element patches
     nodes, patches = get_patches(mesh)  # key nodes and corresponding patches

@@ -25,7 +25,7 @@ mats = [
     "solids" => LinSeep(k=k, gammaw=gw, S=0.0),
 ]
 
-model = Model(mesh, mats, gammaw=10.0)
+model = FEModel(mesh, mats, gammaw=10.0)
 
 # Boundary conditions
 bcs = [

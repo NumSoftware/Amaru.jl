@@ -70,7 +70,7 @@ materials = [
 ]
 
 
-model = Model(mesh,materials)
+model = FEModel(mesh,materials)
 
 
 #Definition of the boundary conditions
