@@ -122,8 +122,8 @@ mutable struct Block <: AbstractBlock
         surface = ndim==3 && nz==0
         chord   = ndim>1 && ny==0 && nz==0
 
-        nz==0 && (nz=1)
-        ny==0 && (ny=1)
+        nz==0 && ndim==3 && (nz=1)
+        ny==0 && ndim>=2 && (ny=1)
         cellshape in shapes3d && (ndim==3 || error("Block: 3d points and nx, ny and nz are required for cell shape $(cellshape.name)"))
 
         if ndim==1 || chord
