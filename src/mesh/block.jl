@@ -117,7 +117,6 @@ mutable struct Block <: AbstractBlock
         r>0 && (rx=r)
         sumz==0 && (ndim=2)
         sumy+sumz==0 && (ndim=1)
-        @show ndim
 
         # Check for surface or chord
         surface = ndim==3 && nz==0
