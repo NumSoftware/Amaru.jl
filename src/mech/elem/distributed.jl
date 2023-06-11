@@ -273,4 +273,5 @@ function mech_shell_body_forces(elem::Element, key::Symbol, val::Union{Real,Symb
     newkey = key==:wx ? :tx : key==:wy ? :ty : :tz
     val    = val/elem.mat.th
 
-    return mech_shell_boundary
+    return mech_shell_boundary_forces(elem, elem.faces[1], newkey, val)
+end
