@@ -28,8 +28,7 @@ Cell(TRI3, nodes, id=1, tag=&quot;triangle&quot;)</code></pre><pre class="docume
     env: Amaru.MeshEnv
         ndim: 0</code></pre><p>There are many shapes defined in Amaru, for instance:  <code>LIN2</code>, <code>LIN3</code>, <code>TRI3</code>, <code>TRI6</code>, <code>QUAD4</code>, <code>QUAD8</code>, <code>QUAD9</code> <code>TET4</code>, <code>TET10</code>, <code>PYR5</code>, <code>WED6</code>, <code>WED15</code>, <code>HEX8</code>, <code>HEX20</code>, <code>HEX27</code>, etc.</p><h3 id="Blocks"><a class="docs-heading-anchor" href="#Blocks">Blocks</a><a id="Blocks-1"></a><a class="docs-heading-anchor-permalink" href="#Blocks" title="Permalink"></a></h3><p>Blocks are entities used to aid the generation of structured meshes in 1D, 2D and 3D. A <code>Block</code> type represents a geometric segment, area (4 or 8 point quadrilateral) or volume (8 or 20 point hexahedron). An instance of the block type  is generated from a coordinates matrix and predefined number of divisions divisions (<code>nx</code>, <code>ny</code>, <code>nz</code>) in the <span>$x$</span>, <span>$y$</span> and <span>$z$</span> directions of a local system. The block below represents a 2D <code>Block</code> with <code>nx=7</code> and <code>ny=5</code>. The <code>mplot</code> function saves the block image to a file in svg format. Other formats as pdf and png can be used.</p><pre><code class="language-julia hljs">using Amaru
 block = Block([0 0; 4 0; 3 2; 1 2], nx=7, ny=5)
-mplot(block, &quot;block.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">ndim = 2
-Mesh plotting
+mplot(block, &quot;block.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
      fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
@@ -55,8 +54,7 @@ block1 = Block(
     ],
     cellshape=QUAD8, nx=5, ny=5
 )
-mplot(block1, &quot;block1.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">ndim = 2
-Mesh plotting
+mplot(block1, &quot;block1.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
      fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
@@ -69,8 +67,7 @@ mplot(block1, &quot;block1.svg&quot;, markers=true)</code></pre><pre class="docu
     quality, elem-id, cell-type, tag
   file block1.svg saved</code></pre><p><img src="../block1.svg" alt/></p><p>A mirror operation can be applyed to this block to get a second one. Then, both blocks can be grouped in an array for further manipulation.</p><pre><code class="language-julia hljs">block2 = mirror(block1, base=[0, 0], axis=[0.7643, -0.7643])
 blocks = [block1, block2]
-mplot(blocks, &quot;blocks.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">ndim = 2
-Mesh plotting
+mplot(blocks, &quot;blocks.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
      fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
@@ -94,13 +91,7 @@ mplot(blocks, &quot;moved.svg&quot;, markers=true, axis=true)</code></pre><pre c
   Available element fields:
     quality, elem-id, cell-type, tag
   file moved.svg saved</code></pre><p><img src="../moved.svg" alt/></p><p>Next, we can apply a <code>polar</code> operation to the current geometry to  obtain the square region with a central hole. Note that the original geometry was replicated four times (<code>n=4</code>) with different rotation angles. For this purpose a rotation axis and a base point were employed.</p><pre><code class="language-julia hljs">hole = polar(blocks, base=[0, 0], axis=[0, 0, 1], angle=360, n=4)
-mplot(hole, &quot;hole.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">ndim = 2
-ndim = 2
-ndim = 2
-ndim = 2
-ndim = 2
-ndim = 2
-Mesh plotting
+mplot(hole, &quot;hole.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
      fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
@@ -112,15 +103,7 @@ ndim = 2
   Available element fields:
     quality, elem-id, cell-type, tag
   file hole.svg saved</code></pre><p><img src="../hole.svg" alt/></p><p>Then, an <code>extrude</code> operation is used to obtain a volume following a defined axis and length. The argument <code>n=4</code> represents the number of divisions intended along the new dimension.</p><pre><code class="language-julia hljs">solid = extrude(hole, axis=[0, 0, 1], length=1, n=4)
-mplot(solid, &quot;solid.svg&quot;, markers=true, dist=13)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">ndim = 3
-ndim = 3
-ndim = 3
-ndim = 3
-ndim = 3
-ndim = 3
-ndim = 3
-ndim = 3
-Mesh plotting
+mplot(solid, &quot;solid.svg&quot;, markers=true, dist=13)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
      fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
@@ -147,13 +130,13 @@ mplot(mesh, &quot;mesh.svg&quot;, dist=13)</code></pre><pre class="documenter-ex
 mplot(smooth_mesh, &quot;smooth_mesh.svg&quot;, dist=13)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh Laplacian smoothing:
   it   qmin     q1     q2     q3   qmax   qavg     sdev       time  histogram (0:0.05:1]
    0  0.662  0.764  0.820  0.868  0.930  0.813  0.07626          -  [             ▂▄▆▇▅▆ ]
-   1  0.688  0.770  0.838  0.909  0.956  0.834  0.07929  0m  0.09s  [             ▂▃▄▆▅▇▁]
-   2  0.688  0.785  0.855  0.911  0.956  0.846  0.07911  0m  0.05s  [             ▁▃▄▃▅▇_]
-   3  0.694  0.793  0.863  0.922  0.966  0.852  0.07937  0m  0.05s  [             ▁▃▃▂▅▇▁]
-   4  0.700  0.799  0.872  0.929  0.973  0.856  0.07920  0m  0.11s  [              ▃▂▃▄▇▁]
-   5  0.706  0.805  0.878  0.930  0.977  0.858  0.07879  0m  0.05s  [              ▃▁▅▄▇▁]
-   6  0.712  0.810  0.883  0.929  0.981  0.860  0.07830  0m  0.06s  [              ▄▁▆▅▇▂]
-   7  0.718  0.813  0.886  0.927  0.983  0.860  0.07784  0m  0.06s  [              ▄▁▇▅▇▃]
+   1  0.688  0.770  0.838  0.909  0.956  0.834  0.07929  0m  0.07s  [             ▂▃▄▆▅▇▁]
+   2  0.688  0.785  0.855  0.911  0.956  0.846  0.07911  0m  0.10s  [             ▁▃▄▃▅▇_]
+   3  0.694  0.793  0.863  0.922  0.966  0.852  0.07937  0m  0.03s  [             ▁▃▃▂▅▇▁]
+   4  0.700  0.799  0.872  0.929  0.973  0.856  0.07920  0m  0.04s  [              ▃▂▃▄▇▁]
+   5  0.706  0.805  0.878  0.930  0.977  0.858  0.07879  0m  0.04s  [              ▃▁▅▄▇▁]
+   6  0.712  0.810  0.883  0.929  0.981  0.860  0.07830  0m  0.15s  [              ▄▁▆▅▇▂]
+   7  0.718  0.813  0.886  0.927  0.983  0.860  0.07784  0m  0.04s  [              ▄▁▇▅▇▃]
 Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
@@ -169,8 +152,7 @@ mplot(smooth_mesh, &quot;smooth_mesh.svg&quot;, dist=13)</code></pre><pre class=
 
 block = Block([0 0 ; 2 2], nx=8, ny=6)
 mesh  = Mesh(block)
-mplot(mesh, &quot;mesh-quad4.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">ndim = 2
-Mesh plotting
+mplot(mesh, &quot;mesh-quad4.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
      fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
@@ -185,8 +167,7 @@ mplot(mesh, &quot;mesh-quad4.svg&quot;, markers=true)</code></pre><pre class="do
 
 block = Block([0 0 ; 2 2], nx=8, ny=6, cellshape=QUAD8)
 mesh  = Mesh(block)
-mplot(mesh, &quot;mesh-quad8.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">ndim = 2
-Mesh plotting
+mplot(mesh, &quot;mesh-quad8.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
      fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
@@ -200,8 +181,7 @@ mplot(mesh, &quot;mesh-quad8.svg&quot;, markers=true)</code></pre><pre class="do
   file mesh-quad8.svg saved</code></pre><p><img src="../mesh-quad8.svg" alt/></p><h3 id="Simple-3D-mesh"><a class="docs-heading-anchor" href="#Simple-3D-mesh">Simple 3D mesh</a><a id="Simple-3D-mesh-1"></a><a class="docs-heading-anchor-permalink" href="#Simple-3D-mesh" title="Permalink"></a></h3><pre><code class="language-julia hljs">using Amaru
 block = Block([0 0 0; 2 4 3], nx=3, ny=6, nz=6)
 mesh = Mesh(block)
-mplot(mesh, &quot;mesh-hex8.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">ndim = 3
-Mesh plotting
+mplot(mesh, &quot;mesh-hex8.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
      fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
@@ -228,9 +208,7 @@ block1 = Block(
 )
 block2 = mirror(block1, base=[0, 0], axis=[0.7643, -0.7643])
 mesh = Mesh(block1, block2)
-mplot(mesh, &quot;mesh-2d.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">ndim = 2
-ndim = 2
-Mesh plotting
+mplot(mesh, &quot;mesh-2d.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
      fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
@@ -255,9 +233,7 @@ block = BlockGrid(
 )
 
 mesh = Mesh(block)
-mplot(mesh, &quot;mesh-rate.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">ndim = 2
-ndim = 2
-Mesh plotting
+mplot(mesh, &quot;mesh-rate.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
      fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
@@ -289,9 +265,7 @@ block1 = Block([0 0 0; 1 0 1; 0.7 0 0.3 ], n=7) # curved wire (quadratic)
 block2 = Block([1 0 1; 1 0 2], n=5) # straight wire
 mesh = Mesh(block1, block2)
 
-mplot(mesh, &quot;mesh-arc.svg&quot;, azim=-90, elev=0, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">ndim = 3
-ndim = 3
-Mesh plotting
+mplot(mesh, &quot;mesh-arc.svg&quot;, azim=-90, elev=0, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
      fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
@@ -320,8 +294,7 @@ steel = ElasticSolid(E=2e8, nu=0.2) # E in kPa
 materials = [
     :(x&gt;=0) =&gt; steel,
 ]
-model = Model(mesh, materials)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">ndim = 3
-Model setup
+model = Model(mesh, materials)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Model setup
   setting elements...  3D model 3d model
     621 nodes
      80 elements
@@ -360,8 +333,7 @@ bcs = [
 addstage!(model, bcs)
 
 solve!(model, quiet=true)
-save(model, &quot;beam.vtu&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">ndim = 3
-Model setup
+save(model, &quot;beam.vtu&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Model setup
   setting elements...  3D model 3d model
     189 nodes
      80 elements
@@ -404,8 +376,7 @@ bcs = [
 
 addstage!(model, bcs)
 
-solve!(model, tol=0.01, autoinc=true, quiet=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">ndim = 3
-Model setup
+solve!(model, tol=0.01, autoinc=true, quiet=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Model setup
   setting elements...  3D model 3d model
     315 nodes
     160 elements
@@ -461,8 +432,7 @@ loggers = [
 setloggers!(model, loggers)
 addstage!(model, bcs, nouts=2)
 
-solve!(model, tol=0.01, autoinc=true, quiet=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">ndim = 3
-Model setup
+solve!(model, tol=0.01, autoinc=true, quiet=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Model setup
   setting elements...  3D model 3d model
     252 nodes
     120 elements
@@ -482,17 +452,17 @@ Model setup
 tip = DataTable(&quot;tip.table&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">
  │       ux │       uy │         uz │       fx │       fy │       fz │ out │ 
  │  0.0e+00 │  0.0e+00 │        0.0 │  0.0e+00 │  0.0e+00 │      0.0 │ 0.0 │ 
- │  3.8e-19 │  3.9e-16 │    -0.0004 │ -5.4e-13 │  1.7e-13 │ -2.22233 │ 0.0 │ 
- │  1.1e-18 │  6.1e-16 │    -0.0012 │ -8.0e-13 │  5.2e-13 │   -6.667 │ 0.0 │ 
- │  4.1e-18 │  1.0e-15 │    -0.0028 │ -1.2e-12 │  8.1e-13 │ -15.5563 │ 0.0 │ 
- │  4.4e-18 │  1.9e-15 │     -0.006 │ -5.5e-12 │ -6.7e-13 │  -33.335 │ 0.0 │ 
- │  5.5e-19 │  6.2e-15 │      -0.01 │ -3.4e-12 │  2.1e-12 │ -55.5584 │ 0.0 │ 
- │  3.2e-18 │  2.8e-15 │     -0.014 │ -1.1e-12 │ -1.9e-14 │ -77.7817 │ 0.0 │ 
- │  1.1e-18 │  3.2e-15 │     -0.018 │ -4.1e-12 │  1.2e-12 │ -100.005 │ 0.0 │ 
- │  1.3e-18 │  1.1e-15 │      -0.02 │ -2.0e-12 │  1.3e-12 │ -111.117 │ 1.0 │ 
- │ -1.4e-19 │ -6.4e-18 │     -0.024 │  4.3e-13 │  8.2e-14 │ -128.265 │ 1.0 │ 
- │ -1.2e-19 │  3.0e-17 │ -0.0314299 │ -9.6e-13 │ -8.0e-14 │ -147.577 │ 1.0 │ 
- │  4.5e-19 │  1.1e-15 │      -0.04 │  1.1e-12 │ -7.8e-15 │ -157.956 │ 2.0 │ </code></pre><pre><code class="language-julia hljs">using Amaru
+ │ -8.1e-20 │  8.1e-16 │    -0.0004 │ -5.9e-13 │  5.2e-13 │ -2.22233 │ 0.0 │ 
+ │  5.8e-19 │  1.1e-15 │    -0.0012 │ -1.1e-12 │  6.5e-13 │   -6.667 │ 0.0 │ 
+ │  1.3e-18 │  2.1e-15 │    -0.0028 │ -1.0e-12 │  7.1e-13 │ -15.5563 │ 0.0 │ 
+ │  3.5e-18 │  4.8e-15 │     -0.006 │  6.4e-13 │  2.6e-12 │  -33.335 │ 0.0 │ 
+ │ -1.4e-18 │  2.4e-15 │      -0.01 │ -7.3e-12 │  5.5e-12 │ -55.5584 │ 0.0 │ 
+ │  1.4e-18 │  3.1e-15 │     -0.014 │ -2.6e-12 │  5.3e-12 │ -77.7817 │ 0.0 │ 
+ │  5.3e-18 │  6.4e-15 │     -0.018 │ -2.4e-12 │  5.0e-12 │ -100.005 │ 0.0 │ 
+ │  1.3e-18 │  3.3e-15 │      -0.02 │  1.3e-12 │  2.7e-12 │ -111.117 │ 1.0 │ 
+ │ -1.7e-19 │ -3.4e-18 │     -0.024 │  4.1e-13 │  3.3e-15 │ -128.265 │ 1.0 │ 
+ │ -2.1e-19 │  3.1e-17 │ -0.0314299 │ -3.1e-12 │ -5.6e-14 │ -147.577 │ 1.0 │ 
+ │ -4.3e-19 │  8.9e-16 │      -0.04 │ -3.1e-12 │ -9.2e-14 │ -157.956 │ 2.0 │ </code></pre><pre><code class="language-julia hljs">using Amaru
 
 long = DataBook(&quot;topgroup.book&quot;).tables[end]</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">
  │    x │   y │   z │         ux │       fx │       uy │       fy │       uz │       fz │ 
@@ -504,19 +474,19 @@ long = DataBook(&quot;topgroup.book&quot;).tables[end]</code></pre><pre class="d
  │ 0.25 │ 0.1 │ 0.1 │  0.0015527 │ -3.2e-01 │ -4.5e-05 │ -1.1e-01 │ -4.3e-03 │ -3.6e-01 │ 
  │  0.3 │ 0.1 │ 0.1 │  0.0017241 │  2.2e-01 │ -3.2e-05 │  2.3e-01 │ -6.0e-03 │ -7.3e-02 │ 
  │ 0.35 │ 0.1 │ 0.1 │  0.0018695 │ -1.2e-01 │ -2.5e-05 │  1.9e-01 │ -7.8e-03 │  3.5e-02 │ 
- │  0.4 │ 0.1 │ 0.1 │  0.0020027 │ -3.1e-13 │ -2.4e-05 │  6.3e-13 │ -9.7e-03 │  1.7e-12 │ 
- │ 0.45 │ 0.1 │ 0.1 │  0.0021251 │  2.6e-13 │ -2.2e-05 │  1.5e-13 │ -1.2e-02 │  2.5e-13 │ 
- │  0.5 │ 0.1 │ 0.1 │  0.0022368 │  1.1e-12 │ -2.0e-05 │ -3.5e-13 │ -1.4e-02 │ -1.7e-12 │ 
- │ 0.55 │ 0.1 │ 0.1 │  0.0023379 │ -1.4e-13 │ -1.8e-05 │ -6.5e-13 │ -1.6e-02 │ -2.3e-12 │ 
- │  0.6 │ 0.1 │ 0.1 │  0.0024284 │ -7.2e-13 │ -1.6e-05 │  3.9e-13 │ -1.9e-02 │ -3.3e-13 │ 
- │ 0.65 │ 0.1 │ 0.1 │  0.0025082 │ -2.4e-13 │ -1.4e-05 │ -4.5e-13 │ -2.1e-02 │  2.6e-12 │ 
- │  0.7 │ 0.1 │ 0.1 │  0.0025774 │ -1.0e-12 │ -1.2e-05 │  2.8e-13 │ -2.4e-02 │  6.3e-13 │ 
- │ 0.75 │ 0.1 │ 0.1 │  0.0026359 │  1.1e-12 │ -9.8e-06 │ -1.6e-12 │ -2.6e-02 │ -5.2e-12 │ 
- │  0.8 │ 0.1 │ 0.1 │  0.0026838 │ -6.7e-13 │ -7.9e-06 │  4.1e-13 │ -2.9e-02 │  9.4e-13 │ 
- │ 0.85 │ 0.1 │ 0.1 │  0.0027211 │ -5.3e-13 │ -5.9e-06 │ -3.5e-13 │ -3.2e-02 │  3.6e-12 │ 
- │  0.9 │ 0.1 │ 0.1 │  0.0027477 │  5.6e-13 │ -3.9e-06 │ -6.7e-13 │ -3.4e-02 │ -3.8e-12 │ 
- │ 0.95 │ 0.1 │ 0.1 │  0.0027637 │ -1.5e-12 │ -1.9e-06 │ -1.5e-12 │ -3.7e-02 │ -3.1e-13 │ 
- │  1.0 │ 0.1 │ 0.1 │  0.0027692 │  4.2e-13 │ -7.0e-07 │ -2.1e-13 │ -4.0e-02 │ -4.8e+00 │ </code></pre><h2 id="Plotting"><a class="docs-heading-anchor" href="#Plotting">Plotting</a><a id="Plotting-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting" title="Permalink"></a></h2><p>Amaru provides a chart ploting function <code>cplot</code> to ease the visualization of the data stored in <code>DataTable</code> and <code>DataBook</code> objects.</p><pre><code class="language-julia hljs">using Amaru
+ │  0.4 │ 0.1 │ 0.1 │  0.0020027 │ -2.9e-13 │ -2.4e-05 │  1.4e-13 │ -9.7e-03 │  2.6e-12 │ 
+ │ 0.45 │ 0.1 │ 0.1 │  0.0021251 │ -5.9e-14 │ -2.2e-05 │  9.0e-14 │ -1.2e-02 │  1.6e-13 │ 
+ │  0.5 │ 0.1 │ 0.1 │  0.0022368 │  3.2e-13 │ -2.0e-05 │  5.1e-14 │ -1.4e-02 │  9.5e-13 │ 
+ │ 0.55 │ 0.1 │ 0.1 │  0.0023379 │ -6.9e-13 │ -1.8e-05 │ -3.7e-13 │ -1.6e-02 │ -1.5e-12 │ 
+ │  0.6 │ 0.1 │ 0.1 │  0.0024284 │ -3.0e-13 │ -1.6e-05 │ -4.4e-13 │ -1.9e-02 │ -1.5e-12 │ 
+ │ 0.65 │ 0.1 │ 0.1 │  0.0025082 │ -4.9e-13 │ -1.4e-05 │  8.9e-13 │ -2.1e-02 │  3.3e-12 │ 
+ │  0.7 │ 0.1 │ 0.1 │  0.0025774 │ -1.9e-13 │ -1.2e-05 │ -5.2e-13 │ -2.4e-02 │  1.0e-12 │ 
+ │ 0.75 │ 0.1 │ 0.1 │  0.0026359 │ -2.9e-13 │ -9.8e-06 │ -3.3e-13 │ -2.6e-02 │ -4.6e-13 │ 
+ │  0.8 │ 0.1 │ 0.1 │  0.0026838 │  9.7e-13 │ -7.9e-06 │  8.4e-13 │ -2.9e-02 │ -2.8e-12 │ 
+ │ 0.85 │ 0.1 │ 0.1 │  0.0027211 │ -3.8e-13 │ -5.9e-06 │  1.1e-12 │ -3.2e-02 │ -2.0e-12 │ 
+ │  0.9 │ 0.1 │ 0.1 │  0.0027477 │ -1.5e-12 │ -3.9e-06 │  3.1e-12 │ -3.4e-02 │  5.7e-12 │ 
+ │ 0.95 │ 0.1 │ 0.1 │  0.0027637 │  1.4e-12 │ -1.9e-06 │  6.9e-13 │ -3.7e-02 │ -2.3e-12 │ 
+ │  1.0 │ 0.1 │ 0.1 │  0.0027692 │  2.4e-13 │ -7.0e-07 │ -2.8e-13 │ -4.0e-02 │ -4.8e+00 │ </code></pre><h2 id="Plotting"><a class="docs-heading-anchor" href="#Plotting">Plotting</a><a id="Plotting-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting" title="Permalink"></a></h2><p>Amaru provides a chart ploting function <code>cplot</code> to ease the visualization of the data stored in <code>DataTable</code> and <code>DataBook</code> objects.</p><pre><code class="language-julia hljs">using Amaru
 
 tip = DataTable(&quot;tip.table&quot;)
 cplot(
@@ -592,4 +562,4 @@ cplot(
   Optional named arguments per curve:
     x, y, color, ls, lw, marker, ms, mfc, label, tag, tagpos, tagloc, tagdist,
     tagfontsize, tagcolor, tagalign
-  file x_vs_sxx.svg saved</code></pre><p><img src="../uz_vs_fz.svg" alt/></p><p><img src="../x_vs_uz.svg" alt/></p><p><img src="../x_vs_sxx.svg" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Introduction</a><a class="docs-footer-nextpage" href="../../meshing/meshing/">Mesh »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Sunday 11 June 2023 22:35">Sunday 11 June 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+  file x_vs_sxx.svg saved</code></pre><p><img src="../uz_vs_fz.svg" alt/></p><p><img src="../x_vs_uz.svg" alt/></p><p><img src="../x_vs_sxx.svg" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Introduction</a><a class="docs-footer-nextpage" href="../../meshing/meshing/">Mesh »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Sunday 11 June 2023 22:46">Sunday 11 June 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
