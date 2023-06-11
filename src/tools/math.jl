@@ -98,7 +98,6 @@ function bissection(f::Function, a, b, tol)
 
     for i in 1:n
         x = (a+b)/2
-        @show x
         fx = f(x)
         if fa*fx<0.0
             b  = x
@@ -108,7 +107,6 @@ function bissection(f::Function, a, b, tol)
             fa = fx
         end
     end
-    @show n
 
     isnan(x) && return 0.0, failure("bissection: NaN result")
     return x, success()
