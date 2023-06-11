@@ -128,15 +128,10 @@ function nearest(ips::Array{Ip,1}, coord)
     n = length(ips)
     D = zeros(n)
     X = vec(coord)
-    # @show X
 
     for (i,ip) in enumerate(ips)
         D[i] = norm(X- ip.coord)
     end
-
-    # @show D
-    # @show sortperm(D)
-    # @show D[sortperm(D)]
 
     return ips[sortperm(D)[1]]
 end

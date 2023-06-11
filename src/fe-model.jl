@@ -219,9 +219,6 @@ function FEModel(
     end
 
     # Initializing elements
-    @show mesh.env.ndim
-    @show model.env.ndim
-    @show model.elems[1].env.ndim
     for elem in model.elems
         elem_init(elem)
     end
@@ -371,7 +368,6 @@ function FEModel(elems::Array{<:Element,1})
 
     # Setting elements
     for (i,elem) in enumerate(elems)
-        #@show elem.nodes
         nodeidxs = [ nodemap[node.id] for node in elem.nodes]
         elemnodes = nodes[nodeidxs]
         newelem = new_element(typeof(elem), elem.shape, elemnodes, elem.tag, model.env)

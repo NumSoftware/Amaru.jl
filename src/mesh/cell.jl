@@ -691,7 +691,6 @@ function get_point(s::Float64, coords::Array{Float64,2})
     #  0               +1  -->s
     #  1---2---3---..---n  -->idx
 
-    # @show s
     @assert 0<=s<=1
     n = size(coords,1)
     m = n - 1 # number of segments
@@ -725,9 +724,6 @@ function select(cells::Array{Cell,1}, polycoords::Array{Float64,2}, axis=[0.0, 0
     R = [V1'; V2'; N']
     XY = (polycoords*R')[:,1:2]
     XY = round.(XY, digits=8)
-    # display(XY)
-
-    # @show R
 
     selected = Cell[]
 
@@ -757,24 +753,10 @@ function select(cells::Array{Cell,1}, polycoords::Array{Float64,2}, axis=[0.0, 0
                     x2, y2 = XY[1,1], XY[1,2]
                 end
 
-                # if node.id==46
-                #     @show "hi1"
-                #     @show y1
-                #     @show y2
-                # end
-        
-                # y1==y2 && continue
                 if y1==y2
-                    # if y==y1 && x<max(x1,x2)
-                        # ints += 1
-                    # end
                     continue
                 end
 
-                # if node.id==46
-                #     @show "hi2"
-                # end
-        
                 if y>=min(y1,y2) && y<=max(y1,y2)
                     # check if point is contained in line
                     if abs((x2-x1)/(y2-y1) - (x2-x)/(y2-y)) < eps
@@ -790,13 +772,6 @@ function select(cells::Array{Cell,1}, polycoords::Array{Float64,2}, axis=[0.0, 0
                 end
         
             end
-
-            # if cell.id==19
-            #     @show node.coord
-            #     @show node.id
-            #     @show X
-            #     @show ints
-            # end
 
             if ints%2==0
                 allin = false
