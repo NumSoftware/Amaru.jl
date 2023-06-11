@@ -24,7 +24,9 @@ Cell(TRI3, nodes, id=1, tag=&quot;triangle&quot;)</code></pre><pre class="docume
     embedded: false
     crossed: false
     owner: nothing
-    linked_elems: 0-element Vector{Amaru.AbstractCell}</code></pre><p>There are many shapes defined in Amaru, for instance:  <code>LIN2</code>, <code>LIN3</code>, <code>TRI3</code>, <code>TRI6</code>, <code>QUAD4</code>, <code>QUAD8</code>, <code>QUAD9</code> <code>TET4</code>, <code>TET10</code>, <code>PYR5</code>, <code>WED6</code>, <code>WED15</code>, <code>HEX8</code>, <code>HEX20</code>, <code>HEX27</code>, etc.</p><h3 id="Blocks"><a class="docs-heading-anchor" href="#Blocks">Blocks</a><a id="Blocks-1"></a><a class="docs-heading-anchor-permalink" href="#Blocks" title="Permalink"></a></h3><p>Blocks are entities used to aid the generation of structured meshes in 1D, 2D and 3D. A <code>Block</code> type represents a geometric segment, area (4 or 8 point quadrilateral) or volume (8 or 20 point hexahedron). An instance of the block type  is generated from a coordinates matrix and predefined number of divisions divisions (<code>nx</code>, <code>ny</code>, <code>nz</code>) in the <span>$x$</span>, <span>$y$</span> and <span>$z$</span> directions of a local system. The block below represents a 2D <code>Block</code> with <code>nx=7</code> and <code>ny=5</code>. The <code>mplot</code> function saves the block image to a file in svg format. Other formats as pdf and png can be used.</p><pre><code class="language-julia hljs">using Amaru
+    linked_elems: 0-element Vector{Amaru.AbstractCell}
+    env: Amaru.MeshEnv
+        ndim: 0</code></pre><p>There are many shapes defined in Amaru, for instance:  <code>LIN2</code>, <code>LIN3</code>, <code>TRI3</code>, <code>TRI6</code>, <code>QUAD4</code>, <code>QUAD8</code>, <code>QUAD9</code> <code>TET4</code>, <code>TET10</code>, <code>PYR5</code>, <code>WED6</code>, <code>WED15</code>, <code>HEX8</code>, <code>HEX20</code>, <code>HEX27</code>, etc.</p><h3 id="Blocks"><a class="docs-heading-anchor" href="#Blocks">Blocks</a><a id="Blocks-1"></a><a class="docs-heading-anchor-permalink" href="#Blocks" title="Permalink"></a></h3><p>Blocks are entities used to aid the generation of structured meshes in 1D, 2D and 3D. A <code>Block</code> type represents a geometric segment, area (4 or 8 point quadrilateral) or volume (8 or 20 point hexahedron). An instance of the block type  is generated from a coordinates matrix and predefined number of divisions divisions (<code>nx</code>, <code>ny</code>, <code>nz</code>) in the <span>$x$</span>, <span>$y$</span> and <span>$z$</span> directions of a local system. The block below represents a 2D <code>Block</code> with <code>nx=7</code> and <code>ny=5</code>. The <code>mplot</code> function saves the block image to a file in svg format. Other formats as pdf and png can be used.</p><pre><code class="language-julia hljs">using Amaru
 block = Block([0 0; 4 0; 3 2; 1 2], nx=7, ny=5)
 mplot(block, &quot;block.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
   Optional arguments:
@@ -128,13 +130,13 @@ mplot(mesh, &quot;mesh.svg&quot;, dist=13)</code></pre><pre class="documenter-ex
 mplot(smooth_mesh, &quot;smooth_mesh.svg&quot;, dist=13)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh Laplacian smoothing:
   it   qmin     q1     q2     q3   qmax   qavg     sdev       time  histogram (0:0.05:1]
    0  0.662  0.764  0.820  0.868  0.930  0.813  0.07626          -  [             ▂▄▆▇▅▆ ]
-   1  0.688  0.770  0.838  0.909  0.956  0.834  0.07929  0m  0.07s  [             ▂▃▄▆▅▇▁]
+   1  0.688  0.770  0.838  0.909  0.956  0.834  0.07929  0m  0.16s  [             ▂▃▄▆▅▇▁]
    2  0.688  0.785  0.855  0.911  0.956  0.846  0.07911  0m  0.04s  [             ▁▃▄▃▅▇_]
-   3  0.694  0.793  0.863  0.922  0.966  0.852  0.07937  0m  0.13s  [             ▁▃▃▂▅▇▁]
+   3  0.694  0.793  0.863  0.922  0.966  0.852  0.07937  0m  0.04s  [             ▁▃▃▂▅▇▁]
    4  0.700  0.799  0.872  0.929  0.973  0.856  0.07920  0m  0.04s  [              ▃▂▃▄▇▁]
-   5  0.706  0.805  0.878  0.930  0.977  0.858  0.07879  0m  0.03s  [              ▃▁▅▄▇▁]
-   6  0.712  0.810  0.883  0.929  0.981  0.860  0.07830  0m  0.04s  [              ▄▁▆▅▇▂]
-   7  0.718  0.813  0.886  0.927  0.983  0.860  0.07784  0m  0.22s  [              ▄▁▇▅▇▃]
+   5  0.706  0.805  0.878  0.930  0.977  0.858  0.07879  0m  0.21s  [              ▃▁▅▄▇▁]
+   6  0.712  0.810  0.883  0.929  0.981  0.860  0.07830  0m  0.03s  [              ▄▁▆▅▇▂]
+   7  0.718  0.813  0.886  0.927  0.983  0.860  0.07784  0m  0.03s  [              ▄▁▇▅▇▃]
 Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
@@ -257,24 +259,14 @@ mplot(mesh, &quot;mesh-rev.svg&quot;, azim=-45)</code></pre><pre class="document
     node-id
   Available element fields:
     quality, elem-id, cell-type, tag
-  file mesh-rev.svg saved</code></pre><p><img src="../mesh-rev.svg" alt/></p><h3 id="Wire-mesh"><a class="docs-heading-anchor" href="#Wire-mesh">Wire mesh</a><a id="Wire-mesh-1"></a><a class="docs-heading-anchor-permalink" href="#Wire-mesh" title="Permalink"></a></h3><pre><code class="language-julia hljs">using Amaru
+  file mesh-rev.svg saved</code></pre><p><img src="../mesh-rev.svg" alt/></p><h3 id="Wire-mesh"><a class="docs-heading-anchor" href="#Wire-mesh">Wire mesh</a><a id="Wire-mesh-1"></a><a class="docs-heading-anchor-permalink" href="#Wire-mesh" title="Permalink"></a></h3><pre><code class="language- hljs">using Amaru
 
 block1 = Block([0 0 0; 1 0 1; 0.7 0 0.3 ], n=7) # curved wire (quadratic)
 block2 = Block([1 0 1; 1 0 2], n=5) # straight wire
 mesh = Mesh(block1, block2)
 
-mplot(mesh, &quot;mesh-arc.svg&quot;, azim=-90, elev=0, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
-  Optional arguments:
-    axis, lw, markers, nodelabels, celllabels, opacity, field,
-     fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
-     colorbarlabel, colorbarlocation, colorbarorientation, colorbarpad,
-     warpscale, hicells, elev, azim, dist, outline, outlineangle,
-     figsize, leaveopen, quiet
-  Available node fields:
-    node-id
-  Available element fields:
-    quality, elem-id, cell-type, tag
-  file mesh-arc.svg saved</code></pre><p><img src="../mesh-arc.svg" alt/></p><h3 id="D-mesh-obtained-revolving-the-last-example-2"><a class="docs-heading-anchor" href="#D-mesh-obtained-revolving-the-last-example-2">3D mesh obtained revolving the last example</a><a class="docs-heading-anchor-permalink" href="#D-mesh-obtained-revolving-the-last-example-2" title="Permalink"></a></h3><pre><code class="language-julia hljs">mesh = revolve(mesh, n=24, axis=[0,0,1], base=[0,0,0]) # surface by revolution
+mplot(mesh, &quot;mesh-arc.svg&quot;, azim=-90, elev=0, markers=true)
+nothing # hide</code></pre><p><img src="./mesh-arc.svg" alt/></p><h3 id="D-mesh-obtained-revolving-the-last-example-2"><a class="docs-heading-anchor" href="#D-mesh-obtained-revolving-the-last-example-2">3D mesh obtained revolving the last example</a><a class="docs-heading-anchor-permalink" href="#D-mesh-obtained-revolving-the-last-example-2" title="Permalink"></a></h3><pre><code class="language-julia hljs">mesh = revolve(mesh, n=24, axis=[0,0,1], base=[0,0,0]) # surface by revolution
 mplot(mesh, &quot;mesh-surf.svg&quot;, elev=15)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
@@ -303,7 +295,10 @@ materials = [
     :(x&gt;=0) =&gt; steel,
 ]
 model = Model(mesh, materials)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Model setup
-  setting elements...  3D model 3d model
+  setting elements...mesh.env.ndim = 3
+model.env.ndim = 3
+(model.elems[1]).env.ndim = 3
+  3D model 3d model
     621 nodes
      80 elements
     168 faces
@@ -342,7 +337,10 @@ addstage!(model, bcs)
 
 solve!(model, quiet=true)
 save(model, &quot;beam.vtu&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Model setup
-  setting elements...  3D model 3d model
+  setting elements...mesh.env.ndim = 3
+model.env.ndim = 3
+(model.elems[1]).env.ndim = 3
+  3D model 3d model
     189 nodes
      80 elements
     168 faces
@@ -385,7 +383,10 @@ bcs = [
 addstage!(model, bcs)
 
 solve!(model, tol=0.01, autoinc=true, quiet=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Model setup
-  setting elements...  3D model 3d model
+  setting elements...mesh.env.ndim = 3
+model.env.ndim = 3
+(model.elems[1]).env.ndim = 3
+  3D model 3d model
     315 nodes
     160 elements
     256 faces
@@ -441,7 +442,10 @@ setloggers!(model, loggers)
 addstage!(model, bcs, nouts=2)
 
 solve!(model, tol=0.01, autoinc=true, quiet=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Model setup
-  setting elements...  3D model 3d model
+  setting elements...mesh.env.ndim = 3
+model.env.ndim = 3
+(model.elems[1]).env.ndim = 3
+  3D model 3d model
     252 nodes
     120 elements
     212 faces
@@ -570,4 +574,4 @@ cplot(
   Optional named arguments per curve:
     x, y, color, ls, lw, marker, ms, mfc, label, tag, tagpos, tagloc, tagdist,
     tagfontsize, tagcolor, tagalign
-  file x_vs_sxx.svg saved</code></pre><p><img src="../uz_vs_fz.svg" alt/></p><p><img src="../x_vs_uz.svg" alt/></p><p><img src="../x_vs_sxx.svg" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Introduction</a><a class="docs-footer-nextpage" href="../../meshing/meshing/">Mesh »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Saturday 10 June 2023 22:28">Saturday 10 June 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+  file x_vs_sxx.svg saved</code></pre><p><img src="../uz_vs_fz.svg" alt/></p><p><img src="../x_vs_uz.svg" alt/></p><p><img src="../x_vs_sxx.svg" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Introduction</a><a class="docs-footer-nextpage" href="../../meshing/meshing/">Mesh »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Sunday 11 June 2023 01:45">Sunday 11 June 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
