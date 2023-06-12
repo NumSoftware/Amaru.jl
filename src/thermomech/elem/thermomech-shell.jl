@@ -199,6 +199,7 @@ function elem_stiffness(elem::TMShell)
     end
 
     map = elem_map_u(elem)
+    #@show K
     return K, map, map
 end
 
@@ -280,6 +281,9 @@ function elem_coupling_matrix(elem::TMShell)
     # map_u = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
     # mat_t = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nnodes] ]
 
+    #@show "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii Cut"
+    #@show Cut
+
     return Cut, map_u, map_t
 end
 
@@ -314,11 +318,12 @@ function elem_conductivity_matrix(elem::TMShell)
     end
 
     map = elem_map_t(elem)
-
+    #@show "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii H"
+    #@show H
     return H, map, map
 end
 
-function elem_mass_matrix_t(elem::TMShell)
+function elem_mass_matrix(elem::TMShell)
     ndim   = elem.env.ndim
     th     = elem.mat.thickness
     nnodes = length(elem.nodes)
@@ -328,7 +333,7 @@ function elem_mass_matrix_t(elem::TMShell)
 
     J  = Array{Float64}(undef, ndim, ndim)
     L      = zeros(3,3)
-
+    #@show "HIIIIIIIIIIIIIIIIIIIIIIIIIIIIII"
 
     for ip in elem.ips
         N    = elem.shape.func(ip.R)
@@ -348,9 +353,12 @@ function elem_mass_matrix_t(elem::TMShell)
     end
 
     # map
-    map = map_t(elem)
+    map = elem_map_t(elem)
 
+    #@show "HIIIIIIIIIIIIIIIIIIIIIIIIIIIIII"
+    #@show M
     return M, map, map
+    
 end
 
 #=
@@ -499,6 +507,6 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
          @gemv dFt += coef*Bt'*q
 
     end
-    #@show "HIIIIIIIIIIIIIIIIIIIIII"
+    #@show "HIIIIIIIIIIIIIIIIIIIIII UPDATED"
     return [dF; dFt], [map_u; map_t], success()
 end
