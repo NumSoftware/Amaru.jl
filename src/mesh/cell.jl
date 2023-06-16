@@ -482,7 +482,7 @@ function cell_extent(c::AbstractCell)
     # get coordinates matrix
     C = getcoords(c)
     J = Array{Float64}(undef, size(C,2), nldim)
-
+    
     # calc metric
     vol = 0.0
     for i in 1:nip
@@ -613,10 +613,10 @@ end
 # Returns the cell quality ratio as reg_surf/surf
 function cell_quality(c::AbstractCell)::Float64
     # get faces
+    c.shape.family==JOINTCELL && return 1.0
+
     faces = getfaces(c)
-    if length(faces)==0
-        return 1.0
-    end
+    length(faces)==0 && return 1.0
 
     # cell surface
     surf = 0.0
