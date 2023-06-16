@@ -156,19 +156,18 @@ function _show(io::IO, x::Union{AbstractArray, AbstractSet}, maxdepth::Int, inde
     maxdepth==0 && return
 
     print(io, ":")
-    maxn = 20
-    half = div(maxn,2)
-    idx = n<=maxn ? [1:n;] : [1:half; n-half+1:n]
+    MAXN = 6
+    half = div(MAXN,2)
+    idx = n<=MAXN ? [1:n;] : [1:half; n-half+1:n]
     for i in idx
         println(io)
         print(io, indent*tab, i, ": ")
-        ety = eltype(x)
         if nfields(x[i])==0
             show(io, x[i])
         else
             _show(io, x[i], maxdepth-1, indent*tab)
         end
-        if n>maxn && i==half
+        if n>MAXN && i==half
             println(io)
             print(io, indent*tab, "⋮")
         end
