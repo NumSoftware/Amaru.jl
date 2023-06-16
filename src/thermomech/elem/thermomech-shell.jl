@@ -199,6 +199,7 @@ function elem_stiffness(elem::TMShell)
     end
 
     map = elem_map_u(elem)
+    #@show K
     return K, map, map
 end
 
@@ -280,6 +281,9 @@ function elem_coupling_matrix(elem::TMShell)
     # map_u = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
     # mat_t = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nnodes] ]
 
+    #@show "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii Cut"
+    #@show Cut
+
     return Cut, map_u, map_t
 end
 
@@ -314,11 +318,12 @@ function elem_conductivity_matrix(elem::TMShell)
     end
 
     map = elem_map_t(elem)
-
+    #@show "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii H"
+    #@show H
     return H, map, map
 end
 
-function elem_mass_matrix_t(elem::TMShell)
+function elem_mass_matrix(elem::TMShell)
     ndim   = elem.env.ndim
     th     = elem.mat.thickness
     nnodes = length(elem.nodes)
@@ -328,7 +333,7 @@ function elem_mass_matrix_t(elem::TMShell)
 
     J  = Array{Float64}(undef, ndim, ndim)
     L      = zeros(3,3)
-
+    #@show "HIIIIIIIIIIIIIIIIIIIIIIIIIIIIII"
 
     for ip in elem.ips
         N    = elem.shape.func(ip.R)
@@ -348,9 +353,12 @@ function elem_mass_matrix_t(elem::TMShell)
     end
 
     # map
-    map = map_t(elem)
+    map = elem_map_t(elem)
 
+    #@show "HIIIIIIIIIIIIIIIIIIIIIIIIIIIIII"
+    #@show M
     return M, map, map
+    
 end
 
 #=
@@ -414,10 +422,9 @@ end
 function elem_update!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     th     = elem.mat.thickness
-    T0     = get(elem.env.params, :T0, 0.0) + 273.15
+    T0k     = get(elem.env.params, :T0, 0.0) + 273.15
     nnodes = length(elem.nodes)
     ndof = 6
-
     C      = getcoords(elem)
 
     E = elem.mat.E
@@ -428,21 +435,18 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     β = E*α/(1-2*nu)
     
     map_t = elem_map_t(elem)
+    map_u = elem_map_u(elem)
 
-    #dU  = DU[map_u] # nodal displacement increments
+    dU = DU[map_u]
     dUt = DU[map_t] # nodal temperature increments
     Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes]
     Ut += dUt # nodal tempeture at step n+1
     m   = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  #
 
+    dF = zeros(length(dU))
+    B = zeros(6, ndof*nnodes)
     dFt = zeros(nnodes)
     Bt  = zeros(ndim, nnodes)
-
-    map_u = elem_map_u(elem)
-    dU = DU[map_u]
-    dF = zeros(length(dU))
-
-    B = zeros(6, ndof*nnodes)
 
     L = zeros(3,3)
     Rrot = zeros(5,ndof)
@@ -461,6 +465,7 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
         set_rot_x_xp(elem, J2D, L)
         J′ = [ L*J2D [ 0,0,th/2]  ]
         invJ′ = inv(J′)
+        detJ′ = det(J′)
 
         dNdR = [ dNdR zeros(nnodes) ]
         dNdX′ = dNdR*invJ′
@@ -470,36 +475,38 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
         # compute Δε
         @gemv Δε = B*dU
 
+
         # compute Δut
         Δut = N'*dUt # interpolation to the integ. point
 
+        #@show size(Ut)
+        #@show size(Bt)
         # compute thermal gradient G
-        Bt .= dNdX′
+        Bt .= dNdX′'
         G  = Bt*Ut
 
-        # internal force dF
-        Δσ, q = stress_update(elem.mat, ip.state, Δε, Δut, G, Δt)
-        Δσ -= β*Δut*m # get total stress
+         # internal force dF
+         Δσ, q = stress_update(elem.mat, ip.state, Δε, Δut, G, Δt)
+         Δσ -= β*Δut*m # get total stress
+ 
+         coef = detJ′*ip.w*th
+         @gemv dF += coef*B'*Δσ
+ 
+         # internal volumes dFt
+         Δεvol = dot(m, Δε)
+         coef  = β*Δεvol*T0k
+         coef *= detJ′*ip.w*th
+         dFt  -= coef*N
+ 
+         coef  = ρ*cv
+         coef *= detJ′*ip.w*th
+         dFt  -= coef*N*Δut
+ 
+         coef  = Δt
+         coef *= detJ′*ip.w*th
+         @gemv dFt += coef*Bt'*q
 
-        coef = detJ*ip.w*th
-        @gemv dF += coef*B'*Δσ
-
-        # internal volumes dFt
-        Δεvol = dot(m, Δε)
-        coef  = β*Δεvol*T0
-        coef *= detJ*ip.w*th
-        dFt  -= coef*N
-
-        coef  = ρ*cv
-        coef *= detJ*ip.w*th
-        dFt  -= coef*N*Δut
-
-        coef  = Δt
-        coef *= detJ*ip.w*th
-        @gemv dFt += coef*Bt'*q
     end
-
-    DF[map_u] += dF
-    DF[mat_t] += dFt
-    return success()
+    #@show "HIIIIIIIIIIIIIIIIIIIIII UPDATED"
+    return [dF; dFt], [map_u; map_t], success()
 end
