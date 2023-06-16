@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export CompressiveSolid
+export CompressibleBulk
 
 """
     $(TYPEDEF)
@@ -9,7 +9,7 @@ An elastoplastic constitutive model is used to simulate materials that primarily
 elastic behavior but exhibit nonlinear behavior when the isotropic compression p exceeds 
 a predefined yield limit py.
 """
-mutable struct CompressiveSolid<:Material
+mutable struct CompressibleBulk<:Material
     E   ::Float64  # initial Young modulus
     ν   ::Float64
     py0 ::Float64
@@ -17,7 +17,7 @@ mutable struct CompressiveSolid<:Material
     εvpc::Float64 # ≈ 0.07
     ρ   ::Float64
 
-    function CompressiveSolid(; E=NaN, nu=0.2, pc=NaN, alpha=2.0, epsy=NaN, epsc=NaN, rho=0.0)
+    function CompressibleBulk(; E=NaN, nu=0.2, pc=NaN, alpha=2.0, epsy=NaN, epsc=NaN, rho=0.0)
         @check E>0.0  
         @check nu>=0.0 
         @check pc<0.0     # pc ≈ 20*fc ≈ 7*py0; py0 ≈ fc/3
@@ -36,14 +36,14 @@ mutable struct CompressiveSolid<:Material
 end
 
 
-mutable struct CompressiveSolidState<:IpState
+mutable struct CompressibleBulkState<:IpState
     env ::ModelEnv
     σ   ::Array{Float64,1}  # current stress
     ε   ::Array{Float64,1}  # current strain
     εvp ::Float64           # current plastic volumetric strain
     Δλ  ::Float64          # plastic multiplier
 
-    function CompressiveSolidState(env::ModelEnv=ModelEnv())
+    function CompressibleBulkState(env::ModelEnv=ModelEnv())
         this      = new(env)
         this.σ    = zeros(6)
         this.ε    = zeros(6)
@@ -56,24 +56,24 @@ end
 
 
 # Returns the element type that works with this material model
-matching_elem_type(::CompressiveSolid) = MechSolid
+matching_elem_type(::CompressibleBulk) = MechSolid
 
 # Type of corresponding state structure
-ip_state_type(::CompressiveSolid) = CompressiveSolidState
+ip_state_type(::CompressibleBulk) = CompressibleBulkState
 
 
-@inline function calc_py(mat::CompressiveSolid, state::CompressiveSolidState, εvp::Float64)
+@inline function calc_py(mat::CompressibleBulk, state::CompressibleBulkState, εvp::Float64)
     return mat.py0 + (mat.pc-map.py0)*exp( 1 - (εvp/mat.εvpc)^-mat.α )
 end
 
 
-@inline function yield_func(mat::CompressiveSolid, state::CompressiveSolidState, σ::Array{Float64,1},  εvp::Float64)
+@inline function yield_func(mat::CompressibleBulk, state::CompressibleBulkState, σ::Array{Float64,1},  εvp::Float64)
     p = trace(σ)/3
     return calc_py(mat, state, εvp) - p
 end
 
 
-function calcD(mat::CompressiveSolid, state::CompressiveConcreteState)
+function calcD(mat::CompressibleBulk, state::CompressibleBulkState)
     α   = mat.α
     De  = calcDe(mat.E, mat.ν, state.env.modeltype)
 
@@ -88,7 +88,7 @@ function calcD(mat::CompressiveSolid, state::CompressiveConcreteState)
     return De - De*dfdσ*dfdσ*D/(dot(dfdσ*De, dfdσ) + dpydεvp) # todo
 end
 
-function calc_σ_Δεvp_Δλ(mat::CompressiveSolid, state::CompressiveSolidState, σtr::Array{Float64,1})
+function calc_σ_Δεvp_Δλ(mat::CompressibleBulk, state::CompressibleBulkState, σtr::Array{Float64,1})
     Δλ = 0.0
     up = 0.0
     σ  = zeros(ndim)
@@ -123,7 +123,7 @@ function calc_σ_Δεvp_Δλ(mat::CompressiveSolid, state::CompressiveSolidState
 end
 
 
-function stress_update(mat::CompressiveSolid, state::CompressiveConcreteState, Δε::Array{Float64,1})
+function stress_update(mat::CompressibleBulk, state::CompressibleBulkState, Δε::Array{Float64,1})
     σini = state.σ
 
     De  = calcDe(mat.E, mat.ν, state.env.modeltype)
@@ -150,7 +150,7 @@ function stress_update(mat::CompressiveSolid, state::CompressiveConcreteState, �
 end
 
 
-function ip_state_vals(mat::CompressiveSolid, state::CompressiveSolidState)
+function ip_state_vals(mat::CompressibleBulk, state::CompressibleBulkState)
     dict = stress_strain_dict(state.σ, state.ε, state.env.modeltype)
     dict[:evp] = state.εvp
     return dict
