@@ -609,7 +609,6 @@ function split_block(bl::Block, msh::Mesh)
         return
     end
 
-    #if cellshape == HEX20 || cellshape == TET10 # || cellshape == HEX27
     if cellshape in (TET10, HEX20, HEX27)
         p_arr = Array{Node}(undef, 2*nx+1, 2*ny+1, 2*nz+1)
         for k = 1:2*nz+1
@@ -705,77 +704,6 @@ function split_block(bl::Block, msh::Mesh)
     error("block: Can not discretize using shape $(cellshape.name)")
 end
 
-
-# mutable struct BlockCylinder <: AbstractBlock
-#     nodes::Array{Node,1}
-#     shape::CellShape # LIN2
-#     cellshape::CellShape # HEX8, HEX20
-#     r::Float64
-#     nr::Int64
-#     n::Int64
-#     tag::String
-#     id::Int64
-
-#     function BlockCylinder(coords::Array{<:Real}; r=1.0, nr=3, n=2, cellshape=HEX8, tag="", id=-1)
-#         size(coords,1) != 2 && error("Invalid coordinates matrix for BlockCylinder")
-#         nr<2 && error("Invalid nr=$nr value for BlockCylinder")
-#         cellshape in (HEX8, HEX20) || error("BlockCylinder: cellshape must be HEX8 or HEX20")
-#         nodes = [ Node(coords[i,1], coords[i,2], coords[i,3]) for i in 1:size(coords,1) ]
-#         return new(nodes, LIN2, cellshape, r, nr, n, tag, id)
-#     end
-# end
-
-
-# function Base.copy(bl::BlockCylinder)
-#     newbl = BlockCylinder(copy(getcoords(bl.nodes)), r=bl.r, nr=bl.nr, n=bl.n, cellshape=bl.cellshape, tag=bl.tag)
-# end
-
-
-# function split_block(bl::BlockCylinder, msh::Mesh)
-
-#     nx1 = round(Int, bl.nr/3)
-#     nx2 = bl.nr - nx1
-#     shape2D = bl.cellshape==HEX8 ? QUAD4 : QUAD8
-
-#     # constructing quadratic blocks
-#     coords = bl.r*[ 0 0; 1/3 0; 1/3 1/3; 0 1/3; 1/6 0; 1/3 1/6; 1/6 1/3; 0 1/6 ]
-#     bl1 = Block(coords, nx=nx1, ny=nx1, cellshape= shape2D, tag=bl.tag)
-
-#     s45  = sin(45*pi/180)
-#     c45  = s45
-#     s225 = sin(22.5*pi/180)
-#     c225 = cos(22.5*pi/180)
-
-#     coords = bl.r*[ 1/3 0; 1 0; c45 s45; 1/3 1/3; 2/3 0; c225 s225; (c45+1/3)/2 (s45+1/3)/2; 1/3 1/6 ]
-#     bl2    = Block(coords, nx=nx2, ny=nx1, cellshape= shape2D, tag=bl.tag)
-
-#     coords = bl.r*[ 0 1/3; 1/3 1/3; c45 s45; 0 1; 1/6 1/3; (c45+1/3)/2 (s45+1/3)/2; s225 c225; 0 2/3 ]
-#     bl3    = Block(coords, nx=nx1, ny=nx2, cellshape= shape2D, tag=bl.tag)
-
-#     blocks = [bl1, bl2, bl3 ]
-
-#     # polar and move
-#     blocks = polar(blocks, n=4)
-#     coords =getcoords(bl.nodes)
-#     move!(blocks, dx=coords[1,1], dy=coords[1,2], dz=coords[1,3])
-
-#     # extrude
-#     len      = norm(coords[1,:] - coords[2,:])
-#     blocks3D = extrude(blocks, length=len, n=bl.n)
-
-#     # rotation
-#     zv    = [0.0, 0.0, 1.0]
-#     axis  = coords[2,:] - coords[1,:]
-#     angle = acos( dot(zv, axis)/(norm(zv)*norm(axis)) )*180/pi
-#     raxis = cross(zv, axis)
-#     norm(raxis)>1e-10 && rotate!(blocks3D, base=coords[1,:], axis=raxis, angle=angle)
-
-#     # split
-#     for bl in blocks3D
-#         split_block(bl, msh)
-#     end
-
-# end
 
 function BlockGrid(
     X::Array{<:Real},            # list of x coordinates
