@@ -15,14 +15,15 @@ mutable struct CompressibleBulk<:Material
     py0 ::Float64
     pc  ::Float64
     εvpc::Float64 # ≈ 0.07
+    α   ::Float64 # ≈ 0.07
     ρ   ::Float64
 
     function CompressibleBulk(; E=NaN, nu=0.2, pc=NaN, alpha=2.0, epsy=NaN, epsc=NaN, rho=0.0)
         @check E>0.0  
         @check nu>=0.0 
         @check pc<0.0     # pc ≈ 20*fc ≈ 7*py0; py0 ≈ fc/3
-        @check epsy<0.0
-        @check epsc<epsy
+        @check epsy<0.0   # epsy ≈ 0.002
+        @check epsc<epsy  # epsy ≈ 0.07
         @check alpha>1.0
         @check rho>=0.0
 
@@ -30,7 +31,7 @@ mutable struct CompressibleBulk<:Material
         py0 = K*epsy
         εvpc = epsc-epsy
 
-        this = new(E, nu, py0, pc, εvpc, rho)
+        this = new(E, nu, py0, pc, εvpc, alpha, rho)
         return this
     end
 end
@@ -63,12 +64,14 @@ ip_state_type(::CompressibleBulk) = CompressibleBulkState
 
 
 @inline function calc_py(mat::CompressibleBulk, state::CompressibleBulkState, εvp::Float64)
-    return mat.py0 + (mat.pc-map.py0)*exp( 1 - (εvp/mat.εvpc)^-mat.α )
+    return mat.py0 + (mat.pc-mat.py0)*exp( 1 - (εvp/mat.εvpc)^-mat.α )
 end
 
 
 @inline function yield_func(mat::CompressibleBulk, state::CompressibleBulkState, σ::Array{Float64,1},  εvp::Float64)
-    p = trace(σ)/3
+    p = (σ[1]+σ[2]+σ[3])/3
+    f = calc_py(mat, state, εvp) - p
+    @show f
     return calc_py(mat, state, εvp) - p
 end
 
@@ -143,6 +146,8 @@ function stress_update(mat::CompressibleBulk, state::CompressibleBulkState, Δε
         state.εvp += -Δλ
 
     end
+
+    @show Δε
 
     state.ε += Δε
     Δσ       = state.σ - σini
