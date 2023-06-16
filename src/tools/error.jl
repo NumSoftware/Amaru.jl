@@ -20,13 +20,11 @@ macro check(expr, exception=ArgumentError, args...)
                 st = stacktrace(backtrace())
                 fname = :_
                 for frm in st
-                    if frm.func != :backtrace && frm.func!= Symbol("macro expansion")
+                    if !startswith(string(frm.func), "_") && frm.func!=Symbol("macro expansion")
                         fname = frm.func
                         break
                     end
                 end
-
-                fname = replace(string(fname), r"#\d*"=>"")
 
                 # Prepare message
                 if length($vars)==1
