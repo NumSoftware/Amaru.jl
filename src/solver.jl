@@ -270,7 +270,8 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
             sline_task = Threads.@spawn run_status_line(sline)
         end
 
-        runerror = nothing
+        local runerror
+        local error_st
         try
             solstatus = stage_solver!(model, stage, logfile, sline; args...)
             if succeeded(solstatus)
@@ -285,6 +286,7 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
                 stage.status = :interrupted
             else
                 stage.status = :error
+                error_st = stacktrace(catch_backtrace())
             end
         end
         close(logfile)
@@ -298,6 +300,15 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
         if stage.status == :interrupted 
             throw(AmaruException("The analysis was interrupted"))
         elseif stage.status == :error
+            # trim not important frames; search for the frame that contains current function
+            idx = findfirst(contains("iterator"), string(frame) for frame in error_st)
+            error_st = error_st[1:idx-1]
+
+            alert("Amaru internal error", level=1)
+            showerror(stdout, runerror, error_st)
+            println()
+            # error()
+            # @show runerror.backtrace()
             throw(runerror) 
         end
 
@@ -307,3 +318,4 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
     return solstatus
 
 end
+
