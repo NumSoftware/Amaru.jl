@@ -4,6 +4,10 @@ export CompressiveSolid
 
 """
     $(TYPEDEF)
+
+An elastoplastic constitutive model is used to simulate materials that primarily exhibit
+elastic behavior but exhibit nonlinear behavior when the isotropic compression p exceeds 
+a predefined yield limit py.
 """
 mutable struct CompressiveSolid<:Material
     E   ::Float64  # initial Young modulus
@@ -13,14 +17,13 @@ mutable struct CompressiveSolid<:Material
     εvpc::Float64 # ≈ 0.07
     ρ   ::Float64
 
-    function CompressiveSolid(; E=NaN, nu=0.2, fc=NaN, pc=20*fc, alpha=2.0, epsy=NaN, epsc=NaN, rho=0.0)
+    function CompressiveSolid(; E=NaN, nu=0.2, pc=NaN, alpha=2.0, epsy=NaN, epsc=NaN, rho=0.0)
         @check E>0.0  
         @check nu>=0.0 
-        @check fc<0.0     # py ≈ fc/3
-        @check pc<0.0     # pc ≈ 20*fc
+        @check pc<0.0     # pc ≈ 20*fc ≈ 7*py0; py0 ≈ fc/3
         @check epsy<0.0
         @check epsc<epsy
-        @check alpha>=0.0
+        @check alpha>1.0
         @check rho>=0.0
 
         K = E/(3*(1-2*nu))
@@ -63,14 +66,12 @@ ip_state_type(::CompressiveSolid) = CompressiveSolidState
     return mat.py0 + (mat.pc-map.py0)*exp( 1 - (εvp/mat.εvpc)^-mat.α )
 end
 
-function yield_func(mat::CompressiveSolid, state::CompressiveSolidState, σ::Array{Float64,1},  εvp::Float64)
+
+@inline function yield_func(mat::CompressiveSolid, state::CompressiveSolidState, σ::Array{Float64,1},  εvp::Float64)
     p = trace(σ)/3
     return calc_py(mat, state, εvp) - p
 end
 
-@inline function yield_derivs(mat::CompressiveSolid, state::CompressiveSolidState, σ::Array{Float64,1}, σmax::Float64)
-    return [ -1/3, -1/3, -1/3, 0.0, 0.0, 0.0 ]
-end
 
 function calcD(mat::CompressiveSolid, state::CompressiveConcreteState)
     α   = mat.α
@@ -87,45 +88,67 @@ function calcD(mat::CompressiveSolid, state::CompressiveConcreteState)
     return De - De*dfdσ*dfdσ*D/(dot(dfdσ*De, dfdσ) + dpydεvp) # todo
 end
 
+function calc_σ_Δεvp_Δλ(mat::CompressiveSolid, state::CompressiveSolidState, σtr::Array{Float64,1})
+    Δλ = 0.0
+    up = 0.0
+    σ  = zeros(ndim)
+    σ0 = zeros(ndim)
+    K  = mat.E/(3*(1-2*mat.ν))
+    
+    tol    = 1e-6
+    maxits = 50
+    for i in 1:maxits
+        # quantities at n+1
+        σ = σtr - Δλ*K*mI
+
+        dfdσ  = -mI/3
+        r     = dfdσ
+        Δεvp  = Δλ*r
+        εvp   = state.εvp + Δεvp
+
+        f       = yield_func(mat, state, σ, εvp)
+        dpydεvp = (pc-py0)*exp( 1 - (εvp/εvpc)^-α )*α*(εvp/εvpc)^(-α-1)/εvpc
+        dfdΔλ   = dpydεvp - 3*K
+        Δλ      = Δλ - f/dfdΔλ
+        
+        if Δλ<=0 || isnan(Δλ) || i==maxits
+            return 0.0, state.σ, 0.0, failure("TCJoint: failed to find Δλ")
+        end
+
+        maximum(abs, σ-σ0) <= tol && break
+        σ0 .= σ
+    end
+
+    return σ, up, Δλ, success()
+end
 
 
 function stress_update(mat::CompressiveSolid, state::CompressiveConcreteState, Δε::Array{Float64,1})
     σini = state.σ
-    De   = calcDe(mat.E, mat.ν, state.env.modeltype)
-    σtr  = state.σ + inner(De, Δε)
-    ftr  = yield_func(mat, state, σtr, state.εvp)
+
+    De  = calcDe(mat.E, mat.ν, state.env.modeltype)
+    σtr = state.σ + inner(De, Δε)
+    ftr = yield_func(mat, state, σtr, state.εvp)
 
     if ftr < 1.e-8 # elastic
         state.Δλ = 0.0
         state.σ  = σtr
     else
         # plastic
-        K, G  = mat.E/(3.0*(1.0-2.0*mat.ν)), mat.E/(2.0*(1.0+mat.ν))
-        α, H  = mat.α, mat.H
-        n     = 1.0/√(3.0*α*α+0.5)
-        j1tr  = J1(σtr)
-        j2dtr = J2D(σtr)
+        σ, Δεvp, Δλ, status = calc_σ_Δεvp_Δλ(mat::AbstractTCJoint, state::AbstractTCJointState, σtr::Array{Float64,1})
+        failed(status) && return state.σ, status
 
-        if √j2dtr - state.Δλ*n*G > 0.0 # conventional return
-            state.Δλ = ftr/(9*α*α*n*K + n*G + H)
-            j1     = j1tr - 9*state.Δλ*α*n*K
-            m      = 1.0 - state.Δλ*n*G/√j2dtr
-            state.σ  = m*dev(σtr) + j1/3.0*tI
-        else # return to apex
-            κ      = mat.κ
-            state.Δλ = (α*j1tr-κ-H*state.εpa)/(3*√3*α*K + H)
-            j1     = j1tr - 3*√3*state.Δλ*K
-            state.σ  = j1/3.0*tI
-        end
+        state.σ, state.Δεvp, state.Δλ = σ, Δεvp, Δλ
 
-        state.εpa += state.Δλ
+        state.εvp += -Δλ
 
     end
 
     state.ε += Δε
-    Δσ     = state.σ - σini
+    Δσ       = state.σ - σini
     return Δσ, success()
 end
+
 
 function ip_state_vals(mat::CompressiveSolid, state::CompressiveSolidState)
     dict = stress_strain_dict(state.σ, state.ε, state.env.modeltype)
