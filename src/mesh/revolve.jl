@@ -24,7 +24,7 @@ function revolve(
     @check length(axis)==3
     @check n>0
 
-    @check mesh.env.ndim<3
+    # @check mesh.env.ndim>=2
 
     axis = Vec3(normalize(axis))
     base = Vec3(base)
