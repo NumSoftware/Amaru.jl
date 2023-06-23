@@ -19,19 +19,6 @@ end
 
 matching_shape_family(::Type{TMShell}) = BULKCELL
 
-function elem_config_dofs(elem::TMShell)
-    ndim = elem.env.ndim
-    ndim in (1,2) && error("MechShell: Shell elements do not work in $(ndim)d analyses")
-    for node in elem.nodes
-        add_dof(node, :ux, :fx)
-        add_dof(node, :uy, :fy)
-        add_dof(node, :uz, :fz)
-        add_dof(node, :rx, :mx)
-        add_dof(node, :ry, :my)
-        add_dof(node, :rz, :mz)
-        add_dof(node, :ut, :ft) # VERIFICAR
-    end
-end
 
 function elem_init(elem::TMShell)
     
@@ -93,10 +80,9 @@ function setquadrature!(elem::TMShell, n::Int=0)
 
 end
 
-
 # DUVIDA!!!!!!
 function distributed_bc(elem::TMShell, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
-    return mech_shell_boundary_forces(elem, facet, key, val)
+        return mech_shell_boundary_forces(elem, facet, key, val)
 end
 
 
@@ -104,7 +90,19 @@ function body_c(elem::TMShell, key::Symbol, val::Union{Real,Symbol,Expr})
     return mech_shell_body_forces(elem, key, val)
 end
 
-
+function elem_config_dofs(elem::TMShell)
+    ndim = elem.env.ndim
+    ndim in (1,2) && error("MechShell: Shell elements do not work in $(ndim)d analyses")
+    for node in elem.nodes
+        add_dof(node, :ux, :fx)
+        add_dof(node, :uy, :fy)
+        add_dof(node, :uz, :fz)
+        add_dof(node, :rx, :mx)
+        add_dof(node, :ry, :my)
+        add_dof(node, :rz, :mz)
+        add_dof(node, :ut, :ft) # VERIFICAR
+    end
+end
 
 @inline function elem_map_u(elem::TMShell)
     keys =(:ux, :uy, :uz, :rx, :ry, :rz)
@@ -185,6 +183,9 @@ function elem_stiffness(elem::TMShell)
         dNdX′ = dNdR*invJ′
 
         D = calcD(elem.mat, ip.state)
+        #@show D
+        #error()
+
         detJ′ = det(J′)
         @assert detJ′>0
         
@@ -200,6 +201,7 @@ function elem_stiffness(elem::TMShell)
 
     map = elem_map_u(elem)
     #@show K
+    #error()
     return K, map, map
 end
 
@@ -233,7 +235,7 @@ function elem_coupling_matrix(elem::TMShell)
     ndof   = 6
     nstr   = 6
     C      = getcoords(elem)
-    K      = zeros(ndof*nnodes, ndof*nnodes)
+    #K      = zeros(ndof*nnodes, ndof*nnodes)
     B      = zeros(nstr, ndof*nnodes)
     L      = zeros(3,3)
     Rrot   = zeros(5,ndof)
@@ -243,10 +245,10 @@ function elem_coupling_matrix(elem::TMShell)
     C   = getcoords(elem)
     Cut = zeros(ndof*nnodes, nnodes) # u-t coupling matrix
     m    = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
-    β    = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) # ther
+    β    = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) 
 
     for ip in elem.ips
-        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        #elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix
         #dNdR = elem.shape.deriv(ip.R)
@@ -270,6 +272,7 @@ function elem_coupling_matrix(elem::TMShell)
         # compute Cut
         coef  = β
         coef *= detJ′*ip.w*th
+        #coef *= detJ′*ip.w
         mN   = m*N'
         @gemm Cut -= coef*B'*mN
     end
@@ -313,8 +316,8 @@ function elem_conductivity_matrix(elem::TMShell)
         @assert detJ′>0
         
         coef = detJ′*ip.w*th
-        H += coef*Bt'*K*Bt
-
+        H -= coef*Bt'*K*Bt
+        #H += coef*Bt'*K*Bt
     end
 
     map = elem_map_t(elem)
@@ -434,8 +437,8 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     cv = elem.mat.cv
     β = E*α/(1-2*nu)
     
-    map_t = elem_map_t(elem)
     map_u = elem_map_u(elem)
+    map_t = elem_map_t(elem)
 
     dU = DU[map_u]
     dUt = DU[map_t] # nodal temperature increments
@@ -465,7 +468,6 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
         set_rot_x_xp(elem, J2D, L)
         J′ = [ L*J2D [ 0,0,th/2]  ]
         invJ′ = inv(J′)
-        detJ′ = det(J′)
 
         dNdR = [ dNdR zeros(nnodes) ]
         dNdX′ = dNdR*invJ′
@@ -474,7 +476,6 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
 
         # compute Δε
         @gemv Δε = B*dU
-
 
         # compute Δut
         Δut = N'*dUt # interpolation to the integ. point
@@ -487,10 +488,17 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
 
          # internal force dF
          Δσ, q = stress_update(elem.mat, ip.state, Δε, Δut, G, Δt)
+         #@showm Δσ
+         #error()
          Δσ -= β*Δut*m # get total stress
- 
-         coef = detJ′*ip.w*th
-         @gemv dF += coef*B'*Δσ
+         #@showm Δσ
+         #error()
+
+        
+         detJ′ = det(J′)
+         #coef = detJ′*ip.w*th
+         coef = detJ′*ip.w
+         dF += coef*B'*Δσ
  
          # internal volumes dFt
          Δεvol = dot(m, Δε)

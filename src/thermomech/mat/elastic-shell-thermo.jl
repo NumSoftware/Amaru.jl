@@ -71,11 +71,21 @@ ip_state_type(mat::ElasticShellThermo) = ElasticShellThermoState
 #    end
 #end
 
-
-
 function calcD(mat::ElasticShellThermo, state::ElasticShellThermoState)
-    return calcDe(mat.E, mat.nu, state.env.modeltype) # function calcDe defined at elastic-Shell.jl
+    E = mat.E
+    ν = mat.nu
+    c = E/(1.0-ν^2)
+    g = E/(1+ν)
+    return [
+        c    c*ν   0.0  0.0    0.0    0.0
+        c*ν  c     0.0  0.0    0.0    0.0
+        0.0  0.0   0.0  0.0    0.0    0.0
+        0.0  0.0   0.0  5/6*g  0.0    0.0
+        0.0  0.0   0.0  0.0    5/6*g  0.0
+        0.0  0.0   0.0  0.0    0.0    g ]
+    # ezz = -ν/E*(sxx+syy)
 end
+
 
 function calcK(mat::ElasticShellThermo, state::ElasticShellThermoState) # Thermal conductivity matrix
     if state.env.ndim==2
@@ -85,11 +95,22 @@ function calcK(mat::ElasticShellThermo, state::ElasticShellThermoState) # Therma
     end
 end
 
+#=
+function stress_update(mat::ElasticShellThermo, state::ElasticShellThermoState, dε::Array{Float64,1})
+    D = calcD(mat, state)
+    dσ = D*dε
+    state.ε += dε
+    state.σ += dσ
+    return dσ, success()
+end
+=#
+
 function stress_update(mat::ElasticShellThermo, state::ElasticShellThermoState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
     De = calcD(mat, state)
     Δσ = De*Δε
     state.ε  += Δε
     state.σ  += Δσ
+
     K = calcK(mat, state)
     state.QQ = -K*G
     state.D  += state.QQ*Δt
@@ -99,12 +120,13 @@ end
 
 function ip_state_vals(mat::ElasticShellThermo, state::ElasticShellThermoState)
     D = stress_strain_dict(state.σ, state.ε, state.env.modeltype)
-
-    #D[:qx] = state.QQ[1] # VERIFICAR NECESSIDADE
-    #D[:qy] = state.QQ[2] # VERIFICAR NECESSIDADE
-    #if state.env.ndim==3 # VERIFICAR NECESSIDADE
-        #D[:qz] = state.QQ[3] # VERIFICAR NECESSIDADE
-    #end # VERIFICAR NECESSIDADE
-
+    #=
+    D[:qx] = state.QQ[1] # VERIFICAR NECESSIDADE
+    D[:qy] = state.QQ[2] # VERIFICAR NECESSIDADE
+        if state.env.ndim==3 # VERIFICAR NECESSIDADE
+            D[:qz] = state.QQ[3] # VERIFICAR NECESSIDADE
+        end # VERIFICAR NECESSIDADE
+    =#
     return D
+    #return stress_strain_dict(state.σ, state.ε, state.env.modeltype)
 end
