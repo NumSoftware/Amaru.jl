@@ -271,7 +271,7 @@ function elem_coupling_matrix(elem::TMShell)
         @assert detJ′>0
         # compute Cut
         coef  = β
-        coef *= detJ′*ip.w*th
+        coef *= detJ′*ip.w
         #coef *= detJ′*ip.w
         mN   = m*N'
         @gemm Cut -= coef*B'*mN
@@ -315,7 +315,7 @@ function elem_conductivity_matrix(elem::TMShell)
         detJ′ = det(J′)
         @assert detJ′>0
         
-        coef = detJ′*ip.w*th
+        coef = detJ′*ip.w
         H -= coef*Bt'*K*Bt
         #H += coef*Bt'*K*Bt
     end
@@ -350,7 +350,7 @@ function elem_mass_matrix(elem::TMShell)
 
         # compute Cut
         coef  = elem.mat.ρ*elem.mat.cv
-        coef *= detJ′*ip.w*th
+        coef *= detJ′*ip.w
 
         M    -= coef*N*N'
     end
@@ -503,15 +503,15 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
          # internal volumes dFt
          Δεvol = dot(m, Δε)
          coef  = β*Δεvol*T0k
-         coef *= detJ′*ip.w*th
+         coef *= detJ′*ip.w
          dFt  -= coef*N
  
          coef  = ρ*cv
-         coef *= detJ′*ip.w*th
+         coef *= detJ′*ip.w
          dFt  -= coef*N*Δut
  
          coef  = Δt
-         coef *= detJ′*ip.w*th
+         coef *= detJ′*ip.w
          @gemv dFt += coef*Bt'*q
 
     end
