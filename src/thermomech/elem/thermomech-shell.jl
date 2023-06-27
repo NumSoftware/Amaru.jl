@@ -146,6 +146,7 @@ function setB(elem::TMShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx, B
         dNdy = dNdX[i,2]
         Ni = N[i]
 
+        
         Bil[1,1] = dNdx;                                                                                Bil[1,5] = dNdx*ζ*th/2
                              Bil[2,2] = dNdy;                           Bil[2,4] = -dNdy*ζ*th/2
                                                   
@@ -272,7 +273,11 @@ function elem_coupling_matrix(elem::TMShell)
         # compute Cut
         coef  = β
         coef *= detJ′*ip.w
+<<<<<<< HEAD
         #coef *= detJ′*ip.w*th
+=======
+        #coef *= detJ′*ip.w
+>>>>>>> bdbe761831c5e8b1c1282a1e5c2047040fe4e8c8
         mN   = m*N'
         @gemm Cut -= coef*B'*mN
     end
@@ -317,9 +322,14 @@ function elem_conductivity_matrix(elem::TMShell)
         @assert detJ′>0
         
         coef = detJ′*ip.w
+<<<<<<< HEAD
         #coef = detJ′*ip.w*th
         @gemm KBt = K*Bt
         H -= coef*Bt'*KBt
+=======
+        H -= coef*Bt'*K*Bt
+        #H += coef*Bt'*K*Bt
+>>>>>>> bdbe761831c5e8b1c1282a1e5c2047040fe4e8c8
     end
 
     map = elem_map_t(elem)
@@ -353,6 +363,10 @@ function elem_mass_matrix(elem::TMShell)
         # compute Cut
         coef  = elem.mat.ρ*elem.mat.cv
         coef *= detJ′*ip.w
+<<<<<<< HEAD
+=======
+
+>>>>>>> bdbe761831c5e8b1c1282a1e5c2047040fe4e8c8
         M    -= coef*N*N'
     end
 

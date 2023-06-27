@@ -130,7 +130,7 @@ function elem_conductivity_matrix(elem::ThermoShell)
         detJ′ = det(J′)
         @assert detJ′>0
         
-        coef = detJ′*ip.w*th
+        coef = detJ′*ip.w
         H -= coef*Bt'*K*Bt
 
     end
@@ -165,7 +165,7 @@ function elem_mass_matrix(elem::ThermoShell)
 
         # compute Cut
         coef  = elem.mat.ρ*elem.mat.cv
-        coef *= detJ′*ip.w*th
+        coef *= detJ′*ip.w
         M    -= coef*N*N'
 
     end
@@ -283,10 +283,10 @@ function elem_update!(elem::ThermoShell, DU::Array{Float64,1}, Δt::Float64)
         #error()
 
         coef  = elem.mat.ρ*elem.mat.cv
-        coef *= detJ′*ip.w*th
+        coef *= detJ′*ip.w
         dFt  -= coef*N*Δut
 
-        coef = Δt*detJ′*ip.w*th
+        coef = Δt*detJ′*ip.w
         @gemv dFt += coef*Bt'*q
 
     end

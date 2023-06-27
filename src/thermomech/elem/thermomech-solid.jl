@@ -423,7 +423,11 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
 
         # internal force dF
         Δσ, q = stress_update(elem.mat, ip.state, Δε, Δut, G, Δt)
+        #@show Δσ
+
+        #@show "HIIIIIIIIIIIIIIIIIII"
         Δσ -= β*Δut*m # get total stress
+        #@show Δσ
 
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*Δσ

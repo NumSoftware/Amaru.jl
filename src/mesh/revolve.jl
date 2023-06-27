@@ -199,6 +199,7 @@ function revolve(
 
     # New mesh
     ndim = sum(node.coord.z for node in nodes)==0 ? 2 : 3
+    ndim = max(ndim, mesh.env.ndim)
     newmesh = Mesh(ndim)
     newmesh.nodes = nodes
     newmesh.elems = cells

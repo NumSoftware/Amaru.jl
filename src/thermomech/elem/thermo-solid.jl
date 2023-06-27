@@ -233,6 +233,9 @@ function elem_update!(elem::ThermoSolid, DU::Array{Float64,1}, Δt::Float64)
 
         q = update_state!(elem.mat, ip.state, Δut, G, Δt)
 
+        #@showm q
+        #error()
+
         coef  = elem.mat.ρ*elem.mat.cv
         coef *= detJ*ip.w*th
         dFt  -= coef*N*Δut

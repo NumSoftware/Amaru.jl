@@ -139,6 +139,7 @@ function setB(elem::MechShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx,
     for i in 1:nnodes
         ζ = ip.R[3]
         Rrot[1:3,1:3] .= L
+        #Rrot[1:3,1:3] .= elem.Dlmn[i][1:3,:]
         # Rrot[4:5,4:6] .= L[1:2,:]
         # Rrot[1:3,1:3] .= elem.Dlmn[i]
         Rrot[4:5,4:6] .= elem.Dlmn[i][1:2,:]
@@ -173,9 +174,9 @@ function setNN(elem::MechShell, ip::Ip, N::Vect, NNil::Matx, NNi::Matx, L::Matx,
     for i in 1:nnodes
         
         Rrot[1:3,1:3] .= L
-        # Rrot[4:5,4:6] .= L[1:2,:]
+        Rrot[4:5,4:6] .= L[1:2,:]
         # Rrot[1:3,1:3] .= elem.Dlmn[i]
-        Rrot[4:5,4:6] .= elem.Dlmn[i][1:2,:]
+        #Rrot[4:5,4:6] .= elem.Dlmn[i][1:2,:]
 
         # R[1:3,4:5] .= elem.Dlmn[i][1:2,:]'
         #@show R
@@ -236,6 +237,9 @@ function elem_stiffness(elem::MechShell)
         dNdX′ = dNdR*invJ′
 
         D = calcD(elem.mat, ip.state)
+        #@show D
+        #error()
+
         detJ′ = det(J′)
         @assert detJ′>0
         
@@ -250,6 +254,8 @@ function elem_stiffness(elem::MechShell)
     end
 
     map = elem_map(elem)
+    #@show K
+    #error()
     return K, map, map
 end
 
@@ -324,6 +330,8 @@ function elem_update!(elem::MechShell, U::Array{Float64,1}, dt::Float64)
         Δε = B*dU
         Δσ, status = stress_update(elem.mat, ip.state, Δε)
         failed(status) && return failure("MechShell: Error at integration point $(ip.id)")
+        #@showm Δσ
+        #error()
 
         detJ′ = det(J′)
         coef = detJ′*ip.w
