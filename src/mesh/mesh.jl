@@ -624,9 +624,14 @@ function Mesh(
     end
 
     # Find ndim
-    blndim = maximum(bl.ndim for bl in blocks)
-    ndim!=0 && blndim>ndim && error("Mesh: Found blocks with greater dimension than provided ndim ($ndim)")
-    ndim = max(ndim, blndim)
+    if length(blocks)>0
+        blndim = maximum(bl.ndim for bl in blocks)
+        ndim = max(ndim, blndim)
+    end
+    if length(meshes)>0
+        msndim = maximum(mesh.env.ndim for mesh in meshes)
+        ndim = max(ndim, msndim)
+    end
 
     nmeshes = length(meshes)
     nblocks = length(blocks)
