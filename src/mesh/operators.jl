@@ -672,8 +672,7 @@ end
 
 
 function isinverted(elem::AbstractCell)
-    elem.shape.family==LINECELL && return false
-    elem.shape.family==LINEJOINTCELL && return false
+    elem.shape.family==BULKCELL || return false
 
     if elem.shape.ndim==2
         coords = getcoords(elem)
