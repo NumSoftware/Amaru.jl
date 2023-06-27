@@ -139,9 +139,9 @@ function setB(elem::TMShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx, B
     for i in 1:nnodes
         ζ = ip.R[3]
         Rrot[1:3,1:3] .= L
-        # Rrot[4:5,4:6] .= L[1:2,:]
+        Rrot[4:5,4:6] .= L[1:2,:]
         # Rrot[1:3,1:3] .= elem.Dlmn[i]
-        Rrot[4:5,4:6] .= elem.Dlmn[i][1:2,:]
+        #Rrot[4:5,4:6] .= elem.Dlmn[i][1:2,:]
         dNdx = dNdX[i,1]
         dNdy = dNdX[i,2]
         Ni = N[i]
@@ -271,8 +271,8 @@ function elem_coupling_matrix(elem::TMShell)
         @assert detJ′>0
         # compute Cut
         coef  = β
-        coef *= detJ′*ip.w*th
-        #coef *= detJ′*ip.w
+        coef *= detJ′*ip.w
+        #coef *= detJ′*ip.w*th
         mN   = m*N'
         @gemm Cut -= coef*B'*mN
     end
@@ -298,6 +298,7 @@ function elem_conductivity_matrix(elem::TMShell)
     C      = getcoords(elem)
     H      = zeros(nnodes, nnodes)
     Bt     = zeros(ndim, nnodes)
+    KBt    = zeros(ndim, nnodes)
     L      = zeros(3,3)
 
     for ip in elem.ips
@@ -315,9 +316,10 @@ function elem_conductivity_matrix(elem::TMShell)
         detJ′ = det(J′)
         @assert detJ′>0
         
-        coef = detJ′*ip.w*th
-        H -= coef*Bt'*K*Bt
-        #H += coef*Bt'*K*Bt
+        coef = detJ′*ip.w
+        #coef = detJ′*ip.w*th
+        @gemm KBt = K*Bt
+        H -= coef*Bt'*KBt
     end
 
     map = elem_map_t(elem)
@@ -350,8 +352,7 @@ function elem_mass_matrix(elem::TMShell)
 
         # compute Cut
         coef  = elem.mat.ρ*elem.mat.cv
-        coef *= detJ′*ip.w*th
-
+        coef *= detJ′*ip.w
         M    -= coef*N*N'
     end
 
@@ -503,15 +504,15 @@ function elem_update!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
          # internal volumes dFt
          Δεvol = dot(m, Δε)
          coef  = β*Δεvol*T0k
-         coef *= detJ′*ip.w*th
+         coef *= detJ′*ip.w
          dFt  -= coef*N
  
          coef  = ρ*cv
-         coef *= detJ′*ip.w*th
+         coef *= detJ′*ip.w
          dFt  -= coef*N*Δut
  
          coef  = Δt
-         coef *= detJ′*ip.w*th
+         coef *= detJ′*ip.w
          @gemv dFt += coef*Bt'*q
 
     end
