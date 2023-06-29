@@ -68,9 +68,14 @@ mutable struct ElasticSolidState<:IpState
 end
 
 
-
 # Returns the element type that works with this material model
-matching_elem_type(::ElasticSolid, shape::CellShape, ndim::Int) = MechSolid
+function matching_elem_type(::ElasticSolid, shape::CellShape, ndim::Int) 
+    if shape.ndim==2 && ndim==3
+        return MechShell
+    else
+        return MechSolid
+    end
+end
 
 # Type of corresponding state structure
 ip_state_type(::ElasticSolid) = ElasticSolidState
