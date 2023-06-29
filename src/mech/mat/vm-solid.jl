@@ -80,7 +80,16 @@ mutable struct VonMisesState<:IpState
     end
 end
 
-matching_elem_type(::VonMises) = MechSolid
+
+function matching_elem_type(::VonMises, shape::CellShape, ndim::Int) 
+    if shape.ndim==2 && ndim==3
+        return MechShell
+    else
+        return MechSolid
+    end
+end
+
+
 ip_state_type(mat::VonMises) = VonMisesState
 
 function yield_func(mat::VonMises, state::VonMisesState, σ::Tensor2)

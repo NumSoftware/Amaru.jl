@@ -56,7 +56,7 @@ mutable struct ElasticSolidLinSeep<:Material
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::ElasticSolidLinSeep) = HMSolid
+matching_elem_type(::ElasticSolidLinSeep, shape::CellShape, ndim::Int) = HMSolid
 
 # Type of corresponding state structure
 ip_state_type(mat::ElasticSolidLinSeep) = ElasticSolidLinSeepState

@@ -38,7 +38,7 @@ mutable struct ElasticShell<:Material
     end
 end
 
-matching_elem_type(::ElasticShell) = MechShell
+matching_elem_type(::ElasticShell, shape::CellShape, ndim::Int) = MechShell
 
 # Type of corresponding state structure
 ip_state_type(::ElasticShell) = ElasticShellState

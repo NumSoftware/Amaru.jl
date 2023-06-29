@@ -146,7 +146,7 @@ function FEModel(
             if cell.embedded
                 etype = matching_elem_type_if_embedded(mat)
             else
-                etype = matching_elem_type(mat)
+                etype = matching_elem_type(mat, cell.shape, ndim)
             end
 
             if matching_shape_family(etype) != cell.shape.family

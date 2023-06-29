@@ -48,7 +48,7 @@ mutable struct JointLinSeep<:Material
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::JointLinSeep) = HydroJoint
+matching_elem_type(::JointLinSeep, shape::CellShape, ndim::Int) = HydroJoint
 
 # Type of corresponding state structure
 ip_state_type(mat::JointLinSeep) = JointLinSeepState

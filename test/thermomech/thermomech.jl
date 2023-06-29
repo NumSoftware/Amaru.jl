@@ -23,7 +23,18 @@ materials = ["solids" => ElasticSolidThermo(
     rho   = rho,
     cv    = cv,
     alpha = alpha,
-)]
+)
+
+   "shell" => ShellModel(E, nu, k )
+
+   "shell-t" => ThermoMechShell( LinT(), VM())
+]
+
+properties = ["solids" => MechProperties(rho=)
+              "shell" => ThermoMechProperties(rho=, th=0.2, cv, alpha)
+]
+
+
 model = FEModel(msh, materials)
 
 loggers = [:(y == 1) => NodeGroupLogger("book3.dat")]
@@ -38,3 +49,9 @@ bcs = [
 addstage!(model, bcs, tspan=3000000, nincs=10)
 
 tm_solve!(model, tol=0.1)
+
+
+struct Properties
+    rho
+
+end

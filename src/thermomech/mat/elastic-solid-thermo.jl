@@ -48,7 +48,7 @@ mutable struct ElasticSolidThermo<:Material
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::ElasticSolidThermo) = TMSolid
+matching_elem_type(::ElasticSolidThermo, shape::CellShape, ndim::Int) = TMSolid
 
 # Type of corresponding state structure
 ip_state_type(mat::ElasticSolidThermo) = ElasticSolidThermoState

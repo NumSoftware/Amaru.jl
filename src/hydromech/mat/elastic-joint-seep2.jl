@@ -60,7 +60,7 @@ mutable struct ElasticJointSeep2<:Material
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::ElasticJointSeep2) = HydroMechJoint2
+matching_elem_type(::ElasticJointSeep2, shape::CellShape, ndim::Int) = HydroMechJoint2
 
 # Type of corresponding state structure
 ip_state_type(mat::ElasticJointSeep2) = JointSeepState2

@@ -28,7 +28,7 @@ mutable struct ElasticPlateMZC<:Material
     end
 end
 
-matching_elem_type(::ElasticPlateMZC) = PlateMZC
+matching_elem_type(::ElasticPlateMZC, shape::CellShape, ndim::Int) = PlateMZC
 
 # Type of corresponding state structure
 ip_state_type(mat::ElasticPlateMZC) = ElasticPlateMZCState

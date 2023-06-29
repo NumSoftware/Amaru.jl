@@ -70,7 +70,7 @@ end
 
 
 # Returns the element type that works with this material model
-matching_elem_type(::ElasticSolid) = MechSolid
+matching_elem_type(::ElasticSolid, shape::CellShape, ndim::Int) = MechSolid
 
 # Type of corresponding state structure
 ip_state_type(::ElasticSolid) = ElasticSolidState

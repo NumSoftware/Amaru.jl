@@ -50,7 +50,7 @@ export ElasticJoint1D
 
 
 # Returns the element type that works with this material
-matching_elem_type(::ElasticRSJoint) = MechRodSolidJoint
+matching_elem_type(::ElasticRSJoint, shape::CellShape, ndim::Int) = MechRodSolidJoint
 
 # Type of corresponding state structure
 ip_state_type(mat::ElasticRSJoint) = ElasticRSJointState

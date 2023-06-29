@@ -31,7 +31,7 @@ mutable struct LinearAcousticFluid<:Material
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::LinearAcousticFluid) = AcousticFluid
+matching_elem_type(::LinearAcousticFluid, shape::CellShape, ndim::Int) = AcousticFluid
 
 # Type of corresponding state structure
 ip_state_type(::LinearAcousticFluid) = LinearAcousticFluidState

@@ -56,7 +56,7 @@ mutable struct Mazars<:Material
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::Mazars) = MechSolid
+matching_elem_type(::Mazars, shape::CellShape, ndim::Int) = MechSolid
 
 # Type of corresponding state structure
 ip_state_type(mat::Mazars) = MazarsState

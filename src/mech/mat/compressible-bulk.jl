@@ -57,7 +57,7 @@ end
 
 
 # Returns the element type that works with this material model
-matching_elem_type(::CompressibleBulk) = MechSolid
+matching_elem_type(::CompressibleBulk, shape::CellShape, ndim::Int) = MechSolid
 
 # Type of corresponding state structure
 ip_state_type(::CompressibleBulk) = CompressibleBulkState

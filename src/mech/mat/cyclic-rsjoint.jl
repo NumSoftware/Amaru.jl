@@ -87,7 +87,7 @@ mutable struct CyclicRSJoint<:Material
 end
 
 # Returns the element type that works with this material
-matching_elem_type(::CyclicRSJoint) = MechRodSolidJoint
+matching_elem_type(::CyclicRSJoint, shape::CellShape, ndim::Int) = MechRodSolidJoint
 
 # Creates a new instance of Ip data
 ip_state_type(mat::CyclicRSJoint) = CyclicRSJointState

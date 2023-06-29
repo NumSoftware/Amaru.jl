@@ -42,7 +42,7 @@ mutable struct ElasticBeam<:Material
     end
 end
 
-matching_elem_type(::ElasticBeam) = MechBeam
+matching_elem_type(::ElasticBeam, shape::CellShape, ndim::Int) = MechBeam
 
 # Type of corresponding state structure
 ip_state_type(mat::ElasticBeam) = ElasticBeamState

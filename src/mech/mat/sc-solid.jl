@@ -68,7 +68,7 @@ mutable struct SmearedCrack<:Material
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::SmearedCrack) = MechSolid
+matching_elem_type(::SmearedCrack, shape::CellShape, ndim::Int) = MechSolid
 
 # Type of corresponding state structure
 ip_state_type(mat::SmearedCrack) = SmearedCrackState

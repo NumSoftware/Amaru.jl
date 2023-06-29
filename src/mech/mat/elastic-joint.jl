@@ -47,7 +47,7 @@ end
 
 # Returns the element type that works with this material model
 @static if @isdefined MechJoint
-    matching_elem_type(::ElasticJoint) = MechJoint
+    matching_elem_type(::ElasticJoint, shape::CellShape, ndim::Int) = MechJoint
 end
 
 # Type of corresponding state structure

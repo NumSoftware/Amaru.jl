@@ -75,7 +75,7 @@ end
 
 
 # Returns the element type that works with this material model
-matching_elem_type(::AbstractTCFJoint) = MechJoint
+matching_elem_type(::AbstractTCFJoint, shape::CellShape, ndim::Int) = MechJoint
 
 # Type of corresponding state structure
 ip_state_type(::AbstractTCFJoint) = TCFJointState

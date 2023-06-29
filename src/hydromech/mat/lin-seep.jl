@@ -38,7 +38,7 @@ mutable struct LinSeep<:Material
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::LinSeep) = SeepSolid
+matching_elem_type(::LinSeep, shape::CellShape, ndim::Int) = SeepSolid
 
 # Type of corresponding state structure
 ip_state_type(mat::LinSeep) = LinSeepState

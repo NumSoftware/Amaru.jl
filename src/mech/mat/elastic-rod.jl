@@ -68,7 +68,7 @@ mutable struct ElasticRodState<:IpState
     end
 end
 
-matching_elem_type(::ElasticRod) = MechRod
+matching_elem_type(::ElasticRod, shape::CellShape, ndim::Int) = MechRod
 matching_elem_type_if_embedded(::ElasticRod) = MechEmbRod
 
 # Type of corresponding state structure

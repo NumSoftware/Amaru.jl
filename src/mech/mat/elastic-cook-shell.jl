@@ -36,7 +36,7 @@ mutable struct ElasticCookShell<:Material
     end
 end
 
-matching_elem_type(::ElasticCookShell) = CookShell
+matching_elem_type(::ElasticCookShell, shape::CellShape, ndim::Int) = CookShell
 
 # Type of corresponding state structure
 ip_state_type(mat::ElasticCookShell) = ElasticCookShellState

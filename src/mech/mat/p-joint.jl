@@ -70,7 +70,7 @@ mutable struct PJoint<:Material
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::PJoint) = MechJoint
+matching_elem_type(::PJoint, shape::CellShape, ndim::Int) = MechJoint
 
 # Type of corresponding state structure
 ip_state_type(mat::PJoint) = PJointState

@@ -31,7 +31,7 @@ end
 
 
 # Returns the element type that works with this material
-matching_elem_type(::TipJoint) = MechTipJoint
+matching_elem_type(::TipJoint, shape::CellShape, ndim::Int) = MechTipJoint
 
 # Type of corresponding state structure
 ip_state_type(mat::TipJoint) = TipJointState

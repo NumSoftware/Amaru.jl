@@ -29,7 +29,7 @@ mutable struct ElasticShellDegenerated<:Material
     end
 end
 
-matching_elem_type(::ElasticShellDegenerated) = ShellDegenerated
+matching_elem_type(::ElasticShellDegenerated, shape::CellShape, ndim::Int) = ShellDegenerated
 
 # Type of corresponding state structure
 ip_state_type(mat::ElasticShellDegenerated) = ElasticShellDegeneratedState

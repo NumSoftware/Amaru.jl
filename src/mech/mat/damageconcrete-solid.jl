@@ -60,7 +60,7 @@ end
 
 
 # Returns the element type that works with this material model
-matching_elem_type(::DamageConcrete) = MechSolid
+matching_elem_type(::DamageConcrete, shape::CellShape, ndim::Int) = MechSolid
 
 # Type of corresponding state structure
 ip_state_type(mat::DamageConcrete) = DamageConcreteState

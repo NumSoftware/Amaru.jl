@@ -76,7 +76,7 @@ mutable struct MMCJoint<:Material
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::MMCJoint) = MechJoint
+matching_elem_type(::MMCJoint, shape::CellShape, ndim::Int) = MechJoint
 
 # Type of corresponding state structure
 ip_state_type(mat::MMCJoint) = MMCJointState

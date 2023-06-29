@@ -93,7 +93,7 @@ mutable struct TCJointSeep<:AbstractTCJoint
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::TCJointSeep) = HydroMechJoint
+matching_elem_type(::TCJointSeep, shape::CellShape, ndim::Int) = HydroMechJoint
 
 # Type of corresponding state structure
 ip_state_type(::TCJointSeep) = TCJointSeepState

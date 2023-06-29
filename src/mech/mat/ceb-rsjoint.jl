@@ -80,7 +80,7 @@ mutable struct CebRSJoint<:Material
 end
 
 # Returns the element type that works with this material
-matching_elem_type(::CebRSJoint) = MechRodSolidJoint
+matching_elem_type(::CebRSJoint, shape::CellShape, ndim::Int) = MechRodSolidJoint
 
 # Creates a new instance of Ip data
 ip_state_type(mat::CebRSJoint) = CebRSJointState

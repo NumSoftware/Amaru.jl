@@ -49,7 +49,7 @@ end
 
 
 # Returns the element type that works with this material
-matching_elem_type(::Joint1DLinSeep) = SeepJoint1D
+matching_elem_type(::Joint1DLinSeep, shape::CellShape, ndim::Int) = SeepJoint1D
 
 # Type of corresponding state structure
 ip_state_type(mat::Joint1DLinSeep) = Joint1DLinSeepState

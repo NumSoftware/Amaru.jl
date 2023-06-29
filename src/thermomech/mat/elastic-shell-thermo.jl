@@ -50,7 +50,7 @@ mutable struct ElasticShellThermo<:Material
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::ElasticShellThermo) = TMShell
+matching_elem_type(::ElasticShellThermo, shape::CellShape, ndim::Int) = TMShell
 
 # Type of corresponding state structure
 ip_state_type(mat::ElasticShellThermo) = ElasticShellThermoState

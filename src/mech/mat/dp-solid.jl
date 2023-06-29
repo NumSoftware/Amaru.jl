@@ -86,7 +86,7 @@ mutable struct DruckerPragerState<:IpState
     end
 end
 
-matching_elem_type(::DruckerPrager) = MechSolid
+matching_elem_type(::DruckerPrager, shape::CellShape, ndim::Int) = MechSolid
 
 # Type of corresponding state structure
 ip_state_type(mat::DruckerPrager) = DruckerPragerState
