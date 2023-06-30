@@ -87,7 +87,8 @@ Uses a mesh and a list of meterial especifications to construct a finite element
 """
 function FEModel(
     mesh      :: Mesh,
-    matbinds  :: Array{<:Pair,1};
+    matbinds  :: Array{<:Pair,1},
+    propbinds :: Array{<:Pair,1}=Pair[];
     modeltype :: String = "", # or "plane-stress", "plane-strain", "axysimmetric", "3d"
     thickness :: Real = 1.0,
     quiet     :: Bool = false,
@@ -171,6 +172,32 @@ function FEModel(
     end
     if !isempty(undefined_elem_shapes)
         error("Model: missing material definition to allocate elements with shape: $(join(undefined_elem_shapes, ", "))\n")
+    end
+
+    # Setting properties per element
+    for (filter, prop) in propbinds
+        cells = mesh.elems[filter]
+        if ! (cells isa Array)
+            cells = [ cells ]
+        end
+        if isempty(cells)
+            warn("Model: binding properties to an empty list of cells using filter expression $(repr(filter))")
+        end
+
+        for cell in cells
+            model.elems[cell.id].prop = prop
+        end
+    end
+
+    # Check if all elements have material defined
+    undefined_elem_shapes = Set{String}()
+    for elem in model.elems
+        if !isdefined(elem, :prop)
+            push!(undefined_elem_shapes, elem.shape.name)
+        end
+    end
+    if !isempty(undefined_elem_shapes)
+        warn("Model: properties not defined in elements with shape: $(join(undefined_elem_shapes, ", "))")
     end
 
     # Setting linked elements

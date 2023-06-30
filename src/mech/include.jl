@@ -3,6 +3,8 @@
 export elem_config_dofs, elem_init, elem_stiffness, elem_mass, elem_update!, elem_vals
 export set_state
 
+include("mech-properties.jl")
+
 include("elem/mech.jl")
 include("elem/distributed.jl")
 

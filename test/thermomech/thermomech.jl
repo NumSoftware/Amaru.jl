@@ -23,17 +23,7 @@ materials = ["solids" => ElasticSolidThermo(
     rho   = rho,
     cv    = cv,
     alpha = alpha,
-)
-
-   "shell" => ShellModel(E, nu, k )
-
-   "shell-t" => ThermoMechShell( LinT(), VM())
-]
-
-properties = ["solids" => MechProperties(rho=)
-              "shell" => ThermoMechProperties(rho=, th=0.2, cv, alpha)
-]
-
+) ]
 
 model = FEModel(msh, materials)
 

@@ -11,10 +11,11 @@ msh = revolve(msh, angle=180, n=n, base=[0,0,0], axis=[0,1,0])
 
 # Finite element model
 mats = [ "shell" => ElasticShell(E=3e4, nu=0.3, thickness=0.03) ]
+props = [ "shell" => MechProperties(th=0.03) ]
 
-dom = Model(msh, mats)
-addlogger!(dom, :(y==$L/2 && z==$R) => NodeGroupLogger())
-addmonitor!(dom, :(y==$L/2 && z==$R) => NodeMonitor(:(uz)))
+model = FEModel(msh, mats, props)
+addlogger!(model, :(y==$L/2 && z==$R) => NodeGroupLogger())
+addmonitor!(model, :(y==$L/2 && z==$R) => NodeMonitor(:(uz)))
 
 bcs =
     [
@@ -23,5 +24,5 @@ bcs =
     :(z==0.0) => NodeBC(uz=0, ry=0),
     :(y==$L/2 && z==$R) => NodeBC(fz=-0.01),
     ]
-addstage!(dom, bcs)
-solve!(dom, tol=0.1)
+addstage!(model, bcs)
+solve!(model, tol=0.1)

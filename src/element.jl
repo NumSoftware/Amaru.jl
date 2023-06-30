@@ -18,6 +18,7 @@ abstract type Element<:AbstractCell
     #ips   ::Array{Ip,1}
     #tag   ::String
     #mat   ::Material
+    #mat   ::Properties
     #active::Bool
     #linked_elems::Array{Element,1}
     #env ::ModelEnv

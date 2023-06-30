@@ -46,6 +46,8 @@ export getcoords
 include("material.jl")
 export Material, read_prms
 
+include("properties.jl")
+
 include("ip.jl")
 export Ip, ip_vals, maximum, minimum, sort
 

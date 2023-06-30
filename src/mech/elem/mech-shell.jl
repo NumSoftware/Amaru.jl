@@ -11,6 +11,7 @@ mutable struct MechShell<:Mechanical
     ips   ::Array{Ip,1}
     tag   ::String
     mat   ::Material
+    prop  ::Properties
     active::Bool
     linked_elems::Array{Element,1}
     env   ::ModelEnv
@@ -132,7 +133,7 @@ end
 
 function setB(elem::MechShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx, Bil::Matx, Bi::Matx, B::Matx)
     nnodes = size(dNdX,1)
-    th = elem.mat.th
+    th = elem.prop.th
     # Note that matrix B is designed to work with tensors in Mandel's notation
 
     ndof = 6
@@ -163,7 +164,7 @@ end
 function setNN(elem::MechShell, ip::Ip, N::Vect, NNil::Matx, NNi::Matx, L::Matx, Rrot::Matx, NN::Matx)
     nnodes = length(N)
     ndof = 6
-    th = elem.mat.th
+    th = elem.prop.th
     ζ = ip.R[3]
     # R = zeros(3,5)
     # NN_A  = zeros(3,5)
@@ -215,7 +216,7 @@ end
 
 function elem_stiffness(elem::MechShell)
     nnodes = length(elem.nodes)
-    th     = elem.mat.th
+    th     = elem.prop.th
     ndof   = 6
     nstr   = 6
     C      = getcoords(elem)
@@ -261,7 +262,7 @@ end
 
 function elem_mass(elem::MechShell)
         nnodes = length(elem.nodes)
-        th     = elem.mat.th
+        th     = elem.prop.th
         ndof   = 6 #6
         ρ      = elem.mat.ρ
         C      = getcoords(elem)
@@ -298,21 +299,21 @@ end
 function elem_update!(elem::MechShell, U::Array{Float64,1}, dt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
-    th = elem.mat.th
+    th = elem.prop.th
     ndof = 6
 
     map = elem_map(elem)
-    dU = U[map]
-    dF = zeros(length(dU))
+    dU  = U[map]
+    dF  = zeros(length(dU))
 
     C = getcoords(elem)
     B = zeros(6, ndof*nnodes)
 
-    L = zeros(3,3)
+    L    = zeros(3,3)
     Rrot = zeros(5,ndof)
-    Bil = zeros(6,5)
-    Bi = zeros(6,ndof)
-    Δε = zeros(6)
+    Bil  = zeros(6,5)
+    Bi   = zeros(6,ndof)
+    Δε   = zeros(6)
 
     for ip in elem.ips
         N = elem.shape.func(ip.R)
