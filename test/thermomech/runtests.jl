@@ -1,7 +1,6 @@
-files = [    
-         # Thermomechanical analysis: 
+using Amaru
+
+@runfiles [    
          "thermo.jl",
          "thermomech.jl",
         ]
-
-runfiles(files)

@@ -66,13 +66,7 @@ polym = extrude(poly)
 #coords = Amaru.get_coords(polym)
 #lines = Amaru.line_indexes(polym)
 #faces = Amaru.poly_indexes(polym)
-
-
 #coords = [ coords 0.1*ones(6) ]
-
-#@show coords
-#@show lines
-#@show faces
 
 
 poly = Polygon([0 0; 1 0; 1 1; 0 1])
@@ -92,9 +86,6 @@ embed = [
 
 mesh = UMesh(polym.polygons[1], sizes, embed, size=0.1)
 #mesh = UMesh(polym, sizes, embed)
-
-
-
 
 #mesh = UMesh(coords, lines, faces)
 # elemsize, sizes=[1=>0.1, 2=>1.1]

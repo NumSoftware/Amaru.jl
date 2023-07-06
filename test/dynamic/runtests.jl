@@ -1,6 +1,6 @@
-files = [
-         "dyn-spring.jl",
+using Amaru
+
+@runfiles [
+        #  "dyn-spring.jl",
          "dyn-solid.jl",
         ]
-
-runfiles(files)

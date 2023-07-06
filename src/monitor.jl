@@ -4,7 +4,8 @@
 # =========================
 
 abstract type AbstractMonitor end
-
+@inline Base.:(<<)(a, b::AbstractMonitor) = return (a, b)
+@inline Base.:(=>)(a, b::AbstractMonitor) = return (a, b)
 
 # Ip Monitor
 # ==========
@@ -70,11 +71,11 @@ function update_monitor!(monitor::IpMonitor, model; flush=true)
     monitor.val = eval_arith_expr(monitor.expr; state...)
 
     # data = OrderedDict(:val=>monitor.val)
-    # data = OrderedDict(:stage=> model.env.stagebits.stage, :T=>model.env.stagebits.T)
+    # data = OrderedDict(:stage=> model.env.stage, :T=>model.env.T)
     # model.env.transient && (vals[:t] = model.env.t)
 
-    monitor.vals[:stage] = model.env.stagebits.stage
-    monitor.vals[:T]     = model.env.stagebits.T
+    monitor.vals[:stage] = model.env.stage
+    monitor.vals[:T]     = model.env.T
     model.env.transient && (monitor.vals[:t]=model.env.t)
     push!(monitor.table, data)
 
@@ -176,8 +177,8 @@ function update_monitor!(monitor::NodeMonitor, model; flush=true)
         monitor.vals[expr] = eval_arith_expr(expr; state...)
     end
 
-    monitor.vals[:stage] = model.env.stagebits.stage
-    monitor.vals[:T]     = model.env.stagebits.T
+    monitor.vals[:stage] = model.env.stage
+    monitor.vals[:T]     = model.env.T
     model.env.transient && (monitor.vals[:t]=model.env.t)
 
     push!(monitor.table, monitor.vals)
@@ -241,8 +242,8 @@ function update_monitor!(monitor::IpGroupMonitor, model; flush=true)
         end
     end
 
-    monitor.vals[:stage] = model.env.stagebits.stage
-    monitor.vals[:T]     = model.env.stagebits.T
+    monitor.vals[:stage] = model.env.stage
+    monitor.vals[:T]     = model.env.T
     model.env.transient && (monitor.vals[:t]=model.env.t)
 
     push!(monitor.table, monitor.vals)
@@ -365,8 +366,8 @@ function update_monitor!(monitor::NodeSumMonitor, model; flush=true)
         monitor.vals[expr] = eval_arith_expr(expr; state...)
     end
 
-    monitor.vals[:stage] = model.env.stagebits.stage
-    monitor.vals[:T]     = model.env.stagebits.T
+    monitor.vals[:stage] = model.env.stage
+    monitor.vals[:T]     = model.env.T
     model.env.transient && (monitor.vals[:t]=model.env.t)
     push!(monitor.table, monitor.vals)
 

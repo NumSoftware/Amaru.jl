@@ -14,7 +14,7 @@ msh = Mesh(blocks);
 # Finite element modeling
 
 materials = [
-             "solids" => ElasticSolid(E=100.0, nu=0.2),
+             "solids" => LinearElastic(E=100.0, nu=0.2),
             ]
 
 # Finite element model

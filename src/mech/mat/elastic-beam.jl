@@ -19,38 +19,31 @@ mutable struct ElasticBeamState<:IpState
     end
 end
 
-mutable struct ElasticBeam<:Material
+mutable struct ElasticBeam<:MatParams
     E::Float64
     nu::Float64
-    thz::Float64
-    thy::Float64
-    A::Float64
-    ρ::Float64
 
     function ElasticBeam(prms::Dict{Symbol,Float64})
         return  ElasticBeam(;prms...)
     end
 
-    function ElasticBeam(;E=NaN, nu=0.0, thz=NaN, thy=NaN, rho=0.0)
+    function ElasticBeam(;E=NaN, nu=0.0)
         @check E>0.0
         @check 0.0<=nu<0.5
-        @check thz>0.0
-        @check thy>0.0
-        @check rho>=0.0
-        this = new(E, nu, thy, thz, thy*thz, rho)
+        this = new(E, nu)
         return this
     end
 end
 
-matching_elem_type(::ElasticBeam, shape::CellShape, ndim::Int) = MechBeam
+matching_elem_type(::ElasticBeam) = MechBeamElem
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticBeam) = ElasticBeamState
+ip_state_type(matparams::ElasticBeam) = ElasticBeamState
 
 
-function calcD(mat::ElasticBeam, state::ElasticBeamState)
-    E = mat.E
-    ν = mat.nu
+function calcD(matparams::ElasticBeam, state::ElasticBeamState)
+    E = matparams.E
+    ν = matparams.nu
     c = E/(1.0-ν^2)
     g = E/(1+ν)
 
@@ -65,8 +58,8 @@ function calcD(mat::ElasticBeam, state::ElasticBeamState)
 end
 
 
-function stress_update(mat::ElasticBeam, state::ElasticBeamState, dε::Array{Float64,1})
-    D = calcD(mat, state)
+function update_state(matparams::ElasticBeam, state::ElasticBeamState, dε::Array{Float64,1})
+    D = calcD(matparams, state)
     dσ = D*dε
     state.ε += dε
     state.σ += dσ
@@ -74,12 +67,11 @@ function stress_update(mat::ElasticBeam, state::ElasticBeamState, dε::Array{Flo
 end
 
 
-function ip_state_vals(mat::ElasticBeam, state::ElasticBeamState)
+function ip_state_vals(matparams::ElasticBeam, state::ElasticBeamState)
     vals =  OrderedDict(
       "sx'"   => state.σ[1],
       "ex'"   => state.ε[1],
-      "sx'y'" => state.σ[2]/SR2,
-      "A"     => mat.A )
+      "sx'y'" => state.σ[2]/SR2)
     if state.env.ndim==3
         vals["sx'z'"] = state.σ[2]/SR2
         vals["sx'y'"] = state.σ[3]/SR2

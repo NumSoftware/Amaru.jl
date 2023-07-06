@@ -1,13 +1,41 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-mutable struct SeepJoint1D<:Hydromechanical
+export SeepJoint1D
+
+struct SeepJoint1DProps<:ElemProperties
+    p::Float64
+
+    function SeepJoint1DProps(;p=NaN, A=NaN, diameter=NaN)
+        # A : section area
+        # p : section perimeter
+        @check (p>0 || A>0 || diameter>0)
+
+        if isnan(p)
+            if A>0
+                p = 2.0*(A*pi)^0.5
+            else
+                p = pi*diameter
+            end
+        end
+        @check p>0
+
+        this = new(p)
+        return this
+    end
+    
+end
+
+SeepJoint1D = SeepJoint1DProps
+
+mutable struct SeepJoint1DElem<:HydromechElem
     id    ::Int
     shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    mat   ::Material
+    matparams::MatParams
+    props ::SeepJoint1DProps
     active::Bool
     linked_elems::Array{Element,1}
     env::ModelEnv
@@ -17,16 +45,22 @@ mutable struct SeepJoint1D<:Hydromechanical
     cache_B   ::Array{Array{Float64,2}}
     cache_detJ::Array{Float64}
 
-    SeepJoint1D() = new()
+    function SeepJoint1DElem(props=SeepJoint1DProps())
+        this = new()
+        this.props = props
+        return this
+    end
 end
 
-matching_shape_family(::Type{SeepJoint1D}) = LINEJOINTCELL
+matching_shape_family(::Type{SeepJoint1DElem}) = LINEJOINTCELL
+matching_elem_type(::Type{SeepJoint1DProps}) = SeepJoint1DElem
+matching_props_type(::Type{SeepJoint1DElem}) = SeepJoint1DProps
 
-function elem_config_dofs(elem::SeepJoint1D)
+function elem_config_dofs(elem::SeepJoint1DElem)
     # No need to add dofs since they will be added by linked elements
 end
 
-function elem_init(elem::SeepJoint1D)
+function elem_init(elem::SeepJoint1DElem)
     # Only pore-pressure dofs
     elem.uw_dofs = get_dofs(elem, :uw)
 
@@ -45,7 +79,7 @@ function elem_init(elem::SeepJoint1D)
     return nothing
 end
 
-function mountB(elem::SeepJoint1D, R, Ch, Ct)
+function mountB(elem::SeepJoint1DElem, R, Ch, Ct)
     hook = elem.linked_elems[1]
     bar  = elem.linked_elems[2]
     nbnodes = length(bar.nodes)
@@ -80,8 +114,8 @@ function mountB(elem::SeepJoint1D, R, Ch, Ct)
     return B, detJ
 end
 
-function elem_conductivity_matrix(elem::SeepJoint1D)
-    h    = elem.mat.h
+function elem_conductivity_matrix(elem::SeepJoint1DElem)
+    p    = elem.props.p
     map_w = [ dof.eq_id for dof in elem.uw_dofs ]
     nuwnodes = length(map_w)
 
@@ -91,15 +125,15 @@ function elem_conductivity_matrix(elem::SeepJoint1D)
         Bp   = elem.cache_B[i]
         detJ = elem.cache_detJ[i]
 
-        coef = detJ*ip.w*(elem.mat.k/elem.mat.γw)*h
+        coef = detJ*ip.w*(elem.matparams.k/elem.env.anaprops.γw)*p
         H -= coef*Bp'*Bp
     end
 
     return H, map_w, map_w, elem.nodes
 end
 
-function elem_internal_forces(elem::SeepJoint1D, F::Array{Float64,1})
-    h    = elem.mat.h
+function elem_internal_forces(elem::SeepJoint1DElem, F::Array{Float64,1})
+    p    = elem.props.p
 
     map_w = [ dof.eq_id for dof in elem.uw_dofs ]
     nuwnodes = length(map_w)
@@ -111,15 +145,15 @@ function elem_internal_forces(elem::SeepJoint1D, F::Array{Float64,1})
 
         # internal volumes dFw
         D    = ip.state.D
-        coef = detJ*ip.w*h
+        coef = detJ*ip.w*p
         dFw += coef*Bp'*D
     end
 
     F[map_w] += dFw
 end
 
-function elem_update!(elem::SeepJoint1D, DU::Array{Float64,1}, Δt::Float64)
-    h    = elem.mat.h
+function update_elem!(elem::SeepJoint1DElem, DU::Array{Float64,1}, Δt::Float64)
+    p    = elem.props.p
 
     map_w = [ dof.eq_id for dof in elem.uw_dofs ]
     nuwnodes = length(map_w)
@@ -136,18 +170,18 @@ function elem_update!(elem::SeepJoint1D, DU::Array{Float64,1}, Δt::Float64)
         detJ = elem.cache_detJ[i]
 
         # poropression difference between solid and drain
-        ΔFw = dot(Bp,Uw)/elem.mat.γw
-        V = update_state!(elem.mat, ip.state, ΔFw, Δt)
+        ΔFw = dot(Bp,Uw)/elem.env.anaprops.γw
+        V = update_state!(elem.matparams, ip.state, ΔFw, Δt)
 
-        coef = Δt*detJ*ip.w*h
+        coef = Δt*detJ*ip.w*p
         dFw += coef*Bp'*V
     end
 
     return dFw, map_w, success()
 end
 
-function elem_extrapolated_node_vals(elem::SeepJoint1D)
-    all_ip_vals = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
+function elem_extrapolated_node_vals(elem::SeepJoint1DElem)
+    all_ip_vals = [ ip_state_vals(elem.matparams, ip.state) for ip in elem.ips ]
     nips        = length(elem.ips)
     fields      = keys(all_ip_vals[1])
     nfields     = length(fields)

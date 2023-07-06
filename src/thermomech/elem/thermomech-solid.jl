@@ -1,25 +1,50 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-mutable struct TMSolid<:Thermomechanical
+export TMSolid
+
+struct TMSolidProps<:ElemProperties
+    ρ::Float64
+    γ::Float64
+    cv::Float64
+
+    function TMSolidProps(;rho=0.0, gamma=0.0, cv=0.0)
+        @check rho>=0
+        @check gamma>=0
+        @check cv>=0
+
+        return new(rho, gamma, cv)
+    end    
+end
+
+TMSolid = TMSolidProps
+
+
+mutable struct TMSolidElem<:ThermomechElem
     id    ::Int
     shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    mat   ::Material
+    matparams::MatParams
+    props::TMSolidProps
     active::Bool
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function TMSolid();
-        return new()
+    function TMSolidElem(props=TMSolidProps())
+        this = new()
+        this.props = props
+        return this
     end
 end
 
-matching_shape_family(::Type{TMSolid}) = BULKCELL
+matching_shape_family(::Type{TMSolidElem}) = BULKCELL
+matching_elem_type(::Type{TMSolidProps}) = TMSolidElem
+matching_props_type(::Type{TMSolidElem}) = TMSolidProps
 
-function elem_config_dofs(elem::TMSolid)
+
+function elem_config_dofs(elem::TMSolidElem)
     nbnodes = elem.shape.basic_shape.npoints
     for (i, node) in enumerate(elem.nodes)
             add_dof(node, :ux, :fx)
@@ -31,14 +56,14 @@ function elem_config_dofs(elem::TMSolid)
     end
 end
 
-function elem_init(elem::TMSolid)
-    nothing
+
+function elem_init(elem::TMSolidElem)
 end
 
 
-function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::TMSolidElem, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
-    th    = elem.env.thickness
+    th    = elem.env.anaprops.thickness
     suitable_keys = (:tx, :ty, :tz, :tn, :tq)
 
     # Check keys
@@ -108,7 +133,7 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
                 n = [J[1,2], -J[1,1]]
                 Q = vip*normalize(n)
             end
-            if elem.env.modeltype=="axisymmetric"
+            if elem.env.anaprops.stressmodel=="axisymmetric"
                 th = 2*pi*X[1]
             end
         else
@@ -137,14 +162,14 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
 end
 
 
-@inline function set_Bu(elem::Element, ip::Ip, dNdX::Matx, B::Matx)
+@inline function set_Bu(elem::TMSolidElem, ip::Ip, dNdX::Matx, B::Matx)
     setB(elem, ip, dNdX, B) # using function setB from mechanical analysis
 end
 
 
-function elem_stiffness(elem::TMSolid)
+function elem_stiffness(elem::TMSolidElem)
     ndim   = elem.env.ndim
-    th     = elem.env.thickness
+    th     = elem.env.anaprops.thickness
     nnodes = length(elem.nodes)
     C  = getcoords(elem)
     K  = zeros(nnodes*ndim, nnodes*ndim)
@@ -155,7 +180,7 @@ function elem_stiffness(elem::TMSolid)
     dNdX = Array{Float64}(undef, nnodes, ndim)
 
     for ip in elem.ips
-        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.anaprops.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -167,7 +192,7 @@ function elem_stiffness(elem::TMSolid)
 
         # compute K
         coef = detJ*ip.w*th
-        D    = calcD(elem.mat, ip.state)
+        D    = calcD(elem.matparams, ip.state)
         @gemm DBu = D*Bu
         @gemm K += coef*Bu'*DBu
     end
@@ -181,9 +206,9 @@ end
 
 
 # matrix C
-function elem_coupling_matrix(elem::TMSolid)
+function elem_coupling_matrix(elem::TMSolidElem)
     ndim   = elem.env.ndim
-    th     = elem.env.thickness
+    th     = elem.env.anaprops.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C   = getcoords(elem)
@@ -193,10 +218,10 @@ function elem_coupling_matrix(elem::TMSolid)
     J    = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, nnodes, ndim)
     m    = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
-    β    = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) # thermal stress modulus
+    β    = elem.matparams.E*elem.matparams.α/(1-2*elem.matparams.nu) # thermal stress modulus
 
     for ip in elem.ips
-        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.anaprops.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -222,9 +247,9 @@ function elem_coupling_matrix(elem::TMSolid)
 end
 
 # thermal conductivity
-function elem_conductivity_matrix(elem::TMSolid)
+function elem_conductivity_matrix(elem::TMSolidElem)
     ndim   = elem.env.ndim
-    th     = elem.env.thickness
+    th     = elem.env.anaprops.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C      = getcoords(elem)
@@ -235,7 +260,7 @@ function elem_conductivity_matrix(elem::TMSolid)
     J    = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.anaprops.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         dNdR  = elem.shape.deriv(ip.R)
         dNtdR = elem.shape.basic_shape.deriv(ip.R)
@@ -246,7 +271,7 @@ function elem_conductivity_matrix(elem::TMSolid)
         Bt .= dNtdX'
 
         # compute H
-        K = calcK(elem.mat, ip.state)
+        K = calcK(elem.matparams, ip.state)
         coef = detJ*ip.w*th
         @gemm KBt = K*Bt
         @gemm H  -= coef*Bt'*KBt
@@ -258,9 +283,9 @@ function elem_conductivity_matrix(elem::TMSolid)
     return H, map, map
 end
 
-function elem_mass_matrix(elem::TMSolid)
+function elem_mass_matrix(elem::TMSolidElem)
     ndim   = elem.env.ndim
-    th     = elem.env.thickness
+    th     = elem.env.anaprops.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C      = getcoords(elem)
@@ -269,7 +294,7 @@ function elem_mass_matrix(elem::TMSolid)
     J  = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.anaprops.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         Nt   = elem.shape.basic_shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
@@ -278,7 +303,7 @@ function elem_mass_matrix(elem::TMSolid)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute Cut
-        coef  = elem.mat.ρ*elem.mat.cv
+        coef  = elem.props.ρ*elem.props.cv
         coef *= detJ*ip.w*th
         M    -= coef*Nt*Nt'
     end
@@ -290,9 +315,9 @@ function elem_mass_matrix(elem::TMSolid)
 end
 
 #=
-function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Float64,1})
+function elem_internal_forces(elem::TMSolidElem, F::Array{Float64,1}, DU::Array{Float64,1})
     ndim   = elem.env.ndim
-    th     = elem.env.thickness # VERIFICAR ESPESSURA
+    th     = elem.env.anaprops.thickness # VERIFICAR ESPESSURA
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C   = getcoords(elem)
@@ -315,7 +340,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
     dNtdX = Array{Float64}(undef, ndim, nbnodes)
     dUt = DU[map_t] # nodal temperature increments
     for ip in elem.ips
-        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.anaprops.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix and Bt
         dNdR = elem.shape.deriv(ip.R)
@@ -333,7 +358,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
 
         # internal force
         ut   = ip.state.ut + 273
-        β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu)
+        β   = elem.matparams.E*elem.matparams.α/(1-2*elem.matparams.nu)
         σ    = ip.state.σ - β*ut*m # get total stress
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*σ
@@ -344,7 +369,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
         coef = β*detJ*ip.w*th
         dFt  -= coef*Nt*εvol
 
-        coef = detJ*ip.w*elem.mat.ρ*elem.mat.cv*th/T0k
+        coef = detJ*ip.w*elem.props.ρ*elem.props.cv*th/T0k
         dFt -= coef*Nt*ut
 
         QQ   = ip.state.QQ
@@ -358,19 +383,19 @@ end
 =#
 
 
-function elem_update!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::TMSolidElem, DU::Array{Float64,1}, Δt::Float64)
     ndim    = elem.env.ndim
-    th      = elem.env.thickness
-    T0k     = get(elem.env.params, :T0, 0.0) + 273.15
+    th      = elem.env.anaprops.thickness
+    T0k     = elem.env.anaprops.T0 + 273.15
     nnodes  = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C       = getcoords(elem)
 
-    E = elem.mat.E
-    α = elem.mat.α
-    ρ = elem.mat.ρ
-    nu = elem.mat.nu
-    cv = elem.mat.cv
+    E = elem.matparams.E
+    α = elem.matparams.α
+    ρ = elem.props.ρ
+    nu = elem.matparams.nu
+    cv = elem.props.cv
     β = E*α/(1-2*nu)
 
     keys   = (:ux, :uy, :uz)[1:ndim]
@@ -394,7 +419,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
     Δε = zeros(6)
 
     for ip in elem.ips
-        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.anaprops.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute Bu and Bt matrices
         dNdR = elem.shape.deriv(ip.R)
@@ -422,7 +447,7 @@ function elem_update!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
         G  = Bt*Ut
 
         # internal force dF
-        Δσ, q = stress_update(elem.mat, ip.state, Δε, Δut, G, Δt)
+        Δσ, q = update_state(elem.matparams, ip.state, Δε, Δut, G, Δt)
         #@show Δσ
 
         #@show "HIIIIIIIIIIIIIIIIIII"

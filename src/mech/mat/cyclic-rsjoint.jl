@@ -33,7 +33,7 @@ mutable struct CyclicRSJointState<:IpState
     end
 end
 
-mutable struct CyclicRSJoint<:Material
+mutable struct CyclicRSJoint<:MatParams
     τmax:: Float64
     τres:: Float64
     speak:: Float64
@@ -87,30 +87,28 @@ mutable struct CyclicRSJoint<:Material
 end
 
 # Returns the element type that works with this material
-matching_elem_type(::CyclicRSJoint, shape::CellShape, ndim::Int) = MechRodSolidJoint
+matching_elem_type(::CyclicRSJoint) = MechRSJointElem
 
 # Creates a new instance of Ip data
-ip_state_type(mat::CyclicRSJoint) = CyclicRSJointState
-
-is_linear(state::CyclicRSJointState) = state.elastic
+ip_state_type(::MechRSJointElem, matparams::CyclicRSJoint) = CyclicRSJointState
 
 
-function tau(mat::CyclicRSJoint, ips::CyclicRSJointState, s::Float64)
+function tau(matparams::CyclicRSJoint, ips::CyclicRSJointState, s::Float64)
     s = abs(s)
     s2 = ips.speak*1.1
     if s<ips.speak
-        return ips.τmax*(s/ips.speak)^mat.α
+        return ips.τmax*(s/ips.speak)^matparams.α
     elseif s<s2
         return ips.τmax
-    elseif s<mat.sres
-        return ips.τmax - (ips.τmax-ips.τres)*((s-s2)/(mat.sres-s2))^mat.β
+    elseif s<matparams.sres
+        return ips.τmax - (ips.τmax-ips.τres)*((s-s2)/(matparams.sres-s2))^matparams.β
     else
         return ips.τres
     end
 end
 
 
-function tau_deriv(mat::CyclicRSJoint, ips::CyclicRSJointState, s::Float64)
+function tau_deriv(matparams::CyclicRSJoint, ips::CyclicRSJointState, s::Float64)
     s = abs(s)
     s2 = ips.speak*1.1
 
@@ -120,32 +118,32 @@ function tau_deriv(mat::CyclicRSJoint, ips::CyclicRSJointState, s::Float64)
     end
 
     if s<=ips.speak
-        return ips.τmax/ips.speak*(s/ips.speak)^(mat.α-1)
+        return ips.τmax/ips.speak*(s/ips.speak)^(matparams.α-1)
     elseif s<s2
-        return mat.ks*1e-3
+        return matparams.ks*1e-3
         # return 1.0
-    elseif s<mat.sres
-        return -(ips.τmax-ips.τres)/(mat.sres-s2)*((s-s2)/(mat.sres-s2))^(mat.β-1)
+    elseif s<matparams.sres
+        return -(ips.τmax-ips.τres)/(matparams.sres-s2)*((s-s2)/(matparams.sres-s2))^(matparams.β-1)
     else
         # return 1.0
-        return mat.ks*1e-3
+        return matparams.ks*1e-3
     end
 end
 
 
-function calcD(mat::CyclicRSJoint, ips::CyclicRSJointState)
+function calcD(matparams::CyclicRSJoint, ips::CyclicRSJointState)
     ndim = ips.env.ndim
-    ks = mat.ks
-    kn = mat.kn
+    ks = matparams.ks
+    kn = matparams.kn
 
     if !ips.elastic
         s = ips.u[1]
         τ = ips.σ[1]
 
         if ips.τmax==0.0 && ips.τres==0.0 && ips.speak==0.0
-            ips.τmax  = mat.τmax
-            ips.τres  = mat.τres
-            ips.speak = mat.speak
+            ips.τmax  = matparams.τmax
+            ips.τres  = matparams.τres
+            ips.speak = matparams.speak
         end
 
         if s*τ<0.0 || abs(τ)>ips.τmax
@@ -153,7 +151,7 @@ function calcD(mat::CyclicRSJoint, ips::CyclicRSJointState)
             # @show "ks=1.0"
             # @show τ
         else
-            dτydsy = tau_deriv(mat, ips, s)
+            dτydsy = tau_deriv(matparams, ips, s)
         end
         ks = dτydsy
     end
@@ -169,9 +167,9 @@ function calcD(mat::CyclicRSJoint, ips::CyclicRSJointState)
 end
 
 
-function stress_update(mat::CyclicRSJoint, ips::CyclicRSJointState, Δu::Vect)
-    ks = mat.ks
-    kn = mat.kn
+function update_state(matparams::CyclicRSJoint, ips::CyclicRSJointState, Δu::Vect)
+    ks = matparams.ks
+    kn = matparams.kn
     s  = ips.u[1]   # relative displacement
     Δs = Δu[1]      # relative displacement increment
     τini = ips.σ[1] # initial shear stress
@@ -184,23 +182,23 @@ function stress_update(mat::CyclicRSJoint, ips::CyclicRSJointState, Δu::Vect)
     # amplitude
     sa = ips.spos-ips.sneg
     @assert sa>=0.0
-    sh = sa*ips.srev/mat.speak^2
+    sh = sa*ips.srev/matparams.speak^2
 
-    ips.τmax = mat.τmax*exp(-0.0152*sh)
+    ips.τmax = matparams.τmax*exp(-0.0152*sh)
 
-    ips.speak = mat.speak*(1 + 0.33*sh^0.5)
+    ips.speak = matparams.speak*(1 + 0.33*sh^0.5)
     
-    if ips.sacum<mat.speak
-        ips.τres = mat.τres*(ips.sacum/mat.speak)^mat.α
+    if ips.sacum<matparams.speak
+        ips.τres = matparams.τres*(ips.sacum/matparams.speak)^matparams.α
     else
-        ips.τres = mat.τres*exp(-0.0027*sh)
+        ips.τres = matparams.τres*exp(-0.0027*sh)
     end
 
 
     if str*τtr<0
         τnl = ips.τres
     else
-        τnl = max(ips.τres, tau(mat, ips, str))
+        τnl = max(ips.τres, tau(matparams, ips, str))
     end
     
     ftr = abs(τtr) - τnl
@@ -231,9 +229,9 @@ function stress_update(mat::CyclicRSJoint, ips::CyclicRSJointState, Δu::Vect)
     return Δσ, success()
 end
 
-function stress_update2(mat::CyclicRSJoint, ips::CyclicRSJointState, Δu::Vect)
-    ks = mat.ks
-    kn = mat.kn
+function stress_update2(matparams::CyclicRSJoint, ips::CyclicRSJointState, Δu::Vect)
+    ks = matparams.ks
+    kn = matparams.kn
     s  = ips.u[1]   # relative displacement
     Δs = Δu[1]      # relative displacement increment
     τini = ips.σ[1] # initial shear stress
@@ -246,28 +244,28 @@ function stress_update2(mat::CyclicRSJoint, ips::CyclicRSJointState, Δu::Vect)
     # amplitude
     sa = ips.spos-ips.sneg
     @assert sa>=0.0
-    sh = sa*ips.srev/mat.sres^2
+    sh = sa*ips.srev/matparams.sres^2
 
-    # τmax = mat.τmax*(1 - (min(ips.srev, mat.sres)/mat.sres)^0.8)
-    # τmax = mat.τmax*exp(-1.2*(ips.srev/mat.sres))
-    # τmax = mat.τmax*min(1, 1.2*exp(-1.8*(ips.spos-ips.sneg)/mat.sres))
-    # ips.τmax = mat.τmax*exp(-1.25*sh)
-    ips.τmax = mat.τmax*exp(-1.02*sh)
+    # τmax = matparams.τmax*(1 - (min(ips.srev, matparams.sres)/matparams.sres)^0.8)
+    # τmax = matparams.τmax*exp(-1.2*(ips.srev/matparams.sres))
+    # τmax = matparams.τmax*min(1, 1.2*exp(-1.8*(ips.spos-ips.sneg)/matparams.sres))
+    # ips.τmax = matparams.τmax*exp(-1.25*sh)
+    ips.τmax = matparams.τmax*exp(-1.02*sh)
 
-    # ips.speak = mat.speak*(1 + log(1 + 5*ips.srev/mat.sres))
-    ips.speak = mat.speak*(1 + 2.8*sh^0.5)
+    # ips.speak = matparams.speak*(1 + log(1 + 5*ips.srev/matparams.sres))
+    ips.speak = matparams.speak*(1 + 2.8*sh^0.5)
     
-    if ips.sacum<mat.speak
-        ips.τres = mat.τres*(ips.sacum/mat.speak)^mat.α
+    if ips.sacum<matparams.speak
+        ips.τres = matparams.τres*(ips.sacum/matparams.speak)^matparams.α
     else
-        ips.τres = mat.τres*exp(-0.17*sh)
+        ips.τres = matparams.τres*exp(-0.17*sh)
     end
 
 
     if str*τtr<0
         τnl = ips.τres
     else
-        τnl = max(ips.τres, tau(mat, ips, str))
+        τnl = max(ips.τres, tau(matparams, ips, str))
     end
     
     ftr = abs(τtr) - τnl
@@ -298,7 +296,7 @@ function stress_update2(mat::CyclicRSJoint, ips::CyclicRSJointState, Δu::Vect)
     return Δσ, success()
 end
 
-function ip_state_vals(mat::CyclicRSJoint, ips::CyclicRSJointState)
+function ip_state_vals(matparams::CyclicRSJoint, ips::CyclicRSJointState)
     return OrderedDict(
       :ur   => ips.u[1] ,
       :tau  => ips.σ[1] ,

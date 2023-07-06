@@ -7,6 +7,8 @@ abstract type AbstractLogger end
 abstract type SingleLogger<:AbstractLogger end
 abstract type MultiLogger<:AbstractLogger end
 
+@inline Base.:(<<)(a, b::AbstractLogger) = return (a, b)
+@inline Base.:(=>)(a, b::AbstractLogger) = return (a, b)
 
 # Node logger
 # ===========
@@ -114,7 +116,7 @@ function update_logger!(logger::IpLogger, model; flush=true)
     isdefined(logger, :ip) || return
 
     vals = ip_vals(logger.ip)
-    vals[:out] = model.env.stagebits.out
+    vals[:out] = model.env.out
     model.env.transient && (vals[:t] = model.env.t)
 
     push!(logger.table, vals)
@@ -202,7 +204,7 @@ function update_logger!(logger::FacetLogger, model; flush=true)
     valsU = OrderedDict( Symbol(key) => mean(tableU[key]) for key in keys(tableU) ) # gets the average of essential values
     valsF = OrderedDict( Symbol(key) => sum(tableF[key])  for key in keys(tableF) ) # gets the sum for each component
     vals  = merge(valsU, valsF)
-    vals[:out] = model.env.stagebits.out
+    vals[:out] = model.env.out
     model.env.transient && (vals[:t] = model.env.t)
 
     push!(logger.table, vals)
@@ -255,7 +257,7 @@ function update_logger!(logger::NodeSumLogger, model; flush=true)
     valsU = OrderedDict( Symbol(key) => mean(tableU[key]) for key in keys(tableU) ) # gets the average of essential values
     valsF = OrderedDict( Symbol(key) => sum(tableF[key])  for key in keys(tableF) ) # gets the sum for each component
     vals  = merge(valsU, valsF)
-    vals[:out] = model.env.stagebits.out
+    vals[:out] = model.env.out
     model.env.transient && (vals[:t] = model.env.t)
 
     push!(logger.table, vals)
@@ -409,7 +411,7 @@ function update_logger!(logger::PointLogger, model; flush=true)
         size(V,2)==1 || continue
         vals[k] = dot(V[map], N)
     end
-    vals[:out] = model.env.stagebits.out
+    vals[:out] = model.env.out
     model.env.transient && (vals[:t] = model.env.t)
     push!(logger.table, vals)
 
@@ -502,12 +504,3 @@ function save(logger::AbstractLogger, filename::String; quiet=false)
         save(logger.book, filename, quiet=quiet)
     end
 end
-
-
-# function reset!(logger::AbstractLogger)
-#     if isdefined(logger, :table)
-#         logger.table = DataTable()
-#     else
-#         logger.book = DataBook()
-#     end
-# end

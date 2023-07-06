@@ -1,14 +1,14 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 
-mutable struct ThermoShell<:Thermomechanical
+mutable struct ThermoShellElem<:ThermomechElem
     id    ::Int
     shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    mat   ::Material
+    matparams::MatParams
     active::Bool
     linked_elems::Array{Element,1}
     env::ModelEnv
@@ -18,26 +18,26 @@ mutable struct ThermoShell<:Thermomechanical
     end
 end
 
-matching_shape_family(::Type{ThermoShell}) = BULKCELL
+matching_shape_family(::Type{ThermoShellElem}) = BULKCELL
 
-function elem_config_dofs(elem::ThermoShell)
+function elem_config_dofs(elem::ThermoShellElem)
     for node in elem.nodes
         add_dof(node, :ut, :ft)
     end
 end
 
-function elem_init(elem::ThermoShell)
+function elem_init(elem::ThermoShellElem)
     nothing
 end
 
-@inline function elem_map_t(elem::ThermoShell)
+@inline function elem_map_t(elem::ThermoShellElem)
     return [ node.dofdict[:ut].eq_id for node in elem.nodes ]
 end
 
 
-function distributed_bc(elem::ThermoShell, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::ThermoShellElem, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
-    th    = elem.env.thickness
+    th    = elem.env.anaprops.thickness
     suitable_keys = (:tq,)
 
     # Check keys
@@ -71,7 +71,7 @@ function distributed_bc(elem::ThermoShell, facet::Union{Facet,Nothing}, key::Sym
         if ndim==2
             x, y = X
             vip = eval_arith_expr(val, t=t, x=x, y=y)
-            if elem.env.modeltype=="axisymmetric"
+            if elem.env.anaprops.stressmodel=="axisymmetric"
                 th = 2*pi*X[1]
             end
         else
@@ -89,7 +89,7 @@ function distributed_bc(elem::ThermoShell, facet::Union{Facet,Nothing}, key::Sym
 end
 
 # Rotation Matrix
-function set_rot_x_xp(elem::ThermoShell, J::Matx, R::Matx)
+function set_rot_x_xp(elem::ThermoShellElem, J::Matx, R::Matx)
     V1 = J[:,1]
     V2 = J[:,2]
     V3 = cross(V1, V2)
@@ -105,9 +105,9 @@ function set_rot_x_xp(elem::ThermoShell, J::Matx, R::Matx)
 end
 
 # thermal conductivity
-function elem_conductivity_matrix(elem::ThermoShell)
+function elem_conductivity_matrix(elem::ThermoShellElem)
     ndim   = elem.env.ndim
-    th     = elem.mat.thickness   # elem.env.thickness
+    th     = elem.matparams.thickness   # elem.env.anaprops.thickness
     nnodes = length(elem.nodes)
     C      = getcoords(elem)
     H      = zeros(nnodes, nnodes)
@@ -126,7 +126,7 @@ function elem_conductivity_matrix(elem::ThermoShell)
 
         Bt   .= dNdX′'
 
-        K = calcK(elem.mat, ip.state)
+        K = calcK(elem.matparams, ip.state)
         detJ′ = det(J′)
         @assert detJ′>0
         
@@ -136,14 +136,12 @@ function elem_conductivity_matrix(elem::ThermoShell)
     end
 
     map = elem_map_t(elem)
-    #@show "hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii H"
-    #@show H
     return H, map, map
 end
 
-function elem_mass_matrix(elem::ThermoShell)
+function elem_mass_matrix(elem::ThermoShellElem)
     ndim   = elem.env.ndim
-    th     = elem.mat.thickness
+    th     = elem.matparams.thickness
     nnodes = length(elem.nodes)
     
     C      = getcoords(elem)
@@ -164,7 +162,7 @@ function elem_mass_matrix(elem::ThermoShell)
         @assert detJ′>0
 
         # compute Cut
-        coef  = elem.mat.ρ*elem.mat.cv
+        coef  = elem.matparams.ρ*elem.matparams.cv
         coef *= detJ′*ip.w
         M    -= coef*N*N'
 
@@ -179,9 +177,9 @@ function elem_mass_matrix(elem::ThermoShell)
 end
 
 #=
-function elem_internal_forces(elem::ThermoShell, F::Array{Float64,1})
+function elem_internal_forces(elem::ThermoShellElem, F::Array{Float64,1})
     ndim   = elem.env.ndim
-    th     = thickness   # elem.env.thickness
+    th     = thickness   # elem.env.anaprops.thickness
     nnodes = length(elem.nodes)
     
     C   = getcoords(elem)
@@ -200,7 +198,7 @@ function elem_internal_forces(elem::ThermoShell, F::Array{Float64,1})
     dNtdX = Array{Float64}(undef, ndim, nbnodes)
     dUt = DU[mat_t] # nodal temperature increments
     for ip in elem.ips
-        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.anaprops.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
         # compute Bu matrix and Bt
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
@@ -215,7 +213,7 @@ function elem_internal_forces(elem::ThermoShell, F::Array{Float64,1})
         # compute N
         # internal force
         ut   = ip.state.ut + 273
-        β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu)
+        β   = elem.matparams.E*elem.matparams.α/(1-2*elem.matparams.nu)
         σ    = ip.state.σ - β*ut*m # get total stress
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*σ
@@ -224,7 +222,7 @@ function elem_internal_forces(elem::ThermoShell, F::Array{Float64,1})
         εvol = dot(m, ε)
         coef = β*detJ*ip.w*th
         dFt  -= coef*N*εvol
-        coef = detJ*ip.w*elem.mat.ρ*elem.mat.cv*th/T0
+        coef = detJ*ip.w*elem.matparams.ρ*elem.matparams.cv*th/T0
         dFt -= coef*N*ut
         QQ   = ip.state.QQ
         coef = detJ*ip.w*th/T0
@@ -236,10 +234,10 @@ end
 =#
 
 
-function elem_update!(elem::ThermoShell, DU::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::ThermoShellElem, DU::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
-    th     = elem.mat.thickness
+    th     = elem.matparams.thickness
     ndof = 6
 
     map_t = elem_map_t(elem)
@@ -257,7 +255,7 @@ function elem_update!(elem::ThermoShell, DU::Array{Float64,1}, Δt::Float64)
     #Rrot = zeros(5,ndof)
 
     for ip in elem.ips
-        #elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        #elem.env.anaprops.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute Bu and Bt matrices
         N = elem.shape.func(ip.R)
@@ -278,11 +276,11 @@ function elem_update!(elem::ThermoShell, DU::Array{Float64,1}, Δt::Float64)
         # compute Δut
         Δut = N'*dUt # interpolation to the integ. point
 
-        q = update_state!(elem.mat, ip.state, Δut, G, Δt)
+        q = update_state!(elem.matparams, ip.state, Δut, G, Δt)
         #@showm q
         #error()
 
-        coef  = elem.mat.ρ*elem.mat.cv
+        coef  = elem.matparams.ρ*elem.matparams.cv
         coef *= detJ′*ip.w
         dFt  -= coef*N*Δut
 

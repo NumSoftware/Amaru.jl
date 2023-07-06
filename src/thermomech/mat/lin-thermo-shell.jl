@@ -16,7 +16,7 @@ mutable struct LinThermoShellState<:IpState
     end
 end
 
-mutable struct LinThermoShell<:Material
+mutable struct LinThermoShell<:MatParams
     k ::Float64 # Thermal conductivity w/m/k
     ρ ::Float64 # density Ton/m3
     cv::Float64 # Specific heat J/Ton/k
@@ -40,21 +40,21 @@ mutable struct LinThermoShell<:Material
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::LinThermoShell, shape::CellShape, ndim::Int) = ThermoShell
+matching_elem_type(::LinThermoShell) = ThermoShellElem
 
 # Type of corresponding state structure
-ip_state_type(mat::LinThermoShell) = LinThermoShellState
+ip_state_type(matparams::LinThermoShell) = LinThermoShellState
 
-function calcK(mat::LinThermoShell, state::LinThermoShellState) # Thermal conductivity matrix
+function calcK(matparams::LinThermoShell, state::LinThermoShellState) # Thermal conductivity matrix
     if state.env.ndim==2
-        return mat.k*eye(2)
+        return matparams.k*eye(2)
     else
-        return mat.k*eye(3)
+        return matparams.k*eye(3)
     end
 end
 
-function update_state!(mat::LinThermoShell, state::LinThermoShellState, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
-    K = calcK(mat, state)
+function update_state!(matparams::LinThermoShell, state::LinThermoShellState, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
+    K = calcK(matparams, state)
     state.QQ   = -K*G
     state.D  += state.QQ*Δt
     state.ut += Δut
@@ -62,7 +62,7 @@ function update_state!(mat::LinThermoShell, state::LinThermoShellState, Δut::Fl
 end
 
 
-function ip_state_vals(mat::LinThermoShell, state::LinThermoShellState)
+function ip_state_vals(matparams::LinThermoShell, state::LinThermoShellState)
     D = OrderedDict{Symbol, Float64}()
     #D[:qx] = state.QQ[1]
     #D[:qy] = state.QQ[2]

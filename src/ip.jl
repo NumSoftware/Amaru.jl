@@ -15,7 +15,7 @@ abstract type IpState
 end
 
 
-function init_state(::IpState, ::Material)
+function init_state(::IpState, ::MatParams)
 end
 
 
@@ -89,7 +89,7 @@ Returns a dictionary with keys and vals for the integration point `ip`.
 """
 function ip_vals(ip::Ip)
     coords = Dict( :x => ip.coord[1], :y => ip.coord[2], :z => ip.coord[3] )
-    vals   = ip_state_vals(ip.owner.mat, ip.state)
+    vals   = ip_state_vals(ip.owner.matparams, ip.state)
     return merge(coords, vals)
 end
 

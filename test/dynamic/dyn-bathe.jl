@@ -40,9 +40,9 @@ mesh=Mesh(bl1, bl2, bl3, bl4, bl5, bl6, bl7, bl8, bl9, bl10, bl21, bl11, bl12, b
 
 # Model definition
 materials = [
-    :solids     => DruckerPrager(E=Ec, nu=0.2, rho=roc, alpha=0.4312, kappa=3771.2) 
-    :lines      => ElasticRod(E=Ea, A=Aa, rho=roa) 
-    :linejoints => ElasticJoint1D(ks=1.e7, kn=1.e7, A=Aa) 
+    :solids     << DruckerPrager(E=Ec, nu=0.2, rho=roc, alpha=0.4312, kappa=3771.2) 
+    :lines      << ElasticRod(E=Ea, A=Aa, rho=roa) 
+    :linejoints << ElasticJoint1D(ks=1.e7, kn=1.e7, A=Aa) 
 ]
 
 model = FEModel(mesh, materials)
@@ -50,12 +50,12 @@ model = FEModel(mesh, materials)
 # Finite element modeling
 P = (((-13.5)/0.00022480894387096)/1000)
 bcs = [
-    :(y==0  && z==3*0.0254)                        => NodeBC(uz = 0, uy=0, ux=0)
-    :(y==136*0.0254  && z==3*0.0254)               => NodeBC(uz=0)
-    :(x==0 && z==11*0.0254 && y==50*0.0254)        => NodeBC(fz= -13.5/0.00022480894387096/1000/4)
-    :(x==6*0.0254 && z==11*0.0254 && y==50*0.0254) => NodeBC(fz= -13.5/0.00022480894387096/1000/4)
-    :(x==0 && z==11*0.0254 && y==86*0.0254)        => NodeBC(fz= -13.5/0.00022480894387096/1000/4)
-    :(x==6*0.0254 && z==11*0.0254 && y==86*0.0254) => NodeBC(fz= -13.5/0.00022480894387096/1000/4)
+    :(y==0  && z==3*0.0254)                        << NodeBC(uz = 0, uy=0, ux=0)
+    :(y==136*0.0254  && z==3*0.0254)               << NodeBC(uz=0)
+    :(x==0 && z==11*0.0254 && y==50*0.0254)        << NodeBC(fz= -13.5/0.00022480894387096/1000/4)
+    :(x==6*0.0254 && z==11*0.0254 && y==50*0.0254) << NodeBC(fz= -13.5/0.00022480894387096/1000/4)
+    :(x==0 && z==11*0.0254 && y==86*0.0254)        << NodeBC(fz= -13.5/0.00022480894387096/1000/4)
+    :(x==6*0.0254 && z==11*0.0254 && y==86*0.0254) << NodeBC(fz= -13.5/0.00022480894387096/1000/4)
     ]
 
 addstage!(model, bcs, tspan=0.05, nincs=1000, nouts=4)

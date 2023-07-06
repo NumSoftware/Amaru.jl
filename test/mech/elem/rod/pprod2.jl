@@ -12,7 +12,8 @@ mats = [
         #MaterialBind(:all, PPRod(E=210e6, A=0.01, sig_y=500e3, H=1000)),
        ]
 
-model = FEModel(msh, mats)
+ana = MechAnalysis()
+model = FEModel(msh, mats, ana)
 
 bcs = [
        NodeBC(:(x==0 && y==0), :(ux=0, uy=0)),

@@ -1,6 +1,7 @@
+using Amaru
 makeplots = false
 
-files = [
+@runfiles [
          # Static analysis: bulk elements
          "elem/elastic-elems.jl",
          "elem/elastic-hex8.jl",
@@ -32,4 +33,3 @@ files = [
          "elem/inset/ceb.jl",
         ]
 
-runfiles(files)

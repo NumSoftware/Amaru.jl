@@ -9,24 +9,25 @@ msh= Mesh(bls)
 
 # fem domain
 mats = [
-        "solids" => VonMises(E=2.0e8, nu=0.28, fy=5.0e5)
+        "solids" << VonMises(E=2.0e8, nu=0.28, fy=5.0e5)
        ]
 
-model = FEModel(msh, mats)
+ana = MechAnalysis()
+model = FEModel(msh, mats, ana)
 
 tag!(model.elems.ips[1], "ip")
 log1 = IpLogger()
 loggers = [
-           "ip" => log1
+           "ip" << log1
           ]
 setloggers!(model, loggers)
 
 # boundary conditions
 bcs = [
-    :(z==0)           => NodeBC(uz=0),
-    :(z==0.5)         => NodeBC(uz=+0.0033),
-    :(x==0 || x==1.0) => NodeBC(ux=0),
-    :(y==0 || y==1.0) => NodeBC(uy=0),
+    :(z==0)           << NodeBC(uz=0),
+    :(z==0.5)         << NodeBC(uz=+0.0033),
+    :(x==0 || x==1.0) << NodeBC(ux=0),
+    :(y==0 || y==1.0) << NodeBC(uy=0),
 ]
 addstage!(model, bcs, nincs=40)
 

@@ -17,42 +17,35 @@ mutable struct LinSeepState<:IpState
 end
 
 
-mutable struct LinSeep<:Material
+mutable struct LinSeep<:MatParams
     k ::Float64 # specific permeability
-    γw::Float64 # specific weight of the fluid
-    S ::Float64 # Storativity coefficient
+    S ::Float64 # storativity coefficient
 
-    function LinSeep(prms::Dict{Symbol,Float64})
-        return  LinSeep(;prms...)
-    end
+    function LinSeep(;k=NaN, S=0.0)
+        @check k>0.0
+        @check S>=0.0
 
-    function LinSeep(;k=NaN, gammaw=NaN, S=0.0)
-
-        k>0         || error("Invalid value for k: $k")
-        gammaw>0    || error("Invalid value for gammaw: $gammaw")
-        S>=0.0      || error("Invalid value for S: $S")
-
-        this    = new(k, gammaw, S)
+        this = new(k, S)
         return this
     end
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::LinSeep, shape::CellShape, ndim::Int) = SeepSolid
+matching_elem_type(::LinSeep) = SeepSolidElem
 
 # Type of corresponding state structure
-ip_state_type(mat::LinSeep) = LinSeepState
+ip_state_type(::SeepSolidElem, ::LinSeep) = LinSeepState
 
-function calcK(mat::LinSeep, state::LinSeepState) # Hydraulic conductivity matrix
+function calcK(matparams::LinSeep, state::LinSeepState) # Hydraulic conductivity matrix
     if state.env.ndim==2
-        return mat.k*eye(2)
+        return matparams.k*eye(2)
     else
-        return mat.k*eye(3)
+        return matparams.k*eye(3)
     end
 end
 
-function update_state!(mat::LinSeep, state::LinSeepState, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
-    K = calcK(mat, state)
+function update_state!(matparams::LinSeep, state::LinSeepState, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
+    K = calcK(matparams, state)
     state.V   = -K*G
     state.D  += state.V*Δt
     state.uw += Δuw
@@ -60,7 +53,7 @@ function update_state!(mat::LinSeep, state::LinSeepState, Δuw::Float64, G::Arra
 end
 
 
-function ip_state_vals(mat::LinSeep, state::LinSeepState)
+function ip_state_vals(matparams::LinSeep, state::LinSeepState)
     D = OrderedDict{Symbol, Float64}()
     D[:vx] = state.V[1]
     D[:vy] = state.V[2]

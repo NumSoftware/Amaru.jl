@@ -1,9 +1,9 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export elem_config_dofs, elem_init, elem_stiffness, elem_mass, elem_update!, elem_vals
+export elem_config_dofs, elem_init, elem_stiffness, elem_mass, update_elem!, elem_vals
 export set_state
 
-include("mech-properties.jl")
+# include("mech-properties.jl")
 
 include("elem/mech.jl")
 include("elem/distributed.jl")
@@ -27,8 +27,8 @@ include("elem/mech-shell.jl")
 
 
 # Models for bulk elements
-include("mat/elastic-solid.jl")
-#include("mat/in-elastic-solid.jl")
+include("mat/linear-elastic.jl")
+# include("mat/elastic-solid.jl")
 include("mat/dp-solid.jl")
 include("mat/vm-solid.jl")
 include("mat/mazars-solid.jl")
@@ -36,8 +36,6 @@ include("mat/sc-solid.jl")
 include("mat/compressible-bulk.jl")
 # include("mat/compressiveconcrete-solid.jl")
 include("mat/damageconcrete-solid.jl")
-#include("mat/ortho-solid.jl")
-#include("mat/ortho-concrete-solid.jl")
 
 # Spring, dumper, lumped mass
 include("elem/mech-lumpedmass.jl")
@@ -46,11 +44,11 @@ include("elem/mech-spring.jl")
 include("mat/elastic-spring.jl")
 
 # Models for truss elements
-include("mat/elastic-rod.jl")
+# include("mat/elastic-rod.jl")
 include("mat/pp-rod.jl")
 
 # Models for beams
-include("mat/elastic-beam.jl")
+# include("mat/elastic-beam.jl")
 
 # Models for plates
 include("mat/elastic-plateMZC.jl")
@@ -61,7 +59,7 @@ include("mat/elastic-plateRM8node.jl")
 include("mat/elastic-shell-quad4.jl")
 include("mat/elastic-shell-degenerated.jl")
 include("mat/elastic-cook-shell.jl")
-include("mat/elastic-shell.jl")
+# include("mat/elastic-shell.jl")
 
 # Models for joint elements
 include("mat/elastic-joint.jl")

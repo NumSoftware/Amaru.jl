@@ -1,7 +1,6 @@
-files = [
+using Amaru
+@runfiles [
          # Tools
          "show.jl",
          "logger.jl",
         ]
-
-runfiles(files)

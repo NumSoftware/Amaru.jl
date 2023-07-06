@@ -455,24 +455,6 @@ function getedges(cell::AbstractCell)
 end
 
 
-# # Pseudo determinant of non-square matrices
-# function norm2(J::Array{Float64,2})
-
-#     if ndims(J)==1; return norm(J) end
-
-#     r, c = size(J)
-#     if r==1; return norm(J) end
-#     if r==2 && c==3
-#         j1 = J[1,1]*J[2,2] - J[1,2]*J[2,1]
-#         j2 = J[1,2]*J[2,3] - J[1,3]*J[2,2]
-#         j3 = J[1,3]*J[2,1] - J[1,1]*J[2,3]
-#         return (j1*j1 + j2*j2 + j3*j3)^0.5  # jacobian determinant
-#     end
-#     if r==c; return det(J) end
-#     error("No rule to calculate norm2 of a $r x $c matrix")
-# end
-
-
 # Returns the volume/area/length of a cell
 function cell_extent(c::AbstractCell)
     IP = get_ip_coords(c.shape)

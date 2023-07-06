@@ -17,8 +17,8 @@ abstract type Element<:AbstractCell
     #nodes ::Array{Node,1}
     #ips   ::Array{Ip,1}
     #tag   ::String
-    #mat   ::Material
-    #mat   ::Properties
+    #matparams::MatParams
+    #matparams   ::Properties
     #active::Bool
     #linked_elems::Array{Element,1}
     #env ::ModelEnv
@@ -63,7 +63,7 @@ This function can be specialized by concrete types.
 """
 function elem_init(elem::Element)
     for ip in elem.ips
-        init_state(ip.state, elem.mat)
+        init_state(ip.state, elem.matparams)
     end
     return nothing
 end
@@ -119,7 +119,7 @@ function setquadrature!(elem::Element, n::Int=0)
         w = ipc[i,4]
         elem.ips[i] = Ip(R, w)
         elem.ips[i].id = i
-        elem.ips[i].state = ip_state_type(elem.mat)(elem.env)
+        elem.ips[i].state = ip_state_type(elem, elem.matparams)(elem.env)
         elem.ips[i].owner = elem
     end
 
@@ -173,21 +173,21 @@ function changequadrature!(elems::Array{<:Element,1}, n::Int=0)
 end
 
 
-function updatemat!(elem::Element, mat::Material)
-    typeof(elem.mat) == typeof(mat) || error("updatemat!: The same material type should be used.")
-    elem.mat = mat
+function update_material!(elem::Element, matparams::MatParams)
+    typeof(elem.matparams) == typeof(matparams) || error("update_material!: The same material type should be used.")
+    elem.matparams = matparams
 end
 
 """
-`changemat(elems, mat)`
+`changemat(elems, matparams)`
 
-Especifies the material model `mat` to be used to represent the behavior of a set of `Element` objects `elems`.
+Especifies the material model `matparams` to be used to represent the behavior of a set of `Element` objects `elems`.
 """
-function updatemat!(elems::Array{<:Element,1}, mat::Material)
-    length(elems)==0 && notify("updatemat!: Defining material model $(typeof(mat)) for an empty array of elements.")
+function update_material!(elems::Array{<:Element,1}, matparams::MatParams)
+    length(elems)==0 && notify("update_material!: Defining material model $(typeof(matparams)) for an empty array of elements.")
 
     for elem in elems
-        updatemat!(elem, mat)
+        update_material!(elem, matparams)
     end
 end
 
@@ -209,7 +209,7 @@ function setstate!(elems::Array{<:Element,1}; args...)
     notfound = Set{Symbol}()
 
     for elem in elems
-        fields = fieldnames(ip_state_type(elem.mat))
+        fields = fieldnames(ip_state_type(elem.matparams))
         for ip in elem.ips
             for (k,v) in args
                 if k in fields
@@ -311,7 +311,7 @@ This function can be specialized by concrete types.
 function elems_ip_vals(elem::Element)
     table = DataTable()
     for ip in elem.ips
-        D = ip_state_vals(elem.mat, ip.state)
+        D = ip_state_vals(elem.matparams, ip.state)
         push!(table, D)
     end
 

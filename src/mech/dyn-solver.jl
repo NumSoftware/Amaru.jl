@@ -1,5 +1,23 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
+export DynAnalysis
+
+mutable struct DynAnalysisProps<:AnalysisProps
+    stressmodel::String # plane stress, plane strain, etc.
+    thickness::Float64  # thickness for 2d analyses
+    g::Float64 # gravity acceleration
+    
+    function DynAnalysisProps(;stressmodel="3d", thickness=1.0, g=0.0)
+        @check stressmodel in ("plane-stress", "plane-strain", "axisymmetric", "3d")
+        @check thickness>0
+        @check g>=0
+        return new(stressmodel, thickness, g)
+    end
+end
+
+DynAnalysis = DynAnalysisProps
+
+
 # Assemble the global mass matrix
 function mount_M(elems::Array{<:Element,1}, ndofs::Int )
 
@@ -128,24 +146,22 @@ subjected to a set of boundary conditions `bcs` and a time span.
 `verbose = true` : If true, provides information of the analysis steps
 
 """
-
-export dyn_solve!
-function dyn_solve!(model::Model; args...)
-    name = "Dynamic solver"
-    st = stage_iterator!(name, dyn_stage_solver!, model; args...)
-    return st
+function solve!(model::Model, anaprops::DynAnalysis; args...)
+    name = "Solver for dynamic analyses"
+    status = stage_iterator!(name, dyn_stage_solver!, model; args...)
+    return status
 end
 
 
 function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::StatusLine; 
-    tol     :: Real  = 1e-2,
-    alpha   :: Real  = 0.0,
-    beta    :: Real  = 0.0,
-    sism    :: Bool  = false,
+    tol     :: Real = 1e-2,
+    alpha   :: Real = 0.0,
+    beta    :: Real = 0.0,
+    sism    :: Bool = false,
     tss     :: Real = 0.0,
     tds     :: Real = 0.0,
-    sism_file  :: String = " ",
-    sism_dir   :: String = "fx",
+    sism_file:: String = " ",
+    sism_dir :: String = "fx",
     Ttol    :: Real  = 1e-9,
     rspan   :: Real  = 1e-2,
     maxits  :: Int     = 5,
@@ -256,7 +272,7 @@ function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
     t  = env.t
  
     inc  = 0       # increment counter
-    iout = env.stagebits.out      # file output counter
+    iout = env.out      # file output counter
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
     Fin  = zeros(ndofs)  # total internal force
@@ -274,14 +290,14 @@ function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
     # while t < tend - ttol
     while T < 1.0-Ttol
 
-        env.stagebits.ΔT = ΔT
+        env.ΔT = ΔT
         Δt = tspan*ΔT
         # t = t + Δt
         env.t = t
 
         # Update counters
         inc += 1
-        env.stagebits.inc += 1
+        env.inc += 1
 
         println(logfile, "  inc $inc")
 
@@ -391,15 +407,15 @@ function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
 
             # Update time t and Δt
             T += ΔT
-            env.stagebits.T = T
+            env.T = T
             t += Δt
             env.t = t
-            env.stagebits.residue = residue
+            env.residue = residue
 
             # Check for saving output file
             if T>Tcheck-Ttol && save_outs
-                env.stagebits.out += 1
-                iout = env.stagebits.out
+                env.out += 1
+                iout = env.out
                 rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
                 
                 update_output_data!(model)
@@ -440,7 +456,7 @@ function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
         else
             # Restore counters
             inc -= 1
-            env.stagebits.inc -= 1
+            env.inc -= 1
 
             copyto!.(State, StateBk)
 
@@ -505,8 +521,8 @@ function dynsolvex!(
     Ttol>0 || error("solve! : tolerance `Ttol `should be greater than zero")
 
     env = model.env
-    env.stagebits.stage += 1
-    env.stagebits.inc    = 0
+    env.stage += 1
+    env.inc    = 0
     sw = StopWatch() # timing
 
     if !isnan(end_time)
@@ -515,14 +531,14 @@ function dynsolvex!(
     end
     isnan(tspan) && error("dynsolve!: neither tspan nor end_time were set.")
 
-    verbosity>0 && println("  model type: ", env.modeltype)
+    verbosity>0 && println("  model type: ", env.anaprops.stressmodel)
 
     if verbosity==0
-        printstyled("Dynamic FE analysis: Stage $(env.stagebits.stage)\n", bold=true, color=:cyan)
+        printstyled("Dynamic FE analysis: Stage $(env.stage)\n", bold=true, color=:cyan)
     end
 
     tol>0 || error("solve! : tolerance should be greater than zero.")
-    verbosity>0 || println("  model type: ", env.modeltype)
+    verbosity>0 || println("  model type: ", env.anaprops.stressmodel)
 
     save_outs = nouts>0
     if save_outs
@@ -560,7 +576,7 @@ function dynsolvex!(
     verbosity>0 && println("  unknown dofs: $nu")
 
     # Setup quantities at dofs
-    if env.stagebits.stage==1
+    if env.stage==1
         for (i,dof) in enumerate(dofs)
             us, fs, vs, as = components_dict[dof.name]
             dof.vals[us] = 0.0
@@ -608,7 +624,7 @@ function dynsolvex!(
     end
 
     # Save initial file
-    if env.stagebits.stage==1 && save_outs
+    if env.stage==1 && save_outs
         update_output_data!(model)
         update_single_loggers!(model)
         update_multiloggers!(model)
@@ -626,7 +642,7 @@ function dynsolvex!(
 
     ttol = 1e-9    # time tolerance
     inc  = 0       # increment counter
-    iout = env.stagebits.out      # file output counter
+    iout = env.out      # file output counter
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
     Fin  = zeros(ndofs)  # total internal force
@@ -641,7 +657,7 @@ function dynsolvex!(
     while t < tend - ttol
         # Update counters
         inc += 1
-        env.stagebits.inc += 1
+        env.inc += 1
 
         Uex, Fex = get_bc_vals(model, bcs, t+Δt) # get values at time t+Δt
 
@@ -651,7 +667,7 @@ function dynsolvex!(
             Fex = sismic_force(model, bcs, M,Fex,AS,keysis,t+Δt,tds)
         end
 
-        verbosity>0 || printstyled("  stage $(env.stagebits.stage)  increment $inc from t=$(round(t,digits=10)) to t=$(round(t+Δt,digits=10)) (Δt=$(round(Δt,digits=10)))\e[K\r", bold=true, color=:blue) # color 111
+        verbosity>0 || printstyled("  stage $(env.stage)  increment $inc from t=$(round(t,digits=10)) to t=$(round(t+Δt,digits=10)) (Δt=$(round(Δt,digits=10)))\e[K\r", bold=true, color=:blue) # color 111
         verbosity>0 && println()
         #R   .= FexN - F    # residual
         Fex_Fin = Fex-Fina    # residual
@@ -756,8 +772,8 @@ function dynsolvex!(
 
             # Check for saving output file
             if abs(t - TT) < ttol && save_outs
-                env.stagebits.out += 1
-                iout = env.stagebits.out
+                env.out += 1
+                iout = env.out
                 update_output_data!(model)
                 update_multiloggers!(model)
                 save(model, "$outdir/$filekey-$iout.vtu", quiet=true)
@@ -777,7 +793,7 @@ function dynsolvex!(
         else
             # Restore counters
             inc -= 1
-            env.stagebits.inc = inc
+            env.inc = inc
 
             if autoinc
                 verbosity>0 && println("    increment failed.")

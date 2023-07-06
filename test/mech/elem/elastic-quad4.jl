@@ -13,15 +13,16 @@ mesh = Mesh(block, quiet=true, reorder=false)
 # Model definition
 
 mats = [
-    "solid" => ElasticSolid(E=1.0, nu=0.25),
+    "solid" << LinearElastic(E=1.0, nu=0.25),
 ]
 
-model = FEModel(mesh, mats)
+ana = MechAnalysis()
+model = FEModel(mesh, mats, ana)
 
 bcs = [
-    :(x==0.) => SurfaceBC(ux=0.),
-    :(y==0.) => SurfaceBC(uy=0),
-    :(y==1.) => SurfaceBC(ty=-1.),
+    :(x==0.) << SurfaceBC(ux=0.),
+    :(y==0.) << SurfaceBC(uy=0),
+    :(y==1.) << SurfaceBC(ty=-1.),
 ]
 addstage!(model, bcs, nincs=1)
 solve!(model)

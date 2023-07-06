@@ -14,50 +14,33 @@ mutable struct ElasticRSJointState<:IpState
     end
 end
 
-mutable struct ElasticRSJoint<:Material
+mutable struct ElasticRSJoint<:MatParams
     ks::Float64
     kn::Float64
-    p ::Float64    # section perimeter
 
     function ElasticRSJoint(prms::Dict{Symbol,Float64})
         return  ElasticRSJoint(;prms...)
     end
 
-    function ElasticRSJoint(;ks=NaN, kn=NaN, p=NaN, A=NaN, dm=NaN)
-        # A : section area
-        # dm: section diameter
-        # p : section perimeter
+    function ElasticRSJoint(;ks=NaN, kn=NaN)
         @check ks>=0
         @check kn>=0
-        @check (p>0 || A>0 || dm>0)
 
-        if isnan(p)
-            if A>0
-                p = 2.0*(A*pi)^0.5
-            else
-                p = pi*dm
-            end
-        end
-        @assert p>0
-
-        this = new(ks, kn, p)
+        this = new(ks, kn)
         return this
     end
 end
 
-ElasticJoint1D = ElasticRSJoint #! deprecated
-export ElasticJoint1D
-
 
 # Returns the element type that works with this material
-matching_elem_type(::ElasticRSJoint, shape::CellShape, ndim::Int) = MechRodSolidJoint
+matching_elem_type(::ElasticRSJoint) = MechRSJointElem
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticRSJoint) = ElasticRSJointState
+ip_state_type(::MechRSJointElem, ::ElasticRSJoint) = ElasticRSJointState
 
-function calcD(mat::ElasticRSJoint, state::ElasticRSJointState)
-    ks = mat.ks
-    kn = mat.kn
+function calcD(matparams::ElasticRSJoint, state::ElasticRSJointState)
+    ks = matparams.ks
+    kn = matparams.kn
     if state.env.ndim==2
         return [  ks  0.0
                  0.0   kn ]
@@ -69,8 +52,8 @@ function calcD(mat::ElasticRSJoint, state::ElasticRSJointState)
 end
 
 
-function stress_update(mat::ElasticRSJoint, state::ElasticRSJointState, Δu)
-    D = calcD(mat, state)
+function update_state(matparams::ElasticRSJoint, state::ElasticRSJointState, Δu)
+    D = calcD(matparams, state)
     Δσ = D*Δu
 
     state.u .+= Δu
@@ -78,7 +61,7 @@ function stress_update(mat::ElasticRSJoint, state::ElasticRSJointState, Δu)
     return Δσ, success()
 end
 
-function ip_state_vals(mat::ElasticRSJoint, state::ElasticRSJointState)
+function ip_state_vals(matparams::ElasticRSJoint, state::ElasticRSJointState)
     return OrderedDict(
       :ur   => state.u[1] ,
       :tau  => state.σ[1] )

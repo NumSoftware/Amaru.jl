@@ -11,16 +11,17 @@ msh = Mesh(blt)
 
 # Finite element model
 
-mats = [ "beam" => ElasticBeam(E=10, A=1, I=1) ]
+mats = [ "beam" << ElasticBeam(E=10, A=1, I=1) ]
 
 bcs =
     [
-     :(x==0 && y==0) => NodeBC(ux=0, uy=0, rz=0),
-     :(x==1 && y==0) => NodeBC(fy=-10.),
+     :(x==0 && y==0) << NodeBC(ux=0, uy=0, rz=0),
+     :(x==1 && y==0) << NodeBC(fy=-10.),
     ]
 
 #bc3 = BodyC( model.elems, gz=-25 )
-model = FEModel(msh, mats)
+ana = MechAnalysis()
+model = FEModel(msh, mats, ana)
 
 @test solve!(model).success
 

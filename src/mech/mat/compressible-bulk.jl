@@ -9,7 +9,7 @@ An elastoplastic constitutive model is used to simulate materials that primarily
 elastic behavior but exhibit nonlinear behavior when the isotropic compression p exceeds 
 a predefined yield limit py.
 """
-mutable struct CompressibleBulk<:Material
+mutable struct CompressibleBulk<:MatParams
     E   ::Float64  # initial Young modulus
     ν   ::Float64
     py0 ::Float64
@@ -57,46 +57,46 @@ end
 
 
 # Returns the element type that works with this material model
-matching_elem_type(::CompressibleBulk, shape::CellShape, ndim::Int) = MechSolid
+matching_elem_type(::CompressibleBulk) = MechSolidElem
 
 # Type of corresponding state structure
 ip_state_type(::CompressibleBulk) = CompressibleBulkState
 
 
-@inline function calc_py(mat::CompressibleBulk, state::CompressibleBulkState, εvp::Float64)
-    return mat.py0 + (mat.pc-mat.py0)*exp( 1 - (εvp/mat.εvpc)^-mat.α )
+@inline function calc_py(matparams::CompressibleBulk, state::CompressibleBulkState, εvp::Float64)
+    return matparams.py0 + (matparams.pc-matparams.py0)*exp( 1 - (εvp/matparams.εvpc)^-matparams.α )
 end
 
 
-@inline function yield_func(mat::CompressibleBulk, state::CompressibleBulkState, σ::Array{Float64,1},  εvp::Float64)
+@inline function yield_func(matparams::CompressibleBulk, state::CompressibleBulkState, σ::Array{Float64,1},  εvp::Float64)
     p = (σ[1]+σ[2]+σ[3])/3
-    f = calc_py(mat, state, εvp) - p
+    f = calc_py(matparams, state, εvp) - p
     @show f
-    return calc_py(mat, state, εvp) - p
+    return calc_py(matparams, state, εvp) - p
 end
 
 
-function calcD(mat::CompressibleBulk, state::CompressibleBulkState)
-    α   = mat.α
-    De  = calcDe(mat.E, mat.ν, state.env.modeltype)
+function calcD(matparams::CompressibleBulk, state::CompressibleBulkState)
+    α   = matparams.α
+    De  = calcDe(matparams.E, matparams.ν, state.env.anaprops.stressmodel)
 
     state.Δλ==0.0 && return De
 
     εvp  = state.εvp
-    εvpc = mat.εvpc
-    α    = mat.α
+    εvpc = matparams.εvpc
+    α    = matparams.α
 
     dpydεvp = (pc-py0)*exp( 1 - (εvp/εvpc)^-α )*α*(εvp/εvpc)^(-α-1)/εvpc
 
     return De - De*dfdσ*dfdσ*D/(dot(dfdσ*De, dfdσ) + dpydεvp) # todo
 end
 
-function calc_σ_Δεvp_Δλ(mat::CompressibleBulk, state::CompressibleBulkState, σtr::Array{Float64,1})
+function calc_σ_Δεvp_Δλ(matparams::CompressibleBulk, state::CompressibleBulkState, σtr::Array{Float64,1})
     Δλ = 0.0
     up = 0.0
     σ  = zeros(ndim)
     σ0 = zeros(ndim)
-    K  = mat.E/(3*(1-2*mat.ν))
+    K  = matparams.E/(3*(1-2*matparams.ν))
     
     tol    = 1e-6
     maxits = 50
@@ -109,7 +109,7 @@ function calc_σ_Δεvp_Δλ(mat::CompressibleBulk, state::CompressibleBulkState
         Δεvp  = Δλ*r
         εvp   = state.εvp + Δεvp
 
-        f       = yield_func(mat, state, σ, εvp)
+        f       = yield_func(matparams, state, σ, εvp)
         dpydεvp = (pc-py0)*exp( 1 - (εvp/εvpc)^-α )*α*(εvp/εvpc)^(-α-1)/εvpc
         dfdΔλ   = dpydεvp - 3*K
         Δλ      = Δλ - f/dfdΔλ
@@ -126,19 +126,19 @@ function calc_σ_Δεvp_Δλ(mat::CompressibleBulk, state::CompressibleBulkState
 end
 
 
-function stress_update(mat::CompressibleBulk, state::CompressibleBulkState, Δε::Array{Float64,1})
+function update_state(matparams::CompressibleBulk, state::CompressibleBulkState, Δε::Array{Float64,1})
     σini = state.σ
 
-    De  = calcDe(mat.E, mat.ν, state.env.modeltype)
+    De  = calcDe(matparams.E, matparams.ν, state.env.anaprops.stressmodel)
     σtr = state.σ + inner(De, Δε)
-    ftr = yield_func(mat, state, σtr, state.εvp)
+    ftr = yield_func(matparams, state, σtr, state.εvp)
 
     if ftr < 1.e-8 # elastic
         state.Δλ = 0.0
         state.σ  = σtr
     else
         # plastic
-        σ, Δεvp, Δλ, status = calc_σ_Δεvp_Δλ(mat::AbstractTCJoint, state::AbstractTCJointState, σtr::Array{Float64,1})
+        σ, Δεvp, Δλ, status = calc_σ_Δεvp_Δλ(matparams::AbstractTCJoint, state::AbstractTCJointState, σtr::Array{Float64,1})
         failed(status) && return state.σ, status
 
         state.σ, state.Δεvp, state.Δλ = σ, Δεvp, Δλ
@@ -155,8 +155,8 @@ function stress_update(mat::CompressibleBulk, state::CompressibleBulkState, Δε
 end
 
 
-function ip_state_vals(mat::CompressibleBulk, state::CompressibleBulkState)
-    dict = stress_strain_dict(state.σ, state.ε, state.env.modeltype)
+function ip_state_vals(matparams::CompressibleBulk, state::CompressibleBulkState)
+    dict = stress_strain_dict(state.σ, state.ε, state.env.anaprops.stressmodel)
     dict[:evp] = state.εvp
     return dict
 end

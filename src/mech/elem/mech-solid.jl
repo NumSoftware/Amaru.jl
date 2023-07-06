@@ -1,29 +1,51 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
+export MechSolid
+
+struct MechSolidProps<:ElemProperties
+    ρ::Float64
+    γ::Float64
+
+    function MechSolidProps(;rho=0.0, gamma=0.0)
+        @check rho>=0
+        @check gamma>=0
+
+        return new(rho, gamma)
+    end    
+end
+
+MechSolid = MechSolidProps
+
 """
-    MechSolid
+    MechSolidElem
 
 A bulk finite element for mechanical equilibrium analyses.
 """
-mutable struct MechSolid<:Mechanical
+mutable struct MechSolidElem<:MechElem
     id    ::Int
     shape ::CellShape
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    mat   ::Material
+    matparams::MatParams
+    props ::MechSolidProps
     active::Bool
     linked_elems::Array{Element,1}
     env   ::ModelEnv
 
-    function MechSolid();
-        return new()
+    function MechSolidElem(props=MechSolidProps())
+        this = new()
+        this.props = props
+        return this
     end
 end
 
-matching_shape_family(::Type{MechSolid}) = BULKCELL
+matching_shape_family(::Type{MechSolidElem}) = BULKCELL
+matching_elem_type(::Type{MechSolidProps}) = MechSolidElem
+matching_props_type(::Type{MechSolidElem}) = MechSolidProps
 
-# function elem_init(elem::MechSolid)
+
+# function elem_init(elem::MechSolidElem)
 #     ipdata_ty = typeof(elem.ips[1].state)
 #     if :h in fieldnames(ipdata_ty)
 #         # Element volume/area
@@ -51,12 +73,12 @@ matching_shape_family(::Type{MechSolid}) = BULKCELL
 # end
 
 
-function distributed_bc(elem::MechSolid, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::MechSolidElem, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
     return mech_solid_boundary_forces(elem, facet, key, val)
 end
 
 
-function body_c(elem::MechSolid, key::Symbol, val::Union{Real,Symbol,Expr})
+function body_c(elem::MechSolidElem, key::Symbol, val::Union{Real,Symbol,Expr})
     return mech_solid_body_forces(elem, key, val)
 end
 
@@ -73,7 +95,7 @@ function setB(elem::Element, ip::Ip, dNdX::Matx, B::Matx)
             B[6,1+j*ndim] = dNdX[i,2]/SR2
             B[6,2+j*ndim] = dNdX[i,1]/SR2
         end
-        if elem.env.modeltype=="axisymmetric"
+        if elem.env.anaprops.stressmodel=="axisymmetric"
             N = elem.shape.func(ip.R)
             for i in 1:nnodes
                 j = i-1
@@ -103,9 +125,9 @@ function setB(elem::Element, ip::Ip, dNdX::Matx, B::Matx)
 end
 
 
-function elem_stiffness(elem::MechSolid)
+function elem_stiffness(elem::MechSolidElem)
     ndim   = elem.env.ndim
-    th     = elem.env.thickness
+    th     = elem.env.anaprops.thickness
     nnodes = length(elem.nodes)
     C = getcoords(elem)
     K = zeros(nnodes*ndim, nnodes*ndim)
@@ -116,7 +138,7 @@ function elem_stiffness(elem::MechSolid)
     dNdX = Array{Float64}(undef, nnodes, ndim)
 
     for ip in elem.ips
-        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.anaprops.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -128,7 +150,7 @@ function elem_stiffness(elem::MechSolid)
 
         # compute K
         coef = detJ*ip.w*th
-        D    = calcD(elem.mat, ip.state)
+        D    = calcD(elem.matparams, ip.state)
         @gemm DB = D*B
         @gemm K += coef*B'*DB
     end
@@ -140,18 +162,18 @@ function elem_stiffness(elem::MechSolid)
 end
 
 
-function elem_mass(elem::MechSolid)
+function elem_mass(elem::MechSolidElem)
     ndim   = elem.env.ndim
-    th     = elem.env.thickness
+    th     = elem.env.anaprops.thickness
     nnodes = length(elem.nodes)
-    ρ = elem.mat.ρ
+    ρ = elem.matparams.ρ
     C = getcoords(elem)
     M = zeros(nnodes*ndim, nnodes*ndim)
     N = zeros(ndim, nnodes*ndim)
     J = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.anaprops.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute N matrix
         Ni   = elem.shape.func(ip.R)
@@ -179,9 +201,9 @@ function elem_mass(elem::MechSolid)
 end
 
 
-function elem_internal_forces(elem::MechSolid)
+function elem_internal_forces(elem::MechSolidElem)
     ndim   = elem.env.ndim
-    th     = elem.env.thickness
+    th     = elem.env.anaprops.thickness
     nnodes = length(elem.nodes)
     keys   = (:ux, :uy, :uz)[1:ndim]
     map    = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
@@ -194,7 +216,7 @@ function elem_internal_forces(elem::MechSolid)
 
     C = getcoords(elem)
     for ip in elem.ips
-        if elem.env.modeltype=="axisymmetric"
+        if elem.env.anaprops.stressmodel=="axisymmetric"
             th = 2*pi*ip.coord.x
         end
 
@@ -214,9 +236,9 @@ function elem_internal_forces(elem::MechSolid)
 end
 
 
-function elem_update!(elem::MechSolid, U::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::MechSolidElem, U::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
-    th     = elem.env.thickness
+    th     = elem.env.anaprops.thickness
     nnodes = length(elem.nodes)
     keys   = (:ux, :uy, :uz)[1:ndim]
     map    = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
@@ -231,7 +253,7 @@ function elem_update!(elem::MechSolid, U::Array{Float64,1}, Δt::Float64)
 
     C = getcoords(elem)
     for ip in elem.ips
-        if elem.env.modeltype=="axisymmetric"
+        if elem.env.anaprops.stressmodel=="axisymmetric"
             th = 2*pi*ip.coord.x
         end
 
@@ -243,8 +265,8 @@ function elem_update!(elem::MechSolid, U::Array{Float64,1}, Δt::Float64)
         setB(elem, ip, dNdX, B)
 
         @gemv Δε = B*dU
-        Δσ, status = stress_update(elem.mat, ip.state, Δε)
-        failed(status) && return dF, map, failure("MechSolid: Error at integration point $(ip.id)")
+        Δσ, status = update_state(elem.matparams, ip.state, Δε)
+        failed(status) && return dF, map, failure("MechSolidElem: Error at integration point $(ip.id)")
         coef = detJ*ip.w*th
         @gemv dF += coef*B'*Δσ
     end
@@ -253,22 +275,22 @@ function elem_update!(elem::MechSolid, U::Array{Float64,1}, Δt::Float64)
 end
 
 
-function elem_vals(elem::MechSolid)
+function elem_vals(elem::MechSolidElem)
     vals = OrderedDict{Symbol,Float64}()
 
-    if haskey(ip_state_vals(elem.mat, elem.ips[1].state), :damt)
+    if haskey(ip_state_vals(elem.matparams, elem.ips[1].state), :damt)
 
-        mean_dt = mean( ip_state_vals(elem.mat, ip.state)[:damt] for ip in elem.ips )
+        mean_dt = mean( ip_state_vals(elem.matparams, ip.state)[:damt] for ip in elem.ips )
 
         vals[:damt] = mean_dt
-        mean_dc = mean( ip_state_vals(elem.mat, ip.state)[:damc] for ip in elem.ips )
+        mean_dc = mean( ip_state_vals(elem.matparams, ip.state)[:damc] for ip in elem.ips )
         vals[:damc] = mean_dc
     end
 
     #vals = OrderedDict{String, Float64}()
     #keys = elem_vals_keys(elem)
 #
-    #dicts = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
+    #dicts = [ ip_state_vals(elem.matparams, ip.state) for ip in elem.ips ]
     #nips = length(elem.ips)
 #
     #for key in keys

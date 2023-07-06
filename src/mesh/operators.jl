@@ -123,45 +123,6 @@ function scale!(blocks::Array{<:AbstractBlock,1}; factor=1.0, base=[0.0,0,0], ax
     return blocks
 end
 
-# function mirror(block::AbstractBlock; face=[0.0 0 0; 0 1 0; 0 0 1])
-#     nr, nc = size(face)
-#     if nc==2
-#         face = [ face zeros(nr) ]
-#     end
-#     if nr==2
-#         face = [ face; [face[1,1] face[1,2] 1.0] ]
-#     end
-
-#     p1 = face[1,:]
-#     p2 = face[2,:]
-#     p3 = face[3,:]
-#     normal = cross(p2-p1, p3-p1)
-#     normal = normal/norm(normal)
-
-#     bl = copy(block)
-#     coords =getcoords(bl.nodes)
-
-#     distances    = (coords .- p1')*normal       # d = n^.(xi - xp)
-#     coords = coords .- 2*distances.*normal'  # xi = xi - 2*d*n^
-
-#     # fix coordinates in bl to keep anti-clockwise numbering
-#     npts = size(coords)[1]
-#     ndim = typeof(bl)==Block2D ? 2 : 3
-
-#     if npts==8 && ndim==2
-#         idxs = [ 4, 3, 2, 1, 7, 6, 5, 8 ]
-#     elseif npts==8 && ndim==3
-#         idxs = [ 5:8; 1:4 ]
-#     elseif npts==20 && ndim==3
-#         idxs = [ 5:8; 1:4; 13:16; 9:12; 17:20 ]
-#     else
-#         idxs = [ npts:-1:1; ]  # reverse
-#     end
-#     coords = coords[idxs,:]
-#     bl.nodes = [ Node(coords[i,1], coords[i,2], coords[i,3]) for i in 1:size(coords,1) ]
-
-#     return bl
-# end
 
 """
     $(TYPEDSIGNATURES)
@@ -246,47 +207,6 @@ function mirror(mesh::Mesh; axis=[0.0, 0, 1], base=[0.0, 0, 0])
     return newmesh
 end
 
-# function mirror2(mesh::Mesh; face=[0.0 0 0; 0 1 0; 0 0 1])
-#     nr, nc = size(face)
-#     if nc==2
-#         face = [ face zeros(nr) ]
-#     end
-#     if nr==2
-#         face = [ face; [face[1,1] face[1,2] 1.0] ]
-#     end
-#     p1 = face[1,:]
-#     p2 = face[2,:]
-#     p3 = face[3,:]
-#     normal = cross(p2-p1, p3-p1)
-#     normal = normal/norm(normal)
-
-#     # copy mesh
-#     newmesh = copy(mesh)
-
-#     # mirror
-#     coords =getcoords(newmesh.nodes)
-#     distances = (coords .- p1')*normal       # d = n^.(xi - xp)
-#     coords    = coords .- 2*distances.*normal'  # xi = xi - 2*d*n^
-
-#     # updating points
-#     for (i,p) in enumerate(newmesh.nodes)
-#         p.coord.x = coords[i,1]
-#         p.coord.y = coords[i,2]
-#         p.coord.z = coords[i,3]
-#     end
-
-#     # fix connectivities
-#     for c in newmesh.elems
-#         if c.shape==HEX8
-#             idxs = [ 5:8; 1:4 ]
-#             c.nodes = c.nodes[idxs]
-#         end
-#     end
-
-#     fixup!(newmesh)
-#     return newmesh
-# end
-
 
 """
     $(SIGNATURES)
@@ -320,43 +240,6 @@ function array(block::AbstractBlock; nx=1, ny=1, nz=1, dx=0.0, dy=0.0, dz=0.0)
     end
     return blocks
 end
-
-# function array(block::AbstractBlock; nx=1, ny=1, nz=1, dx=0.0, dy=0.0, dz=0.0)
-
-#     if dx isa Array
-#         nx = length(dx)
-#         DX = dx
-#     else
-#         DX = collect( (i-1)*dx for i in 1:nx )
-#     end
-    
-#     if dy isa Array
-#         ny = length(dy)
-#         DY = dy
-#     else
-#         DY = collect( (i-1)*dy for i in 1:ny )
-#     end
-
-#     if dz isa Arraz
-#         nz = length(dz)
-#         DZ = dz
-#     else
-#         DZ = collect( (i-1)*dz for i in 1:nz )
-#     end
-
-#     blocks = [ block ]
-#     for k in 1:nz
-#         for j in 1:ny
-#             for i in 1:nx
-#                 i==j==k==1 && continue
-#                 cp = copy(block)
-#                 move!(cp, dx=Dx[i], dy=DY[j], dz=DZ[k])
-#                 push!(blocks, cp)
-#             end
-#         end
-#     end
-#     return blocks
-# end
 
 
 """
@@ -597,35 +480,6 @@ function LinearAlgebra.rotate!(mesh::Mesh; base=[0.0,0,0], axis=[0.0,0,1], angle
 
     return mesh
 end
-
-
-# Roll Axes
-# =========
-
-#function rollaxes!(bl::AbstractBlock)
-#    for p in bl.nodes
-#        p.coord.x, p.coord.y, p.coord.z = p.coord.z, p.coord.x, p.coord.y
-#    end
-#    return nothing
-#end
-#
-#rollaxes!(bls::Array{<:AbstractBlock,1}) = (rollaxes!.(bls); nothing)
-#
-#function rollaxes!(mesh::Mesh)
-#    if mesh.ndim==2
-#        for p in mesh.nodes
-#            p.coord.x, p.coord.y = p.coord.y, p.coord.x
-#        end
-#    else
-#        for p in mesh.nodes
-#            p.coord.x, p.coord.y, p.coord.z = p.coord.z, p.coord.x, p.coord.y
-#        end
-#    end
-#
-#    if length(mesh.node_data)>0 || length(mesh.elem_data)>0
-#        notify("rollaxes!: mesh associated data was not reordered according to new axes.")
-#    end
-#end
 
 
 function changeaxes!(bl::AbstractBlock, order::String)

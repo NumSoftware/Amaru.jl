@@ -22,7 +22,7 @@ mutable struct MazarsState<:IpState
     end
 end
 
-mutable struct Mazars<:Material
+mutable struct Mazars<:MatParams
     E ::Float64
     nu::Float64
     ε̅0::Float64
@@ -56,28 +56,28 @@ mutable struct Mazars<:Material
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::Mazars, shape::CellShape, ndim::Int) = MechSolid
+matching_elem_type(::Mazars) = MechSolidElem
 
 # Type of corresponding state structure
-ip_state_type(mat::Mazars) = MazarsState
+ip_state_type(::MechSolidElem, ::Mazars) = MazarsState
 
 
-function calcD(mat::Mazars, state::MazarsState)
+function calcD(matparams::Mazars, state::MazarsState)
     # There is something wrong with the derivatives here
 
     # Equivalent strain scalar
     εp = eigvals(state.ε)
     ε̅ = norm(pos.(εp))
     ε̅ == 0.0 && (ε̅ += 1e-15)
-    ε̅max = max(state.ε̅max, mat.ε̅0)
+    ε̅max = max(state.ε̅max, matparams.ε̅0)
 
     if ε̅<ε̅max
         #@show "elastic"
-        return (1.0 - state.φ)*mat.De
+        return (1.0 - state.φ)*matparams.De
     else
         #@show "plastic"
-        #return (1.0 - state.φ)*mat.De
-        return mat.De
+        #return (1.0 - state.φ)*matparams.De
+        return matparams.De
 
         # Principal stresses and principal directions
         σp, V = eigen(state.σ)
@@ -91,7 +91,7 @@ function calcD(mat::Mazars, state::MazarsState)
         # Tensile and compression tensors
         σt = pos.(σp)
         σc = neg.(σp)
-        Dei= inv(mat.De)
+        Dei= inv(matparams.De)
         εt = Dei*σt
         εc = Dei*σc
         εv = sum(pos.(εt)) + sum(neg.(εc))
@@ -103,25 +103,25 @@ function calcD(mat::Mazars, state::MazarsState)
         αc = clamp(sum(neg.(εc))/εv, 0.0, 1.0)
 
         # Constitutive matrix calculation
-        dφtdε̅ = (1.0-mat.At)*mat.ε̅0*ε̅^-2 + mat.At*mat.Bt*exp( -mat.Bt*(ε̅-mat.ε̅0) )
-        dφcdε̅ = (1.0-mat.Ac)*mat.ε̅0*ε̅^-2 + mat.Ac*mat.Bc*exp( -mat.Bc*(ε̅-mat.ε̅0) )
+        dφtdε̅ = (1.0-matparams.At)*matparams.ε̅0*ε̅^-2 + matparams.At*matparams.Bt*exp( -matparams.Bt*(ε̅-matparams.ε̅0) )
+        dφcdε̅ = (1.0-matparams.Ac)*matparams.ε̅0*ε̅^-2 + matparams.Ac*matparams.Bc*exp( -matparams.Bc*(ε̅-matparams.ε̅0) )
         dε̅dε  = sum( pos(εp[i])*(1+sign(εp[i]))*P[i] for i in 1:3 ) / (2*ε̅)
         dφdε  = (αt*dφtdε̅ + αc*dφcdε̅) * dε̅dε
 
-        #@show dφdε'*mat.De
-        #D     = (1.0 - state.φ)*mat.De - (dφdε'*mat.De)'*state.ε'
-        D     = (1.0 - state.φ)*mat.De - dφdε*(mat.De*state.ε)'
+        #@show dφdε'*matparams.De
+        #D     = (1.0 - state.φ)*matparams.De - (dφdε'*matparams.De)'*state.ε'
+        D     = (1.0 - state.φ)*matparams.De - dφdε*(matparams.De*state.ε)'
         return D
     end
 end
 
 
-function stress_update(mat::Mazars, state::MazarsState, Δε::Array{Float64,1})
+function update_state(matparams::Mazars, state::MazarsState, Δε::Array{Float64,1})
     σini  = state.σ
     state.ε = state.ε + Δε
 
-    E  = mat.E
-    nu = mat.nu
+    E  = matparams.E
+    nu = matparams.nu
 
     # Principal stresses tensor
     εp = eigvals(state.ε)
@@ -129,11 +129,11 @@ function stress_update(mat::Mazars, state::MazarsState, Δε::Array{Float64,1})
     # Equivalent strain scalar
     ε̅ = norm(pos.(εp))
     ε̅ == 0.0 && (ε̅ += 1e-15)
-    state.ε̅max = max(state.ε̅max, mat.ε̅0)
+    state.ε̅max = max(state.ε̅max, matparams.ε̅0)
 
     if ε̅ < state.ε̅max  # linear-elastic increment
         #@show "Elast"
-        state.σ = (1.0 - state.φ)*mat.De*state.ε
+        state.σ = (1.0 - state.φ)*matparams.De*state.ε
     else # increment with damage: A previous elastic step is desired
         #@show "Plast"
         state.ε̅max = ε̅
@@ -143,14 +143,14 @@ function stress_update(mat::Mazars, state::MazarsState, Δε::Array{Float64,1})
         σp = [ σp; zeros(3) ]
 
         # Damage calculation
-        state.φt = 1.0 - (1-mat.At)*mat.ε̅0/ε̅ - mat.At/exp(mat.Bt*(ε̅-mat.ε̅0))
-        state.φc = 1.0 - (1-mat.Ac)*mat.ε̅0/ε̅ - mat.Ac/exp(mat.Bc*(ε̅-mat.ε̅0))
+        state.φt = 1.0 - (1-matparams.At)*matparams.ε̅0/ε̅ - matparams.At/exp(matparams.Bt*(ε̅-matparams.ε̅0))
+        state.φc = 1.0 - (1-matparams.Ac)*matparams.ε̅0/ε̅ - matparams.Ac/exp(matparams.Bc*(ε̅-matparams.ε̅0))
 
         # Tensile and compression tensors
         σt = pos.(σp)
         σc = neg.(σp)
-        εt = mat.invDe*σt
-        εc = mat.invDe*σc
+        εt = matparams.invDe*σt
+        εc = matparams.invDe*σc
 
         #εv = sum(pos(εt[i]) + pos(εc[i]) for i in 1:3)
         εv = sum(pos.(εt)) + sum(neg.(εc))
@@ -165,18 +165,18 @@ function stress_update(mat::Mazars, state::MazarsState, Δε::Array{Float64,1})
         state.φ = clamp(φ, state.φ, 0.999)
 
         # Total stress and stress increment
-        state.σ = (1.0 - state.φ)*mat.De*state.ε
+        state.σ = (1.0 - state.φ)*matparams.De*state.ε
     end
 
     Δσ    = state.σ - σini
     return Δσ, success()
 end
 
-function ip_state_vals(mat::Mazars, state::MazarsState)
+function ip_state_vals(matparams::Mazars, state::MazarsState)
     ndim  = state.env.ndim
     σ, ε  = state.σ, state.ε
 
-    D = stress_strain_dict(σ, ε, state.env.modeltype)
+    D = stress_strain_dict(σ, ε, state.env.anaprops.stressmodel)
     D[:dam]  = state.φ
     D[:damt] = state.φt
     D[:damc] = state.φc

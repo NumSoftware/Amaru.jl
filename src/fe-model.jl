@@ -20,7 +20,7 @@ mutable struct FEModel<:AbstractDomain
     "array of edges"
     edges::Array{Edge,1}
 
-    #mats::Array{Material,1}
+    #mats::Array{MatParams,1}
     "array of loggers"
     loggers ::Array{AbstractLogger,1}
     "array of monitors"
@@ -76,90 +76,116 @@ Uses a mesh and a list of meterial especifications to construct a finite element
 
 `mesh` : A finite element mesh
 
-`mats` : Material definitions given as an array of pairs ( tag or location => constitutive model instance )
+`mats` : MatParams definitions given as an array of pairs ( tag or location => constitutive model instance )
 
 # Keyword arguments
 
-`modeltype`
+`stressmodel`
 `thickness`
 `quiet = false` : If true, provides information of the model construction
 
 """
 function FEModel(
     mesh      :: Mesh,
-    matbinds  :: Array{<:Pair,1},
-    propbinds :: Array{<:Pair,1}=Pair[];
-    modeltype :: String = "", # or "plane-stress", "plane-strain", "axysimmetric", "3d"
-    thickness :: Real = 1.0,
+    # matbinds  :: Array{<:Pair,1},
+    matbinds  :: Array{<:Tuple,1},
+    anaprops  ::AnalysisProps;
+    # propbinds :: Array{<:Pair,1}=Pair[];
+    # stressmodel :: String = "", # or "plane-stress", "plane-strain", "axysimmetric", "3d"
+    # thickness :: Real = 1.0,
     quiet     :: Bool = false,
-    params... # extra parameters required for specific solvers
+    # matparams... # extra parameters required for specific solvers
 )
 
     ndim = mesh.env.ndim
     @assert ndim>0
 
-    if modeltype==""
-        modeltype = ndim==2 ? "plane-strain" : "3d"
-    end
-    modeltype in ("plane-stress", "plane-strain", "axisymmetric", "3d") || error("Model: Invalid modeltype $modeltype")
+    # if stressmodel==""
+        # stressmodel = ndim==2 ? "plane-strain" : "3d"
+    # end
+    # stressmodel in ("plane-stress", "plane-strain", "axisymmetric", "3d") || error("FEModel: Invalid stressmodel $stressmodel")
 
 
-    if ndim==3 && thickness!=1.0
-        thickness = 1.0
-        quiet || info("ignoring thickness parameter in a 3d model")
-    end
+    # if ndim==3 && thickness!=1.0
+        # thickness = 1.0
+        # quiet || info("ignoring thickness parameter in a 3d model")
+    # end
 
     # FEModel and environment data
     model  = FEModel()
     env = model.env
     env.ndim = ndim
-    env.modeltype = modeltype
-    env.thickness = thickness
+    # env.anaprops.stressmodel = stressmodel
+    # env.anaprops.thickness = thickness
     env.t = 0.0
+    env.anaprops = anaprops
 
     # Saving extra parameters
-    for (k,v) in params
-        typeof(v) <: Number && ( env.params[k] = v )
-    end
+    # for (k,v) in matparams
+    #     typeof(v) <: Number && ( env.matparams[k] = v )
+    # end
 
     # Save a mesh reference
     #model.mesh = mesh
 
-    quiet || printstyled("Model setup\n", bold=true, color=:cyan)
+    quiet || printstyled("FE model setup\n", bold=true, color=:cyan)
 
     # Setting nodes
     model.nodes = copy.(mesh.nodes)
 
     # Setting new elements
-    quiet || print("  setting elements...\r")
-    ncells    = length(mesh.elems)
+    # quiet || print("  setting elements...\r")
+    ncells      = length(mesh.elems)
     model.elems = Array{Element,1}(undef, ncells)
-    for (filter, mat) in matbinds
+    # for (filter, mat) in matbinds
+    for matbind in matbinds
+        filter     = matbind[1]
+        if length(matbind)==3
+            elem_props = matbind[2]
+            mat_params = matbind[3]
+            elem_type = matching_elem_type(typeof(elem_props))
+        else
+            # elem_props = nothing
+            mat_params = matbind[2]
+            elem_type = matching_elem_type(mat_params)
+            notify("FEModel: Using default type $(elem_type) at elements for expr. $(repr(filter))")
+            elem_props = matching_props_type(elem_type)() # setting new properties
+        end
+
         cells = mesh.elems[filter]
-        if ! (cells isa Array)
+        if !(cells isa Array)
             cells = [ cells ]
         end
         if isempty(cells)
-            warn("Model: binding material model $(typeof(mat)) to an empty list of cells using filter expression $(repr(filter))")
+            warn("FEModel: binding material model $(typeof(mat_params)) to an empty list of elements for expr. $(repr(filter))")
         end
 
         for cell in cells
             if cell.embedded
-                etype = matching_elem_type_if_embedded(mat)
+                elem_t = matching_elem_type_if_embedded(mat_params)
             else
-                etype = matching_elem_type(mat, cell.shape, ndim)
+                elem_t = elem_type
             end
 
-            if matching_shape_family(etype) != cell.shape.family
-                error("Model: material model $(typeof(mat)) cannot be used with shape $(cell.shape.name) (cell id: $(cell.id))\n")
+            if matching_shape_family(elem_t) != cell.shape.family
+                error("FEModel: material model $(typeof(mat_params)) cannot be used with elements for expr. $(repr(filter)) with shape $(cell.shape.name)\n")
             end
 
+            elem = elem_t(elem_props)
+            
             conn = [ p.id for p in cell.nodes ]
-            elem = new_element(etype, cell.shape, model.nodes[conn], cell.tag, env)
 
+            elem.shape  = cell.shape
+            elem.nodes  = model.nodes[conn]
+            elem.ips    = [] # jet to be set
+            elem.tag    = cell.tag
+            elem.active = true
+            elem.linked_elems = [] # jet to be set
+            elem.env    = env
+            
             elem.id = cell.id
-            elem.mat = mat
-            model.elems[cell.id] = elem
+            elem.matparams = mat_params
+            model.elems[cell.id] = elem 
         end
     end
 
@@ -171,34 +197,34 @@ function FEModel(
         end
     end
     if !isempty(undefined_elem_shapes)
-        error("Model: missing material definition to allocate elements with shape: $(join(undefined_elem_shapes, ", "))\n")
+        error("FEModel: missing material definition to allocate elements with shape: $(join(undefined_elem_shapes, ", "))\n")
     end
 
-    # Setting properties per element
-    for (filter, prop) in propbinds
-        cells = mesh.elems[filter]
-        if ! (cells isa Array)
-            cells = [ cells ]
-        end
-        if isempty(cells)
-            warn("Model: binding properties to an empty list of cells using filter expression $(repr(filter))")
-        end
+    # # Setting properties per element
+    # for (filter, props) in propbinds
+    #     cells = mesh.elems[filter]
+    #     if ! (cells isa Array)
+    #         cells = [ cells ]
+    #     end
+    #     if isempty(cells)
+    #         warn("FEModel: binding properties to an empty list of cells using filter expression $(repr(filter))")
+    #     end
 
-        for cell in cells
-            model.elems[cell.id].prop = prop
-        end
-    end
+    #     for cell in cells
+    #         model.elems[cell.id].props = props
+    #     end
+    # end
 
     # Check if all elements have material defined
-    undefined_elem_shapes = Set{String}()
-    for elem in model.elems
-        if !isdefined(elem, :prop)
-            push!(undefined_elem_shapes, elem.shape.name)
-        end
-    end
-    if !isempty(undefined_elem_shapes)
-        warn("Model: properties not defined in elements with shape: $(join(undefined_elem_shapes, ", "))")
-    end
+    # undefined_elem_shapes = Set{String}()
+    # for elem in model.elems
+    #     if !isdefined(elem, :props)
+    #         push!(undefined_elem_shapes, elem.shape.name)
+    #     end
+    # end
+    # if !isempty(undefined_elem_shapes)
+    #     warn("FEModel: properties not defined in elements with shape: $(join(undefined_elem_shapes, ", "))")
+    # end
 
     # Setting linked elements
     for cell in mesh.elems
@@ -251,7 +277,7 @@ function FEModel(
     end
 
     if !quiet
-        print("  ", model.env.ndim, "D model $modeltype model      \n")
+        # print("  ", "$stressmodel model      \n")
         @printf "  %5d nodes\n" length(model.nodes)
         @printf "  %5d elements\n" length(model.elems)
     end
@@ -299,9 +325,9 @@ function addstage!(model::Model, bcs::Array;
 end
 
 
-function addlogger!(model::Model, logpair::Pair)
-    push!(model.loggers, logpair.second)
-    setup_logger!(model, logpair.first, logpair.second)
+function addlogger!(model::Model, logpair::Tuple)
+    push!(model.loggers, logpair[2])
+    setup_logger!(model, logpair[1], logpair[2])
 end
 
 """
@@ -310,7 +336,7 @@ end
 Register the loggers from the array `loggers` into `model`.
 
 """
-function addloggers!(model::Model, loggers::Array{<:Pair,1})
+function addloggers!(model::Model, loggers::Array{<:Tuple,1})
     model.loggers = []
     for (filter,logger) in loggers
         push!(model.loggers, logger)
@@ -319,9 +345,9 @@ function addloggers!(model::Model, loggers::Array{<:Pair,1})
 end
 setloggers! = addloggers!
 
-function addmonitor!(model::Model, monpair::Pair)
-    push!(model.monitors, monpair.second)
-    setup_monitor!(model, monpair.first, monpair.second)
+function addmonitor!(model::Model, monpair::Tuple)
+    push!(model.monitors, monpair[2])
+    setup_monitor!(model, monpair[1], monpair[2])
 end
 
 """
@@ -330,7 +356,7 @@ end
 Register monitors from the array `loggers` into `model`.
 
 """
-function addmonitors!(model::Model, monitors::Array{<:Pair,1})
+function addmonitors!(model::Model, monitors::Array{<:Tuple,1})
     model.monitors = []
     for (filter,monitor) in monitors
         push!(model.monitors, monitor)
@@ -399,7 +425,7 @@ function FEModel(elems::Array{<:Element,1})
         elemnodes = nodes[nodeidxs]
         newelem = new_element(typeof(elem), elem.shape, elemnodes, elem.tag, model.env)
         newelem.id = i
-        newelem.mat = elem.mat
+        newelem.matparams = elem.matparams
         push!(model.elems, newelem)
     end
     
@@ -412,7 +438,7 @@ function FEModel(elems::Array{<:Element,1})
             push!(model.elems[i].linked_elems, model.elems[idx])
         end
     end
-    missing_linked && error("Model: Missing linked elements while generating a model from a list of elements.")
+    missing_linked && error("FEModel: Missing linked elements while generating a model from a list of elements.")
 
     # Setting quadrature
     ip_id = 0
@@ -687,7 +713,7 @@ function nodal_patch_recovery(model::Model)
     all_fields_set = OrderedSet{Symbol}()
     for elem in model.elems
         if elem.shape.family==BULKCELL
-            ips_vals = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
+            ips_vals = [ ip_state_vals(elem.matparams, ip.state) for ip in elem.ips ]
             push!(all_ips_vals, ips_vals)
             union!(all_fields_set, keys(ips_vals[1]))
         else # skip data from non solid elements

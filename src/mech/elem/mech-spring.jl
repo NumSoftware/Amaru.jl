@@ -1,13 +1,13 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-mutable struct MechSpring<:Mechanical
+mutable struct MechSpringElem<:MechElem
     id    ::Int
     shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    mat   ::Material
+    matparams::MatParams
     active::Bool
     linked_elems::Array{Element,1}
     env::ModelEnv
@@ -17,24 +17,24 @@ mutable struct MechSpring<:Mechanical
     end
 end
 
-matching_shape_family(::Type{MechSpring}) = LINECELL
+matching_shape_family(::Type{MechSpringElem}) = LINECELL
 
-function elem_stiffness(elem::MechSpring)
+function elem_stiffness(elem::MechSpringElem)
     ndim = elem.env.ndim
-    mat  = elem.mat
+    matparams  = elem.matparams
 
     if ndim==1
-        kx = mat.kx
+        kx = matparams.kx
         K = [ kx -kx
              -kx  kx ]
     elseif ndim==2
-        kx, ky = mat.kx, mat.ky
+        kx, ky = matparams.kx, matparams.ky
         K = [ kx    0  -kx    0
                0   ky    0  -ky
              -kx    0   kx    0
                0  -ky    0   ky ]
     else
-        kx, ky, kz = mat.kx, mat.ky, mat.kz
+        kx, ky, kz = matparams.kx, matparams.ky, matparams.kz
 
         K = [ kx    0    0  -kx    0    0
                0   ky    0    0  -ky    0
@@ -50,22 +50,22 @@ function elem_stiffness(elem::MechSpring)
 end
 
 
-function elem_damping(elem::MechSpring)
+function elem_damping(elem::MechSpringElem)
     ndim = elem.env.ndim
-    mat  = elem.mat
+    matparams  = elem.matparams
 
     if ndim==1
-        cx = mat.cx
+        cx = matparams.cx
         K = [ cx -cx
              -cx  cx ]
     elseif ndim==2
-        cx, cy = mat.cx, mat.cy
+        cx, cy = matparams.cx, matparams.cy
         K = [ cx    0  -cx    0
                0   cy    0  -cy
              -cx    0   cx    0
                0  -cy    0   cy ]
     else
-        cx, cy, cz = mat.cx, mat.cy, mat.cz
+        cx, cy, cz = matparams.cx, matparams.cy, matparams.cz
 
         K = [ cx    0    0  -cx    0    0
                0   cy    0    0  -cy    0
@@ -81,7 +81,7 @@ function elem_damping(elem::MechSpring)
 end
 
 
-function elem_update!(elem::MechSpring, U::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::MechSpringElem, U::Array{Float64,1}, Δt::Float64)
     K, map, _  = elem_stiffness(elem)
     dU = U[map]
     dF = K*dU
@@ -89,7 +89,7 @@ function elem_update!(elem::MechSpring, U::Array{Float64,1}, Δt::Float64)
     return dF, map, success()
 end
 
-function elem_vals(elem::MechSpring)
+function elem_vals(elem::MechSpringElem)
     vals = OrderedDict(:fx => 0.0 )
     return vals
 end

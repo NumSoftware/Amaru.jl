@@ -24,7 +24,7 @@ mutable struct SmearedCrackState<:IpState
     end
 end
 
-mutable struct SmearedCrack<:Material
+mutable struct SmearedCrack<:MatParams
     E  ::Float64  # Young's modulus from bulk material
     ν  ::Float64  # Poisson ratio from bulk material
     ft ::Float64  # tensile strength
@@ -68,28 +68,28 @@ mutable struct SmearedCrack<:Material
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::SmearedCrack, shape::CellShape, ndim::Int) = MechSolid
+matching_elem_type(::SmearedCrack) = MechSolidElem
 
 # Type of corresponding state structure
-ip_state_type(mat::SmearedCrack) = SmearedCrackState
+ip_state_type(matparams::SmearedCrack) = SmearedCrackState
 
 
-function calc_ςmax(mat::SmearedCrack, state::SmearedCrackState, up::Float64)
-    wc  = mat.wc
-    ws  = mat.ws
-    if mat.softcurve == "linear"
+function calc_ςmax(matparams::SmearedCrack, state::SmearedCrackState, up::Float64)
+    wc  = matparams.wc
+    ws  = matparams.ws
+    if matparams.softcurve == "linear"
         if up < wc
-            a = mat.ft
-            b = mat.ft/wc
+            a = matparams.ft
+            b = matparams.ft/wc
         else
             a = b = 0.0
         end
         ςmax = a - b*up
-    elseif mat.softcurve == "bilinear"
-        σs = 0.25*mat.ft
+    elseif matparams.softcurve == "bilinear"
+        σs = 0.25*matparams.ft
         if up < ws
-            a  = mat.ft
-            b  = (mat.ft - σs)/ws
+            a  = matparams.ft
+            b  = (matparams.ft - σs)/ws
         elseif up < wc
             a  = wc*σs/(wc-ws)
             b  = σs/(wc-ws)
@@ -97,68 +97,68 @@ function calc_ςmax(mat::SmearedCrack, state::SmearedCrackState, up::Float64)
             a = b = 0.0
         end
         ςmax = a - b*up
-    elseif mat.softcurve == "hordijk"
+    elseif matparams.softcurve == "hordijk"
         if up < wc
             z = (1 + 27*(up/wc)^3)*exp(-6.93*up/wc) - 28*(up/wc)*exp(-6.93)
         else
             z = 0.0
         end
-        ςmax = z*mat.ft
+        ςmax = z*matparams.ft
     end
     return ςmax
 end
 
 
-function ςmax_deriv(mat::SmearedCrack, state::SmearedCrackState, up::Float64)
+function ςmax_deriv(matparams::SmearedCrack, state::SmearedCrackState, up::Float64)
     # ∂ςmax/∂up = dςmax
-    wc  = mat.wc
-    ws  = mat.ws
-    if mat.softcurve == "linear"
+    wc  = matparams.wc
+    ws  = matparams.ws
+    if matparams.softcurve == "linear"
         if up < wc
-            b = mat.ft/wc
+            b = matparams.ft/wc
         else
             b = 0.0
         end
         dςmax = -b
-    elseif mat.softcurve == "bilinear"
-        σs = 0.25*mat.ft
+    elseif matparams.softcurve == "bilinear"
+        σs = 0.25*matparams.ft
         if up < ws
-            b  = (mat.ft - σs)/ws
+            b  = (matparams.ft - σs)/ws
         elseif up < wc
             b  = σs/(wc-ws)
         else
             b = 0.0
         end
         dςmax = -b
-    elseif mat.softcurve == "hordijk"
+    elseif matparams.softcurve == "hordijk"
         if up < wc
             dz = ((81*up^2*exp(-6.93*up/wc)/wc^3) - (6.93*(1 + 27*up^3/wc^3)*exp(-6.93*up/wc)/wc) - 0.02738402432/wc)
         else
             dz = 0.0
         end
-        dςmax = dz*mat.ft
+        dςmax = dz*matparams.ft
     end
     return dςmax
 end
 
 
-function yield_func(mat::SmearedCrack, state::SmearedCrackState, ς::Array{Float64,1})
-    ςmax = calc_ςmax(mat, state, state.up)
-    return sqrt(ς[2]^2 + ς[3]^2) + (ς[1]-ςmax)*mat.μ
+function yield_func(matparams::SmearedCrack, state::SmearedCrackState, ς::Array{Float64,1})
+    ςmax = calc_ςmax(matparams, state, state.up)
+    return sqrt(ς[2]^2 + ς[3]^2) + (ς[1]-ςmax)*matparams.μ
 end
 
 
-function yield_deriv(mat::SmearedCrack, state::SmearedCrackState, ς::Array{Float64,1})
+function yield_deriv(matparams::SmearedCrack, state::SmearedCrackState, ς::Array{Float64,1})
     τ = sqrt(ς[2]^2 + ς[3]^2)
-    τ==0.0 && return [ mat.μ, 0.0, 0.0 ]
-    return [ mat.μ, ς[2]/τ, ς[3]/τ]
+    τ==0.0 && return [ matparams.μ, 0.0, 0.0 ]
+    return [ matparams.μ, ς[2]/τ, ς[3]/τ]
 end
 
 
-function potential_derivs(mat::SmearedCrack, state::SmearedCrackState, ς::Array{Float64,1})
+function potential_derivs(matparams::SmearedCrack, state::SmearedCrackState, ς::Array{Float64,1})
     if ς[1] >= 0.0 
         # G1:
-        r = [ 2.0*ς[1]*mat.μ^2, 2.0*ς[2], 2.0*ς[3]]
+        r = [ 2.0*ς[1]*matparams.μ^2, 2.0*ς[2], 2.0*ς[3]]
     else
         # G2:
         r = [ 0.0, 2.0*ς[2], 2.0*ς[3] ]
@@ -167,32 +167,32 @@ function potential_derivs(mat::SmearedCrack, state::SmearedCrackState, ς::Array
 end
 
 
-function calc_nu(mat::SmearedCrack, state::SmearedCrackState)
-    wc  = mat.wc
+function calc_nu(matparams::SmearedCrack, state::SmearedCrackState)
+    wc  = matparams.wc
     up = state.up
     if up < wc
         z = (1 + 27*(up/wc)^3)*exp(-6.93*up/wc) - 28*(up/wc)*exp(-6.93)
     else
         z = 0.0
     end
-    return mat.ν*z
+    return matparams.ν*z
 end
 
-function calc_kn_ks(mat::SmearedCrack, state::SmearedCrackState)
-    #kn = mat.E/state.h
-    ν = mat.ν
-    #ν = state.up==0 ? mat.ν : 0.0
-    ν = calc_nu(mat, state)
-    kn = mat.E*(1-mat.ν)/((1+mat.ν)*(1-2*mat.ν))/state.h
+function calc_kn_ks(matparams::SmearedCrack, state::SmearedCrackState)
+    #kn = matparams.E/state.h
+    ν = matparams.ν
+    #ν = state.up==0 ? matparams.ν : 0.0
+    ν = calc_nu(matparams, state)
+    kn = matparams.E*(1-matparams.ν)/((1+matparams.ν)*(1-2*matparams.ν))/state.h
 
-    G  = mat.E/(2.0*(1.0+mat.ν))
+    G  = matparams.E/(2.0*(1.0+matparams.ν))
     ks = G/state.h
 
     return kn, ks
 end
 
 
-function calc_Δλ(mat::SmearedCrack, state::SmearedCrackState, ςtr::Array{Float64,1})
+function calc_Δλ(matparams::SmearedCrack, state::SmearedCrackState, ςtr::Array{Float64,1})
     maxits = 100
     Δλ     = 0.0
     f      = 0.0
@@ -201,8 +201,8 @@ function calc_Δλ(mat::SmearedCrack, state::SmearedCrackState, ςtr::Array{Floa
     ς      = zeros(3)
 
     for i in 1:maxits
-        μ      = mat.μ
-        kn, ks = calc_kn_ks(mat, state)
+        μ      = matparams.μ
+        kn, ks = calc_kn_ks(matparams, state)
 
         # quantities at n+1
         if ςtr[1]>0
@@ -215,11 +215,11 @@ function calc_Δλ(mat::SmearedCrack, state::SmearedCrackState, ςtr::Array{Floa
              drdΔλ = [ 0,  -4*ks*ςtr[2]/(1+2*Δλ*ks)^2,  -4*ks*ςtr[3]/(1+2*Δλ*ks)^2 ]
         end
 
-        r      = potential_derivs(mat, state, ς)
+        r      = potential_derivs(matparams, state, ς)
         norm_r = norm(r)
         up    = state.up + Δλ*norm_r
-        ςmax   = calc_ςmax(mat, state, up)
-        m      = ςmax_deriv(mat, state, up)
+        ςmax   = calc_ςmax(matparams, state, up)
+        m      = ςmax_deriv(matparams, state, up)
         dςmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
 
         f = sqrt(ς[2]^2 + ς[3]^2) + (ς[1]-ςmax)*μ
@@ -240,25 +240,25 @@ function calc_Δλ(mat::SmearedCrack, state::SmearedCrackState, ςtr::Array{Floa
     return Δλ, ς, up, success()
 end
 
-function calcDe(mat::SmearedCrack, state::SmearedCrackState)
-    E = mat.E
-    ν = mat.ν
-    #ν = state.up==0 ? mat.ν : 0.0
-    ν = calc_nu(mat, state)
-    De = calcDe(E, ν, state.env.modeltype)
+function calcDe(matparams::SmearedCrack, state::SmearedCrackState)
+    E = matparams.E
+    ν = matparams.ν
+    #ν = state.up==0 ? matparams.ν : 0.0
+    ν = calc_nu(matparams, state)
+    De = calcDe(E, ν, state.env.anaprops.stressmodel)
 
     return De
 end
 
-function calcD(mat::SmearedCrack, state::SmearedCrackState)
+function calcD(matparams::SmearedCrack, state::SmearedCrackState)
     h = state.h
-    D = calcDe(mat, state)
+    D = calcDe(matparams, state)
 
     # If has no crack return complete elastic tensor
     state.up==0 && return D
 
-    ςmax = calc_ςmax(mat, state, state.up)
-    kn, ks = calc_kn_ks(mat, state)
+    ςmax = calc_ςmax(matparams, state, state.up)
+    kn, ks = calc_kn_ks(matparams, state)
 
     if state.Δλ == 0.0 # Cracked but in elastic regime
         #@show "elastic"
@@ -289,10 +289,10 @@ function calcD(mat::SmearedCrack, state::SmearedCrackState)
             M   = (1.0, SR2, SR2)  # Mandel's notation correction coefficients
             ς = (state.T*state.σ)[idx]./M  # stress components in the crack plane
 
-            v = yield_deriv(mat, state, ς)
-            r = potential_derivs(mat, state, ς)
-            y = -mat.μ # ∂F/∂ςmax
-            m = ςmax_deriv(mat, state, state.up)  # ∂ςmax/∂up
+            v = yield_deriv(matparams, state, ς)
+            r = potential_derivs(matparams, state, ς)
+            y = -matparams.μ # ∂F/∂ςmax
+            m = ςmax_deriv(matparams, state, state.up)  # ∂ςmax/∂up
 
 
             den = kn*r[1]*v[1] + ks*r[2]*v[2] + ks*r[3]*v[3] - y*m*norm(r)
@@ -322,18 +322,18 @@ function calcD(mat::SmearedCrack, state::SmearedCrackState)
 end
 
 
-function stress_update(mat::SmearedCrack, state::SmearedCrackState, Δε::Array{Float64,1})
+function update_state(matparams::SmearedCrack, state::SmearedCrackState, Δε::Array{Float64,1})
     # σ : stress tensor in the xyz system
     # ε : strain tensor in the xyz system
     # ς : stress vector at crack plane
 
     h = state.h
-    kn, ks = calc_kn_ks(mat, state)
+    kn, ks = calc_kn_ks(matparams, state)
     M = (1.0, SR2, SR2)
     idx  = [1, 5, 6]     # indexes for components in the crack plane
 
     σini = state.σ
-    D = calcDe(mat, state)
+    D = calcDe(matparams, state)
     Δσtr = D*Δε
     σtr  = state.σ + Δσtr
     state.ε += Δε
@@ -341,7 +341,7 @@ function stress_update(mat::SmearedCrack, state::SmearedCrackState, Δε::Array{
     # Check for cracks
     if state.up==0
         P, V = eigen(σtr)
-        if P[1]>mat.ft
+        if P[1]>matparams.ft
             state.T = tensor_rot(V)
             state.up = 1e-20
         else
@@ -354,8 +354,8 @@ function stress_update(mat::SmearedCrack, state::SmearedCrackState, Δε::Array{
     ςtr  = (T*σtr)[idx]./M
     Δw   = (T*Δε)[idx]./M*state.h
     state.w += Δw
-    Ftr  = yield_func(mat, state, ςtr)
-    ςmax = calc_ςmax(mat, state, state.up)
+    Ftr  = yield_func(matparams, state, ςtr)
+    ςmax = calc_ςmax(matparams, state, state.up)
 
     w1 = (state.T*state.ε)[1]*state.h
 
@@ -378,14 +378,14 @@ function stress_update(mat::SmearedCrack, state::SmearedCrackState, Δε::Array{
         ς = ςtr
     else
         #@show "partially cracked"
-        state.Δλ, ς, state.up, status = calc_Δλ(mat, state, ςtr) 
+        state.Δλ, ς, state.up, status = calc_Δλ(matparams, state, ςtr) 
         failed(status) && return ς, status
     end
 
     σcr = T*σtr
     σcr[idx] .= ς.*M
 
-    wc  = mat.wc
+    wc  = matparams.wc
     up = state.up
     if up < wc
         z = (1 + 27*(up/wc)^3)*exp(-6.93*up/wc) - 28*(up/wc)*exp(-6.93)
@@ -405,11 +405,11 @@ function stress_update(mat::SmearedCrack, state::SmearedCrackState, Δε::Array{
     return Δσ, success()
 end
 
-function ip_state_vals(mat::SmearedCrack, state::SmearedCrackState)
+function ip_state_vals(matparams::SmearedCrack, state::SmearedCrackState)
     ndim  = state.env.ndim
     σ, ε  = state.σ, state.ε
 
-    D = stress_strain_dict(σ, ε, state.env.modeltype)
+    D = stress_strain_dict(σ, ε, state.env.anaprops.stressmodel)
     mand = (1.0, SR2, SR2)
     T    = state.T
     if state.up>0

@@ -30,9 +30,6 @@ abstract type AbstractDomain end
 
 
 # FEM
-include("model-env.jl")
-export ModelEnv
-
 include("dof.jl")
 export Dof, add_dof
 
@@ -43,17 +40,22 @@ export Node, get_data, setvalue!
 include("mesh/include.jl")
 export getcoords
 
-include("material.jl")
-export Material, read_prms
+include("analysis.jl")
+
+include("model-env.jl")
+export ModelEnv
 
 include("properties.jl")
+
+include("material.jl")
+export MatParams, read_prms
 
 include("ip.jl")
 export Ip, ip_vals, maximum, minimum, sort
 
 include("element.jl")
 export Element
-export getnodes, changequadrature!, get_ips, elems_ip_vals, updatemat!, setstate!
+export getnodes, changequadrature!, get_ips, elems_ip_vals, update_material!, setstate!
 
 include("tag.jl")
 export tag!
@@ -98,10 +100,10 @@ include("io.jl")
 # Mechanical module
 include("mech/include.jl")
 
-# Hydromechanical module
+# HydromechElem module
 include("hydromech/include.jl")
 
-# Thermomechanical module
+# ThermomechElem module
 include("thermomech/include.jl")
 
 # Acoustic module
@@ -113,10 +115,22 @@ Base.show(io::IO, obj::Node)           = _show(io, obj, 2, "")
 Base.show(io::IO, obj::Ip)             = _show(io, obj, 2, "")
 Base.show(io::IO, obj::IpState)        = _show(io, obj, 2, "")
 Base.show(io::IO, obj::Element)        = _show(io, obj, 2, "")
-Base.show(io::IO, obj::Material)       = _show(io, obj, 2, "")
+Base.show(io::IO, obj::MatParams)       = _show(io, obj, 2, "")
 Base.show(io::IO, obj::BC)             = _show(io, obj, 2, "")
 Base.show(io::IO, obj::Facet)          = _show(io, obj, 2, "")
 Base.show(io::IO, obj::AbstractLogger) = _show(io, obj, 2, "")
 Base.show(io::IO, obj::Model)         = _show(io, obj, 2, "")
+
+# testing
+export @runfiles
+macro runfiles(files)
+    return esc(quote
+        for file in $files
+            printstyled("\nRunning file ", file,"...\n", color=:yellow, bold=true)
+            include(file)
+            println()
+        end
+    end)
+end
 
 end#module

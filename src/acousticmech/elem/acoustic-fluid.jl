@@ -7,7 +7,7 @@ mutable struct AcousticFluid<:Element
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    mat   ::Material
+    matparams::MatParams
     active::Bool
     linked_elems::Array{Element,1}
     env   ::ModelEnv
@@ -32,7 +32,7 @@ end
 
 function distributed_bc(elem::AcousticFluid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
-    th    = elem.env.thickness
+    th    = elem.env.anaprops.thickness
     suitable_keys = (:tq,) # tq: mass acceleration per area?, ax: x acceleration
 
     # Check keys
@@ -66,7 +66,7 @@ function distributed_bc(elem::AcousticFluid, facet::Union{Facet,Nothing}, key::S
         if ndim==2
             x, y = X
             vip = eval_arith_expr(val, t=t, x=x, y=y)
-            if elem.env.modeltype=="axisymmetric"
+            if elem.env.anaprops.stressmodel=="axisymmetric"
                 th = 2*pi*X[1]
             end
         else
@@ -95,7 +95,7 @@ end
 # acoustic fluid stiffness
 function elem_acoustic_stiffness(elem::AcousticFluid)
     ndim   = elem.env.ndim
-    th     = elem.env.thickness
+    th     = elem.env.anaprops.thickness
     nnodes = length(elem.nodes)
     C      = getcoords(elem)
     K      = zeros(nnodes, nnodes)
@@ -103,7 +103,7 @@ function elem_acoustic_stiffness(elem::AcousticFluid)
     J      = Array{Float64}(undef, ndim, ndim) # Jacobian
 
     for ip in elem.ips
-        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.anaprops.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         dNdR = elem.shape.deriv(ip.R)
         @gemm J  = C'*dNdR
@@ -126,14 +126,14 @@ end
 
 function elem_acoustic_mass(elem::AcousticFluid)
     ndim   = elem.env.ndim
-    th     = elem.env.thickness
+    th     = elem.env.anaprops.thickness
     nnodes = length(elem.nodes)
     C      = getcoords(elem)
     M      = zeros(nnodes, nnodes)
     J      = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.anaprops.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
@@ -141,7 +141,7 @@ function elem_acoustic_mass(elem::AcousticFluid)
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
-        c = elem.mat.c # sound speed
+        c = elem.matparams.c # sound speed
 
         # compute M
         coef = detJ*ip.w*th/c^2
@@ -157,7 +157,7 @@ end
 #TODO 
 function elem_RHS_vector(elem::AcousticFluid)
     ndim   = elem.env.ndim
-    th     = elem.env.thickness
+    th     = elem.env.anaprops.thickness
     nnodes = length(elem.nodes)
     C      = getcoords(elem)
     Q      = zeros(nnodes)
@@ -170,7 +170,7 @@ function elem_RHS_vector(elem::AcousticFluid)
     Z[end] = 1.0
 
     for ip in elem.ips
-        elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.anaprops.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
@@ -180,7 +180,7 @@ function elem_RHS_vector(elem::AcousticFluid)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute Q
-        K = calcK(elem.mat, ip.state)
+        K = calcK(elem.matparams, ip.state)
         coef = detJ*ip.w*th
         @gemv KZ = K*Z
         @gemm Q += coef*dNdX*KZ
@@ -193,10 +193,10 @@ function elem_RHS_vector(elem::AcousticFluid)
 end
 
 # TODO
-function elem_update!(elem::AcousticFluid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::AcousticFluid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
-    th     = elem.env.thickness
+    th     = elem.env.anaprops.thickness
 
     map_p  = [ node.dofdict[:up].eq_id for node in elem.nodes ]
 
@@ -219,7 +219,7 @@ function elem_update!(elem::AcousticFluid, DU::Array{Float64,1}, DF::Array{Float
     # dNdX = Array{Float64}(undef, nnodes, ndim)
 
     # for ip in elem.ips
-    #     elem.env.modeltype=="axisymmetric" && (th = 2*pi*ip.coord.x)
+    #     elem.env.anaprops.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
     #     # compute Bu matrix
     #     N    = elem.shape.func(ip.R)
@@ -231,9 +231,9 @@ function elem_update!(elem::AcousticFluid, DU::Array{Float64,1}, DF::Array{Float
 
     #     Δuw = N'*dUp # interpolation to the integ. point
 
-    #     V = update_state!(elem.mat, ip.state, Δuw, G, Δt)
+    #     V = update_state!(elem.matparams, ip.state, Δuw, G, Δt)
 
-    #     coef  = elem.mat.S
+    #     coef  = elem.matparams.S
     #     coef *= detJ*ip.w*th
     #     dFw  -= coef*N*Δuw
 

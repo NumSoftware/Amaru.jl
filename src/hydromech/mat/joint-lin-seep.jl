@@ -23,7 +23,7 @@ mutable struct JointLinSeepState<:IpState
     end
 end
 
-mutable struct JointLinSeep<:Material
+mutable struct JointLinSeep<:MatParams
     γw ::Float64        # specific weight of the fluid
     β  ::Float64        # compressibility of fluid
     η  ::Float64        # viscosity
@@ -48,22 +48,22 @@ mutable struct JointLinSeep<:Material
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::JointLinSeep, shape::CellShape, ndim::Int) = HydroJoint
+matching_elem_type(::JointLinSeep) = HydroJointElem
 
 # Type of corresponding state structure
-ip_state_type(mat::JointLinSeep) = JointLinSeepState
+ip_state_type(matparams::JointLinSeep) = JointLinSeepState
 
-function update_state!(mat::JointLinSeep, state::JointLinSeepState, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
+function update_state!(matparams::JointLinSeep, state::JointLinSeepState, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
     state.uw +=  Δuw
-    state.V   = -mat.kt*G
+    state.V   = -matparams.kt*G
     #state.D  +=  state.V*Δt
-    state.L   =  ((mat.w^3)/(12*mat.η))*BfUw
+    state.L   =  ((matparams.w^3)/(12*matparams.η))*BfUw
     #state.S  +=  state.L*Δt
 
     return state.V, state.L
 end
 
-function ip_state_vals(mat::JointLinSeep, state::JointLinSeepState)
+function ip_state_vals(matparams::JointLinSeep, state::JointLinSeepState)
     return OrderedDict(
           :uwf => state.uw[3] ,
           :vb  => state.V[1] ,

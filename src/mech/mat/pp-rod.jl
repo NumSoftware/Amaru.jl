@@ -12,17 +12,13 @@ A type for linear elastic perfectly plastic materials in rods.
 
 $(TYPEDFIELDS)
 """
-mutable struct PPRod<:Material
+mutable struct PPRod<:MatParams
     "Young modulus"
     E::Float64
-    "Section area"
-    A::Float64
     "Yielding stress"
-    σy0::Float64
+    fy::Float64
     "Hardening parameter"
     H::Float64
-    "Density"
-    ρ::Float64
 
     function PPRod(prms::Dict{Symbol,Float64})
         return  PPRod(;prms...)
@@ -35,22 +31,13 @@ mutable struct PPRod<:Material
 
     # Arguments
     - `E`: Young modulus
-    - `A`: Section area
-    - `dm`: Diameter (only if `A` is not provided)
     - `fy`: Yielding stress
     - `H`: Hardening parameter
-    - `rho`: Density
     """
-    function PPRod(;E=NaN, A=NaN, fy=NaN, sig_y=NaN, H=0.0, rho=0.0, dm=NaN)
-        !isnan(dm) && (A=pi*dm^2/4)
-        isnan(fy) && (fy=sig_y)
-        @check E>0.0     
-        @check A>0.0     
+    function PPRod(;E=NaN, fy=NaN, H=0.0)
+        @check E>0.0
         @check fy>0
-        @check rho>=0.0
-
-
-        return new(E, A, fy, H, rho)
+        return new(E, fy, H)
     end
 end
 
@@ -80,31 +67,33 @@ mutable struct PPRodState<:IpState
     end
 end
 
-matching_elem_type(::PPRod, shape::CellShape, ndim::Int) = MechRod
-matching_elem_type_if_embedded(::PPRod) = MechEmbRod
+matching_elem_type(::PPRod) = MechRodElem
+matching_elem_type_if_embedded(::PPRod) = MechEmbRodElem
 
 # Type of corresponding state structure
-ip_state_type(mat::PPRod) = PPRodState
+ip_state_type(::MechRodElem, ::PPRod) = PPRodState
+ip_state_type(::MechEmbRodElem, ::PPRod) = PPRodState
 
-function yield_func(mat::PPRod, state::PPRodState, σ::Float64)
-    σya = mat.σy0 + mat.H*state.εp
+
+function yield_func(matparams::PPRod, state::PPRodState, σ::Float64)
+    σya = matparams.fy + matparams.H*state.εp
     return abs(σ) - σya
 end
 
-function calcD(mat::PPRod, state::PPRodState)
+function calcD(matparams::PPRod, state::PPRodState)
     if state.Δγ == 0.0
-        return mat.E
+        return matparams.E
     else
-        E, H = mat.E, mat.H
+        E, H = matparams.E, matparams.H
         return E*H/(E+H)
     end
 end
 
-function stress_update(mat::PPRod, state::PPRodState, Δε::Float64)
-    E, H    = mat.E, mat.H
+function update_state(matparams::PPRod, state::PPRodState, Δε::Float64)
+    E, H    = matparams.E, matparams.H
     σini    = state.σ
     σtr     = σini + E*Δε
-    ftr     = yield_func(mat, state, σtr)
+    ftr     = yield_func(matparams, state, σtr)
     state.Δγ  = ftr>0.0 ? ftr/(E+H) : 0.0
     Δεp     = state.Δγ*sign(σtr)
     state.εp += state.Δγ
@@ -114,13 +103,11 @@ function stress_update(mat::PPRod, state::PPRodState, Δε::Float64)
     return Δσ, ReturnStatus(true)
 end
 
-function ip_state_vals(mat::PPRod, state::PPRodState)
+function ip_state_vals(matparams::PPRod, state::PPRodState)
     return OrderedDict{Symbol,Float64}(
         :sa  => state.σ,
         :ea  => state.ε,
         :eap => state.εp,
-        :fa  => state.σ*mat.A,
-        :A   => mat.A
     )
 end
 

@@ -16,32 +16,20 @@ E     = 200e6  # kPa
 nu    = 0.3
 alpha = 1.2e-5 # thermal expansion coefficient  1/K or 1/°C
 
-materials = ["solids" => ElasticSolidThermo(
-    E     = E,
-    nu    = nu,
-    k     = k,
-    rho   = rho,
-    cv    = cv,
-    alpha = alpha,
-) ]
+materials = ["solids" << TMSolid(rho=rho, cv=cv) << LinearElasticThermo(E=E, nu=nu, k=k, alpha = alpha) ]
 
-model = FEModel(msh, materials)
+ana = ThermomechAnalysis(T0=0.0)
+model = FEModel(msh, materials, ana)
 
-loggers = [:(y == 1) => NodeGroupLogger("book3.dat")]
+loggers = [:(y == 1) << NodeGroupLogger("book3.dat")]
 setloggers!(model, loggers)
 
 bcs = [
-    :(x == 0) => NodeBC(ut = 10.0),
-    :(y == 2) => NodeBC(ut = 20.0),
-    :(y == 0) => NodeBC(ux = 0, uy = 0),
-    :(x == 1) => NodeBC(fx = 100.0),
+    :(x == 0) << NodeBC(ut = 10.0),
+    :(y == 2) << NodeBC(ut = 20.0),
+    :(y == 0) << NodeBC(ux = 0, uy = 0),
+    :(x == 1) << NodeBC(fx = 100.0),
 ]
 addstage!(model, bcs, tspan=3000000, nincs=10)
 
-tm_solve!(model, tol=0.1)
-
-
-struct Properties
-    rho
-
-end
+solve!(model, tol=0.1)

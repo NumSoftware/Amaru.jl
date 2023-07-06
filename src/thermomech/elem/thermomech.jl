@@ -1,14 +1,14 @@
 
-abstract type Thermomechanical<:Element end
+abstract type ThermomechElem<:Element end
 
 
 """
-`elem_config_dofs(mat, elem)`
+`elem_config_dofs(matparams, elem)`
 
-Sets up the dofs for all nodes in `elem` according to material mat.
+Sets up the dofs for all nodes in `elem` according to material matparams.
 This function can be overloaded by concrete types.
 """
-function elem_config_dofs(elem::Thermomechanical)
+function elem_config_dofs(elem::ThermomechElem)
     for node in elem.nodes
         add_dof(node, :ut, :ft)
         add_dof(node, :ux, :fx)
@@ -18,62 +18,62 @@ function elem_config_dofs(elem::Thermomechanical)
 end
 
 """
-`elem_init(mat, elem)`
+`elem_init(matparams, elem)`
 
-Sets up `elem` according to material `mat`.
-This function is called after mat is assigned to `elem` by function `set_mat`.
+Sets up `elem` according to material `matparams`.
+This function is called after matparams is assigned to `elem` by function `set_mat`.
 This function can be overloaded by concrete types.
 """
-function elem_init(elem::Thermomechanical)
+function elem_init(elem::ThermomechElem)
     # No-op function but can be specialized by concrete types
     # This is called by set_mat(...) function
     return nothing
 end
 
 """
-`elem_update!(mat, elem)`
+`update_elem!(matparams, elem)`
 
 Returns the force increment vector dF given a displecement increment vector `dU`
-for `elem` according to material `mat`.
+for `elem` according to material `matparams`.
 This function also updates strains, stresses and internal variables of all
 `IpState` objects at integration points.
 This function must be redefined by concrete types.
 """
-function elem_update!(elem::Thermomechanical, dU::Array{Float64,1})
-    error("elem_dF function not defined for material type $(typeof(elem.mat))")
+function update_elem!(elem::ThermomechElem, dU::Array{Float64,1})
+    error("elem_dF function not defined for material type $(typeof(elem.matparams))")
 end
 
 """
-`elem_vals(mat, elem)`
+`elem_vals(matparams, elem)`
 
 Returns two dictionaries with keys and values for all nodes and for `elem` itself.
 Values for the element are intended to be constant along the element.
 This function can be overloaded by concrete types.
 """
-function elem_vals(elem::Thermomechanical)
+function elem_vals(elem::ThermomechElem)
     return Dict{Symbol, Float64}()
 end
 
 #=
-function elem_stiffness(elem::Thermomechanical)
+function elem_stiffness(elem::ThermomechElem)
     return zeros(0,0), zeros(Int64,0), zeros(Int64,0)
 end
 
-function elem_coupling_matrix(elem::Thermomechanical)
-    return zeros(0,0), zeros(Int64,0), zeros(Int64,0)
-end
-
-
-function elem_conductivity_matrix(elem::Thermomechanical)
-    return zeros(0,0), zeros(Int64,0), zeros(Int64,0)
-end
-
-function elem_mass_matrix(elem::Thermomechanical)
+function elem_coupling_matrix(elem::ThermomechElem)
     return zeros(0,0), zeros(Int64,0), zeros(Int64,0)
 end
 
 
-function elem_RHS_vector(elem::Thermomechanical)
+function elem_conductivity_matrix(elem::ThermomechElem)
+    return zeros(0,0), zeros(Int64,0), zeros(Int64,0)
+end
+
+function elem_mass_matrix(elem::ThermomechElem)
+    return zeros(0,0), zeros(Int64,0), zeros(Int64,0)
+end
+
+
+function elem_RHS_vector(elem::ThermomechElem)
     return zeros(0), zeros(Int64,0)
 end
 =#
@@ -85,5 +85,5 @@ end
 Gets internal nodal forces from current element state.
 This function must be defined by each concrete type.
 """
-function elem_internal_forces(elem::Thermomechanical, F::Array{Float64,1})
+function elem_internal_forces(elem::ThermomechElem, F::Array{Float64,1})
 end

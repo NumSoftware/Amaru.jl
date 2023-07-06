@@ -1,6 +1,5 @@
-files = [
+using Amaru
+@runfiles [
          "mplot.jl",
          "cplot.jl",
         ]
-
-runfiles(files)

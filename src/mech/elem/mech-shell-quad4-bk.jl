@@ -2,13 +2,13 @@
 
 export ShellQUAD4
 
-mutable struct ShellQUAD4<:Mechanical
+mutable struct ShellQUAD4Elem<:MechElem
     id    ::Int
     shape ::CellShape
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    mat   ::Material
+    matparams::MatParams
     active::Bool
     linked_elems::Array{Element,1}
     env::ModelEnv
@@ -24,9 +24,9 @@ matching_shape_family(::Type{ShellQUAD4}) = BULKCELL
 # the strain-displacement matrix for membrane forces
 function Dm_maxtrix(elem::ShellQUAD4)
 
-    coef1 = elem.mat.t*elem.mat.E/(1-elem.mat.nu^2)
-    coef2 = elem.mat.nu*coef1
-    coef3 = coef1*(1-elem.mat.nu)/2
+    coef1 = elem.matparams.t*elem.matparams.E/(1-elem.matparams.nu^2)
+    coef2 = elem.matparams.nu*coef1
+    coef3 = coef1*(1-elem.matparams.nu)/2
 
         Dm = [coef1  coef2 0
                   coef2  coef1 0
@@ -39,7 +39,7 @@ function Db_maxtrix(elem::ShellQUAD4)
 
     Dm = Dm_maxtrix(elem)
 
-    Db = Dm*(elem.mat.t^2/12)
+    Db = Dm*(elem.matparams.t^2/12)
 
     return Db
 end
@@ -48,7 +48,7 @@ end
 
 function Ds_maxtrix(elem::ShellQUAD4)
 
-    coef = elem.mat.t*(5/6)*elem.mat.E/(2*(1+elem.mat.nu))
+    coef = elem.matparams.t*(5/6)*elem.matparams.E/(2*(1+elem.matparams.nu))
 
             Ds = [coef    0
                         0     coef]
@@ -303,7 +303,7 @@ function elem_stiffness(elem::ShellQUAD4)
     return Kelem, map, map
 end
 
-function elem_update!(elem::ShellQUAD4, U::Array{Float64,1}, dt::Float64)
+function update_elem!(elem::ShellQUAD4, U::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
     dU  = U[map]
     F[map] += K*dU

@@ -93,29 +93,29 @@ mutable struct TCJointSeep<:AbstractTCJoint
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::TCJointSeep, shape::CellShape, ndim::Int) = HydroMechJoint
+matching_elem_type(::TCJointSeep) = HMJointElem
 
 # Type of corresponding state structure
 ip_state_type(::TCJointSeep) = TCJointSeepState
 
 
-function mountD(mat::TCJointSeep, state::TCJointSeepState)
-    if mat.fracture 
-        # state.up = max(mat.wc, state.up)
-        # state.w[1] = mat.w
-        # mat.fracture = false
+function mountD(matparams::TCJointSeep, state::TCJointSeepState)
+    if matparams.fracture 
+        # state.up = max(matparams.wc, state.up)
+        # state.w[1] = matparams.w
+        # matparams.fracture = false
     end 
 
-    invoke(mountD, Tuple{AbstractTCJoint, AbstractTCJointState}, mat, state)
+    invoke(mountD, Tuple{AbstractTCJoint, AbstractTCJointState}, matparams, state)
 end
 
 
-function stress_update(mat::TCJointSeep, state::TCJointSeepState, Δw::Array{Float64,1}, Δuw::Array{Float64,1},  G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
+function update_state(matparams::TCJointSeep, state::TCJointSeepState, Δw::Array{Float64,1}, Δuw::Array{Float64,1},  G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
     
-    Δσ, status = invoke(stress_update, Tuple{AbstractTCJoint, AbstractTCJointState, Vector{Float64}}, mat, state, Δw)
+    Δσ, status = invoke(update_state, Tuple{AbstractTCJoint, AbstractTCJointState, Vector{Float64}}, matparams, state, Δw)
 
     state.uw += Δuw
-    state.Vt  = -mat.kt*G
+    state.Vt  = -matparams.kt*G
 
     # crack opening
     if state.up == 0.0 || state.w[1] <= 0.0 
@@ -124,13 +124,13 @@ function stress_update(mat::TCJointSeep, state::TCJointSeepState, Δw::Array{Flo
         w = state.w[1]
     end
 
-    state.L  =  ((w^3)/(12*mat.η))*BfUw
+    state.L  =  ((w^3)/(12*matparams.η))*BfUw
 
     return Δσ, state.Vt, state.L, status
 end
 
 
-function ip_state_vals(mat::TCJointSeep, state::TCJointSeepState)
+function ip_state_vals(matparams::TCJointSeep, state::TCJointSeepState)
     ndim = state.env.ndim
     if ndim == 3
        return OrderedDict(
@@ -157,6 +157,6 @@ function ip_state_vals(mat::TCJointSeep, state::TCJointSeepState)
     end
 end
 
-function output_keys(mat::TCJointSeep)
+function output_keys(matparams::TCJointSeep)
     return Symbol[:jw1, :js1, :jup, :juw]
 end

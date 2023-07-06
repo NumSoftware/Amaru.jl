@@ -20,31 +20,32 @@ Q  = 1       # volume em metro cubico
 # FEM analysis
 
 mats = [
-    "solids" => ElasticSolidLinSeep(E=E, nu=nu, k=k, gammaw=gw, alpha=1.0, S=0.0),
-    "joints" => Joint1DLinSeep(k=kj, gammaw=gw, A=A),
-    "drains" => LinDrainPipe(k=kb, gammaw=gw, A=A),
+    "solids" << LinearElasticSeep(E=E, nu=nu, k=k, alpha=1.0, S=0.0),
+    "joints" << SeepJoint1D(A=A) << Joint1DLinSeep(k=kj),
+    "drains" << DrainPipe(A=A) << LinDrainPipe(k=kb),
 ]
 
-model = FEModel(mesh, mats, gammaw=10)
+ana = HydromechAnalysis(gammaw=10)
+model = FEModel(mesh, mats, ana)
 
 changequadrature!(model.elems.lines, 3)
 
 # Stage 1: pore-pressure stabilization
 bcs = [
-       :(y==0.0) => NodeBC(ux=0,uy=0),
-       :(y==2.0) => NodeBC(uw=0),
+       :(y==0.0) << NodeBC(ux=0,uy=0),
+       :(y==2.0) << NodeBC(uw=0),
       ]
 addstage!(model, bcs, tspan=100, nincs=2, nouts=2)
-hm_solve!(model, tol=1e-2)
+solve!(model, tol=1e-2)
 
 model.env.t = 0.0
 
 # Stage 2: volume application
 bcs = [
-       :(y==0.0) => NodeBC(ux=0,uy=0),
-       :(x==0.0 && y==0.0) => NodeBC(uw=0),
-       :(x==1.5 && y==2.0) => NodeBC(fw=Q),
+       :(y==0.0) << NodeBC(ux=0,uy=0),
+       :(x==0.0 && y==0.0) << NodeBC(uw=0),
+       :(x==1.5 && y==2.0) << NodeBC(fw=Q),
       ]
 
 addstage!(model, bcs, tspan=600, nincs=2, nouts=2)
-hm_solve!(model, tol=1e-2)
+solve!(model, tol=1e-2)

@@ -9,7 +9,7 @@ mutable struct LumpedMassState<:IpState
     end
 end
 
-mutable struct LumpedMass<:Material
+mutable struct LumpedMass<:MatParams
     m::Float64
 
     function LumpedMass(prms::Dict{Symbol,Float64})
@@ -22,11 +22,11 @@ mutable struct LumpedMass<:Material
     end
 end
 
-matching_elem_type(::LumpedMass, shape::CellShape, ndim::Int) = MechLumpedMass
+matching_elem_type(::LumpedMass) = MechLumpedMassElem
 
 # Type of corresponding state structure
-ip_state_type(mat::LumpedMass) = LumpedMassState
+ip_state_type(matparams::LumpedMass) = LumpedMassState
 
-function ip_state_vals(mat::LumpedMass, state::LumpedMassState)
+function ip_state_vals(matparams::LumpedMass, state::LumpedMassState)
     return OrderedDict{Symbol, Float64}()
 end

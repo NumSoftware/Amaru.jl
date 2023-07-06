@@ -1,26 +1,43 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-mutable struct MechJoint<:Mechanical
+
+export MechJoint
+
+struct MechJointProps<:ElemProperties
+    function MechJointProps(;)
+        return new()
+    end    
+end
+
+MechJoint = MechJointProps
+
+
+mutable struct MechJointElem<:MechElem
     id    ::Int
     shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    mat   ::Material
+    matparams::MatParams
+    props::MechJointProps
     active::Bool
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function MechJoint()
-        return new()
+    function MechJointElem(props=MechJointProps())
+        this = new()
+        this.props = props
+        return this
     end
 end
 
 # Return the shape family that works with this element
-matching_shape_family(::Type{MechJoint}) = JOINTCELL
+matching_shape_family(::Type{MechJointElem}) = JOINTCELL
+matching_elem_type(::Type{MechJointProps}) = MechJointElem
+matching_props_type(::Type{MechJointElem}) = MechJointProps
 
-function elem_init(elem::MechJoint)
+function elem_init(elem::MechJointElem)
 
     # Get linked elements
     e1 = elem.linked_elems[1]
@@ -85,9 +102,9 @@ function matrixT(J::Matrix{Float64})
     end
 end
 
-function elem_stiffness(elem::MechJoint)
+function elem_stiffness(elem::MechJointElem)
     ndim   = elem.env.ndim
-    th     = elem.env.thickness
+    th     = elem.env.anaprops.thickness
     nnodes = length(elem.nodes)
     hnodes = div(nnodes, 2) # half the number of total nodes
     fshape = elem.shape.facet_shape
@@ -100,12 +117,12 @@ function elem_stiffness(elem::MechJoint)
     J  = zeros(ndim, ndim-1)
     NN = zeros(ndim, nnodes*ndim)
 
-    # @show elem.env.modeltype
+    # @show elem.env.anaprops.stressmodel
     # @show elem.ips
     # error()
 
     for ip in elem.ips
-    	if elem.env.modeltype=="axisymmetric"
+    	if elem.env.anaprops.stressmodel=="axisymmetric"
             th = 2*pi*ip.coord.x
         end
         
@@ -130,7 +147,7 @@ function elem_stiffness(elem::MechJoint)
 
         # compute K
         coef = detJ*ip.w*th
-        D    = mountD(elem.mat, ip.state)
+        D    = mountD(elem.matparams, ip.state)
         @gemm DB = D*B
         @gemm K += coef*B'*DB
     end
@@ -141,9 +158,9 @@ function elem_stiffness(elem::MechJoint)
 end
 
 
-function elem_update!(elem::MechJoint, U::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::MechJointElem, U::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
-    th     = elem.env.thickness
+    th     = elem.env.anaprops.thickness
     nnodes = length(elem.nodes)
     hnodes = div(nnodes, 2) # half the number of total nodes
     fshape = elem.shape.facet_shape
@@ -160,7 +177,7 @@ function elem_update!(elem::MechJoint, U::Array{Float64,1}, Δt::Float64)
     Δω = zeros(ndim)
 
     for ip in elem.ips
-    	if elem.env.modeltype=="axisymmetric"
+    	if elem.env.anaprops.stressmodel=="axisymmetric"
             th = 2*pi*ip.coord.x
         end
 
@@ -183,7 +200,7 @@ function elem_update!(elem::MechJoint, U::Array{Float64,1}, Δt::Float64)
 
         # internal force
         @gemv Δω = B*dU
-        Δσ, status = stress_update(elem.mat, ip.state, Δω)
+        Δσ, status = update_state(elem.matparams, ip.state, Δω)
         failed(status) && return dF, map, status
         coef = detJ*ip.w*th
         @gemv dF += coef*B'*Δσ
@@ -192,13 +209,13 @@ function elem_update!(elem::MechJoint, U::Array{Float64,1}, Δt::Float64)
     return dF, map, success()
 end
 
-function elem_extrapolated_node_vals(elem::MechJoint)
+function elem_extrapolated_node_vals(elem::MechJointElem)
     nips = length(elem.ips)
 
-    keys = output_keys(elem.mat)
+    keys = output_keys(elem.matparams)
     vals = zeros(nips, length(keys))
     for (i,ip) in enumerate(elem.ips)
-        dict = ip_state_vals(elem.mat, ip.state)
+        dict = ip_state_vals(elem.matparams, ip.state)
         vals[i,:] = [ dict[key] for key in keys ]
     end
     

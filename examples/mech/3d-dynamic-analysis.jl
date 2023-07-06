@@ -15,7 +15,7 @@ mplot(msh, "mesh.pdf", field="elem-id")
 # =======================
 
 materials = [
-             "solids" => ElasticSolid(E=36e6, nu=0.2, rho=24.0),
+             "solids" => LinearElastic(E=36e6, nu=0.2, rho=24.0),
             ]
 
 # Finite element domain

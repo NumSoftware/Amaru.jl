@@ -1,10 +1,10 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 include("elem/thermomech.jl")
-export elem_config_dofs, elem_init, elem_stiffness, elem_update!, elem_vals
+export elem_config_dofs, elem_init, elem_stiffness, update_elem!, elem_vals
 export set_state
 
-# Thermomechanical Elements
+# ThermomechElem Elements
 include("elem/thermomech-solid.jl")
 include("elem/thermo-solid.jl")
 include("elem/thermo-shell.jl")

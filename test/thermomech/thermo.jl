@@ -16,26 +16,27 @@ rho  = 1.6   # water specific weight Ton/m3
 cv   = 486e3  # specific heat (capacity) J/Ton/k
 
 materials = [
-             "solids" => LinThermo(k=k, rho=rho, cv=cv)
+             "solids" << ThermoSolid(rho=rho, cv=cv) << LinThermo(k=k)
             ]
-model = FEModel(msh, materials)
+
+ana = ThermoAnalysis(T0=0)
+model = FEModel(msh, materials, ana)
 
 log1 = NodeGroupLogger()
 loggers = [
-    :(x==0) => log1
+    :(x==0) << log1
 ]
 setloggers!(model, loggers)
 
 
 bcs = [
-       :(y==0) => NodeBC(ut=10.0),
-       :(y==2) => NodeBC(ut=20.0),
+       :(y==0) << NodeBC(ut=10.0),
+       :(y==2) << NodeBC(ut=20.0),
 ]
 addstage!(model, bcs, tspan=10000, nincs=5)
-tm_solve!(model, tol=0.1)
+solve!(model, tol=0.1)
 
 # Output
-
 if @isdefined(makeplots) && makeplots
     using PyPlot
 

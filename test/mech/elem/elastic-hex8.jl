@@ -13,41 +13,41 @@ mesh = Mesh(block, quiet=true, reorder=false)
 # Model definition
 
 materials = [
-    "solid" => ElasticSolid(E=1.0, nu=0.3),
+    "solid" << LinearElastic(E=1.0, nu=0.3),
 ]
 
 # Load cases
 
 bcs1 = [
-    :(x==0 && y==0 && z==0) => NodeBC(ux=0, uy=0),
-    :(x==1 && y==0 && z==0) => NodeBC(uy=0),
-    :(x==0 && y==1 && z==0) => NodeBC(ux=0),
-    :(z==0)                 => NodeBC(uz=0),
-    :(z==1)                 => NodeBC(fz=1),
+    :(x==0 && y==0 && z==0) << NodeBC(ux=0, uy=0), 
+    :(x==1 && y==0 && z==0) << NodeBC(uy=0),
+    :(x==0 && y==1 && z==0) << NodeBC(ux=0),
+    :(z==0)                 << NodeBC(uz=0),
+    :(z==1)                 << NodeBC(fz=1),
 ]
 
 bcs2 = [
-    :(x==0 && y==0 && z==0) => NodeBC(ux=0, uy=0),
-    :(x==1 && y==0 && z==0) => NodeBC(uy=0),
-    :(x==0 && y==1 && z==0) => NodeBC(ux=0),
-    :(z==0)                 => NodeBC(uz=0),
-    :(y==1 && z==1)         => EdgeBC(qy=2),
+    :(x==0 && y==0 && z==0) << NodeBC(ux=0, uy=0),
+    :(x==1 && y==0 && z==0) << NodeBC(uy=0),
+    :(x==0 && y==1 && z==0) << NodeBC(ux=0),
+    :(z==0)                 << NodeBC(uz=0),
+    :(y==1 && z==1)         << EdgeBC(qy=2),
 ]
 
 bcs3 = [
-    :(x==0 && y==0 && z==0) => NodeBC(ux=0, uy=0),
-    :(x==1 && y==0 && z==0) => NodeBC(uy=0),
-    :(x==0 && y==1 && z==0) => NodeBC(ux=0),
-    :(z==0)                 => NodeBC(uz=0),
-    :(x==1)                 => SurfaceBC(tx=:(3*z)),
+    :(x==0 && y==0 && z==0) << NodeBC(ux=0, uy=0),
+    :(x==1 && y==0 && z==0) << NodeBC(uy=0),
+    :(x==0 && y==1 && z==0) << NodeBC(ux=0),
+    :(z==0)                 << NodeBC(uz=0),
+    :(x==1)                 << SurfaceBC(tx=:(3*z)),
 ]
 
 bcs4 = [
-    :(x==0 && y==0 && z==0) => NodeBC(ux=0, uy=0),
-    :(x==1 && y==0 && z==0) => NodeBC(uy=0),
-    :(x==0 && y==1 && z==0) => NodeBC(ux=0),
-    :(z==0)                 => NodeBC(uz=0),
-    :(x>=0)                 => BodyC(wz=-1),
+    :(x==0 && y==0 && z==0) << NodeBC(ux=0, uy=0),
+    :(x==1 && y==0 && z==0) << NodeBC(uy=0),
+    :(x==0 && y==1 && z==0) << NodeBC(ux=0),
+    :(z==0)                 << NodeBC(uz=0),
+    :(x>=0)                 << BodyC(wz=-1),
 ]
 
 ana_list = ["Nodal load", "Edge load", "Triangular face load", "Volume load"]
@@ -62,7 +62,8 @@ for (ana, bcs, dis) in zip(ana_list, bcs_list, dis_list)
 
     println("\nLoad case: $ana \n")
 
-    model = FEModel(mesh, materials)
+    ana = MechAnalysis()
+    model = FEModel(mesh, materials, ana)
     addstage!(model, bcs, nouts=1)
     solve!(model)
 

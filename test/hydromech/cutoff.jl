@@ -22,17 +22,19 @@ tag!(mesh.elems.solids, "solids")
 
 # FEM analysis
 mats = [
-    "solids" => LinSeep(k=k, gammaw=gw, S=0.0),
+    "solids" << LinSeep(k=k, S=0.0),
 ]
 
-model = FEModel(mesh, mats, gammaw=10.0)
+ana = HydroAnalysis(gammaw=gw)
+
+model = FEModel(mesh, mats, ana)
 
 # Boundary conditions
 bcs = [
-       :(x<=$Lrock/2 && y==$Hrock) => SurfaceBC(uw=10*gw),
-       :(x>=$Lrock/2 && y==$Hrock) => SurfaceBC(uw=0),
+       :(x<=$Lrock/2 && y==$Hrock) << SurfaceBC(uw=10*gw),
+       :(x>=$Lrock/2 && y==$Hrock) << SurfaceBC(uw=0),
       ]
 addstage!(model, bcs, tspan=1, nincs=2, nouts=1)
 
 # Solving
-hm_solve!(model, tol=1e-2)
+solve!(model, tol=1e-2)

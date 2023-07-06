@@ -1,5 +1,23 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
+export MechAnalysis
+
+mutable struct MechAnalysisProps<:AnalysisProps
+    stressmodel::String # plane stress, plane strain, etc.
+    thickness::Float64  # thickness for 2d analyses
+    g::Float64 # gravity acceleration
+    
+    function MechAnalysisProps(;stressmodel="3d", thickness=1.0, g=0.0)
+        @check stressmodel in ("plane-stress", "plane-strain", "axisymmetric", "3d")
+        @check thickness>0
+        @check g>=0
+        return new(stressmodel, thickness, g)
+    end
+end
+
+MechAnalysis = MechAnalysisProps
+
+
 # Assemble the global stiffness matrix
 function mount_K(elems::Array{<:Element,1}, ndofs::Int )
 
@@ -102,13 +120,12 @@ end
 
 # Get internal forces and update data at integration points
 function update_state!(active_elems::Array{<:Element,1}, ΔUt::Vect, t::Float64)
-
     ndofs = length(ΔUt)
     @withthreads begin 
         ΔFin     = zeros(ndofs)
         statuses = ReturnStatus[]
         for elem in active_elems
-            ΔF, map, status = elem_update!(elem, ΔUt, t)
+            ΔF, map, status = update_elem!(elem, ΔUt, t)
             if failed(status) 
                 push!(statuses, status)
                 break
@@ -168,12 +185,11 @@ subjected to a set of boundary conditions `bcs`.
 `quiet = false` : verbosity level from 0 (silent) to 2 (verbose)
 
 """
-function mech_solve!(model::Model; args...)
-    name = "Mechanical solver"
-    st = stage_iterator!(name, mech_stage_solver!, model; args...)
-    return st
+function solve!(model::Model, anaprops::MechAnalysis; args...)
+    name = "Solver for mechanical analyses"
+    status = stage_iterator!(name, mech_stage_solver!, model; args...)
+    return status
 end
-solve! = mech_solve!
 
 
 function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::StatusLine; 
@@ -249,7 +265,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
     Tcheck  = ΔTcheck
 
     inc  = 0             # increment counter
-    iout = env.stagebits.out # file output counter
+    iout = env.out # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
@@ -257,6 +273,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
     ΔUa  = zeros(ndofs)  # vector of essential values (e.g. displacements) for this increment
     ΔUi  = zeros(ndofs)  # vector of essential values for current iteration
     Rc   = zeros(ndofs)  # vector of cumulated residues
+    still_linear = true
     sysstatus = ReturnStatus()
 
     # Get forces and displacements from boundary conditions
@@ -274,11 +291,11 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
     local K::SparseMatrixCSC{Float64,Int64}
 
     while T < 1.0-Tmin
-        env.stagebits.ΔT = ΔT
+        env.ΔT = ΔT
 
         # Update counters
         inc += 1
-        env.stagebits.inc = inc
+        env.inc = inc
 
         println(logfile, "  inc $inc")
 
@@ -398,7 +415,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
 
             it==1 && (res1=err)
             it==2 && (err2=err)
-            it>1  && (env.stagebits.inlinearrange=false)
+            it>1  && (still_linear=false)
             res<ftol && (converged=true; break)
             err<rtol  && (converged=true; break)
 
@@ -435,13 +452,13 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
             
             # Update time
             T += ΔT
-            env.stagebits.T = T
-            env.stagebits.residue = res
+            env.T = T
+            env.residue = res
 
             # Check for saving output file
             if T>Tcheck-Tmin && save_outs
-                env.stagebits.out += 1
-                iout = env.stagebits.out
+                env.out += 1
+                iout = env.out
                 rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
                 
                 update_output_data!(model)
@@ -474,7 +491,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
                     end
                     q = max(q, 1.1)
 
-                    if env.stagebits.inlinearrange
+                    if still_linear
                         ΔTtr = min(q*ΔT, 0.1, 1-T)
                     else
                         ΔTtr = min(q*ΔT, 1/nincs, 1-T)
@@ -493,7 +510,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
         else
             # Restore counters
             inc -= 1
-            env.stagebits.inc -= 1
+            env.inc -= 1
 
             copyto!.(State, StateBk)
 

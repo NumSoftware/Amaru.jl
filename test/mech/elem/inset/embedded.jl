@@ -12,17 +12,18 @@ msh = Mesh(bls)
 
 # FEM analysis
 mats = [
-        "solid" => ElasticSolid(E=1.e4, nu=0.25),
-        "embedded" => PPRod(E=1.e8, A=0.005, sig_y=500e3),
-        #"embedded" => ElasticSolid(E=1.e8, A=0.005),
+        "solid" << LinearElastic(E=1.e4, nu=0.25),
+        "embedded" << MechRod(A=0.005) << PPRod(E=1.e8, fy=500e3),
+        #"embedded" << LinearElastic(E=1.e8, A=0.005),
        ]
 
-model = FEModel(msh, mats)
+ana = MechAnalysis()
+model = FEModel(msh, mats, ana)
 
 bcs = [
-       :(y==0 && z==0) => NodeBC(ux=0, uy=0, uz=0),
-       :(y==6 && z==0) => NodeBC(ux=0, uy=0, uz=0),
-       :(z==1) => SurfaceBC(tz=-1000),
+       :(y==0 && z==0) << NodeBC(ux=0, uy=0, uz=0),
+       :(y==6 && z==0) << NodeBC(ux=0, uy=0, uz=0),
+       :(z==1) << SurfaceBC(tz=-1000),
       ]
 addstage!(model, bcs, nincs=20)
 

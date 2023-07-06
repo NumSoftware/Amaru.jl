@@ -30,13 +30,6 @@ function box_coords(C1::Array{<:Real,1}, C2::Array{<:Real,1}, ndim::Int)
 end
 
 
-# """
-# `Block(coords, [nx=1,] [ny=1,] [cellshape=QUAD4,] [tag=""] )`
-
-# Generates a block object for the mesh generation of 2D meshes.
-# `shape` can be TRI3, TRI6, QUAD4, QUAD8.
-# """
-
 """
     Block
 

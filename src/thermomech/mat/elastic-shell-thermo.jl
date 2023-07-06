@@ -21,7 +21,7 @@ mutable struct ElasticShellThermoState<:IpState
 end
 
 
-mutable struct ElasticShellThermo<:Material
+mutable struct ElasticShellThermo<:MatParams
     E ::Float64 # Young's Modulus kN/m2
     nu::Float64 # Poisson coefficient
     k ::Float64 # thermal conductivity  w/m/k
@@ -50,30 +50,15 @@ mutable struct ElasticShellThermo<:Material
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::ElasticShellThermo, shape::CellShape, ndim::Int) = TMShell
+matching_elem_type(::ElasticShellThermo) = TMShellElem
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticShellThermo) = ElasticShellThermoState
+ip_state_type(matparams::ElasticShellThermo) = ElasticShellThermoState
 
 
-#function set_state(state::ElasticShellLinSeepState; sig=zeros(0), eps=zeros(0))
-#    sq2 = √2.0
-#    mdl = [1, 1, 1, sq2, sq2, sq2]
-#    if length(sig)==6
-#        state.σ .= sig.*mdl
-#    else
-#        if length(sig)!=0; error("ElasticShellLinSeep: Wrong size for stress array: $sig") end
-#    end
-#    if length(eps)==6
-#        state.ε .= eps.*mdl
-#    else
-#        if length(eps)!=0; error("ElasticShellLinSeep: Wrong size for strain array: $eps") end
-#    end
-#end
-
-function calcD(mat::ElasticShellThermo, state::ElasticShellThermoState)
-    E = mat.E
-    ν = mat.nu
+function calcD(matparams::ElasticShellThermo, state::ElasticShellThermoState)
+    E = matparams.E
+    ν = matparams.nu
     c = E/(1.0-ν^2)
     g = E/(1+ν)
     return [
@@ -87,39 +72,30 @@ function calcD(mat::ElasticShellThermo, state::ElasticShellThermoState)
 end
 
 
-function calcK(mat::ElasticShellThermo, state::ElasticShellThermoState) # Thermal conductivity matrix
+function calcK(matparams::ElasticShellThermo, state::ElasticShellThermoState) # Thermal conductivity matrix
     if state.env.ndim==2
-        return mat.k*eye(2)
+        return matparams.k*eye(2)
     else
-        return mat.k*eye(3)
+        return matparams.k*eye(3)
     end
 end
 
-#=
-function stress_update(mat::ElasticShellThermo, state::ElasticShellThermoState, dε::Array{Float64,1})
-    D = calcD(mat, state)
-    dσ = D*dε
-    state.ε += dε
-    state.σ += dσ
-    return dσ, success()
-end
-=#
 
-function stress_update(mat::ElasticShellThermo, state::ElasticShellThermoState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
-    De = calcD(mat, state)
+function update_state(matparams::ElasticShellThermo, state::ElasticShellThermoState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
+    De = calcD(matparams, state)
     Δσ = De*Δε
     state.ε  += Δε
     state.σ  += Δσ
 
-    K = calcK(mat, state)
+    K = calcK(matparams, state)
     state.QQ = -K*G
     state.D  += state.QQ*Δt
     state.ut += Δut
     return Δσ, state.QQ
 end
 
-function ip_state_vals(mat::ElasticShellThermo, state::ElasticShellThermoState)
-    D = stress_strain_dict(state.σ, state.ε, state.env.modeltype)
+function ip_state_vals(matparams::ElasticShellThermo, state::ElasticShellThermoState)
+    D = stress_strain_dict(state.σ, state.ε, state.env.anaprops.stressmodel)
     #=
     D[:qx] = state.QQ[1] # VERIFICAR NECESSIDADE
     D[:qy] = state.QQ[2] # VERIFICAR NECESSIDADE
@@ -128,5 +104,5 @@ function ip_state_vals(mat::ElasticShellThermo, state::ElasticShellThermoState)
         end # VERIFICAR NECESSIDADE
     =#
     return D
-    #return stress_strain_dict(state.σ, state.ε, state.env.modeltype)
+    #return stress_strain_dict(state.σ, state.ε, state.env.anaprops.stressmodel)
 end

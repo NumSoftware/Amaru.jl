@@ -25,7 +25,7 @@ E = 200e6 # kN/m2
 nu = 0.3
 alpha = 5e-5 #  thermal expansion coefficient  1/K or 1/°C
 
-materials = ["solids" => ElasticSolidThermo(
+materials = ["solids" << LinearElasticThermo(
     E = E,
     nu = nu,
     k = k,
@@ -36,11 +36,11 @@ materials = ["solids" => ElasticSolidThermo(
 model = FEModel(msh, materials)
 
 bcs = [
-     :(x^2 + y^2 >= $0.99^2) => NodeBC(ut =200.0),
-     :(y == 0 ) => NodeBC(uy = 0),
-     :(x == 0 ) => NodeBC(ux = 0),
-     :(x == 0 ) => NodeBC(k = 0),
-     :(y == 0 ) => NodeBC(k = 0),
+     :(x^2 + y^2 >= $0.99^2) << NodeBC(ut =200.0),
+     :(y == 0 ) << NodeBC(uy = 0),
+     :(x == 0 ) << NodeBC(ux = 0),
+     :(x == 0 ) << NodeBC(k = 0),
+     :(y == 0 ) << NodeBC(k = 0),
 ]
 
 tm_solve!(

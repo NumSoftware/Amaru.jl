@@ -175,7 +175,7 @@ end
 
 
 """
-    hm_solve!(domain, bcs, options...) -> Bool
+    solve!(domain, bcs, options...) -> Bool
 
 Performs one stage finite element hydro-mechanical analysis of a `domain`
 subjected to a list of boundary conditions `bcs`.
@@ -216,7 +216,7 @@ subjected to a list of boundary conditions `bcs`.
 
 `silent = false` : If true, no information is printed
 """
-function hm_solve!(
+function solve!(
     model       :: Model,
     bcs       :: Array;
     time_span :: Real    = NaN,
@@ -241,29 +241,29 @@ function hm_solve!(
     quiet || (verbosity=1)
     quiet || verbose && (verbosity=2)
 
-    tol>0 || error("hm_solve! : tolerance `tol `should be greater than zero")
-    Ttol>0 || error("hm_solve! : tolerance `Ttol `should be greater than zero")
+    tol>0 || error("solve! : tolerance `tol `should be greater than zero")
+    Ttol>0 || error("solve! : tolerance `Ttol `should be greater than zero")
 
     env = model.env
     env.cstage += 1
-    env.stagebits.inc    = 0
+    env.inc    = 0
     env.transient = true
     sw = StopWatch() # timing
 
     if !isnan(end_time)
-        end_time > env.t || error("hm_solve! : end_time ($end_time) is greater that current time ($(env.t))")
+        end_time > env.t || error("solve! : end_time ($end_time) is greater that current time ($(env.t))")
         time_span = end_time - env.t
     else
         end_time = env.t + time_span
     end
-    isnan(time_span) && error("hm_solve!: neither time_span nor end_time were set.")
+    isnan(time_span) && error("solve!: neither time_span nor end_time were set.")
 
     if verbosity>0
-        printstyled("Hydromechanical FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
+        printstyled("HydromechElem FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
         println("  from t=$(round(env.t,sigdigits=4)) to t=$(round(end_time,sigdigits=4))")
     end
 
-    verbosity>1 && println("  model type: ", env.modeltype)
+    verbosity>1 && println("  model type: ", env.anaprops.stressmodel)
 
     save_outs = nouts>0
     if save_outs
@@ -277,7 +277,7 @@ function hm_solve!(
         end
 
         strip(outdir) == "" && (outdir = ".")
-        isdir(outdir) || error("hm_solve!: output directory <$outdir> not fount")
+        isdir(outdir) || error("solve!: output directory <$outdir> not fount")
         outdir[end] in ('/', '\\')  && (outdir = outdir[1:end-1])
     end
 
@@ -298,8 +298,8 @@ function hm_solve!(
     end
 
     # Get global parameters
-    gammaw = get(model.env.params, :gammaw, NaN)
-    isnan(gammaw) && error("hm_solve!: gammaw parameter was not set in Model")
+    gammaw = get(model.env.matparams, :gammaw, NaN)
+    isnan(gammaw) && error("solve!: gammaw parameter was not set in Model")
     gammaw > 0 || error("hm_solve: invalid value for gammaw: $gammaw")
 
     # Save initial file and loggers
@@ -340,7 +340,7 @@ function hm_solve!(
     Tout  = ΔTout        # output time for saving the next output file
 
     inc  = 0             # increment counter
-    iout = env.stagebits.out      # file output counter
+    iout = env.out      # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
@@ -371,7 +371,7 @@ function hm_solve!(
     while T < 1.0 - Ttol
         # Update counters
         inc += 1
-        env.stagebits.inc += 1
+        env.inc += 1
 
         if inc > maxincs
             printstyled("  solver maxincs = $maxincs reached (try maxincs=0)\n", color=:red)
@@ -476,8 +476,8 @@ function hm_solve!(
 
             # Check for saving output file
             if abs(T - Tout) < Ttol && save_outs
-                env.stagebits.out += 1
-                iout = env.stagebits.out
+                env.out += 1
+                iout = env.out
                 update_output_data!(model)
                 update_composed_loggers!(model)
                 complete_uw_h(model)
@@ -502,7 +502,7 @@ function hm_solve!(
         else
             # Restore counters
             inc -= 1
-            env.stagebits.inc -= 1
+            env.inc -= 1
             ΔT_bk = ΔT
 
             # Restore the state to last converged increment

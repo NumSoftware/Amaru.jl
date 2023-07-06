@@ -66,7 +66,7 @@ mesh=Mesh(bl1,bl2,bl3,bl4,bl5,bl6,bl7,bl8,bl9,bl10,bl11,bl12,bl13,bl14,bl15,bl16
 #Definition of the material
 
 materials = [
-    MaterialBind(:solids, ElasticSolid(E=Ec, nu=0.2, rho=roc))
+    MaterialBind(:solids, LinearElastic(E=Ec, nu=0.2, rho=roc))
 ]
 
 

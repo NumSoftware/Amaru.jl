@@ -18,7 +18,7 @@ tag!(msh.nodes[5], 5)
 E = 27.e6
 
 mats = [
-    MaterialBind(:solids, ElasticSolid(E=E, nu=0.0)),
+    MaterialBind(:solids, LinearElastic(E=E, nu=0.0)),
     MaterialBind(100, SmearedCrack(E=E, nu=0.2, ft=2.4e3, mu=1.4, alpha=1.0, wc=1.7e-4, ws=1.85e-5, softcurve="hordijk" ) ),
 ]
 
@@ -29,7 +29,7 @@ log_n3 = NodeLogger(3)
 log_n5 = NodeLogger(5)
 loggers = [log_ip, log_face, log_n3, log_n5]
 
-#model = FEModel(msh, mats, modeltype="plane-stress", thickness=1.0)
+#model = FEModel(msh, mats, stressmodel="plane-stress", thickness=1.0)
 model = FEModel(msh, mats, loggers)
 
 # Boundary conditions

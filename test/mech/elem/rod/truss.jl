@@ -11,17 +11,18 @@ msh = Mesh(coord, conn)
 tag!(msh.elems, "bars")
 
 mats = [
-        "bars" => ElasticRod(E=6.894757e7, A=0.043)
+        "bars" << MechRod(A=0.043) << LinearElastic(E=6.894757e7)
        ]
 
-model = FEModel(msh, mats)
+ana = MechAnalysis()
+model = FEModel(msh, mats, ana)
 
 bcs = [
-       :(x==0 && y==0) => NodeBC(ux=0, uy=0),
-       :(x==0 && y==9) => NodeBC(ux=0, uy=0),
-       :(x==9 && y==0) => NodeBC(fy=-450.),
-       :(x==18&& y==0) => NodeBC(fy=-450.),
-       :(x>=0)         => BodyC(wy=-10.0)
+       :(x==0 && y==0) << NodeBC(ux=0, uy=0),
+       :(x==0 && y==9) << NodeBC(ux=0, uy=0),
+       :(x==9 && y==0) << NodeBC(fy=-450.),
+       :(x==18&& y==0) << NodeBC(fy=-450.),
+       :(x>=0)         << BodyC(wy=-10.0)
       ]
 addstage!(model, bcs)
 @test solve!(model).success
@@ -35,14 +36,15 @@ conn  = [[1, 3], [1, 2], [2, 3]]  # matriz de conectividades
 msh = Mesh(coord, conn)
 tag!(msh.elems, "bars")
 
-model = FEModel(msh, mats)
+ana = MechAnalysis()
+model = FEModel(msh, mats, ana)
 
 bcs = [
-       :(x==0 && y==0 && z==0) => NodeBC(ux=0),
-       :(x==0 && y==1 && z==0) => NodeBC(ux=0, uy=0, uz=0),
-       :(x==0 && y==1 && z==1) => NodeBC(ux=0, uy=0),
-       :(x==0 && y==0) => NodeBC(fz=-50.),
-       :(x>=0) => BodyC(wz=-10.0)
+       :(x==0 && y==0 && z==0) << NodeBC(ux=0),
+       :(x==0 && y==1 && z==0) << NodeBC(ux=0, uy=0, uz=0),
+       :(x==0 && y==1 && z==1) << NodeBC(ux=0, uy=0),
+       :(x==0 && y==0) << NodeBC(fz=-50.),
+       :(x>=0) << BodyC(wz=-10.0)
       ]
 addstage!(model, bcs)
 @test solve!(model).success

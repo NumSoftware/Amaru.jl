@@ -39,9 +39,9 @@ S = (alpha - n)/Ks + n/Kw
 
 for i in 1:2
     materials = [
-        "solids" => ElasticSolidLinSeep(E=E, nu=nu, k=k, gammaw=gw, alpha=alpha, S=S),
-        "joints" => ElasticJointSeep(E=E, nu=nu, zeta=100, gammaw=gw,eta=eta, kt=1),
-        "joints" => MCJointSeep(E=E, nu=nu, ft=2.4e3, mu=1.4, zeta=100, wc=1.7e-4, ws=1.85e-5, softcurve="hordijk", gammaw=gw, eta=eta, kt=1),
+        "solids" << LinearElasticSeep(E=E, nu=nu, k=k, alpha=alpha, S=S),
+        "joints" << ElasticJointSeep(E=E, nu=nu, zeta=100, eta=eta, kt=1),
+        "joints" << MCJointSeep(E=E, nu=nu, ft=2.4e3, mu=1.4, zeta=100, wc=1.7e-4, ws=1.85e-5, softcurve="hordijk", eta=eta, kt=1),
     ]
 
     if i==1
@@ -50,11 +50,12 @@ for i in 1:2
         materials = materials[[1,3]]
     end
 
-    model = FEModel(msh, materials, gammaw=10)
+    ana = HydromechAnalysis(gammaw=gw)
+    model = FEModel(msh, materials, ana)
 
     log1 = NodeGroupLogger()
     loggers = [
-        :(x==0) => log1
+        :(x==0) << log1
     ]
     setloggers!(model, loggers)
 
@@ -64,36 +65,36 @@ for i in 1:2
 
     tlong = 10000*hd^2/cv
     bcs = [
-        :(y==0)  => NodeBC(ux=0, uy=0),
-        :(x>=0)  => NodeBC(ux=0),
-        :(y==10) => NodeBC(uw=0),
+        :(y==0)  << NodeBC(ux=0, uy=0),
+        :(x>=0)  << NodeBC(ux=0),
+        :(y==10) << NodeBC(uw=0),
     ]
     addstage!(model, bcs, tspan=tlong, nincs=2, nouts=1)
-    hm_solve!(model, tol=1e-2)
+    solve!(model, tol=1e-2)
     model.env.t = 0.0
 
     # Stage 2: loading
     bcs = [
-        :(y==0)  => NodeBC(ux=0., uy=0.),
-        :(x>=0)  => NodeBC(ux=0.),
-        :(y==10) => SurfaceBC(ty=-load),
-        :(y==10) => NodeBC(uw=0.),
+        :(y==0)  << NodeBC(ux=0., uy=0.),
+        :(x>=0)  << NodeBC(ux=0.),
+        :(y==10) << SurfaceBC(ty=-load),
+        :(y==10) << NodeBC(uw=0.),
     ]
     addstage!(model, bcs, tspan=t1, nincs=4, nouts=1)
-    hm_solve!(model, tol=1e-2)
+    solve!(model, tol=1e-2)
 
     # Stage 3: draining
     bcs = [
-        :(y==0)  => NodeBC(ux=0., uy=0.),
-        :(x>=0)  => NodeBC(ux=0.),
-        :(y==10) => SurfaceBC(ty=-load),
-        :(y==10) => NodeBC(uw=0.),
+        :(y==0)  << NodeBC(ux=0., uy=0.),
+        :(x>=0)  << NodeBC(ux=0.),
+        :(y==10) << SurfaceBC(ty=-load),
+        :(y==10) << NodeBC(uw=0.),
     ]
 
     Uw_vals = [] # A list with porepressure vectors
     for tspan in lapses
         addstage!(model, bcs, tspan=tspan, nincs=20, nouts=1)
-        hm_solve!(model, tol=1e-2)
+        solve!(model, tol=1e-2)
         push!( Uw_vals, log1.book[end][:uw] )
     end
 

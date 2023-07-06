@@ -7,7 +7,13 @@ struct MechProperties<:Properties
     A::Float64
     th::Float64
 
-    function MechProperties(;rho=0.0, A=0.0, th=0.0)
+    function MechProperties(;rho=NaN, A=NaN, th=NaN)
+        !isnan(rho) && @check rho>0
+        !isnan(A  ) && @check A>0
+        !isnan(th ) && @check th>0
+
         return new(rho, A, th)
     end
 end
+
+# newproperties(::MechModel) = MechProperties()

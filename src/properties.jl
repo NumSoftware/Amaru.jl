@@ -1,12 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
+abstract type ElemProperties end
 
-# Abstract type for element properties
-# ====================================
-
-"""
-`Propperties`
-
-Abstract type for a set of element properties.
-"""
-abstract type Properties end
+@inline Base.:(<<)(a, b::ElemProperties) = return (a, b)
+@inline Base.:(=>)(a, b::ElemProperties) = return (a, b)

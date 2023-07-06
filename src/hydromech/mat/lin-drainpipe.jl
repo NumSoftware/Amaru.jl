@@ -16,43 +16,39 @@ mutable struct LinDrainPipeState<:IpState
     end
 end
 
-mutable struct LinDrainPipe<:Material
+mutable struct LinDrainPipe<:MatParams
     k ::Float64     # specific permeability
-    γw::Float64     # specific weight of the fluid
-    A ::Float64     # section area
 
     function LinDrainPipe(prms::Dict{Symbol,Float64})
         return  LinDrainPipe(;prms...)
     end
 
-    function LinDrainPipe(;k=NaN, gammaw=NaN, A=NaN)
+    function LinDrainPipe(;k=NaN)
         k<=0.0 && error("Invalid value for k: $k")
-        gammaw<=0.0 && error("Invalid value for gammaw: $gammaw")
-        A<=0.0 && error("Invalid value for A: $A")
-        return new(k, gammaw, A)
+        return new(k)
     end
 end
 
-matching_elem_type(::LinDrainPipe, shape::CellShape, ndim::Int) = DrainPipe
+matching_elem_type(::LinDrainPipe) = DrainPipeElem
 #matching_elem_type_if_embedded(::LinDrainPipe) = SeepEmbRod
 
 # Type of corresponding state structure
-ip_state_type(mat::LinDrainPipe) = LinDrainPipeState
+ip_state_type(::DrainPipeElem, ::LinDrainPipe) = LinDrainPipeState
 
-function update_state!(mat::LinDrainPipe, state::LinDrainPipeState, Δuw::Float64, G::Float64, Δt::Float64)
-    k = mat.k
+function update_state!(matparams::LinDrainPipe, state::LinDrainPipeState, Δuw::Float64, G::Float64, Δt::Float64)
+    k = matparams.k
     state.V  = -k*G
     state.D  += state.V*Δt
     state.uw += Δuw
     return state.V
 end
 
-function ip_state_vals(mat::LinDrainPipe, state::LinDrainPipeState)
+function ip_state_vals(matparams::LinDrainPipe, state::LinDrainPipeState)
     return OrderedDict(
       :va => state.V,
-      :uwa => state.uw,
-      :Fa => state.V*mat.A,
-      :A  => mat.A )
+      :uwa => state.uw)
+    #   :Fa => state.V*matparams.A,
+    #   :A  => matparams.A )
 end
 
 

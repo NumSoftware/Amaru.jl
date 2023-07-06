@@ -11,7 +11,7 @@ mutable struct ElasticPlateRMState<:IpState
     end
 end
 
-mutable struct ElasticPlateRM<:Material
+mutable struct ElasticPlateRM<:MatParams
     E::Float64
     nu::Float64
     ρ::Float64
@@ -29,11 +29,11 @@ mutable struct ElasticPlateRM<:Material
     end
 end
 
-matching_elem_type(::ElasticPlateRM, shape::CellShape, ndim::Int) = PlateRM
+matching_elem_type(::ElasticPlateRM) = PlateRMElem
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticPlateRM) = ElasticPlateRMState
+ip_state_type(matparams::ElasticPlateRM) = ElasticPlateRMState
 
-function ip_state_vals(mat::ElasticPlateRM, state::ElasticPlateRMState)
+function ip_state_vals(matparams::ElasticPlateRM, state::ElasticPlateRMState)
     return OrderedDict{Symbol, Float64}()
 end

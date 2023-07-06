@@ -92,19 +92,19 @@ function run_status_line(sline::StatusLine)
         end
         
         # Print status
-        T = env.stagebits.T
-        ΔT = env.stagebits.ΔT
+        T = env.T
+        ΔT = env.ΔT
         progress = @sprintf("%5.3f", T*100)
         bar = progress_bar(T)
         
         # line 1:
-        printstyled("  inc $(env.stagebits.inc) output $(env.stagebits.out)", bold=true, color=:light_blue)
+        printstyled("  inc $(env.inc) output $(env.out)", bold=true, color=:light_blue)
         if env.transient
             t = round(env.t, sigdigits=3)
             printstyled(" t=$t", bold=true, color=:light_blue)
         end
         dT = round(ΔT,sigdigits=4)
-        res = round(env.stagebits.residue,sigdigits=4)
+        res = round(env.residue,sigdigits=4)
 
         printstyled(" dT=$dT res=$res\e[K\n", bold=true, color=:light_blue)
         
@@ -214,7 +214,7 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
     if !quiet && cstage==1 
         printstyled(name, "\n", bold=true, color=:cyan)
         println("  active threads: ", Threads.nthreads())
-        println("  model type: ", env.modeltype)
+        # println("  model type: ", env.anaprops.stressmodel)
     end
 
     outdir = rstrip(outdir, ['/', '\\'])
@@ -239,9 +239,9 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
         nincs  = stage.nincs
         nouts  = stage.nouts
         
-        env.stagebits.stage = stage.id
-        env.stagebits.inc   = 0
-        env.stagebits.T = 0.0
+        env.stage = stage.id
+        env.inc   = 0
+        env.T = 0.0
 
         if !quiet
             # if stage.id>1 || length(model.stages)>1
@@ -319,3 +319,6 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
 
 end
 
+function solve!(model::FEModel; args...)
+    solve!(model, model.env.anaprops; args...)
+end

@@ -4,16 +4,16 @@
 ## Elements
 
 ```@docs
-Amaru.MechSolid
+Amaru.MechSolidElem
 Amaru.MechRod
 Amaru.MechRodSolidJoint
 ```
 
-## Material models
+## MatParams models
 
 ```@docs
-ElasticSolid
-ElasticSolid()
+LinearElastic
+LinearElastic()
 Amaru.ElasticSolidState
 ```
 

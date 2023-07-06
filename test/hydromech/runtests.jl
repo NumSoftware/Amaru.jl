@@ -1,5 +1,6 @@
-files = [
-         # Hydromechanical analysis
+using Amaru
+
+@runfiles [
          "seep.jl",
          "cutoff.jl",
          "terzaghi.jl",
@@ -8,5 +9,3 @@ files = [
          "drain-solid.jl",
          "hm-drain.jl",
         ]
-
-runfiles(files)

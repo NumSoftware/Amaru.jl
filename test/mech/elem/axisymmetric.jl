@@ -8,19 +8,19 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
 
     bl = Block( [0 0; 1 1], nx=4, ny=4, cellshape=shape, tag="solids")
     mesh = Mesh(bl)
-    @show mesh.env.ndim
 
     materials = [
-        "solids" => ElasticSolid(E=100.0, nu=0.2)
+        "solids" << LinearElastic(E=100.0, nu=0.2)
     ]
 
-    model = FEModel(mesh, materials, modeltype="axisymmetric")
+    ana = MechAnalysis(stressmodel="axisymmetric")
+    model = FEModel(mesh, materials, ana)
 
     bcs = [
-           :(x==0) => SurfaceBC(ux=0),
-           :(y==0) => SurfaceBC(uy=0),
-           :(y==1) => SurfaceBC(ty=-10),
-           #"solids" => SurfaceBC(ty=-10),
+           :(x==0) << SurfaceBC(ux=0),
+           :(y==0) << SurfaceBC(uy=0),
+           :(y==1) << SurfaceBC(ty=-10),
+           #"solids" << SurfaceBC(ty=-10),
     ]
 
     addstage!(model, bcs)
@@ -35,13 +35,14 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
     printstyled("3d version", color=:cyan); println()
 
     mesh = revolve(mesh, base=[0,0,0], axis=[0,1,0], n=12)
-    @show mesh.env.ndim
-    model = FEModel(mesh, materials, modeltype="3d")
+    
+    ana = MechAnalysis(stressmodel="3d")
+    model = FEModel(mesh, materials, ana)
 
     bcs = [
-           :(x==0 && y==0) => NodeBC(ux=0, uy=0),
-           :(y==0) => SurfaceBC(uy=0),
-           :(y==1) => SurfaceBC(ty=-10),
+           :(x==0 && y==0) << NodeBC(ux=0, uy=0),
+           :(y==0) << SurfaceBC(uy=0),
+           :(y==1) << SurfaceBC(ty=-10),
     ]
 
     addstage!(model, bcs)

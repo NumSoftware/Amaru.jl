@@ -1,26 +1,26 @@
 export MechIntegrator
-export stress_update
+export update_state
 
 mutable struct MechIntegrator
     state::IpState
-    mat::Material
+    matparams::MatParams
     table::DataTable
-    function MechIntegrator(mat::Material)
+    function MechIntegrator(matparams::MatParams)
         this = new()
         env = ModelEnv()
-        this.state = ip_state_type(mat)(env)
-        this.mat = mat
+        this.state = ip_state_type(matparams)(env)
+        this.matparams = matparams
         this.table = DataTable()
         return this
     end
 end
 
 
-function stress_update(int::MechIntegrator, Δε; nincs=1)
+function update_state(int::MechIntegrator, Δε; nincs=1)
     Δεi = Δε/nincs
     for i in 1:nincs
-        stress_update(int.mat, int.state, Δεi)
-        vals = ip_state_vals(int.mat, int.state)
+        update_state(int.matparams, int.state, Δεi)
+        vals = ip_state_vals(int.matparams, int.state)
         push!(int.table, vals)
     end
 end

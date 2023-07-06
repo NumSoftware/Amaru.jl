@@ -1,5 +1,25 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
+export HydroAnalysis, HydromechAnalysis
+
+mutable struct HydromechAnalysisProps<:AnalysisProps
+    stressmodel::String # plane stress, plane strain, etc.
+    thickness::Float64  # thickness for 2d analyses
+    g::Float64 # gravity acceleration
+    γw::Float64 # water unit weight
+    
+    function HydromechAnalysisProps(;stressmodel="3d", thickness=1.0, g=0.0, gammaw=0)
+        @check stressmodel in ("plane-stress", "plane-strain", "axisymmetric", "3d")
+        @check thickness>0
+        @check g>=0
+        @check gammaw>0
+        return new(stressmodel, thickness, g, gammaw)
+    end
+end
+
+HydroAnalysis = HydromechAnalysis = HydromechAnalysisProps
+
+
 # Assemble the global stiffness matrix
 function hm_mount_global_matrices(model::Model,
                                   ndofs::Int,
@@ -106,63 +126,6 @@ function hm_mount_global_matrices(model::Model,
 end
 
 
-# # Solves for a load/displacement increment
-# function solve_system!(
-#                           G  :: SparseMatrixCSC{Float64, Int},
-#                           DU :: Vect,
-#                           DF :: Vect,
-#                           nu :: Int,
-#                           )
-
-#     #  [  G11   G12 ]  [ U1? ]    [ F1  ]
-#     #  |            |  |     | =  |     |
-#     #  [  G21   G22 ]  [ U2  ]    [ F2? ]
-
-#     ndofs = length(DU)
-#     umap  = 1:nu
-#     pmap  = nu+1:ndofs
-#     if nu == ndofs
-#         warn("solve_system!: No essential boundary conditions")
-#     end
-
-#     # Global stifness matrix
-#     if nu>0
-#         nu1 = nu+1
-#         G11 = G[1:nu, 1:nu]
-#         G12 = G[1:nu, nu1:end]
-#         G21 = G[nu1:end, 1:nu]
-#     end
-#     G22 = G[nu+1:end, nu+1:end]
-
-#     F1  = DF[1:nu]
-#     U2  = DU[nu+1:end]
-
-#     # Solve linear system
-#     F2 = G22*U2
-#     U1 = zeros(nu)
-#     if nu>0
-#         RHS = F1 - G12*U2
-#         try
-#             LUfact = lu(G11)
-#             U1  = LUfact\RHS
-#             F2 += G21*U1
-#         catch err
-#             U1 .= NaN
-#             return failure("hm_solve!: $err")
-#         end
-#     end
-
-#     maxU = 1e10 # maximum essential value
-#     maximum(abs, U1)>maxU && warn("solve_system!: Possible syngular matrix")
-
-#     # Completing vectors
-#     DU[1:nu]     .= U1
-#     DF[nu+1:end] .= F2
-
-#     return success()
-# end
-
-
 function complete_uw_h(model::Model)
     haskey(model.node_data, "uw") || return
     Uw = model.node_data["uw"]
@@ -195,7 +158,7 @@ end
 #     # Get internal forces and update data at integration points (update ΔFin)
 #     ΔFin .= 0.0
 #     for elem in model.elems
-#         status = elem_update!(elem, ΔUt, ΔFin, Δt)
+#         status = update_elem!(elem, ΔUt, ΔFin, Δt)
 #         failed(status) && return status
 #     end
 #     return success()
@@ -203,7 +166,7 @@ end
 
 
 """
-    hm_solve!(domain, bcs, options...) -> Bool
+    solve!(domain, bcs, options...) -> Bool
 
 Performs one stage finite element hydro-mechanical analysis of a `domain`
 subjected to a list of boundary conditions `bcs`.
@@ -245,10 +208,10 @@ subjected to a list of boundary conditions `bcs`.
 `silent = false` : If true, no information is printed
 """
 
-function hm_solve!(model::Model; args...)
-    name = "Hydromechanical solver"
-    st = stage_iterator!(name, hm_stage_solver!, model; args...)
-    return st
+function solve!(model::Model, ana::HydromechAnalysis; args...)
+    name = "Solver for seepage and hydromechanical analyses"
+    status = stage_iterator!(name, hm_stage_solver!, model; args...)
+    return status
 end
 
 
@@ -264,7 +227,7 @@ function hm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     quiet  :: Bool    = false
     )
 
-    println(logfile, "Hydromechanical FE analysis: Stage $(stage.id)")
+    println(logfile, "HydromechElem FE analysis: Stage $(stage.id)")
     stage.status = :solving
 
     solstatus = success()
@@ -322,8 +285,8 @@ function hm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     end
 
     # Get global parameters
-    gammaw = get(model.env.params, :gammaw, NaN)
-    isnan(gammaw) && error("hm_solve!: gammaw parameter was not set in Model")
+    gammaw = model.env.anaprops.γw
+    isnan(gammaw) && error("solve!: gammaw parameter was not set in Model")
     gammaw > 0 || error("hm_solve: invalid value for gammaw: $gammaw")
 
     # Get the domain current state and backup
@@ -342,7 +305,7 @@ function hm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     Tcheck  = ΔTcheck
 
     inc  = 0             # increment counter
-    iout = env.stagebits.out # file output counter
+    iout = env.out # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
@@ -372,11 +335,11 @@ function hm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     local RHS::Array{Float64,1}
 
     while T < 1.0-Ttol
-        env.stagebits.ΔT = ΔT
+        env.ΔT = ΔT
 
         # Update counters
         inc += 1
-        env.stagebits.inc = inc
+        env.inc = inc
 
         println(logfile, "  inc $inc")
 
@@ -504,13 +467,13 @@ function hm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
             t += Δt
             T += ΔT
             env.t = t
-            env.stagebits.T = T
-            env.stagebits.residue = residue
+            env.T = T
+            env.residue = residue
 
             # Check for saving output file
             if T>Tcheck-Ttol && save_outs
-                env.stagebits.out += 1
-                iout = env.stagebits.out
+                env.out += 1
+                iout = env.out
                 rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
                 
                 update_output_data!(model)
@@ -551,7 +514,7 @@ function hm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
         else
             # Restore counters
             inc -= 1
-            env.stagebits.inc -= 1
+            env.inc -= 1
 
             copyto!.(State, StateBk)
 

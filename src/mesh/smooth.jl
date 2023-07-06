@@ -164,8 +164,6 @@ function matrixD(E::Float64, nu::Float64)
 end
 
 
-#include("../tools/linalg.jl")
-
 # Matrix B for the simplified FEM analysis
 function matrixB(ndim::Int, dNdX::Matx, detJ::Float64, B::Matx)
     nnodes = size(dNdX,1)
@@ -220,10 +218,6 @@ function matrixK(cell::Cell, ndim::Int64, E::Float64, nu::Float64)
         @gemm J = C'*dNdR
         @gemm dNdX = dNdR*inv(J)
         detJ = det(J)
-        if detJ < 0.0
-            # @error "Negative Jacobian determinant in cell" cell=cell.id ip=i coords=C shape=cell.shape.name
-            #error()
-        end
         matrixB(ndim, dNdX, detJ, B)
 
         # compute K
@@ -234,29 +228,6 @@ function matrixK(cell::Cell, ndim::Int64, E::Float64, nu::Float64)
     return K
 end
 
-# function matrixK2(cell::Cell, ndim::Int64, E::Float64, nu::Float64)
-#     nnodes = length(cell.nodes)
-
-#     C = getcoords(cell.nodes, ndim)
-#     K = zeros(nnodes*ndim, nnodes*ndim)
-#     B = zeros(6, nnodes*ndim)
-#     DB = Array{Float64}(undef, 6, nnodes*ndim)
-
-#     IP = get_ip_coords(cell.shape)
-
-#     D = matrixD(E, nu)
-#     for i in 1:size(IP,1)
-#         R    = vec(IP[i,1:3])
-#         w    = IP[i,4]
-#         detJ = matrixB(cell, ndim, R, C, B)
-
-#         @gemm DB = D*B
-#         coef = detJ*w
-#         @gemm K += coef*B'*DB
-#         #K   += B'*D*B*detJ*w
-#     end
-#     return K
-# end
 
 function get_map(c::Cell)
     ndim = c.shape.ndim

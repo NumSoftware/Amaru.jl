@@ -1,19 +1,48 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
+export MechRSJoint
+
+struct MechRSJointProps<:ElemProperties
+    p::Float64
+
+    function MechRSJointProps(;p=NaN, A=NaN, diameter=NaN)
+        # A : section area
+        # p : section perimeter
+        @check (p>0 || A>0 || diameter>0)
+
+        if isnan(p)
+            if A>0
+                p = 2.0*(A*pi)^0.5
+            else
+                p = pi*diameter
+            end
+        end
+        @check p>0
+
+        this = new(p)
+        return this
+    end
+    
+end
+
+MechRSJoint = MechRSJointProps
+
+
 """
     MechRodSolidJoint
 
 An interface element to link `MechRod` elements to bulk elements
 in mechanical equilibrium analyses.
 """
-mutable struct MechRodSolidJoint<:Mechanical
+mutable struct MechRSJointElem<:MechElem
     id    ::Int
     shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    mat   ::Material
+    matparams::MatParams
+    props ::MechRSJointProps
     active::Bool
     linked_elems::Array{Element,1}
     env::ModelEnv
@@ -22,13 +51,19 @@ mutable struct MechRodSolidJoint<:Mechanical
     cache_B   ::Array{Array{Float64,2}}
     cache_detJ::Array{Float64}
 
-    MechRodSolidJoint() = new()
+    function MechRSJointElem(props=MechRSJointProps())
+        this = new()
+        this.props = props
+        return this
+    end
 end
 
-matching_shape_family(::Type{MechRodSolidJoint}) = LINEJOINTCELL
+matching_shape_family(::Type{MechRSJointElem}) = LINEJOINTCELL
+matching_elem_type(::Type{MechRSJointProps}) = MechRSJointElem
+matching_props_type(::Type{MechRSJointElem}) = MechRSJointProps
 
 
-function elem_init(elem::MechRodSolidJoint)
+function elem_init(elem::MechRSJointElem)
     hook = elem.linked_elems[1]
     bar  = elem.linked_elems[2]
     Ch = getcoords(hook)
@@ -74,7 +109,7 @@ function mount_T(J::Matx)
 end
 
 
-function mountB(elem::MechRodSolidJoint, R, Ch, Ct)
+function mountB(elem::MechRSJointElem, R, Ch, Ct)
     # Calculates the matrix that relates nodal displacements with relative displacements
     # ==================================================================================
 
@@ -128,10 +163,10 @@ function mountB(elem::MechRodSolidJoint, R, Ch, Ct)
     return B, detJ
 end
 
-function elem_stiffness(elem::MechRodSolidJoint)
+function elem_stiffness(elem::MechRSJointElem)
     ndim = elem.env.ndim
     nnodes = length(elem.nodes)
-    mat    = elem.mat
+    p = elem.props.p
 
     K  = zeros(nnodes*ndim, nnodes*ndim)
     DB = zeros(ndim, nnodes*ndim)
@@ -139,9 +174,8 @@ function elem_stiffness(elem::MechRodSolidJoint)
     for (i,ip) in enumerate(elem.ips)
         B    = elem.cache_B[i]
         detJ = elem.cache_detJ[i]
-        D    = calcD(mat, ip.state)
-        # D[1,1]*=mat.p
-        coef = mat.p*detJ*ip.w
+        D    = calcD(elem.matparams, ip.state)
+        coef = p*detJ*ip.w
         @gemm DB = D*B
         @gemm K += coef*B'*DB
     end
@@ -151,10 +185,11 @@ function elem_stiffness(elem::MechRodSolidJoint)
     return K, map, map
 end
 
-function elem_update!(elem::MechRodSolidJoint, U::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::MechRSJointElem, U::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
-    mat    = elem.mat
+    p = elem.props.p
+
     keys   = (:ux, :uy, :uz)[1:ndim]
     map    = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
 
@@ -167,11 +202,11 @@ function elem_update!(elem::MechRodSolidJoint, U::Array{Float64,1}, Δt::Float64
     for (i,ip) in enumerate(elem.ips)
         B    = elem.cache_B[i]
         detJ = elem.cache_detJ[i]
-        # D    = calcD(mat, ip.state)
+        # D    = calcD(matparams, ip.state)
         @gemv Δu = B*dU
-        Δσ, _ = stress_update(mat, ip.state, Δu)
-        coef = mat.p*detJ*ip.w
-        # Δσ[1]  *= mat.p
+        Δσ, _ = update_state(elem.matparams, ip.state, Δu)
+        coef = p*detJ*ip.w
+        # Δσ[1]  *= p
         @gemv dF += coef*B'*Δσ
     end
 
@@ -179,8 +214,8 @@ function elem_update!(elem::MechRodSolidJoint, U::Array{Float64,1}, Δt::Float64
 end
 
 
-function elem_extrapolated_node_vals(elem::MechRodSolidJoint)
-    all_ip_vals = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
+function elem_extrapolated_node_vals(elem::MechRSJointElem)
+    all_ip_vals = [ ip_state_vals(elem.matparams, ip.state) for ip in elem.ips ]
     nips        = length(elem.ips)
     fields      = keys(all_ip_vals[1])
     nfields     = length(fields)

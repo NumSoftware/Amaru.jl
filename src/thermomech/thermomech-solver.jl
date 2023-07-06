@@ -1,5 +1,24 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
+export ThermoAnalysis, ThermomechAnalysis
+
+mutable struct ThermomechAnalysisProps<:AnalysisProps
+    stressmodel::String # plane stress, plane strain, etc.
+    thickness::Float64  # thickness for 2d analyses
+    g::Float64 # gravity acceleration
+    T0::Float64 # reference temperature
+    
+    function ThermomechAnalysisProps(;stressmodel="3d", thickness=1.0, g=0.0, T0=0)
+        @check stressmodel in ("plane-stress", "plane-strain", "axisymmetric", "3d")
+        @check thickness>0
+        @check g>=0
+        @check T0>=-273.15
+        return new(stressmodel, thickness, g, T0)
+    end
+end
+
+ThermoAnalysis = ThermomechAnalysis = ThermomechAnalysisProps
+
 # Assemble the global stiffness matrix
 function tm_mount_global_matrices(model::Model,
                                   ndofs::Int,
@@ -8,7 +27,7 @@ function tm_mount_global_matrices(model::Model,
     # Assembling matrix G
 
     α = 1.0 # time integration factor
-    T0k = get(model.env.params, :T0, 0.0) + 273.15
+    T0k = model.env.anaprops.T0 + 273.15
 
     @withthreads begin
         R, C, V = Int64[], Int64[], Float64[]
@@ -103,7 +122,7 @@ end
 function complete_ut_T(model::Model)
     haskey(model.node_data, "ut") || return
     Ut = model.node_data["ut"]
-    T0 = get(model.env.params, :T0, 0.0)
+    T0 = model.env.anaprops.T0
 
     for elem in model.elems
         elem.shape.family==BULKCELL || continue
@@ -167,10 +186,10 @@ subjected to a list of boundary conditions `bcs`.
 
 `silent = false` : If true, no information is printed
 """
-function tm_solve!(model::Model; args...)
-    name = "Thermomechanical solver"
-    st = stage_iterator!(name, tm_stage_solver!, model; args...)
-    return st
+function solve!(model::Model, anaprops::ThermomechAnalysis; args...)
+    name = "Solver for thermal and thermomechanical analyses"
+    status = stage_iterator!(name, tm_stage_solver!, model; args...)
+    return status
 end
 
 
@@ -187,7 +206,7 @@ function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     quiet  :: Bool    = false
                   )
 
-    println(logfile, "Hydromechanical FE analysis: Stage $(stage.id)")
+    println(logfile, "HydromechElem FE analysis: Stage $(stage.id)")
     stage.status = :solving
 
     solstatus = success()
@@ -199,8 +218,7 @@ function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     tspan     = stage.tspan
     env       = model.env
     save_outs = stage.nouts > 0
-
-    T0 = get(model.env.params, :T0, 0.0)
+    T0        = env.anaprops.T0
 
     # Get active elements
     for elem in stage.toactivate
@@ -255,7 +273,7 @@ function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     Tcheck  = ΔTcheck
 
     inc  = 0             # increment counter
-    iout = env.stagebits.out # file output counter
+    iout = env.out # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
@@ -285,11 +303,11 @@ function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     local RHS::Array{Float64,1}
 
     while T < 1.0-Ttol
-        env.stagebits.ΔT = ΔT
+        env.ΔT = ΔT
 
         # Update counters
         inc += 1
-        env.stagebits.inc = inc
+        env.inc = inc
 
         println(logfile, "  inc $inc")
 
@@ -422,13 +440,13 @@ function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
             t += Δt
             T += ΔT
             env.t = t
-            env.stagebits.T = T
-            env.stagebits.residue = residue
+            env.T = T
+            env.residue = residue
 
             # Check for saving output file
             if T>Tcheck-Ttol && save_outs
-                env.stagebits.out += 1
-                iout = env.stagebits.out
+                env.out += 1
+                iout = env.out
                 rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
                 
                 update_output_data!(model)
@@ -469,7 +487,7 @@ function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
         else
             # Restore counters
             inc -= 1
-            env.stagebits.inc -= 1
+            env.inc -= 1
 
             copyto!.(State, StateBk)
 

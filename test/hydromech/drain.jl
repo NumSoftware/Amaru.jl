@@ -18,27 +18,28 @@ Q  = 1       # volume em metro cubico
 
 # FEM analysis
 mats = [
-    "solids" => LinSeep(k=k, gammaw=gw, S=0.0),
-    "joints" => Joint1DLinSeep(k=kj, gammaw=gw, A=A),
-    "drains" => LinDrainPipe(k=kb, gammaw=gw, A=A),
+    "solids" << LinSeep(k=k, S=0.0),
+    "joints" << SeepJoint1D(A=A) << Joint1DLinSeep(k=kj),
+    "drains" << DrainPipe(A=A) << LinDrainPipe(k=kb),
 ]
 
-model = FEModel(mesh, mats, gammaw=10)
+ana = HydroAnalysis(gammaw=gw)
+model = FEModel(mesh, mats, ana)
 
 # Stage 1: pore-pressure stabilization
 bcs = [
-       :(z==1.0) => NodeBC(uw=0),
+       :(z==1.0) << NodeBC(uw=0),
       ]
 addstage!(model, bcs, tspan=100, nincs=2, nouts=2)
-hm_solve!(model, tol=1e-2)
+solve!(model, tol=1e-2)
 
 tag!(model.elems.solids.nodes[:(x==1.0 && y==1.0 && z==1.0)], "input")
 
 # Stage 2: volume application
 bcs = [
-       :(x==0.0 && y==0.0 && z==0.0) => NodeBC(uw=0),
-       :(x==2.0 && y==2.0 && z==0.0) => NodeBC(uw=0),
-       "input" => NodeBC(fw=:($Q*t/100)),
+       :(x==0.0 && y==0.0 && z==0.0) << NodeBC(uw=0),
+       :(x==2.0 && y==2.0 && z==0.0) << NodeBC(uw=0),
+       "input" << NodeBC(fw=:($Q*t/100)),
       ]
 addstage!(model, bcs, tspan=100, nincs=2, nouts=2)
-hm_solve!(model, tol=1e-2)
+solve!(model, tol=1e-2)

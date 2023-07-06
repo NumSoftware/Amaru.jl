@@ -9,59 +9,40 @@ mutable struct Joint1DLinSeepState<:IpState
     D::Float64     # distance traveled by the fluid
     function Joint1DLinSeepState(env::ModelEnv=ModelEnv())
         this = new(env)
-        ndim = env.ndim
         this.V = 0.0
         this.D = 0.0
         return this
     end
 end
 
-mutable struct Joint1DLinSeep<:Material
+mutable struct Joint1DLinSeep<:MatParams
     k ::Float64    # specific permeability per meter
-    γw::Float64    # specific weight of the fluid
-    h ::Float64    # section perimeter
 
     function Joint1DLinSeep(prms::Dict{Symbol,Float64})
         return  Joint1DLinSeep(;prms...)
     end
 
-    function Joint1DLinSeep(;k=NaN, gammaw=NaN, h=NaN, A=NaN, dm=NaN)
-        # A : section area
-        # dm: section diameter
-        # h : section perimeter
-        k>=0.0 || error("Invalid value for k: $k")
-        gammaw>=0.0 || error("Invalid value for gammaw: $gammaw")
-        (h>0 || A>0 || dm>0) || error("perimeter h, section area A or diameter dm should be provided")
-
-        if isnan(h)
-            if A>0
-                h = 2.0*(A*pi)^0.5
-            else
-                h = pi*dm
-            end
-        end
-        @assert h>0
-
-        this = new(k, gammaw, h)
-        return this
+    function Joint1DLinSeep(;k=NaN)
+        @check k>=0.0
+        return new(k)
     end
 end
 
 
 # Returns the element type that works with this material
-matching_elem_type(::Joint1DLinSeep, shape::CellShape, ndim::Int) = SeepJoint1D
+matching_elem_type(::Joint1DLinSeep) = SeepJoint1DElem
 
 # Type of corresponding state structure
-ip_state_type(mat::Joint1DLinSeep) = Joint1DLinSeepState
+ip_state_type(::SeepJoint1DElem, ::Joint1DLinSeep) = Joint1DLinSeepState
 
-function update_state!(mat::Joint1DLinSeep, state::Joint1DLinSeepState, ΔFw::Float64, Δt::Float64)
-    k = mat.k
+function update_state!(matparams::Joint1DLinSeep, state::Joint1DLinSeepState, ΔFw::Float64, Δt::Float64)
+    k = matparams.k
     state.V  = -k*ΔFw
     state.D  += state.V*Δt
     return state.V
 end
 
-function ip_state_vals(mat::Joint1DLinSeep, state::Joint1DLinSeepState)
+function ip_state_vals(matparams::Joint1DLinSeep, state::Joint1DLinSeepState)
     return OrderedDict(
       :vj => state.V)
 end

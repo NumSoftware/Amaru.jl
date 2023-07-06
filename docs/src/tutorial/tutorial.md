@@ -289,15 +289,15 @@ Thus, for a particular problem, a consistent list of materials should be used.
 For example, in a mechanical analysis, all elements should be associated to mechanical material types.
 Based on the choosen materials, the `Model` object will setup the corresponding finite elements and degrees of freedom.
 
-### Material definitions
+### MatParams definitions
 
 There are several material models implemented in Amaru and are associated to a corresponding type, e.g. 
-`ElasticSolid`, `DruckerPrager`, `VonMises`, `ElasticRod`, etc.
+`LinearElastic`, `DruckerPrager`, `VonMises`, `ElasticRod`, etc.
 A particular material instance is defined by calling the construcor with set of corresponding parameters.
 ```@example
 using Amaru
 
-steel = ElasticSolid(E=2e8, nu=0.2) # E in kPa
+steel = LinearElastic(E=2e8, nu=0.2) # E in kPa
 rock = DruckerPrager(E=2e8, nu=0.2, alpha=0.4, kappa=2500, H=1e4)
 rebar = ElasticRod(E=2e8, A=1e-4)
 
@@ -317,7 +317,7 @@ block = Block([0 0 0; 1 0.1 0.1], nx=20, ny=2, nz=2, cellshape=HEX20)
 mesh = Mesh(block)
 
 # Analysis model
-steel = ElasticSolid(E=2e8, nu=0.2) # E in kPa
+steel = LinearElastic(E=2e8, nu=0.2) # E in kPa
 
 materials = [
     :(x>=0) => steel,
@@ -373,7 +373,7 @@ block = Block([0 0 0; 1 0.1 0.1], nx=20, ny=2, nz=2, cellshape=HEX8)
 mesh = Mesh(block)
 
 # Analysis model
-steel = ElasticSolid(E=200e6, nu=0.2) # E in kPa
+steel = LinearElastic(E=200e6, nu=0.2) # E in kPa
 
 materials = [
     :(x>=0) => steel,
@@ -423,7 +423,7 @@ block = Block([0 0 0; 1 0.1 0.1], nx=20, ny=2, nz=4, cellshape=HEX8)
 mesh = Mesh(block)
 
 # Analysis model
-steel1 = ElasticSolid(E=2e8, nu=0.2) # E in kPa
+steel1 = LinearElastic(E=2e8, nu=0.2) # E in kPa
 steel2 = VonMises(E=2e8, nu=0.2, fy=500e3, H=1e4)
 
 materials = [
@@ -477,7 +477,7 @@ block = Block([0 0 0; 1 0.1 0.1], nx=20, ny=2, nz=3, cellshape=HEX8)
 mesh = Mesh(block)
 
 # Analysis model
-steel1 = ElasticSolid(E=2e8, nu=0.2) # E in kPa
+steel1 = LinearElastic(E=2e8, nu=0.2) # E in kPa
 steel2 = VonMises(E=2e8, nu=0.2, fy=500e3, H=1e4)
 
 materials = [

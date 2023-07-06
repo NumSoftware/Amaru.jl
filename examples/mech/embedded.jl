@@ -16,7 +16,7 @@ msh = Mesh(bls)
 # ============
 
 mats = [
-        "solids" => ElasticSolid(E=1.e4, nu=0.25),
+        "solids" => LinearElastic(E=1.e4, nu=0.25),
         "bars"  => PPRod(E=1.e8, A=0.005, sig_y=500e3),
        ]
 model = Model(msh, mats)

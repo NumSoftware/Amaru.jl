@@ -15,7 +15,7 @@ mutable struct TipJointState<:IpState
 end
 
 
-mutable struct TipJoint<:Material
+mutable struct TipJoint<:MatParams
     k::Float64
 
     function TipJoint(prms::Dict{Symbol,Float64})
@@ -31,22 +31,22 @@ end
 
 
 # Returns the element type that works with this material
-matching_elem_type(::TipJoint, shape::CellShape, ndim::Int) = MechTipJoint
+matching_elem_type(::TipJoint) = MechTipJointElem
 
 # Type of corresponding state structure
-ip_state_type(mat::TipJoint) = TipJointState
+ip_state_type(matparams::TipJoint) = TipJointState
 
-function calcD(mat::TipJoint, state::TipJointState)
+function calcD(matparams::TipJoint, state::TipJointState)
     if state.w>0.0
-        return mat.k
+        return matparams.k
     else
         return 0.0
     end
 end
 
-function stress_update(mat::TipJoint, state::TipJointState, Δw)
+function update_state(matparams::TipJoint, state::TipJointState, Δw)
     fini = state.f
-    ftr  = fini + mat.k*Δw
+    ftr  = fini + matparams.k*Δw
     
     if ftr>0.0
         f = ftr
@@ -59,7 +59,7 @@ function stress_update(mat::TipJoint, state::TipJointState, Δw)
     return Δf, success()
 end
 
-function ip_state_vals(mat::TipJoint, state::TipJointState)
+function ip_state_vals(matparams::TipJoint, state::TipJointState)
     return OrderedDict(
       :ur   => state.w ,
       :tau  => state.f )

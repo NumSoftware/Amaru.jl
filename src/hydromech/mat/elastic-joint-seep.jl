@@ -29,11 +29,10 @@ mutable struct JointSeepState<:IpState
     end
 end
 
-mutable struct ElasticJointSeep<:Material
+mutable struct ElasticJointSeep<:MatParams
     E  ::Float64        # Young's modulus
     nu ::Float64        # Poisson ration 
     ζ  ::Float64        # factor ζ controls the elastic relative displacements 
-    γw ::Float64        # specific weight of the fluid
     β  ::Float64        # compressibility of fluid
     η  ::Float64        # viscosity
     kt ::Float64        # leak-off coefficient
@@ -43,33 +42,31 @@ mutable struct ElasticJointSeep<:Material
         return  ElasticJoint(;prms...)
     end
 
-    function ElasticJointSeep(;E=NaN, nu=NaN, zeta=NaN, gammaw=NaN, beta=0.0, eta=NaN, kt=NaN, w=0.0)
-    
-        E>0.0       || error("Invalid value for E: $E")
-        0<=nu<0.5   || error("Invalid value for nu: $nu") 
-        zeta>=0     || error("Invalid value for zeta: $zeta")
-        gammaw>0    || error("Invalid value for gammaw: $gammaw")
-        beta>= 0    || error("Invalid value for beta: $beta")
-        eta>=0      || error("Invalid value for eta: $eta")
-        kt>=0       || error("Invalid value for kt: $kt")
-        w>=0        || error("Invalid value for w: $w")
+    function ElasticJointSeep(;E=NaN, nu=NaN, zeta=NaN, beta=0.0, eta=NaN, kt=NaN, w=0.0)
+        @check E>0.0
+        @check 0<=nu<0.5
+        @check zeta>=0
+        @check beta>= 0
+        @check eta>=0
+        @check kt>=0
+        @check w>=0
 
-        this = new(E, nu, zeta, gammaw, beta, eta, kt, w)
+        this = new(E, nu, zeta, beta, eta, kt, w)
         return this
     end
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::ElasticJointSeep, shape::CellShape, ndim::Int) = HydroMechJoint
+matching_elem_type(::ElasticJointSeep) = HMJointElem
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticJointSeep) = JointSeepState
+ip_state_type(::HMJointElem, ::ElasticJointSeep) = JointSeepState
 
-function mountD(mat::ElasticJointSeep, state::JointSeepState)
+function mountD(matparams::ElasticJointSeep, state::JointSeepState)
     ndim = state.env.ndim
-    G  = mat.E/(1.0+mat.nu)/2.0
-    kn = mat.E*mat.ζ/state.h
-    ks =     G*mat.ζ/state.h
+    G  = matparams.E/(1.0+matparams.nu)/2.0
+    kn = matparams.E*matparams.ζ/state.h
+    ks =     G*matparams.ζ/state.h
     if ndim==2
         return  [  kn  0.0 
                   0.0   ks ]
@@ -80,36 +77,36 @@ function mountD(mat::ElasticJointSeep, state::JointSeepState)
     end
 end
 
-function stress_update(mat::ElasticJointSeep, state::JointSeepState, Δu::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
+function update_state(matparams::ElasticJointSeep, state::JointSeepState, Δu::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
     ndim = state.env.ndim
-    D  = mountD(mat, state)
+    D  = mountD(matparams, state)
     Δσ = D*Δu
 
     state.w[1:ndim] += Δu
     state.σ[1:ndim] += Δσ
 
     state.uw += Δuw
-    state.Vt = -mat.kt*G
+    state.Vt = -matparams.kt*G
     #state.D +=  state.Vt*Δt
 
     # compute crack aperture
-    if mat.w == 0.0
+    if matparams.w == 0.0
         w = 0.0
     else
-        if mat.w >= state.w[1]
-            w = mat.w
+        if matparams.w >= state.w[1]
+            w = matparams.w
         else 
             w = state.w[1]
         end
     end 
 
-    state.L  =  ((w^3)/(12*mat.η))*BfUw
+    state.L  =  ((w^3)/(12*matparams.η))*BfUw
     #state.S +=  state.L*Δt
 
     return Δσ, state.Vt, state.L, success()
 end
 
-function ip_state_vals(mat::ElasticJointSeep, state::JointSeepState)
+function ip_state_vals(matparams::ElasticJointSeep, state::JointSeepState)
     ndim = state.env.ndim
     if ndim == 2
         return OrderedDict(

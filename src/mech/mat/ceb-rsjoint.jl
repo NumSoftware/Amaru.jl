@@ -21,7 +21,8 @@ mutable struct CebRSJointState<:IpState
     end
 end
 
-mutable struct CebRSJoint<:Material
+
+mutable struct CebRSJoint<:MatParams
     τmax:: Float64
     τres:: Float64
     s1  :: Float64
@@ -31,27 +32,16 @@ mutable struct CebRSJoint<:Material
     β   :: Float64
     ks  :: Float64
     kn  :: Float64
-    p   :: Float64
 
     function CebRSJoint(prms::Dict{Symbol,Float64})
         return  CebRSJoint(;prms...)
     end
 
-    function CebRSJoint(;taumax=NaN, taures=NaN, TauM=NaN, TauR=NaN, s1=NaN, s2=NaN, s3=NaN, alpha=NaN, beta=NaN, kn=NaN, ks=NaN, p=NaN, A=NaN, dm=NaN)
+    function CebRSJoint(;taumax=NaN, taures=NaN, TauM=NaN, TauR=NaN, s1=NaN, s2=NaN, s3=NaN, alpha=NaN, beta=NaN, kn=NaN, ks=NaN)
         
         @check s1>0
         @check s2>s1
         @check s3>s2
-
-        # Estimate the perimeter p
-        @check p>0 || A>0 || dm>0
-        if isnan(p)
-            if A>0
-                p = 2.0*√(A*pi)
-            else
-                p = pi*dm
-            end
-        end
 
         # Estimate TauM if not provided
         @check ks>0
@@ -74,67 +64,66 @@ mutable struct CebRSJoint<:Material
         isnan(kn) && (kn = ks)
         @check kn>0
 
-        this = new(taumax, taures, s1, s2, s3, alpha, beta, ks, kn, p)
+        this = new(taumax, taures, s1, s2, s3, alpha, beta, ks, kn)
         return this
     end
 end
 
 # Returns the element type that works with this material
-matching_elem_type(::CebRSJoint, shape::CellShape, ndim::Int) = MechRodSolidJoint
+matching_elem_type(::CebRSJoint) = MechRSJointElem
 
 # Creates a new instance of Ip data
-ip_state_type(mat::CebRSJoint) = CebRSJointState
-
-is_linear(state::CebRSJointState) = state.elastic
+ip_state_type(::MechRSJointElem, ::CebRSJoint) = CebRSJointState
 
 CEBJoint1D = CebRSJoint #! deprecated
 export CEBJoint1D
 
-function Tau(mat::CebRSJoint, sy::Float64)
-    if sy<mat.s1
-        return mat.τmax*(sy/mat.s1)^mat.α
-    elseif sy<mat.s2
-        return mat.τmax
-    elseif sy<mat.s3
-        return mat.τmax - (mat.τmax-mat.τres)*((sy-mat.s2)/(mat.s3-mat.s2))^mat.β
+
+function Tau(matparams::CebRSJoint, sy::Float64)
+    if sy<matparams.s1
+        return matparams.τmax*(sy/matparams.s1)^matparams.α
+    elseif sy<matparams.s2
+        return matparams.τmax
+    elseif sy<matparams.s3
+        return matparams.τmax - (matparams.τmax-matparams.τres)*((sy-matparams.s2)/(matparams.s3-matparams.s2))^matparams.β
     else
-        return mat.τres  + 1*(sy-mat.s3)
+        return matparams.τres  + 1*(sy-matparams.s3)
     end
 end
 
 
-function deriv(mat::CebRSJoint, state::CebRSJointState, sy::Float64)
+function deriv(matparams::CebRSJoint, state::CebRSJointState, sy::Float64)
     if sy==0.0
         s1_factor = 0.01
-        sy = s1_factor*mat.s1   # to avoid undefined derivative
+        sy = s1_factor*matparams.s1   # to avoid undefined derivative
     end
 
-    if sy<=mat.s1
-        return mat.τmax/mat.s1*(sy/mat.s1)^(mat.α-1)
-    elseif sy<mat.s2
-        #return mat.ks/10000
+    if sy<=matparams.s1
+        return matparams.τmax/matparams.s1*(sy/matparams.s1)^(matparams.α-1)
+    elseif sy<matparams.s2
+        #return matparams.ks/10000
         return 1.0
-    elseif sy<mat.s3
-        return -(mat.τmax-mat.τres)/(mat.s3-mat.s2)*((sy-mat.s2)/(mat.s3-mat.s2))^(mat.β-1)
+    elseif sy<matparams.s3
+        return -(matparams.τmax-matparams.τres)/(matparams.s3-matparams.s2)*((sy-matparams.s2)/(matparams.s3-matparams.s2))^(matparams.β-1)
     else
         return 1.0
-        # return mat.ks/10000
+        # return matparams.ks/10000
     end
 end
 
 
-function calcD(mat::CebRSJoint, state::CebRSJointState)
+function calcD(matparams::CebRSJoint, state::CebRSJointState)
     ndim = state.env.ndim
-    ks = mat.ks
+    ks = matparams.ks
 
     if !state.elastic
-        dτydsy = deriv(mat, state, state.sy)
+        dτydsy = deriv(matparams, state, state.sy)
         # ks = ks*dτydsy/(ks+dτydsy)
         ks = dτydsy
         # @s ks
     end
 
-    kn = mat.kn
+    kn = matparams.kn
     if state.env.ndim==2
         return [  ks  0.0
                  0.0   kn ]
@@ -146,19 +135,19 @@ function calcD(mat::CebRSJoint, state::CebRSJointState)
 end
 
 
-function yield_func(mat::CebRSJoint, state::CebRSJointState, τ::Float64)
+function yield_func(matparams::CebRSJoint, state::CebRSJointState, τ::Float64)
     return abs(τ) - state.τy
 end
 
 
-function stress_update_n(mat::CebRSJoint, state::CebRSJointState, Δu::Vect)
-    ks = mat.ks
-    kn = mat.kn
+function stress_update_n(matparams::CebRSJoint, state::CebRSJointState, Δu::Vect)
+    ks = matparams.ks
+    kn = matparams.kn
     Δs = Δu[1]      # relative displacement
     τini = state.σ[1] # initial shear stress
     τtr  = τini + ks*Δs # elastic trial
 
-    ftr  = yield_func(mat, state, τtr)
+    ftr  = yield_func(matparams, state, τtr)
 
     if ftr<0.0
         τ = τtr
@@ -173,9 +162,9 @@ function stress_update_n(mat::CebRSJoint, state::CebRSJointState, Δu::Vect)
 
         for i in 1:maxits
             # τ  = τtr - Δλ*ks*sign(τtr)
-            τy = Tau(mat, state.sy+Δλ)
+            τy = Tau(matparams, state.sy+Δλ)
             # τ  = τy*sign(τtr)
-            dτydsy = deriv(mat, state, state.sy+Δλ)
+            dτydsy = deriv(matparams, state, state.sy+Δλ)
 
             # @s τ
             # @s τy
@@ -186,7 +175,7 @@ function stress_update_n(mat::CebRSJoint, state::CebRSJointState, Δu::Vect)
             # dfdΔλ = -sign(abs(τtr) - Δλ*ks)*ks - dτydsy
             dfdΔλ = -ks - dτydsy
             Δλ = Δλ - f/dfdΔλ
-            # Δλ = (abs(τtr)-τy)/mat.ks
+            # Δλ = (abs(τtr)-τy)/matparams.ks
             # abs(f) < tol && @s i
             abs(f) < tol && break
 
@@ -195,14 +184,14 @@ function stress_update_n(mat::CebRSJoint, state::CebRSJointState, Δu::Vect)
 
             # @s Δλ
             # if Δλ<0
-                # Δλ = (abs(τtr)-state.τy)/mat.ks
+                # Δλ = (abs(τtr)-state.τy)/matparams.ks
                 # break
             # end
 
             if i==maxits || isnan(Δλ)  
                 if Δλ<0.0
                     @s Δλ
-                    Δλ = (abs(τtr)-state.τy)/mat.ks
+                    Δλ = (abs(τtr)-state.τy)/matparams.ks
                     break
                 end
 
@@ -220,7 +209,7 @@ function stress_update_n(mat::CebRSJoint, state::CebRSJointState, Δu::Vect)
         end
 
         if Δλ<0.0
-            Δλ = (abs(τtr)-state.τy)/mat.ks
+            Δλ = (abs(τtr)-state.τy)/matparams.ks
             @s Δλ
         end
 
@@ -244,27 +233,27 @@ function stress_update_n(mat::CebRSJoint, state::CebRSJointState, Δu::Vect)
 end
 
 
-function stress_update(mat::CebRSJoint, state::CebRSJointState, Δu::Vect)
-    ks = mat.ks
-    kn = mat.kn
+function update_state(matparams::CebRSJoint, state::CebRSJointState, Δu::Vect)
+    ks = matparams.ks
+    kn = matparams.kn
     Δs = Δu[1]      # relative displacement
     τini = state.σ[1] # initial shear stress
     τtr  = τini + ks*Δs # elastic trial
 
-    ftr  = yield_func(mat, state, τtr)
+    ftr  = yield_func(matparams, state, τtr)
 
     if ftr<0.0
         τ = τtr
         state.elastic = true
     else
-        dτydsy = deriv(mat, state, state.sy)
+        dτydsy = deriv(matparams, state, state.sy)
         # @s ks
         # @s dτydsy
         # Δsy     = (abs(τtr)-state.τy)/(ks+dτydsy)
         # Δsy     = (abs(τtr)-state.τy)/abs(ks+dτydsy)
         Δsy     = (abs(τtr)-state.τy)/ks
         state.sy += Δsy
-        state.τy  = Tau(mat, state.sy)
+        state.τy  = Tau(matparams, state.sy)
         τ  = state.τy*sign(τtr)
         Δτ = τ - τini
         state.elastic = false
@@ -282,7 +271,7 @@ function stress_update(mat::CebRSJoint, state::CebRSJointState, Δu::Vect)
     return Δσ, success()
 end
 
-function ip_state_vals(mat::CebRSJoint, state::CebRSJointState)
+function ip_state_vals(matparams::CebRSJoint, state::CebRSJointState)
     return OrderedDict(
       :ur   => state.u[1] ,
       :tau  => state.σ[1] ,

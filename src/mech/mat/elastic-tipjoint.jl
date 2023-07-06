@@ -15,7 +15,7 @@ mutable struct ElasticTipJointState<:IpState
 end
 
 
-mutable struct ElasticTipJoint<:Material
+mutable struct ElasticTipJoint<:MatParams
     k::Float64
 
     function ElasticTipJoint(prms::Dict{Symbol,Float64})
@@ -31,23 +31,23 @@ end
 
 
 # Returns the element type that works with this material
-matching_elem_type(::ElasticTipJoint, shape::CellShape, ndim::Int) = MechTipJoint
+matching_elem_type(::ElasticTipJoint) = MechTipJointElem
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticTipJoint) = ElasticTipJointState
+ip_state_type(matparams::ElasticTipJoint) = ElasticTipJointState
 
-function calcD(mat::ElasticTipJoint, state::ElasticTipJointState)
-    return mat.k
+function calcD(matparams::ElasticTipJoint, state::ElasticTipJointState)
+    return matparams.k
 end
 
-function stress_update(mat::ElasticTipJoint, state::ElasticTipJointState, Δw)
-    Δf = mat.k*Δw
+function update_state(matparams::ElasticTipJoint, state::ElasticTipJointState, Δw)
+    Δf = matparams.k*Δw
     state.f += Δf
     state.w += Δw
     return Δf, success()
 end
 
-function ip_state_vals(mat::ElasticTipJoint, state::ElasticTipJointState)
+function ip_state_vals(matparams::ElasticTipJoint, state::ElasticTipJointState)
     return OrderedDict(
       :ur   => state.w ,
       :tau  => state.f )

@@ -13,28 +13,28 @@ msh = Mesh(blocks)
 
 # Analysis data
 k    = 1.0E-5  # permeability
-E    = 5000.0  # Young modulus
-nu   = 0.25    # Poisson
 gw   = 10.0    # water specific weight
 
-materials = [
-    "solids" => LinSeep(k=k, gammaw=gw)
+mats = [
+    "solids" << LinSeep(k=k)
 ]
-model = FEModel(msh, materials, gammaw=10)
+
+ana = HydroAnalysis(gammaw=10.0)
+model = FEModel(msh, mats, ana)
 
 log1 = NodeGroupLogger()
 loggers = [
-    :(x==0) => log1
+    :(x==0) << log1
 ]
 setloggers!(model, loggers)
 
 bcs = [
-       :(y==0) => NodeBC(fw=:(t/10.0)),
-       :(y==2) => NodeBC(uw=0.),
+       :(y==0) << NodeBC(fw=:(t/10.0)),
+       :(y==2) << NodeBC(uw=0.0),
 ]
 
-addstage!(model, bcs, tspan=500)
-hm_solve!(model, tol=0.1)
+addstage!(model, bcs, tspan=500, nincs=1)
+solve!(model, tol=0.1)
 
 # Output
 if @isdefined(makeplots) && makeplots

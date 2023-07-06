@@ -31,7 +31,7 @@ mutable struct MCJointSeepState<:IpState
     end
 end
 
-mutable struct MCJointSeep<:Material
+mutable struct MCJointSeep<:MatParams
     E  ::Float64       # Young's modulus
     ν  ::Float64       # Poisson ratio
     σmax0::Float64     # tensile strength (internal variable)
@@ -40,7 +40,6 @@ mutable struct MCJointSeep<:Material
     wc ::Float64       # critical crack opening
     ws ::Float64       # openning at inflection (where the curve slope changes)
     softcurve::String  # softening curve model ("linear" or bilinear" or "hordijk")
-    γw ::Float64       # specific weight of the fluid
     β  ::Float64       # compressibility of fluid
     η  ::Float64       # viscosity
     kt ::Float64       # transverse leak-off coefficient
@@ -51,7 +50,7 @@ mutable struct MCJointSeep<:Material
         return  MCJointSeep(;prms...)
     end
 
-     function MCJointSeep(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", gammaw=NaN, beta=0.0, eta=NaN, kt=NaN, w=0.0, fracture=false)  
+     function MCJointSeep(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", beta=0.0, eta=NaN, kt=NaN, w=0.0, fracture=false)  
 
         !(isnan(GF) || GF>0) && error("Invalid value for GF: $GF")
         !(isnan(Gf) || Gf>0) && error("Invalid value for Gf: $Gf")
@@ -72,60 +71,59 @@ mutable struct MCJointSeep<:Material
             end    
         end
 
-        E>0.0       || error("Invalid value for E: $E")
-        0<=nu<0.5   || error("Invalid value for nu: $nu")
-        ft>=0       || error("Invalid value for ft: $ft")
-        mu>0        || error("Invalid value for mu: $mu")
-        zeta>0      || error("Invalid value for zeta: $zeta")
-        wc>0        || error("Invalid value for wc: $wc")
-        (isnan(ws)  || ws>0) || error("Invalid value for ws: $ws")
+        @check E>0.0
+        @check 0<=nu<0.5
+        @check ft>=0
+        @check mu>0
+        @check zeta>0
+        @check wc>0
+        @check isnan(ws) || ws>0
         (softcurve=="linear" || softcurve=="bilinear" || softcurve=="hordijk") || error("Invalid softcurve: softcurve must to be linear or bilinear or hordijk")
-        gammaw>0    || error("Invalid value for gammaw: $gammaw")
-        beta>= 0    || error("Invalid value for beta: $beta")
-        eta>=0      || error("Invalid value for eta: $eta")
-        kt>=0       || error("Invalid value for kt: $kt")
-        w>=0       || error("Invalid value for w: $w")
+        @check beta>= 0
+        @check eta>=0
+        @check kt>=0
+        @check w>=0
         (fracture==true || fracture==false) || error("Invalid fracture: fracture must to be true or false")
 
-        this = new(E, nu, ft, mu, zeta, wc, ws, softcurve, gammaw, beta, eta, kt, w, fracture)
+        this = new(E, nu, ft, mu, zeta, wc, ws, softcurve, beta, eta, kt, w, fracture)
         return this
     end
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::MCJointSeep, shape::CellShape, ndim::Int) = HydroMechJoint
+matching_elem_type(::MCJointSeep) = HMJointElem
 
 # Type of corresponding state structure
-ip_state_type(mat::MCJointSeep) = MCJointSeepState
+ip_state_type(::HMJointElem, ::MCJointSeep) = MCJointSeepState
 
 
-function yield_func(mat::MCJointSeep, state::MCJointSeepState, σ::Array{Float64,1})
+function yield_func(matparams::MCJointSeep, state::MCJointSeepState, σ::Array{Float64,1})
     ndim = state.env.ndim
-    σmax = calc_σmax(mat, state, state.up)
+    σmax = calc_σmax(matparams, state, state.up)
     if ndim == 3
-        return sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*mat.μ
+        return sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*matparams.μ
     else
-        return abs(σ[2]) + (σ[1]-σmax)*mat.μ
+        return abs(σ[2]) + (σ[1]-σmax)*matparams.μ
     end
 end
 
 
-function yield_deriv(mat::MCJointSeep, state::MCJointSeepState)
+function yield_deriv(matparams::MCJointSeep, state::MCJointSeepState)
     ndim = state.env.ndim
     if ndim == 3
-        return [ mat.μ, state.σ[2]/sqrt(state.σ[2]^2 + state.σ[3]^2), state.σ[3]/sqrt(state.σ[2]^2 + state.σ[3]^2)]
+        return [ matparams.μ, state.σ[2]/sqrt(state.σ[2]^2 + state.σ[3]^2), state.σ[3]/sqrt(state.σ[2]^2 + state.σ[3]^2)]
     else
-        return [ mat.μ, sign(state.σ[2]) ]
+        return [ matparams.μ, sign(state.σ[2]) ]
     end
 end
 
 
-function potential_derivs(mat::MCJointSeep, state::MCJointSeepState, σ::Array{Float64,1})
+function potential_derivs(matparams::MCJointSeep, state::MCJointSeepState, σ::Array{Float64,1})
     ndim = state.env.ndim
     if ndim == 3
             if σ[1] >= 0.0 
                 # G1:
-                r = [ 2.0*σ[1]*mat.μ^2, 2.0*σ[2], 2.0*σ[3]]
+                r = [ 2.0*σ[1]*matparams.μ^2, 2.0*σ[2], 2.0*σ[3]]
             else
                 # G2:
                 r = [ 0.0, 2.0*σ[2], 2.0*σ[3] ]
@@ -133,7 +131,7 @@ function potential_derivs(mat::MCJointSeep, state::MCJointSeepState, σ::Array{F
     else
             if σ[1] >= 0.0 
                 # G1:
-                r = [ 2*σ[1]*mat.μ^2, 2*σ[2]]
+                r = [ 2*σ[1]*matparams.μ^2, 2*σ[2]]
             else
                 # G2:
                 r = [ 0.0, 2*σ[2] ]
@@ -143,79 +141,79 @@ function potential_derivs(mat::MCJointSeep, state::MCJointSeepState, σ::Array{F
 end
 
 
-function calc_σmax(mat::MCJointSeep, state::MCJointSeepState, up::Float64)
-    if mat.softcurve == "linear"
-        if up < mat.wc
-            a = mat.σmax0
-            b = mat.σmax0/mat.wc
+function calc_σmax(matparams::MCJointSeep, state::MCJointSeepState, up::Float64)
+    if matparams.softcurve == "linear"
+        if up < matparams.wc
+            a = matparams.σmax0
+            b = matparams.σmax0/matparams.wc
         else
             a = 0.0
             b = 0.0
         end
         σmax = a - b*up
-    elseif mat.softcurve == "bilinear"
-        σs = 0.25*mat.σmax0
-        if up < mat.ws
-            a  = mat.σmax0 
-            b  = (mat.σmax0 - σs)/mat.ws
-        elseif up < mat.wc
-            a  = mat.wc*σs/(mat.wc-mat.ws)
-            b  = σs/(mat.wc-mat.ws)
+    elseif matparams.softcurve == "bilinear"
+        σs = 0.25*matparams.σmax0
+        if up < matparams.ws
+            a  = matparams.σmax0 
+            b  = (matparams.σmax0 - σs)/matparams.ws
+        elseif up < matparams.wc
+            a  = matparams.wc*σs/(matparams.wc-matparams.ws)
+            b  = σs/(matparams.wc-matparams.ws)
         else
             a = 0.0
             b = 0.0
         end
         σmax = a - b*up
-    elseif mat.softcurve == "hordijk"
-        if up < mat.wc
+    elseif matparams.softcurve == "hordijk"
+        if up < matparams.wc
             e = exp(1.0)
-            z = (1 + 27*(up/mat.wc)^3)*e^(-6.93*up/mat.wc) - 28*(up/mat.wc)*e^(-6.93)
+            z = (1 + 27*(up/matparams.wc)^3)*e^(-6.93*up/matparams.wc) - 28*(up/matparams.wc)*e^(-6.93)
         else
             z = 0.0
         end
-        σmax = z*mat.σmax0
+        σmax = z*matparams.σmax0
     end
     return σmax
 end
 
 
-function σmax_deriv(mat::MCJointSeep, state::MCJointSeepState, up::Float64)
+function σmax_deriv(matparams::MCJointSeep, state::MCJointSeepState, up::Float64)
    # ∂σmax/∂up = dσmax
-    if mat.softcurve == "linear"
-        if up < mat.wc
-            b = mat.σmax0/mat.wc
+    if matparams.softcurve == "linear"
+        if up < matparams.wc
+            b = matparams.σmax0/matparams.wc
         else
             b = 0.0
         end
         dσmax = -b
-    elseif mat.softcurve == "bilinear"
-        σs = 0.25*mat.σmax0
-        if up < mat.ws
-            b  = (mat.σmax0 - σs)/mat.ws
-        elseif up < mat.wc
-            b  = σs/(mat.wc-mat.ws)
+    elseif matparams.softcurve == "bilinear"
+        σs = 0.25*matparams.σmax0
+        if up < matparams.ws
+            b  = (matparams.σmax0 - σs)/matparams.ws
+        elseif up < matparams.wc
+            b  = σs/(matparams.wc-matparams.ws)
         else
             b = 0.0
         end
         dσmax = -b
-    elseif mat.softcurve == "hordijk"
-        if up < mat.wc
+    elseif matparams.softcurve == "hordijk"
+        if up < matparams.wc
             e = exp(1.0)
-            dz = ((81*up^2*e^(-6.93*up/mat.wc)/mat.wc^3) - (6.93*(1 + 27*up^3/mat.wc^3)*e^(-6.93*up/mat.wc)/mat.wc) - 0.02738402432/mat.wc)
+            dz = ((81*up^2*e^(-6.93*up/matparams.wc)/matparams.wc^3) - (6.93*(1 + 27*up^3/matparams.wc^3)*e^(-6.93*up/matparams.wc)/matparams.wc) - 0.02738402432/matparams.wc)
         else
             dz = 0.0
         end
-        dσmax = dz*mat.σmax0
+        dσmax = dz*matparams.σmax0
     end
     return dσmax
 end
 
 
-function calc_kn_ks_De(mat::MCJointSeep, state::MCJointSeepState)
+function calc_kn_ks_De(matparams::MCJointSeep, state::MCJointSeepState)
     ndim = state.env.ndim
-    kn = mat.E*mat.ζ/state.h
-    G  = mat.E/(2.0*(1.0+mat.ν))
-    ks = G*mat.ζ/state.h
+    kn = matparams.E*matparams.ζ/state.h
+    G  = matparams.E/(2.0*(1.0+matparams.ν))
+    ks = G*matparams.ζ/state.h
 
     if ndim == 3
         De = [  kn  0.0  0.0
@@ -230,7 +228,7 @@ function calc_kn_ks_De(mat::MCJointSeep, state::MCJointSeepState)
 end
 
 
-function calc_Δλ(mat::MCJointSeep, state::MCJointSeepState, σtr::Array{Float64,1})
+function calc_Δλ(matparams::MCJointSeep, state::MCJointSeepState, σtr::Array{Float64,1})
     ndim = state.env.ndim
     maxits = 100
     Δλ     = 0.0
@@ -239,8 +237,8 @@ function calc_Δλ(mat::MCJointSeep, state::MCJointSeepState, σtr::Array{Float6
     tol    = 1e-4      
 
     for i in 1:maxits
-        μ      = mat.μ
-        kn, ks, De = calc_kn_ks_De(mat, state)
+        μ      = matparams.μ
+        kn, ks, De = calc_kn_ks_De(matparams, state)
 
         # quantities at n+1
         if ndim == 3
@@ -265,11 +263,11 @@ function calc_Δλ(mat::MCJointSeep, state::MCJointSeepState, σtr::Array{Float6
              end
         end
                  
-         r      = potential_derivs(mat, state, σ)
+         r      = potential_derivs(matparams, state, σ)
          norm_r = norm(r)
          up    = state.up + Δλ*norm_r
-         σmax   = calc_σmax(mat, state, up)
-         m      = σmax_deriv(mat, state, up)
+         σmax   = calc_σmax(matparams, state, up)
+         m      = σmax_deriv(matparams, state, up)
          dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
 
         if ndim == 3
@@ -280,7 +278,7 @@ function calc_Δλ(mat::MCJointSeep, state::MCJointSeepState, σtr::Array{Float6
                 dfdΔλ = 1/sqrt(σ[2]^2 + σ[3]^2) * (σ[2]*dσdΔλ[2] + σ[3]*dσdΔλ[3]) + (dσdΔλ[1] - dσmaxdΔλ)*μ
             end
         else
-            f = abs(σ[2]) + (σ[1]-σmax)*mat.μ
+            f = abs(σ[2]) + (σ[1]-σmax)*matparams.μ
             dfdΔλ = sign(σ[2])*dσdΔλ[2] + (dσdΔλ[1] - dσmaxdΔλ)*μ
         end
         
@@ -301,10 +299,10 @@ function calc_Δλ(mat::MCJointSeep, state::MCJointSeepState, σtr::Array{Float6
 end
 
 
-function calc_σ_upa(mat::MCJointSeep, state::MCJointSeepState, σtr::Array{Float64,1})
+function calc_σ_upa(matparams::MCJointSeep, state::MCJointSeepState, σtr::Array{Float64,1})
     ndim = state.env.ndim
-    μ = mat.μ
-    kn, ks, De = calc_kn_ks_De(mat, state)
+    μ = matparams.μ
+    kn, ks, De = calc_kn_ks_De(matparams, state)
 
     if ndim == 3
         if σtr[1] > 0
@@ -320,22 +318,22 @@ function calc_σ_upa(mat::MCJointSeep, state::MCJointSeepState, σtr::Array{Floa
         end    
     end
     state.σ = σ
-    r = potential_derivs(mat, state, state.σ)
+    r = potential_derivs(matparams, state, state.σ)
     state.up += state.Δλ*norm(r)
     return state.σ, state.up
 end
 
 
-function mountD(mat::MCJointSeep, state::MCJointSeepState)
+function mountD(matparams::MCJointSeep, state::MCJointSeepState)
 
     ndim = state.env.ndim
-    kn, ks, De = calc_kn_ks_De(mat, state)
+    kn, ks, De = calc_kn_ks_De(matparams, state)
 
-    if mat.fracture 
-        state.up = mat.wc
+    if matparams.fracture 
+        state.up = matparams.wc
     end 
 
-    σmax = calc_σmax(mat, state, state.up)
+    σmax = calc_σmax(matparams, state, state.up)
 
     if state.Δλ == 0.0  # Elastic 
         return De
@@ -343,10 +341,10 @@ function mountD(mat::MCJointSeep, state::MCJointSeepState)
         Dep  = De*1e-10 
         return Dep
     else
-        v    = yield_deriv(mat, state)
-        r    = potential_derivs(mat, state, state.σ)
-        y    = -mat.μ # ∂F/∂σmax
-        m    = σmax_deriv(mat, state, state.up)  # ∂σmax/∂up
+        v    = yield_deriv(matparams, state)
+        r    = potential_derivs(matparams, state, state.σ)
+        y    = -matparams.μ # ∂F/∂σmax
+        m    = σmax_deriv(matparams, state, state.up)  # ∂σmax/∂up
 
         #Dep  = De - De*r*v'*De/(v'*De*r - y*m*norm(r))
 
@@ -368,17 +366,17 @@ function mountD(mat::MCJointSeep, state::MCJointSeepState)
 end
 
 
-function stress_update(mat::MCJointSeep, state::MCJointSeepState, Δw::Array{Float64,1}, Δuw::Array{Float64,1},  G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
+function update_state(matparams::MCJointSeep, state::MCJointSeepState, Δw::Array{Float64,1}, Δuw::Array{Float64,1},  G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
     ndim = state.env.ndim
     σini = copy(state.σ)
 
-    kn, ks, De = calc_kn_ks_De(mat, state)
+    kn, ks, De = calc_kn_ks_De(matparams, state)
 
-    if mat.fracture 
-        state.up = mat.wc
+    if matparams.fracture 
+        state.up = matparams.wc
     end 
     
-    σmax = calc_σmax(mat, state, state.up) 
+    σmax = calc_σmax(matparams, state, state.up) 
 
     if isnan(Δw[1]) || isnan(Δw[2])
         @warn "MCJointSeep: Invalid value for joint displacement: Δw = $Δw"
@@ -387,7 +385,7 @@ function stress_update(mat::MCJointSeep, state::MCJointSeepState, Δw::Array{Flo
     # σ trial and F trial
     σtr  = state.σ + De*Δw
 
-    Ftr  = yield_func(mat, state, σtr) 
+    Ftr  = yield_func(matparams, state, σtr) 
 
     # Elastic and EP integration
     if σmax == 0.0 && state.w[1] >= 0.0
@@ -410,12 +408,12 @@ function stress_update(mat::MCJointSeep, state::MCJointSeepState, Δw::Array{Flo
         state.σ  = copy(σtr) 
 
     else    
-        state.Δλ, status = calc_Δλ(mat, state, σtr)
+        state.Δλ, status = calc_Δλ(matparams, state, σtr)
         failed(status) && return state.σ,state.Vt,state.L, status
-        state.σ, state.up = calc_σ_upa(mat, state, σtr)
+        state.σ, state.up = calc_σ_upa(matparams, state, σtr)
                       
         # Return to surface:
-        F  = yield_func(mat, state, state.σ)   
+        F  = yield_func(matparams, state, state.σ)   
         if F > 1e-3
             @warn "MCJointSeep: Yield function value outside tolerance: $F"
         end
@@ -425,32 +423,32 @@ function stress_update(mat::MCJointSeep, state::MCJointSeepState, Δw::Array{Flo
     Δσ = state.σ - σini
 
     state.uw += Δuw
-    state.Vt  = -mat.kt*G
+    state.Vt  = -matparams.kt*G
     #state.D  +=  state.Vt*Δt
 
     # compute crack aperture
-    #if mat.w == 0.0
+    #if matparams.w == 0.0
         if state.up == 0.0 || state.w[1] <= 0.0 
             w = 0.0
         else
             w = state.w[1]
         end
     #else
-    #    if mat.w >= state.w[1]
-    #        w = mat.w
+    #    if matparams.w >= state.w[1]
+    #        w = matparams.w
     #    else 
     #        w = state.w[1]
     #    end
     #end 
 
-    state.L  =  ((w^3)/(12*mat.η))*BfUw
+    state.L  =  ((w^3)/(12*matparams.η))*BfUw
     #state.S +=  state.L*Δt
 
     return Δσ, state.Vt, state.L, success()
 end
 
 
-function ip_state_vals(mat::MCJointSeep, state::MCJointSeepState)
+function ip_state_vals(matparams::MCJointSeep, state::MCJointSeepState)
     ndim = state.env.ndim
     if ndim == 3
        return OrderedDict(

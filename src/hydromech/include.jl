@@ -1,10 +1,10 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 include("elem/hydromech.jl")
-export elem_config_dofs, elem_init, elem_stiffness, elem_update!, elem_vals
+export elem_config_dofs, elem_init, elem_stiffness, update_elem!, elem_vals
 export set_state
 
-# Hydromechanical Elements
+# HydromechElem Elements
 include("elem/hydromech-solid.jl")
 include("elem/hydromech-joint.jl")
 include("elem/hydromech-joint2.jl")
@@ -32,4 +32,4 @@ include("mat/joint-lin-seep.jl")
 include("hydromech-solver.jl")
 # include("hydromech-solver-bkp.jl")
 
-export hm_solve!
+export solve!

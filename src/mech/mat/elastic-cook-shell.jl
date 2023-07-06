@@ -18,7 +18,7 @@ mutable struct ElasticCookShellState<:IpState
     end
 end
 
-mutable struct ElasticCookShell<:Material
+mutable struct ElasticCookShell<:MatParams
     E::Float64
     nu::Float64
     th::Float64
@@ -36,15 +36,15 @@ mutable struct ElasticCookShell<:Material
     end
 end
 
-matching_elem_type(::ElasticCookShell, shape::CellShape, ndim::Int) = CookShell
+matching_elem_type(::ElasticCookShell) = CookShellElem
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticCookShell) = ElasticCookShellState
+ip_state_type(matparams::ElasticCookShell) = ElasticCookShellState
 
 
-function calcD(mat::ElasticCookShell, state::ElasticCookShellState)
-    E = mat.E
-    ν = mat.nu
+function calcD(matparams::ElasticCookShell, state::ElasticCookShellState)
+    E = matparams.E
+    ν = matparams.nu
     c = E/(1.0-ν^2)
     # g = c*(1.0-ν)
     g = E/(1+ν)
@@ -58,14 +58,14 @@ function calcD(mat::ElasticCookShell, state::ElasticCookShellState)
     # ezz = -ν/E*(sxx+syy)
 end
 
-function stress_update(mat::ElasticCookShell, state::ElasticCookShellState, dε::Array{Float64,1})
-    D = calcD(mat, state)
+function update_state(matparams::ElasticCookShell, state::ElasticCookShellState, dε::Array{Float64,1})
+    D = calcD(matparams, state)
     dσ = D*dε
     state.ε += dε
     state.σ += dσ
     return dσ, success()
 end
 
-function ip_state_vals(mat::ElasticCookShell, state::ElasticCookShellState)
-    return stress_strain_dict(state.σ, state.ε, state.env.modeltype)
+function ip_state_vals(matparams::ElasticCookShell, state::ElasticCookShellState)
+    return stress_strain_dict(state.σ, state.ε, state.env.anaprops.stressmodel)
 end

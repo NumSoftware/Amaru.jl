@@ -11,7 +11,7 @@ A type for linear elastic materials with Drucker Prager failure criterion.
 
 $(TYPEDFIELDS)
 """
-mutable struct DruckerPrager<:Material
+mutable struct DruckerPrager<:MatParams
     "Young Modulus"
     E::Float64
     "Poisson ratio"
@@ -86,10 +86,10 @@ mutable struct DruckerPragerState<:IpState
     end
 end
 
-matching_elem_type(::DruckerPrager, shape::CellShape, ndim::Int) = MechSolid
+matching_elem_type(::DruckerPrager) = MechSolidElem
 
 # Type of corresponding state structure
-ip_state_type(mat::DruckerPrager) = DruckerPragerState
+ip_state_type(::MechSolidElem, ::DruckerPrager) = DruckerPragerState
 
 
 function nlE(fc::Float64, εc::Float64, ε::Array{Float64,1})
@@ -97,19 +97,19 @@ function nlE(fc::Float64, εc::Float64, ε::Array{Float64,1})
     return 2*fc*(εc-εv)/εc^2
 end
 
-function yield_func(mat::DruckerPrager, state::DruckerPragerState, σ::Tensor2)
+function yield_func(matparams::DruckerPrager, state::DruckerPragerState, σ::Tensor2)
     j1  = J1(σ)
     j2d = J2D(σ)
-    α,κ = mat.α, mat.κ
-    H   = mat.H
+    α,κ = matparams.α, matparams.κ
+    H   = matparams.H
     εpa = state.εpa
     return α*j1 + √j2d - κ - H*εpa
 end
 
-function calcD(mat::DruckerPrager, state::DruckerPragerState)
-    α   = mat.α
-    H   = mat.H
-    De  = calcDe(mat.E, mat.ν, state.env.modeltype)
+function calcD(matparams::DruckerPrager, state::DruckerPragerState)
+    α   = matparams.α
+    H   = matparams.H
+    De  = calcDe(matparams.E, matparams.ν, state.env.anaprops.stressmodel)
 
     if state.Δγ==0.0
         return De
@@ -130,11 +130,11 @@ function calcD(mat::DruckerPrager, state::DruckerPragerState)
     return De - inner(De,Nu) ⊗ inner(V,De) / (inner(V,De,Nu) + H)
 end
 
-function stress_update(mat::DruckerPrager, state::DruckerPragerState, Δε::Array{Float64,1})
+function update_state(matparams::DruckerPrager, state::DruckerPragerState, Δε::Array{Float64,1})
     σini = state.σ
-    De   = calcDe(mat.E, mat.ν, state.env.modeltype)
+    De   = calcDe(matparams.E, matparams.ν, state.env.anaprops.stressmodel)
     σtr  = state.σ + inner(De, Δε)
-    ftr  = yield_func(mat, state, σtr)
+    ftr  = yield_func(matparams, state, σtr)
 
     if ftr < 1.e-8
         # elastic
@@ -142,8 +142,8 @@ function stress_update(mat::DruckerPrager, state::DruckerPragerState, Δε::Arra
         state.σ  = σtr
     else
         # plastic
-        K, G  = mat.E/(3.0*(1.0-2.0*mat.ν)), mat.E/(2.0*(1.0+mat.ν))
-        α, H  = mat.α, mat.H
+        K, G  = matparams.E/(3.0*(1.0-2.0*matparams.ν)), matparams.E/(2.0*(1.0+matparams.ν))
+        α, H  = matparams.α, matparams.H
         n     = 1.0/√(3.0*α*α+0.5)
         j1tr  = J1(σtr)
         j2dtr = J2D(σtr)
@@ -154,7 +154,7 @@ function stress_update(mat::DruckerPrager, state::DruckerPragerState, Δε::Arra
             m      = 1.0 - state.Δγ*n*G/√j2dtr
             state.σ  = m*dev(σtr) + j1/3.0*tI
         else # return to apex
-            κ      = mat.κ
+            κ      = matparams.κ
             state.Δγ = (α*j1tr-κ-H*state.εpa)/(3*√3*α*K + H)
             j1     = j1tr - 3*√3*state.Δγ*K
             state.σ  = j1/3.0*tI
@@ -170,13 +170,13 @@ function stress_update(mat::DruckerPrager, state::DruckerPragerState, Δε::Arra
 end
 
 
-function ip_state_vals(mat::DruckerPrager, state::DruckerPragerState)
+function ip_state_vals(matparams::DruckerPrager, state::DruckerPragerState)
     ndim  = state.env.ndim
     σ, ε  = state.σ, state.ε
     j1    = tr(σ)
     srj2d = √J2D(σ)
 
-    D = stress_strain_dict(σ, ε, state.env.modeltype)
+    D = stress_strain_dict(σ, ε, state.env.anaprops.stressmodel)
     D[:epa]   = state.εpa
     D[:j1]    = j1
     D[:srj2d] = srj2d

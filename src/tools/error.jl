@@ -8,6 +8,12 @@ end
 
 Base.showerror(io::IO, e::AmaruException) = print(io, "AmaruException: ", e.message)
 
+mutable struct PropertyException <: Exception
+    message::String
+end
+
+Base.showerror(io::IO, e::PropertyException) = print(io, "PropertyException: ", e.message)
+
 macro check(expr, exception=ArgumentError, args...)
     exprs = replace(string(expr), " "=>"")
     vars = getvars(expr)
@@ -30,10 +36,10 @@ macro check(expr, exception=ArgumentError, args...)
                 if length($vars)==1
                     prm = $(string(vars[1]))
                     val = $(esc(vars[1]))
-                    msg = "Invalid value for parameter $prm which must satisfy $($(exprs)). Got $prm = $val"
+                    msg = "Invalid value for $prm which must satisfy $($(exprs)). Got $prm = $val"
                 else
                     prms = $(join(vars, ", ", " and "))
-                    msg = "Parameters $prms must satisfy $($(exprs))"
+                    msg = "Arguments $prms must satisfy $($(exprs))"
                 end
 
                 fname != "" && (msg="$fname: $msg")

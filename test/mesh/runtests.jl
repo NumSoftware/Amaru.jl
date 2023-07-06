@@ -1,4 +1,6 @@
-files = [
+using Amaru
+
+@runfiles [
          # Meshing
          "shape_deriv.jl",
          "generation.jl",
@@ -9,5 +11,3 @@ files = [
          "smoothing.jl",
          "revolve.jl",
         ]
-
-runfiles(files)

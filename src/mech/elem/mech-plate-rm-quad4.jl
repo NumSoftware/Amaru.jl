@@ -2,14 +2,14 @@
 
 export PlateRM
 
-mutable struct PlateRM<:Mechanical
+mutable struct PlateRMElem<:MechElem
     id    ::Int
     shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    mat   ::Material
+    matparams::MatParams
     active::Bool
     linked_elems::Array{Element,1}
     env::ModelEnv
@@ -19,22 +19,22 @@ mutable struct PlateRM<:Mechanical
     end
 end
 
-matching_shape_family(::Type{PlateRM}) = BULKCELL
+matching_shape_family(::Type{PlateRMElem}) = BULKCELL
 
-function D_matrix(elem::PlateRM)
+function D_matrix(elem::PlateRMElem)
 
-    coef = elem.mat.E/(1-elem.mat.nu^2);
+    coef = elem.matparams.E/(1-elem.matparams.nu^2);
 
-    D_mat = coef*[1 elem.mat.nu 0 0 0
-                  elem.mat.nu 1 0 0 0
-                  0  0 (1/2)*(1-elem.mat.nu) 0 0
-                  0  0 0 (5/12)*(1-elem.mat.nu) 0
-                  0  0 0 0 (5/12)*(1-elem.mat.nu)];
+    D_mat = coef*[1 elem.matparams.nu 0 0 0
+                  elem.matparams.nu 1 0 0 0
+                  0  0 (1/2)*(1-elem.matparams.nu) 0 0
+                  0  0 0 (5/12)*(1-elem.matparams.nu) 0
+                  0  0 0 0 (5/12)*(1-elem.matparams.nu)];
     return D_mat
 end
 
 
-function elem_config_dofs(elem::PlateRM)
+function elem_config_dofs(elem::PlateRMElem)
     ndim = elem.env.ndim
     ndim == 1 && error("PlateRM: Plate elements do not work in 1d analyses")
     if ndim==2
@@ -59,7 +59,7 @@ function elem_config_dofs(elem::PlateRM)
     end
 end
 
-function elem_map(elem::PlateRM)::Array{Int,1}
+function elem_map(elem::PlateRMElem)::Array{Int,1}
 
     #if elem.env.ndim==2
     #    dof_keys = (:uz, :rx, :ry)
@@ -73,7 +73,7 @@ function elem_map(elem::PlateRM)::Array{Int,1}
 
 end
 
-function elem_stiffness(elem::PlateRM)
+function elem_stiffness(elem::PlateRMElem)
 
     nnodes = length(elem.nodes)
     th     = 0.15 # COLOCAR AUTOMÁTICO
@@ -144,7 +144,7 @@ function elem_stiffness(elem::PlateRM)
 end
 
 
-function elem_update!(elem::PlateRM, U::Array{Float64,1}, dt::Float64)
+function update_elem!(elem::PlateRMElem, U::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
     dU  = U[map]
     F[map] += K*dU

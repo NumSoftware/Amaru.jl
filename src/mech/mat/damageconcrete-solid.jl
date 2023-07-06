@@ -2,7 +2,7 @@
 
 export DamageConcrete
 
-mutable struct DamageConcrete<:Material
+mutable struct DamageConcrete<:MatParams
     E0::Float64  # initial Young modulus
     ν::Float64
     ft::Float64
@@ -60,22 +60,22 @@ end
 
 
 # Returns the element type that works with this material model
-matching_elem_type(::DamageConcrete, shape::CellShape, ndim::Int) = MechSolid
+matching_elem_type(::DamageConcrete) = MechSolidElem
 
 # Type of corresponding state structure
-ip_state_type(mat::DamageConcrete) = DamageConcreteState
+ip_state_type(matparams::DamageConcrete) = DamageConcreteState
 
-function uniaxial_σ(mat::DamageConcrete, state::DamageConcreteState, εi::Float64)
+function uniaxial_σ(matparams::DamageConcrete, state::DamageConcreteState, εi::Float64)
     σp = eigvals(state.σ)
     σ1c, σ2c, σ3c = neg.(σp)
     if εi>=0  # tension: Nilsson and Oldenburg 1982; Beshara and Virdi 1991; Wu and Yao 1998
 
         #=
-        γ = 1.0 - αt/mat.fc*( √(σ1c^2 + σ2c^2+ σ3c^2)) # suggested value for coef: 2.0
-        ft = mat.ft*γ
-        εt0 = ft/mat.E0
+        γ = 1.0 - αt/matparams.fc*( √(σ1c^2 + σ2c^2+ σ3c^2)) # suggested value for coef: 2.0
+        ft = matparams.ft*γ
+        εt0 = ft/matparams.E0
         if εi<εt0
-            return εi*mat.E0
+            return εi*matparams.E0
         else
             σ̅t = norm(pos.(σp))
             w = (εi-εt0)*state.h # crack openning
@@ -90,70 +90,70 @@ function uniaxial_σ(mat::DamageConcrete, state::DamageConcreteState, εi::Float
 
         αt = 2.05
         #αt = 1.5 #*
-        γ = 1.0 - αt/mat.fc*( √(σ1c^2 + σ2c^2+ σ3c^2)) # suggested value for coef: 2.0
+        γ = 1.0 - αt/matparams.fc*( √(σ1c^2 + σ2c^2+ σ3c^2)) # suggested value for coef: 2.0
         #@show γ
-        #γ = 1.0 - αt/mat.fc*( abs(σ1c + σ2c+ σ3c)) # suggested value for coef: 2.0
+        #γ = 1.0 - αt/matparams.fc*( abs(σ1c + σ2c+ σ3c)) # suggested value for coef: 2.0
         #γ = 1.0
-        ft = mat.ft*γ
-        εt0 = ft/mat.E0
+        ft = matparams.ft*γ
+        εt0 = ft/matparams.E0
         if εi<εt0
-            return εi*mat.E0
+            return εi*matparams.E0
         else
-            #γ = 1.0 - 0.5/mat.fc*( √(σ1c^2 + σ2c^2+ σ3c^2))
+            #γ = 1.0 - 0.5/matparams.fc*( √(σ1c^2 + σ2c^2+ σ3c^2))
             σ̅t = norm(pos.(σp))
             w = (εi-εt0)*state.h # crack openning
             #w = (εi-εt0*σ̅t/ft)*state.h # crack openning
 
-            #GF = mat.GF - 0.5*ft*εt0*state.h
+            #GF = matparams.GF - 0.5*ft*εt0*state.h
             #@show state.h
-            #@show mat.GF
+            #@show matparams.GF
             #@show GF
             #@show 0.5*ft*εt0*state.h
             #error()
             #@assert GF>0
-            #@show ft*exp(-ft/mat.GF*w)
-            return ft*exp(-ft/mat.GF*w)
+            #@show ft*exp(-ft/matparams.GF*w)
+            return ft*exp(-ft/matparams.GF*w)
         end
 
     else # compression: Popovics 1973; Carreira and Chu 1985
         αc = 0.3
         #αc = 0.2
-        #γ = 1.0 + αc*((σ2c*σ3c+ σ1c*σ3c+ σ1c*σ2c)/mat.fc^2)^0.25 # suggested values for coef: 0.2
-        #γ = 1.0 + αc*((σ2c*σ3c+ σ1c*σ3c+ σ1c*σ2c)/mat.fc^2) # suggested values for coef: 0.2
-        γ = 1.0 - αc/mat.fc*( √(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c)) # suggested values for coef: 0.2
+        #γ = 1.0 + αc*((σ2c*σ3c+ σ1c*σ3c+ σ1c*σ2c)/matparams.fc^2)^0.25 # suggested values for coef: 0.2
+        #γ = 1.0 + αc*((σ2c*σ3c+ σ1c*σ3c+ σ1c*σ2c)/matparams.fc^2) # suggested values for coef: 0.2
+        γ = 1.0 - αc/matparams.fc*( √(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c)) # suggested values for coef: 0.2
          #γ = 1.0
-        fc = mat.fc*γ
+        fc = matparams.fc*γ
 
-        β = 1/(1-fc/(mat.εc0*mat.E0))
+        β = 1/(1-fc/(matparams.εc0*matparams.E0))
         β = max(min(β,10),2) # limit the value of β
-        εr = εi/mat.εc0
+        εr = εi/matparams.εc0
         return fc*(β*εr)/(β - 1.0 + εr^β)
     end
 end
 
 
-function uniaxial_E(mat::DamageConcrete, state::DamageConcreteState, εi::Float64)
+function uniaxial_E(matparams::DamageConcrete, state::DamageConcreteState, εi::Float64)
     σp = eigvals(state.σ)
     σ1c, σ2c, σ3c = neg.(σp)
     if εi>=0 # tension
         αt = 2.05
         #αt = 1.5 #*
-        γ = 1.0 - αt/mat.fc*( √(σ1c^2 + σ2c^2+ σ3c^2)) # suggested value for coef: 2.0
-        #γ = 1.0 - αt/mat.fc*( abs(σ1c + σ2c+ σ3c)) # suggested value for coef: 2.0
-        #γ = 1.0 - 2.05/mat.fc*( abs(σ1c + σ2c+ σ3c)) # suggested value for coef: 2.0
+        γ = 1.0 - αt/matparams.fc*( √(σ1c^2 + σ2c^2+ σ3c^2)) # suggested value for coef: 2.0
+        #γ = 1.0 - αt/matparams.fc*( abs(σ1c + σ2c+ σ3c)) # suggested value for coef: 2.0
+        #γ = 1.0 - 2.05/matparams.fc*( abs(σ1c + σ2c+ σ3c)) # suggested value for coef: 2.0
         #γ = 1.0
-        ft = mat.ft*γ
+        ft = matparams.ft*γ
         #@show ft
-        εt0 = ft/mat.E0
+        εt0 = ft/matparams.E0
         if εi<εt0
-            return mat.E0
+            return matparams.E0
         else
-            #GF = mat.GF - 0.5*ft*εt0*state.h
+            #GF = matparams.GF - 0.5*ft*εt0*state.h
             #Et = ft*exp(-ft/(GF/state.h)*(εi-εt0)) * (-ft/(GF/state.h))
             σ̅t = norm(pos.(σp))
             #w = (εi-εt0*σ̅t/ft)*state.h # crack openning
-            #Et = ft*exp(-ft/mat.GF*w) * (-ft/mat.GF*state.h)
-            Et = ft*exp(-ft/(mat.GF/state.h)*(εi-εt0)) * (-ft/(mat.GF/state.h))
+            #Et = ft*exp(-ft/matparams.GF*w) * (-ft/matparams.GF*state.h)
+            Et = ft*exp(-ft/(matparams.GF/state.h)*(εi-εt0)) * (-ft/(matparams.GF/state.h))
             return Et
         end
     else # compression
@@ -161,17 +161,17 @@ function uniaxial_E(mat::DamageConcrete, state::DamageConcreteState, εi::Float6
         #αc = 0.2
         #αc = 0.25
         #αc = 0.05 #*
-        γ = 1.0 - αc/mat.fc*( √(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c)) # suggested values for coef: 0.2
-        #γ = 1.0 - 0.15/mat.fc*( √(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c)) # suggested values for coef: 0.4
-        #γ = 1.0 + 0.2*((σ2c*σ3c+ σ1c*σ3c+ σ1c*σ2c)/mat.fc^2)^0.25 # suggested values for coef: 0.3
-        #γ = 1.0 + 0.45(√(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c))/abs(mat.fc) # suggested values for coef: 0.45
+        γ = 1.0 - αc/matparams.fc*( √(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c)) # suggested values for coef: 0.2
+        #γ = 1.0 - 0.15/matparams.fc*( √(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c)) # suggested values for coef: 0.4
+        #γ = 1.0 + 0.2*((σ2c*σ3c+ σ1c*σ3c+ σ1c*σ2c)/matparams.fc^2)^0.25 # suggested values for coef: 0.3
+        #γ = 1.0 + 0.45(√(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c))/abs(matparams.fc) # suggested values for coef: 0.45
         # γ = 1.0
-        fc = mat.fc*γ
+        fc = matparams.fc*γ
 
-        εc0 = mat.εc0*γ
+        εc0 = matparams.εc0*γ
         εr  = εi/εc0
 
-        β = 1/(1-fc/(εc0*mat.E0))
+        β = 1/(1-fc/(εc0*matparams.E0))
         β = max(min(β,10),2) # limit the value of β
         Ec = β*(fc/εc0)/(β-1+εr^β) - β^2*(fc/εc0)*εr^β/(β-1+εr^β)^2
         #Ec *= γ
@@ -180,29 +180,29 @@ function uniaxial_E(mat::DamageConcrete, state::DamageConcreteState, εi::Float6
 end
 
 
-function calcD(mat::DamageConcrete, state::DamageConcreteState)
+function calcD(matparams::DamageConcrete, state::DamageConcreteState)
 
     #@show state._E
     if state._E==0.0
-        E = mat.E0
-        ν = mat.ν
+        E = matparams.E0
+        ν = matparams.ν
     else
         E = state._E
         ν = state._ν
     end
 
-    D  = calcDe(E, ν, state.env.modeltype)
+    D  = calcDe(E, ν, state.env.anaprops.stressmodel)
     return D
 end
 
 
-#function calcDsec(mat::DamageConcrete, state::DamageConcreteState, Δε::Array{Float64,1}, modeltype::Symbol)
-function stress_update(mat::DamageConcrete, state::DamageConcreteState, Δε::Array{Float64,1})
+#function calcDsec(matparams::DamageConcrete, state::DamageConcreteState, Δε::Array{Float64,1}, stressmodel::Symbol)
+function update_state(matparams::DamageConcrete, state::DamageConcreteState, Δε::Array{Float64,1})
     # special functions
     pos(x)   = (abs(x)+x)/2.0
     neg(x)   = (-abs(x)+x)/2.0
-    σfun(εi) = uniaxial_σ(mat, state, εi)
-    Efun(εi) = uniaxial_E(mat, state, εi)
+    σfun(εi) = uniaxial_σ(matparams, state, εi)
+    Efun(εi) = uniaxial_E(matparams, state, εi)
 
     εp = eigvals(state.ε)
     state.ε .+= Δε
@@ -237,29 +237,29 @@ function stress_update(mat::DamageConcrete, state::DamageConcreteState, Δε::Ar
     if in_tension
             #@show ε̅t
         if ε̅t < state.ε̅tmax
-            #E = ε̅t==0 ? mat.E0 : min(mat.E0, σ̅t/ε̅t)
-            Et = ε̅t==0 ? mat.E0 : min(state._E, σ̅t/ε̅t)
+            #E = ε̅t==0 ? matparams.E0 : min(matparams.E0, σ̅t/ε̅t)
+            Et = ε̅t==0 ? matparams.E0 : min(state._E, σ̅t/ε̅t)
             state.lin_range = true
         else
             Et = Efun(ε̅t)
             state.lin_range = false
         end
         Et = Efun(ε̅t)
-        ν = mat.ν*(1-state.damt)
+        ν = matparams.ν*(1-state.damt)
         E = Et
 
-        #ν = mat.ν
+        #ν = matparams.ν
     else
         if ε̅c < state.ε̅cmax
-            Ec = ε̅c==0 ? mat.E0 : min(mat.E0, σ̅c/ε̅c)
+            Ec = ε̅c==0 ? matparams.E0 : min(matparams.E0, σ̅c/ε̅c)
             state.lin_range = true
         else
             Ec = Efun(-ε̅c)
             state.lin_range = false
         end
         Ec = Efun(-ε̅c)
-        #ν = mat.ν*(1-state.damc)
-        ν = mat.ν
+        #ν = matparams.ν*(1-state.damc)
+        ν = matparams.ν
         E = Ec
     end
     #E = (Et*σ̅t+Ec*σ̅c)/(σ̅t+σ̅c)
@@ -283,12 +283,12 @@ function stress_update(mat::DamageConcrete, state::DamageConcreteState, Δε::Ar
     end
 
     #@show E*1
-    Emin = mat.E0*1e-3
+    Emin = matparams.E0*1e-3
     abs(E)<Emin && (E=Emin)
     #@show Emin
     #@show E
 
-    D  = calcDe(E, ν, state.env.modeltype)
+    D  = calcDe(E, ν, state.env.anaprops.stressmodel)
     Δσ = D*Δε
     state.σ .+= Δσ
 
@@ -296,13 +296,13 @@ function stress_update(mat::DamageConcrete, state::DamageConcreteState, Δε::Ar
     state._ν = ν
 
     if state.ε̅tmax>0
-        state.damt = clamp(1.0 - σfun(state.ε̅tmax)/state.ε̅tmax/mat.E0, 0.0, 1.0)
+        state.damt = clamp(1.0 - σfun(state.ε̅tmax)/state.ε̅tmax/matparams.E0, 0.0, 1.0)
     else
         state.damt = 0.0
     end
 
     if state.ε̅cmax>0
-        state.damc = clamp(1.0 + σfun(-state.ε̅cmax)/state.ε̅cmax/mat.E0, 0.0, 1.0)
+        state.damc = clamp(1.0 + σfun(-state.ε̅cmax)/state.ε̅cmax/matparams.E0, 0.0, 1.0)
     else
         state.damc = 0.0
     end
@@ -310,16 +310,16 @@ function stress_update(mat::DamageConcrete, state::DamageConcreteState, Δε::Ar
     #state.in_tension != in_tension && show(1)
     state.in_tension = in_tension
 
-    #state.damt = 1.0 - σfun(state.ε̅tmax)/state.ε̅tmax/mat.E0
-    #state.damc = 1.0 + σfun(-state.ε̅cmax)/state.ε̅cmax/mat.E0
+    #state.damt = 1.0 - σfun(state.ε̅tmax)/state.ε̅tmax/matparams.E0
+    #state.damc = 1.0 + σfun(-state.ε̅cmax)/state.ε̅cmax/matparams.E0
 
-    #state.env.cstage==1 && state.env.stagebits.inc==2 && error()
+    #state.env.cstage==1 && state.env.inc==2 && error()
 
     return Δσ, success()
 end
 
-function ip_state_vals(mat::DamageConcrete, state::DamageConcreteState)
-    dict = stress_strain_dict(state.σ, state.ε, state.env.modeltype)
+function ip_state_vals(matparams::DamageConcrete, state::DamageConcreteState)
+    dict = stress_strain_dict(state.σ, state.ε, state.env.anaprops.stressmodel)
     dict[:damt] = state.damt
     dict[:damc] = state.damc
     dict[:E] = state._E
@@ -328,8 +328,8 @@ function ip_state_vals(mat::DamageConcrete, state::DamageConcreteState)
 
     εp = eigvals(state.ε)
     ε̅t = norm(pos.(εp))
-    Efun(εi) = uniaxial_E(mat, state, εi)
-    εt0 = mat.ft/mat.E0
+    Efun(εi) = uniaxial_E(matparams, state, εi)
+    εt0 = matparams.ft/matparams.E0
     dict[:w] = ε̅t-εt0 > 0 ? (ε̅t-εt0)state.h : 0.0 # crack openning
     return dict
 end

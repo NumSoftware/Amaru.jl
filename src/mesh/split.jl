@@ -1,7 +1,4 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
-#
-
-# This file includes the code for adding joints between cells
 
 export split!
 export generate_joints!

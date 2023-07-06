@@ -65,7 +65,7 @@ end
 # function complete_ut_T(model::Model)
 #     haskey(model.node_data, "ut") || return
 #     Ut = model.node_data["ut"]
-#     T0 = get(model.env.params, :T0, 0.0)
+#     T0 = get(model.env.matparams, :T0, 0.0)
 
 #     for elem in model.elems
 #         elem.shape.family==BULKCELL || continue
@@ -244,7 +244,7 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     Tcheck  = ΔTcheck
 
     inc  = 0             # increment counter
-    iout = env.stagebits.out # file output counter
+    iout = env.out # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
@@ -278,11 +278,11 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     local RHS::Array{Float64,1}
 
     while T < 1.0-Ttol
-        env.stagebits.ΔT = ΔT
+        env.ΔT = ΔT
 
         # Update counters
         inc += 1
-        env.stagebits.inc = inc
+        env.inc = inc
 
         println(logfile, "  inc $inc")
 
@@ -402,13 +402,13 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
             t += Δt
             T += ΔT
             env.t = t
-            env.stagebits.T = T
-            env.stagebits.residue = residue
+            env.T = T
+            env.residue = residue
 
             # Check for saving output file
             if T>Tcheck-Ttol && save_outs
-                env.stagebits.out += 1
-                iout = env.stagebits.out
+                env.out += 1
+                iout = env.out
                 rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
                 
                 update_output_data!(model)
@@ -449,7 +449,7 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
         else
             # Restore counters
             inc -= 1
-            env.stagebits.inc -= 1
+            env.inc -= 1
 
             copyto!.(State, StateBk)
 

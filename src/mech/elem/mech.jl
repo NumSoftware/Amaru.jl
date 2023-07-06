@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-abstract type Mechanical<:Element end
+abstract type MechElem<:Element end
 
 
 """
@@ -9,7 +9,7 @@ abstract type Mechanical<:Element end
 Sets up the dofs for all nodes in `elem` according with its type.
 This function can be specialized by concrete types.
 """
-function elem_config_dofs(elem::Mechanical)
+function elem_config_dofs(elem::MechElem)
     for node in elem.nodes
         add_dof(node, :ux, :fx)
         elem.env.ndim>=2 && add_dof(node, :uy, :fy)
@@ -24,8 +24,8 @@ end
 Returns the stiffness matrix for `elem`.
 This function must be defined by each concrete type.
 """
-function elem_stiffness(elem::Mechanical)
-    error("elem_stiffness function not defined for material type $(typeof(elem.mat))")
+function elem_stiffness(elem::MechElem)
+    error("elem_stiffness function not defined for material type $(typeof(elem.matparams))")
 end
 
 """
@@ -34,7 +34,7 @@ end
 Returns the mass matrix for `elem`.
 This function must be defined by each concrete type.
 """
-function elem_mass(elem::Mechanical)
+function elem_mass(elem::MechElem)
    ndim=elem.env.ndim
    ndofs = length(elem.nodes)*ndim
    M = zeros(ndofs, ndofs)
@@ -49,16 +49,16 @@ end
 Gets internal nodal forces from current element state.
 This function must be defined by each concrete type.
 """
-function elem_internal_forces(elem::Mechanical, F::Array{Float64,1})
+function elem_internal_forces(elem::MechElem, F::Array{Float64,1})
 end
 
 """
-`elem_update!(elem, U, F)`
+`update_elem!(elem, U, F)`
 
 Updates the state of an element given the current global vectors for essential and
 natural quantities. It also updates the global vector F.
 This function must be defined by each concrete type.
 """
-function elem_update!(elem::Mechanical, U::Array{Float64,1}, Δt::Float64)
-    error("elem_update function not defined for material type $(typeof(elem.mat))")
+function update_elem!(elem::MechElem, U::Array{Float64,1}, Δt::Float64)
+    error("update_elem function not defined for material type $(typeof(elem.matparams))")
 end

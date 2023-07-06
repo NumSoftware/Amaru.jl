@@ -2,14 +2,14 @@
 
 export MechClassicalBeam
 
-mutable struct MechClassicalBeam<:Mechanical
+mutable struct MechClassicalBeamElem<:MechElem
     id    ::Int
     shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    mat   ::Material
+    matparams::MatParams
     active::Bool
     linked_elems::Array{Element,1}
     env::ModelEnv
@@ -19,7 +19,7 @@ mutable struct MechClassicalBeam<:Mechanical
     end
 end
 
-matching_shape_family(::Type{MechClassicalBeam}) = LINECELL
+matching_shape_family(::Type{MechClassicalBeamElem}) = LINECELL
 
 function beam_shape_func(x::Float64, L::Float64)
     N = Array{Float64}(undef,6)
@@ -42,7 +42,7 @@ function beam_second_deriv(ξ::Float64, nnodes::Int)
     return DD
 end
 
-function elem_config_dofs(elem::MechClassicalBeam)
+function elem_config_dofs(elem::MechClassicalBeamElem)
     ndim = elem.env.ndim
     ndim == 1 && error("MechClassicalBeam: Beam elements do not work in 1d analyses")
     if ndim==2
@@ -63,7 +63,7 @@ function elem_config_dofs(elem::MechClassicalBeam)
     end
 end
 
-function elem_map(elem::MechClassicalBeam)::Array{Int,1}
+function elem_map(elem::MechClassicalBeamElem)::Array{Int,1}
     if elem.env.ndim==2
         dof_keys = (:ux, :uy, :rz)
     else
@@ -73,15 +73,15 @@ function elem_map(elem::MechClassicalBeam)::Array{Int,1}
 end
 
 # Return the class of element where this material can be used
-#client_shape_class(mat::MechClassicalBeam) = LINECELL
+#client_shape_class(matparams::MechClassicalBeam) = LINECELL
 
-function calcT(elem::MechClassicalBeam, C)
+function calcT(elem::MechClassicalBeamElem, C)
     c = (C[2,1] - C[1,1])/L
     s = (C[2,2] - C[1,1])/L
     return
 end
 
-function distributed_bc(elem::MechClassicalBeam, facet::Nothing, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::MechClassicalBeamElem, facet::Nothing, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
 
     # Check bcs
@@ -92,7 +92,7 @@ function distributed_bc(elem::MechClassicalBeam, facet::Nothing, key::Symbol, va
     nodes  = elem.nodes
     nnodes = length(nodes)
     t      = elem.env.t
-    A      = elem.mat.A
+    A      = elem.matparams.A
     
 
     # Force boundary condition
@@ -170,14 +170,14 @@ function distributed_bc(elem::MechClassicalBeam, facet::Nothing, key::Symbol, va
 end
 
 
-function elem_stiffness(elem::MechClassicalBeam)
+function elem_stiffness(elem::MechClassicalBeamElem)
     C  = getcoords(elem)
     L  = norm(C[2,:]-C[1,:])
     L2 = L*L
     L3 = L*L*L
-    mat = elem.mat
-    EA = mat.E*mat.A
-    EI = mat.E*mat.I
+    matparams = elem.matparams
+    EA = matparams.E*matparams.A
+    EI = matparams.E*matparams.I
 
     K0 = [ EA/L     0         0         -EA/L    0         0
            0       12*EI/L3   6*EI/L2    0     -12*EI/L3   6*EI/L2
@@ -204,16 +204,16 @@ function elem_stiffness(elem::MechClassicalBeam)
     return T'*K0*T, map, map
 end
 
-function elem_mass(elem::MechClassicalBeam)
+function elem_mass(elem::MechClassicalBeamElem)
     C  = getcoords(elem)
     L  = norm(C[2,:]-C[1,:])
     L2 = L*L
-    mat = elem.mat
-    EA = mat.E*mat.A
-    EI = mat.E*mat.I
+    matparams = elem.matparams
+    EA = matparams.E*matparams.A
+    EI = matparams.E*matparams.I
 
 
-    M0 = mat.ρ*L/420.0*[ 140   0      0      70    0      0
+    M0 = matparams.ρ*L/420.0*[ 140   0      0      70    0      0
                          0     156    22*L   0     54    -13*L
                          0     22*L   4*L2   0     13*L  -3*L2
                          70    0      0      140   0      0
@@ -235,7 +235,7 @@ function elem_mass(elem::MechClassicalBeam)
 end
 
 
-function elem_update!(elem::MechClassicalBeam, U::Array{Float64,1}, dt::Float64)
+function update_elem!(elem::MechClassicalBeamElem, U::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
     dU  = U[map]
     F[map] += K*dU
