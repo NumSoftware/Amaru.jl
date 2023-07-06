@@ -130,13 +130,13 @@ mplot(mesh, &quot;mesh.svg&quot;, dist=13)</code></pre><pre class="documenter-ex
 mplot(smooth_mesh, &quot;smooth_mesh.svg&quot;, dist=13)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh Laplacian smoothing:
   it   qmin     q1     q2     q3   qmax   qavg     sdev       time  histogram (0:0.05:1]
    0  0.662  0.764  0.820  0.868  0.930  0.813  0.07626          -  [             ▂▄▆▇▅▆ ]
-   1  0.688  0.770  0.838  0.909  0.956  0.834  0.07929  0m  0.09s  [             ▂▃▄▆▅▇▁]
-   2  0.688  0.785  0.855  0.911  0.956  0.846  0.07911  0m  0.04s  [             ▁▃▄▃▅▇_]
-   3  0.694  0.793  0.863  0.922  0.966  0.852  0.07937  0m  0.08s  [             ▁▃▃▂▅▇▁]
-   4  0.700  0.799  0.872  0.929  0.973  0.856  0.07920  0m  0.04s  [              ▃▂▃▄▇▁]
-   5  0.706  0.805  0.878  0.930  0.977  0.858  0.07879  0m  0.06s  [              ▃▁▅▄▇▁]
-   6  0.712  0.810  0.883  0.929  0.981  0.860  0.07830  0m  0.05s  [              ▄▁▆▅▇▂]
-   7  0.718  0.813  0.886  0.927  0.983  0.860  0.07784  0m  0.04s  [              ▄▁▇▅▇▃]
+   1  0.688  0.770  0.838  0.909  0.956  0.834  0.07929  0m  0.15s  [             ▂▃▄▆▅▇▁]
+   2  0.688  0.785  0.855  0.911  0.956  0.846  0.07911  0m  0.05s  [             ▁▃▄▃▅▇_]
+   3  0.694  0.793  0.863  0.922  0.966  0.852  0.07937  0m  0.05s  [             ▁▃▃▂▅▇▁]
+   4  0.700  0.799  0.872  0.929  0.973  0.856  0.07920  0m  0.08s  [              ▃▂▃▄▇▁]
+   5  0.706  0.805  0.878  0.930  0.977  0.858  0.07879  0m  0.05s  [              ▃▁▅▄▇▁]
+   6  0.712  0.810  0.883  0.929  0.981  0.860  0.07830  0m  0.08s  [              ▄▁▆▅▇▂]
+   7  0.718  0.813  0.886  0.927  0.983  0.860  0.07784  0m  0.05s  [              ▄▁▇▅▇▃]
 Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
@@ -288,32 +288,27 @@ mplot(mesh, &quot;mesh-surf.svg&quot;, elev=15)</code></pre><pre class="document
     node-id
   Available element fields:
     quality, elem-id, cell-type, tag
-  file mesh-surf.svg saved</code></pre><p><img src="../mesh-surf.svg" alt/></p><h2 id="Finite-element-model"><a class="docs-heading-anchor" href="#Finite-element-model">Finite element model</a><a id="Finite-element-model-1"></a><a class="docs-heading-anchor-permalink" href="#Finite-element-model" title="Permalink"></a></h2><p>To performe a finite element analysis, an instance of the <code>Model</code> type is required. This represents the domain model and contains nodes and finite elements. The element instances are different from the cells in a <code>Mesh</code> object since the elements are constructed according to the analysis problem. To instantiate a <code>Model</code> object a mesh and a list of material models objects are needed. The <code>Model</code> type is used for all analysis problems, e.g. mechanical, thermal, seepage, etc. Thus, for a particular problem, a consistent list of materials should be used. For example, in a mechanical analysis, all elements should be associated to mechanical material types. Based on the choosen materials, the <code>Model</code> object will setup the corresponding finite elements and degrees of freedom.</p><h3 id="Material-definitions"><a class="docs-heading-anchor" href="#Material-definitions">Material definitions</a><a id="Material-definitions-1"></a><a class="docs-heading-anchor-permalink" href="#Material-definitions" title="Permalink"></a></h3><p>There are several material models implemented in Amaru and are associated to a corresponding type, e.g.  <code>ElasticSolid</code>, <code>DruckerPrager</code>, <code>VonMises</code>, <code>ElasticRod</code>, etc. A particular material instance is defined by calling the construcor with set of corresponding parameters.</p><pre><code class="language-julia hljs">using Amaru
+  file mesh-surf.svg saved</code></pre><p><img src="../mesh-surf.svg" alt/></p><h2 id="Finite-element-model"><a class="docs-heading-anchor" href="#Finite-element-model">Finite element model</a><a id="Finite-element-model-1"></a><a class="docs-heading-anchor-permalink" href="#Finite-element-model" title="Permalink"></a></h2><p>To performe a finite element analysis, an instance of the <code>Model</code> type is required. This represents the domain model and contains nodes and finite elements. The element instances are different from the cells in a <code>Mesh</code> object since the elements are constructed according to the analysis problem. To instantiate a <code>Model</code> object a mesh and a list of material models objects are needed. The <code>Model</code> type is used for all analysis problems, e.g. mechanical, thermal, seepage, etc. Thus, for a particular problem, a consistent list of materials should be used. For example, in a mechanical analysis, all elements should be associated to mechanical material types. Based on the choosen materials, the <code>Model</code> object will setup the corresponding finite elements and degrees of freedom.</p><h3 id="MatParams-definitions"><a class="docs-heading-anchor" href="#MatParams-definitions">MatParams definitions</a><a id="MatParams-definitions-1"></a><a class="docs-heading-anchor-permalink" href="#MatParams-definitions" title="Permalink"></a></h3><p>There are several material models implemented in Amaru and are associated to a corresponding type, e.g.  <code>LinearElastic</code>, <code>DruckerPrager</code>, <code>VonMises</code>, <code>ElasticRod</code>, etc. A particular material instance is defined by calling the construcor with set of corresponding parameters.</p><pre><code class="language- hljs">using Amaru
 
-steel = ElasticSolid(E=2e8, nu=0.2) # E in kPa
+steel = LinearElastic(E=2e8, nu=0.2) # E in kPa
 rock = DruckerPrager(E=2e8, nu=0.2, alpha=0.4, kappa=2500, H=1e4)
-rebar = ElasticRod(E=2e8, A=1e-4)</code></pre><h3 id="Model-generation"><a class="docs-heading-anchor" href="#Model-generation">Model generation</a><a id="Model-generation-1"></a><a class="docs-heading-anchor-permalink" href="#Model-generation" title="Permalink"></a></h3><p>The following example shows the walk through of creating a <code>Model</code> object. Note that the list of materials contains a pair relating a domain region  to material instance.</p><pre><code class="language-julia hljs">using Amaru
+rebar = ElasticRod(E=2e8, A=1e-4)
+
+nothing # hide</code></pre><h3 id="Model-generation"><a class="docs-heading-anchor" href="#Model-generation">Model generation</a><a id="Model-generation-1"></a><a class="docs-heading-anchor-permalink" href="#Model-generation" title="Permalink"></a></h3><p>The following example shows the walk through of creating a <code>Model</code> object. Note that the list of materials contains a pair relating a domain region  to material instance.</p><pre><code class="language- hljs">using Amaru
 
 # Mesh generation
 block = Block([0 0 0; 1 0.1 0.1], nx=20, ny=2, nz=2, cellshape=HEX20)
 mesh = Mesh(block)
 
 # Analysis model
-steel = ElasticSolid(E=2e8, nu=0.2) # E in kPa
+steel = LinearElastic(E=2e8, nu=0.2) # E in kPa
 
 materials = [
     :(x&gt;=0) =&gt; steel,
 ]
-model = Model(mesh, materials)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Model setup
-  setting elements...Warning: 
-  Model: properties not defined in elements with shape: HEX20
-  3D model 3d model
-    621 nodes
-     80 elements
-    168 faces
-    336 edges
-      1 materials
-      0 loggers</code></pre><h3 id="Boundary-conditions"><a class="docs-heading-anchor" href="#Boundary-conditions">Boundary conditions</a><a id="Boundary-conditions-1"></a><a class="docs-heading-anchor-permalink" href="#Boundary-conditions" title="Permalink"></a></h3><p>The boundary conditions are given by objects that define the quantities that should be applied to nodes, faces, edges or even elements (<code>NodeBC</code>, <code>SurfaceBC</code>, <code>EdgeBC</code> and <code>ElementBC</code>).</p><p>The example below shows a nodal boundary condition where all displacements are set to zero.</p><pre><code class="language-julia hljs">using Amaru
+model = Model(mesh, materials)
+
+nothing # hide</code></pre><h3 id="Boundary-conditions"><a class="docs-heading-anchor" href="#Boundary-conditions">Boundary conditions</a><a id="Boundary-conditions-1"></a><a class="docs-heading-anchor-permalink" href="#Boundary-conditions" title="Permalink"></a></h3><p>The boundary conditions are given by objects that define the quantities that should be applied to nodes, faces, edges or even elements (<code>NodeBC</code>, <code>SurfaceBC</code>, <code>EdgeBC</code> and <code>ElementBC</code>).</p><p>The example below shows a nodal boundary condition where all displacements are set to zero.</p><pre><code class="language-julia hljs">using Amaru
 
 fixed_end = NodeBC(ux=0, uy=0, uz=0)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">NodeBC
     conds: Base.Pairs(:ux =&gt; 0, :uy =&gt; 0, :uz =&gt; 0)
@@ -323,14 +318,14 @@ fixed_end = NodeBC(ux=0, uy=0, uz=0)</code></pre><pre class="documenter-example-
 load = SurfaceBC(tz=-10)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">SurfaceBC
     conds: Base.Pairs(:tz =&gt; -10)
     filter: Expr ()
-    faces: 0-element Vector{Cell}</code></pre><p>The keys (e.g. <code>ux</code>, <code>tz</code>, etc.) to be set in a boundary condition are related to the analysis problem, and ultimately to the material types in use. For example, in a mechanical analysis, the keys for nodal boundary conditions are <code>ux</code>, <code>uy</code>, <code>uz</code>, <code>fx</code>, <code>fy</code> and <code>fz</code> where <code>ux</code> represents displacement and <code>fx</code> concentrated force, both in the <span>$x$</span> direction. Similarly, the keys for a face boudary condition are <code>ux</code>, <code>uy</code>, <code>uz</code>, <code>tx</code>, <code>ty</code> and <code>tz</code>, where <code>tx</code> is a traction (force per area) in the <span>$x$</span> direction. Besides, the <code>tn</code> key can be used to apply traction normal to the face.</p><h2 id="Analysis-example"><a class="docs-heading-anchor" href="#Analysis-example">Analysis example</a><a id="Analysis-example-1"></a><a class="docs-heading-anchor-permalink" href="#Analysis-example" title="Permalink"></a></h2><p>This example shows a mechanical analysis in a steel beam. The left end was clamped, thus all displacements at <code>x==0</code> are set to zero. Also, a vertical traction is applied at the right end. The <code>solve!</code> function performs the calculations of a <code>Model</code> instance subjected to a set of boundary conditions. The function also updates the state variables at the elements&#39; integration points.</p><p>For post-processing in a visualization software (e.g. Paraview), the  model can save the current per node and per element values (e.g. displacements, stresses, etc.) in &quot;vtk&quot; and &quot;vtu&quot; formats.  To save the full state of a domain model, the output in &quot;xml&quot; format is also supported; thus, the model can be reused in future analyses.</p><pre><code class="language-julia hljs">using Amaru
+    faces: 0-element Vector{Cell}</code></pre><p>The keys (e.g. <code>ux</code>, <code>tz</code>, etc.) to be set in a boundary condition are related to the analysis problem, and ultimately to the material types in use. For example, in a mechanical analysis, the keys for nodal boundary conditions are <code>ux</code>, <code>uy</code>, <code>uz</code>, <code>fx</code>, <code>fy</code> and <code>fz</code> where <code>ux</code> represents displacement and <code>fx</code> concentrated force, both in the <span>$x$</span> direction. Similarly, the keys for a face boudary condition are <code>ux</code>, <code>uy</code>, <code>uz</code>, <code>tx</code>, <code>ty</code> and <code>tz</code>, where <code>tx</code> is a traction (force per area) in the <span>$x$</span> direction. Besides, the <code>tn</code> key can be used to apply traction normal to the face.</p><h2 id="Analysis-example"><a class="docs-heading-anchor" href="#Analysis-example">Analysis example</a><a id="Analysis-example-1"></a><a class="docs-heading-anchor-permalink" href="#Analysis-example" title="Permalink"></a></h2><p>This example shows a mechanical analysis in a steel beam. The left end was clamped, thus all displacements at <code>x==0</code> are set to zero. Also, a vertical traction is applied at the right end. The <code>solve!</code> function performs the calculations of a <code>Model</code> instance subjected to a set of boundary conditions. The function also updates the state variables at the elements&#39; integration points.</p><p>For post-processing in a visualization software (e.g. Paraview), the  model can save the current per node and per element values (e.g. displacements, stresses, etc.) in &quot;vtk&quot; and &quot;vtu&quot; formats.  To save the full state of a domain model, the output in &quot;xml&quot; format is also supported; thus, the model can be reused in future analyses.</p><pre><code class="language- hljs">using Amaru
 
 # Mesh generation
 block = Block([0 0 0; 1 0.1 0.1], nx=20, ny=2, nz=2, cellshape=HEX8)
 mesh = Mesh(block)
 
 # Analysis model
-steel = ElasticSolid(E=200e6, nu=0.2) # E in kPa
+steel = LinearElastic(E=200e6, nu=0.2) # E in kPa
 
 materials = [
     :(x&gt;=0) =&gt; steel,
@@ -345,36 +340,17 @@ bcs = [
 addstage!(model, bcs)
 
 solve!(model, quiet=true)
-save(model, &quot;beam.vtu&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Model setup
-  setting elements...Warning: 
-  Model: properties not defined in elements with shape: HEX8
-  3D model 3d model
-    189 nodes
-     80 elements
-    168 faces
-    336 edges
-      1 materials
-      0 loggers
-  file beam.vtu saved </code></pre><p>The <code>mplot</code> function allow to save a plot of the domain in several formats (e.g. &quot;pdf&quot;, &quot;svg&quot;, &quot;png&quot;, etc.). In this case, the deformed state is plot using a mangnification scale of 100. Also the <span>$u_y$</span> field is displayed and the corresponding label is placed next to the colorbar. To adjunst the point of view, the <code>azim</code>, <code>elev</code> and <code>dist</code> parameters can be set. They represent, respectively, the azimut, elevation angle and distance to the rendered domain.</p><pre><code class="language-julia hljs">mplot(model, &quot;beam.svg&quot;, warpscale=100, field=:uz, colorbarlabel=raw&quot;$u_z$&quot;, colorbarscale=0.4, azim=-90, elev=30, dist=7)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
-  Optional arguments:
-    axis, lw, markers, nodelabels, celllabels, opacity, field,
-     fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
-     colorbarlabel, colorbarlocation, colorbarorientation, colorbarpad,
-     warpscale, hicells, elev, azim, dist, outline, outlineangle,
-     figsize, leaveopen, quiet
-  Available node fields:
-    node-id, ux, fx, uy, fy, uz, fz, sxx, syy, szz, syz, sxz, sxy, s1, s2, s3,
-    exx, eyy, ezz, eyz, exz, exy, U
-  Available element fields:
-    elem-id, cell-type
-  file beam.svg saved</code></pre><p><img src="../beam.svg" alt/></p><h2 id="Nonlinear-analysis"><a class="docs-heading-anchor" href="#Nonlinear-analysis">Nonlinear analysis</a><a id="Nonlinear-analysis-1"></a><a class="docs-heading-anchor-permalink" href="#Nonlinear-analysis" title="Permalink"></a></h2><p>The use of material models with nonlinear behavior lead to a nonlinear analyses. For example, the <code>VonMises</code> material type represents a nonlinear material model. For the analysis, the number of increments can be adjusted using the <code>nincs</code> parameter. Also, the <code>autoinc</code> parameter can be set to true to le the <code>solve!</code> function to  automatically compute and recompute the increment sizes. The <code>tol</code> paramter specifies the maximum force discrepancy between internal and external forces.</p><pre><code class="language-julia hljs">using Amaru
+save(model, &quot;beam.vtu&quot;)
+
+nothing # hide</code></pre><p>The <code>mplot</code> function allow to save a plot of the domain in several formats (e.g. &quot;pdf&quot;, &quot;svg&quot;, &quot;png&quot;, etc.). In this case, the deformed state is plot using a mangnification scale of 100. Also the <span>$u_y$</span> field is displayed and the corresponding label is placed next to the colorbar. To adjunst the point of view, the <code>azim</code>, <code>elev</code> and <code>dist</code> parameters can be set. They represent, respectively, the azimut, elevation angle and distance to the rendered domain.</p><pre><code class="language- hljs">mplot(model, &quot;beam.svg&quot;, warpscale=100, field=:uz, colorbarlabel=raw&quot;$u_z$&quot;, colorbarscale=0.4, azim=-90, elev=30, dist=7)
+nothing # hide</code></pre><p><img src="./beam.svg" alt/></p><h2 id="Nonlinear-analysis"><a class="docs-heading-anchor" href="#Nonlinear-analysis">Nonlinear analysis</a><a id="Nonlinear-analysis-1"></a><a class="docs-heading-anchor-permalink" href="#Nonlinear-analysis" title="Permalink"></a></h2><p>The use of material models with nonlinear behavior lead to a nonlinear analyses. For example, the <code>VonMises</code> material type represents a nonlinear material model. For the analysis, the number of increments can be adjusted using the <code>nincs</code> parameter. Also, the <code>autoinc</code> parameter can be set to true to le the <code>solve!</code> function to  automatically compute and recompute the increment sizes. The <code>tol</code> paramter specifies the maximum force discrepancy between internal and external forces.</p><pre><code class="language- hljs">using Amaru
 
 # Mesh generation
 block = Block([0 0 0; 1 0.1 0.1], nx=20, ny=2, nz=4, cellshape=HEX8)
 mesh = Mesh(block)
 
 # Analysis model
-steel1 = ElasticSolid(E=2e8, nu=0.2) # E in kPa
+steel1 = LinearElastic(E=2e8, nu=0.2) # E in kPa
 steel2 = VonMises(E=2e8, nu=0.2, fy=500e3, H=1e4)
 
 materials = [
@@ -390,40 +366,21 @@ bcs = [
 
 addstage!(model, bcs)
 
-solve!(model, tol=0.01, autoinc=true, quiet=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Model setup
-  setting elements...Warning: 
-  Model: properties not defined in elements with shape: HEX8
-  3D model 3d model
-    315 nodes
-    160 elements
-    256 faces
-    512 edges
-      2 materials
-      0 loggers</code></pre><pre><code class="language-julia hljs">mplot(model, &quot;beam-vm.svg&quot;, warpscale=10, field=:sxx, fieldmult=1e-3, colorbarlabel=raw&quot;$\sigma_{xx}$&quot;, colorbarscale=0.4, azim=-90, dist=7)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
-  Optional arguments:
-    axis, lw, markers, nodelabels, celllabels, opacity, field,
-     fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
-     colorbarlabel, colorbarlocation, colorbarorientation, colorbarpad,
-     warpscale, hicells, elev, azim, dist, outline, outlineangle,
-     figsize, leaveopen, quiet
-  Available node fields:
-    node-id, ux, fx, uy, fy, uz, fz, sxx, syy, szz, syz, sxz, sxy, s1, s2, s3,
-    exx, eyy, ezz, eyz, exz, exy, epa, j1, srj2d, U
-  Available element fields:
-    elem-id, cell-type
-  file beam-vm.svg saved</code></pre><p><img src="../beam-vm.svg" alt/></p><h3 id="Loggers"><a class="docs-heading-anchor" href="#Loggers">Loggers</a><a id="Loggers-1"></a><a class="docs-heading-anchor-permalink" href="#Loggers" title="Permalink"></a></h3><p>Loggers are objects designed to track the information of nodes, integration points, faces, edges, points and segments. That information is updated at every increment and can be saved to a file.</p><pre><code class="language-julia hljs">using Amaru
+solve!(model, tol=0.01, autoinc=true, quiet=true)
+nothing # hide</code></pre><pre><code class="language- hljs">mplot(model, &quot;beam-vm.svg&quot;, warpscale=10, field=:sxx, fieldmult=1e-3, colorbarlabel=raw&quot;$\sigma_{xx}$&quot;, colorbarscale=0.4, azim=-90, dist=7)
+nothing # hide</code></pre><p><img src="./beam-vm.svg" alt/></p><h3 id="Loggers"><a class="docs-heading-anchor" href="#Loggers">Loggers</a><a id="Loggers-1"></a><a class="docs-heading-anchor-permalink" href="#Loggers" title="Permalink"></a></h3><p>Loggers are objects designed to track the information of nodes, integration points, faces, edges, points and segments. That information is updated at every increment and can be saved to a file.</p><pre><code class="language-julia hljs">using Amaru
 
 nodelog = NodeLogger(&quot;nodelog.table&quot;)
 iplog = IpLogger(&quot;nodelog.table&quot;)
 facelog = FacesSumLogger(&quot;nodelog.table&quot;)
-nodeslog = NodeGroupLogger(&quot;nodes.book&quot;)</code></pre><p>The loggers need to be associated to the entity they track by using a filter expression,  coordinates or a tag string.  Finally, the loggers have to be linked to a <code>Model</code> object by using the <code>setloggers!</code> function.</p><pre><code class="language-julia hljs">using Amaru
+nodeslog = NodeGroupLogger(&quot;nodes.book&quot;)</code></pre><p>The loggers need to be associated to the entity they track by using a filter expression,  coordinates or a tag string.  Finally, the loggers have to be linked to a <code>Model</code> object by using the <code>setloggers!</code> function.</p><pre><code class="language- hljs">using Amaru
 
 # Mesh generation
 block = Block([0 0 0; 1 0.1 0.1], nx=20, ny=2, nz=3, cellshape=HEX8)
 mesh = Mesh(block)
 
 # Analysis model
-steel1 = ElasticSolid(E=2e8, nu=0.2) # E in kPa
+steel1 = LinearElastic(E=2e8, nu=0.2) # E in kPa
 steel2 = VonMises(E=2e8, nu=0.2, fy=500e3, H=1e4)
 
 materials = [
@@ -448,63 +405,13 @@ loggers = [
 setloggers!(model, loggers)
 addstage!(model, bcs, nouts=2)
 
-solve!(model, tol=0.01, autoinc=true, quiet=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Model setup
-  setting elements...Warning: 
-  Model: properties not defined in elements with shape: HEX8
-  3D model 3d model
-    252 nodes
-    120 elements
-    212 faces
-    424 edges
-      2 materials
-      0 loggers
-  setup_logger: No ip found at [0.05, 0.05, 0.1]. Picking the nearest at
-  [0.039434, 0.039434, 0.092956]
-  file ./top.book written
-  file ./bottom.book written
-  file ./top.book written
-  file ./bottom.book written
-  file ./top.book written
-  file ./bottom.book written</code></pre><p>The loggers are classified single loggers and group loggers. Single loggers record a table of data. Group loggers record a book, which is a set of tables. Once the analysis is finished, the loggers data can be recovered in another script  calling the constructors of the types <code>DataTable</code> and <code>DataBook</code>.</p><pre><code class="language-julia hljs">using Amaru
+solve!(model, tol=0.01, autoinc=true, quiet=true)
 
-tip = DataTable(&quot;tip.table&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">
- │       ux │       uy │         uz │       fx │       fy │       fz │ out │ 
- │  0.0e+00 │  0.0e+00 │        0.0 │  0.0e+00 │  0.0e+00 │      0.0 │ 0.0 │ 
- │ -8.1e-20 │  8.1e-16 │    -0.0004 │ -5.9e-13 │  5.2e-13 │ -2.22233 │ 0.0 │ 
- │  5.8e-19 │  1.1e-15 │    -0.0012 │ -1.1e-12 │  6.5e-13 │   -6.667 │ 0.0 │ 
- │  1.3e-18 │  2.1e-15 │    -0.0028 │ -1.0e-12 │  7.1e-13 │ -15.5563 │ 0.0 │ 
- │  3.5e-18 │  4.8e-15 │     -0.006 │  6.4e-13 │  2.6e-12 │  -33.335 │ 0.0 │ 
- │ -1.4e-18 │  2.4e-15 │      -0.01 │ -7.3e-12 │  5.5e-12 │ -55.5584 │ 0.0 │ 
- │  1.4e-18 │  3.1e-15 │     -0.014 │ -2.6e-12 │  5.3e-12 │ -77.7817 │ 0.0 │ 
- │  5.3e-18 │  6.4e-15 │     -0.018 │ -2.4e-12 │  5.0e-12 │ -100.005 │ 0.0 │ 
- │  1.3e-18 │  3.3e-15 │      -0.02 │  1.3e-12 │  2.7e-12 │ -111.117 │ 1.0 │ 
- │ -1.7e-19 │ -3.4e-18 │     -0.024 │  4.1e-13 │  3.3e-15 │ -128.265 │ 1.0 │ 
- │ -2.1e-19 │  3.1e-17 │ -0.0314299 │ -3.1e-12 │ -5.6e-14 │ -147.577 │ 1.0 │ 
- │ -4.3e-19 │  8.9e-16 │      -0.04 │ -3.1e-12 │ -9.2e-14 │ -157.956 │ 2.0 │ </code></pre><pre><code class="language-julia hljs">using Amaru
+nothing # hide</code></pre><p>The loggers are classified single loggers and group loggers. Single loggers record a table of data. Group loggers record a book, which is a set of tables. Once the analysis is finished, the loggers data can be recovered in another script  calling the constructors of the types <code>DataTable</code> and <code>DataBook</code>.</p><pre><code class="language- hljs">using Amaru
 
-long = DataBook(&quot;topgroup.book&quot;).tables[end]</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">
- │    x │   y │   z │         ux │       fx │       uy │       fy │       uz │       fz │ 
- │  0.0 │ 0.1 │ 0.1 │        0.0 │ -3.2e+02 │  0.0e+00 │  1.1e+02 │  0.0e+00 │  1.1e+02 │ 
- │ 0.05 │ 0.1 │ 0.1 │ 0.00032734 │  1.7e+00 │ -1.5e-04 │  1.7e+00 │ -1.9e-04 │  1.3e+00 │ 
- │  0.1 │ 0.1 │ 0.1 │ 0.00072782 │  4.4e-01 │ -1.5e-04 │  1.6e+00 │ -7.1e-04 │ -5.8e-02 │ 
- │ 0.15 │ 0.1 │ 0.1 │  0.0010797 │  6.4e-01 │ -1.1e-04 │  1.5e+00 │ -1.6e-03 │  1.5e+00 │ 
- │  0.2 │ 0.1 │ 0.1 │  0.0013476 │  5.6e-02 │ -6.6e-05 │  3.2e-01 │ -2.9e-03 │  8.1e-01 │ 
- │ 0.25 │ 0.1 │ 0.1 │  0.0015527 │ -3.2e-01 │ -4.5e-05 │ -1.1e-01 │ -4.3e-03 │ -3.6e-01 │ 
- │  0.3 │ 0.1 │ 0.1 │  0.0017241 │  2.2e-01 │ -3.2e-05 │  2.3e-01 │ -6.0e-03 │ -7.3e-02 │ 
- │ 0.35 │ 0.1 │ 0.1 │  0.0018695 │ -1.2e-01 │ -2.5e-05 │  1.9e-01 │ -7.8e-03 │  3.5e-02 │ 
- │  0.4 │ 0.1 │ 0.1 │  0.0020027 │ -2.9e-13 │ -2.4e-05 │  1.4e-13 │ -9.7e-03 │  2.6e-12 │ 
- │ 0.45 │ 0.1 │ 0.1 │  0.0021251 │ -5.9e-14 │ -2.2e-05 │  9.0e-14 │ -1.2e-02 │  1.6e-13 │ 
- │  0.5 │ 0.1 │ 0.1 │  0.0022368 │  3.2e-13 │ -2.0e-05 │  5.1e-14 │ -1.4e-02 │  9.5e-13 │ 
- │ 0.55 │ 0.1 │ 0.1 │  0.0023379 │ -6.9e-13 │ -1.8e-05 │ -3.7e-13 │ -1.6e-02 │ -1.5e-12 │ 
- │  0.6 │ 0.1 │ 0.1 │  0.0024284 │ -3.0e-13 │ -1.6e-05 │ -4.4e-13 │ -1.9e-02 │ -1.5e-12 │ 
- │ 0.65 │ 0.1 │ 0.1 │  0.0025082 │ -4.9e-13 │ -1.4e-05 │  8.9e-13 │ -2.1e-02 │  3.3e-12 │ 
- │  0.7 │ 0.1 │ 0.1 │  0.0025774 │ -1.9e-13 │ -1.2e-05 │ -5.2e-13 │ -2.4e-02 │  1.0e-12 │ 
- │ 0.75 │ 0.1 │ 0.1 │  0.0026359 │ -2.9e-13 │ -9.8e-06 │ -3.3e-13 │ -2.6e-02 │ -4.6e-13 │ 
- │  0.8 │ 0.1 │ 0.1 │  0.0026838 │  9.7e-13 │ -7.9e-06 │  8.4e-13 │ -2.9e-02 │ -2.8e-12 │ 
- │ 0.85 │ 0.1 │ 0.1 │  0.0027211 │ -3.8e-13 │ -5.9e-06 │  1.1e-12 │ -3.2e-02 │ -2.0e-12 │ 
- │  0.9 │ 0.1 │ 0.1 │  0.0027477 │ -1.5e-12 │ -3.9e-06 │  3.1e-12 │ -3.4e-02 │  5.7e-12 │ 
- │ 0.95 │ 0.1 │ 0.1 │  0.0027637 │  1.4e-12 │ -1.9e-06 │  6.9e-13 │ -3.7e-02 │ -2.3e-12 │ 
- │  1.0 │ 0.1 │ 0.1 │  0.0027692 │  2.4e-13 │ -7.0e-07 │ -2.8e-13 │ -4.0e-02 │ -4.8e+00 │ </code></pre><h2 id="Plotting"><a class="docs-heading-anchor" href="#Plotting">Plotting</a><a id="Plotting-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting" title="Permalink"></a></h2><p>Amaru provides a chart ploting function <code>cplot</code> to ease the visualization of the data stored in <code>DataTable</code> and <code>DataBook</code> objects.</p><pre><code class="language-julia hljs">using Amaru
+tip = DataTable(&quot;tip.table&quot;)</code></pre><pre><code class="language- hljs">using Amaru
+
+long = DataBook(&quot;topgroup.book&quot;).tables[end]</code></pre><h2 id="Plotting"><a class="docs-heading-anchor" href="#Plotting">Plotting</a><a id="Plotting-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting" title="Permalink"></a></h2><p>Amaru provides a chart ploting function <code>cplot</code> to ease the visualization of the data stored in <code>DataTable</code> and <code>DataBook</code> objects.</p><pre><code class="language- hljs">using Amaru
 
 tip = DataTable(&quot;tip.table&quot;)
 cplot(
@@ -533,51 +440,6 @@ cplot(
     ymult  = 1e-3,
     xlabel = raw&quot;$x$ [m]&quot;,
     ylabel = raw&quot;$\sigma_{xx}$ [MPa]&quot;,
-)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Chart plotting
-  generating plot u_z$ [mm] vs f_z$ [kN]
-  Arguments:
-    args: plot data and optional filename
-  Optional named arguments:
-    xlabel, ylabel, xbins, ybins, showgrid, ticklength, figsize, legendloc,
-    legendexpand, bbox_to_anchor, ncol, xlim, ylim, equalaspect, xscale,
-    yscale, xmult, ymult, ticksinside, axis, arrowaxis, xticks, xticklabels,
-    yticks, yticklabels, fontsize, legendfontsize, textfontsize, labelspacing,
-    annotations, tagpos, tagloc, tagdist, tagfontsize, tagcolor, tagalign,
-    x2label, y2label, x2mult, y2mult, y2bins, x2lim, y2lim, y2scale, copypath,
-    quiet
-  Optional named arguments per curve:
-    x, y, color, ls, lw, marker, ms, mfc, label, tag, tagpos, tagloc, tagdist,
-    tagfontsize, tagcolor, tagalign
-  file uz_vs_fz.svg saved
-Chart plotting
-  generating plot x$ [m] vs u_z$ [mm]
-  Arguments:
-    args: plot data and optional filename
-  Optional named arguments:
-    xlabel, ylabel, xbins, ybins, showgrid, ticklength, figsize, legendloc,
-    legendexpand, bbox_to_anchor, ncol, xlim, ylim, equalaspect, xscale,
-    yscale, xmult, ymult, ticksinside, axis, arrowaxis, xticks, xticklabels,
-    yticks, yticklabels, fontsize, legendfontsize, textfontsize, labelspacing,
-    annotations, tagpos, tagloc, tagdist, tagfontsize, tagcolor, tagalign,
-    x2label, y2label, x2mult, y2mult, y2bins, x2lim, y2lim, y2scale, copypath,
-    quiet
-  Optional named arguments per curve:
-    x, y, color, ls, lw, marker, ms, mfc, label, tag, tagpos, tagloc, tagdist,
-    tagfontsize, tagcolor, tagalign
-  file x_vs_uz.svg saved
-Chart plotting
-  generating plot x$ [m] vs \sigma_{xx}$ [MPa]
-  Arguments:
-    args: plot data and optional filename
-  Optional named arguments:
-    xlabel, ylabel, xbins, ybins, showgrid, ticklength, figsize, legendloc,
-    legendexpand, bbox_to_anchor, ncol, xlim, ylim, equalaspect, xscale,
-    yscale, xmult, ymult, ticksinside, axis, arrowaxis, xticks, xticklabels,
-    yticks, yticklabels, fontsize, legendfontsize, textfontsize, labelspacing,
-    annotations, tagpos, tagloc, tagdist, tagfontsize, tagcolor, tagalign,
-    x2label, y2label, x2mult, y2mult, y2bins, x2lim, y2lim, y2scale, copypath,
-    quiet
-  Optional named arguments per curve:
-    x, y, color, ls, lw, marker, ms, mfc, label, tag, tagpos, tagloc, tagdist,
-    tagfontsize, tagcolor, tagalign
-  file x_vs_sxx.svg saved</code></pre><p><img src="../uz_vs_fz.svg" alt/></p><p><img src="../x_vs_uz.svg" alt/></p><p><img src="../x_vs_sxx.svg" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Introduction</a><a class="docs-footer-nextpage" href="../../meshing/meshing/">Mesh »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Friday 30 June 2023 00:54">Friday 30 June 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+)
+
+nothing # hide</code></pre><p><img src="./uz_vs_fz.svg" alt/></p><p><img src="./x_vs_uz.svg" alt/></p><p><img src="./x_vs_sxx.svg" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Introduction</a><a class="docs-footer-nextpage" href="../../meshing/meshing/">Mesh »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Thursday 6 July 2023 00:39">Thursday 6 July 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
