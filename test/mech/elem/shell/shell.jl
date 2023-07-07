@@ -13,9 +13,6 @@ msh = revolve(msh, angle=180, n=n, base=[0,0,0], axis=[0,1,0])
 
 mats = [ "shell" << MechShell(thickness=0.03) << LinearElastic(E=3e4, nu=0.3) ]
 
-# mats = [ "shell" << LinearElastic(E=3e4, nu=0.3) << Properties(type=MechShell, thickness=0.03) ]
-
-
 ana = MechAnalysis(stressmodel="3d")
 
 model = FEModel(msh, mats, ana)

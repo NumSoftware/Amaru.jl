@@ -19,6 +19,7 @@ end
 
 matching_shape_family(::Type{MechSpringElem}) = LINECELL
 
+
 function elem_stiffness(elem::MechSpringElem)
     ndim = elem.env.ndim
     matparams  = elem.matparams
@@ -88,6 +89,7 @@ function update_elem!(elem::MechSpringElem, U::Array{Float64,1}, Δt::Float64)
 
     return dF, map, success()
 end
+
 
 function elem_vals(elem::MechSpringElem)
     vals = OrderedDict(:fx => 0.0 )

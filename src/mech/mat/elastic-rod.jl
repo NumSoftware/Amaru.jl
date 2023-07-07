@@ -75,12 +75,14 @@ matching_elem_type_if_embedded(::ElasticRod) = MechEmbRodElem
 # Type of corresponding state structure
 ip_state_type(matparams::ElasticRod) = ElasticRodState
 
+
 function update_state(matparams::ElasticRod, state::ElasticRodState, Δε::Float64)
     Δσ = matparams.E*Δε
     state.ε += Δε
     state.σ += Δσ
     return Δσ, success()
 end
+
 
 function ip_state_vals(matparams::ElasticRod, state::ElasticRodState)
     return OrderedDict(
@@ -90,6 +92,7 @@ function ip_state_vals(matparams::ElasticRod, state::ElasticRodState)
     #   :A  => matparams.A 
       )
 end
+
 
 function calcD(matparams::ElasticRod, ips::ElasticRodState)
     return matparams.E

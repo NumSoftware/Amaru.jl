@@ -1,7 +1,7 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 # TRI3 shape
-# ==========
+
 
 #    s
 #    ^
@@ -75,7 +75,7 @@ export TRI3
 
 
 # TRI6 shape
-# ==========
+
 
 #    s
 #    ^
@@ -120,6 +120,7 @@ function shape_func_TRI6(R::AbstractArray{<:Float64,1})
     return N
 end
 
+
 function shape_deriv_TRI6(R::AbstractArray{<:Float64,1})
     r, s = R
 
@@ -161,7 +162,7 @@ export TRI6
 
 
 # TRI9 shape
-# ==========
+
 
 
 # natural coordinates
@@ -176,6 +177,7 @@ function shape_func_TRI9(R::AbstractArray{<:Float64,1})
     N = Array{Float64}(undef,9)
     return N
 end
+
 
 function shape_deriv_TRI9(R::AbstractArray{<:Float64,1})
     error("TRI9 shape not fully implemented")
@@ -213,7 +215,7 @@ export TRI9
 
 
 # TRI10 shape
-# ===========
+
 
 
 # natural coordinates
@@ -228,6 +230,7 @@ function shape_func_TRI10(R::AbstractArray{<:Float64,1})
     N = Array{Float64}(undef,10)
     return N
 end
+
 
 function shape_deriv_TRI10(R::AbstractArray{<:Float64,1})
     error("TRI10 shape not fully implemented")
@@ -263,7 +266,7 @@ export TRI10
 
 
 # QUAD4 shape
-# ===========
+
 
 #     4                        3
 #       @--------------------@
@@ -298,6 +301,7 @@ function shape_func_QUAD4(R::AbstractArray{<:Float64,1})
     N[4] = 0.25*(1.0-r+s-r*s)
     return N
 end
+
 
 function shape_deriv_QUAD4(R::AbstractArray{<:Float64,1})
     r, s = R[1:2]
@@ -336,7 +340,7 @@ export QUAD4
 
 
 # QUAD8 shape
-# ===========
+
 
 #     4           7            3
 #       @---------@----------@
@@ -381,6 +385,7 @@ function shape_func_QUAD8(R::AbstractArray{<:Float64,1})
     N[8] = 0.50*rm1*(1.0-s*s)
     return N
 end
+
 
 function shape_deriv_QUAD8(R::AbstractArray{<:Float64,1})
     r, s = R[1:2]
@@ -434,7 +439,7 @@ export QUAD8
 
 
 # QUAD9 shape
-# ===========
+
 
 #     4           7            3
 #       @---------@----------@
@@ -482,6 +487,7 @@ function shape_func_QUAD9(R::AbstractArray{<:Float64,1})
     N[9] = sp1*sm1*rp1*rm1
     return N
 end
+
 
 function shape_deriv_QUAD9(R::AbstractArray{<:Float64,1})
     r, s = R[1:2]
@@ -538,7 +544,7 @@ export QUAD9
 
 
 # QUAD12 shape
-# ============
+
 
 #
 #    4      10       9        3
@@ -596,6 +602,7 @@ function shape_func_QUAD12(R::AbstractArray{<:Float64,1})
 
     return N
 end
+
 
 function shape_deriv_QUAD12(R::AbstractArray{<:Float64,1})
     r, s = R[1:2]
@@ -661,7 +668,7 @@ export QUAD12
 
 
 # QUAD16 shape
-# ============
+
 
 
 # natural coordinates
@@ -676,6 +683,7 @@ function shape_func_QUAD16(R::AbstractArray{<:Float64,1})
 
     return N
 end
+
 
 function shape_deriv_QUAD16(R::AbstractArray{<:Float64,1})
     error("TRI9 shape not fully implemented")

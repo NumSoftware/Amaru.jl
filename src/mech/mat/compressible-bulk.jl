@@ -91,6 +91,7 @@ function calcD(matparams::CompressibleBulk, state::CompressibleBulkState)
     return De - De*dfdσ*dfdσ*D/(dot(dfdσ*De, dfdσ) + dpydεvp) # todo
 end
 
+
 function calc_σ_Δεvp_Δλ(matparams::CompressibleBulk, state::CompressibleBulkState, σtr::Array{Float64,1})
     Δλ = 0.0
     up = 0.0

@@ -209,6 +209,7 @@ function deriv_σmax_up(matparams::AbstractTCFJoint, state::AbstractTCFJointStat
     return matparams.ft*dzdx/matparams.wc
 end
 
+
 function calc_τmax(matparams::AbstractTCFJoint, state::AbstractTCFJointState, up::Float64)
     xp = 0.13
     y0 = 0.8
@@ -301,6 +302,7 @@ function calc_μ(matparams::AbstractTCFJoint, state::AbstractTCFJointState, up::
     end
     return matparams.μres*z
 end
+
 
 function deriv_μ_up(matparams::AbstractTCFJoint, state::AbstractTCFJointState, up::Float64)
     x = up/matparams.wc
@@ -556,6 +558,7 @@ function calc_σ_up_Δλ_bissection(matparams::AbstractTCFJoint, state::Abstract
     return σ, up, Δλ, success()   
 end
 
+
 function find_σ_up_Δλ(matparams::AbstractTCFJoint, state::AbstractTCFJointState, σtr::Array{Float64,1})
     ndim    = state.env.ndim
     kn, ks  = calc_kn_ks(matparams, state)
@@ -677,6 +680,7 @@ function ip_state_vals(matparams::AbstractTCFJoint, state::AbstractTCFJointState
           )
     end
 end
+
 
 function output_keys(matparams::AbstractTCFJoint)
     return Symbol[:jw1, :js1, :jup]

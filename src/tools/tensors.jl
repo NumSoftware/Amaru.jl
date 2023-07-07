@@ -28,13 +28,16 @@ mutable struct Tsr2<:AbstractArray{Float64,1}
     end
 end
 
+
 function Base.length(X::Tsr2)
     return 6
 end
 
+
 function Base.size(X::Tsr2)
     return (6,)
 end
+
 
 function Base.getindex(X::Tsr2, i::Int)
     if i>3
@@ -92,6 +95,7 @@ function J2D(T::Tensor2)
     t13 /= SR2
     return 1/6*( (t11-t22)^2 + (t22-t33)^2 + (t33-t11)^2 ) + t12*t12 + t23*t23 + t13*t13
 end
+
 
 function J3D(T::Tensor2)
     return J3(Psd*T)
@@ -175,6 +179,7 @@ function LinearAlgebra.eigen(T::Tensor2)
     return L, V
 end
 
+
 function tfull(T::Tensor2)
     t1, t2, t3, t4, t5, t6 = T.*M2V
     return [
@@ -226,6 +231,7 @@ function inner(T1::Tensor2, T2::Tensor4, T3::Tensor2)
 end
 
 ∷ = inner
+
 
 function set_tensor_rot!(V::Array{Float64,2}, R::Tensor4)
     # V : second order tensor with direction cosines (new system axes in old system coordinates)

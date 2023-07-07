@@ -75,6 +75,7 @@ function mountD(matparams::ElasticJoint, state::JointState)
     end
 end
 
+
 function update_state(matparams::ElasticJoint, state::JointState, Δu)
     ndim = state.env.ndim
     D  = mountD(matparams, state)
@@ -106,6 +107,7 @@ function ip_state_vals(matparams::ElasticJoint, state::JointState)
           )
     end
 end
+
 
 function output_keys(matparams::ElasticJoint)
     return Symbol[:jw1, :jw1]

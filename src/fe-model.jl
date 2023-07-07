@@ -9,8 +9,6 @@ A type that represents a finite element model.
 $(FIELDS)
 """
 mutable struct FEModel<:AbstractDomain
-    # "model dimensions"
-    # ndim ::Int
     "array of nodes"
     nodes::Array{Node,1}
     "array of cells"
@@ -19,8 +17,6 @@ mutable struct FEModel<:AbstractDomain
     faces::Array{Face,1}
     "array of edges"
     edges::Array{Edge,1}
-
-    #mats::Array{MatParams,1}
     "array of loggers"
     loggers ::Array{AbstractLogger,1}
     "array of monitors"
@@ -86,44 +82,21 @@ Uses a mesh and a list of meterial especifications to construct a finite element
 
 """
 function FEModel(
-    mesh      :: Mesh,
-    # matbinds  :: Array{<:Pair,1},
-    matbinds  :: Array{<:Tuple,1},
-    anaprops  ::AnalysisProps;
-    # propbinds :: Array{<:Pair,1}=Pair[];
-    # stressmodel :: String = "", # or "plane-stress", "plane-strain", "axysimmetric", "3d"
-    # thickness :: Real = 1.0,
-    quiet     :: Bool = false,
-    # matparams... # extra parameters required for specific solvers
+    mesh    :: Mesh,
+    matbinds:: Array{<:Tuple,1},
+    anaprops::AnalysisProps;
+    quiet   :: Bool = false,
 )
 
     ndim = mesh.env.ndim
     @assert ndim>0
 
-    # if stressmodel==""
-        # stressmodel = ndim==2 ? "plane-strain" : "3d"
-    # end
-    # stressmodel in ("plane-stress", "plane-strain", "axisymmetric", "3d") || error("FEModel: Invalid stressmodel $stressmodel")
-
-
-    # if ndim==3 && thickness!=1.0
-        # thickness = 1.0
-        # quiet || info("ignoring thickness parameter in a 3d model")
-    # end
-
     # FEModel and environment data
     model  = FEModel()
     env = model.env
     env.ndim = ndim
-    # env.anaprops.stressmodel = stressmodel
-    # env.anaprops.thickness = thickness
     env.t = 0.0
     env.anaprops = anaprops
-
-    # Saving extra parameters
-    # for (k,v) in matparams
-    #     typeof(v) <: Number && ( env.matparams[k] = v )
-    # end
 
     # Save a mesh reference
     #model.mesh = mesh
@@ -137,19 +110,28 @@ function FEModel(
     # quiet || print("  setting elements...\r")
     ncells      = length(mesh.elems)
     model.elems = Array{Element,1}(undef, ncells)
-    # for (filter, mat) in matbinds
     for matbind in matbinds
+        if length(matbind)!=3
+            throw(AmaruException("FEModel: Assigments of element and material models should be specified as: filter << Element(args) << Material(args)"))
+        end
+        
         filter     = matbind[1]
-        if length(matbind)==3
-            elem_props = matbind[2]
-            mat_params = matbind[3]
-            elem_type = matching_elem_type(typeof(elem_props))
-        else
-            # elem_props = nothing
-            mat_params = matbind[2]
-            elem_type = matching_elem_type(mat_params)
-            notify("FEModel: Using default type $(elem_type) at elements for expr. $(repr(filter))")
-            elem_props = matching_props_type(elem_type)() # setting new properties
+        elem_props = matbind[2]
+        mat_params = matbind[3]
+        elem_type  = matching_elem_type(typeof(elem_props))
+
+        # Check if material is compatible with the element
+        mat_params_type = typeof(mat_params)
+        if !hasmethod(ip_state_type, (elem_type, mat_params_type)) 
+            # available materials
+            av_mats = [  fieldtypes(m.sig)[3] for m in methods(ip_state_type, (elem_type, Any))  ]
+            av_elems = [  fieldtypes(m.sig)[2] for m in methods(ip_state_type, (Any, mat_params_type))  ]
+            message = "FEModel: Element $(elem_type) is not compatible with material model $(mat_params_type). \
+                       Compatible material models for element $(elem_type) are: $(join(av_mats, ", ", " and ")). \
+                       Compatible elements for material model $(mat_params_type) are: $(join(av_elems, ", ", " and "))"
+            message = replace(message, r"Elem\b" => "")
+            message = replace(message, r"Amaru\." => "")
+            throw(AmaruException(message))
         end
 
         cells = mesh.elems[filter]
@@ -199,32 +181,6 @@ function FEModel(
     if !isempty(undefined_elem_shapes)
         error("FEModel: missing material definition to allocate elements with shape: $(join(undefined_elem_shapes, ", "))\n")
     end
-
-    # # Setting properties per element
-    # for (filter, props) in propbinds
-    #     cells = mesh.elems[filter]
-    #     if ! (cells isa Array)
-    #         cells = [ cells ]
-    #     end
-    #     if isempty(cells)
-    #         warn("FEModel: binding properties to an empty list of cells using filter expression $(repr(filter))")
-    #     end
-
-    #     for cell in cells
-    #         model.elems[cell.id].props = props
-    #     end
-    # end
-
-    # Check if all elements have material defined
-    # undefined_elem_shapes = Set{String}()
-    # for elem in model.elems
-    #     if !isdefined(elem, :props)
-    #         push!(undefined_elem_shapes, elem.shape.name)
-    #     end
-    # end
-    # if !isempty(undefined_elem_shapes)
-    #     warn("FEModel: properties not defined in elements with shape: $(join(undefined_elem_shapes, ", "))")
-    # end
 
     # Setting linked elements
     for cell in mesh.elems
@@ -317,11 +273,9 @@ function addstage!(model::Model, bcs::Array;
     toactivate:: Array{<:Element,1}=Element[],
     todeactivate:: Array{<:Element,1}=Element[])
     
-    st = Stage(bcs; nincs, nouts, tspan, toactivate, todeactivate)
-        # nincs=nincs, nouts=nouts, tol=tol, tspan=tspan, rspan=rspan, 
-        # scheme=scheme, toactivate=toactivate, todeactivate=todeactivate)
-    st.id = length(model.stages) + 1
-    push!(model.stages, st)
+    stage = Stage(bcs; nincs, nouts, tspan, toactivate, todeactivate)
+    stage.id = length(model.stages) + 1
+    push!(model.stages, stage)
 end
 
 
@@ -367,6 +321,7 @@ setmonitors! = addmonitors!
 
 # Functions for updating loggers
 
+
 function update_single_loggers!(model::Model; flush=true)
     for logger in model.loggers
         isa(logger, SingleLogger) && update_logger!(logger, model; flush)
@@ -379,6 +334,7 @@ function update_multiloggers!(model::Model)
         isa(logger, MultiLogger) && update_logger!(logger, model)
     end
 end
+
 
 function update_monitors!(model::Model; flush=true)
     for monitor in model.monitors
@@ -416,7 +372,6 @@ function FEModel(elems::Array{<:Element,1})
         node.coord.y != 0.0 && (ndim=2)
         node.coord.z != 0.0 && (ndim=3; break)
     end
-    model.ndim = ndim
     model.env.ndim = ndim
 
     # Setting elements
@@ -470,21 +425,17 @@ function FEModel(elems::Array{<:Element,1})
 end
 
 
-
 function update_output_data!(model::Model)
     # Updates data arrays in the model
     model.node_data = OrderedDict()
     model.elem_data = OrderedDict()
 
     # Ids and cell type
-    # =================
-
     model.node_data["node-id"] = collect(1:length(model.nodes))
     model.elem_data["elem-id"]  = collect(1:length(model.elems))
     model.elem_data["cell-type"] = [ Int(elem.shape.vtk_type) for elem in model.elems ]
 
     # Nodal values
-    # ============
     nnodes = length(model.nodes)
 
     # get node field symbols
@@ -524,10 +475,7 @@ function update_output_data!(model::Model)
     end
     append!(node_fields, fields_rec)
 
-
     # Nodal vector values
-    # ===================
-
     if :ux in node_fields
         if :uz in node_fields
             model.node_data["U"] = [ model.node_data["ux"] model.node_data["uy"] model.node_data["uz"] ]
@@ -548,10 +496,7 @@ function update_output_data!(model::Model)
         end
     end
 
-
     # Element values
-    # ==============
-
     nelems = length(model.elems)
     all_elem_vals   = [ elem_vals(elem) for elem in model.elems ]
     elem_fields_set = Set( key for elem in model.elems for key in keys(all_elem_vals[elem.id]) )
@@ -570,7 +515,6 @@ function update_output_data!(model::Model)
     end
 
 end
-
 
 
 function get_node_and_elem_vals(model::Model)
@@ -628,12 +572,14 @@ function get_node_and_elem_vals(model::Model)
 
 end
 
+
 function reg_terms(x::Float64, y::Float64, nterms::Int64)
     nterms==6 && return ( 1.0, x, y, x*y, x^2, y^2 )
     nterms==4 && return ( 1.0, x, y, x*y )
     nterms==3 && return ( 1.0, x, y )
     return (1.0,)
 end
+
 
 function reg_terms(x::Float64, y::Float64, z::Float64, nterms::Int64)
     nterms==10 && return ( 1.0, x, y, z, x*y, y*z, x*z, x^2, y^2, z^2 )

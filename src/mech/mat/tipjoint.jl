@@ -36,6 +36,7 @@ matching_elem_type(::TipJoint) = MechTipJointElem
 # Type of corresponding state structure
 ip_state_type(matparams::TipJoint) = TipJointState
 
+
 function calcD(matparams::TipJoint, state::TipJointState)
     if state.w>0.0
         return matparams.k
@@ -43,6 +44,7 @@ function calcD(matparams::TipJoint, state::TipJointState)
         return 0.0
     end
 end
+
 
 function update_state(matparams::TipJoint, state::TipJointState, Δw)
     fini = state.f
@@ -58,6 +60,7 @@ function update_state(matparams::TipJoint, state::TipJointState, Δw)
     state.w += Δw
     return Δf, success()
 end
+
 
 function ip_state_vals(matparams::TipJoint, state::TipJointState)
     return OrderedDict(

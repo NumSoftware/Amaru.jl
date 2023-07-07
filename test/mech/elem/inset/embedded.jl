@@ -12,7 +12,7 @@ msh = Mesh(bls)
 
 # FEM analysis
 mats = [
-        "solid" << LinearElastic(E=1.e4, nu=0.25),
+        "solid" << MechSolid() << LinearElastic(E=1.e4, nu=0.25),
         "embedded" << MechRod(A=0.005) << PPRod(E=1.e8, fy=500e3),
         #"embedded" << LinearElastic(E=1.e8, A=0.005),
        ]

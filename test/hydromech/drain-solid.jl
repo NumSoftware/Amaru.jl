@@ -21,7 +21,7 @@ Q  = 4        # volume em metro cubico
 # FEM analysis
 
 mats = [
-    "solids" << LinSeep(k=k, S=0.0),
+    "solids" << SeepSolid() << LinSeep(k=k, S=0.0),
     "joints" << SeepJoint1D(A=A) << Joint1DLinSeep(k=kj),
     "drains" << DrainPipe(A=A) << LinDrainPipe(k=kb),
 ]

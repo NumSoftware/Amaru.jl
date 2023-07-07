@@ -1,5 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
+
 function smooth!(
     mesh::Mesh; 
     quiet = false,
@@ -194,6 +195,7 @@ function matrixB(ndim::Int, dNdX::Matx, detJ::Float64, B::Matx)
 
     return detJ
 end
+
 
 function matrixK(cell::Cell, ndim::Int64, E::Float64, nu::Float64)
     nnodes = length(cell.nodes)
@@ -447,7 +449,6 @@ function mountA(mesh::Mesh, fixed::Bool, conds, facetol)
 
     return A
 end
-
 
 
 function rigid_transform(source::Array{Float64,2}, target::Array{Float64,2}, pindexes::Array{Int64,1}=Int[])
@@ -1054,7 +1055,6 @@ function fast_smooth!(mesh::Mesh; quiet=true, alpha::Float64=1.0, target::Float6
 
     return mesh
 end
-
 
 
 function fitting_smooth!(mesh::Mesh; quiet=true, alpha::Float64=1.0, target::Float64=0.97,

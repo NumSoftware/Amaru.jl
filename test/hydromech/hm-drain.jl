@@ -20,7 +20,7 @@ Q  = 1       # volume em metro cubico
 # FEM analysis
 
 mats = [
-    "solids" << LinearElasticSeep(E=E, nu=nu, k=k, alpha=1.0, S=0.0),
+    "solids" << HydromechSolid() << LinearElasticSeep(E=E, nu=nu, k=k, alpha=1.0, S=0.0),
     "joints" << SeepJoint1D(A=A) << Joint1DLinSeep(k=kj),
     "drains" << DrainPipe(A=A) << LinDrainPipe(k=kb),
 ]

@@ -1,12 +1,12 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export MechSolid
+export HydromechSolid
 
-struct HMSolidProps<:ElemProperties
+struct HydromechSolidProps<:ElemProperties
     ρ::Float64
     γ::Float64
 
-    function HMSolidProps(;rho=0.0, gamma=0.0)
+    function HydromechSolidProps(;rho=0.0, gamma=0.0)
         @check rho>=0
         @check gamma>=0
 
@@ -14,9 +14,9 @@ struct HMSolidProps<:ElemProperties
     end    
 end
 
-HMSolid = HMSolidProps
+HydromechSolid = HydromechSolidProps
 
-mutable struct HMSolidElem<:HydromechElem
+mutable struct HydromechSolidElem<:HydromechElem
     id    ::Int
     shape ::CellShape
 
@@ -24,24 +24,24 @@ mutable struct HMSolidElem<:HydromechElem
     ips   ::Array{Ip,1}
     tag   ::String
     matparams::MatParams
-    props ::HMSolidProps
+    props ::HydromechSolidProps
     active::Bool
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function HMSolidElem(props=HMSolidProps())
+    function HydromechSolidElem(props=HydromechSolidProps())
         this = new()
         this.props = props
         return this
     end
 end
 
-matching_shape_family(::Type{HMSolidElem}) = BULKCELL
-matching_elem_type(::Type{HMSolidProps}) = HMSolidElem
-matching_props_type(::Type{HMSolidElem}) = HMSolidProps
+matching_shape_family(::Type{HydromechSolidElem}) = BULKCELL
+matching_elem_type(::Type{HydromechSolidProps}) = HydromechSolidElem
+matching_props_type(::Type{HydromechSolidElem}) = HydromechSolidProps
 
 
-function elem_config_dofs(elem::HMSolidElem)
+function elem_config_dofs(elem::HydromechSolidElem)
     nbnodes = elem.shape.basic_shape.npoints
     for (i, node) in enumerate(elem.nodes)
             add_dof(node, :ux, :fx)
@@ -53,11 +53,12 @@ function elem_config_dofs(elem::HMSolidElem)
     end
 end
 
-function elem_init(::HMSolidElem)
+
+function elem_init(::HydromechSolidElem)
 end
 
 
-function distributed_bc(elem::HMSolidElem, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::HydromechSolidElem, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     th    = elem.env.anaprops.thickness
     suitable_keys = (:tx, :ty, :tz, :tn, :tq)
@@ -160,12 +161,12 @@ function distributed_bc(elem::HMSolidElem, facet::Union{Facet,Nothing}, key::Sym
 end
 
 
-@inline function setBu(elem::HMSolidElem, ip::Ip, dNdX::Matx, B::Matx)
+@inline function setBu(elem::HydromechSolidElem, ip::Ip, dNdX::Matx, B::Matx)
     setB(elem, ip, dNdX, B) # using function setB from mechanical analysis
 end
 
 
-function elem_stiffness(elem::HMSolidElem)
+function elem_stiffness(elem::HydromechSolidElem)
     ndim   = elem.env.ndim
     th     = elem.env.anaprops.thickness
     nnodes = length(elem.nodes)
@@ -204,7 +205,7 @@ end
 
 
 # matrix C
-function elem_coupling_matrix(elem::HMSolidElem)
+function elem_coupling_matrix(elem::HydromechSolidElem)
     ndim   = elem.env.ndim
     th     = elem.env.anaprops.thickness
     nnodes = length(elem.nodes)
@@ -244,7 +245,7 @@ function elem_coupling_matrix(elem::HMSolidElem)
 end
 
 
-function elem_conductivity_matrix(elem::HMSolidElem)
+function elem_conductivity_matrix(elem::HydromechSolidElem)
     ndim   = elem.env.ndim
     th     = elem.env.anaprops.thickness
     nnodes = length(elem.nodes)
@@ -281,7 +282,8 @@ function elem_conductivity_matrix(elem::HMSolidElem)
     return H, map, map
 end
 
-function elem_compressibility_matrix(elem::HMSolidElem)
+
+function elem_compressibility_matrix(elem::HydromechSolidElem)
     ndim   = elem.env.ndim
     th     = elem.env.anaprops.thickness
     nnodes = length(elem.nodes)
@@ -312,7 +314,8 @@ function elem_compressibility_matrix(elem::HMSolidElem)
     return Cpp, map, map
 end
 
-function elem_RHS_vector(elem::HMSolidElem)
+
+function elem_RHS_vector(elem::HydromechSolidElem)
     ndim   = elem.env.ndim
     th     = elem.env.anaprops.thickness
     nnodes = length(elem.nodes)
@@ -351,7 +354,8 @@ function elem_RHS_vector(elem::HMSolidElem)
     return Q, map
 end
 
-function elem_internal_forces(elem::HMSolidElem, F::Array{Float64,1})
+
+function elem_internal_forces(elem::HydromechSolidElem, F::Array{Float64,1})
     ndim   = elem.env.ndim
     th     = elem.env.anaprops.thickness
     nnodes = length(elem.nodes)
@@ -417,7 +421,7 @@ function elem_internal_forces(elem::HMSolidElem, F::Array{Float64,1})
 end
 
 
-function update_elem!(elem::HMSolidElem, DU::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::HydromechSolidElem, DU::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     th     = elem.env.anaprops.thickness
     nnodes = length(elem.nodes)

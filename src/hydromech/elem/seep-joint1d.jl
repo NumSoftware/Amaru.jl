@@ -56,9 +56,11 @@ matching_shape_family(::Type{SeepJoint1DElem}) = LINEJOINTCELL
 matching_elem_type(::Type{SeepJoint1DProps}) = SeepJoint1DElem
 matching_props_type(::Type{SeepJoint1DElem}) = SeepJoint1DProps
 
+
 function elem_config_dofs(elem::SeepJoint1DElem)
     # No need to add dofs since they will be added by linked elements
 end
+
 
 function elem_init(elem::SeepJoint1DElem)
     # Only pore-pressure dofs
@@ -78,6 +80,7 @@ function elem_init(elem::SeepJoint1DElem)
 
     return nothing
 end
+
 
 function mountB(elem::SeepJoint1DElem, R, Ch, Ct)
     hook = elem.linked_elems[1]
@@ -114,6 +117,7 @@ function mountB(elem::SeepJoint1DElem, R, Ch, Ct)
     return B, detJ
 end
 
+
 function elem_conductivity_matrix(elem::SeepJoint1DElem)
     p    = elem.props.p
     map_w = [ dof.eq_id for dof in elem.uw_dofs ]
@@ -131,6 +135,7 @@ function elem_conductivity_matrix(elem::SeepJoint1DElem)
 
     return H, map_w, map_w, elem.nodes
 end
+
 
 function elem_internal_forces(elem::SeepJoint1DElem, F::Array{Float64,1})
     p    = elem.props.p
@@ -151,6 +156,7 @@ function elem_internal_forces(elem::SeepJoint1DElem, F::Array{Float64,1})
 
     F[map_w] += dFw
 end
+
 
 function update_elem!(elem::SeepJoint1DElem, DU::Array{Float64,1}, Δt::Float64)
     p    = elem.props.p
@@ -179,6 +185,7 @@ function update_elem!(elem::SeepJoint1DElem, DU::Array{Float64,1}, Δt::Float64)
 
     return dFw, map_w, success()
 end
+
 
 function elem_extrapolated_node_vals(elem::SeepJoint1DElem)
     all_ip_vals = [ ip_state_vals(elem.matparams, ip.state) for ip in elem.ips ]

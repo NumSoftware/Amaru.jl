@@ -13,11 +13,13 @@ mutable struct Symbolic
     end
 end
 
+
 function getexpr(a::Symbolic)
     return a.expr.args[1]==:identity ? a.expr.args[2] : a.expr
 end
 
 getexpr(a) = a
+
 
 function Base.show(io::IO, ex::Symbolic)
     expr = getexpr(ex)
@@ -45,6 +47,7 @@ for fun in (:and, :or)
         export $fun
     end
 end
+
 
 function Base.convert(::Type{Expr}, ex::Symbolic)
     return ex.expr
@@ -90,6 +93,7 @@ const op_dict = Dict{Symbol,Function}(
 export eval_arith_expr
 
 reduce_arith_expr!(arg; vars...) = arg
+
 
 function reduce_arith_expr!(arg::Symbol; vars...)
     # should not be called on operators
@@ -157,9 +161,11 @@ function getvars(sym::Symbol)
     return [ sym ]
 end
 
+
 function getvars(::Any)
     return []
 end
+
 
 function getvars(expr::Expr)
     symbols = Symbol[]
@@ -169,6 +175,7 @@ function getvars(expr::Expr)
     end
     return symbols
 end
+
 
 function Base.replace(expr::Expr, pair::Pair)
     src    = pair.first

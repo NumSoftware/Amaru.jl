@@ -53,6 +53,7 @@ matching_elem_type(::JointLinSeep) = HydroJointElem
 # Type of corresponding state structure
 ip_state_type(matparams::JointLinSeep) = JointLinSeepState
 
+
 function update_state!(matparams::JointLinSeep, state::JointLinSeepState, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
     state.uw +=  Δuw
     state.V   = -matparams.kt*G
@@ -62,6 +63,7 @@ function update_state!(matparams::JointLinSeep, state::JointLinSeepState, Δuw::
 
     return state.V, state.L
 end
+
 
 function ip_state_vals(matparams::JointLinSeep, state::JointLinSeepState)
     return OrderedDict(

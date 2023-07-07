@@ -108,6 +108,7 @@ function mod_solve!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, outd
 
 end
 
+
 function modsolvex!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, save=true, quiet=false)
 
     quiet || printstyled("FEM modal analysis:\n", bold=true, color=:cyan)

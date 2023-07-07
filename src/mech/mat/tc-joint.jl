@@ -83,6 +83,7 @@ mutable struct TCJoint<:AbstractTCJoint
     end
 end
 
+
 function paramsdict(matparams::AbstractTCJoint)
     matparams = OrderedDict( string(field)=> getfield(matparams, field) for field in fieldnames(typeof(matparams)) )
 
@@ -277,6 +278,7 @@ function calc_kn_ks(matparams::AbstractTCJoint, state::AbstractTCJointState)
 
     return kn, ks
 end
+
 
 function consistentD(matparams::AbstractTCJoint, state::AbstractTCJointState)
     # numerical approximation
@@ -609,6 +611,7 @@ function ip_state_vals(matparams::AbstractTCJoint, state::AbstractTCJointState)
           )
     end
 end
+
 
 function output_keys(matparams::AbstractTCJoint)
     return Symbol[:jw1, :js1, :jup]

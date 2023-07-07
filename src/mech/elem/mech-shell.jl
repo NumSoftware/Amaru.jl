@@ -75,6 +75,7 @@ function elem_init(elem::MechShellElem)
     return nothing
 end
 
+
 function setquadrature!(elem::MechShellElem, n::Int=0)
     # Set integration points
     if n in (8, 18)
@@ -114,6 +115,7 @@ function distributed_bc(elem::MechShellElem, facet::Cell, key::Symbol, val::Unio
     return mech_shell_boundary_forces(elem, facet, key, val)
 end
 
+
 function body_c(elem::MechShellElem, key::Symbol, val::Union{Real,Symbol,Expr})
     return mech_shell_body_forces(elem, key, val)
 end
@@ -131,6 +133,7 @@ function elem_config_dofs(elem::MechShellElem)
         add_dof(node, :rz, :mz)
     end
 end
+
 
 function elem_map(elem::MechShellElem)
     keys =(:ux, :uy, :uz, :rx, :ry, :rz)
@@ -185,6 +188,7 @@ function setB(elem::MechShellElem, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::M
     end 
 end
 
+
 function setNN(elem::MechShellElem, ip::Ip, N::Vect, NNil::Matx, NNi::Matx, L::Matx, Rrot::Matx, NN::Matx)
     nnodes = length(N)
     ndof = 6
@@ -238,6 +242,7 @@ function setNN(elem::MechShellElem, ip::Ip, N::Vect, NNil::Matx, NNi::Matx, L::M
     #error()
 end
 
+
 function elem_stiffness(elem::MechShellElem)
     nnodes = length(elem.nodes)
     th     = elem.props.th
@@ -285,6 +290,7 @@ function elem_stiffness(elem::MechShellElem)
     return K, map, map
 end
 
+
 function elem_mass(elem::MechShellElem)
         nnodes = length(elem.nodes)
         th     = elem.props.th
@@ -320,6 +326,7 @@ function elem_mass(elem::MechShellElem)
         map = elem_map(elem)
         return M, map, map
 end
+
 
 function update_elem!(elem::MechShellElem, U::Array{Float64,1}, dt::Float64)
     ndim   = elem.env.ndim

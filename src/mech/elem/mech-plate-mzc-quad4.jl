@@ -20,6 +20,7 @@ end
 
 matching_shape_family(::Type{PlateMZCElem}) = BULKCELL
 
+
 function D_matrix(elem::PlateMZCElem)
 
     coef = elem.matparams.E*elem.matparams.thick^3/(12*(1-elem.matparams.nu^2));
@@ -29,6 +30,7 @@ function D_matrix(elem::PlateMZCElem)
                   0  0 (1-elem.matparams.nu)/2];
     return D_mat
 end
+
 
 function elem_config_dofs(elem::PlateMZCElem)
     ndim = elem.env.ndim
@@ -54,6 +56,7 @@ function elem_config_dofs(elem::PlateMZCElem)
         =#
     end
 end
+
 
 function elem_map(elem::PlateMZCElem)::Array{Int,1}
 

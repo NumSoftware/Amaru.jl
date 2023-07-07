@@ -19,11 +19,13 @@ end
 
 matching_shape_family(::Type{AcousticFluid}) = BULKCELL
 
+
 function elem_config_dofs(elem::AcousticFluid)
     for node in elem.nodes
         add_dof(node, :up, :fq) # up: pressure; fq: mass acceleration (e.g. kg/s2)
     end
 end
+
 
 function elem_init(elem::AcousticFluid)
     
@@ -123,6 +125,7 @@ function elem_acoustic_stiffness(elem::AcousticFluid)
 
     return K, map, map
 end
+
 
 function elem_acoustic_mass(elem::AcousticFluid)
     ndim   = elem.env.ndim

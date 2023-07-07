@@ -488,7 +488,6 @@ function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
 end
 
 
-
 function dynsolvex!(
                    model       :: Model,
                    bcs       :: Array;

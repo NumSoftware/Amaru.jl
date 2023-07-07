@@ -178,6 +178,7 @@ function calc_nu(matparams::SmearedCrack, state::SmearedCrackState)
     return matparams.ν*z
 end
 
+
 function calc_kn_ks(matparams::SmearedCrack, state::SmearedCrackState)
     #kn = matparams.E/state.h
     ν = matparams.ν
@@ -240,6 +241,7 @@ function calc_Δλ(matparams::SmearedCrack, state::SmearedCrackState, ςtr::Arra
     return Δλ, ς, up, success()
 end
 
+
 function calcDe(matparams::SmearedCrack, state::SmearedCrackState)
     E = matparams.E
     ν = matparams.ν
@@ -249,6 +251,7 @@ function calcDe(matparams::SmearedCrack, state::SmearedCrackState)
 
     return De
 end
+
 
 function calcD(matparams::SmearedCrack, state::SmearedCrackState)
     h = state.h
@@ -404,6 +407,7 @@ function update_state(matparams::SmearedCrack, state::SmearedCrackState, Δε::A
 
     return Δσ, success()
 end
+
 
 function ip_state_vals(matparams::SmearedCrack, state::SmearedCrackState)
     ndim  = state.env.ndim

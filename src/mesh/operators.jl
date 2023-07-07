@@ -415,6 +415,7 @@ function move!(mesh::Mesh; dx=0.0, dy=0.0, dz=0.0)
     return mesh
 end
 
+
 function scale!(msh::Mesh; factor=1.0, base=[0.0,0,0])
     for p in msh.nodes
         p.coord.x, p.coord.y, p.coord.z = base + ([p.coord.x, p.coord.y, p.coord.z] - base)*factor

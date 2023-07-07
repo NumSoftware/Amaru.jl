@@ -22,19 +22,23 @@ function Base.convert(::Type{Array{Float64,1}}, V::Quaternion)
     return [ V.w, V.x, V.y, V.z]
 end
 
+
 function Base.convert(::Type{Quaternion}, A::Array{Float64,1})
     n = length(A)
     @assert n==4
     return Quaternion(A[1], A[2], A[3], A[4])
 end
 
+
 function Base.length(Q::Quaternion)
     return 4
 end
 
+
 function Base.size(Q::Quaternion)
     return (4,)
 end
+
 
 function Base.getindex(Q::Quaternion, i::Int)
     if i==1
@@ -50,6 +54,7 @@ function Base.getindex(Q::Quaternion, i::Int)
     end
 end
 
+
 function Base.setindex!(Q::Quaternion, val, i::Int)
     if i==1
         return Q.w = val
@@ -64,9 +69,11 @@ function Base.setindex!(Q::Quaternion, val, i::Int)
     end
 end
 
+
 function Base.conj(Q::Quaternion)
     return Quaternion(Q.w, -Q.x, -Q.y, -Q.z)
 end
+
 
 function Base.:*(Q1::Quaternion, Q2::Quaternion)
     a1, b1, c1, d1 = Q1.w, Q1.x, Q1.y, Q1.z
@@ -79,6 +86,7 @@ function Base.:*(Q1::Quaternion, Q2::Quaternion)
                       a1*d2 + b1*c2 - c1*b2 + d1*a2
                      )
 end
+
 
 function Base.:*(Q::Quaternion, V::Vec3)
     a1, b1, c1, d1 = Q.w, Q.x, Q.y, Q.z

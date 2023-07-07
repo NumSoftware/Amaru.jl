@@ -1,6 +1,6 @@
 
 # Conventional (two-layered) joint shapes: JLIN2, JLIN3, JLIN4, JTRI3, JQUAD4, JTRI6, JQUAD8
-# ==========================================================================================
+
 
 for shape in [ :LIN2, :LIN3, :LIN4, :TRI3, :QUAD4, :TRI6, :QUAD8 ]
     # construction is based on modification of basic shapes
@@ -29,7 +29,7 @@ JTRI3.quadrature[0] = TRI_IP3
 
 
 # Three-layered joint shapes: J3LIN2, J3LIN3, J3LIN4, J3TRI3, J3QUAD4, J3TRI6, J3QUAD8
-# ====================================================================================
+
 
 for shape in [ :LIN2, :LIN3, :LIN4, :TRI3, :QUAD4, :TRI6, :QUAD8 ]
     # construction is based on modification of basic shapes
@@ -59,7 +59,7 @@ J3TRI3.quadrature[0] = TRI_IP3
 
 
 # JLINK2 shape
-# ===========
+
 
 # constructor
 function MakeJLINK2()
@@ -87,7 +87,7 @@ export JLINK2
 
 
 # JLINK3 shape
-# ===========
+
 
 # constructor
 function MakeJLINK3()
@@ -115,10 +115,12 @@ export JLINK3
 
 
 # TIPJOINT shape
-# ==============
+
+
 function shape_func_TIPJOINT(R::AbstractArray{<:Float64,1})
     return [ 1.0 ]
 end
+
 
 function shape_deriv_TIPJOINT(R::AbstractArray{<:Float64,1})
     return [ 0.0 ]

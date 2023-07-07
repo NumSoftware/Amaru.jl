@@ -6,7 +6,7 @@ mutable struct AmaruException <: Exception
     message::String
 end
 
-Base.showerror(io::IO, e::AmaruException) = print(io, "AmaruException: ", e.message)
+Base.showerror(io::IO, e::AmaruException) = printstyled(io, "AmaruException: ", e.message, "\n", color=:red)
 
 mutable struct PropertyException <: Exception
     message::String

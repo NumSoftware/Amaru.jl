@@ -172,6 +172,7 @@ function update_state(matparams::Mazars, state::MazarsState, Δε::Array{Float64
     return Δσ, success()
 end
 
+
 function ip_state_vals(matparams::Mazars, state::MazarsState)
     ndim  = state.env.ndim
     σ, ε  = state.σ, state.ε

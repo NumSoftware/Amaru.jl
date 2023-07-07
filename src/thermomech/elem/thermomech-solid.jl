@@ -283,6 +283,7 @@ function elem_conductivity_matrix(elem::TMSolidElem)
     return H, map, map
 end
 
+
 function elem_mass_matrix(elem::TMSolidElem)
     ndim   = elem.env.ndim
     th     = elem.env.anaprops.thickness
@@ -332,7 +333,7 @@ function elem_internal_forces(elem::TMSolidElem, F::Array{Float64,1}, DU::Array{
     dFt = zeros(nbnodes)
     Bt  = zeros(ndim, nbnodes)
 
-    m = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ] # = tI
+    m = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  tI
 
     J  = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, nnodes, ndim)

@@ -57,10 +57,11 @@ mutable struct ElasticJointSeep<:MatParams
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::ElasticJointSeep) = HMJointElem
+matching_elem_type(::ElasticJointSeep) = HydromechJointElem
 
 # Type of corresponding state structure
-ip_state_type(::HMJointElem, ::ElasticJointSeep) = JointSeepState
+ip_state_type(::HydromechJointElem, ::ElasticJointSeep) = JointSeepState
+
 
 function mountD(matparams::ElasticJointSeep, state::JointSeepState)
     ndim = state.env.ndim
@@ -76,6 +77,7 @@ function mountD(matparams::ElasticJointSeep, state::JointSeepState)
                   0.0  0.0   ks ]
     end
 end
+
 
 function update_state(matparams::ElasticJointSeep, state::JointSeepState, Δu::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
     ndim = state.env.ndim
@@ -105,6 +107,7 @@ function update_state(matparams::ElasticJointSeep, state::JointSeepState, Δu::A
 
     return Δσ, state.Vt, state.L, success()
 end
+
 
 function ip_state_vals(matparams::ElasticJointSeep, state::JointSeepState)
     ndim = state.env.ndim

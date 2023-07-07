@@ -24,6 +24,7 @@ function get_bin_cells(cellpartition::ElemPartition, p::Node) # returns an array
     return cellpartition.partition[ix, iy, iz]
 end
 
+
 function add_cell(cellpartition::ElemPartition, cell::AbstractCell) # TODO: untested function
     minx, miny, minz = cellpartition.bbox[1,:]
     lbin = cellpartition.lbin

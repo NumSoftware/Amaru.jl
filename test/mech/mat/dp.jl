@@ -9,7 +9,7 @@ msh= Mesh(bls)
 
 # fem domain
 mats = [
-       "solids" << DruckerPrager(E=100., nu=0.25, alpha=0.05, kappa=0.1)
+       "solids" << MechSolid() << DruckerPrager(E=100., nu=0.25, alpha=0.05, kappa=0.1)
       ]
 
 ana = MechAnalysis()

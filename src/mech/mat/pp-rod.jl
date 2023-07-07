@@ -80,6 +80,7 @@ function yield_func(matparams::PPRod, state::PPRodState, σ::Float64)
     return abs(σ) - σya
 end
 
+
 function calcD(matparams::PPRod, state::PPRodState)
     if state.Δγ == 0.0
         return matparams.E
@@ -88,6 +89,7 @@ function calcD(matparams::PPRod, state::PPRodState)
         return E*H/(E+H)
     end
 end
+
 
 function update_state(matparams::PPRod, state::PPRodState, Δε::Float64)
     E, H    = matparams.E, matparams.H
@@ -102,6 +104,7 @@ function update_state(matparams::PPRod, state::PPRodState, Δε::Float64)
     state.ε  += Δε
     return Δσ, ReturnStatus(true)
 end
+
 
 function ip_state_vals(matparams::PPRod, state::PPRodState)
     return OrderedDict{Symbol,Float64}(

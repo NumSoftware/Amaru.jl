@@ -45,6 +45,7 @@ matching_elem_type(::LinThermoShell) = ThermoShellElem
 # Type of corresponding state structure
 ip_state_type(matparams::LinThermoShell) = LinThermoShellState
 
+
 function calcK(matparams::LinThermoShell, state::LinThermoShellState) # Thermal conductivity matrix
     if state.env.ndim==2
         return matparams.k*eye(2)
@@ -52,6 +53,7 @@ function calcK(matparams::LinThermoShell, state::LinThermoShellState) # Thermal 
         return matparams.k*eye(3)
     end
 end
+
 
 function update_state!(matparams::LinThermoShell, state::LinThermoShellState, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
     K = calcK(matparams, state)

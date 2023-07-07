@@ -213,7 +213,6 @@ function findroot(f::Function, a, b, tol)
 end
 
 
-
 function brent(f::Function, a, b, tol; maxits::Int=50)
     ftol = 2*eps()
     fa = f(a)
@@ -278,7 +277,6 @@ function brent(f::Function, a, b, tol; maxits::Int=50)
     end
     error("Max iteration exceeded")
 end
-
 
 
 function spline_coefficients(X,Y)
@@ -404,6 +402,7 @@ end
     
 #     return a + b*t + c*t^2 + d*t^3
 # end
+
 
 function deriv(spline::Spline, x::Real)
     X = spline.X

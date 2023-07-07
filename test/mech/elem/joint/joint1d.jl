@@ -13,7 +13,7 @@ mesh = Mesh(bls)
 # FEM analysis
 
 mats = [
-    "solids" << LinearElastic(E=1.e4, nu=0.),
+    "solids" << MechSolid() << LinearElastic(E=1.e4, nu=0.),
     "joints" << MechRSJoint(A=0.005) << ElasticRSJoint(ks=1.e5, kn=1.e5),
     "bars"   << MechRod(A=0.005) << LinearElastic(E=1.e8),
 ]

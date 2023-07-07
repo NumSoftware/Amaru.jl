@@ -21,6 +21,7 @@ end
 
 matching_shape_family(::Type{PlateRMElem}) = BULKCELL
 
+
 function D_matrix(elem::PlateRMElem)
 
     coef = elem.matparams.E/(1-elem.matparams.nu^2);
@@ -59,6 +60,7 @@ function elem_config_dofs(elem::PlateRMElem)
     end
 end
 
+
 function elem_map(elem::PlateRMElem)::Array{Int,1}
 
     #if elem.env.ndim==2
@@ -72,6 +74,7 @@ function elem_map(elem::PlateRMElem)::Array{Int,1}
     vcat([ [node.dofdict[key].eq_id for key in dof_keys] for node in elem.nodes]...)
 
 end
+
 
 function elem_stiffness(elem::PlateRMElem)
 

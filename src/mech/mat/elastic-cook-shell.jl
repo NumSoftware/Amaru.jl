@@ -58,6 +58,7 @@ function calcD(matparams::ElasticCookShell, state::ElasticCookShellState)
     # ezz = -ν/E*(sxx+syy)
 end
 
+
 function update_state(matparams::ElasticCookShell, state::ElasticCookShellState, dε::Array{Float64,1})
     D = calcD(matparams, state)
     dσ = D*dε
@@ -65,6 +66,7 @@ function update_state(matparams::ElasticCookShell, state::ElasticCookShellState,
     state.σ += dσ
     return dσ, success()
 end
+
 
 function ip_state_vals(matparams::ElasticCookShell, state::ElasticCookShellState)
     return stress_strain_dict(state.σ, state.ε, state.env.anaprops.stressmodel)

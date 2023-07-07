@@ -34,11 +34,13 @@ matching_shape_family(::Type{SeepSolidElem}) = BULKCELL
 matching_elem_type(::Type{SeepSolidProps}) = SeepSolidElem
 matching_props_type(::Type{SeepSolidElem}) = SeepSolidProps
 
+
 function elem_config_dofs(elem::SeepSolidElem)
     for node in elem.nodes
         add_dof(node, :uw, :fw)
     end
 end
+
 
 function elem_init(::SeepSolidElem)
 end
@@ -133,6 +135,7 @@ function elem_conductivity_matrix(elem::SeepSolidElem)
     return H, map, map
 end
 
+
 function elem_compressibility_matrix(elem::SeepSolidElem)
     ndim   = elem.env.ndim
     th     = elem.env.anaprops.thickness
@@ -162,6 +165,7 @@ function elem_compressibility_matrix(elem::SeepSolidElem)
 
     return Cpp, map, map
 end
+
 
 function elem_RHS_vector(elem::SeepSolidElem)
     ndim   = elem.env.ndim
@@ -198,6 +202,7 @@ function elem_RHS_vector(elem::SeepSolidElem)
 
     return Q, map
 end
+
 
 function elem_internal_forces(elem::SeepSolidElem, F::Array{Float64,1})
     ndim   = elem.env.ndim
@@ -237,6 +242,7 @@ function elem_internal_forces(elem::SeepSolidElem, F::Array{Float64,1})
 
     F[map_w] += dFw
 end
+
 
 function update_elem!(elem::SeepSolidElem, DU::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim

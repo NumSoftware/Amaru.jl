@@ -1,14 +1,14 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 # Log structs and functions
-# =========================
+
 
 abstract type AbstractMonitor end
 @inline Base.:(<<)(a, b::AbstractMonitor) = return (a, b)
 @inline Base.:(=>)(a, b::AbstractMonitor) = return (a, b)
 
 # Ip Monitor
-# ==========
+
 """
     $(TYPEDEF)
 
@@ -88,7 +88,7 @@ function update_monitor!(monitor::IpMonitor, model; flush=true)
 end
 
 # Node Monitor
-# ============
+
 """
     $(TYPEDEF)
 
@@ -193,7 +193,7 @@ end
 
 
 # Monitor for a group of ips
-# ==========================
+
 
 mutable struct IpGroupMonitor<:AbstractMonitor
     expr    ::Expr
@@ -258,7 +258,7 @@ end
 
 
 # Logger for the sum of nodes
-# ===========================
+
 
 """
     $(TYPEDEF)

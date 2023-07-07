@@ -20,11 +20,13 @@ end
 
 matching_shape_family(::Type{ThermoShellElem}) = BULKCELL
 
+
 function elem_config_dofs(elem::ThermoShellElem)
     for node in elem.nodes
         add_dof(node, :ut, :ft)
     end
 end
+
 
 function elem_init(elem::ThermoShellElem)
     nothing
@@ -139,6 +141,7 @@ function elem_conductivity_matrix(elem::ThermoShellElem)
     return H, map, map
 end
 
+
 function elem_mass_matrix(elem::ThermoShellElem)
     ndim   = elem.env.ndim
     th     = elem.matparams.thickness
@@ -191,7 +194,7 @@ function elem_internal_forces(elem::ThermoShellElem, F::Array{Float64,1})
     Bu  = zeros(6, nnodes*ndim)
     dFt = zeros(nbnodes)
     Bt  = zeros(ndim, nbnodes)
-    m = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ] # = tI
+    m = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  tI
     J  = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, nnodes, ndim)
     Jp  = Array{Float64}(undef, ndim, nbnodes)

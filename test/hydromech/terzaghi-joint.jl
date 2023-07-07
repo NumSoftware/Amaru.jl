@@ -2,7 +2,7 @@ using Amaru
 
 
 # Mesh generation
-# ===============
+
 
 blocks = [
     Block( [0 0; 1 10], nx=1, ny=10, cellshape=QUAD4, tag="solids"),
@@ -13,7 +13,7 @@ generate_joints!(msh, layers=3, tag="joints")
 
 
 # Finite element analysis
-# =======================
+
 
 # Analysis data
 load   = 10.0
@@ -39,9 +39,9 @@ S = (alpha - n)/Ks + n/Kw
 
 for i in 1:2
     materials = [
-        "solids" << LinearElasticSeep(E=E, nu=nu, k=k, alpha=alpha, S=S),
-        "joints" << ElasticJointSeep(E=E, nu=nu, zeta=100, eta=eta, kt=1),
-        "joints" << MCJointSeep(E=E, nu=nu, ft=2.4e3, mu=1.4, zeta=100, wc=1.7e-4, ws=1.85e-5, softcurve="hordijk", eta=eta, kt=1),
+        "solids" << HydromechSolid() << LinearElasticSeep(E=E, nu=nu, k=k, alpha=alpha, S=S),
+        "joints" << HydromechJoint() << ElasticJointSeep(E=E, nu=nu, zeta=100, eta=eta, kt=1),
+        "joints" << HydromechJoint() << MCJointSeep(E=E, nu=nu, ft=2.4e3, mu=1.4, zeta=100, wc=1.7e-4, ws=1.85e-5, softcurve="hordijk", eta=eta, kt=1),
     ]
 
     if i==1
@@ -61,7 +61,7 @@ for i in 1:2
 
 
     # Stage 1: hydrostatic pore-pressure
-    # ==================================
+    
 
     tlong = 10000*hd^2/cv
     bcs = [

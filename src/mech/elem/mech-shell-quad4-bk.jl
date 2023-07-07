@@ -46,6 +46,7 @@ end
 
 # the strain-displacement matrix for shear forces
 
+
 function Ds_maxtrix(elem::ShellQUAD4)
 
     coef = elem.matparams.t*(5/6)*elem.matparams.E/(2*(1+elem.matparams.nu))
@@ -87,6 +88,7 @@ function RotMatrix(elem::ShellQUAD4, J::Matrix{Float64})
              
 end
 
+
 function elem_config_dofs(elem::ShellQUAD4)
     ndim = elem.env.ndim
     ndim == 1 && error("ShellQUAD4: Shell elements do not work in 1d analyses")
@@ -113,6 +115,7 @@ function elem_config_dofs(elem::ShellQUAD4)
     #end
 end
 
+
 function elem_map(elem::ShellQUAD4)::Array{Int,1}
 
     #if elem.env.ndim==2
@@ -126,6 +129,7 @@ function elem_map(elem::ShellQUAD4)::Array{Int,1}
     vcat([ [node.dofdict[key].eq_id for key in dof_keys] for node in elem.nodes]...)
 
 end
+
 
 function setBb(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bb::Matx)
     nnodes = length(elem.nodes)
@@ -146,6 +150,7 @@ function setBb(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bb::Matx)
     end
 end
 
+
 function setBm(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bm::Matx)
     nnodes = length(elem.nodes)
     # ndim, nnodes = size(dNdX)
@@ -164,6 +169,7 @@ function setBm(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bm::Matx)
 
     end
 end
+
 
 function setBs_bar(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bs_bar::Matx)
     nnodes = length(elem.nodes)
@@ -197,6 +203,7 @@ function setBs_bar(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bs_bar::Matx)
           Bs_bar[2*i-1:2*i,:] = bs[1:2,:]
     end
 end
+
 
 function elem_stiffness(elem::ShellQUAD4)
 
@@ -302,6 +309,7 @@ function elem_stiffness(elem::ShellQUAD4)
         map = elem_map(elem) 
     return Kelem, map, map
 end
+
 
 function update_elem!(elem::ShellQUAD4, U::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)

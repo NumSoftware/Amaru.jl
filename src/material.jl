@@ -3,7 +3,7 @@
 import Base.copy!
 
 # Abstract type for material
-# ==========================
+
 
 """
 `MatParams`
@@ -46,9 +46,11 @@ function output_keys(matparams::MatParams)
     return Symbol[]
 end
 
+
 function paramsdict(matparams::MatParams)
     return OrderedDict( string(field)=> getfield(matparams, field) for field in fieldnames(typeof(matparams)) )
 end
+
 
 function databook(mats::Array{<:Pair,1})
     db = DataBook()

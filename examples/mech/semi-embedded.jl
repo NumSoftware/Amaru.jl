@@ -2,7 +2,7 @@ using Amaru
 using Test
 
 # Mesh generation
-# ===============
+
 
 bl  = Block( [0 0 0; 1.0 6.0 1.0], nx=1, ny=10, nz=3, tag="solids")
 bl1 = BlockInset( [0.2 0.2 0.2; 0.2 5.8 0.2], curvetype="polyline", tag="bars", jointtag="joint")
@@ -13,7 +13,7 @@ bls = [ bl, bl1, bl2 ]
 msh = Mesh(bls)
 
 # FEM analysis
-# ============
+
 
 mats = [
         "solids" => LinearElastic(E=1.e4, nu=0.25),

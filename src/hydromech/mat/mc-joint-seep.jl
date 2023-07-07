@@ -91,10 +91,10 @@ mutable struct MCJointSeep<:MatParams
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::MCJointSeep) = HMJointElem
+matching_elem_type(::MCJointSeep) = HydromechJointElem
 
 # Type of corresponding state structure
-ip_state_type(::HMJointElem, ::MCJointSeep) = MCJointSeepState
+ip_state_type(::HydromechJointElem, ::MCJointSeep) = MCJointSeepState
 
 
 function yield_func(matparams::MCJointSeep, state::MCJointSeepState, σ::Array{Float64,1})

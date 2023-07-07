@@ -34,6 +34,7 @@ matching_elem_type(::ElasticPlateRM8node) = PlateRM8nodeElem
 # Type of corresponding state structure
 ip_state_type(matparams::ElasticPlateRM8node) = ElasticPlateRM8nodeState
 
+
 function ip_state_vals(matparams::ElasticPlateRM8node, state::ElasticPlateRM8nodeState)
     return OrderedDict{Symbol, Float64}()
 end

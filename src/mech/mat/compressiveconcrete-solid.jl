@@ -53,6 +53,7 @@ matching_elem_type(::CompressiveConcrete) = MechSolidElem
 # Type of corresponding state structure
 ip_state_type(matparams::CompressiveConcrete) = CompressiveConcreteState
 
+
 function uniaxial_σ(matparams::CompressiveConcrete, state::CompressiveConcreteState, εi::Float64)
     # σp = eigvals(state.σ)
     # σ1c, σ2c, σ3c = neg.(σp)
@@ -126,6 +127,7 @@ function update_state(matparams::CompressiveConcrete, state::CompressiveConcrete
 
     return Δσ, success()
 end
+
 
 function ip_state_vals(matparams::CompressiveConcrete, state::CompressiveConcreteState)
     dict = stress_strain_dict(state.σ, state.ε, state.env.anaprops.stressmodel)

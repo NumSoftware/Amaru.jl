@@ -261,7 +261,6 @@ function is_inside(shape::CellShape, C::Array{Float64,2}, X::Array{Float64,1}, t
 end
 
 
-
 function extrapolator(shape::CellShape, nips::Int)
     #  Returns a numpy matrix E that extrapolates ip values to nodal values as:
     #

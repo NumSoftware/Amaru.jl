@@ -160,7 +160,7 @@ end
 
 
 # Node collection
-# ===============
+
 
 # Index operator for an collection of nodes
 #function Base.getindex(nodes::Array{Node,1}, s::Symbol)
@@ -207,6 +207,7 @@ function getcoords(nodes::Array{Node,1}, ndim=3)
     [ nodes[i].coord[j] for i in 1:nnodes, j=1:ndim]
 end
 
+
 function setcoords!(nodes::Array{Node,1}, coords::AbstractArray{Float64,2})
     nrows, ncols = size(coords)
     @assert nrows == length(nodes)
@@ -218,6 +219,7 @@ function setcoords!(nodes::Array{Node,1}, coords::AbstractArray{Float64,2})
     end
 end
 
+
 function get_data(node::Node)
     table = DataTable()
     dict = OrderedDict{Symbol,Real}(:id => node.id)
@@ -227,6 +229,7 @@ function get_data(node::Node)
     push!(table, dict)
     return table
 end
+
 
 function get_data(nodes::Array{Node,1})
     table = DataTable()
@@ -246,6 +249,7 @@ function Base.getproperty(nodes::Array{Node,1}, s::Symbol)
     error("type Array{Node,1} has no property $s")
 end
 
+
 function nearest(nodes::Array{Node,1}, coord)
     n = length(nodes)
     D = zeros(n)
@@ -258,12 +262,14 @@ function nearest(nodes::Array{Node,1}, coord)
     return nodes[sortperm(D)[1]]
 end
 
+
 function setvalue!(dof::Dof, sym_val::Pair)
     sym, val = sym_val
     if haskey(dof.vals, sym)
         dof.vals[sym] = val
     end
 end
+
 
 function setvalue!(dofs::Array{Dof,1}, sym_val::Pair)
     for dof in dofs

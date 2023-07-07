@@ -133,6 +133,7 @@ function cubicBezier(s::Float64, coords::Array{Float64,2}, isQ::Bool=false)
     return vec(a*t*t*t + b*t*t + c*t + d)
 end
 
+
 function interLagrange(s::Float64, coords::Array{Float64,2})
     #  Interpolates coordinates for s between 0 and 1
     #
@@ -204,6 +205,7 @@ function split_block(bl::BlockInset, mesh::Mesh)
     bl._endpoint = nothing
 end
 
+
 function get_point(s::Float64, coords::Array{Float64,2}, curvetype::Int)
     s = s>1.0 ? 1.0 : s
     if curvetype<=2;
@@ -212,6 +214,7 @@ function get_point(s::Float64, coords::Array{Float64,2}, curvetype::Int)
         return cubicBezier(s, coords)
     end
 end
+
 
 function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh::Mesh)
     # Tolerances

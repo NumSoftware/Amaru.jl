@@ -9,7 +9,7 @@ msh= Mesh(bls)
 
 # fem domain
 mats = [
-        "solids" << VonMises(E=2.0e8, nu=0.28, fy=5.0e5)
+        "solids" << MechSolid() << VonMises(E=2.0e8, nu=0.28, fy=5.0e5)
        ]
 
 ana = MechAnalysis()

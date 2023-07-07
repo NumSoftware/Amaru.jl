@@ -2,7 +2,7 @@ using Amaru
 using Test
 
 # Mesh generation
-# ===============
+
 
 blocks = [
     Block( [0 0 0; 1 1 10], nx=1, ny=1, nz=10, cellshape=HEX8, tag="solids"),
@@ -11,7 +11,7 @@ blocks = [
 msh = Mesh(blocks)
 
 # Finite element analysis
-# =======================
+
 
 # Analysis data
 load   = 10.0
@@ -28,7 +28,7 @@ lapses = diff(times)
 t1     = lapses[1]/10
 
 materials = [
-    "solids" << LinearElasticSeep(E=E, nu=nu, k=k)
+    "solids" << HydromechSolid() << LinearElasticSeep(E=E, nu=nu, k=k)
 ]
 
 ana = HydromechAnalysis(gammaw=gw)
@@ -42,7 +42,7 @@ setloggers!(model, loggers)
 
 
 # Stage 1: hydrostatic pore-pressure
-# ==================================
+
 
 tlong = 10000*hd^2/cv
 bcs = [

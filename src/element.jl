@@ -1,7 +1,7 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 # Abstract Element type
-# =====================
+
 
 """
     Element
@@ -26,6 +26,7 @@ end
 
 # Function to create new concrete types filled with relevant information
 
+
 function new_element(etype::Type{<:Element}, shape::CellShape, nodes::Array{Node,1}, tag::String, env::ModelEnv)
     elem = etype()
     elem.id     = 0
@@ -41,7 +42,7 @@ end
 
 
 # Functions that should be available in all concrete types derived from Element
-# =============================================================================
+
 
 """
 `elem_config_dofs(elem)`
@@ -93,7 +94,7 @@ end
 
 
 # Auxiliary functions for elements
-# ================================
+
 
 # Get the element coordinates matrix
 function getcoords(elem::Element)
@@ -150,6 +151,7 @@ function setquadrature!(elem::Element, n::Int=0)
     end
 
 end
+
 
 function setquadrature!(elems::Array{<:Element,1}, n::Int=0)
     shapes = CellShape[]
@@ -258,6 +260,7 @@ end
 function get_dofs(elem::Element)
     return Dof[ dof for node in elem.nodes for dof in node.dofs ]
 end
+
 
 function get_dofs(elem::Element, dofname::Symbol)
     return Dof[ dof for node in elem.nodes for dof in node.dofs if dof.name==dofname ]

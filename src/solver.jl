@@ -21,6 +21,7 @@ function message(sline::StatusLine, msg::String, color::Symbol=:default)
     push!(sline.msg_queue, msg)
 end
 
+
 function progress_bar(T::Float64)
     dwidth  = displaysize(stdout)[2]-2
     width   = max(2, min(25, dwidth-35))
@@ -318,6 +319,7 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
     return solstatus
 
 end
+
 
 function solve!(model::FEModel; args...)
     solve!(model, model.env.anaprops; args...)

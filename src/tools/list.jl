@@ -14,9 +14,11 @@ mutable struct Node{T}
     end
 end
 
+
 function Base.show(io::IO, node::Node{T}) where T
     print(io, "Node(data: $(node.data))")
 end
+
 
 function Base.getindex(node::Node, index::Int)
     nodei = node
@@ -75,6 +77,7 @@ mutable struct List{T}
     end
 end
 
+
 function Base.length(list::List)
     return list.size
 end
@@ -94,6 +97,7 @@ end
 #Base.start{T}(list::List{T}) = DummyNode{T}(list.first)
 #Base.next{T}(list::List{T}, node) = node.next, node.next
 #Base.done{T}(list::List{T}, node) = node == list.last
+
 
 function Base.iterate(list::List{T}, state=(nothing,0)) where T
     node, count = state
@@ -136,9 +140,11 @@ function Base.push!(list::List{T}, node::Node{T}) where T
     list.size += 1
 end
 
+
 function Base.push!(list::List{T}, data::T) where T
     push!(list, Node{T}(data))
 end
+
 
 function Base.insert!(list::List{T}, nodepos::Node{T}, newnode::Node{T}) where T
     @assert list.size>0
@@ -152,6 +158,7 @@ function Base.insert!(list::List{T}, nodepos::Node{T}, newnode::Node{T}) where T
 
     list.size += 1
 end
+
 
 function Base.delete!(list::List{T}, node::Node{T}) where T
     @assert list.size > 0

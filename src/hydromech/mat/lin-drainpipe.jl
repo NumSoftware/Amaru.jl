@@ -35,6 +35,7 @@ matching_elem_type(::LinDrainPipe) = DrainPipeElem
 # Type of corresponding state structure
 ip_state_type(::DrainPipeElem, ::LinDrainPipe) = LinDrainPipeState
 
+
 function update_state!(matparams::LinDrainPipe, state::LinDrainPipeState, Δuw::Float64, G::Float64, Δt::Float64)
     k = matparams.k
     state.V  = -k*G
@@ -42,6 +43,7 @@ function update_state!(matparams::LinDrainPipe, state::LinDrainPipeState, Δuw::
     state.uw += Δuw
     return state.V
 end
+
 
 function ip_state_vals(matparams::LinDrainPipe, state::LinDrainPipeState)
     return OrderedDict(

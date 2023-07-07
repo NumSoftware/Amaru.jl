@@ -97,6 +97,7 @@ function nlE(fc::Float64, εc::Float64, ε::Array{Float64,1})
     return 2*fc*(εc-εv)/εc^2
 end
 
+
 function yield_func(matparams::DruckerPrager, state::DruckerPragerState, σ::Tensor2)
     j1  = J1(σ)
     j2d = J2D(σ)
@@ -105,6 +106,7 @@ function yield_func(matparams::DruckerPrager, state::DruckerPragerState, σ::Ten
     εpa = state.εpa
     return α*j1 + √j2d - κ - H*εpa
 end
+
 
 function calcD(matparams::DruckerPrager, state::DruckerPragerState)
     α   = matparams.α
@@ -129,6 +131,7 @@ function calcD(matparams::DruckerPrager, state::DruckerPragerState)
 
     return De - inner(De,Nu) ⊗ inner(V,De) / (inner(V,De,Nu) + H)
 end
+
 
 function update_state(matparams::DruckerPrager, state::DruckerPragerState, Δε::Array{Float64,1})
     σini = state.σ

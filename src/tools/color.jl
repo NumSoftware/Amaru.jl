@@ -39,6 +39,7 @@ struct Color
     # Color((r, g, b, a)::Tuple{Int,Int,Int,Float64}) = Color(r, g, b, a)
 end
 
+
 function mix(c1::Color, a::Number, c2::Color=Color(1.0,1.0,1.0))
     return Color(
         c1.r*a + c2.r*(1-a),
@@ -47,6 +48,7 @@ function mix(c1::Color, a::Number, c2::Color=Color(1.0,1.0,1.0))
         c1.a*a + c2.a*(1-a)
     )
 end
+
 
 function mix(c1, a::Number, c2=Color(1.0,1.0,1.0))
     return mix(Color(c1), a, Color(c2))

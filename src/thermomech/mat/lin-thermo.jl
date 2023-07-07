@@ -34,6 +34,7 @@ matching_elem_type(::LinThermo) = ThermoSolidElem
 # Type of corresponding state structure
 ip_state_type(::ThermoSolidElem, ::LinThermo) = LinThermoState
 
+
 function calcK(matparams::LinThermo, state::LinThermoState) # Thermal conductivity matrix
     if state.env.ndim==2
         return matparams.k*eye(2)
@@ -41,6 +42,7 @@ function calcK(matparams::LinThermo, state::LinThermoState) # Thermal conductivi
         return matparams.k*eye(3)
     end
 end
+
 
 function update_state!(matparams::LinThermo, state::LinThermoState, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
     K = calcK(matparams, state)

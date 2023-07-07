@@ -38,6 +38,7 @@ matching_elem_type(::ElasticRSJoint) = MechRSJointElem
 # Type of corresponding state structure
 ip_state_type(::MechRSJointElem, ::ElasticRSJoint) = ElasticRSJointState
 
+
 function calcD(matparams::ElasticRSJoint, state::ElasticRSJointState)
     ks = matparams.ks
     kn = matparams.kn
@@ -60,6 +61,7 @@ function update_state(matparams::ElasticRSJoint, state::ElasticRSJointState, Δu
     state.σ .+= Δσ
     return Δσ, success()
 end
+
 
 function ip_state_vals(matparams::ElasticRSJoint, state::ElasticRSJointState)
     return OrderedDict(

@@ -94,6 +94,7 @@ function update_state(matparams::ElasticShellThermo, state::ElasticShellThermoSt
     return Δσ, state.QQ
 end
 
+
 function ip_state_vals(matparams::ElasticShellThermo, state::ElasticShellThermoState)
     D = stress_strain_dict(state.σ, state.ε, state.env.anaprops.stressmodel)
     #=

@@ -168,6 +168,7 @@ function Xdoc(filename::String)
     return Xdoc(attributes, root)
 end
 
+
 function writenode(f::IOStream, node::Xnode, level::Int)
     tab = "   "
     # Print header
@@ -202,6 +203,7 @@ function writenode(f::IOStream, node::Xnode, level::Int)
     # Print closing tag
     println(f, tab^level, "</", node.name, ">")
 end
+
 
 function save(doc::Xdoc, filename::String)
     # Open filename
@@ -299,6 +301,7 @@ function to_xml_node(obj::Any, name::String=""; exclude::Array{Symbol,1}=Symbol[
     return Xnode(name, attributes=attributes, children=children)
     
 end
+
 
 function Xnode(obj::Any, name::String=""; exclude::Array{Symbol,1}=Symbol[])
     return to_xml_node(obj, name, exclude=exclude)

@@ -4,7 +4,7 @@ using Amaru
 bl  = Block( [0 0; 1 1], nx=4, ny=4, cellshape=QUAD9, tag="solids")
 msh = Mesh(bl)
 
-mats = [ "solids" <<  LinearElastic(E=100.0, nu=0.2) ]
+mats = [ "solids" << MechSolid() << LinearElastic(E=100.0, nu=0.2) ]
 ana = MechAnalysis()
 model = FEModel(msh, mats, ana)
 

@@ -23,6 +23,7 @@ end
 
 matching_shape_family(::Type{ShellDegeneratedElem}) = BULKCELL
 
+
 function elem_init(elem::ShellDegeneratedElem)
     elem.shape==QUAD8 || error("elem_init: ShellDegeneratedElem only works with shape QUAD8.")
 
@@ -50,6 +51,7 @@ function elem_init(elem::ShellDegeneratedElem)
    
     return nothing
 end
+
 
 function setquadrature!(elem::ShellDegeneratedElem, n::Int=0)
 
@@ -178,6 +180,7 @@ function set_dir_matrix(elem::ShellDegeneratedElem, J::Matx, dir::Matx)
     dir[:,3] = V3
 end
 
+
 function set_jacobian_matrix(elem::ShellDegeneratedElem, C::Matx, R::Matx, J::Matx)
     V1 = J[:,1]
     V2 = J[:,2]
@@ -228,6 +231,7 @@ function set_trans_matrix(elem::ShellDegeneratedElem, dir::Matx, T::Matx)
      #@showm T
      #error()
 end
+
 
 function setB(elem::ShellDegeneratedElem, R::Matx, J::Matx , ip::Ip, dNdR::Matx, dNdX::Matx, N::Vect, B::Matx)
     nnodes, ndim = size(dNdX)
@@ -311,6 +315,7 @@ function setB(elem::ShellDegeneratedElem, R::Matx, J::Matx , ip::Ip, dNdR::Matx,
     #error()
 end
 
+
 function setD(elem::ShellDegeneratedElem, D::Matx)
 
     nu = elem.matparams.nu
@@ -340,6 +345,7 @@ function elem_config_dofs(elem::ShellDegeneratedElem)
     end
 end
 
+
 function elem_map(elem::ShellDegeneratedElem)::Array{Int,1}
 
     #dof_keys = (:ux, :uy, :uz, :rx, :ry, :rz)
@@ -348,6 +354,7 @@ function elem_map(elem::ShellDegeneratedElem)::Array{Int,1}
     return [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
 
 end
+
 
 function elem_stiffness(elem::ShellDegeneratedElem)
     ndim   = elem.env.ndim

@@ -1,5 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
+
 function save_vtk(mesh::AbstractDomain, filename::String; desc::String="")
     # Saves a UnstructuredGrid
     npoints = length(mesh.nodes)
@@ -107,6 +108,7 @@ function save_vtk(mesh::AbstractDomain, filename::String; desc::String="")
 
     return nothing
 end
+
 
 function save_vtu(mesh::AbstractDomain, filename::String; desc::String="")
     npoints = length(mesh.nodes)
@@ -407,7 +409,7 @@ end
 
 function read_vtu(filename::String)
     # Reading file
-    # ============
+    
 
     TYPES = Dict("Float32"=>Float32, "Float64"=>Float64, "Int32"=>Int32, "Int64"=>Int64)
 
@@ -466,7 +468,8 @@ end
 
 
 # Setting a Mesh object
-# =====================
+
+
 function Mesh(coords, connects, vtk_types, node_data, elem_data)
 
     npoints = size(coords,1)

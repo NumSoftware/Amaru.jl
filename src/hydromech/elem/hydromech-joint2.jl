@@ -19,6 +19,7 @@ end
 # Return the shape family that works with this element
 matching_shape_family(::Type{HydroMechJoint2Elem}) = JOINTCELL
 
+
 function elem_config_dofs(elem::HydroMechJoint2Elem)
     nnodes   = length(elem.nodes)
     nlnodes  = div(nnodes, 2) # half the number of total nodes
@@ -33,6 +34,7 @@ function elem_config_dofs(elem::HydroMechJoint2Elem)
             elem.env.ndim==3 && add_dof(node, :uz, :fz)
     end
 end
+
 
 function elem_init(elem::HydroMechJoint2Elem)
     # Get linked elements
@@ -80,6 +82,7 @@ function elem_init(elem::HydroMechJoint2Elem)
         ip.state.h = h
     end
 end
+
 
 function elem_stiffness(elem::HydroMechJoint2Elem)
     ndim     = elem.env.ndim

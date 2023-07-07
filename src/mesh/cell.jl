@@ -2,7 +2,7 @@
 
 
 # Cell
-# ====
+
 
 """
     Cell
@@ -194,6 +194,7 @@ function (cells::Array{<:AbstractCell,1})(filter=nothing; tag=nothing, shape=not
     return cells[filtered]
 end
 
+
 function Base.getproperty(c::AbstractCell, s::Symbol)
     s == :coords && return getcoords(c)
     s == :faces  && return getfaces(c)
@@ -201,6 +202,7 @@ function Base.getproperty(c::AbstractCell, s::Symbol)
     s == :extent && return cell_extent(c)
     return getfield(c, s)
 end
+
 
 function Base.getproperty(cells::Array{<:AbstractCell,1}, s::Symbol)
     s in (:all, :solids, :bulks, :lines, :joints, :linejoints, :tipjoints, :embeddeds) && return cells[s]
@@ -314,6 +316,7 @@ function Base.getindex(
     return cells[filtered]
 end
 
+
 function cellnormal(cell::AbstractCell)
     iscoplanar(cell) || return nothing
     
@@ -325,6 +328,7 @@ function cellnormal(cell::AbstractCell)
     normalize!(N)
     return N
 end
+
 
 function isparallelto(A,B)
     tol = 1e-8
@@ -367,6 +371,7 @@ function iscoplanar(cell::AbstractCell)
 
     return true
 end
+
 
 function nearest(cells::Array{Cell,1}, coord)
     n = length(cells)
@@ -688,6 +693,7 @@ function get_point(s::Float64, coords::Array{Float64,2})
 end
 
 export select
+
 
 function select(cells::Array{Cell,1}, polycoords::Array{Float64,2}, axis=[0.0, 0.0, 1.0])
     # Selects elements included in the projection of the give polygon and axis direction

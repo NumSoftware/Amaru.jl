@@ -7,6 +7,7 @@ mutable struct StopWatch
     end
 end
 
+
 function stop!(sw::StopWatch)
     if sw.stopped == false
         sw.lapse += time() - sw.lasttime
@@ -15,6 +16,7 @@ function stop!(sw::StopWatch)
     return nothing
 end
 
+
 function resume!(sw::StopWatch)
     if sw.stopped
         sw.lasttime = time()
@@ -22,6 +24,7 @@ function resume!(sw::StopWatch)
     end
     return nothing
 end
+
 
 function getlapse(sw::StopWatch)
     sw.stopped && return sw.lapse
@@ -33,6 +36,7 @@ function getlapse(sw::StopWatch)
     sw.lasttime = t
     return sw.lapse
 end
+
 
 function formatlapse(lapse::Float64; format::Symbol=:short)
     # format may be :hms, :ms, :s or :short
@@ -52,6 +56,7 @@ function formatlapse(lapse::Float64; format::Symbol=:short)
         end
     end
 end
+
 
 function see(sw::StopWatch; format::Symbol=:short)
     return formatlapse(getlapse(sw), format=format)

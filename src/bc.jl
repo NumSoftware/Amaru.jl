@@ -6,7 +6,7 @@ abstract type BC end
 @inline Base.:(=>)(a, b::BC) = return (a, b)
 
 # NodeBC
-# ======
+
 
 mutable struct NodeBC<:BC
     conds::AbstractDict
@@ -58,7 +58,7 @@ end
 
 
 # SurfaceBC and EdgeBC
-# ====================
+
 
 
 mutable struct SurfaceBC<:BC
@@ -139,7 +139,7 @@ end
 
 
 # BodyC
-# ======
+
 
 
 mutable struct BodyC<:BC

@@ -25,11 +25,13 @@ function hint(xs...; level=2)
     printstyled("\r", msg, "\e[K\n", color=:light_black)
 end
 
+
 function message(xs...; level=2)
     msg = join(string.(xs))
     msg = wrap(msg, level=level)
     printstyled("\r", msg, "\e[K\n", color=:white)
 end
+
 
 function info(xs...; level=2)
     msg = join(string.(xs))
@@ -37,11 +39,13 @@ function info(xs...; level=2)
     printstyled("\r", "$msg\e[K\n", color=:cyan)
 end
 
+
 function notify(xs...; level=2)
     msg = join(string.(xs))
     msg = wrap(msg, level=level)
     printstyled("\r", msg, "\e[K\n", color=:yellow)
 end
+
 
 function alert(xs...; level=2)
     msg = join(string.(xs))
@@ -49,12 +53,14 @@ function alert(xs...; level=2)
     printstyled("\n", "$msg\e[K\n", color=:light_red)
 end
 
+
 function warn(xs...)
     msg = join(string.(xs))
     msg = wrap(msg, level=2)
     printstyled("\rWarning: \e[K\n", color=:light_yellow)
     printstyled(msg, "\e[K\n", color=:yellow)
 end
+
 
 function headline(xs...; color=:cyan)
     msg = join(string.(xs))
@@ -87,6 +93,7 @@ end
 struct StopException{T} <: Exception
     S::T
 end
+
 
 function Base.showerror(io::IO, ex::StopException, bt; backtrace=true)
     Base.with_output_color(get(io, :color, false) ? :green : :nothing, io) do io

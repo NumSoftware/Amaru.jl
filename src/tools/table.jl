@@ -175,10 +175,12 @@ function Base.getindex(table::DataTable, key::KeyType)
     return getcolumns(table)[idx]
 end
 
+
 function Base.getindex(table::DataTable, keys::Array{<:KeyType,1})
     columns = [ table[string(key)] for key in keys ]
     return DataTable(keys, columns)
 end
+
 
 function Base.getindex(table::DataTable, rowindex::Int)
     columns = getcolumns(table)
@@ -186,6 +188,7 @@ function Base.getindex(table::DataTable, rowindex::Int)
 
     return DataTable(getheader(table), cols)
 end
+
 
 function Base.getindex(table::DataTable, idxs::Union{Colon,OrdinalRange{Int,Int},Array{Int,1},BitArray{1}})
     columns = getcolumns(table)
@@ -198,6 +201,7 @@ end
 function Base.getindex(table::DataTable, rows, col::KeyType)
     return table[rows][col][1]
 end
+
 
 function Base.getindex(table::DataTable, rows, cols::Array{<:KeyType,1})
     return table[rows][cols]
@@ -413,6 +417,7 @@ function smooth!(table::DataTable, fieldx, fieldy=nothing; knots=[0.0, 1.0])
 
     table[fieldy] = Y
 end
+
 
 function denoise!(table::DataTable, fieldx, fieldy=nothing; noise=0.05, npatch=4)
     header = getheader(table)

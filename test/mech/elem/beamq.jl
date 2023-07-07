@@ -13,7 +13,7 @@ msh = Mesh(coord, conn, tag="beam")
 
 # Finite element model
 
-mats = [ "beam" << ElasticBeam(E=10, A=1, I=1) ]
+mats = [ "beam" << MechBeam(thickness=0.1) << ElasticBeam(E=10, A=1, I=1) ]
 
 bcs =
     [

@@ -65,6 +65,7 @@ matching_elem_type(::DamageConcrete) = MechSolidElem
 # Type of corresponding state structure
 ip_state_type(matparams::DamageConcrete) = DamageConcreteState
 
+
 function uniaxial_σ(matparams::DamageConcrete, state::DamageConcreteState, εi::Float64)
     σp = eigvals(state.σ)
     σ1c, σ2c, σ3c = neg.(σp)
@@ -317,6 +318,7 @@ function update_state(matparams::DamageConcrete, state::DamageConcreteState, Δ�
 
     return Δσ, success()
 end
+
 
 function ip_state_vals(matparams::DamageConcrete, state::DamageConcreteState)
     dict = stress_strain_dict(state.σ, state.ε, state.env.anaprops.stressmodel)

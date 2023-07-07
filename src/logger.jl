@@ -1,7 +1,7 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 # Log structs and functions
-# =========================
+
 
 abstract type AbstractLogger end
 abstract type SingleLogger<:AbstractLogger end
@@ -11,7 +11,7 @@ abstract type MultiLogger<:AbstractLogger end
 @inline Base.:(=>)(a, b::AbstractLogger) = return (a, b)
 
 # Node logger
-# ===========
+
 
 mutable struct NodeLogger<:SingleLogger
     filename ::String
@@ -23,6 +23,7 @@ mutable struct NodeLogger<:SingleLogger
         return new(filename, :(), DataTable())
     end
 end
+
 
 function setup_logger!(model, filter, logger::NodeLogger)
     logger.filter = filter
@@ -51,6 +52,7 @@ function setup_logger!(model, filter, logger::NodeLogger)
     return nothing
 end
 
+
 function update_logger!(logger::NodeLogger, model; flush=true)
     isdefined(logger, :node) || return
 
@@ -66,7 +68,7 @@ end
 
 
 # Ip logger
-# =========
+
 
 
 mutable struct IpLogger<:SingleLogger
@@ -129,7 +131,7 @@ end
 
 
 # Logger for faces and edges
-# ==========================
+
 
 
 abstract type FacetLogger<:SingleLogger end
@@ -217,7 +219,7 @@ end
 
 
 # Logger for a pack of nodes
-# ===========================
+
 
 
 mutable struct NodeSumLogger<:SingleLogger
@@ -232,6 +234,7 @@ mutable struct NodeSumLogger<:SingleLogger
 end
 
 NodesSumLogger = NodeSumLogger
+
 
 function setup_logger!(model, filter, logger::NodeSumLogger)
     logger.filter = filter
@@ -270,7 +273,7 @@ end
 
 
 # Logger for a group of nodes
-# ===========================
+
 
 
 mutable struct NodeGroupLogger<:MultiLogger
@@ -329,7 +332,7 @@ end
 
 
 # Logger for a group of ips
-# =========================
+
 
 
 mutable struct IpGroupLogger<:MultiLogger
@@ -370,7 +373,7 @@ end
 
 
 # Logger for a point
-# ==================
+
 
 
 mutable struct PointLogger<:MultiLogger
@@ -423,7 +426,7 @@ end
 
 
 # Logger for a segment
-# ====================
+
 
 
 mutable struct SegmentLogger<:MultiLogger
@@ -494,7 +497,6 @@ end
 
 
 # Functions to save loggers
-# =========================
 
 
 function save(logger::AbstractLogger, filename::String; quiet=false)

@@ -36,6 +36,7 @@ matching_elem_type(::LinSeep) = SeepSolidElem
 # Type of corresponding state structure
 ip_state_type(::SeepSolidElem, ::LinSeep) = LinSeepState
 
+
 function calcK(matparams::LinSeep, state::LinSeepState) # Hydraulic conductivity matrix
     if state.env.ndim==2
         return matparams.k*eye(2)
@@ -43,6 +44,7 @@ function calcK(matparams::LinSeep, state::LinSeepState) # Hydraulic conductivity
         return matparams.k*eye(3)
     end
 end
+
 
 function update_state!(matparams::LinSeep, state::LinSeepState, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
     K = calcK(matparams, state)

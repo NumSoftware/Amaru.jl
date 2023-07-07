@@ -54,6 +54,7 @@ function calcD(matparams::LinearElasticThermo, state::LinearElasticThermoState)
     return calcDe(matparams.E, matparams.nu, state.env.anaprops.stressmodel) # function calcDe defined at elastic-solid.jl
 end
 
+
 function calcK(matparams::LinearElasticThermo, state::LinearElasticThermoState) # Thermal conductivity matrix
     if state.env.ndim==2
         return matparams.k*eye(2)
@@ -61,6 +62,7 @@ function calcK(matparams::LinearElasticThermo, state::LinearElasticThermoState) 
         return matparams.k*eye(3)
     end
 end
+
 
 function update_state(matparams::LinearElasticThermo, state::LinearElasticThermoState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
     De = calcD(matparams, state)
@@ -73,6 +75,7 @@ function update_state(matparams::LinearElasticThermo, state::LinearElasticThermo
     state.ut += Δut
     return Δσ, state.QQ
 end
+
 
 function ip_state_vals(matparams::LinearElasticThermo, state::LinearElasticThermoState)
     D = stress_strain_dict(state.σ, state.ε, state.env.anaprops.stressmodel)

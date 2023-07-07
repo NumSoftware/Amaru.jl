@@ -75,6 +75,7 @@ matching_elem_type(::PJoint) = MechJointElem
 # Type of corresponding state structure
 ip_state_type(matparams::PJoint) = PJointState
 
+
 function yield_func(matparams::PJoint, state::PJointState, σ::Array{Float64,1}, σmax::Float64)
     ndim = state.env.ndim
     fc, ft = matparams.fc, matparams.ft
@@ -421,6 +422,7 @@ function ip_state_vals(matparams::PJoint, state::PJointState)
           )
     end
 end
+
 
 function output_keys(matparams::PJoint)
     return Symbol[:jw1, :js1, :jup]

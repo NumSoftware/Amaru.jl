@@ -47,6 +47,7 @@ matching_shape_family(::Type{MechRodElem}) = LINECELL
 matching_elem_type(::Type{MechRodProps}) = MechRodElem
 matching_props_type(::Type{MechRodElem}) = MechRodProps
 
+
 function elem_stiffness(elem::MechRodElem)
     local E::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
 
@@ -115,6 +116,7 @@ function elem_mass(elem::MechRodElem)
     return M, map, map
 end
 
+
 function setNt(ndim::Int,Ni::Vect, N::Matx)
     nnodes = length(Ni)
     N .= 0.0
@@ -142,14 +144,15 @@ function setNt(ndim::Int,Ni::Vect, N::Matx)
 end
 
 
-
 function distributed_bc(elem::MechRodElem, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
     return mech_line_distributed_forces(elem, key, val)
 end
 
+
 function body_c(elem::MechRodElem, key::Symbol, val::Union{Real,Symbol,Expr})
     return mech_line_distributed_forces(elem, key, val)
 end
+
 
 function elem_internal_forces(elem::MechRodElem, F::Array{Float64,1})
     ndim   = elem.env.ndim
@@ -184,10 +187,10 @@ function elem_internal_forces(elem::MechRodElem, F::Array{Float64,1})
     F[map] += dF
 end
 
+
 function elem_activate(elem::MechRodElem, F::Array{Float64,1})
     elem_internal_forces(elem, F)
 end
-
 
 
 function update_elem!(elem::MechRodElem, U::Array{Float64,1}, Δt::Float64)
@@ -226,6 +229,7 @@ function update_elem!(elem::MechRodElem, U::Array{Float64,1}, Δt::Float64)
 
     return dF, map, success()
 end
+
 
 function elem_vals(elem::MechRodElem)
     # get ip average values

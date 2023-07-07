@@ -37,6 +37,7 @@ matching_elem_type(::ElasticSpring) = MechSpringElem
 # Type of corresponding state structure
 ip_state_type(matparams::ElasticSpring) = ElasticSpringState
 
+
 function ip_state_vals(matparams::ElasticSpring, state::ElasticSpringState)
     return OrderedDict{Symbol, Float64}()
 end

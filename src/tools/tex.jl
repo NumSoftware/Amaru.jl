@@ -27,6 +27,7 @@ function findclosing(opening::AbstractString, closing::AbstractString, str::Abst
     end
 end
 
+
 function findclosure(opening::AbstractString, closing::AbstractString, str::AbstractString, start::Int)
     @assert opening!=closing
     openingpat = opening
@@ -62,6 +63,7 @@ end
 
 export tex2xml
 
+
 function tex2xml(filename::String)
     #xdoc = Xdoc()
     root = Xnode("latex")
@@ -69,6 +71,7 @@ function tex2xml(filename::String)
     root = readtex(text, 1:latexindex(text))
     return root
 end
+
 
 function readtex(text::String, rng::UnitRange{Int})
     pardelim = r"^ \s* (?: \$\$   |

@@ -1,7 +1,7 @@
 using Amaru
 
 # Mesh generation
-# ===============
+
 
 blocks = [
     Block( [0 0; 3 0.4], nx=30, ny=50, cellshape=QUAD8, tag="solids"),
@@ -18,7 +18,7 @@ materials = [
             ]
 
 # Finite element model
-# =====================
+
 
 model = Model(msh, materials)
 

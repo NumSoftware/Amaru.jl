@@ -29,6 +29,7 @@ function Base.convert(::Type{Array{Float64,1}}, V::Vec3)
     return [ V.x, V.y, V.z ]
 end
 
+
 function Base.convert(::Type{Vec3}, A::Array{Float64,1})
     n = length(A)
     @assert n in (1,2,3)
@@ -41,13 +42,16 @@ function Base.convert(::Type{Vec3}, A::Array{Float64,1})
     end
 end
 
+
 function Base.length(X::Vec3)
     return 3
 end
 
+
 function Base.size(X::Vec3)
     return (3,)
 end
+
 
 function Base.getindex(X::Vec3, i::Int)
     if i==1
@@ -61,6 +65,7 @@ function Base.getindex(X::Vec3, i::Int)
     end
 end
 
+
 function Base.setindex!(X::Vec3, val, i::Int)
     if i==1
         return X.x = val
@@ -72,6 +77,7 @@ function Base.setindex!(X::Vec3, val, i::Int)
         throw(BoundsError(X,i))
     end
 end
+
 
 function round!(X::Vec3; digits=0)
     X.x = round(X.x, digits=digits)

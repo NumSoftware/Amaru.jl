@@ -694,6 +694,7 @@ function cplot(
 
 end
 
+
 function cplot(
     data::Array{<:NamedTuple}, 
     fname::String = "";

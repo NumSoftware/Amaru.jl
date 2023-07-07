@@ -33,6 +33,7 @@ matching_elem_type(::ElasticPlateMZC) = PlateMZCElem
 # Type of corresponding state structure
 ip_state_type(matparams::ElasticPlateMZC) = ElasticPlateMZCState
 
+
 function ip_state_vals(matparams::ElasticPlateMZC, state::ElasticPlateMZCState)
     return OrderedDict{Symbol, Float64}()
 end

@@ -78,6 +78,7 @@ function elem_init(elem::MechRSJointElem)
     return nothing
 end
 
+
 function mount_T(J::Matx)
     ndim = length(J)
     nJ   = norm(J)
@@ -111,7 +112,7 @@ end
 
 function mountB(elem::MechRSJointElem, R, Ch, Ct)
     # Calculates the matrix that relates nodal displacements with relative displacements
-    # ==================================================================================
+    
 
     # B = T* [NN*MM  -NN]      ndim x ndim*(m+n)
 
@@ -163,6 +164,7 @@ function mountB(elem::MechRSJointElem, R, Ch, Ct)
     return B, detJ
 end
 
+
 function elem_stiffness(elem::MechRSJointElem)
     ndim = elem.env.ndim
     nnodes = length(elem.nodes)
@@ -184,6 +186,7 @@ function elem_stiffness(elem::MechRSJointElem)
     map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
     return K, map, map
 end
+
 
 function update_elem!(elem::MechRSJointElem, U::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim

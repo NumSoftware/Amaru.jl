@@ -10,7 +10,7 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
     mesh = Mesh(bl)
 
     materials = [
-        "solids" << LinearElastic(E=100.0, nu=0.2)
+        "solids" << MechSolid() << LinearElastic(E=100.0, nu=0.2)
     ]
 
     ana = MechAnalysis(stressmodel="axisymmetric")

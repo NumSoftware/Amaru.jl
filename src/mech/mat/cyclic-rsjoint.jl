@@ -229,6 +229,7 @@ function update_state(matparams::CyclicRSJoint, ips::CyclicRSJointState, Δu::Ve
     return Δσ, success()
 end
 
+
 function stress_update2(matparams::CyclicRSJoint, ips::CyclicRSJointState, Δu::Vect)
     ks = matparams.ks
     kn = matparams.kn
@@ -295,6 +296,7 @@ function stress_update2(matparams::CyclicRSJoint, ips::CyclicRSJointState, Δu::
 
     return Δσ, success()
 end
+
 
 function ip_state_vals(matparams::CyclicRSJoint, ips::CyclicRSJointState)
     return OrderedDict(

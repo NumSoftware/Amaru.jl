@@ -50,6 +50,7 @@ function elem_config_dofs(elem::ThermoSolidElem)
     end
 end
 
+
 function elem_init(elem::ThermoSolidElem)
     nothing
 end
@@ -143,6 +144,7 @@ function elem_conductivity_matrix(elem::ThermoSolidElem)
 
     return H, map, map
 end
+
 
 function elem_mass_matrix(elem::ThermoSolidElem)
     ndim   = elem.env.ndim

@@ -94,6 +94,7 @@ function yield_func(matparams::VonMises, state::VonMisesState, σ::Tensor2)
     return √(3*j2d) - σy - H*εpa
 end
 
+
 function calcD(matparams::VonMises, state::VonMisesState)
     σy = matparams.σy
     H  = matparams.H
@@ -113,6 +114,7 @@ function calcD(matparams::VonMises, state::VonMisesState)
 
     return De - inner(De,Nu) ⊗ inner(V,De) / (inner(V,De,Nu) + H)
 end
+
 
 function update_state(matparams::VonMises, state::VonMisesState, Δε::Array{Float64,1})
     σini = state.σ
@@ -145,6 +147,7 @@ function update_state(matparams::VonMises, state::VonMisesState, Δε::Array{Flo
     Δσ     = state.σ - σini
     return Δσ, success()
 end
+
 
 function ip_state_vals(matparams::VonMises, state::VonMisesState)
     ndim  = state.env.ndim

@@ -20,6 +20,7 @@ end
 
 matching_shape_family(::Type{ShellQUAD4Elem}) = BULKCELL
 
+
 function distributed_bc(elem::ShellQUAD4Elem, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     th    = elem.env.t
@@ -160,6 +161,7 @@ function RotMatrix(elem::ShellQUAD4Elem, J::Matrix{Float64})
              
 end
 
+
 function elem_config_dofs(elem::ShellQUAD4Elem)
     ndim = elem.env.ndim
     ndim == 1 && error("ShellQUAD4Elem: Shell elements do not work in 1d analyses")
@@ -185,6 +187,7 @@ function elem_config_dofs(elem::ShellQUAD4Elem)
         =#
     #end
 end
+
 
 function elem_map(elem::ShellQUAD4Elem)::Array{Int,1}
 
@@ -220,6 +223,7 @@ function setBb(elem::ShellQUAD4Elem, N::Vect, dNdX::Matx, Bb::Matx)
     end
 end
 
+
 function setBm(elem::ShellQUAD4Elem, N::Vect, dNdX::Matx, Bm::Matx)
     nnodes = length(elem.nodes)
     # ndim, nnodes = size(dNdX)
@@ -238,6 +242,7 @@ function setBm(elem::ShellQUAD4Elem, N::Vect, dNdX::Matx, Bm::Matx)
 
     end
 end
+
 
 function setBs_bar(elem::ShellQUAD4Elem, N::Vect, dNdX::Matx, Bs_bar::Matx)
     nnodes = length(elem.nodes)
@@ -272,6 +277,7 @@ function setBs_bar(elem::ShellQUAD4Elem, N::Vect, dNdX::Matx, Bs_bar::Matx)
             # dimension 8x12
     end
 end
+
 
 function elem_stiffness(elem::ShellQUAD4Elem)
 
@@ -369,6 +375,7 @@ function elem_stiffness(elem::ShellQUAD4Elem)
         map = elem_map(elem) 
     return Kelem, map, map
 end
+
 
 function update_elem!(elem::ShellQUAD4Elem, U::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)

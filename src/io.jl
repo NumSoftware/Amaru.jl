@@ -1,5 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
+
 function save_xml(model::Model, filename::String)
     io = IOBuffer()
     nnodes = length(model.nodes)
@@ -200,6 +201,7 @@ function setfields!(obj, keys, vals; exclude::Tuple{Vararg{Symbol}}=())
     end
 end
 
+
 function setfields!(obj, dict; exclude::Tuple{Vararg{Symbol}}=())
     setfields!(obj, keys(dict), values(dict), exclude=exclude)
 end
@@ -343,6 +345,7 @@ function Model(filename::String; quiet=false)
     return domain
 
 end
+
 
 function get_segment_data(model::Model, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=50)
     data = model.node_data

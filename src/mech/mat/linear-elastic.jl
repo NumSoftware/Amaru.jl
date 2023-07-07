@@ -139,6 +139,7 @@ ip_state_type(::MechRodElem, ::LinearElastic)  = ElasticRodState
 ip_state_type(::MechBeamElem, ::LinearElastic) = ElasticBeamState
 ip_state_type(::MechShellElem, ::LinearElastic) = ElasticShellState
 
+
 function calcDe(E::Number, ν::Number, stressmodel::String)
     if stressmodel=="plane-stress"
         c = E/(1.0-ν^2)
@@ -162,9 +163,11 @@ function calcDe(E::Number, ν::Number, stressmodel::String)
     end
 end
 
+
 function calcD(matparams::LinearElastic, state::ElasticSolidState)
     return calcDe(matparams.E, matparams.nu, state.env.anaprops.stressmodel)
 end
+
 
 function update_state(matparams::LinearElastic, state::ElasticSolidState, dε::Array{Float64,1})
     De = calcDe(matparams.E, matparams.nu, state.env.anaprops.stressmodel)
@@ -174,11 +177,13 @@ function update_state(matparams::LinearElastic, state::ElasticSolidState, dε::A
     return dσ, success()
 end
 
+
 function ip_state_vals(matparams::LinearElastic, state::ElasticSolidState)
     return stress_strain_dict(state.σ, state.ε, state.env.anaprops.stressmodel)
 end
 
 # Rod
+
 
 function update_state(matparams::LinearElastic, state::ElasticRodState, Δε::Float64)
     Δσ = matparams.E*Δε
@@ -187,6 +192,7 @@ function update_state(matparams::LinearElastic, state::ElasticRodState, Δε::Fl
     return Δσ, success()
 end
 
+
 function ip_state_vals(matparams::LinearElastic, state::ElasticRodState)
     return OrderedDict(
       :sa => state.σ,
@@ -194,11 +200,13 @@ function ip_state_vals(matparams::LinearElastic, state::ElasticRodState)
       )
 end
 
+
 function calcD(matparams::LinearElastic, ips::ElasticRodState)
     return matparams.E
 end
 
 # Beam
+
 
 function calcD(matparams::LinearElastic, state::ElasticBeamState)
     E = matparams.E
@@ -240,6 +248,7 @@ end
 
 # Shell
 
+
 function calcD(matparams::LinearElastic, state::ElasticShellState)
     E = matparams.E
     ν = matparams.nu
@@ -255,6 +264,7 @@ function calcD(matparams::LinearElastic, state::ElasticShellState)
     # ezz = -ν/E*(sxx+syy)
 end
 
+
 function update_state(matparams::LinearElastic, state::ElasticShellState, dε::Array{Float64,1})
     D = calcD(matparams, state)
     dσ = D*dε
@@ -262,6 +272,7 @@ function update_state(matparams::LinearElastic, state::ElasticShellState, dε::A
     state.σ += dσ
     return dσ, success()
 end
+
 
 function ip_state_vals(matparams::LinearElastic, state::ElasticShellState)
     return stress_strain_dict(state.σ, state.ε, state.env.anaprops.stressmodel)

@@ -50,10 +50,12 @@ mutable struct Mesh<:AbstractDomain
     end
 end
 
+
 function get_node(nodes::Dict{UInt64,Node}, C::AbstractArray{<:Real})
     hs = hash(Node(C))
     return get(nodes, hs, nothing)
 end
+
 
 function Base.copy(mesh::AbstractDomain)
     ndim = mesh.env.ndim
@@ -125,6 +127,7 @@ end
 
 #     return newmesh    
 # end
+
 
 function getedges(surf_cells::Array{<:AbstractCell,1})
     edges_dict = Dict{UInt64, Cell}()
@@ -892,7 +895,6 @@ function randmesh(n::Int...)
         m = Mesh(Block([0.0 0.0 0.0; lx ly lz], nx=nx, ny=ny, nz=nz, cellshape=cellshape), quiet=true)
     end
 end
-
 
 
 function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)

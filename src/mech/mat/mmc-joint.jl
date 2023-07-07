@@ -459,6 +459,7 @@ function ip_state_vals(matparams::MMCJoint, state::MMCJointState)
     end
 end
 
+
 function output_keys(matparams::MMCJoint)
     return Symbol[:jw1, :js1, :jup]
 end

@@ -65,6 +65,7 @@ matching_elem_type(::ElasticJointSeep2) = HydroMechJoint2Elem
 # Type of corresponding state structure
 ip_state_type(matparams::ElasticJointSeep2) = JointSeepState2
 
+
 function mountD(matparams::ElasticJointSeep2, state::JointSeepState2)
     ndim = state.env.ndim
     G  = matparams.E/(1.0+matparams.nu)/2.0
@@ -79,6 +80,7 @@ function mountD(matparams::ElasticJointSeep2, state::JointSeepState2)
                   0.0  0.0   ks ]
     end
 end
+
 
 function update_state(matparams::ElasticJointSeep2, state::JointSeepState2, Δu::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
     ndim = state.env.ndim
@@ -108,6 +110,7 @@ function update_state(matparams::ElasticJointSeep2, state::JointSeepState2, Δu:
 
     return Δσ, state.Vt, state.L
 end
+
 
 function ip_state_vals(matparams::ElasticJointSeep2, state::JointSeepState2)
     ndim = state.env.ndim

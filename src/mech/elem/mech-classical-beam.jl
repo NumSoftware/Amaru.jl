@@ -21,6 +21,7 @@ end
 
 matching_shape_family(::Type{MechClassicalBeamElem}) = LINECELL
 
+
 function beam_shape_func(x::Float64, L::Float64)
     N = Array{Float64}(undef,6)
     N[1] = 1 - x/L
@@ -33,6 +34,7 @@ function beam_shape_func(x::Float64, L::Float64)
     return N
 end
 
+
 function beam_second_deriv(ξ::Float64, nnodes::Int)
     if nnodes==2
         DD = Array{Float64}(undef,4)
@@ -41,6 +43,7 @@ function beam_second_deriv(ξ::Float64, nnodes::Int)
     end
     return DD
 end
+
 
 function elem_config_dofs(elem::MechClassicalBeamElem)
     ndim = elem.env.ndim
@@ -63,6 +66,7 @@ function elem_config_dofs(elem::MechClassicalBeamElem)
     end
 end
 
+
 function elem_map(elem::MechClassicalBeamElem)::Array{Int,1}
     if elem.env.ndim==2
         dof_keys = (:ux, :uy, :rz)
@@ -75,11 +79,13 @@ end
 # Return the class of element where this material can be used
 #client_shape_class(matparams::MechClassicalBeam) = LINECELL
 
+
 function calcT(elem::MechClassicalBeamElem, C)
     c = (C[2,1] - C[1,1])/L
     s = (C[2,2] - C[1,1])/L
     return
 end
+
 
 function distributed_bc(elem::MechClassicalBeamElem, facet::Nothing, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
@@ -203,6 +209,7 @@ function elem_stiffness(elem::MechClassicalBeamElem)
 
     return T'*K0*T, map, map
 end
+
 
 function elem_mass(elem::MechClassicalBeamElem)
     C  = getcoords(elem)

@@ -117,6 +117,7 @@ function maximum(ips::Array{Ip,1}, dir::Symbol)
     return ips[idx]
 end
 
+
 function minimum(ips::Array{Ip,1}, dir::Symbol)
     idx = findfirst(isequal(dir), (:x, :y, :z))
     _, idx = findmin([ip.coord[idx] for ip in ips])

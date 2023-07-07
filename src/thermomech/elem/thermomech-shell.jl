@@ -46,6 +46,7 @@ function elem_init(elem::TMShellElem)
     return nothing
 end
 
+
 function setquadrature!(elem::TMShellElem, n::Int=0)
 
     if n in (8, 18)
@@ -90,6 +91,7 @@ function body_c(elem::TMShellElem, key::Symbol, val::Union{Real,Symbol,Expr})
     return mech_shell_body_forces(elem, key, val)
 end
 
+
 function elem_config_dofs(elem::TMShellElem)
     ndim = elem.env.ndim
     ndim in (1,2) && error("MechShell: Shell elements do not work in $(ndim)d analyses")
@@ -130,6 +132,7 @@ function set_rot_x_xp(elem::TMShellElem, J::Matx, R::Matx)
     R[3,:] .= V3
 end
 
+
 function setB(elem::TMShellElem, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx, Bil::Matx, Bi::Matx, B::Matx)
     nnodes = size(dNdX,1)
     th = elem.matparams.thickness
@@ -159,6 +162,7 @@ function setB(elem::TMShellElem, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Mat
         B[:, c+1:c+6] .= Bi
     end 
 end
+
 
 function elem_stiffness(elem::TMShellElem)
     nnodes = length(elem.nodes)
@@ -326,6 +330,7 @@ function elem_conductivity_matrix(elem::TMShellElem)
     return H, map, map
 end
 
+
 function elem_mass_matrix(elem::TMShellElem)
     th     = elem.matparams.thickness
     nnodes = length(elem.nodes)
@@ -375,7 +380,7 @@ function elem_internal_forces(elem::TMShellElem, F::Array{Float64,1}, DU::Array{
     Bu  = zeros(6, nnodes*ndim)
     dFt = zeros(nbnodes)
     Bt  = zeros(ndim, nbnodes)
-    m = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ] # = tI
+    m = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  tI
     J  = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, nnodes, ndim)
     Jp  = Array{Float64}(undef, ndim, nbnodes)

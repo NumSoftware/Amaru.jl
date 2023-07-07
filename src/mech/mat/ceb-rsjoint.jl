@@ -271,6 +271,7 @@ function update_state(matparams::CebRSJoint, state::CebRSJointState, Δu::Vect)
     return Δσ, success()
 end
 
+
 function ip_state_vals(matparams::CebRSJoint, state::CebRSJointState)
     return OrderedDict(
       :ur   => state.u[1] ,

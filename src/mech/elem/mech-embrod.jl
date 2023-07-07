@@ -27,10 +27,12 @@ end
 matching_shape_family(::Type{MechEmbRodElem}) = LINECELL
 matching_props_type(::Type{MechEmbRodElem}) = MechRodProps
 
+
 function elem_config_dofs(::MechEmbRodElem)
     # No-op function.
     # The solid linked element will set the required dofs.
 end
+
 
 function elem_map(elem::MechEmbRodElem)
     ndim = elem.env.ndim
@@ -38,6 +40,7 @@ function elem_map(elem::MechEmbRodElem)
     solid = elem.linked_elems[1]
     return [ node.dofdict[key].eq_id for node in solid.nodes for key in keys ]
 end
+
 
 function _mountNN(elem::MechEmbRodElem)
     ndim = elem.env.ndim
@@ -65,6 +68,7 @@ function elem_init(elem::MechEmbRodElem)
     return nothing
 end
 
+
 function elem_displacements(elem::MechEmbRodElem)
     ndim    = elem.env.ndim
     NN      = elem.cache_NN
@@ -76,6 +80,7 @@ function elem_displacements(elem::MechEmbRodElem)
 
     return Urod, nodemap, dimmap
 end
+
 
 function elem_stiffness(elem::MechEmbRodElem)
     ndim   = elem.env.ndim
@@ -108,6 +113,7 @@ function elem_stiffness(elem::MechEmbRodElem)
     map = elem_map(elem)
     return NN*K*NN', map, map
 end
+
 
 function update_elem!(elem::MechEmbRodElem, U::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim

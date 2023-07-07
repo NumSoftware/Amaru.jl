@@ -19,12 +19,14 @@ mutable struct Point<:GeoEntity
     end
 end
 
+
 function Point(X::AbstractArray{<:Real}; size=0, id=0, tag="")
     if length(X)!=3
         X = [X; [0.0, 0.0]][1:3]
     end
     return Point(X...; size=size, id=id, tag=tag)
 end
+
 
 function Point(p::Point)
     Point(p.coord, p.size, id=p.id)
@@ -172,12 +174,14 @@ function Base.getindex(s::OrderedSet, x)
     return x
 end
 
+
 function Base.getindex(set::OrderedSet{<:GeoEntity}, id::Int) 
     for ent in set
         ent.id == id && return ent
     end
     return nothing
 end
+
 
 function Base.getproperty(set::OrderedSet{<:GeoEntity}, s::Symbol)
     s==:points && return [ent for ent in set if ent isa Point]
@@ -192,6 +196,7 @@ function getentity(geo::GeoModel, e::GeoEntity)
     return getkey(geo.entities.dict, e, nothing)
 end
 
+
 function getentity(geo::GeoModel, p::Point)
     pp = getkey(geo.entities.dict, p, nothing)
     pp===nothing || return pp
@@ -204,6 +209,7 @@ function getentity(geo::GeoModel, p::Point)
 
     return nothing
 end
+
 
 function getpoint(geo::GeoModel, p::Point)
     pp = getkey(geo.entities.dict, p, nothing)
@@ -233,6 +239,7 @@ function Base.copy(geo::GeoModel, p::Point; dx=0.0, dy=0.0, dz=0.0)
     return pp
 end
 
+
 function point_in_segment(X, X1, X2)
     tol = 1e-8
     X1X = X-X1
@@ -242,6 +249,7 @@ function point_in_segment(X, X1, X2)
     dot2 = dot(X1X2, X1X2)
     return tol < dot1 < dot2-tol
 end
+
 
 function point_in_line(p::Point, l::Line)
 
@@ -265,7 +273,6 @@ function point_in_line(p::Point, l::Line)
     return OUTSIDE
     # return tol < dot1 < dot2-tol
 end
-
 
 
 function addpoint!(geo::GeoModel, p::Point)
@@ -313,9 +320,11 @@ function addpoint!(geo::GeoModel, p::Point)
     return p
 end
 
+
 function addpoint!(geo::GeoModel, x, y, z; size=0.0, tag="")
     return addpoint!(geo, Point(x,y,z; size=size, tag=tag))
 end
+
 
 function addpoint!(geo::GeoModel, X::Array; size=0.0, tag="")
     X = Vec3(X)
@@ -333,6 +342,7 @@ function coplanar(l1::Line, l2::Line)
 
     return abs(dot(cross(V1,V2), X1-X2)) < tol 
 end
+
 
 function intersection(l1::Line, l2::Line)
     # Assumes:
@@ -446,6 +456,7 @@ end
 #     end
 #     return nothing
 # end
+
 
 function getcurve(geo::GeoModel, p1::Point, p2::Point)
     # all curves hatch function only considers endpoints
@@ -651,11 +662,13 @@ function addsinglearc!(geo::GeoModel, p1::Point, p2::Point, p3::Point; n=0, tag=
 
 end
 
+
 function addline!(geo::GeoModel, X1, X2; n=0, tag="")
     p1 = addpoint!(geo, X1)
     p2 = addpoint!(geo, X2)
     return addline!(geo, p1, p2; n=n, tag=tag)
 end
+
 
 function addline!(geo::GeoModel, p1::Point, p2::Point; n=0, tag="")
     l = Line(p1, p2)
@@ -697,6 +710,7 @@ function addline!(geo::GeoModel, p1::Point, p2::Point; n=0, tag="")
     end
 end
 
+
 function addarc!(geo::GeoModel, p1::Point, p2::Point, p3::Point; n=0, tag="")
     p1 = getpoint(geo, p1)
     p2 = getpoint(geo, p2)
@@ -718,6 +732,7 @@ function addarc!(geo::GeoModel, p1::Point, p2::Point, p3::Point; n=0, tag="")
 
     return a
 end
+
 
 function addloops!(geo::GeoModel, c::Curve)
     loops = findloops(geo, c)
@@ -901,6 +916,7 @@ function getpoints(lo::Loop)
     return points
 end
 
+
 function coplanar(lo::Loop)
     tol = 1e-8
     points = getpoints(lo)
@@ -967,6 +983,7 @@ function inside(p::Point, lo::Loop; withborder=true)
     N, h = getplane(lo)
     return inside(p, getpoints(lo), N; withborder)
 end
+
 
 function inside(p::Point, points::Array{Point,1}, normal::Array{Float64,1}; withborder=true)
     tol = 1e-8
@@ -1067,6 +1084,7 @@ end
 #     return ent
 # end
 
+
 function addloop!(geo::GeoModel, lo::Loop)
     loo = getkey(geo.entities.dict, lo, nothing)
     loo===nothing || return loo
@@ -1119,6 +1137,7 @@ function addloop!(geo::GeoModel, lo::Loop)
 
     return lo
 end
+
 
 function Base.delete!(geo::GeoModel, loop::Loop)
     delete!(geo.entities, loop)
@@ -1263,6 +1282,7 @@ function extrude!(geo::GeoModel, line::Line; axis=[0,0,1], length=1.0)
     return s
 end
 
+
 function extrude!(geo::GeoModel, arc::Arc; axis=[0,0,1], length=1.0)
     p1, p2, p3 = arc.points
     dx = length*axis[1]
@@ -1285,6 +1305,7 @@ function extrude!(geo::GeoModel, arc::Arc; axis=[0,0,1], length=1.0)
     s = addsurface!(geo, lo)
     return s
 end
+
 
 function extrude!(geo::GeoModel, surf::AbstractSurface; axis=[0,0,1], length=1.0)
     surfs = AbstractSurface[ surf ]
@@ -1336,6 +1357,7 @@ function extrude!(geo::GeoModel, surf::AbstractSurface; axis=[0,0,1], length=1.0
     return v
 end
 
+
 function extrude!(m::GeoModel, surfs::Vector{<:AbstractSurface}; axis=[0,0,1], length=1.0)
     for s in surfs
         extrude!(m, s; axis=axis, length=length)
@@ -1344,9 +1366,11 @@ end
 
 export picksurface
 
+
 function picksurface(geo::GeoModel, p::Point)
     return picksurface(geo, p.coord)
 end
+
 
 function picksurface(geo::GeoModel, coord)
     p = Point(coord)
@@ -1365,6 +1389,7 @@ function picksurface(geo::GeoModel, coord)
     end
     return nothing
 end
+
 
 function tag!(s::AbstractSurface, tag::String)
     s.tag = tag

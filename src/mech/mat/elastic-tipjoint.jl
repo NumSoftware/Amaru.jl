@@ -36,9 +36,11 @@ matching_elem_type(::ElasticTipJoint) = MechTipJointElem
 # Type of corresponding state structure
 ip_state_type(matparams::ElasticTipJoint) = ElasticTipJointState
 
+
 function calcD(matparams::ElasticTipJoint, state::ElasticTipJointState)
     return matparams.k
 end
+
 
 function update_state(matparams::ElasticTipJoint, state::ElasticTipJointState, Δw)
     Δf = matparams.k*Δw
@@ -46,6 +48,7 @@ function update_state(matparams::ElasticTipJoint, state::ElasticTipJointState, �
     state.w += Δw
     return Δf, success()
 end
+
 
 function ip_state_vals(matparams::ElasticTipJoint, state::ElasticTipJointState)
     return OrderedDict(

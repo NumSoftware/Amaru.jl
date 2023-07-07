@@ -50,15 +50,16 @@ mutable struct LinearElasticSeep<:MatParams
 end
 
 # Returns the element type that works with this material model
-matching_elem_type(::LinearElasticSeep) = HMSolidElem
+matching_elem_type(::LinearElasticSeep) = HydromechSolidElem
 
 # Type of corresponding state structure
-ip_state_type(::HMSolidElem, ::LinearElasticSeep) = LinearElasticSeepState
+ip_state_type(::HydromechSolidElem, ::LinearElasticSeep) = LinearElasticSeepState
 
 
 function calcD(matparams::LinearElasticSeep, state::LinearElasticSeepState)
     return calcDe(matparams.E, matparams.nu, state.env.anaprops.stressmodel) # function calcDe defined at elastic-solid.jl
 end
+
 
 function calcK(matparams::LinearElasticSeep, state::LinearElasticSeepState) # Hydraulic conductivity matrix
     if state.env.ndim==2
@@ -67,6 +68,7 @@ function calcK(matparams::LinearElasticSeep, state::LinearElasticSeepState) # Hy
         return matparams.k*eye(3)
     end
 end
+
 
 function update_state(matparams::LinearElasticSeep, state::LinearElasticSeepState, Δε::Array{Float64,1}, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
     De = calcD(matparams, state)
@@ -79,6 +81,7 @@ function update_state(matparams::LinearElasticSeep, state::LinearElasticSeepStat
     state.uw += Δuw
     return Δσ, state.V
 end
+
 
 function ip_state_vals(matparams::LinearElasticSeep, state::LinearElasticSeepState)
     D = stress_strain_dict(state.σ, state.ε, state.env.anaprops.stressmodel)

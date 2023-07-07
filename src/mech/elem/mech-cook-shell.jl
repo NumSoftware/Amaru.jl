@@ -50,6 +50,7 @@ function elem_init(elem::CookShellElem)
     return nothing
 end
 
+
 function setquadrature!(elem::CookShellElem, n::Int=0)
 
     # n = 9
@@ -81,6 +82,7 @@ function setquadrature!(elem::CookShellElem, n::Int=0)
     end
 
 end
+
 
 function body_c(elem::CookShellElem, key::Symbol, val::Union{Real,Symbol,Expr})
     return mech_shell_body_forces(elem, key, val)
@@ -159,6 +161,7 @@ function elem_config_dofs(elem::CookShellElem)
     end
 end
 
+
 function elem_map(elem::CookShellElem)
     keys =(:ux, :uy, :uz, :rx, :ry, :rz)
     return [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
@@ -219,6 +222,7 @@ function elem_stiffness(elem::CookShellElem)
     map = elem_map(elem)
     return K, map, map
 end
+
 
 function update_elem!(elem::CookShellElem, U::Array{Float64,1}, dt::Float64)
     ndim   = elem.env.ndim

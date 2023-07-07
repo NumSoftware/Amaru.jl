@@ -19,6 +19,7 @@ end
 # Return the shape family that works with this element
 matching_shape_family(::Type{HydroJointElem}) = JOINTCELL
 
+
 function elem_config_dofs(elem::HydroJointElem)
     nnodes = length(elem.nodes)
     for (i, node) in enumerate(elem.nodes)
@@ -405,6 +406,7 @@ function update_elem!(elem::HydroJointElem, U::Array{Float64,1}, Δt::Float64)
     F[map_w] .+= dFw
     return success()
 end
+
 
 function elem_extrapolated_node_vals(elem::HydroJointElem)
     nips = length(elem.ips)

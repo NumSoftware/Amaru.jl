@@ -20,7 +20,7 @@ tag!(msh.elems["solids"].nodes, "fixed_points")
 # Finite elements:
 
 mats = [
-        "solids" << LinearElastic(E=24e3, nu=0.2),
+        "solids" << MechSolid() << LinearElastic(E=24e3, nu=0.2),
         "bars"   << MechRod(A=0.00011) << LinearElastic(E=200e6),
         "joints" << MechRSJoint(A=0.005) << CebRSJoint(TauM=12, TauR=3, s1=0.001, s2=0.0011, s3=0.004, alpha=0.5, beta=0.5,
                                  ks=(12/0.001)*5, kn=5000)

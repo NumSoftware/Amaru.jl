@@ -2,7 +2,7 @@
 
 
 # TET4 shape
-# ==========
+
 
 
 # natural coordinates
@@ -28,6 +28,7 @@ function shape_func_TET4(R::AbstractArray{<:Float64,1})
     N[4] = t
     return N
 end
+
 
 function shape_deriv_TET4(R::AbstractArray{<:Float64,1})
     r, s, t = R
@@ -67,7 +68,7 @@ export TET4
 
 
 # TET10 shape
-# ===========
+
 
 #                       t
 #                       |
@@ -144,6 +145,7 @@ function shape_func_TET10(R::AbstractArray{<:Float64,1})
     return N
 end
 
+
 function shape_deriv_TET10(R::AbstractArray{<:Float64,1})
     r, s, t = R
 
@@ -213,7 +215,7 @@ const  TET10 = MakeTET10()
 export TET10
 
 # PYR5 shape
-# ==========
+
 
 
 # natural coordinates
@@ -242,6 +244,7 @@ function shape_func_PYR5(R::AbstractArray{<:Float64,1})
     N[5] = t
     return N
 end
+
 
 function shape_deriv_PYR5(R::AbstractArray{<:Float64,1})
     r, s, t = R
@@ -282,7 +285,7 @@ export PYR5
 
 
 # PYR13 shape
-# ===========
+
 
 # G. Bedrosian. Shape functions and integration formulas for
 # three-dimensional finite element analysis.
@@ -334,6 +337,7 @@ function shape_func_PYR13(R::AbstractArray{<:Float64,1})
     N[13] = t*(1-r-t)*(1+s-t)*w
     return N
 end
+
 
 function shape_deriv_PYR13(R::AbstractArray{<:Float64,1})
     r, s, t = R
@@ -429,7 +433,7 @@ const  PYR13 = MakePYR13()
 export PYR13
 
 # HEX8 shape
-# ==========
+
 
 # Local IDs
 #                  Nodes                                   Faces
@@ -479,6 +483,7 @@ function shape_func_HEX8(R::AbstractArray{<:Float64,1})
     return N
 end
 
+
 function shape_deriv_HEX8(R::AbstractArray{<:Float64,1})
     r, s, t = R
     st = s*t
@@ -525,7 +530,7 @@ export HEX8
 
 
 # HEX20 shape
-# ===========
+
 
 # Local IDs
 #                   Vertices                               Faces
@@ -606,6 +611,7 @@ function shape_func_HEX20(R::AbstractArray{<:Float64,1})
     N[20] = 0.25*rm1*sp1*(1.0-t*t)
     return N
 end
+
 
 function shape_deriv_HEX20(R::AbstractArray{<:Float64,1})
     r, s, t = R
@@ -712,7 +718,7 @@ export HEX20
 
 
 # HEX27 shape
-# ===========
+
 
 # Local IDs
 #                   Vertices                               Faces
@@ -829,6 +835,7 @@ function shape_func_HEX27(R::AbstractArray{<:Float64,1})
 
     return N
 end
+
 
 function shape_deriv_HEX27(R::AbstractArray{<:Float64,1})
     r, s, t = R
@@ -976,7 +983,7 @@ export HEX27
 
 
 # WED6 shape
-# ==========
+
 
 # natural coordinates
 const coords_WED6 =
@@ -1001,6 +1008,7 @@ function shape_func_WED6(R::AbstractArray{<:Float64,1})
     N[6] = 0.5*(s+s*t)
     return N
 end
+
 
 function shape_deriv_WED6(R::AbstractArray{<:Float64,1})
     r, s, t = R
@@ -1042,7 +1050,7 @@ export WED6
 
 
 # WED15 shape
-# ==========
+
 
 # natural coordinates
 const coords_WED15 =
@@ -1087,6 +1095,7 @@ function shape_func_WED15(R::AbstractArray{<:Float64,1})
     N[15] = (-s*(t^2.0)+s)
     return N
 end
+
 
 function shape_deriv_WED15(R::AbstractArray{<:Float64,1})
     r, s, t = R

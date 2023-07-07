@@ -27,6 +27,7 @@ end
 
 export get_outline_edges, get_outline
 
+
 function get_outline_edges(cells::Array{<:AbstractCell,1}; angle=150)
     faces_dict = Dict{UInt64, Cell}()
 

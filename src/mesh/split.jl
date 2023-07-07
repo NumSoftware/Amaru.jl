@@ -308,6 +308,7 @@ function split!(mesh::Mesh)
     generate_joints!(mesh)
 end
 
+
 function generate_joints_by_tag!(mesh::Mesh; layers::Int64=2, verbose::Bool=true)
     # Get tags
     tag_set = Set{String}()
@@ -375,6 +376,7 @@ mutable struct FacePair
     idxs2::Array{Int,1}
     FacePair() = new()
 end
+
 
 function generate_joints_candidate!(mesh::Mesh, expr::Expr, tag::String="") # TODO: needs checking
     solids = mesh.elems.solids[expr]
@@ -490,6 +492,7 @@ end
 
 
 #Generate joints taking account tags
+
 
 function generate_joints_by_tag_2!(mesh::Mesh; layers::Int64=2, verbose::Bool=true, tag="")
 

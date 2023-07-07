@@ -38,11 +38,13 @@ matching_shape_family(::Type{DrainPipeElem}) = LINECELL
 matching_elem_type(::Type{DrainPipeProps}) = DrainPipeElem
 matching_props_type(::Type{DrainPipeElem}) = DrainPipeProps
 
+
 function elem_config_dofs(elem::DrainPipeElem)
     for node in elem.nodes
         add_dof(node, :uw, :fw)
     end
 end
+
 
 function elem_conductivity_matrix(elem::DrainPipeElem)
 local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
@@ -77,6 +79,7 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
     return H, map, map, elem.nodes
 end
 
+
 function elem_RHS_vector(elem::DrainPipeElem)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
@@ -107,6 +110,7 @@ function elem_RHS_vector(elem::DrainPipeElem)
 
     return Q, map
 end
+
 
 function elem_internal_forces(elem::DrainPipeElem, F::Array{Float64,1})
     local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
@@ -141,6 +145,7 @@ function elem_internal_forces(elem::DrainPipeElem, F::Array{Float64,1})
 
     F[map_w] += dFw
 end
+
 
 function update_elem!(elem::DrainPipeElem, DU::Array{Float64,1}, Δt::Float64)
     local A::Float64, coef::Float64, dNdR::Matrix{Float64}

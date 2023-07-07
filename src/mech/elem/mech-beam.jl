@@ -70,6 +70,7 @@ function elem_init(elem::MechBeamElem)
     return nothing
 end
 
+
 function setquadrature!(elem::MechBeamElem, n::Int=0)
     ndim = elem.env.ndim
 
@@ -138,6 +139,7 @@ function elem_config_dofs(elem::MechBeamElem)
         add_dof(node, :rz, :mz)
     end
 end
+
 
 function elem_map(elem::MechBeamElem)
     if elem.env.ndim==2

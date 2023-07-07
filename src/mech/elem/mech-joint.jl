@@ -37,6 +37,7 @@ matching_shape_family(::Type{MechJointElem}) = JOINTCELL
 matching_elem_type(::Type{MechJointProps}) = MechJointElem
 matching_props_type(::Type{MechJointElem}) = MechJointProps
 
+
 function elem_init(elem::MechJointElem)
 
     # Get linked elements
@@ -85,6 +86,7 @@ function elem_init(elem::MechJointElem)
 
 end
 
+
 function matrixT(J::Matrix{Float64})
     if size(J,2)==2
         L2 = vec(J[:,1])
@@ -101,6 +103,7 @@ function matrixT(J::Matrix{Float64})
         return collect([L1 L2]')
     end
 end
+
 
 function elem_stiffness(elem::MechJointElem)
     ndim   = elem.env.ndim
@@ -208,6 +211,7 @@ function update_elem!(elem::MechJointElem, U::Array{Float64,1}, Δt::Float64)
 
     return dF, map, success()
 end
+
 
 function elem_extrapolated_node_vals(elem::MechJointElem)
     nips = length(elem.ips)

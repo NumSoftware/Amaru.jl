@@ -17,9 +17,10 @@ end
 
 matching_shape_family(::Type{MechTipJointElem}) = TIPJOINTCELL
 
+
 function mountB(elem::MechTipJointElem, Ch, Ct)
     # Calculates the matrix that relates nodal displacements with relative displacements
-    # ==================================================================================
+    
 
     # B = T* [-MM'  I]      ndim x ndim*(m+n)
 
@@ -64,6 +65,7 @@ function mountB(elem::MechTipJointElem, Ch, Ct)
     return B
 end
 
+
 function elem_stiffness(elem::MechTipJointElem)
     ndim = elem.env.ndim
     bulk = elem.linked_elems[1]
@@ -80,6 +82,7 @@ function elem_stiffness(elem::MechTipJointElem)
     map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
     return K, map, map
 end
+
 
 function update_elem!(elem::MechTipJointElem, U::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
