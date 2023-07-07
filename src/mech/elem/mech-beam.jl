@@ -5,16 +5,16 @@ export MechBeam
 struct MechBeamProps<:ElemProperties
     ρ::Float64
     γ::Float64
-    tky::Float64
-    tkz::Float64
+    thy::Float64
+    thz::Float64
 
-    function MechBeamProps(;rho=0.0, gamma=0.0, tky=NaN, tkz=NaN)
+    function MechBeamProps(;rho=0.0, gamma=0.0, thy=NaN, thz=NaN)
         @check rho>=0
         @check gamma>=0
-        @check tky>0
-        @check tkz>0
+        @check thy>0
+        @check thz>0
 
-        return new(rho, gamma, tky, tkz)
+        return new(rho, gamma, thy, thz)
     end    
 end
 
@@ -186,8 +186,8 @@ function setB(elem::MechBeamElem, ip::Ip, L::Matx, N::Vect, dNdX::Matx, Rθ::Mat
     ndim = elem.env.ndim
     ndof = ndim==2 ? 3 : 6
     nnodes = size(dNdX,1)
-    thz = elem.props.tkz
-    thy = elem.props.tky
+    thz = elem.props.thz
+    thy = elem.props.thy
     # Note that matrix B is designed to work with tensors in Mandel's notation
     if ndim==2
         Rθ[3,3] = 1.0
@@ -230,8 +230,8 @@ end
 function elem_stiffness(elem::MechBeamElem)
     ndim = elem.env.ndim
     nnodes = length(elem.nodes)
-    thz = elem.props.tkz
-    thy = elem.props.tky
+    thz = elem.props.thz
+    thy = elem.props.thy
     ndof = ndim==2 ? 3 : 6
     nstr = ndim==2 ? 2 : 3
 
@@ -272,8 +272,8 @@ end
 function update_elem!(elem::MechBeamElem, U::Array{Float64,1}, dt::Float64)
     ndim = elem.env.ndim
     nnodes = length(elem.nodes)
-    thz = elem.props.tkz
-    thy = elem.props.tky
+    thz = elem.props.thz
+    thy = elem.props.thy
     ndof = ndim==2 ? 3 : 6
     nstr = ndim==2 ? 2 : 3
 
@@ -326,8 +326,8 @@ end
 
 function elem_extrapolated_node_vals(elem::MechBeamElem)
     ndim = elem.env.ndim
-    thz = elem.props.tkz
-    thy = elem.props.tky
+    thz = elem.props.thz
+    thy = elem.props.thy
     ndof = ndim==2 ? 3 : 6
 
     nnodes = length(elem.nodes)

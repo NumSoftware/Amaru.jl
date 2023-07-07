@@ -5,7 +5,7 @@ export MechShell
 struct MechShellProps<:ElemProperties
     ρ::Float64
     γ::Float64
-    tk::Float64
+    th::Float64
 
     function MechShellProps(;rho=0.0, gamma=0.0, thickness=NaN)
         @check rho>=0
@@ -157,7 +157,7 @@ end
 
 function setB(elem::MechShellElem, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx, Bil::Matx, Bi::Matx, B::Matx)
     nnodes = size(dNdX,1)
-    tk = elem.props.tk
+    th = elem.props.th
     # Note that matrix B is designed to work with tensors in Mandel's notation
 
     ndof = 6
@@ -172,12 +172,12 @@ function setB(elem::MechShellElem, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::M
         dNdy = dNdX[i,2]
         Ni = N[i]
 
-        Bil[1,1] = dNdx;                                                                                Bil[1,5] = dNdx*ζ*tk/2
-                             Bil[2,2] = dNdy;                           Bil[2,4] = -dNdy*ζ*tk/2
+        Bil[1,1] = dNdx;                                                                                Bil[1,5] = dNdx*ζ*th/2
+                             Bil[2,2] = dNdy;                           Bil[2,4] = -dNdy*ζ*th/2
                                                   
                                                   Bil[4,3] = dNdy/SR2;  Bil[4,4] = -1/SR2*Ni
                                                   Bil[5,3] = dNdx/SR2;                                  Bil[5,5] = 1/SR2*Ni
-        Bil[6,1] = dNdy/SR2; Bil[6,2] = dNdx/SR2;                       Bil[6,4] = -1/SR2*dNdx*ζ*tk/2;  Bil[6,5] = 1/SR2*dNdy*ζ*tk/2
+        Bil[6,1] = dNdy/SR2; Bil[6,2] = dNdx/SR2;                       Bil[6,4] = -1/SR2*dNdx*ζ*th/2;  Bil[6,5] = 1/SR2*dNdy*ζ*th/2
 
         c = (i-1)*ndof
         @gemm Bi = Bil*Rrot
@@ -188,7 +188,7 @@ end
 function setNN(elem::MechShellElem, ip::Ip, N::Vect, NNil::Matx, NNi::Matx, L::Matx, Rrot::Matx, NN::Matx)
     nnodes = length(N)
     ndof = 6
-    tk = elem.props.tk
+    th = elem.props.th
     ζ = ip.R[3]
     # R = zeros(3,5)
     # NN_A  = zeros(3,5)
@@ -210,14 +210,14 @@ function setNN(elem::MechShellElem, ip::Ip, N::Vect, NNil::Matx, NNi::Matx, L::M
         NNil[1,1] = N[i]
         NNil[2,2] = N[i]
         NNil[3,3] = N[i]
-        NNil[1,5] = tk/2*ζ*N[i]
-        NNil[2,4] = -tk/2*ζ*N[i]
+        NNil[1,5] = th/2*ζ*N[i]
+        NNil[2,4] = -th/2*ζ*N[i]
 
         # NN_A[1,1] = N[i]
         # NN_A[2,2] = N[i]
         # NN_A[3,3] = N[i]
 
-        # NN_B = R*ζ*(tk/2)*N[i]
+        # NN_B = R*ζ*(th/2)*N[i]
 
         c = (i-1)*ndof
         #@show size(NN_A+NN_B)
@@ -240,7 +240,7 @@ end
 
 function elem_stiffness(elem::MechShellElem)
     nnodes = length(elem.nodes)
-    tk     = elem.props.tk
+    th     = elem.props.th
     ndof   = 6
     nstr   = 6
     C      = getcoords(elem)
@@ -256,7 +256,7 @@ function elem_stiffness(elem::MechShellElem)
         dNdR = elem.shape.deriv(ip.R)
         J2D  = C'*dNdR
         set_rot_x_xp(elem, J2D, L)
-        J′   = [ L*J2D [ 0,0,tk/2]  ]
+        J′   = [ L*J2D [ 0,0,th/2]  ]
         invJ′ = inv(J′)
         dNdR  = [ dNdR zeros(nnodes) ]
         dNdX′ = dNdR*invJ′
@@ -287,7 +287,7 @@ end
 
 function elem_mass(elem::MechShellElem)
         nnodes = length(elem.nodes)
-        tk     = elem.props.tk
+        th     = elem.props.th
         ndof   = 6 #6
         ρ      = elem.matparams.ρ
         C      = getcoords(elem)
@@ -305,7 +305,7 @@ function elem_mass(elem::MechShellElem)
             dNdR = elem.shape.deriv(ip.R)
             J2D  = C'*dNdR
             set_rot_x_xp(elem, J2D, L)
-            J′   = [ L*J2D [ 0,0,tk/2]  ] 
+            J′   = [ L*J2D [ 0,0,th/2]  ] 
                                   
             detJ′ = det(J′)
             @assert detJ′>0
@@ -324,7 +324,7 @@ end
 function update_elem!(elem::MechShellElem, U::Array{Float64,1}, dt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
-    tk = elem.props.tk
+    th = elem.props.th
     ndof = 6
 
     map = elem_map(elem)
@@ -346,7 +346,7 @@ function update_elem!(elem::MechShellElem, U::Array{Float64,1}, dt::Float64)
         
         J2D = C'*dNdR
         set_rot_x_xp(elem, J2D, L)
-        J′ = [ L*J2D [ 0,0,tk/2]  ]
+        J′ = [ L*J2D [ 0,0,th/2]  ]
         invJ′ = inv(J′)
 
         dNdR = [ dNdR zeros(nnodes) ]
