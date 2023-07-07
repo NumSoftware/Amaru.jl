@@ -29,7 +29,7 @@ mutable struct ElasticShellDegenerated<:MatParams
     end
 end
 
-matching_elem_type(::ElasticShellDegenerated) = ShellDegeneratedElem
+
 
 # Type of corresponding state structure
 ip_state_type(matparams::ElasticShellDegenerated) = ElasticShellDegeneratedState

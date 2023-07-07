@@ -67,7 +67,7 @@ mutable struct PPRodState<:IpState
     end
 end
 
-matching_elem_type(::PPRod) = MechRodElem
+
 matching_elem_type_if_embedded(::PPRod) = MechEmbRodElem
 
 # Type of corresponding state structure

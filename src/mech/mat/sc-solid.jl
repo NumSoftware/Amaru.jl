@@ -67,8 +67,7 @@ mutable struct SmearedCrack<:MatParams
     end
 end
 
-# Returns the element type that works with this material model
-matching_elem_type(::SmearedCrack) = MechSolidElem
+
 
 # Type of corresponding state structure
 ip_state_type(matparams::SmearedCrack) = SmearedCrackState

@@ -41,7 +41,7 @@ end
 
 matching_shape_family(::Type{TMSolidElem}) = BULKCELL
 matching_elem_type(::Type{TMSolidProps}) = TMSolidElem
-matching_props_type(::Type{TMSolidElem}) = TMSolidProps
+
 
 
 function elem_config_dofs(elem::TMSolidElem)

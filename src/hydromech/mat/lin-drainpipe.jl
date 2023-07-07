@@ -29,7 +29,7 @@ mutable struct LinDrainPipe<:MatParams
     end
 end
 
-matching_elem_type(::LinDrainPipe) = DrainPipeElem
+
 #matching_elem_type_if_embedded(::LinDrainPipe) = SeepEmbRod
 
 # Type of corresponding state structure

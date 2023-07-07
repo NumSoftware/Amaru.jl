@@ -38,7 +38,7 @@ end
 
 matching_shape_family(::Type{HydromechSolidElem}) = BULKCELL
 matching_elem_type(::Type{HydromechSolidProps}) = HydromechSolidElem
-matching_props_type(::Type{HydromechSolidElem}) = HydromechSolidProps
+
 
 
 function elem_config_dofs(elem::HydromechSolidElem)

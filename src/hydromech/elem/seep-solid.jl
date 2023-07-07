@@ -32,7 +32,7 @@ end
 
 matching_shape_family(::Type{SeepSolidElem}) = BULKCELL
 matching_elem_type(::Type{SeepSolidProps}) = SeepSolidElem
-matching_props_type(::Type{SeepSolidElem}) = SeepSolidProps
+
 
 
 function elem_config_dofs(elem::SeepSolidElem)

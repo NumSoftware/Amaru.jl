@@ -48,7 +48,7 @@ end
 
 matching_shape_family(::Type{MechBeamElem}) = LINECELL
 matching_elem_type(::Type{MechBeamProps}) = MechBeamElem
-matching_props_type(::Type{MechBeamElem}) = MechBeamProps
+
 
 
 function elem_init(elem::MechBeamElem)

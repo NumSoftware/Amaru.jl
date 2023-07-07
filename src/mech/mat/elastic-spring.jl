@@ -32,7 +32,7 @@ mutable struct ElasticSpring<:MatParams
     end
 end
 
-matching_elem_type(::ElasticSpring) = MechSpringElem
+
 
 # Type of corresponding state structure
 ip_state_type(matparams::ElasticSpring) = ElasticSpringState

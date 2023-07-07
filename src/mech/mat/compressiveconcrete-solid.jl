@@ -47,8 +47,7 @@ mutable struct CompressiveConcreteState<:IpState
 end
 
 
-# Returns the element type that works with this material model
-matching_elem_type(::CompressiveConcrete) = MechSolidElem
+
 
 # Type of corresponding state structure
 ip_state_type(matparams::CompressiveConcrete) = CompressiveConcreteState

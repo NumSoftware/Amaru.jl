@@ -35,7 +35,7 @@ end
 # Return the shape family that works with this element
 matching_shape_family(::Type{MechJointElem}) = JOINTCELL
 matching_elem_type(::Type{MechJointProps}) = MechJointElem
-matching_props_type(::Type{MechJointElem}) = MechJointProps
+
 
 
 function elem_init(elem::MechJointElem)

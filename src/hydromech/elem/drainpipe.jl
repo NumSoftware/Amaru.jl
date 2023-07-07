@@ -36,7 +36,7 @@ end
 
 matching_shape_family(::Type{DrainPipeElem}) = LINECELL
 matching_elem_type(::Type{DrainPipeProps}) = DrainPipeElem
-matching_props_type(::Type{DrainPipeElem}) = DrainPipeProps
+
 
 
 function elem_config_dofs(elem::DrainPipeElem)

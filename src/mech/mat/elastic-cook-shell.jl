@@ -36,7 +36,7 @@ mutable struct ElasticCookShell<:MatParams
     end
 end
 
-matching_elem_type(::ElasticCookShell) = CookShellElem
+
 
 # Type of corresponding state structure
 ip_state_type(matparams::ElasticCookShell) = ElasticCookShellState

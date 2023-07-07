@@ -39,8 +39,7 @@ mutable struct LinThermoShell<:MatParams
     end
 end
 
-# Returns the element type that works with this material model
-matching_elem_type(::LinThermoShell) = ThermoShellElem
+
 
 # Type of corresponding state structure
 ip_state_type(matparams::LinThermoShell) = LinThermoShellState

@@ -130,7 +130,7 @@ end
 
 
 # Returns the default element type that works with this material model
-matching_elem_type(::LinearElastic) = MechSolidElem
+
 
 
 # Type of corresponding state structure

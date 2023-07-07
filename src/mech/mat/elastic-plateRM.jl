@@ -29,7 +29,7 @@ mutable struct ElasticPlateRM<:MatParams
     end
 end
 
-matching_elem_type(::ElasticPlateRM) = PlateRMElem
+
 
 # Type of corresponding state structure
 ip_state_type(matparams::ElasticPlateRM) = ElasticPlateRMState

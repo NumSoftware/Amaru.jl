@@ -30,7 +30,7 @@ end
 
 
 # Returns the element type that works with this material
-matching_elem_type(::Joint1DLinSeep) = SeepJoint1DElem
+
 
 # Type of corresponding state structure
 ip_state_type(::SeepJoint1DElem, ::Joint1DLinSeep) = Joint1DLinSeepState

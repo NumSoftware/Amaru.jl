@@ -43,8 +43,7 @@ mutable struct LinearElasticThermo<:MatParams
     end
 end
 
-# Returns the element type that works with this material model
-matching_elem_type(::LinearElasticThermo) = TMSolidElem
+
 
 # Type of corresponding state structure
 ip_state_type(::TMSolidElem, ::LinearElasticThermo) = LinearElasticThermoState

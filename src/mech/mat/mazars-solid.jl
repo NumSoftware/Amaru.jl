@@ -55,8 +55,7 @@ mutable struct Mazars<:MatParams
     end
 end
 
-# Returns the element type that works with this material model
-matching_elem_type(::Mazars) = MechSolidElem
+
 
 # Type of corresponding state structure
 ip_state_type(::MechSolidElem, ::Mazars) = MazarsState

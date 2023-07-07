@@ -56,11 +56,8 @@ mutable struct CompressibleBulkState<:IpState
 end
 
 
-# Returns the element type that works with this material model
-matching_elem_type(::CompressibleBulk) = MechSolidElem
-
 # Type of corresponding state structure
-ip_state_type(::CompressibleBulk) = CompressibleBulkState
+ip_state_type(::MechSolidElem, ::CompressibleBulk) = CompressibleBulkState
 
 
 @inline function calc_py(matparams::CompressibleBulk, state::CompressibleBulkState, εvp::Float64)
@@ -95,23 +92,28 @@ end
 function calc_σ_Δεvp_Δλ(matparams::CompressibleBulk, state::CompressibleBulkState, σtr::Array{Float64,1})
     Δλ = 0.0
     up = 0.0
+    ndim = state.env.ndim
     σ  = zeros(ndim)
     σ0 = zeros(ndim)
     K  = matparams.E/(3*(1-2*matparams.ν))
+
+    εvpc = matparams.εvpc
+    α = matparams.α
     
     tol    = 1e-6
     maxits = 50
     for i in 1:maxits
         # quantities at n+1
-        σ = σtr - Δλ*K*mI
+        σ = σtr - Δλ*K*tI
 
-        dfdσ  = -mI/3
+        dfdσ  = -tI/3
         r     = dfdσ
-        Δεvp  = Δλ*r
+        Δεp  = Δλ*r
+        Δεvp = Δεp[1] + Δεp[2] + Δεp[3] 
         εvp   = state.εvp + Δεvp
 
         f       = yield_func(matparams, state, σ, εvp)
-        dpydεvp = (pc-py0)*exp( 1 - (εvp/εvpc)^-α )*α*(εvp/εvpc)^(-α-1)/εvpc
+        dpydεvp = (matparams.pc-matparams.py0)*exp( 1 - (εvp/εvpc)^-α )*α*(εvp/εvpc)^(-α-1)/εvpc
         dfdΔλ   = dpydεvp - 3*K
         Δλ      = Δλ - f/dfdΔλ
         
@@ -139,7 +141,7 @@ function update_state(matparams::CompressibleBulk, state::CompressibleBulkState,
         state.σ  = σtr
     else
         # plastic
-        σ, Δεvp, Δλ, status = calc_σ_Δεvp_Δλ(matparams::AbstractTCJoint, state::AbstractTCJointState, σtr::Array{Float64,1})
+        σ, Δεvp, Δλ, status = calc_σ_Δεvp_Δλ(matparams, state, σtr)
         failed(status) && return state.σ, status
 
         state.σ, state.Δεvp, state.Δλ = σ, Δεvp, Δλ

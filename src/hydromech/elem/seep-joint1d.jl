@@ -54,7 +54,7 @@ end
 
 matching_shape_family(::Type{SeepJoint1DElem}) = LINEJOINTCELL
 matching_elem_type(::Type{SeepJoint1DProps}) = SeepJoint1DElem
-matching_props_type(::Type{SeepJoint1DElem}) = SeepJoint1DProps
+
 
 
 function elem_config_dofs(elem::SeepJoint1DElem)

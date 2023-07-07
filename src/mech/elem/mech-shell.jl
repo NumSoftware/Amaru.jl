@@ -46,7 +46,7 @@ end
 
 matching_shape_family(::Type{MechShellElem}) = BULKCELL
 matching_elem_type(::Type{MechShellProps}) = MechShellElem
-matching_props_type(::Type{MechShellElem}) = MechShellProps
+
 
 
 function elem_init(elem::MechShellElem)

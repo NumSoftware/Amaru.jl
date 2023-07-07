@@ -60,7 +60,7 @@ end
 
 matching_shape_family(::Type{MechRSJointElem}) = LINEJOINTCELL
 matching_elem_type(::Type{MechRSJointProps}) = MechRSJointElem
-matching_props_type(::Type{MechRSJointElem}) = MechRSJointProps
+
 
 
 function elem_init(elem::MechRSJointElem)

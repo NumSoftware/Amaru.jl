@@ -32,7 +32,7 @@ end
 # Return the shape family that works with this element
 matching_shape_family(::Type{HydromechJointElem}) = JOINTCELL
 matching_elem_type(::Type{HydromechJointProps}) = HydromechJointElem
-matching_props_type(::Type{HydromechJointElem}) = HydromechJointProps
+
 
 
 function elem_config_dofs(elem::HydromechJointElem)

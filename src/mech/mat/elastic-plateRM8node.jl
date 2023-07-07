@@ -29,7 +29,7 @@ mutable struct ElasticPlateRM8node<:MatParams
     end
 end
 
-matching_elem_type(::ElasticPlateRM8node) = PlateRM8nodeElem
+
 
 # Type of corresponding state structure
 ip_state_type(matparams::ElasticPlateRM8node) = ElasticPlateRM8nodeState

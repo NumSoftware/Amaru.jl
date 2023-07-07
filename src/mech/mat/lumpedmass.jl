@@ -22,7 +22,7 @@ mutable struct LumpedMass<:MatParams
     end
 end
 
-matching_elem_type(::LumpedMass) = MechLumpedMassElem
+
 
 # Type of corresponding state structure
 ip_state_type(matparams::LumpedMass) = LumpedMassState

@@ -49,11 +49,10 @@ mutable struct ElasticShellThermo<:MatParams
     end
 end
 
-# Returns the element type that works with this material model
-matching_elem_type(::ElasticShellThermo) = TMShellElem
+
 
 # Type of corresponding state structure
-ip_state_type(matparams::ElasticShellThermo) = ElasticShellThermoState
+ip_state_type(::ElasticShellThermo) = ElasticShellThermoState
 
 
 function calcD(matparams::ElasticShellThermo, state::ElasticShellThermoState)

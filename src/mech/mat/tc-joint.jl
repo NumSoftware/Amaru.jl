@@ -92,8 +92,7 @@ function paramsdict(matparams::AbstractTCJoint)
 end
 
 
-# Returns the element type that works with this material model
-matching_elem_type(::AbstractTCJoint) = MechJointElem
+
 
 # Type of corresponding state structure
 ip_state_type(::MechJointElem, ::AbstractTCJoint) = TCJointState

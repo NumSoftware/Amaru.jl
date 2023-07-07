@@ -33,7 +33,7 @@ end
 
 
 # Returns the element type that works with this material
-matching_elem_type(::ElasticRSJoint) = MechRSJointElem
+
 
 # Type of corresponding state structure
 ip_state_type(::MechRSJointElem, ::ElasticRSJoint) = ElasticRSJointState

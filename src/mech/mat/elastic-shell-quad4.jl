@@ -29,7 +29,7 @@ mutable struct ElasticShellQUAD4<:MatParams
     end
 end
 
-matching_elem_type(::ElasticShellQUAD4) = ShellQUAD4Elem
+
 
 # Type of corresponding state structure
 ip_state_type(matparams::ElasticShellQUAD4) = ElasticShellQuad4State

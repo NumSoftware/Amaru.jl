@@ -25,7 +25,7 @@ mutable struct MechEmbRodElem<:MechElem
 end
 
 matching_shape_family(::Type{MechEmbRodElem}) = LINECELL
-matching_props_type(::Type{MechEmbRodElem}) = MechRodProps
+
 
 
 function elem_config_dofs(::MechEmbRodElem)

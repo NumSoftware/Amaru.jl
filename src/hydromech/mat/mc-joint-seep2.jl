@@ -90,8 +90,7 @@ mutable struct MCJointSeep2<:MatParams
     end
 end
 
-# Returns the element type that works with this material model
-matching_elem_type(::MCJointSeep2) = HydroMechJoint2Elem
+
 
 # Type of corresponding state structure
 ip_state_type(matparams::MCJointSeep2) = MCJointSeepState2

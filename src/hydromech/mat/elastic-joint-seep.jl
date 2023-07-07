@@ -56,8 +56,7 @@ mutable struct ElasticJointSeep<:MatParams
     end
 end
 
-# Returns the element type that works with this material model
-matching_elem_type(::ElasticJointSeep) = HydromechJointElem
+
 
 # Type of corresponding state structure
 ip_state_type(::HydromechJointElem, ::ElasticJointSeep) = JointSeepState

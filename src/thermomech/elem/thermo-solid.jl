@@ -41,7 +41,7 @@ end
 
 matching_shape_family(::Type{ThermoSolidElem}) = BULKCELL
 matching_elem_type(::Type{ThermoSolidProps}) = ThermoSolidElem
-matching_props_type(::Type{ThermoSolidElem}) = ThermoSolidProps
+
 
 
 function elem_config_dofs(elem::ThermoSolidElem)

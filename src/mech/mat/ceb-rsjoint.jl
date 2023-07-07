@@ -70,7 +70,7 @@ mutable struct CebRSJoint<:MatParams
 end
 
 # Returns the element type that works with this material
-matching_elem_type(::CebRSJoint) = MechRSJointElem
+
 
 # Creates a new instance of Ip data
 ip_state_type(::MechRSJointElem, ::CebRSJoint) = CebRSJointState

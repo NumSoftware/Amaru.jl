@@ -42,7 +42,7 @@ end
 
 matching_shape_family(::Type{MechSolidElem}) = BULKCELL
 matching_elem_type(::Type{MechSolidProps}) = MechSolidElem
-matching_props_type(::Type{MechSolidElem}) = MechSolidProps
+
 
 
 # function elem_init(elem::MechSolidElem)

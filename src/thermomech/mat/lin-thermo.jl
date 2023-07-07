@@ -28,8 +28,7 @@ mutable struct LinThermo<:MatParams
     end
 end
 
-# Returns the element type that works with this material model
-matching_elem_type(::LinThermo) = ThermoSolidElem
+
 
 # Type of corresponding state structure
 ip_state_type(::ThermoSolidElem, ::LinThermo) = LinThermoState

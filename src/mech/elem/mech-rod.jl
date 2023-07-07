@@ -45,7 +45,7 @@ end
 
 matching_shape_family(::Type{MechRodElem}) = LINECELL
 matching_elem_type(::Type{MechRodProps}) = MechRodElem
-matching_props_type(::Type{MechRodElem}) = MechRodProps
+
 
 
 function elem_stiffness(elem::MechRodElem)

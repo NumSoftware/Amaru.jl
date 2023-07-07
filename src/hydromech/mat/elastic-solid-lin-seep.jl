@@ -49,8 +49,7 @@ mutable struct LinearElasticSeep<:MatParams
     end
 end
 
-# Returns the element type that works with this material model
-matching_elem_type(::LinearElasticSeep) = HydromechSolidElem
+
 
 # Type of corresponding state structure
 ip_state_type(::HydromechSolidElem, ::LinearElasticSeep) = LinearElasticSeepState

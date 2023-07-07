@@ -81,7 +81,7 @@ mutable struct VonMisesState<:IpState
 end
 
 
-matching_elem_type(::VonMises) = MechSolidElem
+
 ip_state_type(::MechSolidElem, ::VonMises) = VonMisesState
 
 

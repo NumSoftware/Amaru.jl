@@ -38,8 +38,8 @@ mutable struct ElasticShell<:MatParams
     end
 end
 
-# matching_elem_type(::ElasticShell) = MechShellElem
-matching_elem_type(::ElasticShell) = MechShellElem
+# 
+
 
 # Type of corresponding state structure
 ip_state_type(::ElasticShell) = ElasticShellState

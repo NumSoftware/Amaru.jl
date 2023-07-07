@@ -92,7 +92,6 @@ mutable struct TCJointSeep<:AbstractTCJoint
     end
 end
 
-# Returns the element type that works with this material model
 matching_elem_type(::TCJointSeep) = HMJointElem
 
 # Type of corresponding state structure
