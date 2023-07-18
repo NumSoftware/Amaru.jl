@@ -33,7 +33,7 @@ include("mat/dp-solid.jl")
 include("mat/vm-solid.jl")
 include("mat/mazars-solid.jl")
 include("mat/sc-solid.jl")
-include("mat/compressible-bulk-v3.jl")
+# include("mat/compressible-bulk-v3.jl")
 # include("mat/compressiveconcrete-solid.jl")
 include("mat/damageconcrete-solid.jl")
 
