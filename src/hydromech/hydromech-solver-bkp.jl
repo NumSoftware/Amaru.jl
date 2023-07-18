@@ -259,11 +259,11 @@ function solve!(
     isnan(time_span) && error("solve!: neither time_span nor end_time were set.")
 
     if verbosity>0
-        printstyled("HydromechElem FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
+        printstyled("Hydromech FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
         println("  from t=$(round(env.t,sigdigits=4)) to t=$(round(end_time,sigdigits=4))")
     end
 
-    verbosity>1 && println("  model type: ", env.anaprops.stressmodel)
+    verbosity>1 && println("  model type: ", env.ana.stressmodel)
 
     save_outs = nouts>0
     if save_outs
@@ -298,7 +298,7 @@ function solve!(
     end
 
     # Get global parameters
-    gammaw = get(model.env.matparams, :gammaw, NaN)
+    gammaw = get(model.env.mat, :gammaw, NaN)
     isnan(gammaw) && error("solve!: gammaw parameter was not set in Model")
     gammaw > 0 || error("hm_solve: invalid value for gammaw: $gammaw")
 

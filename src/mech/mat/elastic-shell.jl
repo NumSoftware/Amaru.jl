@@ -18,7 +18,7 @@ mutable struct ElasticShellState<:IpState
     end
 end
 
-mutable struct ElasticShell<:MatParams
+mutable struct ElasticShell<:Material
     E::Float64
     nu::Float64
     th::Float64
@@ -45,9 +45,9 @@ end
 ip_state_type(::ElasticShell) = ElasticShellState
 
 
-function calcD(matparams::ElasticShell, state::ElasticShellState)
-    E = matparams.E
-    ν = matparams.nu
+function calcD(mat::ElasticShell, state::ElasticShellState)
+    E = mat.E
+    ν = mat.nu
     c = E/(1.0-ν^2)
     g = E/(1+ν)
     return [
@@ -61,8 +61,8 @@ function calcD(matparams::ElasticShell, state::ElasticShellState)
 end
 
 
-function update_state(matparams::ElasticShell, state::ElasticShellState, dε::Array{Float64,1})
-    D = calcD(matparams, state)
+function update_state(mat::ElasticShell, state::ElasticShellState, dε::Array{Float64,1})
+    D = calcD(mat, state)
     dσ = D*dε
     state.ε += dε
     state.σ += dσ
@@ -70,6 +70,6 @@ function update_state(matparams::ElasticShell, state::ElasticShellState, dε::Ar
 end
 
 
-function ip_state_vals(matparams::ElasticShell, state::ElasticShellState)
-    return stress_strain_dict(state.σ, state.ε, state.env.anaprops.stressmodel)
+function ip_state_vals(mat::ElasticShell, state::ElasticShellState)
+    return stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
 end

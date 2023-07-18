@@ -4,15 +4,15 @@ export LinearElasticSeep
 
 mutable struct LinearElasticSeepState<:IpState
     env::ModelEnv
-    σ::Array{Float64,1} # stress
-    ε::Array{Float64,1} # strain
+    σ::Vec6 # stress
+    ε::Vec6 # strain
     V::Array{Float64,1} # fluid velocity
     D::Array{Float64,1} # distance traveled by the fluid
     uw::Float64         # pore pressure
     function LinearElasticSeepState(env::ModelEnv=ModelEnv())
         this = new(env)
-        this.σ = zeros(6)
-        this.ε = zeros(6)
+        this.σ = zeros(Vec6)
+        this.ε = zeros(Vec6)
         this.V = zeros(env.ndim)
         this.D = zeros(env.ndim)
         this.uw = 0.0
@@ -21,7 +21,7 @@ mutable struct LinearElasticSeepState<:IpState
 end
 
 
-mutable struct LinearElasticSeep<:MatParams
+mutable struct LinearElasticSeep<:Material
     E ::Float64 # Young's modulus
     nu::Float64 # Poisson ratio
     k ::Float64 # specific permeability
@@ -50,31 +50,30 @@ mutable struct LinearElasticSeep<:MatParams
 end
 
 
-
 # Type of corresponding state structure
-ip_state_type(::HydromechSolidElem, ::LinearElasticSeep) = LinearElasticSeepState
+ip_state_type(::HydromechSolid, ::LinearElasticSeep) = LinearElasticSeepState
 
 
-function calcD(matparams::LinearElasticSeep, state::LinearElasticSeepState)
-    return calcDe(matparams.E, matparams.nu, state.env.anaprops.stressmodel) # function calcDe defined at elastic-solid.jl
+function calcD(mat::LinearElasticSeep, state::LinearElasticSeepState)
+    return calcDe(mat.E, mat.nu, state.env.ana.stressmodel) # function calcDe defined at elastic-solid.jl
 end
 
 
-function calcK(matparams::LinearElasticSeep, state::LinearElasticSeepState) # Hydraulic conductivity matrix
+function calcK(mat::LinearElasticSeep, state::LinearElasticSeepState) # Hydraulic conductivity matrix
     if state.env.ndim==2
-        return matparams.k*eye(2)
+        return mat.k*eye(2)
     else
-        return matparams.k*eye(3)
+        return mat.k*eye(3)
     end
 end
 
 
-function update_state(matparams::LinearElasticSeep, state::LinearElasticSeepState, Δε::Array{Float64,1}, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
-    De = calcD(matparams, state)
+function update_state(mat::LinearElasticSeep, state::LinearElasticSeepState, Δε::Array{Float64,1}, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
+    De = calcD(mat, state)
     Δσ = De*Δε
     state.ε  += Δε
     state.σ  += Δσ
-    K = calcK(matparams, state)
+    K = calcK(mat, state)
     state.V   = -K*G
     state.D  += state.V*Δt
     state.uw += Δuw
@@ -82,8 +81,8 @@ function update_state(matparams::LinearElasticSeep, state::LinearElasticSeepStat
 end
 
 
-function ip_state_vals(matparams::LinearElasticSeep, state::LinearElasticSeepState)
-    D = stress_strain_dict(state.σ, state.ε, state.env.anaprops.stressmodel)
+function ip_state_vals(mat::LinearElasticSeep, state::LinearElasticSeepState)
+    D = stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
 
     D[:vx] = state.V[1]
     D[:vy] = state.V[2]

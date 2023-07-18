@@ -16,15 +16,18 @@ mutable struct LinDrainPipeState<:IpState
     end
 end
 
-mutable struct LinDrainPipe<:MatParams
+mutable struct LinDrainPipe<:Material
     k ::Float64     # specific permeability
 
-    function LinDrainPipe(prms::Dict{Symbol,Float64})
-        return  LinDrainPipe(;prms...)
-    end
+    function LinDrainPipe(; params...)
+        names = (k="Permeability",)
+        required = (:k,)
+        @checkmissing params required names
 
-    function LinDrainPipe(;k=NaN)
-        k<=0.0 && error("Invalid value for k: $k")
+        params  = (; params...)
+        k       = params.k
+        @check k>0.0
+
         return new(k)
     end
 end
@@ -33,11 +36,11 @@ end
 #matching_elem_type_if_embedded(::LinDrainPipe) = SeepEmbRod
 
 # Type of corresponding state structure
-ip_state_type(::DrainPipeElem, ::LinDrainPipe) = LinDrainPipeState
+ip_state_type(::DrainPipe, ::LinDrainPipe) = LinDrainPipeState
 
 
-function update_state!(matparams::LinDrainPipe, state::LinDrainPipeState, Δuw::Float64, G::Float64, Δt::Float64)
-    k = matparams.k
+function update_state!(mat::LinDrainPipe, state::LinDrainPipeState, Δuw::Float64, G::Float64, Δt::Float64)
+    k = mat.k
     state.V  = -k*G
     state.D  += state.V*Δt
     state.uw += Δuw
@@ -45,12 +48,12 @@ function update_state!(matparams::LinDrainPipe, state::LinDrainPipeState, Δuw::
 end
 
 
-function ip_state_vals(matparams::LinDrainPipe, state::LinDrainPipeState)
+function ip_state_vals(mat::LinDrainPipe, state::LinDrainPipeState)
     return OrderedDict(
       :va => state.V,
       :uwa => state.uw)
-    #   :Fa => state.V*matparams.A,
-    #   :A  => matparams.A )
+    #   :Fa => state.V*mat.A,
+    #   :A  => mat.A )
 end
 
 

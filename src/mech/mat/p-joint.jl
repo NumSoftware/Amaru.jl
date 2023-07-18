@@ -21,7 +21,7 @@ mutable struct PJointState<:IpState
     end
 end
 
-mutable struct PJoint<:MatParams
+mutable struct PJoint<:Material
     E ::Float64      # Young's modulus
     ν ::Float64      # Poisson ratio
     ft::Float64      # tensile strength (internal variable)
@@ -72,16 +72,16 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(matparams::PJoint) = PJointState
+ip_state_type(mat::PJoint) = PJointState
 
 
-function yield_func(matparams::PJoint, state::PJointState, σ::Array{Float64,1}, σmax::Float64)
+function yield_func(mat::PJoint, state::PJointState, σ::Array{Float64,1}, σmax::Float64)
     ndim = state.env.ndim
-    fc, ft = matparams.fc, matparams.ft
+    fc, ft = mat.fc, mat.ft
 
     βini = 2*ft - fc -2*√(ft^2 - fc*ft)
-    βres = matparams.γ*βini
-    β = βres + (βini-βres)*(σmax/ft)^matparams.α
+    βres = mat.γ*βini
+    β = βres + (βini-βres)*(σmax/ft)^mat.α
     if ndim == 3
         return β*(σ[1] - σmax) + σ[2]^2 + σ[3]^2
     else
@@ -90,12 +90,12 @@ function yield_func(matparams::PJoint, state::PJointState, σ::Array{Float64,1},
 end
 
 
-function yield_derivs(matparams::PJoint, state::PJointState, σ::Array{Float64,1}, σmax::Float64)
+function yield_derivs(mat::PJoint, state::PJointState, σ::Array{Float64,1}, σmax::Float64)
     ndim = state.env.ndim
-    fc, ft = matparams.fc, matparams.ft
+    fc, ft = mat.fc, mat.ft
     βini = 2*ft - fc -2*√(ft^2 - fc*ft)
-    βres = matparams.γ*βini
-    β = βres + (βini-βres)*(σmax/ft)^matparams.α
+    βres = mat.γ*βini
+    β = βres + (βini-βres)*(σmax/ft)^mat.α
 
     if ndim == 3
         return [ β, 2*σ[2], 2*σ[3] ]
@@ -105,7 +105,7 @@ function yield_derivs(matparams::PJoint, state::PJointState, σ::Array{Float64,1
 end
 
 
-function potential_derivs(matparams::PJoint, state::PJointState, σ::Array{Float64,1})
+function potential_derivs(mat::PJoint, state::PJointState, σ::Array{Float64,1})
     ndim = state.env.ndim
     if ndim == 3
         if σ[1] > 0.0 
@@ -128,104 +128,104 @@ function potential_derivs(matparams::PJoint, state::PJointState, σ::Array{Float
 end
 
 
-function calc_σmax(matparams::PJoint, state::PJointState, up::Float64)
-    if matparams.softcurve == "linear"
-        if up < matparams.wc
-            a = matparams.ft 
-            b = matparams.ft /matparams.wc
+function calc_σmax(mat::PJoint, state::PJointState, up::Float64)
+    if mat.softcurve == "linear"
+        if up < mat.wc
+            a = mat.ft 
+            b = mat.ft /mat.wc
         else
             a = 0.0
             b = 0.0
         end
         σmax = a - b*up
-    elseif matparams.softcurve == "bilinear"
-        σs = 0.25*matparams.ft 
-        if up < matparams.ws
-            a  = matparams.ft  
-            b  = (matparams.ft  - σs)/matparams.ws
-        elseif up < matparams.wc
-            a  = matparams.wc*σs/(matparams.wc-matparams.ws)
-            b  = σs/(matparams.wc-matparams.ws)
+    elseif mat.softcurve == "bilinear"
+        σs = 0.25*mat.ft 
+        if up < mat.ws
+            a  = mat.ft  
+            b  = (mat.ft  - σs)/mat.ws
+        elseif up < mat.wc
+            a  = mat.wc*σs/(mat.wc-mat.ws)
+            b  = σs/(mat.wc-mat.ws)
         else
             a = 0.0
             b = 0.0
         end
         σmax = a - b*up
-    elseif matparams.softcurve == "hordijk"
-        if up < matparams.wc
+    elseif mat.softcurve == "hordijk"
+        if up < mat.wc
             e = exp(1.0)
-            z = (1 + 27*(up/matparams.wc)^3)*e^(-6.93*up/matparams.wc) - 28*(up/matparams.wc)*e^(-6.93)
+            z = (1 + 27*(up/mat.wc)^3)*e^(-6.93*up/mat.wc) - 28*(up/mat.wc)*e^(-6.93)
         else
             z = 0.0
         end
-        σmax = z*matparams.ft 
+        σmax = z*mat.ft 
     end
 
-    # σmax<0.001*matparams.ft  && (σmax=0.0)
+    # σmax<0.001*mat.ft  && (σmax=0.0)
 
     return σmax
 end
 
 
-function deriv_σmax_upa(matparams::PJoint, state::PJointState, up::Float64)
+function deriv_σmax_upa(mat::PJoint, state::PJointState, up::Float64)
     # ∂σmax/∂up = dσmax
-    if matparams.softcurve == "linear"
-        if up < matparams.wc
-            b = matparams.ft /matparams.wc
+    if mat.softcurve == "linear"
+        if up < mat.wc
+            b = mat.ft /mat.wc
         else
             b = 0.0
         end
         dσmax = -b
-    elseif matparams.softcurve == "bilinear"
-        σs = 0.25*matparams.ft 
-        if up < matparams.ws
-            b  = (matparams.ft  - σs)/matparams.ws
-        elseif up < matparams.wc
-            b  = σs/(matparams.wc-matparams.ws)
+    elseif mat.softcurve == "bilinear"
+        σs = 0.25*mat.ft 
+        if up < mat.ws
+            b  = (mat.ft  - σs)/mat.ws
+        elseif up < mat.wc
+            b  = σs/(mat.wc-mat.ws)
         else
             b = 0.0
         end
         dσmax = -b
-    elseif matparams.softcurve == "hordijk"
-        if up < matparams.wc
+    elseif mat.softcurve == "hordijk"
+        if up < mat.wc
             e = exp(1.0)
-            dz = ((81*up^2*e^(-6.93*up/matparams.wc)/matparams.wc^3) - (6.93*(1 + 27*up^3/matparams.wc^3)*e^(-6.93*up/matparams.wc)/matparams.wc) - 0.02738402432/matparams.wc)
+            dz = ((81*up^2*e^(-6.93*up/mat.wc)/mat.wc^3) - (6.93*(1 + 27*up^3/mat.wc^3)*e^(-6.93*up/mat.wc)/mat.wc) - 0.02738402432/mat.wc)
         else
             dz = 0.0
         end
-        dσmax = dz*matparams.ft 
+        dσmax = dz*mat.ft 
     end
 
     return dσmax
 end
 
 
-function calc_kn_ks(matparams::PJoint, state::PJointState)
-    kn = matparams.E*matparams.ζ/state.h
-    G  = matparams.E/(2.0*(1.0+matparams.ν))
-    ks = G*matparams.ζ/state.h
+function calc_kn_ks(mat::PJoint, state::PJointState)
+    kn = mat.E*mat.ζ/state.h
+    G  = mat.E/(2.0*(1.0+mat.ν))
+    ks = G*mat.ζ/state.h
 
     return kn, ks
 end
 
 
-function calc_Δλ(matparams::PJoint, state::PJointState, σtr::Array{Float64,1})
+function calc_Δλ(mat::PJoint, state::PJointState, σtr::Array{Float64,1})
     ndim = state.env.ndim
     maxits = 20
     Δλ     = 0.0
     f      = 0.0
     up    = 0.0
     tol    = 1e-2
-    fc, ft = matparams.fc, matparams.ft
+    fc, ft = mat.fc, mat.ft
     βini = 2*ft - fc -2*√(ft^2 - fc*ft)
-    βres = matparams.γ*βini
-    α    = matparams.α
+    βres = mat.γ*βini
+    α    = mat.α
     
     nits = 0
 
     for i in 1:maxits
         nits = i
-        kn, ks = calc_kn_ks(matparams, state)
+        kn, ks = calc_kn_ks(mat, state)
 
         # quantities at n+1
         if ndim == 3
@@ -248,12 +248,12 @@ function calc_Δλ(matparams::PJoint, state::PJointState, σtr::Array{Float64,1}
 
         drdΔλ = 2*dσdΔλ
                  
-        r      = potential_derivs(matparams, state, σ)
+        r      = potential_derivs(mat, state, σ)
         norm_r = norm(r)
         up    = state.up + Δλ*norm_r
-        σmax   = calc_σmax(matparams, state, up)
+        σmax   = calc_σmax(mat, state, up)
         # β      = βres + (βini-βres)/ft*σmax
-        β      = βres + (βini-βres)*(σmax/ft)^matparams.α
+        β      = βres + (βini-βres)*(σmax/ft)^mat.α
 
         if ndim == 3
             f = β*(σ[1] - σmax) + σ[2]^2 + σ[3]^2
@@ -266,7 +266,7 @@ function calc_Δλ(matparams::PJoint, state::PJointState, σtr::Array{Float64,1}
         # dfdσmax = (βres-βini)/ft*(2*σmax-σ[1]) - βres
         # dfdσmax = (βini-βres)/ft*(σ[1]-σmax)*α*(σmax/ft)^(α-1) - β
         dfdσmax = (βini-βres)/ft*(σ[1]-σmax)*α*(σmax/ft)^(α-1) - β
-        m = deriv_σmax_upa(matparams, state, up)
+        m = deriv_σmax_upa(mat, state, up)
         dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
         dfdΔλ = dot(dfdσ, dσdΔλ) + dfdσmax*dσmaxdΔλ
         Δλ = Δλ - f/dfdΔλ
@@ -282,11 +282,11 @@ function calc_Δλ(matparams::PJoint, state::PJointState, σtr::Array{Float64,1}
 end
 
 
-function mountD(matparams::PJoint, state::PJointState)
+function mountD(mat::PJoint, state::PJointState)
     ndim = state.env.ndim
-    kn, ks = calc_kn_ks(matparams, state)
-    α = matparams.α
-    σmax = calc_σmax(matparams, state, state.up)
+    kn, ks = calc_kn_ks(mat, state)
+    α = mat.α
+    σmax = calc_σmax(mat, state, state.up)
 
     De = diagm([kn, ks, ks][1:ndim])
 
@@ -298,17 +298,17 @@ function mountD(matparams::PJoint, state::PJointState)
         return Dep
     else
         # @show "plastic De"
-        fc, ft = matparams.fc, matparams.ft
+        fc, ft = mat.fc, mat.ft
         βini = 2*ft - fc -2*√(ft^2 - fc*ft)
-        βres = matparams.γ*βini
+        βres = mat.γ*βini
 
-        r = potential_derivs(matparams, state, state.σ)
-        v = yield_derivs(matparams, state, state.σ, σmax)
+        r = potential_derivs(mat, state, state.σ)
+        v = yield_derivs(mat, state, state.σ, σmax)
         # dfdσmax = (βres-βini)/ft*(2*σmax-state.σ[1]) - βres
-        β = βres + (βini-βres)*(σmax/ft)^matparams.α
+        β = βres + (βini-βres)*(σmax/ft)^mat.α
         dfdσmax = (βini-βres)/ft*(state.σ[1]-σmax)*α*(σmax/ft)^(α-1) - β
         # dfdσmax = -β  # ∂F/∂σmax
-        m = deriv_σmax_upa(matparams, state, state.up)  # ∂σmax/∂up
+        m = deriv_σmax_upa(mat, state, state.up)  # ∂σmax/∂up
 
         #Dep  = De - De*r*v'*De/(v'*De*r - dfdσmax*m*norm(r))
 
@@ -330,14 +330,14 @@ function mountD(matparams::PJoint, state::PJointState)
 end
 
 
-function update_state(matparams::PJoint, state::PJointState, Δw::Array{Float64,1})
+function update_state(mat::PJoint, state::PJointState, Δw::Array{Float64,1})
 
     ndim = state.env.ndim
     σini = copy(state.σ)
 
-    kn, ks = calc_kn_ks(matparams, state)
+    kn, ks = calc_kn_ks(mat, state)
     De = diagm([kn, ks, ks][1:ndim])
-    σmax = calc_σmax(matparams, state, state.up)  
+    σmax = calc_σmax(mat, state, state.up)  
     # @show σmax
 
     if isnan(Δw[1]) || isnan(Δw[2])
@@ -347,7 +347,7 @@ function update_state(matparams::PJoint, state::PJointState, Δw::Array{Float64,
     # σ trial and F trial
     σtr  = state.σ + De*Δw
 
-    Ftr  = yield_func(matparams, state, σtr, σmax)
+    Ftr  = yield_func(mat, state, σtr, σmax)
 
     # Elastic and EP integration
     if σmax == 0.0 && state.w[1] >= 0.0
@@ -372,10 +372,10 @@ function update_state(matparams::PJoint, state::PJointState, Δw::Array{Float64,
 
     else
         # Plastic increment
-        state.Δλ, status = calc_Δλ(matparams, state, σtr)
+        state.Δλ, status = calc_Δλ(mat, state, σtr)
         failed(status) && return state.σ, status
 
-        # state.σ, state.up = calc_σ_upa(matparams, state, σtr)
+        # state.σ, state.up = calc_σ_upa(mat, state, σtr)
         if ndim == 3
             if σtr[1] > 0
                 state.σ = [σtr[1]/(1 + 2*state.Δλ*kn), σtr[2]/(1 + 2*state.Δλ*ks), σtr[3]/(1 + 2*state.Δλ*ks)]
@@ -389,7 +389,7 @@ function update_state(matparams::PJoint, state::PJointState, Δw::Array{Float64,
                 state.σ = [σtr[1], σtr[2]/(1 + 2*state.Δλ*ks)]
             end    
         end
-        r = potential_derivs(matparams, state, state.σ)
+        r = potential_derivs(mat, state, state.σ)
         state.up += state.Δλ*norm(r)
 
     end
@@ -399,7 +399,7 @@ function update_state(matparams::PJoint, state::PJointState, Δw::Array{Float64,
 end
 
 
-function ip_state_vals(matparams::PJoint, state::PJointState)
+function ip_state_vals(mat::PJoint, state::PJointState)
     ndim = state.env.ndim
     if ndim == 3
        return Dict(
@@ -423,6 +423,6 @@ function ip_state_vals(matparams::PJoint, state::PJointState)
 end
 
 
-function output_keys(matparams::PJoint)
+function output_keys(mat::PJoint)
     return Symbol[:jw1, :js1, :jup]
 end

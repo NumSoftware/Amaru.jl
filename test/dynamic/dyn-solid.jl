@@ -11,7 +11,7 @@ mesh = Mesh(blocks)
 # Model definition
 
 materials = [
-    "solids" << MechSolid() << LinearElastic(E=30e6, nu=0.2, rho=24.0)
+    "solids" << MechSolid << LinearElastic << (E=30e6, nu=0.2, rho=24.0)
 ]
 
 ana = DynAnalysis()

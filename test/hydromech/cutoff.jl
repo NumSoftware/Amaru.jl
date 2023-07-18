@@ -22,7 +22,7 @@ tag!(mesh.elems.solids, "solids")
 
 # FEM analysis
 mats = [
-    "solids" << SeepSolid() << LinSeep(k=k, S=0.0),
+    "solids" << SeepSolid << LinSeep << (k=k, S=0.0),
 ]
 
 ana = HydroAnalysis(gammaw=gw)

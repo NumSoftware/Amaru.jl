@@ -16,7 +16,7 @@ mutable struct JointState<:IpState
     end
 end
 
-mutable struct ElasticJoint<:MatParams
+mutable struct ElasticJoint<:Material
     E::Float64 # Young modulus from bulk material
     ν::Float64 # Poisson ration from bulk material
     kn::Float64 # Normal stiffness (used only if E and ν are NaN)
@@ -50,18 +50,18 @@ end
 end
 
 # Type of corresponding state structure
-ip_state_type(matparams::ElasticJoint) = JointState
+ip_state_type(mat::ElasticJoint) = JointState
 
 
-function mountD(matparams::ElasticJoint, state::JointState)
+function mountD(mat::ElasticJoint, state::JointState)
     ndim = state.env.ndim
-    if isnan(matparams.kn*matparams.ks)
-        G  = matparams.E/(1.0+matparams.ν)/2.0
-        kn = matparams.E*matparams.ζ/state.h
-        ks =     G*matparams.ζ/state.h
+    if isnan(mat.kn*mat.ks)
+        G  = mat.E/(1.0+mat.ν)/2.0
+        kn = mat.E*mat.ζ/state.h
+        ks =     G*mat.ζ/state.h
     else
-        kn = matparams.kn
-        ks = matparams.ks
+        kn = mat.kn
+        ks = mat.ks
     end
 
     if ndim==2
@@ -75,9 +75,9 @@ function mountD(matparams::ElasticJoint, state::JointState)
 end
 
 
-function update_state(matparams::ElasticJoint, state::JointState, Δu)
+function update_state(mat::ElasticJoint, state::JointState, Δu)
     ndim = state.env.ndim
-    D  = mountD(matparams, state)
+    D  = mountD(mat, state)
     Δσ = D*Δu
 
     state.w[1:ndim] += Δu
@@ -86,7 +86,7 @@ function update_state(matparams::ElasticJoint, state::JointState, Δu)
 end
 
 
-function ip_state_vals(matparams::ElasticJoint, state::JointState)
+function ip_state_vals(mat::ElasticJoint, state::JointState)
     ndim = state.env.ndim
     if ndim == 3
        return Dict(
@@ -108,6 +108,6 @@ function ip_state_vals(matparams::ElasticJoint, state::JointState)
 end
 
 
-function output_keys(matparams::ElasticJoint)
+function output_keys(mat::ElasticJoint)
     return Symbol[:jw1, :jw1]
 end

@@ -21,7 +21,7 @@ mutable struct MCJointState<:IpState
     end
 end
 
-mutable struct MCJoint<:MatParams
+mutable struct MCJoint<:Material
     E  ::Float64      # Young's modulus
     ν  ::Float64      # Poisson ratio
     ft ::Float64      # tensile strength (internal variable)
@@ -70,36 +70,36 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(matparams::MCJoint) = MCJointState
+ip_state_type(mat::MCJoint) = MCJointState
 
 
-function yield_func(matparams::MCJoint, state::MCJointState, σ::Array{Float64,1})
+function yield_func(mat::MCJoint, state::MCJointState, σ::Array{Float64,1})
     ndim = state.env.ndim
-    σmax = calc_σmax(matparams, state, state.up)
+    σmax = calc_σmax(mat, state, state.up)
     if ndim == 3
-        return sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*matparams.μ
+        return sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*mat.μ
     else
-        return abs(σ[2]) + (σ[1]-σmax)*matparams.μ
+        return abs(σ[2]) + (σ[1]-σmax)*mat.μ
     end
 end
 
 
-function yield_deriv(matparams::MCJoint, state::MCJointState)
+function yield_deriv(mat::MCJoint, state::MCJointState)
     ndim = state.env.ndim
     if ndim == 3
-        return [ matparams.μ, state.σ[2]/sqrt(state.σ[2]^2 + state.σ[3]^2), state.σ[3]/sqrt(state.σ[2]^2 + state.σ[3]^2)]
+        return [ mat.μ, state.σ[2]/sqrt(state.σ[2]^2 + state.σ[3]^2), state.σ[3]/sqrt(state.σ[2]^2 + state.σ[3]^2)]
     else
-        return [ matparams.μ, sign(state.σ[2]) ]
+        return [ mat.μ, sign(state.σ[2]) ]
     end
 end
 
 
-function potential_derivs(matparams::MCJoint, state::MCJointState, σ::Array{Float64,1})
+function potential_derivs(mat::MCJoint, state::MCJointState, σ::Array{Float64,1})
     ndim = state.env.ndim
     if ndim == 3
         if σ[1] >= 0.0 
             # G1:
-            r = [ 2.0*σ[1]*matparams.μ^2, 2.0*σ[2], 2.0*σ[3]]
+            r = [ 2.0*σ[1]*mat.μ^2, 2.0*σ[2], 2.0*σ[3]]
         else
             # G2:
             r = [ 0.0, 2.0*σ[2], 2.0*σ[3] ]
@@ -107,7 +107,7 @@ function potential_derivs(matparams::MCJoint, state::MCJointState, σ::Array{Flo
     else
         if σ[1] >= 0.0 
             # G1:
-            r = [ 2*σ[1]*matparams.μ^2, 2*σ[2]]
+            r = [ 2*σ[1]*mat.μ^2, 2*σ[2]]
         else
             # G2:
             r = [ 0.0, 2*σ[2] ]
@@ -117,106 +117,106 @@ function potential_derivs(matparams::MCJoint, state::MCJointState, σ::Array{Flo
 end
 
 
-function calc_σmax(matparams::MCJoint, state::MCJointState, up::Float64)
-    if matparams.softcurve == "linear"
-        if up < matparams.wc
-            a = matparams.ft 
-            b = matparams.ft /matparams.wc
+function calc_σmax(mat::MCJoint, state::MCJointState, up::Float64)
+    if mat.softcurve == "linear"
+        if up < mat.wc
+            a = mat.ft 
+            b = mat.ft /mat.wc
         else
             a = 0.0
             b = 0.0
         end
         σmax = a - b*up
-    elseif matparams.softcurve == "bilinear"
-        σs = 0.25*matparams.ft 
-        if up < matparams.ws
-            a  = matparams.ft  
-            b  = (matparams.ft  - σs)/matparams.ws
-        elseif up < matparams.wc
-            a  = matparams.wc*σs/(matparams.wc-matparams.ws)
-            b  = σs/(matparams.wc-matparams.ws)
+    elseif mat.softcurve == "bilinear"
+        σs = 0.25*mat.ft 
+        if up < mat.ws
+            a  = mat.ft  
+            b  = (mat.ft  - σs)/mat.ws
+        elseif up < mat.wc
+            a  = mat.wc*σs/(mat.wc-mat.ws)
+            b  = σs/(mat.wc-mat.ws)
         else
             a = 0.0
             b = 0.0
         end
         σmax = a - b*up
-    elseif matparams.softcurve == "hordijk"
-        if up < matparams.wc
+    elseif mat.softcurve == "hordijk"
+        if up < mat.wc
             e = exp(1.0)
-            z = (1 + 27*(up/matparams.wc)^3)*e^(-6.93*up/matparams.wc) - 28*(up/matparams.wc)*e^(-6.93)           
+            z = (1 + 27*(up/mat.wc)^3)*e^(-6.93*up/mat.wc) - 28*(up/mat.wc)*e^(-6.93)           
         else
             z = 0.0
         end
-        σmax = z*matparams.ft 
-    elseif matparams.softcurve == "soft"
+        σmax = z*mat.ft 
+    elseif mat.softcurve == "soft"
         m = 0.55
         a = 1.30837
         if up == 0.0
             z = 1.0
-        elseif 0.0 < up < matparams.wc
-            x = up/matparams.wc
+        elseif 0.0 < up < mat.wc
+            x = up/mat.wc
             z = 1.0 - a^(1.0 - 1.0/x^m)
         else
             z = 0.0
         end
-        σmax = z*matparams.ft
+        σmax = z*mat.ft
     end
 
     return σmax
 end
 
 
-function σmax_deriv(matparams::MCJoint, state::MCJointState, up::Float64)
+function σmax_deriv(mat::MCJoint, state::MCJointState, up::Float64)
     # ∂σmax/∂up = dσmax
-    if matparams.softcurve == "linear"
-        if up < matparams.wc
-            b = matparams.ft /matparams.wc
+    if mat.softcurve == "linear"
+        if up < mat.wc
+            b = mat.ft /mat.wc
         else
             b = 0.0
         end
         dσmax = -b
-    elseif matparams.softcurve == "bilinear"
-        σs = 0.25*matparams.ft 
-        if up < matparams.ws
-            b  = (matparams.ft  - σs)/matparams.ws
-        elseif up < matparams.wc
-            b  = σs/(matparams.wc-matparams.ws)
+    elseif mat.softcurve == "bilinear"
+        σs = 0.25*mat.ft 
+        if up < mat.ws
+            b  = (mat.ft  - σs)/mat.ws
+        elseif up < mat.wc
+            b  = σs/(mat.wc-mat.ws)
         else
             b = 0.0
         end
         dσmax = -b
-    elseif matparams.softcurve == "hordijk"
-        if up < matparams.wc
+    elseif mat.softcurve == "hordijk"
+        if up < mat.wc
             e = exp(1.0)
-            dz = ((81*up^2*e^(-6.93*up/matparams.wc)/matparams.wc^3) - (6.93*(1 + 27*up^3/matparams.wc^3)*e^(-6.93*up/matparams.wc)/matparams.wc) - 0.02738402432/matparams.wc)
+            dz = ((81*up^2*e^(-6.93*up/mat.wc)/mat.wc^3) - (6.93*(1 + 27*up^3/mat.wc^3)*e^(-6.93*up/mat.wc)/mat.wc) - 0.02738402432/mat.wc)
         else
             dz = 0.0
         end
-        dσmax = dz*matparams.ft 
-    elseif matparams.softcurve == "soft"
+        dσmax = dz*mat.ft 
+    elseif mat.softcurve == "soft"
         m = 0.55
         a = 1.30837
 
         if up == 0.0
             dz = 0.0
-        elseif up < matparams.wc
-            x = up/matparams.wc
-            dz =  -m*log(a)*a^(1-x^-m)*x^(-m-1)/matparams.wc
+        elseif up < mat.wc
+            x = up/mat.wc
+            dz =  -m*log(a)*a^(1-x^-m)*x^(-m-1)/mat.wc
         else
             dz = 0.0
         end
-        dσmax = dz*matparams.ft 
+        dσmax = dz*mat.ft 
     end
 
     return dσmax
 end
 
 
-function calc_kn_ks_De(matparams::MCJoint, state::MCJointState)
+function calc_kn_ks_De(mat::MCJoint, state::MCJointState)
     ndim = state.env.ndim
-    kn = matparams.E*matparams.ζ/state.h
-    G  = matparams.E/(2.0*(1.0+matparams.ν))
-    ks = G*matparams.ζ/state.h
+    kn = mat.E*mat.ζ/state.h
+    G  = mat.E/(2.0*(1.0+mat.ν))
+    ks = G*mat.ζ/state.h
 
     if ndim == 3
         De = [  kn  0.0  0.0
@@ -231,7 +231,7 @@ function calc_kn_ks_De(matparams::MCJoint, state::MCJointState)
 end
 
 
-function calc_Δλ(matparams::MCJoint, state::MCJointState, σtr::Array{Float64,1})
+function calc_Δλ(mat::MCJoint, state::MCJointState, σtr::Array{Float64,1})
     ndim = state.env.ndim
     maxits = 100
     Δλ     = 0.0
@@ -240,8 +240,8 @@ function calc_Δλ(matparams::MCJoint, state::MCJointState, σtr::Array{Float64,
     tol    = 1e-4      
 
     for i in 1:maxits
-        μ      = matparams.μ
-        kn, ks, De = calc_kn_ks_De(matparams, state)
+        μ      = mat.μ
+        kn, ks, De = calc_kn_ks_De(mat, state)
 
         # quantities at n+1
         if ndim == 3
@@ -266,11 +266,11 @@ function calc_Δλ(matparams::MCJoint, state::MCJointState, σtr::Array{Float64,
              end
         end
                  
-        r        = potential_derivs(matparams, state, σ)
+        r        = potential_derivs(mat, state, σ)
         norm_r   = norm(r)
         up       = state.up + Δλ*norm_r
-        σmax     = calc_σmax(matparams, state, up)
-        m        = σmax_deriv(matparams, state, up)
+        σmax     = calc_σmax(mat, state, up)
+        m        = σmax_deriv(mat, state, up)
         dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
 
         if ndim == 3
@@ -281,7 +281,7 @@ function calc_Δλ(matparams::MCJoint, state::MCJointState, σtr::Array{Float64,
                 dfdΔλ = 1/sqrt(σ[2]^2 + σ[3]^2) * (σ[2]*dσdΔλ[2] + σ[3]*dσdΔλ[3]) + (dσdΔλ[1] - dσmaxdΔλ)*μ
             end
         else
-            f = abs(σ[2]) + (σ[1]-σmax)*matparams.μ
+            f = abs(σ[2]) + (σ[1]-σmax)*mat.μ
             dfdΔλ = sign(σ[2])*dσdΔλ[2] + (dσdΔλ[1] - dσmaxdΔλ)*μ
         end
 
@@ -302,10 +302,10 @@ function calc_Δλ(matparams::MCJoint, state::MCJointState, σtr::Array{Float64,
 end
 
 
-function calc_σ_upa(matparams::MCJoint, state::MCJointState, σtr::Array{Float64,1})
+function calc_σ_upa(mat::MCJoint, state::MCJointState, σtr::Array{Float64,1})
     ndim = state.env.ndim
-    μ = matparams.μ
-    kn, ks, De = calc_kn_ks_De(matparams, state)
+    μ = mat.μ
+    kn, ks, De = calc_kn_ks_De(mat, state)
 
     if ndim == 3
         if σtr[1] > 0
@@ -321,16 +321,16 @@ function calc_σ_upa(matparams::MCJoint, state::MCJointState, σtr::Array{Float6
         end    
     end
     state.σ = σ
-    r = potential_derivs(matparams, state, state.σ)
+    r = potential_derivs(mat, state, state.σ)
     state.up += state.Δλ*norm(r)
     return state.σ, state.up
 end
 
 
-function mountD(matparams::MCJoint, state::MCJointState)
+function mountD(mat::MCJoint, state::MCJointState)
     ndim = state.env.ndim
-    kn, ks, De = calc_kn_ks_De(matparams, state)
-    σmax = calc_σmax(matparams, state, state.up)
+    kn, ks, De = calc_kn_ks_De(mat, state)
+    σmax = calc_σmax(mat, state, state.up)
 
     if state.Δλ == 0.0  # Elastic 
         return De
@@ -341,10 +341,10 @@ function mountD(matparams::MCJoint, state::MCJointState)
         Dep  = De*1e-3
         return Dep
     else
-        v    = yield_deriv(matparams, state)
-        r    = potential_derivs(matparams, state, state.σ)
-        y    = -matparams.μ # ∂F/∂σmax
-        m    = σmax_deriv(matparams, state, state.up)  # ∂σmax/∂up
+        v    = yield_deriv(mat, state)
+        r    = potential_derivs(mat, state, state.σ)
+        y    = -mat.μ # ∂F/∂σmax
+        m    = σmax_deriv(mat, state, state.up)  # ∂σmax/∂up
 
         #Dep  = De - De*r*v'*De/(v'*De*r - y*m*norm(r))
 
@@ -366,12 +366,12 @@ function mountD(matparams::MCJoint, state::MCJointState)
 end
 
 
-function update_state(matparams::MCJoint, state::MCJointState, Δw::Array{Float64,1})
+function update_state(mat::MCJoint, state::MCJointState, Δw::Array{Float64,1})
     ndim = state.env.ndim
     σini = copy(state.σ)
 
-    kn, ks, De = calc_kn_ks_De(matparams, state)
-    σmax = calc_σmax(matparams, state, state.up)  
+    kn, ks, De = calc_kn_ks_De(mat, state)
+    σmax = calc_σmax(mat, state, state.up)  
 
     if isnan(Δw[1]) || isnan(Δw[2])
         alert("MCJoint: Invalid value for joint displacement: Δw = $Δw")
@@ -380,7 +380,7 @@ function update_state(matparams::MCJoint, state::MCJointState, Δw::Array{Float6
     # σ trial and F trial
     σtr  = state.σ + De*Δw
 
-    Ftr  = yield_func(matparams, state, σtr) 
+    Ftr  = yield_func(mat, state, σtr) 
 
     # Elastic and EP integration
     if σmax == 0.0 && state.w[1] >= 0.0
@@ -405,13 +405,13 @@ function update_state(matparams::MCJoint, state::MCJointState, Δw::Array{Float6
 
     else
         # Plastic increment
-        state.Δλ, status = calc_Δλ(matparams, state, σtr)
+        state.Δλ, status = calc_Δλ(mat, state, σtr)
         failed(status) && return state.σ, status
 
-        state.σ, state.up = calc_σ_upa(matparams, state, σtr)
+        state.σ, state.up = calc_σ_upa(mat, state, σtr)
                       
         # Return to surface:
-        F  = yield_func(matparams, state, state.σ)   
+        F  = yield_func(mat, state, state.σ)   
         F > 1e-3 && alert("MCJoint: Yield function value ($F) outside tolerance")
 
     end
@@ -421,7 +421,7 @@ function update_state(matparams::MCJoint, state::MCJointState, Δw::Array{Float6
 end
 
 
-function ip_state_vals(matparams::MCJoint, state::MCJointState)
+function ip_state_vals(mat::MCJoint, state::MCJointState)
     ndim = state.env.ndim
     if ndim == 3
        return Dict(
@@ -445,6 +445,6 @@ function ip_state_vals(matparams::MCJoint, state::MCJointState)
 end
 
 
-function output_keys(matparams::MCJoint)
+function output_keys(mat::MCJoint)
     return Symbol[:jw1, :js1, :jup]
 end

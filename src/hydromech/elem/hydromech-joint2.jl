@@ -1,12 +1,12 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
-mutable struct HydroMechJoint2Elem<:HydromechElem
+mutable struct HydroMechJoint2<:Hydromech
     id    ::Int
     shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    matparams::MatParams
+    mat::Material
     active::Bool
     linked_elems::Array{Element,1}
     env ::ModelEnv
@@ -17,10 +17,10 @@ mutable struct HydroMechJoint2Elem<:HydromechElem
 end
 
 # Return the shape family that works with this element
-matching_shape_family(::Type{HydroMechJoint2Elem}) = JOINTCELL
+matching_shape_family(::Type{HydroMechJoint2}) = JOINTCELL
 
 
-function elem_config_dofs(elem::HydroMechJoint2Elem)
+function elem_config_dofs(elem::HydroMechJoint2)
     nnodes   = length(elem.nodes)
     nlnodes  = div(nnodes, 2) # half the number of total nodes
     nbsnodes = elem.shape.basic_shape.npoints
@@ -36,7 +36,7 @@ function elem_config_dofs(elem::HydroMechJoint2Elem)
 end
 
 
-function elem_init(elem::HydroMechJoint2Elem)
+function elem_init(elem::HydroMechJoint2)
     # Get linked elements
     e1 = elem.linked_elems[1]
     e2 = elem.linked_elems[2]
@@ -84,9 +84,9 @@ function elem_init(elem::HydroMechJoint2Elem)
 end
 
 
-function elem_stiffness(elem::HydroMechJoint2Elem)
+function elem_stiffness(elem::HydroMechJoint2)
     ndim     = elem.env.ndim
-    th       = elem.env.anaprops.thickness
+    th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
     nlnodes  = div(nnodes, 2) # half the number of total nodes
     nbsnodes = elem.shape.basic_shape.npoints
@@ -122,7 +122,7 @@ function elem_stiffness(elem::HydroMechJoint2Elem)
 
         # compute K
         coef = detJ*ip.w*th
-        D    = mountD(elem.matparams, ip.state)
+        D    = mountD(elem.mat, ip.state)
         @gemm DBu = D*Bu
         @gemm K  += coef*Bu'*DBu
     end
@@ -135,9 +135,9 @@ function elem_stiffness(elem::HydroMechJoint2Elem)
 end
 
 
-function elem_coupling_matrix(elem::HydroMechJoint2Elem)
+function elem_coupling_matrix(elem::HydroMechJoint2)
     ndim     = elem.env.ndim
-    th       = elem.env.anaprops.thickness
+    th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
     nlnodes  = div(nnodes, 2) # half the number of total nodes
     nbsnodes = elem.shape.basic_shape.npoints
@@ -199,9 +199,9 @@ function elem_coupling_matrix(elem::HydroMechJoint2Elem)
 end
 
 
-function elem_conductivity_matrix(elem::HydroMechJoint2Elem)
+function elem_conductivity_matrix(elem::HydroMechJoint2)
     ndim     = elem.env.ndim
-    th       = elem.env.anaprops.thickness
+    th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
     nlnodes  = div(nnodes, 2) # half the number of total nodes
     nbsnodes = elem.shape.basic_shape.npoints
@@ -246,26 +246,26 @@ function elem_conductivity_matrix(elem::HydroMechJoint2Elem)
         Nt = [ Np' -Np']
 
         # compute H
-        coef  = detJ*ip.w*th*elem.matparams.kt
+        coef  = detJ*ip.w*th*elem.mat.kt
         H -= coef*Nb'*Nb
         H -= coef*Nt'*Nt
 
          # compute crack aperture
-        if elem.matparams.w == 0.0
+        if elem.mat.w == 0.0
             if ip.state.up == 0.0 || ip.state.w[1] <= 0.0
                 w = 0.0
             else
                 w = ip.state.w[1]
             end
         else
-            if elem.matparams.w >= ip.state.w[1]
-                w = elem.matparams.w
+            if elem.mat.w >= ip.state.w[1]
+                w = elem.mat.w
             else
                 w = ip.state.w[1]
             end
         end
 
-        coef = detJ*ip.w*th*(w^3)/(12*elem.matparams.η)
+        coef = detJ*ip.w*th*(w^3)/(12*elem.mat.η)
         H -= coef*Bf'*Bf
     end
 
@@ -276,9 +276,9 @@ function elem_conductivity_matrix(elem::HydroMechJoint2Elem)
 end
 
 
-function elem_compressibility_matrix(elem::HydroMechJoint2Elem)
+function elem_compressibility_matrix(elem::HydroMechJoint2)
     ndim     = elem.env.ndim
-    th       = elem.env.anaprops.thickness
+    th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
     nlnodes  = div(nnodes, 2) # half the number of total nodes
     nbsnodes = elem.shape.basic_shape.npoints
@@ -308,22 +308,22 @@ function elem_compressibility_matrix(elem::HydroMechJoint2Elem)
         Nf = [ 0.5*Np' 0.5*Np']
 
         # compute crack aperture
-        if elem.matparams.w == 0.0
+        if elem.mat.w == 0.0
             if ip.state.up == 0.0 || ip.state.w[1] <= 0.0  
                 w = 0.0
             else
                 w = ip.state.w[1]
             end
         else
-            if elem.matparams.w >= ip.state.w[1]
-                w = elem.matparams.w
+            if elem.mat.w >= ip.state.w[1]
+                w = elem.mat.w
             else 
                 w = ip.state.w[1]
             end
         end    
 
         # compute Cpp
-        coef = detJ*ip.w*elem.matparams.β*w*th
+        coef = detJ*ip.w*elem.mat.β*w*th
         Cpp -= coef*Nf'*Nf
     end
 
@@ -334,9 +334,9 @@ function elem_compressibility_matrix(elem::HydroMechJoint2Elem)
 end
 
 
-function elem_RHS_vector(elem::HydroMechJoint2Elem)
+function elem_RHS_vector(elem::HydroMechJoint2)
     ndim     = elem.env.ndim
-    th       = elem.env.anaprops.thickness
+    th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
     nlnodes  = div(nnodes, 2) # half the number of total nodes
     nbsnodes = elem.shape.basic_shape.npoints
@@ -380,22 +380,22 @@ function elem_RHS_vector(elem::HydroMechJoint2Elem)
         # compute Q
 
         # compute crack aperture
-        if elem.matparams.w == 0.0
+        if elem.mat.w == 0.0
             if ip.state.up == 0.0 || ip.state.w[1] <= 0.0
                 w = 0.0
             else
                 w = ip.state.w[1]
             end
         else
-            if elem.matparams.w >= ip.state.w[1]
-                w = elem.matparams.w
+            if elem.mat.w >= ip.state.w[1]
+                w = elem.mat.w
             else
                 w = ip.state.w[1]
             end
         end
 
-        coef = detJ*ip.w*th*(w^3)/(12*elem.matparams.η)
-        bf = T[(2:end), (1:end)]*Z*elem.env.anaprops.γw
+        coef = detJ*ip.w*th*(w^3)/(12*elem.mat.η)
+        bf = T[(2:end), (1:end)]*Z*elem.env.ana.γw
 
         @gemm Q += coef*Bf'*bf
     end
@@ -407,9 +407,9 @@ function elem_RHS_vector(elem::HydroMechJoint2Elem)
 end
 
 #=
-function elem_internal_forces(elem::HydroMechJoint2Elem, F::Array{Float64,1})
+function elem_internal_forces(elem::HydroMechJoint2, F::Array{Float64,1})
     ndim     = elem.env.ndim
-    th       = elem.env.anaprops.thickness
+    th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
     nlnodes  = div(nnodes, 2) # half the number of total nodes
     nbsnodes = elem.shape.basic_shape.npoints
@@ -460,7 +460,7 @@ function elem_internal_forces(elem::HydroMechJoint2Elem, F::Array{Float64,1})
         Bf = [0.5*Bp 0.5*Bp]
 
         # compute bf vector
-        bf = T[(2:end), (1:end)]*Z*elem.env.anaprops.γw
+        bf = T[(2:end), (1:end)]*Z*elem.env.ana.γw
 
         # compute Np vector
         Np = elem.shape.basic_shape.func(ip.R)
@@ -492,7 +492,7 @@ function elem_internal_forces(elem::HydroMechJoint2Elem, F::Array{Float64,1})
         mfw = mf'*w
         dFw-= coef*Nf'*mfw
 
-        coef = detJ*ip.w*elem.matparams.β*th
+        coef = detJ*ip.w*elem.mat.β*th
         dFw -= coef*Nf'*uwf
 
         # longitudinal flow
@@ -511,9 +511,9 @@ function elem_internal_forces(elem::HydroMechJoint2Elem, F::Array{Float64,1})
 end
 =#
 
-function update_elem!(elem::HydroMechJoint2Elem, U::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::HydroMechJoint2, U::Array{Float64,1}, Δt::Float64)
     ndim     = elem.env.ndim
-    th       = elem.env.anaprops.thickness
+    th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
     nlnodes  = div(nnodes, 2) # half the number of total nodes
     nbsnodes = elem.shape.basic_shape.npoints
@@ -577,7 +577,7 @@ function update_elem!(elem::HydroMechJoint2Elem, U::Array{Float64,1}, Δt::Float
         Bf = [0.5*Bp 0.5*Bp]
 
         # compute bf vector
-        bf = T[(2:end), (1:end)]*Z*elem.env.anaprops.γw
+        bf = T[(2:end), (1:end)]*Z*elem.env.ana.γw
 
         # compute NN matrix
         N    = fshape.func(ip.R)
@@ -600,7 +600,7 @@ function update_elem!(elem::HydroMechJoint2Elem, U::Array{Float64,1}, Δt::Float
         @gemv Δω = Bu*dU
 
         # internal force dF
-        Δσ, Vt, L = update_state(elem.matparams, ip.state, Δω, Δuw, G, BfUw, Δt)
+        Δσ, Vt, L = update_state(elem.mat, ip.state, Δω, Δuw, G, BfUw, Δt)
         Δσ -= mf*Δuw[3] # get total stress
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*Δσ
@@ -611,21 +611,21 @@ function update_elem!(elem::HydroMechJoint2Elem, U::Array{Float64,1}, Δt::Float
         dFw -= coef*Nf'*mfΔω
 
         # compute fluid compressibility
-        if elem.matparams.w == 0.0
+        if elem.mat.w == 0.0
             if ip.state.up == 0.0 || ip.state.w[1] <= 0.0  
                 w = 0.0
             else
                 w = ip.state.w[1]
             end
         else
-            if elem.matparams.w >= ip.state.w[1]
-                w = elem.matparams.w
+            if elem.mat.w >= ip.state.w[1]
+                w = elem.mat.w
             else 
                 w = ip.state.w[1]
             end
         end  
 
-        coef = detJ*ip.w*elem.matparams.β*w*th
+        coef = detJ*ip.w*elem.mat.β*w*th
         dFw -= coef*Nf'*Δuw[3]
 
         # longitudinal flow

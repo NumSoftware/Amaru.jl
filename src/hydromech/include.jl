@@ -4,7 +4,7 @@ include("elem/hydromech.jl")
 export elem_config_dofs, elem_init, elem_stiffness, update_elem!, elem_vals
 export set_state
 
-# HydromechElem Elements
+# Hydromech Elements
 include("elem/hydromech-solid.jl")
 include("elem/hydromech-joint.jl")
 include("elem/hydromech-joint2.jl")

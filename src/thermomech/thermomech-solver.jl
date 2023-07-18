@@ -2,7 +2,7 @@
 
 export ThermoAnalysis, ThermomechAnalysis
 
-mutable struct ThermomechAnalysisProps<:AnalysisProps
+mutable struct ThermomechAnalysisProps<:Analysis
     stressmodel::String # plane stress, plane strain, etc.
     thickness::Float64  # thickness for 2d analyses
     g::Float64 # gravity acceleration
@@ -27,7 +27,7 @@ function tm_mount_global_matrices(model::Model,
     # Assembling matrix G
 
     α = 1.0 # time integration factor
-    T0k = model.env.anaprops.T0 + 273.15
+    T0k = model.env.ana.T0 + 273.15
 
     @withthreads begin
         R, C, V = Int64[], Int64[], Float64[]
@@ -122,7 +122,7 @@ end
 function complete_ut_T(model::Model)
     haskey(model.node_data, "ut") || return
     Ut = model.node_data["ut"]
-    T0 = model.env.anaprops.T0
+    T0 = model.env.ana.T0
 
     for elem in model.elems
         elem.shape.family==BULKCELL || continue
@@ -186,7 +186,7 @@ subjected to a list of boundary conditions `bcs`.
 
 `silent = false` : If true, no information is printed
 """
-function solve!(model::Model, anaprops::ThermomechAnalysis; args...)
+function solve!(model::Model, ana::ThermomechAnalysis; args...)
     name = "Solver for thermal and thermomechanical analyses"
     status = stage_iterator!(name, tm_stage_solver!, model; args...)
     return status
@@ -206,7 +206,7 @@ function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     quiet  :: Bool    = false
                   )
 
-    println(logfile, "HydromechElem FE analysis: Stage $(stage.id)")
+    println(logfile, "Hydromech FE analysis: Stage $(stage.id)")
     stage.status = :solving
 
     solstatus = success()
@@ -218,7 +218,7 @@ function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     tspan     = stage.tspan
     env       = model.env
     save_outs = stage.nouts > 0
-    T0        = env.anaprops.T0
+    T0        = env.ana.T0
 
     # Get active elements
     for elem in stage.toactivate

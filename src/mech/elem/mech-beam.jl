@@ -8,7 +8,18 @@ struct MechBeamProps<:ElemProperties
     thy::Float64
     thz::Float64
 
-    function MechBeamProps(;rho=0.0, gamma=0.0, thy=NaN, thz=NaN)
+    function MechBeamProps(; props...)
+        names = (rho="Density", gamma="Specific weight", thy="y' thickness", thz="z' thickness")
+        default = (rho=0.0, gamma=0.0)
+        props   = merge(default, props)
+        required = (:thy, :thz)
+        @checkmissing props required names
+
+        rho   = props.rho
+        gamma = props.gamma
+        thy   = props.thy
+        thz   = props.thz
+
         @check rho>=0
         @check gamma>=0
         @check thy>0
@@ -18,40 +29,37 @@ struct MechBeamProps<:ElemProperties
     end    
 end
 
-MechBeam = MechBeamProps
 
 
 """
     MechBeam
 Am beam finite element for mechanical equilibrium analyses.
 """
-mutable struct MechBeamElem<:MechElem
+mutable struct MechBeam<:Mech
     id    ::Int
     shape ::CellShape
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    matparams::MatParams
+    mat   ::Material
     props ::MechBeamProps
     active::Bool
     linked_elems::Array{Element,1}
     env   ::ModelEnv
     Dlmn  ::Array{ Array{Float64,2}, 1}
 
-    function MechBeamElem(props=MechBeamProps())
-        this = new()
-        this.props = props
-        return this
+    function MechBeam()
+        return new()
     end
 end
 
 
-matching_shape_family(::Type{MechBeamElem}) = LINECELL
-matching_elem_type(::Type{MechBeamProps}) = MechBeamElem
+matching_shape_family(::Type{MechBeam}) = LINECELL
+matching_elem_props(::Type{MechBeam}) = MechBeamProps
 
 
 
-function elem_init(elem::MechBeamElem)
+function elem_init(elem::MechBeam)
     ndim = elem.env.ndim
     nnodes = length(elem.nodes)
     Dlmn = Array{Float64,2}[]
@@ -71,7 +79,7 @@ function elem_init(elem::MechBeamElem)
 end
 
 
-function setquadrature!(elem::MechBeamElem, n::Int=0)
+function setquadrature!(elem::MechBeam, n::Int=0)
     ndim = elem.env.ndim
 
     ipL = get_ip_coords(LIN2, n) # longitudinal
@@ -95,7 +103,7 @@ function setquadrature!(elem::MechBeamElem, n::Int=0)
                 m = (i-1)*nj*nk + (j-1)*nk + k
                 elem.ips[m] = Ip(R, w)
                 elem.ips[m].id = m
-                elem.ips[m].state = ip_state_type(elem, elem.matparams)(elem.env)
+                elem.ips[m].state = ip_state_type(elem, elem.mat)(elem.env)
                 elem.ips[m].owner = elem
                 # @show m
             end
@@ -115,17 +123,17 @@ function setquadrature!(elem::MechBeamElem, n::Int=0)
 end
 
 
-function distributed_bc(elem::MechBeamElem, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::MechBeam, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
     return mech_line_distributed_forces(elem, key, val)
 end
 
 
-function body_c(elem::MechBeamElem, key::Symbol, val::Union{Real,Symbol,Expr})
+function body_c(elem::MechBeam, key::Symbol, val::Union{Real,Symbol,Expr})
     return mech_line_distributed_forces(elem, key, val)
 end
 
 
-function elem_config_dofs(elem::MechBeamElem)
+function elem_config_dofs(elem::MechBeam)
     ndim = elem.env.ndim
     # ndim in (1,2) && error("MechBeam: Beam elements do not work in $(ndim)d analyses")
     for node in elem.nodes
@@ -141,7 +149,7 @@ function elem_config_dofs(elem::MechBeamElem)
 end
 
 
-function elem_map(elem::MechBeamElem)
+function elem_map(elem::MechBeam)
     if elem.env.ndim==2
         keys =(:ux, :uy, :rz)
     else
@@ -152,7 +160,7 @@ end
 
 
 # Rotation Matrix
-function set_rot_x_xp(elem::MechBeamElem, J::Matx, R::Matx)
+function set_rot_x_xp(elem::MechBeam, J::Matx, R::Matx)
     ndim = elem.env.ndim
     V1 = normalize(vec(J))
     V1 = round.(V1, digits=14)
@@ -184,7 +192,7 @@ function set_rot_x_xp(elem::MechBeamElem, J::Matx, R::Matx)
 end
 
 
-function setB(elem::MechBeamElem, ip::Ip, L::Matx, N::Vect, dNdX::Matx, Rθ::Matx, Bil::Matx, Bi::Matx, B::Matx)
+function setB(elem::MechBeam, ip::Ip, L::Matx, N::Vect, dNdX::Matx, Rθ::Matx, Bil::Matx, Bi::Matx, B::Matx)
     ndim = elem.env.ndim
     ndof = ndim==2 ? 3 : 6
     nnodes = size(dNdX,1)
@@ -229,7 +237,7 @@ function setB(elem::MechBeamElem, ip::Ip, L::Matx, N::Vect, dNdX::Matx, Rθ::Mat
 end
 
 
-function elem_stiffness(elem::MechBeamElem)
+function elem_stiffness(elem::MechBeam)
     ndim = elem.env.ndim
     nnodes = length(elem.nodes)
     thz = elem.props.thz
@@ -252,7 +260,7 @@ function elem_stiffness(elem::MechBeamElem)
         set_rot_x_xp(elem, J1D, L)
         dx′dξ = norm(J1D)
         dNdX′ = dNdR*inv(dx′dξ)
-        D     = calcD(elem.matparams, ip.state)
+        D     = calcD(elem.mat, ip.state)
         
         setB(elem, ip, L, N, dNdX′, Rθ, Bil, Bi, B)
         
@@ -271,7 +279,7 @@ function elem_stiffness(elem::MechBeamElem)
 end
 
 
-function update_elem!(elem::MechBeamElem, U::Array{Float64,1}, dt::Float64)
+function update_elem!(elem::MechBeam, U::Array{Float64,1}, dt::Float64)
     ndim = elem.env.ndim
     nnodes = length(elem.nodes)
     thz = elem.props.thz
@@ -300,7 +308,7 @@ function update_elem!(elem::MechBeamElem, U::Array{Float64,1}, dt::Float64)
         dNdX′ = dNdR*inv(dx′dξ)
         setB(elem, ip, L, N, dNdX′, Rθ, Bil, Bi, B)
         Δε = B*dU
-        Δσ, status = update_state(elem.matparams, ip.state, Δε)
+        Δσ, status = update_state(elem.mat, ip.state, Δε)
         failed(status) && return failure("MechBeam: Error at integration point $(ip.id)")
         
         if ndim==2
@@ -316,9 +324,9 @@ function update_elem!(elem::MechBeamElem, U::Array{Float64,1}, dt::Float64)
 end
 
 
-function elem_vals(elem::MechBeamElem)
+function elem_vals(elem::MechBeam)
     # get ip average values
-    ipvals = [ ip_state_vals(elem.matparams, ip.state) for ip in elem.ips ]
+    ipvals = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
     sum  = merge(+, ipvals... )
     nips = length(elem.ips)
     vals = OrderedDict( k=>v/nips for (k,v) in sum)
@@ -326,7 +334,7 @@ function elem_vals(elem::MechBeamElem)
 end
 
 
-function elem_extrapolated_node_vals(elem::MechBeamElem)
+function elem_extrapolated_node_vals(elem::MechBeam)
     ndim = elem.env.ndim
     thz = elem.props.thz
     thy = elem.props.thy
@@ -380,7 +388,7 @@ function elem_extrapolated_node_vals(elem::MechBeamElem)
         
     end
 
-    E = elem.matparams.E
+    E = elem.mat.E
     if ndim==2
         θZ = U′[3:ndof:ndof*nnodes]
         Izy = thz*thy^3/12

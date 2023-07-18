@@ -17,7 +17,6 @@ end
 
 # shape derivatives
 function shape_deriv_LIN2(R::AbstractArray{<:Float64,1})
-    r = R[1]
     D = Array{Float64}(undef,2,1)
     D[1,1] = -0.5
     D[2,1] =  0.5
@@ -26,7 +25,6 @@ end
 
 
 function shape_deriv2_LIN2(R::AbstractArray{<:Float64,1})
-    r = R[1]
     D = Array{Float64}(undef,2,1)
     D[1,1] = 0.0
     D[2,1] = 0.0

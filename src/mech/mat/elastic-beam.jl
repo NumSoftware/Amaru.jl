@@ -19,7 +19,7 @@ mutable struct ElasticBeamState<:IpState
     end
 end
 
-mutable struct ElasticBeam<:MatParams
+mutable struct ElasticBeam<:Material
     E::Float64
     nu::Float64
 
@@ -38,12 +38,12 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(matparams::ElasticBeam) = ElasticBeamState
+ip_state_type(mat::ElasticBeam) = ElasticBeamState
 
 
-function calcD(matparams::ElasticBeam, state::ElasticBeamState)
-    E = matparams.E
-    ν = matparams.nu
+function calcD(mat::ElasticBeam, state::ElasticBeamState)
+    E = mat.E
+    ν = mat.nu
     c = E/(1.0-ν^2)
     g = E/(1+ν)
 
@@ -58,8 +58,8 @@ function calcD(matparams::ElasticBeam, state::ElasticBeamState)
 end
 
 
-function update_state(matparams::ElasticBeam, state::ElasticBeamState, dε::Array{Float64,1})
-    D = calcD(matparams, state)
+function update_state(mat::ElasticBeam, state::ElasticBeamState, dε::Array{Float64,1})
+    D = calcD(mat, state)
     dσ = D*dε
     state.ε += dε
     state.σ += dσ
@@ -67,7 +67,7 @@ function update_state(matparams::ElasticBeam, state::ElasticBeamState, dε::Arra
 end
 
 
-function ip_state_vals(matparams::ElasticBeam, state::ElasticBeamState)
+function ip_state_vals(mat::ElasticBeam, state::ElasticBeamState)
     vals =  OrderedDict(
       "sx'"   => state.σ[1],
       "ex'"   => state.ε[1],

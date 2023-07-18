@@ -16,7 +16,7 @@ k    = 1.0E-5  # permeability
 gw   = 10.0    # water specific weight
 
 mats = [
-    "solids" << SeepSolid() << LinSeep(k=k)
+    "solids" << SeepSolid << LinSeep << (k=k,)
 ]
 
 ana = HydroAnalysis(gammaw=10.0)

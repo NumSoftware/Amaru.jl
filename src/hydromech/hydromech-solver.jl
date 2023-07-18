@@ -2,7 +2,7 @@
 
 export HydroAnalysis, HydromechAnalysis
 
-mutable struct HydromechAnalysisProps<:AnalysisProps
+mutable struct HydromechAnalysisProps<:Analysis
     stressmodel::String # plane stress, plane strain, etc.
     thickness::Float64  # thickness for 2d analyses
     g::Float64 # gravity acceleration
@@ -227,7 +227,7 @@ function hm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     quiet  :: Bool    = false
     )
 
-    println(logfile, "HydromechElem FE analysis: Stage $(stage.id)")
+    println(logfile, "Hydromech FE analysis: Stage $(stage.id)")
     stage.status = :solving
 
     solstatus = success()
@@ -285,7 +285,7 @@ function hm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     end
 
     # Get global parameters
-    gammaw = model.env.anaprops.γw
+    gammaw = model.env.ana.γw
     isnan(gammaw) && error("solve!: gammaw parameter was not set in Model")
     gammaw > 0 || error("hm_solve: invalid value for gammaw: $gammaw")
 

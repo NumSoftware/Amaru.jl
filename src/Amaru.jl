@@ -48,7 +48,7 @@ export ModelEnv
 include("properties.jl")
 
 include("material.jl")
-export MatParams, read_prms
+export Material, read_prms
 
 include("ip.jl")
 export Ip, ip_vals, maximum, minimum, sort
@@ -100,10 +100,10 @@ include("io.jl")
 # Mechanical module
 include("mech/include.jl")
 
-# HydromechElem module
+# Hydromech module
 include("hydromech/include.jl")
 
-# ThermomechElem module
+# Thermomech module
 include("thermomech/include.jl")
 
 # Acoustic module
@@ -115,11 +115,16 @@ Base.show(io::IO, obj::Node)           = _show(io, obj, 2, "")
 Base.show(io::IO, obj::Ip)             = _show(io, obj, 2, "")
 Base.show(io::IO, obj::IpState)        = _show(io, obj, 2, "")
 Base.show(io::IO, obj::Element)        = _show(io, obj, 2, "")
-Base.show(io::IO, obj::MatParams)       = _show(io, obj, 2, "")
+Base.show(io::IO, obj::Material)       = _show(io, obj, 2, "")
 Base.show(io::IO, obj::BC)             = _show(io, obj, 2, "")
 Base.show(io::IO, obj::Facet)          = _show(io, obj, 2, "")
 Base.show(io::IO, obj::AbstractLogger) = _show(io, obj, 2, "")
 Base.show(io::IO, obj::Model)         = _show(io, obj, 2, "")
+
+# Chaining
+Base.:(<<)(a::Tuple, b::Type{<:Material}) = return (a..., b)
+Base.:(<<)(a, b::Type{<:Material}) = return (a, b)
+Base.:(<<)(a::Tuple{<:Any, DataType, DataType}, b::NamedTuple) = return (a..., b)
 
 # testing
 export @runfiles

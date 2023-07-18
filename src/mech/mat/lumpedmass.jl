@@ -9,7 +9,7 @@ mutable struct LumpedMassState<:IpState
     end
 end
 
-mutable struct LumpedMass<:MatParams
+mutable struct LumpedMass<:Material
     m::Float64
 
     function LumpedMass(prms::Dict{Symbol,Float64})
@@ -25,9 +25,9 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(matparams::LumpedMass) = LumpedMassState
+ip_state_type(mat::LumpedMass) = LumpedMassState
 
 
-function ip_state_vals(matparams::LumpedMass, state::LumpedMassState)
+function ip_state_vals(mat::LumpedMass, state::LumpedMassState)
     return OrderedDict{Symbol, Float64}()
 end

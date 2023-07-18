@@ -11,7 +11,7 @@ mutable struct ElasticShellDegeneratedState<:IpState
     end
 end
 
-mutable struct ElasticShellDegenerated<:MatParams
+mutable struct ElasticShellDegenerated<:Material
     E::Float64
     nu::Float64
     t::Float64
@@ -32,9 +32,9 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(matparams::ElasticShellDegenerated) = ElasticShellDegeneratedState
+ip_state_type(mat::ElasticShellDegenerated) = ElasticShellDegeneratedState
 
 
-function ip_state_vals(matparams::ElasticShellDegenerated, state::ElasticShellDegeneratedState)
+function ip_state_vals(mat::ElasticShellDegenerated, state::ElasticShellDegeneratedState)
     return OrderedDict{Symbol, Float64}()
 end

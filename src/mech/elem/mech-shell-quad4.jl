@@ -2,26 +2,26 @@
 
 export ShellQUAD4
 
-mutable struct ShellQUAD4Elem<:MechElem
+mutable struct ShellQUAD4<:Mech
     id    ::Int
     shape ::CellShape
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    matparams::MatParams
+    mat::Material
     active::Bool
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function ShellQUAD4Elem()
+    function ShellQUAD4()
         return new()
     end
 end
 
-matching_shape_family(::Type{ShellQUAD4Elem}) = BULKCELL
+matching_shape_family(::Type{ShellQUAD4}) = BULKCELL
 
 
-function distributed_bc(elem::ShellQUAD4Elem, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::ShellQUAD4, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     th    = elem.env.t
     suitable_keys = (:tx, :ty, :tz, :tn)
@@ -67,7 +67,7 @@ function distributed_bc(elem::ShellQUAD4Elem, facet::Cell, key::Symbol, val::Uni
                 n = [J[1,2], -J[1,1]]
                 Q = vip*normalize(n)
             end
-            if elem.env.anaprops.stressmodel=="axisymmetric"
+            if elem.env.ana.stressmodel=="axisymmetric"
                 th = 2*pi*X[1]
             end
         else
@@ -96,11 +96,11 @@ function distributed_bc(elem::ShellQUAD4Elem, facet::Cell, key::Symbol, val::Uni
 end
 
 # the strain-displacement matrix for membrane forces
-function Dm_maxtrix(elem::ShellQUAD4Elem)
+function Dm_maxtrix(elem::ShellQUAD4)
 
-    coef1 = elem.matparams.t*elem.matparams.E/(1-elem.matparams.nu^2)
-    coef2 = elem.matparams.nu*coef1
-    coef3 = coef1*(1-elem.matparams.nu)/2
+    coef1 = elem.mat.t*elem.mat.E/(1-elem.mat.nu^2)
+    coef2 = elem.mat.nu*coef1
+    coef3 = coef1*(1-elem.mat.nu)/2
 
         Dm = [coef1  coef2 0
                   coef2  coef1 0
@@ -109,19 +109,19 @@ function Dm_maxtrix(elem::ShellQUAD4Elem)
 end
 
 # the strain-displacement matrix for bending moments
-function Db_maxtrix(elem::ShellQUAD4Elem)
+function Db_maxtrix(elem::ShellQUAD4)
 
     Dm = Dm_maxtrix(elem)
 
-    Db = Dm*(elem.matparams.t^2/12)
+    Db = Dm*(elem.mat.t^2/12)
 
     return Db
 end
 
 # the strain-displacement matrix for shear forces
-function Ds_maxtrix(elem::ShellQUAD4Elem)
+function Ds_maxtrix(elem::ShellQUAD4)
 
-    coef = elem.matparams.t*(5/6)*elem.matparams.E/(2*(1+elem.matparams.nu))
+    coef = elem.mat.t*(5/6)*elem.mat.E/(2*(1+elem.mat.nu))
 
             Ds = [coef    0
                         0     coef]
@@ -129,7 +129,7 @@ function Ds_maxtrix(elem::ShellQUAD4Elem)
 end
 
 # Rotation Matrix
-function RotMatrix(elem::ShellQUAD4Elem, J::Matrix{Float64})
+function RotMatrix(elem::ShellQUAD4, J::Matrix{Float64})
     
     Z = zeros(1,2) # zeros(2,1)
 
@@ -162,9 +162,9 @@ function RotMatrix(elem::ShellQUAD4Elem, J::Matrix{Float64})
 end
 
 
-function elem_config_dofs(elem::ShellQUAD4Elem)
+function elem_config_dofs(elem::ShellQUAD4)
     ndim = elem.env.ndim
-    ndim == 1 && error("ShellQUAD4Elem: Shell elements do not work in 1d analyses")
+    ndim == 1 && error("ShellQUAD4: Shell elements do not work in 1d analyses")
     #if ndim==2
         for node in elem.nodes
             add_dof(node, :ux, :fx)
@@ -174,7 +174,7 @@ function elem_config_dofs(elem::ShellQUAD4Elem)
             add_dof(node, :ry, :my)
         end
     #else
-        #error("ShellQUAD4Elem: Shell elements do not work in this analyses")
+        #error("ShellQUAD4: Shell elements do not work in this analyses")
         #=
         for node in elem.nodes
             add_dof(node, :ux, :fx)
@@ -189,7 +189,7 @@ function elem_config_dofs(elem::ShellQUAD4Elem)
 end
 
 
-function elem_map(elem::ShellQUAD4Elem)::Array{Int,1}
+function elem_map(elem::ShellQUAD4)::Array{Int,1}
 
     #if elem.env.ndim==2
     #    dof_keys = (:ux, :uy, :uz, :rx, :ry)
@@ -204,7 +204,7 @@ function elem_map(elem::ShellQUAD4Elem)::Array{Int,1}
 end
 
 
-function setBb(elem::ShellQUAD4Elem, N::Vect, dNdX::Matx, Bb::Matx)
+function setBb(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bb::Matx)
     nnodes = length(elem.nodes)
     # ndim, nnodes = size(dNdX)
     ndof = 5
@@ -224,7 +224,7 @@ function setBb(elem::ShellQUAD4Elem, N::Vect, dNdX::Matx, Bb::Matx)
 end
 
 
-function setBm(elem::ShellQUAD4Elem, N::Vect, dNdX::Matx, Bm::Matx)
+function setBm(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bm::Matx)
     nnodes = length(elem.nodes)
     # ndim, nnodes = size(dNdX)
     ndof = 5
@@ -244,7 +244,7 @@ function setBm(elem::ShellQUAD4Elem, N::Vect, dNdX::Matx, Bm::Matx)
 end
 
 
-function setBs_bar(elem::ShellQUAD4Elem, N::Vect, dNdX::Matx, Bs_bar::Matx)
+function setBs_bar(elem::ShellQUAD4, N::Vect, dNdX::Matx, Bs_bar::Matx)
     nnodes = length(elem.nodes)
 
     cx = [ 0 1 0 -1]
@@ -279,7 +279,7 @@ function setBs_bar(elem::ShellQUAD4Elem, N::Vect, dNdX::Matx, Bs_bar::Matx)
 end
 
 
-function elem_stiffness(elem::ShellQUAD4Elem)
+function elem_stiffness(elem::ShellQUAD4)
 
     nnodes = length(elem.nodes)
 
@@ -377,7 +377,7 @@ function elem_stiffness(elem::ShellQUAD4Elem)
 end
 
 
-function update_elem!(elem::ShellQUAD4Elem, U::Array{Float64,1}, dt::Float64)
+function update_elem!(elem::ShellQUAD4, U::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
     dU  = U[map]
     F[map] += K*dU

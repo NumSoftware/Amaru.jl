@@ -15,7 +15,8 @@ mutable struct ModelEnv
     transient::Bool      # Time dependent analysis
     t        ::Float64   # Time in time dependent analysis
     outdir   ::String    # Output directory
-    anaprops ::AnalysisProps
+    ana      ::Analysis
+    pool     ::ArrayPool
 
     # stagebits::StageBits
     T      ::Float64  # Pseudo time for current stage
@@ -33,6 +34,7 @@ mutable struct ModelEnv
         this.transient = false
         this.t         = 0.0
         this.outdir    = ""
+        this.pool      = ArrayPool()
         
         # Stage related:
         # this.stagebits = StageBits(0.0, 0.0, 0.0, 0, 0, 0, true)

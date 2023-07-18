@@ -4,13 +4,13 @@
     CookShell
 A bulk finite element for mechanical equilibrium analyses.
 """
-mutable struct CookShellElem<:MechElem
+mutable struct CookShell<:Mech
     id    ::Int
     shape ::CellShape
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    matparams::MatParams
+    mat::Material
     active::Bool
     linked_elems::Array{Element,1}
     env   ::ModelEnv
@@ -21,10 +21,10 @@ mutable struct CookShellElem<:MechElem
     end
 end
 
-matching_shape_family(::Type{CookShellElem}) = BULKCELL
+matching_shape_family(::Type{CookShell}) = BULKCELL
 
 
-function elem_init(elem::CookShellElem)
+function elem_init(elem::CookShell)
 
     nnodes = length(elem.nodes)
     Dlmn = Array{Float64,2}[]
@@ -51,7 +51,7 @@ function elem_init(elem::CookShellElem)
 end
 
 
-function setquadrature!(elem::CookShellElem, n::Int=0)
+function setquadrature!(elem::CookShell, n::Int=0)
 
     # n = 9
     ip2d = get_ip_coords(elem.shape, n)
@@ -66,7 +66,7 @@ function setquadrature!(elem::CookShellElem, n::Int=0)
             j = (k-1)*n + i
             elem.ips[j] = Ip(R, w)
             elem.ips[j].id = j
-            elem.ips[j].state = ip_state_type(elem.matparams)(elem.env)
+            elem.ips[j].state = ip_state_type(elem.mat)(elem.env)
             elem.ips[j].owner = elem
         end
     end
@@ -84,12 +84,12 @@ function setquadrature!(elem::CookShellElem, n::Int=0)
 end
 
 
-function body_c(elem::CookShellElem, key::Symbol, val::Union{Real,Symbol,Expr})
+function body_c(elem::CookShell, key::Symbol, val::Union{Real,Symbol,Expr})
     return mech_shell_body_forces(elem, key, val)
 end
 
 # Rotation Matrix
-function set_rot_x_xp(elem::CookShellElem, J::Matx, R::Matx)
+function set_rot_x_xp(elem::CookShell, J::Matx, R::Matx)
     V1 = J[:,1]
     V2 = J[:,2]
     V3 = cross(V1, V2)
@@ -105,9 +105,9 @@ function set_rot_x_xp(elem::CookShellElem, J::Matx, R::Matx)
 end
 
 
-function setB(elem::CookShellElem, ip::Ip, invJ::Matx, N::Vect, dNdX::Matx, Rrot::Matx, Bil::Matx, Bi::Matx, B::Matx)
+function setB(elem::CookShell, ip::Ip, invJ::Matx, N::Vect, dNdX::Matx, Rrot::Matx, Bil::Matx, Bi::Matx, B::Matx)
     nnodes = size(dNdX,1)
-    th = elem.matparams.th
+    th = elem.mat.th
     # Note that matrix B is designed to work with tensors in Mandel's notation
 
     ndof = 6
@@ -148,7 +148,7 @@ function setB(elem::CookShellElem, ip::Ip, invJ::Matx, N::Vect, dNdX::Matx, Rrot
 end
 
 
-function elem_config_dofs(elem::CookShellElem)
+function elem_config_dofs(elem::CookShell)
     ndim = elem.env.ndim
     ndim in (1,2) && error("CookShell: Shell elements do not work in $(ndim)d analyses")
     for node in elem.nodes
@@ -162,16 +162,16 @@ function elem_config_dofs(elem::CookShellElem)
 end
 
 
-function elem_map(elem::CookShellElem)
+function elem_map(elem::CookShell)
     keys =(:ux, :uy, :uz, :rx, :ry, :rz)
     return [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
 end
 
 
-function elem_stiffness(elem::CookShellElem)
+function elem_stiffness(elem::CookShell)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
-    th = elem.matparams.th
+    th = elem.mat.th
     ndof = 6
 
     C = getcoords(elem)
@@ -202,7 +202,7 @@ function elem_stiffness(elem::CookShellElem)
         invJ = inv(J)
         dNdX = dNdR*invJ
 
-        D = calcD(elem.matparams, ip.state)
+        D = calcD(elem.mat, ip.state)
         setB(elem, ip, invJ, N, dNdX, Rrot, Bil, Bi, B)
         detJ = det(J)
 
@@ -224,10 +224,10 @@ function elem_stiffness(elem::CookShellElem)
 end
 
 
-function update_elem!(elem::CookShellElem, U::Array{Float64,1}, dt::Float64)
+function update_elem!(elem::CookShell, U::Array{Float64,1}, dt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
-    th = elem.matparams.th
+    th = elem.mat.th
     ndof = 6
 
     map = elem_map(elem)
@@ -263,8 +263,8 @@ function update_elem!(elem::CookShellElem, U::Array{Float64,1}, dt::Float64)
         dNdX = dNdR*invJ
         setB(elem, ip, invJ, N, dNdX, Rrot, Bil, Bi, B)
         Δε = T*B*dU
-        Δσ, status = update_state(elem.matparams, ip.state, Δε)
-        failed(status) && return failure("MechSolidElem: Error at integration point $(ip.id)")
+        Δσ, status = update_state(elem.mat, ip.state, Δε)
+        failed(status) && return failure("MechSolid: Error at integration point $(ip.id)")
 
         detJ = det(J)
         coef = detJ*ip.w

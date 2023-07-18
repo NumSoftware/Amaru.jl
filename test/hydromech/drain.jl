@@ -15,12 +15,13 @@ k  = 1e-10
 kb = 1 
 kj = 10 
 Q  = 1       # volume em metro cubico
+p  = 2*pi*(A/pi)^0.5
 
 # FEM analysis
 mats = [
-    "solids" << SeepSolid() << LinSeep(k=k, S=0.0),
-    "joints" << SeepJoint1D(A=A) << Joint1DLinSeep(k=kj),
-    "drains" << DrainPipe(A=A) << LinDrainPipe(k=kb),
+    "solids" << SeepSolid << LinSeep << (k=k, S=0.0),
+    "joints" << SeepJoint1D << Joint1DLinSeep << (k=kj, p=p),
+    "drains" << DrainPipe << LinDrainPipe << (k=kb, A=A),
 ]
 
 ana = HydroAnalysis(gammaw=gw)

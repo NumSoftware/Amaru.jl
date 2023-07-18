@@ -9,7 +9,7 @@ mutable struct ElasticSpringState<:IpState
     end
 end
 
-mutable struct ElasticSpring<:MatParams
+mutable struct ElasticSpring<:Material
     kx::Float64
     ky::Float64
     kz::Float64
@@ -35,9 +35,9 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(matparams::ElasticSpring) = ElasticSpringState
+ip_state_type(mat::ElasticSpring) = ElasticSpringState
 
 
-function ip_state_vals(matparams::ElasticSpring, state::ElasticSpringState)
+function ip_state_vals(mat::ElasticSpring, state::ElasticSpringState)
     return OrderedDict{Symbol, Float64}()
 end

@@ -2,7 +2,7 @@
 
 export DynAnalysis
 
-mutable struct DynAnalysisProps<:AnalysisProps
+mutable struct DynAnalysisProps<:Analysis
     stressmodel::String # plane stress, plane strain, etc.
     thickness::Float64  # thickness for 2d analyses
     g::Float64 # gravity acceleration
@@ -146,7 +146,7 @@ subjected to a set of boundary conditions `bcs` and a time span.
 `verbose = true` : If true, provides information of the analysis steps
 
 """
-function solve!(model::Model, anaprops::DynAnalysis; args...)
+function solve!(model::Model, ana::DynAnalysis; args...)
     name = "Solver for dynamic analyses"
     status = stage_iterator!(name, dyn_stage_solver!, model; args...)
     return status
@@ -530,14 +530,14 @@ function dynsolvex!(
     end
     isnan(tspan) && error("dynsolve!: neither tspan nor end_time were set.")
 
-    verbosity>0 && println("  model type: ", env.anaprops.stressmodel)
+    verbosity>0 && println("  model type: ", env.ana.stressmodel)
 
     if verbosity==0
         printstyled("Dynamic FE analysis: Stage $(env.stage)\n", bold=true, color=:cyan)
     end
 
     tol>0 || error("solve! : tolerance should be greater than zero.")
-    verbosity>0 || println("  model type: ", env.anaprops.stressmodel)
+    verbosity>0 || println("  model type: ", env.ana.stressmodel)
 
     save_outs = nouts>0
     if save_outs

@@ -289,7 +289,7 @@ Thus, for a particular problem, a consistent list of materials should be used.
 For example, in a mechanical analysis, all elements should be associated to mechanical material types.
 Based on the choosen materials, the `Model` object will setup the corresponding finite elements and degrees of freedom.
 
-### MatParams definitions
+### Material definitions
 
 There are several material models implemented in Amaru and are associated to a corresponding type, e.g. 
 `LinearElastic`, `DruckerPrager`, `VonMises`, `ElasticRod`, etc.

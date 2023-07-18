@@ -13,9 +13,9 @@ mesh = Mesh(bls)
 # FEM analysis
 
 mats = [
-    "solids" << MechSolid() << LinearElastic(E=1.e4, nu=0.),
-    "joints" << MechRSJoint(A=0.005) << ElasticRSJoint(ks=1.e5, kn=1.e5),
-    "bars"   << MechRod(A=0.005) << LinearElastic(E=1.e8),
+    "solids" << MechSolid << LinearElastic << (E=1.e4, nu=0.),
+    "joints" << MechRSJoint << ElasticRSJoint << (ks=1.e5, kn=1.e5, p=0.25), 
+    "bars"   << MechRod << LinearElastic << (E=1.e8, A=0.005),
 ]
 
 ana = MechAnalysis()

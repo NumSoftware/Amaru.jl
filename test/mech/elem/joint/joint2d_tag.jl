@@ -14,9 +14,9 @@ generate_joints_by_tag!(msh, tag="joints")
 E = 27.e6
 
 mats = [
-    "a"      << LinearElastic(E=E, nu=0.2),
-    "b"      << LinearElastic(E=E, nu=0.2),
-    "joints" << ElasticJoint(E=E, nu=0.2, zeta=5),
+    "a"      << LinearElastic << (E=E, nu=0.2),
+    "b"      << LinearElastic << (E=E, nu=0.2),
+    "joints" << ElasticJoint << (E=E, nu=0.2, zeta=5),
 ]
 
 

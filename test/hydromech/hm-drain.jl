@@ -12,6 +12,7 @@ E  = 5000;
 nu = 0.25;
 gw = 10.0     # water specific weight
 A  = 0.01
+p = 2*pi*(A/pi)^0.5
 k  = 1e-4
 kb = 1 
 kj = 100 
@@ -20,9 +21,9 @@ Q  = 1       # volume em metro cubico
 # FEM analysis
 
 mats = [
-    "solids" << HydromechSolid() << LinearElasticSeep(E=E, nu=nu, k=k, alpha=1.0, S=0.0),
-    "joints" << SeepJoint1D(A=A) << Joint1DLinSeep(k=kj),
-    "drains" << DrainPipe(A=A) << LinDrainPipe(k=kb),
+    "solids" << HydromechSolid << LinearElasticSeep << (E=E, nu=nu, k=k, alpha=1.0, S=0.0),
+    "joints" << SeepJoint1D << Joint1DLinSeep << (k=kj, p=p),
+    "drains" << DrainPipe << LinDrainPipe << (k=kb, A=A),
 ]
 
 ana = HydromechAnalysis(gammaw=10)

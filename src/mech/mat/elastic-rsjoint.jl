@@ -14,7 +14,7 @@ mutable struct ElasticRSJointState<:IpState
     end
 end
 
-mutable struct ElasticRSJoint<:MatParams
+mutable struct ElasticRSJoint<:Material
     ks::Float64
     kn::Float64
 
@@ -22,26 +22,30 @@ mutable struct ElasticRSJoint<:MatParams
         return  ElasticRSJoint(;prms...)
     end
 
-    function ElasticRSJoint(;ks=NaN, kn=NaN)
+    function ElasticRSJoint(; params...)
+        names = (kn="Normal stiffness", ks="Shear stiffness")
+        required = keys(names)
+        @checkmissing params required names
+        
+        params = (; params...)
+        kn     = params.kn
+        ks     = params.ks
+
         @check ks>=0
         @check kn>=0
 
-        this = new(ks, kn)
-        return this
+        return new(ks, kn)
     end
 end
 
 
-# Returns the element type that works with this material
-
-
 # Type of corresponding state structure
-ip_state_type(::MechRSJointElem, ::ElasticRSJoint) = ElasticRSJointState
+ip_state_type(::MechRSJoint, ::ElasticRSJoint) = ElasticRSJointState
 
 
-function calcD(matparams::ElasticRSJoint, state::ElasticRSJointState)
-    ks = matparams.ks
-    kn = matparams.kn
+function calcD(mat::ElasticRSJoint, state::ElasticRSJointState)
+    ks = mat.ks
+    kn = mat.kn
     if state.env.ndim==2
         return [  ks  0.0
                  0.0   kn ]
@@ -53,8 +57,8 @@ function calcD(matparams::ElasticRSJoint, state::ElasticRSJointState)
 end
 
 
-function update_state(matparams::ElasticRSJoint, state::ElasticRSJointState, Δu)
-    D = calcD(matparams, state)
+function update_state(mat::ElasticRSJoint, state::ElasticRSJointState, Δu)
+    D = calcD(mat, state)
     Δσ = D*Δu
 
     state.u .+= Δu
@@ -63,7 +67,7 @@ function update_state(matparams::ElasticRSJoint, state::ElasticRSJointState, Δu
 end
 
 
-function ip_state_vals(matparams::ElasticRSJoint, state::ElasticRSJointState)
+function ip_state_vals(mat::ElasticRSJoint, state::ElasticRSJointState)
     return OrderedDict(
       :ur   => state.u[1] ,
       :tau  => state.σ[1] )

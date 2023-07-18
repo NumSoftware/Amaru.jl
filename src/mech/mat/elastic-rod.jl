@@ -11,7 +11,7 @@ A type for linear elastic materials in rods.
 
 $(TYPEDFIELDS)
 """
-mutable struct ElasticRod<:MatParams
+mutable struct ElasticRod<:Material
     "Young Modulus"
     E::Float64
     # "Section area"
@@ -70,31 +70,31 @@ mutable struct ElasticRodState<:IpState
 end
 
 
-matching_elem_type_if_embedded(::ElasticRod) = MechEmbRodElem
+matching_elem_type_if_embedded(::ElasticRod) = MechEmbRod
 
 # Type of corresponding state structure
-ip_state_type(matparams::ElasticRod) = ElasticRodState
+ip_state_type(mat::ElasticRod) = ElasticRodState
 
 
-function update_state(matparams::ElasticRod, state::ElasticRodState, Δε::Float64)
-    Δσ = matparams.E*Δε
+function update_state(mat::ElasticRod, state::ElasticRodState, Δε::Float64)
+    Δσ = mat.E*Δε
     state.ε += Δε
     state.σ += Δσ
     return Δσ, success()
 end
 
 
-function ip_state_vals(matparams::ElasticRod, state::ElasticRodState)
+function ip_state_vals(mat::ElasticRod, state::ElasticRodState)
     return OrderedDict(
       :sa => state.σ,
       :ea => state.ε,
-    #   :fa => state.σ*matparams.A,
-    #   :A  => matparams.A 
+    #   :fa => state.σ*mat.A,
+    #   :A  => mat.A 
       )
 end
 
 
-function calcD(matparams::ElasticRod, ips::ElasticRodState)
-    return matparams.E
+function calcD(mat::ElasticRod, ips::ElasticRodState)
+    return mat.E
 end
 

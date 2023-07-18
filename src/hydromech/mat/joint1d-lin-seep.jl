@@ -15,14 +15,17 @@ mutable struct Joint1DLinSeepState<:IpState
     end
 end
 
-mutable struct Joint1DLinSeep<:MatParams
+mutable struct Joint1DLinSeep<:Material
     k ::Float64    # specific permeability per meter
 
-    function Joint1DLinSeep(prms::Dict{Symbol,Float64})
-        return  Joint1DLinSeep(;prms...)
-    end
+    function Joint1DLinSeep(; params...)
+        names = (k="Permeability",)
+        required = (:k,)
+        @checkmissing params required names
 
-    function Joint1DLinSeep(;k=NaN)
+        params  = (; params...)
+        k       = params.k
+
         @check k>=0.0
         return new(k)
     end
@@ -33,18 +36,18 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::SeepJoint1DElem, ::Joint1DLinSeep) = Joint1DLinSeepState
+ip_state_type(::SeepJoint1D, ::Joint1DLinSeep) = Joint1DLinSeepState
 
 
-function update_state!(matparams::Joint1DLinSeep, state::Joint1DLinSeepState, ΔFw::Float64, Δt::Float64)
-    k = matparams.k
+function update_state!(mat::Joint1DLinSeep, state::Joint1DLinSeepState, ΔFw::Float64, Δt::Float64)
+    k = mat.k
     state.V  = -k*ΔFw
     state.D  += state.V*Δt
     return state.V
 end
 
 
-function ip_state_vals(matparams::Joint1DLinSeep, state::Joint1DLinSeepState)
+function ip_state_vals(mat::Joint1DLinSeep, state::Joint1DLinSeepState)
     return OrderedDict(
       :vj => state.V)
 end

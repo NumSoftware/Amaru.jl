@@ -11,7 +11,7 @@ msh = Mesh(coord, conn)
 tag!(msh.elems, "bars")
 
 mats = [
-        "bars" << MechRod(A=0.043) << LinearElastic(E=6.894757e7)
+        "bars" << MechRod << LinearElastic << (E=6.894757e7, A=0.043)
        ]
 
 ana = MechAnalysis()

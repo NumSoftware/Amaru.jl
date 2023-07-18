@@ -13,7 +13,7 @@ mesh = Mesh(block, quiet=true, reorder=false)
 # Model definition
 
 materials = [
-    "solid" << MechSolid() << LinearElastic(E=1.0, nu=0.3),
+    "solid" << MechSolid << LinearElastic << (E=1.0, nu=0.3),
 ]
 
 # Load cases

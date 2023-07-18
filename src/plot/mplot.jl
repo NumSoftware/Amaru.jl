@@ -1254,7 +1254,7 @@ function mplot(
     xmax = 0.0
     for elem in elems
         for ip in elem.ips
-            v = ip_state_vals(elem.matparams, ip.state)[Symbol(field)]
+            v = ip_state_vals(elem.mat, ip.state)[Symbol(field)]
             vmin = min(vmin, v)
             vmax = max(vmax, v)
             xmin = min(xmin, ip.coord[xidx])
@@ -1290,7 +1290,7 @@ function mplot(
         for ip in ips
             x = ip.coord[xidx]
             y = ip.coord[yidx]
-            v = ip_state_vals(elem.matparams, ip.state)[Symbol(field)]*sign(fieldmult)
+            v = ip_state_vals(elem.mat, ip.state)[Symbol(field)]*sign(fieldmult)
             X = [ x, x+N[1]*v*fieldtrans*barscale ]
             Y = [ y, y+N[2]*v*fieldtrans*barscale ]
             X .+= dn*sign(v)*N[1]

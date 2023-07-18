@@ -9,6 +9,8 @@ include("math.jl")
 
 include("linalg.jl")
 include("vec3.jl")
+include("vec6.jl")
+include("mat6x6.jl")
 include("quaternion.jl")
 include("tensors.jl")
 
@@ -19,6 +21,8 @@ include("book.jl")
 include("utils.jl")
 include("stopwatch.jl")
 include("xml.jl")
+
+include("array-pool.jl")
 
 include("tex.jl")
 include("error.jl")

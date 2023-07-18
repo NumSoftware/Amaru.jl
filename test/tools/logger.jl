@@ -4,7 +4,7 @@ using Test
 bl = Block( [0 0 0; 1 1 1], nx=4, ny=4, nz=4, cellshape=HEX8, tag="solids")
 mesh = Mesh(bl)
 
-mats = [ "solids" << MechSolid() << LinearElastic(E=100.0, nu=0.2) ]
+mats = [ "solids" << MechSolid << LinearElastic << (E=100.0, nu=0.2) ]
 
 ana = MechAnalysis()
 model = FEModel(mesh, mats, ana)

@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-abstract type MechElem<:Element end
+abstract type Mech<:Element end
 
 
 """
@@ -9,7 +9,7 @@ abstract type MechElem<:Element end
 Sets up the dofs for all nodes in `elem` according with its type.
 This function can be specialized by concrete types.
 """
-function elem_config_dofs(elem::MechElem)
+function elem_config_dofs(elem::Mech)
     for node in elem.nodes
         add_dof(node, :ux, :fx)
         elem.env.ndim>=2 && add_dof(node, :uy, :fy)
@@ -24,8 +24,8 @@ end
 Returns the stiffness matrix for `elem`.
 This function must be defined by each concrete type.
 """
-function elem_stiffness(elem::MechElem)
-    error("elem_stiffness function not defined for material type $(typeof(elem.matparams))")
+function elem_stiffness(elem::Mech)
+    error("elem_stiffness function not defined for material type $(typeof(elem.mat))")
 end
 
 """
@@ -34,7 +34,7 @@ end
 Returns the mass matrix for `elem`.
 This function must be defined by each concrete type.
 """
-function elem_mass(elem::MechElem)
+function elem_mass(elem::Mech)
    ndim=elem.env.ndim
    ndofs = length(elem.nodes)*ndim
    M = zeros(ndofs, ndofs)
@@ -49,7 +49,7 @@ end
 Gets internal nodal forces from current element state.
 This function must be defined by each concrete type.
 """
-function elem_internal_forces(elem::MechElem, F::Array{Float64,1})
+function elem_internal_forces(elem::Mech, F::Array{Float64,1})
 end
 
 """
@@ -59,6 +59,6 @@ Updates the state of an element given the current global vectors for essential a
 natural quantities. It also updates the global vector F.
 This function must be defined by each concrete type.
 """
-function update_elem!(elem::MechElem, U::Array{Float64,1}, Δt::Float64)
-    error("update_elem function not defined for material type $(typeof(elem.matparams))")
+function update_elem!(elem::Mech, U::Array{Float64,1}, Δt::Float64)
+    error("update_elem function not defined for material type $(typeof(elem.mat))")
 end

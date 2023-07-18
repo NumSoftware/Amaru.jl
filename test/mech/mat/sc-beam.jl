@@ -15,8 +15,8 @@ tag!(msh.edges[:(y==0.2 && z==0.1)], 10)
 E = 27.e6
 
 mats = [
-    MaterialBind(:solids, LinearElastic(E=E, nu=0.2)),
-    MaterialBind(100, SmearedCrack(E=E, nu=0.2, ft=2.4e3, mu=1.4, alpha=1.0, wc=1.7e-4, ws=1.85e-5, softcurve="hordijk" ) ),
+    MaterialBind(:solids, LinearElastic << (E=E, nu=0.2)),
+    MaterialBind(100, SmearedCrack << (E=E, nu=0.2, ft=2.4e3, mu=1.4, alpha=1.0, wc=1.7e-4, ws=1.85e-5, softcurve="hordijk" ) ),
 ]
 
 # Loggers

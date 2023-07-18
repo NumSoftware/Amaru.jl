@@ -2,7 +2,7 @@
 
 export CompressiveConcrete
 
-mutable struct CompressiveConcrete<:MatParams
+mutable struct CompressiveConcrete<:Material
     E0   ::Float64  # initial Young modulus
     ν    ::Float64
     fc   ::Float64
@@ -50,62 +50,62 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(matparams::CompressiveConcrete) = CompressiveConcreteState
+ip_state_type(mat::CompressiveConcrete) = CompressiveConcreteState
 
 
-function uniaxial_σ(matparams::CompressiveConcrete, state::CompressiveConcreteState, εi::Float64)
+function uniaxial_σ(mat::CompressiveConcrete, state::CompressiveConcreteState, εi::Float64)
     # σp = eigvals(state.σ)
     # σ1c, σ2c, σ3c = neg.(σp)
 
     # compression: Popovics 1973; Carreira and Chu 1985
     # αc = 0.3
-    # γ = 1.0 - αc/matparams.fc*( √(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c)) # suggested values for coef: 0.2
+    # γ = 1.0 - αc/mat.fc*( √(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c)) # suggested values for coef: 0.2
     γ = 1.0
-    fc = matparams.fc*γ
+    fc = mat.fc*γ
 
-    β  = 1/(1-fc/(matparams.εpeak*matparams.E0))
+    β  = 1/(1-fc/(mat.εpeak*mat.E0))
     β  = max(min(β,10),2) # limit the value of β
-    εr = εi/matparams.εpeak
+    εr = εi/mat.εpeak
     return fc*(β*εr)/(β - 1.0 + εr^β)
 
 end
 
 
-function uniaxial_E(matparams::CompressiveConcrete, state::CompressiveConcreteState, εi::Float64)
+function uniaxial_E(mat::CompressiveConcrete, state::CompressiveConcreteState, εi::Float64)
     # σp = eigvals(state.σ)
     # σ1c, σ2c, σ3c = neg.(σp)
 
     # αc = 0.3
-    # γ = 1.0 - αc/matparams.fc*( √(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c)) # suggested values for coef: 0.2
+    # γ = 1.0 - αc/mat.fc*( √(σ2c*σ3c)+ √(σ1c*σ3c)+ √(σ1c*σ2c)) # suggested values for coef: 0.2
     γ = 1.0
-    fc = matparams.fc*γ
+    fc = mat.fc*γ
 
-    εpeak = matparams.εpeak*γ
+    εpeak = mat.εpeak*γ
     εr  = εi/εpeak
 
-    β = 1/(1-fc/(εpeak*matparams.E0))
+    β = 1/(1-fc/(εpeak*mat.E0))
     β = max(min(β,10),2) # limit the value of β
     Ec = β*(fc/εpeak)/(β-1+εr^β) - β^2*(fc/εpeak)*εr^β/(β-1+εr^β)^2
     return Ec
 end
 
 
-function calcD(matparams::CompressiveConcrete, state::CompressiveConcreteState)
+function calcD(mat::CompressiveConcrete, state::CompressiveConcreteState)
 
     if state.ε̅c > state.ε̅min
-        E = matparams.E0
+        E = mat.E0
     else
-        E = uniaxial_E(matparams, state, state.ε̅c)
-        Emin = matparams.E0*1e-4
+        E = uniaxial_E(mat, state, state.ε̅c)
+        Emin = mat.E0*1e-4
         abs(E)<Emin && (E=Emin)
     end
 
-    D  = calcDe(E, matparams.ν, state.env.anaprops.stressmodel)
+    D  = calcDe(E, mat.ν, state.env.ana.stressmodel)
     return D
 end
 
 
-function update_state(matparams::CompressiveConcrete, state::CompressiveConcreteState, Δε::Array{Float64,1})
+function update_state(mat::CompressiveConcrete, state::CompressiveConcreteState, Δε::Array{Float64,1})
     # special function
     neg(x) = (-abs(x)+x)/2.0
 
@@ -114,13 +114,13 @@ function update_state(matparams::CompressiveConcrete, state::CompressiveConcrete
     state.ε̅c = -norm(neg.(εp), 2)
 
     if state.ε̅c > state.ε̅min
-        E = matparams.E0
+        E = mat.E0
     else
         state.ε̅min = state.ε̅c
-        E = uniaxial_E(matparams, state, state.ε̅c)
+        E = uniaxial_E(mat, state, state.ε̅c)
     end
 
-    D  = calcDe(E, matparams.ν, state.env.anaprops.stressmodel)
+    D  = calcDe(E, mat.ν, state.env.ana.stressmodel)
     Δσ = D*Δε
     state.σ .+= Δσ
 
@@ -128,8 +128,8 @@ function update_state(matparams::CompressiveConcrete, state::CompressiveConcrete
 end
 
 
-function ip_state_vals(matparams::CompressiveConcrete, state::CompressiveConcreteState)
-    dict = stress_strain_dict(state.σ, state.ε, state.env.anaprops.stressmodel)
-    dict[:Ec] = uniaxial_E(matparams, state, state.ε̅c)
+function ip_state_vals(mat::CompressiveConcrete, state::CompressiveConcreteState)
+    dict = stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
+    dict[:Ec] = uniaxial_E(mat, state, state.ε̅c)
     return dict
 end

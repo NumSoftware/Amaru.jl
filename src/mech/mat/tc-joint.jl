@@ -23,7 +23,7 @@ mutable struct TCJointState<:AbstractTCJointState
     end
 end
 
-abstract type AbstractTCJoint<:MatParams end
+abstract type AbstractTCJoint<:Material end
 
 mutable struct TCJoint<:AbstractTCJoint
     E ::Float64       # Young's modulus
@@ -84,31 +84,31 @@ mutable struct TCJoint<:AbstractTCJoint
 end
 
 
-function paramsdict(matparams::AbstractTCJoint)
-    matparams = OrderedDict( string(field)=> getfield(matparams, field) for field in fieldnames(typeof(matparams)) )
+function paramsdict(mat::AbstractTCJoint)
+    mat = OrderedDict( string(field)=> getfield(mat, field) for field in fieldnames(typeof(mat)) )
 
-    matparams.softcurve in ("hordijk", "soft") && ( matparams["GF"] = 0.1943*matparams.ft*matparams.wc )
-    return matparams
+    mat.softcurve in ("hordijk", "soft") && ( mat["GF"] = 0.1943*mat.ft*mat.wc )
+    return mat
 end
 
 
 
 
 # Type of corresponding state structure
-ip_state_type(::MechJointElem, ::AbstractTCJoint) = TCJointState
+ip_state_type(::MechJoint, ::AbstractTCJoint) = TCJointState
 
 
-function beta(matparams::AbstractTCJoint, σmax::Float64)
-    βini = matparams.βini
-    βres = matparams.γ*βini
-    return βres + (βini-βres)*(σmax/matparams.ft)^matparams.α
+function beta(mat::AbstractTCJoint, σmax::Float64)
+    βini = mat.βini
+    βres = mat.γ*βini
+    return βres + (βini-βres)*(σmax/mat.ft)^mat.α
 end
 
 
-function yield_func(matparams::AbstractTCJoint, state::AbstractTCJointState, σ::Array{Float64,1}, σmax::Float64)
-    α  = matparams.α
-    β = beta(matparams, σmax)
-    ft = matparams.ft
+function yield_func(mat::AbstractTCJoint, state::AbstractTCJointState, σ::Array{Float64,1}, σmax::Float64)
+    α  = mat.α
+    β = beta(mat, σmax)
+    ft = mat.ft
     if state.env.ndim == 3
         return β*(σ[1] - σmax) + ((σ[2]^2 + σ[3]^2)/ft^2)^α
     else
@@ -117,10 +117,10 @@ function yield_func(matparams::AbstractTCJoint, state::AbstractTCJointState, σ:
 end
 
 
-function yield_derivs(matparams::AbstractTCJoint, state::AbstractTCJointState, σ::Array{Float64,1}, σmax::Float64)
-    α = matparams.α
-    β = beta(matparams, σmax)
-    ft = matparams.ft
+function yield_derivs(mat::AbstractTCJoint, state::AbstractTCJointState, σ::Array{Float64,1}, σmax::Float64)
+    α = mat.α
+    β = beta(mat, σmax)
+    ft = mat.ft
 
     if state.env.ndim == 3
         tmp = 2*α/ft^2*((σ[2]^2+σ[3]^2)/ft^2)^(α-1)
@@ -134,7 +134,7 @@ function yield_derivs(matparams::AbstractTCJoint, state::AbstractTCJointState, �
 end
 
 
-function potential_derivs(matparams::AbstractTCJoint, state::AbstractTCJointState, σ::Array{Float64,1})
+function potential_derivs(mat::AbstractTCJoint, state::AbstractTCJointState, σ::Array{Float64,1})
     ndim = state.env.ndim
     if ndim == 3
         if σ[1] > 0.0 
@@ -163,37 +163,37 @@ function potential_derivs(matparams::AbstractTCJoint, state::AbstractTCJointStat
 end
 
 
-function calc_σmax(matparams::AbstractTCJoint, state::AbstractTCJointState, up::Float64)
-    if matparams.softcurve == "linear"
-        if up < matparams.wc
-            a = matparams.ft 
-            b = matparams.ft /matparams.wc
+function calc_σmax(mat::AbstractTCJoint, state::AbstractTCJointState, up::Float64)
+    if mat.softcurve == "linear"
+        if up < mat.wc
+            a = mat.ft 
+            b = mat.ft /mat.wc
         else
             a = 0.0
             b = 0.0
         end
         σmax = a - b*up
-    elseif matparams.softcurve == "bilinear"
-        σs = 0.25*matparams.ft 
-        if up < matparams.ws
-            a  = matparams.ft  
-            b  = (matparams.ft  - σs)/matparams.ws
-        elseif up < matparams.wc
-            a  = matparams.wc*σs/(matparams.wc-matparams.ws)
-            b  = σs/(matparams.wc-matparams.ws)
+    elseif mat.softcurve == "bilinear"
+        σs = 0.25*mat.ft 
+        if up < mat.ws
+            a  = mat.ft  
+            b  = (mat.ft  - σs)/mat.ws
+        elseif up < mat.wc
+            a  = mat.wc*σs/(mat.wc-mat.ws)
+            b  = σs/(mat.wc-mat.ws)
         else
             a = 0.0
             b = 0.0
         end
         σmax = a - b*up
-    elseif matparams.softcurve == "hordijk"
-        if up < matparams.wc
-            z = (1 + 27*(up/matparams.wc)^3)*exp(-6.93*up/matparams.wc) - 28*(up/matparams.wc)*exp(-6.93)
+    elseif mat.softcurve == "hordijk"
+        if up < mat.wc
+            z = (1 + 27*(up/mat.wc)^3)*exp(-6.93*up/mat.wc) - 28*(up/mat.wc)*exp(-6.93)
         else
             z = 0.0
         end
-        σmax = z*matparams.ft
-    elseif matparams.softcurve == "soft"
+        σmax = z*mat.ft
+    elseif mat.softcurve == "soft"
         # c = 1.5
         # a = 1.19311
         # c = 0.0
@@ -206,92 +206,92 @@ function calc_σmax(matparams::AbstractTCJoint, state::AbstractTCJointState, up:
         a = 1.30837
         if up == 0.0
             z = 1.0
-        elseif 0.0 < up < matparams.wc
-            x = up/matparams.wc
+        elseif 0.0 < up < mat.wc
+            x = up/mat.wc
             # z = (1.0 - x)^c*(1.0 - a^(1.0 - 1.0/x))
             z = 1.0 - a^(1.0 - 1.0/x^m)
         else
             z = 0.0
         end
-        σmax = z*matparams.ft
+        σmax = z*mat.ft
     end
 
-    # @show matparams.softcurve
+    # @show mat.softcurve
 
     return σmax
 end
 
 
-function deriv_σmax_upa(matparams::AbstractTCJoint, state::AbstractTCJointState, up::Float64)
-    if matparams.softcurve == "linear"
-        if up < matparams.wc
-            b = matparams.ft /matparams.wc
+function deriv_σmax_upa(mat::AbstractTCJoint, state::AbstractTCJointState, up::Float64)
+    if mat.softcurve == "linear"
+        if up < mat.wc
+            b = mat.ft /mat.wc
         else
             b = 0.0
         end
         dσmax = -b
-    elseif matparams.softcurve == "bilinear"
-        σs = 0.25*matparams.ft 
-        if up < matparams.ws
-            b  = (matparams.ft  - σs)/matparams.ws
-        elseif up < matparams.wc
-            b  = σs/(matparams.wc-matparams.ws)
+    elseif mat.softcurve == "bilinear"
+        σs = 0.25*mat.ft 
+        if up < mat.ws
+            b  = (mat.ft  - σs)/mat.ws
+        elseif up < mat.wc
+            b  = σs/(mat.wc-mat.ws)
         else
             b = 0.0
         end
         dσmax = -b
-    elseif matparams.softcurve == "hordijk"
-        if up < matparams.wc
-            dz = ((81*up^2*exp(-6.93*up/matparams.wc)/matparams.wc^3) - (6.93*(1 + 27*up^3/matparams.wc^3)*exp(-6.93*up/matparams.wc)/matparams.wc) - 0.02738402432/matparams.wc)
+    elseif mat.softcurve == "hordijk"
+        if up < mat.wc
+            dz = ((81*up^2*exp(-6.93*up/mat.wc)/mat.wc^3) - (6.93*(1 + 27*up^3/mat.wc^3)*exp(-6.93*up/mat.wc)/mat.wc) - 0.02738402432/mat.wc)
         else
             dz = 0.0
         end
-        dσmax = dz*matparams.ft 
-    elseif matparams.softcurve == "soft"
+        dσmax = dz*mat.ft 
+    elseif mat.softcurve == "soft"
         m = 0.55
         a = 1.30837
 
         if up == 0.0
             dz = 0.0
-        elseif up < matparams.wc
-            x = up/matparams.wc
-            dz =  -m*log(a)*a^(1-x^-m)*x^(-m-1)/matparams.wc
+        elseif up < mat.wc
+            x = up/mat.wc
+            dz =  -m*log(a)*a^(1-x^-m)*x^(-m-1)/mat.wc
 
         else
             dz = 0.0
         end
-        dσmax = dz*matparams.ft 
+        dσmax = dz*mat.ft 
     end
 
-    # @show matparams.softcurve
+    # @show mat.softcurve
 
 
     return dσmax
 end
 
 
-function calc_kn_ks(matparams::AbstractTCJoint, state::AbstractTCJointState)
-    kn = matparams.E*matparams.ζ/state.h
-    G  = matparams.E/(2.0*(1.0+matparams.ν))
-    ks = G*matparams.ζ/state.h
+function calc_kn_ks(mat::AbstractTCJoint, state::AbstractTCJointState)
+    kn = mat.E*mat.ζ/state.h
+    G  = mat.E/(2.0*(1.0+mat.ν))
+    ks = G*mat.ζ/state.h
 
     return kn, ks
 end
 
 
-function consistentD(matparams::AbstractTCJoint, state::AbstractTCJointState)
+function consistentD(mat::AbstractTCJoint, state::AbstractTCJointState)
     # numerical approximation
     # seems not to work under compressive loads
 
     ndim = state.env.ndim
-    σmax = calc_σmax(matparams, state, state.up)
+    σmax = calc_σmax(mat, state, state.up)
 
     if state.Δλ == 0.0
-        kn, ks = calc_kn_ks(matparams, state)
+        kn, ks = calc_kn_ks(mat, state)
         De = diagm([kn, ks, ks][1:ndim])
         return De
     # elseif σmax == 0.0 && state.w[1] >= 0.0
-    #     kn, ks = calc_kn_ks(matparams, state)
+    #     kn, ks = calc_kn_ks(mat, state)
     #     De = diagm([kn, ks, ks][1:ndim])
     #     Dep = De*1e-4
     #     # Dep = De*1e-3
@@ -308,7 +308,7 @@ function consistentD(matparams::AbstractTCJoint, state::AbstractTCJointState)
         statej = copy(state)
         V[j] = 1.0
         Δw = h*V
-        Δσ, succeeded = update_state(matparams, statej, Δw)
+        Δσ, succeeded = update_state(mat, statej, Δw)
         Dep[:,j] .= Δσ./h
         V[j] = 0.0
     end
@@ -317,13 +317,13 @@ function consistentD(matparams::AbstractTCJoint, state::AbstractTCJointState)
 end
 
 
-function mountD(matparams::AbstractTCJoint, state::AbstractTCJointState)
-    # return consistentD(matparams, state)
+function mountD(mat::AbstractTCJoint, state::AbstractTCJointState)
+    # return consistentD(mat, state)
 
     ndim = state.env.ndim
-    kn, ks = calc_kn_ks(matparams, state)
-    θ = matparams.θ
-    σmax = calc_σmax(matparams, state, state.up)
+    kn, ks = calc_kn_ks(mat, state)
+    θ = mat.θ
+    σmax = calc_σmax(mat, state, state.up)
 
     De = diagm([kn, ks, ks][1:ndim])
 
@@ -338,15 +338,15 @@ function mountD(matparams::AbstractTCJoint, state::AbstractTCJointState)
     else
         # @show "Elastic Pla"
 
-        ft = matparams.ft
-        βini = matparams.βini
-        βres = matparams.γ*βini
-        β = beta(matparams, σmax)
+        ft = mat.ft
+        βini = mat.βini
+        βres = mat.γ*βini
+        β = beta(mat, σmax)
         dfdσmax = (βini-βres)/ft*(state.σ[1]-σmax)*θ*(σmax/ft)^(θ-1) - β
 
-        r = potential_derivs(matparams, state, state.σ)
-        v = yield_derivs(matparams, state, state.σ, σmax)
-        m = deriv_σmax_upa(matparams, state, state.up)  # ∂σmax/∂up
+        r = potential_derivs(mat, state, state.σ)
+        v = yield_derivs(mat, state, state.σ, σmax)
+        m = deriv_σmax_upa(mat, state, state.up)  # ∂σmax/∂up
 
         if ndim == 3
             den = kn*r[1]*v[1] + ks*r[2]*v[2] + ks*r[3]*v[3] - dfdσmax*m*norm(r)
@@ -366,21 +366,21 @@ function mountD(matparams::AbstractTCJoint, state::AbstractTCJointState)
 end
 
 
-function calc_σ_up_Δλ(matparams::AbstractTCJoint, state::AbstractTCJointState, σtr::Array{Float64,1})
+function calc_σ_up_Δλ(mat::AbstractTCJoint, state::AbstractTCJointState, σtr::Array{Float64,1})
     ndim = state.env.ndim
     Δλ   = 0.0
     up   = 0.0
     σ    = zeros(ndim)
     σ0   = zeros(ndim)
-    βini = matparams.βini
-    βres = matparams.γ*βini
-    θ    = matparams.θ
-    ft   = matparams.ft
+    βini = mat.βini
+    βres = mat.γ*βini
+    θ    = mat.θ
+    ft   = mat.ft
     
     tol    = 1e-6
     maxits = 50
     for i in 1:maxits
-        kn, ks = calc_kn_ks(matparams, state)
+        kn, ks = calc_kn_ks(mat, state)
 
         # quantities at n+1
         if ndim == 3
@@ -403,17 +403,17 @@ function calc_σ_up_Δλ(matparams::AbstractTCJoint, state::AbstractTCJointState
 
         drdΔλ = 2*dσdΔλ
                  
-        r      = potential_derivs(matparams, state, σ)
+        r      = potential_derivs(mat, state, σ)
         norm_r = norm(r)
         up    = state.up + Δλ*norm_r
-        σmax   = calc_σmax(matparams, state, up)
-        β      = beta(matparams, σmax)
+        σmax   = calc_σmax(mat, state, up)
+        β      = beta(mat, σmax)
 
-        f    = yield_func(matparams, state, σ, σmax)
-        dfdσ = yield_derivs(matparams, state, σ, σmax)
+        f    = yield_func(mat, state, σ, σmax)
+        dfdσ = yield_derivs(mat, state, σ, σmax)
 
         dfdσmax = (βini-βres)/ft*(σ[1]-σmax)*θ*(σmax/ft)^(θ-1) - β
-        m = deriv_σmax_upa(matparams, state, up)
+        m = deriv_σmax_upa(mat, state, up)
         dσmaxdΔλ = m*(norm_r + Δλ*dot(r/norm_r, drdΔλ))
         dfdΔλ = dot(dfdσ, dσdΔλ) + dfdσmax*dσmaxdΔλ
         Δλ = Δλ - f/dfdΔλ
@@ -421,7 +421,7 @@ function calc_σ_up_Δλ(matparams::AbstractTCJoint, state::AbstractTCJointState
         if Δλ<=0 || isnan(Δλ) || i==maxits
             # switch to bissection method
             return 0.0, state.σ, 0.0, failure("TCJoint: failed to find Δλ")
-            # return calc_σ_up_Δλ_bissection(matparams, state, σtr)
+            # return calc_σ_up_Δλ_bissection(mat, state, σtr)
         end
 
         if maximum(abs, σ-σ0) <= tol
@@ -434,9 +434,9 @@ function calc_σ_up_Δλ(matparams::AbstractTCJoint, state::AbstractTCJointState
 end
 
 
-function yield_func_from_Δλ(matparams::AbstractTCJoint, state::AbstractTCJointState, σtr::Array{Float64,1}, Δλ::Float64)
+function yield_func_from_Δλ(mat::AbstractTCJoint, state::AbstractTCJointState, σtr::Array{Float64,1}, Δλ::Float64)
     ndim = state.env.ndim
-    kn, ks = calc_kn_ks(matparams, state)
+    kn, ks = calc_kn_ks(mat, state)
 
     # quantities at n+1
     if ndim == 3
@@ -453,22 +453,22 @@ function yield_func_from_Δλ(matparams::AbstractTCJoint, state::AbstractTCJoint
         end
     end
 
-    r  = potential_derivs(matparams, state, σ)
+    r  = potential_derivs(mat, state, σ)
     nr = norm(r)
     up = state.up + Δλ*nr
     
-    σmax = calc_σmax(matparams, state, up)
-    f    = yield_func(matparams, state, σ, σmax)
+    σmax = calc_σmax(mat, state, up)
+    f    = yield_func(mat, state, σ, σmax)
 
     return f
 end
 
 
-function calc_σ_up_Δλ_bissection(matparams::AbstractTCJoint, state::AbstractTCJointState, σtr::Array{Float64,1})
+function calc_σ_up_Δλ_bissection(mat::AbstractTCJoint, state::AbstractTCJointState, σtr::Array{Float64,1})
     ndim    = state.env.ndim
-    kn, ks  = calc_kn_ks(matparams, state)
+    kn, ks  = calc_kn_ks(mat, state)
     De      = diagm([kn, ks, ks][1:ndim])
-    r       = potential_derivs(matparams, state, state.σ)
+    r       = potential_derivs(mat, state, state.σ)
 
     # Δλ estimative
     Δλ0 = norm(σtr-state.σ)/norm(De*r)
@@ -476,8 +476,8 @@ function calc_σ_up_Δλ_bissection(matparams::AbstractTCJoint, state::AbstractT
     # find initial interval
     a  = 0.0
     b  = Δλ0
-    fa = yield_func_from_Δλ(matparams, state, σtr, a)
-    fb = yield_func_from_Δλ(matparams, state, σtr, b)
+    fa = yield_func_from_Δλ(mat, state, σtr, a)
+    fb = yield_func_from_Δλ(mat, state, σtr, b)
 
     # search for a valid interval
     if fa*fb>0
@@ -485,7 +485,7 @@ function calc_σ_up_Δλ_bissection(matparams::AbstractTCJoint, state::AbstractT
         maxits = 100
         for i in 1:maxits
             b += δ
-            fb = yield_func_from_Δλ(matparams, state, σtr, b)
+            fb = yield_func_from_Δλ(mat, state, σtr, b)
             if fa*fb<0.0
                 break
             end
@@ -508,7 +508,7 @@ function calc_σ_up_Δλ_bissection(matparams::AbstractTCJoint, state::AbstractT
     for i in 1:maxits
         Δλ = (a+b)/2
 
-        f = yield_func_from_Δλ(matparams, state, σtr, Δλ)
+        f = yield_func_from_Δλ(mat, state, σtr, Δλ)
         if fa*f<0
             b = Δλ
         else
@@ -528,14 +528,14 @@ function calc_σ_up_Δλ_bissection(matparams::AbstractTCJoint, state::AbstractT
 end
 
 
-function update_state(matparams::AbstractTCJoint, state::AbstractTCJointState, Δw::Array{Float64,1})
+function update_state(mat::AbstractTCJoint, state::AbstractTCJointState, Δw::Array{Float64,1})
 
     ndim = state.env.ndim
     σini = copy(state.σ)
 
-    kn, ks = calc_kn_ks(matparams, state)
+    kn, ks = calc_kn_ks(mat, state)
     De = diagm([kn, ks, ks][1:ndim])
-    σmax = calc_σmax(matparams, state, state.up)  
+    σmax = calc_σmax(mat, state, state.up)  
 
     if isnan(Δw[1]) || isnan(Δw[2])
         alert("AbstractTCJoint: Invalid value for joint displacement: Δw = $Δw")
@@ -544,7 +544,7 @@ function update_state(matparams::AbstractTCJoint, state::AbstractTCJointState, �
     # σ trial and F trial
     σtr  = state.σ + De*Δw
 
-    Ftr  = yield_func(matparams, state, σtr, σmax)
+    Ftr  = yield_func(mat, state, σtr, σmax)
 
     # Elastic and EP integration
     # if σmax == 0.0 && state.w[1] >= 0.0
@@ -566,7 +566,7 @@ function update_state(matparams::AbstractTCJoint, state::AbstractTCJointState, �
     if Ftr <= 0.0
         state.Δλ  = 0.0
         state.σ  .= σtr
-    elseif state.up>=matparams.wc && σtr[1]>0
+    elseif state.up>=mat.wc && σtr[1]>0
         if ndim==3
             Δup = norm([ σtr[1]/kn, σtr[2]/ks, σtr[3]/ks ])
         else
@@ -577,7 +577,7 @@ function update_state(matparams::AbstractTCJoint, state::AbstractTCJointState, �
         state.Δλ  = 1.0
     else
         # Plastic increment
-        σ, up, Δλ, status = calc_σ_up_Δλ(matparams, state, σtr)
+        σ, up, Δλ, status = calc_σ_up_Δλ(mat, state, σtr)
         failed(status) && return state.σ, status
 
         state.σ, state.up, state.Δλ = σ, up, Δλ
@@ -588,7 +588,7 @@ function update_state(matparams::AbstractTCJoint, state::AbstractTCJointState, �
 end
 
 
-function ip_state_vals(matparams::AbstractTCJoint, state::AbstractTCJointState)
+function ip_state_vals(mat::AbstractTCJoint, state::AbstractTCJointState)
     ndim = state.env.ndim
     if ndim == 3
        return Dict(
@@ -612,6 +612,6 @@ function ip_state_vals(matparams::AbstractTCJoint, state::AbstractTCJointState)
 end
 
 
-function output_keys(matparams::AbstractTCJoint)
+function output_keys(mat::AbstractTCJoint)
     return Symbol[:jw1, :js1, :jup]
 end

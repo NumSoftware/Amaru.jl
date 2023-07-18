@@ -12,7 +12,7 @@ function save_xml(model::Model, filename::String)
     fields = fieldnames(typeof(env))
 
     for fld in fields
-        fld in (:matparams,:cinc,:cout) && continue
+        fld in (:mat,:cinc,:cout) && continue
         value = getfield(env, fld)
         value == 0 && continue
         attributes[string(fld)] = string(value)
@@ -23,11 +23,11 @@ function save_xml(model::Model, filename::String)
 
     # Materials
     xmats = Xnode("Materials")
-    mat_dict = OrderedDict{UInt, MatParams}()
+    mat_dict = OrderedDict{UInt, Material}()
     for elem in model.elems
-        hs = hash(elem.matparams)
+        hs = hash(elem.mat)
         haskey(mat_dict, hs) && continue
-        mat_dict[hs] = elem.matparams
+        mat_dict[hs] = elem.mat
     end
 
     mat_idx_dict = OrderedDict{UInt, Int}()
@@ -71,7 +71,7 @@ function save_xml(model::Model, filename::String)
                            "id"=>string(elem.id),
                            "shape"=>string(elem.shape.name),
                            "tag"=>string(elem.tag),
-                           "material"=>string(mat_idx_dict[hash(elem.matparams)]),
+                           "material"=>string(mat_idx_dict[hash(elem.mat)]),
                            "active"=>string(elem.active),
                            "nodes"=>join((n.id for n in elem.nodes), ","),
                            "linked_elems"=>join((e.id for e in elem.linked_elems), ","),
@@ -229,14 +229,14 @@ function Model(filename::String; quiet=false)
     domain.ndim = env.ndim
 
     quiet || printstyled("  setting materials...\e[K\r", color=:cyan)
-    materials = MatParams[]
+    materials = Material[]
     xmats = xdomain("Materials")
     for xmat in xmats.children
         T = eval(Symbol(xmat.name))
-        matparams = ccall(:jl_new_struct_uninit, Any, (Any,), T)
-        setfields!(matparams, xmat.attributes)
+        mat = ccall(:jl_new_struct_uninit, Any, (Any,), T)
+        setfields!(mat, xmat.attributes)
 
-        push!(materials, matparams)
+        push!(materials, mat)
     end
 
     quiet || printstyled("  setting nodes...\e[K\r", color=:cyan)
@@ -270,7 +270,7 @@ function Model(filename::String; quiet=false)
         setfields!(elem, xelem.attributes, exclude=(:shape, :material, :nodes, :linked_elems))
 
         matidx = parse(Int,xelem.attributes["material"])
-        elem.matparams = materials[matidx]
+        elem.mat = materials[matidx]
         nips = length(xelem.children)
       
         push!(domain.elems, elem)

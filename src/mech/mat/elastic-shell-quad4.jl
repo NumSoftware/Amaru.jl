@@ -11,7 +11,7 @@ mutable struct ElasticShellQuad4State<:IpState
     end
 end
 
-mutable struct ElasticShellQUAD4<:MatParams
+mutable struct ElasticShellQUAD4<:Material
     E::Float64
     nu::Float64
     t::Float64
@@ -32,9 +32,9 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(matparams::ElasticShellQUAD4) = ElasticShellQuad4State
+ip_state_type(mat::ElasticShellQUAD4) = ElasticShellQuad4State
 
 
-function ip_state_vals(matparams::ElasticShellQUAD4, state::ElasticShellQuad4State)
+function ip_state_vals(mat::ElasticShellQUAD4, state::ElasticShellQuad4State)
     return OrderedDict{Symbol, Float64}()
 end

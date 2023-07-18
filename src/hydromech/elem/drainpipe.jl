@@ -5,48 +5,52 @@ export DrainPipe
 struct DrainPipeProps<:ElemProperties
     A::Float64
 
-    function DrainPipeProps(;A=0.0, diameter=0.0)
-        @check A>0.0 || diameter>0.0
-        A>0 || (A=π*diameter^2/4)
+    function DrainPipeProps(; props...)
+        names = (A="Section area",)
+        required = (:A,)
+        @checkmissing props required names
+
+        props  = (; props...)
+        A       = props.A
+
+        @check A>0.0
         return new(A)
     end    
 end
 
-DrainPipe = DrainPipeProps
 
-mutable struct DrainPipeElem<:HydromechElem
+
+mutable struct DrainPipe<:Hydromech
     id    ::Int
     shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    matparams::MatParams
+    mat::Material
     props ::DrainPipeProps
     active::Bool
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function DrainPipeElem(props=DrainPipeProps())
-        this = new()
-        this.props = props
-        return this
+    function DrainPipe()
+        return new()
     end
 end
 
-matching_shape_family(::Type{DrainPipeElem}) = LINECELL
-matching_elem_type(::Type{DrainPipeProps}) = DrainPipeElem
+matching_shape_family(::Type{DrainPipe}) = LINECELL
+matching_elem_props(::Type{DrainPipe}) = DrainPipeProps
 
 
 
-function elem_config_dofs(elem::DrainPipeElem)
+function elem_config_dofs(elem::DrainPipe)
     for node in elem.nodes
         add_dof(node, :uw, :fw)
     end
 end
 
 
-function elem_conductivity_matrix(elem::DrainPipeElem)
+function elem_conductivity_matrix(elem::DrainPipe)
 local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
@@ -69,7 +73,7 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
         Bw = dNdR'/detJ
 
         # compute H
-        coef = detJ*ip.w*(elem.matparams.k/elem.env.anaprops.γw)*A
+        coef = detJ*ip.w*(elem.mat.k/elem.env.ana.γw)*A
         @gemm H -= coef*Bw'*Bw
     end
 
@@ -80,7 +84,7 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
 end
 
 
-function elem_RHS_vector(elem::DrainPipeElem)
+function elem_RHS_vector(elem::DrainPipe)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
 
@@ -101,7 +105,7 @@ function elem_RHS_vector(elem::DrainPipeElem)
         Bw = dNdR'/detJ
 
         # compute Q 
-        coef = detJ*ip.w*elem.matparams.k*A*Jvert
+        coef = detJ*ip.w*elem.mat.k*A*Jvert
         Q += coef*Bw'
     end
 
@@ -112,7 +116,7 @@ function elem_RHS_vector(elem::DrainPipeElem)
 end
 
 
-function elem_internal_forces(elem::DrainPipeElem, F::Array{Float64,1})
+function elem_internal_forces(elem::DrainPipe, F::Array{Float64,1})
     local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
 
     ndim   = elem.env.ndim
@@ -147,7 +151,7 @@ function elem_internal_forces(elem::DrainPipeElem, F::Array{Float64,1})
 end
 
 
-function update_elem!(elem::DrainPipeElem, DU::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::DrainPipe, DU::Array{Float64,1}, Δt::Float64)
     local A::Float64, coef::Float64, dNdR::Matrix{Float64}
 
     ndim   = elem.env.ndim
@@ -182,11 +186,11 @@ function update_elem!(elem::DrainPipeElem, DU::Array{Float64,1}, Δt::Float64)
         Nw = N'
 
         # flow gradient
-        G  = dot(Bw,Uw)/(elem.env.anaprops.γw) # flow gradient
+        G  = dot(Bw,Uw)/(elem.env.ana.γw) # flow gradient
         G += Jvert; # gradient due to gravity
         Δuw = dot(Nw,dUw) # interpolation to the integ. point
 
-        V = update_state!(elem.matparams, ip.state, Δuw, G, Δt)
+        V = update_state!(elem.mat, ip.state, Δuw, G, Δt)
 
         coef = Δt*detJ*ip.w*A
         dFw += coef*Bw'*V
@@ -196,10 +200,10 @@ function update_elem!(elem::DrainPipeElem, DU::Array{Float64,1}, Δt::Float64)
 end
 
 
-function elem_vals(elem::DrainPipeElem)
+function elem_vals(elem::DrainPipe)
     # get area and average fluid velocity and flow
     vals = OrderedDict(:A => elem.props.A )
-    mean_va = mean( ip_state_vals(elem.matparams, ip.state)[:va] for ip in elem.ips )
+    mean_va = mean( ip_state_vals(elem.mat, ip.state)[:va] for ip in elem.ips )
     vals[:va] = mean_va
     vals[:Qa] = elem.props.A*mean_va
     return vals

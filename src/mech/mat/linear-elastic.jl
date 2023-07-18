@@ -11,17 +11,11 @@ A type for linear elastic materials.
 
 $(TYPEDFIELDS)
 """
-mutable struct LinearElastic<:MatParams
+mutable struct LinearElastic<:Material
     "Young Modulus"
     E ::Float64
     "Poisson ratio"
     nu::Float64
-    "Density"
-    ρ::Float64
-
-    function LinearElastic(prms::Dict{Symbol,Float64})
-        return  LinearElastic(;prms...)
-    end
 
     @doc """
         $(SIGNATURES)
@@ -31,13 +25,21 @@ mutable struct LinearElastic<:MatParams
     # Arguments
     - `E`: Young modulus
     - `nu`: Poisson ratio
-    - `rho`: Density
     """
-    function LinearElastic(;E=1.0, nu=0.0, rho=0.0)
-        E<=0.0       && error("Invalid value for E: $E")
-        !(0<=nu<0.5) && error("Invalid value for nu: $nu")
-        rho<0.0      && error("Invalid value for rho: $rho")
-        this = new(E, nu, rho)
+    function LinearElastic(;params...)
+        names = (E="Young modulus", nu="Poisson ratio")
+        required = (:E,)
+        # @show params
+        @checkmissing params required names
+
+        default = (nu=0.0,)
+        params  = merge(default, params)
+        E       = params.E
+        nu      = params.nu
+
+        @check E>=0.0
+        @check 0<=nu<0.5
+        this = new(E, nu)
         return this
     end
 end
@@ -56,14 +58,14 @@ mutable struct ElasticSolidState<:IpState
     "Environment information"
     env::ModelEnv
     "Stress tensor"
-    σ::Array{Float64,1}
+    σ::Vec6
     "Strain tensor"
-    ε::Array{Float64,1}
+    ε::Vec6
 
     function ElasticSolidState(env::ModelEnv=ModelEnv())
         this = new(env)
-        this.σ = zeros(6)
-        this.ε = zeros(6)
+        this.σ = zeros(Vec6)
+        this.ε = zeros(Vec6)
         return this
     end
 end
@@ -98,9 +100,9 @@ mutable struct ElasticBeamState<:IpState
     "Environment information"
     env::ModelEnv
     "Stress tensor"
-    σ::Array{Float64,1} # in the local system
+    σ::Vect # in the local system
     "Strain tensor"
-    ε::Array{Float64,1} # in the local system
+    ε::Vect # in the local system
 
     function ElasticBeamState(env::ModelEnv=ModelEnv())
         this = new(env)
@@ -116,9 +118,9 @@ mutable struct ElasticShellState<:IpState
     "Environment information"
     env::ModelEnv
     "Stress tensor"
-    σ::Array{Float64,1} # in the local system
+    σ::Vec6 # in the local system
     "Strain tensor"
-    ε::Array{Float64,1} # in the local system
+    ε::Vec6 # in the local system
 
     function ElasticShellState(env::ModelEnv=ModelEnv())
         this = new(env)
@@ -129,21 +131,17 @@ mutable struct ElasticShellState<:IpState
 end
 
 
-# Returns the default element type that works with this material model
-
-
-
 # Type of corresponding state structure
-ip_state_type(::MechSolidElem, ::LinearElastic) = ElasticSolidState
-ip_state_type(::MechRodElem, ::LinearElastic)  = ElasticRodState
-ip_state_type(::MechBeamElem, ::LinearElastic) = ElasticBeamState
-ip_state_type(::MechShellElem, ::LinearElastic) = ElasticShellState
+ip_state_type(::MechSolid, ::LinearElastic) = ElasticSolidState
+ip_state_type(::MechRod, ::LinearElastic)  = ElasticRodState
+ip_state_type(::MechBeam, ::LinearElastic) = ElasticBeamState
+ip_state_type(::MechShell, ::LinearElastic) = ElasticShellState
 
 
 function calcDe(E::Number, ν::Number, stressmodel::String)
     if stressmodel=="plane-stress"
         c = E/(1.0-ν^2)
-        return [
+        return @Mat6x6 [
             c    c*ν   0.0  0.0  0.0  0.0
             c*ν  c     0.0  0.0  0.0  0.0
             0.0  0.0   0.0  0.0  0.0  0.0
@@ -153,7 +151,7 @@ function calcDe(E::Number, ν::Number, stressmodel::String)
         ezz = -ν/E*(sxx+syy)
     else
         c = E/((1.0+ν)*(1.0-2.0*ν))
-        return [
+        return @Mat6x6 [
             c*(1-ν) c*ν     c*ν     0.0         0.0         0.0
             c*ν     c*(1-ν) c*ν     0.0         0.0         0.0
             c*ν     c*ν     c*(1-ν) 0.0         0.0         0.0
@@ -164,13 +162,13 @@ function calcDe(E::Number, ν::Number, stressmodel::String)
 end
 
 
-function calcD(matparams::LinearElastic, state::ElasticSolidState)
-    return calcDe(matparams.E, matparams.nu, state.env.anaprops.stressmodel)
+function calcD(mat::LinearElastic, state::ElasticSolidState)
+    return calcDe(mat.E, mat.nu, state.env.ana.stressmodel)
 end
 
 
-function update_state(matparams::LinearElastic, state::ElasticSolidState, dε::Array{Float64,1})
-    De = calcDe(matparams.E, matparams.nu, state.env.anaprops.stressmodel)
+function update_state(mat::LinearElastic, state::ElasticSolidState, dε::AbstractArray)
+    De = calcDe(mat.E, mat.nu, state.env.ana.stressmodel)
     dσ = De*dε
     state.ε += dε
     state.σ += dσ
@@ -178,22 +176,23 @@ function update_state(matparams::LinearElastic, state::ElasticSolidState, dε::A
 end
 
 
-function ip_state_vals(matparams::LinearElastic, state::ElasticSolidState)
-    return stress_strain_dict(state.σ, state.ε, state.env.anaprops.stressmodel)
+function ip_state_vals(mat::LinearElastic, state::ElasticSolidState)
+    return stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
 end
 
-# Rod
+
+## Rod
 
 
-function update_state(matparams::LinearElastic, state::ElasticRodState, Δε::Float64)
-    Δσ = matparams.E*Δε
+function update_state(mat::LinearElastic, state::ElasticRodState, Δε::Float64)
+    Δσ = mat.E*Δε
     state.ε += Δε
     state.σ += Δσ
     return Δσ, success()
 end
 
 
-function ip_state_vals(matparams::LinearElastic, state::ElasticRodState)
+function ip_state_vals(mat::LinearElastic, state::ElasticRodState)
     return OrderedDict(
       :sa => state.σ,
       :ea => state.ε,
@@ -201,16 +200,17 @@ function ip_state_vals(matparams::LinearElastic, state::ElasticRodState)
 end
 
 
-function calcD(matparams::LinearElastic, ips::ElasticRodState)
-    return matparams.E
+function calcD(mat::LinearElastic, ips::ElasticRodState)
+    return mat.E
 end
 
-# Beam
+
+## Beam
 
 
-function calcD(matparams::LinearElastic, state::ElasticBeamState)
-    E = matparams.E
-    ν = matparams.nu
+function calcD(mat::LinearElastic, state::ElasticBeamState)
+    E = mat.E
+    ν = mat.nu
     c = E/(1.0-ν^2)
     g = E/(1+ν)
 
@@ -225,8 +225,8 @@ function calcD(matparams::LinearElastic, state::ElasticBeamState)
 end
 
 
-function update_state(matparams::LinearElastic, state::ElasticBeamState, dε::Array{Float64,1})
-    D = calcD(matparams, state)
+function update_state(mat::LinearElastic, state::ElasticBeamState, dε::AbstractArray)
+    D = calcD(mat, state)
     dσ = D*dε
     state.ε += dε
     state.σ += dσ
@@ -234,7 +234,7 @@ function update_state(matparams::LinearElastic, state::ElasticBeamState, dε::Ar
 end
 
 
-function ip_state_vals(matparams::LinearElastic, state::ElasticBeamState)
+function ip_state_vals(mat::LinearElastic, state::ElasticBeamState)
     vals =  OrderedDict(
       "sx'"   => state.σ[1],
       "ex'"   => state.ε[1],
@@ -246,12 +246,13 @@ function ip_state_vals(matparams::LinearElastic, state::ElasticBeamState)
     return vals
 end
 
-# Shell
+
+## Shell
 
 
-function calcD(matparams::LinearElastic, state::ElasticShellState)
-    E = matparams.E
-    ν = matparams.nu
+function calcD(mat::LinearElastic, state::ElasticShellState)
+    E = mat.E
+    ν = mat.nu
     c = E/(1.0-ν^2)
     g = E/(1+ν)
     return [
@@ -265,8 +266,8 @@ function calcD(matparams::LinearElastic, state::ElasticShellState)
 end
 
 
-function update_state(matparams::LinearElastic, state::ElasticShellState, dε::Array{Float64,1})
-    D = calcD(matparams, state)
+function update_state(mat::LinearElastic, state::ElasticShellState, dε::AbstractArray)
+    D = calcD(mat, state)
     dσ = D*dε
     state.ε += dε
     state.σ += dσ
@@ -274,6 +275,6 @@ function update_state(matparams::LinearElastic, state::ElasticShellState, dε::A
 end
 
 
-function ip_state_vals(matparams::LinearElastic, state::ElasticShellState)
-    return stress_strain_dict(state.σ, state.ε, state.env.anaprops.stressmodel)
+function ip_state_vals(mat::LinearElastic, state::ElasticShellState)
+    return stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
 end

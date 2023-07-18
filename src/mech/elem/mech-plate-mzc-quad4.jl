@@ -2,13 +2,13 @@
 
 export PlateMZC
 
-mutable struct PlateMZCElem<:MechElem
+mutable struct PlateMZC<:Mech
     id    ::Int
     shape ::CellShape
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    matparams::MatParams
+    mat::Material
     active::Bool
     linked_elems::Array{Element,1}
     env::ModelEnv
@@ -18,21 +18,21 @@ mutable struct PlateMZCElem<:MechElem
     end
 end
 
-matching_shape_family(::Type{PlateMZCElem}) = BULKCELL
+matching_shape_family(::Type{PlateMZC}) = BULKCELL
 
 
-function D_matrix(elem::PlateMZCElem)
+function D_matrix(elem::PlateMZC)
 
-    coef = elem.matparams.E*elem.matparams.thick^3/(12*(1-elem.matparams.nu^2));
+    coef = elem.mat.E*elem.mat.thick^3/(12*(1-elem.mat.nu^2));
 
-    D_mat = coef*[1 elem.matparams.nu 0
-                  elem.matparams.nu 1 0
-                  0  0 (1-elem.matparams.nu)/2];
+    D_mat = coef*[1 elem.mat.nu 0
+                  elem.mat.nu 1 0
+                  0  0 (1-elem.mat.nu)/2];
     return D_mat
 end
 
 
-function elem_config_dofs(elem::PlateMZCElem)
+function elem_config_dofs(elem::PlateMZC)
     ndim = elem.env.ndim
     ndim == 1 && error("PlateMZC: Plate elements do not work in 1d analyses")
     if ndim==2
@@ -58,7 +58,7 @@ function elem_config_dofs(elem::PlateMZCElem)
 end
 
 
-function elem_map(elem::PlateMZCElem)::Array{Int,1}
+function elem_map(elem::PlateMZC)::Array{Int,1}
 
     #if elem.env.ndim==2
         dof_keys = (:uz, :rx, :ry)
@@ -73,7 +73,7 @@ function elem_map(elem::PlateMZCElem)::Array{Int,1}
 end
 
 
-function elem_stiffness(elem::PlateMZCElem)
+function elem_stiffness(elem::PlateMZC)
 
     nnodes = length(elem.nodes)
     C  = getcoords(elem)
@@ -180,7 +180,7 @@ function elem_stiffness(elem::PlateMZCElem)
 end
 
 
-function update_elem!(elem::PlateMZCElem, U::Array{Float64,1}, dt::Float64)
+function update_elem!(elem::PlateMZC, U::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
     dU  = U[map]
     F[map] += K*dU

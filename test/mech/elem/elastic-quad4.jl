@@ -13,7 +13,7 @@ mesh = Mesh(block, quiet=true, reorder=false)
 # Model definition
 
 mats = [
-    "solid" << MechSolid() << LinearElastic(E=1.0, nu=0.25),
+    "solid" << MechSolid << LinearElastic << (E=1.0, nu=0.25),
 ]
 
 ana = MechAnalysis()

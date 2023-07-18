@@ -28,7 +28,7 @@ lapses = diff(times)
 t1     = lapses[1]/10
 
 materials = [
-    "solids" << HydromechSolid() << LinearElasticSeep(E=E, nu=nu, k=k)
+    "solids" << HydromechSolid << LinearElasticSeep << (E=E, nu=nu, k=k)
 ]
 
 ana = HydromechAnalysis(gammaw=gw)

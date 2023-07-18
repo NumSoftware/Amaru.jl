@@ -11,7 +11,7 @@ msh = Mesh(blt)
 
 # Finite element model
 
-mats = [ "beam" << ElasticBeam(E=10, A=1, I=1) ]
+mats = [ "beam" << ElasticBeam << (E=10, A=1, I=1) ]
 
 bcs =
     [

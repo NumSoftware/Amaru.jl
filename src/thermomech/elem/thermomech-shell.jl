@@ -1,12 +1,45 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-mutable struct TMShellElem<:ThermomechElem
+
+export TMShell
+
+struct TMShellProps<:ElemProperties
+    ρ::Float64
+    γ::Float64
+    cv::Float64
+    th::Float64
+
+    function TMShellProps(; props...)
+        names = (rho="Density", gamma="Specific weight", thickness="Thickness", cv="Heat capacity")
+        required = (:thickness, :cv)
+        @checkmissing props required names
+
+        default = (rho=0.0, gamma=0.0)
+        props  = merge(default, props)
+
+        rho       = props.rho
+        gamma     = props.gamma
+        cv        = props.cv
+        thickness = props.thickness
+
+        @check rho>=0.0
+        @check gamma>=0.0
+        @check cv>0.0
+        @check thickness>0.0
+
+        return new(rho, gamma, cv, thickness)
+    end    
+end
+
+
+mutable struct TMShell<:Thermomech
     id    ::Int
     shape ::CellShape
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    matparams::MatParams
+    mat   ::Material
+    props ::TMShellProps
     active::Bool
     linked_elems::Array{Element,1}
     env   ::ModelEnv
@@ -17,10 +50,12 @@ mutable struct TMShellElem<:ThermomechElem
     end
 end
 
-matching_shape_family(::Type{TMShellElem}) = BULKCELL
+
+matching_shape_family(::Type{TMShell}) = BULKCELL
+matching_elem_props(::Type{TMShell}) = TMShellProps
 
 
-function elem_init(elem::TMShellElem)
+function elem_init(elem::TMShell)
     
     nnodes = length(elem.nodes)
     Dlmn = Array{Float64,2}[]
@@ -47,7 +82,7 @@ function elem_init(elem::TMShellElem)
 end
 
 
-function setquadrature!(elem::TMShellElem, n::Int=0)
+function setquadrature!(elem::TMShell, n::Int=0)
 
     if n in (8, 18)
         n = div(n,2)
@@ -64,7 +99,7 @@ function setquadrature!(elem::TMShellElem, n::Int=0)
             j = (k-1)*n + i
             elem.ips[j] = Ip(R, w)
             elem.ips[j].id = j
-            elem.ips[j].state = ip_state_type(elem.matparams)(elem.env)
+            elem.ips[j].state = ip_state_type(elem, elem.mat)(elem.env)
             elem.ips[j].owner = elem
         end
     end
@@ -82,19 +117,19 @@ function setquadrature!(elem::TMShellElem, n::Int=0)
 end
 
 # DUVIDA!!!!!!
-function distributed_bc(elem::TMShellElem, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::TMShell, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
         return mech_shell_boundary_forces(elem, facet, key, val)
 end
 
 
-function body_c(elem::TMShellElem, key::Symbol, val::Union{Real,Symbol,Expr})
+function body_c(elem::TMShell, key::Symbol, val::Union{Real,Symbol,Expr})
     return mech_shell_body_forces(elem, key, val)
 end
 
 
-function elem_config_dofs(elem::TMShellElem)
+function elem_config_dofs(elem::TMShell)
     ndim = elem.env.ndim
-    ndim in (1,2) && error("MechShell: Shell elements do not work in $(ndim)d analyses")
+    ndim in (1,2) && error("TMShell: Shell elements do not work in $(ndim)d analyses")
     for node in elem.nodes
         add_dof(node, :ux, :fx)
         add_dof(node, :uy, :fy)
@@ -106,18 +141,18 @@ function elem_config_dofs(elem::TMShellElem)
     end
 end
 
-@inline function elem_map_u(elem::TMShellElem)
+@inline function elem_map_u(elem::TMShell)
     keys =(:ux, :uy, :uz, :rx, :ry, :rz)
     return [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
 end
 
-@inline function elem_map_t(elem::TMShellElem)
+@inline function elem_map_t(elem::TMShell)
     return [ node.dofdict[:ut].eq_id for node in elem.nodes ]
 end
 
 
 # Rotation Matrix
-function set_rot_x_xp(elem::TMShellElem, J::Matx, R::Matx)
+function set_rot_x_xp(elem::TMShell, J::Matx, R::Matx)
     V1 = J[:,1]
     V2 = J[:,2]
     V3 = cross(V1, V2)
@@ -133,9 +168,9 @@ function set_rot_x_xp(elem::TMShellElem, J::Matx, R::Matx)
 end
 
 
-function setB(elem::TMShellElem, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx, Bil::Matx, Bi::Matx, B::Matx)
+function setB(elem::TMShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx, Bil::Matx, Bi::Matx, B::Matx)
     nnodes = size(dNdX,1)
-    th = elem.matparams.thickness
+    th = elem.props.th
     # Note that matrix B is designed to work with tensors in Mandel's notation
 
     ndof = 6
@@ -164,9 +199,9 @@ function setB(elem::TMShellElem, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Mat
 end
 
 
-function elem_stiffness(elem::TMShellElem)
+function elem_stiffness(elem::TMShell)
     nnodes = length(elem.nodes)
-    th     = elem.matparams.thickness
+    th     = elem.props.th
     ndof   = 6
     nstr   = 6
     C      = getcoords(elem)
@@ -187,7 +222,7 @@ function elem_stiffness(elem::TMShellElem)
         dNdR  = [ dNdR zeros(nnodes) ]
         dNdX′ = dNdR*invJ′
 
-        D = calcD(elem.matparams, ip.state)
+        D = calcD(elem.mat, ip.state)
         #@show D
         #error()
 
@@ -212,15 +247,15 @@ end
 
 #=
 # DUVIDA !!!!!!!!!!!!!!
-@inline function set_Bu1(elem::ElementElem, ip::Ip, dNdX::Matx, B::Matx)
+@inline function set_Bu1(elem::Element, ip::Ip, dNdX::Matx, B::Matx)
     setB(elem, ip, dNdX, B) # using function setB from mechanical analysis
 end
 =#
 
 # matrix C
-function elem_coupling_matrix(elem::TMShellElem)
+function elem_coupling_matrix(elem::TMShell)
     #ndim   = elem.env.ndim
-    #th     = elem.env.anaprops.thickness
+    #th     = elem.env.ana.thickness
     #nnodes = length(elem.nodes)
     #
     #C   = getcoords(elem)
@@ -230,13 +265,13 @@ function elem_coupling_matrix(elem::TMShellElem)
     #J    = Array{Float64}(undef, ndim, ndim)
     #dNdX = Array{Float64}(undef, nnodes, ndim)
     #m    = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
-    #β    = elem.matparams.E*elem.matparams.α/(1-2*elem.matparams.nu) # thermal stress modulus
+    #β    = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) # thermal stress modulus
 
     nnodes = length(elem.nodes)
     # 
     ndim   = elem.env.ndim
 
-    th     = elem.matparams.thickness
+    th     = elem.props.th
     ndof   = 6
     nstr   = 6
     C      = getcoords(elem)
@@ -250,10 +285,10 @@ function elem_coupling_matrix(elem::TMShellElem)
     C   = getcoords(elem)
     Cut = zeros(ndof*nnodes, nnodes) # u-t coupling matrix
     m    = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
-    β    = elem.matparams.E*elem.matparams.α/(1-2*elem.matparams.nu) 
+    β    = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) 
 
     for ip in elem.ips
-        #elem.env.anaprops.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        #elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix
         #dNdR = elem.shape.deriv(ip.R)
@@ -294,9 +329,9 @@ function elem_coupling_matrix(elem::TMShellElem)
 end
 
 # thermal conductivity
-function elem_conductivity_matrix(elem::TMShellElem)
+function elem_conductivity_matrix(elem::TMShell)
     ndim   = elem.env.ndim
-    th     = elem.matparams.thickness   # elem.env.anaprops.thickness
+    th     = elem.props.th   # elem.env.ana.thickness
     nnodes = length(elem.nodes)
     C      = getcoords(elem)
     H      = zeros(nnodes, nnodes)
@@ -315,7 +350,7 @@ function elem_conductivity_matrix(elem::TMShellElem)
         dNdX′ = dNdR*invJ′
         Bt   .= dNdX′'
 
-        K = calcK(elem.matparams, ip.state)
+        K = calcK(elem.mat, ip.state)
         detJ′ = det(J′)
         @assert detJ′>0
         
@@ -331,8 +366,8 @@ function elem_conductivity_matrix(elem::TMShellElem)
 end
 
 
-function elem_mass_matrix(elem::TMShellElem)
-    th     = elem.matparams.thickness
+function elem_mass_matrix(elem::TMShell)
+    th     = elem.props.th
     nnodes = length(elem.nodes)
     
     C      = getcoords(elem)
@@ -351,7 +386,7 @@ function elem_mass_matrix(elem::TMShellElem)
         @assert detJ′>0
 
         # compute Cut
-        coef  = elem.matparams.ρ*elem.matparams.cv
+        coef  = elem.props.ρ*elem.props.cv
         coef *= detJ′*ip.w
         M    -= coef*N*N'
     end
@@ -366,9 +401,9 @@ function elem_mass_matrix(elem::TMShellElem)
 end
 
 #=
-function elem_internal_forces(elem::TMShellElem, F::Array{Float64,1}, DU::Array{Float64,1})
+function elem_internal_forces(elem::TMShell, F::Array{Float64,1}, DU::Array{Float64,1})
     ndim   = elem.env.ndim
-    th     = thickness   # elem.env.anaprops.thickness
+    th     = thickness   # elem.env.ana.thickness
     nnodes = length(elem.nodes)
     
     C   = getcoords(elem)
@@ -387,7 +422,7 @@ function elem_internal_forces(elem::TMShellElem, F::Array{Float64,1}, DU::Array{
     dNtdX = Array{Float64}(undef, ndim, nbnodes)
     dUt = DU[mat_t] # nodal temperature increments
     for ip in elem.ips
-        elem.env.anaprops.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
         # compute Bu matrix and Bt
         dNdR = elem.shape.deriv(ip.R)
         @gemm J = C'*dNdR
@@ -402,7 +437,7 @@ function elem_internal_forces(elem::TMShellElem, F::Array{Float64,1}, DU::Array{
         # compute N
         # internal force
         ut   = ip.state.ut + 273
-        β   = elem.matparams.E*elem.matparams.α/(1-2*elem.matparams.nu)
+        β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu)
         σ    = ip.state.σ - β*ut*m # get total stress
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*σ
@@ -411,7 +446,7 @@ function elem_internal_forces(elem::TMShellElem, F::Array{Float64,1}, DU::Array{
         εvol = dot(m, ε)
         coef = β*detJ*ip.w*th
         dFt  -= coef*N*εvol
-        coef = detJ*ip.w*elem.matparams.ρ*elem.matparams.cv*th/T0
+        coef = detJ*ip.w*elem.props.ρ*elem.props.cv*th/T0
         dFt -= coef*N*ut
         QQ   = ip.state.QQ
         coef = detJ*ip.w*th/T0
@@ -423,19 +458,19 @@ end
 =#
 
 
-function update_elem!(elem::TMShellElem, DU::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
-    th     = elem.matparams.thickness
-    T0k     = get(elem.env.matparams, :T0, 0.0) + 273.15
+    th     = elem.props.th
+    T0k     = elem.env.ana.T0 + 273.15
     nnodes = length(elem.nodes)
     ndof = 6
     C      = getcoords(elem)
 
-    E = elem.matparams.E
-    α = elem.matparams.α
-    ρ = elem.matparams.ρ
-    nu = elem.matparams.nu
-    cv = elem.matparams.cv
+    E = elem.mat.E
+    α = elem.mat.α
+    ρ = elem.props.ρ
+    nu = elem.mat.nu
+    cv = elem.props.cv
     β = E*α/(1-2*nu)
     
     map_u = elem_map_u(elem)
@@ -459,7 +494,7 @@ function update_elem!(elem::TMShellElem, DU::Array{Float64,1}, Δt::Float64)
     Δε = zeros(6)
 
     for ip in elem.ips
-        #elem.env.anaprops.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        #elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute Bu and Bt matrices
         N = elem.shape.func(ip.R)
@@ -488,7 +523,7 @@ function update_elem!(elem::TMShellElem, DU::Array{Float64,1}, Δt::Float64)
         G  = Bt*Ut
 
          # internal force dF
-         Δσ, q = update_state(elem.matparams, ip.state, Δε, Δut, G, Δt)
+         Δσ, q = update_state(elem.mat, ip.state, Δε, Δut, G, Δt)
          #@showm Δσ
          #error()
          Δσ -= β*Δut*m # get total stress

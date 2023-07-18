@@ -6,20 +6,23 @@ import Base.copy!
 
 
 """
-`MatParams`
+`Material`
 
 Abstract type for objects used to store material parameters and to define
 the behaviour of elements.
 """
-abstract type MatParams end
-Base.:(<<)(a::Tuple, b::MatParams) = return (a..., b)
-Base.:(<<)(a, b::MatParams) = return (a, b)
-Base.:(=>)(a::Tuple, b::MatParams) = return (a.first, a.second, b)
-Base.:(=>)(a, b::MatParams) = return (a, b)
+abstract type Material end
+# Base.:(<<)(a::Tuple, b::Material) = return (a..., b)
+# Base.:(<<)(a, b::Material) = return (a, b)
+# Base.:(=>)(a::Tuple, b::Material) = return (a.first, a.second, b)
+# Base.:(=>)(a, b::Material) = return (a, b)
+
+# Base.:(<<)(a::Tuple, b::Type{<:Material}) = return (a..., b)
+# Base.:(<<)(a, b::Type{<:Material}) = return (a, b)
+# Base.:(<<)(a::Type{<:Material}, b) = return (a, b)
 
 
-
-# function copy!(target::MatParams, source::MatParams)
+# function copy!(target::Material, source::Material)
 #     @show("Trial function: This sould not be used")
 #     # source and target must be of the same type
 #     T = typeof(source)
@@ -37,27 +40,27 @@ Base.:(=>)(a, b::MatParams) = return (a, b)
 # end
 
 """
-`output_keys(matparams)`
+`output_keys(mat)`
 
 Returns a list of keys from an specified material
 for output at element level or nodal level.
 """
-function output_keys(matparams::MatParams)
+function output_keys(mat::Material)
     return Symbol[]
 end
 
 
-function paramsdict(matparams::MatParams)
-    return OrderedDict( string(field)=> getfield(matparams, field) for field in fieldnames(typeof(matparams)) )
+function paramsdict(mat::Material)
+    return OrderedDict( string(field)=> getfield(mat, field) for field in fieldnames(typeof(mat)) )
 end
 
 
 function databook(mats::Array{<:Pair,1})
     db = DataBook()
-    for (label, matparams) in mats
-        # tab = DataTable(;paramsdict(matparams)...)
+    for (label, mat) in mats
+        # tab = DataTable(;paramsdict(mat)...)
         dt = DataTable()
-        push!(dt, paramsdict(matparams))
+        push!(dt, paramsdict(mat))
         setfield!(dt, :name, string(label))
         push!(db, dt)
     end

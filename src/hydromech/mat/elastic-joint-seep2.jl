@@ -29,7 +29,7 @@ mutable struct JointSeepState2<:IpState
     end
 end
 
-mutable struct ElasticJointSeep2<:MatParams
+mutable struct ElasticJointSeep2<:Material
     E  ::Float64        # Young's modulus
     nu ::Float64        # Poisson ration
     ζ  ::Float64        # factor ζ controls the elastic relative displacements
@@ -62,14 +62,14 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(matparams::ElasticJointSeep2) = JointSeepState2
+ip_state_type(mat::ElasticJointSeep2) = JointSeepState2
 
 
-function mountD(matparams::ElasticJointSeep2, state::JointSeepState2)
+function mountD(mat::ElasticJointSeep2, state::JointSeepState2)
     ndim = state.env.ndim
-    G  = matparams.E/(1.0+matparams.nu)/2.0
-    kn = matparams.E*matparams.ζ/state.h
-    ks =     G*matparams.ζ/state.h
+    G  = mat.E/(1.0+mat.nu)/2.0
+    kn = mat.E*mat.ζ/state.h
+    ks =     G*mat.ζ/state.h
     if ndim==2
         return  [  kn  0.0
                   0.0   ks ]
@@ -81,37 +81,37 @@ function mountD(matparams::ElasticJointSeep2, state::JointSeepState2)
 end
 
 
-function update_state(matparams::ElasticJointSeep2, state::JointSeepState2, Δu::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
+function update_state(mat::ElasticJointSeep2, state::JointSeepState2, Δu::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
     ndim = state.env.ndim
-    D  = mountD(matparams, state)
+    D  = mountD(mat, state)
     Δσ = D*Δu
 
     state.w[1:ndim] += Δu
     state.σ[1:ndim] += Δσ
 
     state.uw += Δuw
-    state.Vt = -matparams.kt*G
+    state.Vt = -mat.kt*G
     #state.D +=  state.Vt*Δt
 
     # compute crack aperture
-    if matparams.w == 0.0
+    if mat.w == 0.0
         w = 0.0
     else
-        if matparams.w >= state.w[1]
-            w = matparams.w
+        if mat.w >= state.w[1]
+            w = mat.w
         else
             w = state.w[1]
         end
     end
 
-    state.L  =  ((w^3)/(12*matparams.η))*BfUw
+    state.L  =  ((w^3)/(12*mat.η))*BfUw
     #state.S +=  state.L*Δt
 
     return Δσ, state.Vt, state.L
 end
 
 
-function ip_state_vals(matparams::ElasticJointSeep2, state::JointSeepState2)
+function ip_state_vals(mat::ElasticJointSeep2, state::JointSeepState2)
     ndim = state.env.ndim
     if ndim == 2
         return OrderedDict(

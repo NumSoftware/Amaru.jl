@@ -5,27 +5,19 @@ export MechRSJoint
 struct MechRSJointProps<:ElemProperties
     p::Float64
 
-    function MechRSJointProps(;p=NaN, A=NaN, diameter=NaN)
-        # A : section area
-        # p : section perimeter
-        @check (p>0 || A>0 || diameter>0)
+    function MechRSJointProps(; props...)
+        names = (p="perimeter",)
+        required = keys(names)
+        @checkmissing props required names
+        props = (; props...)
 
-        if isnan(p)
-            if A>0
-                p = 2.0*(A*pi)^0.5
-            else
-                p = pi*diameter
-            end
-        end
+        p     = props.p
         @check p>0
 
-        this = new(p)
-        return this
+        return new(p)
     end
-    
 end
 
-MechRSJoint = MechRSJointProps
 
 
 """
@@ -34,14 +26,14 @@ MechRSJoint = MechRSJointProps
 An interface element to link `MechRod` elements to bulk elements
 in mechanical equilibrium analyses.
 """
-mutable struct MechRSJointElem<:MechElem
+mutable struct MechRSJoint<:Mech
     id    ::Int
     shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    matparams::MatParams
+    mat::Material
     props ::MechRSJointProps
     active::Bool
     linked_elems::Array{Element,1}
@@ -51,19 +43,17 @@ mutable struct MechRSJointElem<:MechElem
     cache_B   ::Array{Array{Float64,2}}
     cache_detJ::Array{Float64}
 
-    function MechRSJointElem(props=MechRSJointProps())
-        this = new()
-        this.props = props
-        return this
+    function MechRSJoint()
+        return new()
     end
 end
 
-matching_shape_family(::Type{MechRSJointElem}) = LINEJOINTCELL
-matching_elem_type(::Type{MechRSJointProps}) = MechRSJointElem
+matching_shape_family(::Type{MechRSJoint}) = LINEJOINTCELL
+matching_elem_props(::Type{MechRSJoint}) = MechRSJointProps
 
 
 
-function elem_init(elem::MechRSJointElem)
+function elem_init(elem::MechRSJoint)
     hook = elem.linked_elems[1]
     bar  = elem.linked_elems[2]
     Ch = getcoords(hook)
@@ -110,7 +100,7 @@ function mount_T(J::Matx)
 end
 
 
-function mountB(elem::MechRSJointElem, R, Ch, Ct)
+function mountB(elem::MechRSJoint, R, Ch, Ct)
     # Calculates the matrix that relates nodal displacements with relative displacements
     
 
@@ -165,7 +155,7 @@ function mountB(elem::MechRSJointElem, R, Ch, Ct)
 end
 
 
-function elem_stiffness(elem::MechRSJointElem)
+function elem_stiffness(elem::MechRSJoint)
     ndim = elem.env.ndim
     nnodes = length(elem.nodes)
     p = elem.props.p
@@ -176,7 +166,7 @@ function elem_stiffness(elem::MechRSJointElem)
     for (i,ip) in enumerate(elem.ips)
         B    = elem.cache_B[i]
         detJ = elem.cache_detJ[i]
-        D    = calcD(elem.matparams, ip.state)
+        D    = calcD(elem.mat, ip.state)
         coef = p*detJ*ip.w
         @gemm DB = D*B
         @gemm K += coef*B'*DB
@@ -188,7 +178,7 @@ function elem_stiffness(elem::MechRSJointElem)
 end
 
 
-function update_elem!(elem::MechRSJointElem, U::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::MechRSJoint, U::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     p = elem.props.p
@@ -205,9 +195,9 @@ function update_elem!(elem::MechRSJointElem, U::Array{Float64,1}, Δt::Float64)
     for (i,ip) in enumerate(elem.ips)
         B    = elem.cache_B[i]
         detJ = elem.cache_detJ[i]
-        # D    = calcD(matparams, ip.state)
+        # D    = calcD(mat, ip.state)
         @gemv Δu = B*dU
-        Δσ, _ = update_state(elem.matparams, ip.state, Δu)
+        Δσ, _ = update_state(elem.mat, ip.state, Δu)
         coef = p*detJ*ip.w
         # Δσ[1]  *= p
         @gemv dF += coef*B'*Δσ
@@ -217,8 +207,8 @@ function update_elem!(elem::MechRSJointElem, U::Array{Float64,1}, Δt::Float64)
 end
 
 
-function elem_extrapolated_node_vals(elem::MechRSJointElem)
-    all_ip_vals = [ ip_state_vals(elem.matparams, ip.state) for ip in elem.ips ]
+function elem_extrapolated_node_vals(elem::MechRSJoint)
+    all_ip_vals = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
     nips        = length(elem.ips)
     fields      = keys(all_ip_vals[1])
     nfields     = length(fields)

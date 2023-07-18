@@ -9,7 +9,7 @@ mutable struct ElasticPlateMZCState<:IpState
     end
 end
 
-mutable struct ElasticPlateMZC<:MatParams
+mutable struct ElasticPlateMZC<:Material
     E::Float64
     nu::Float64
     thick::Float64
@@ -31,9 +31,9 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(matparams::ElasticPlateMZC) = ElasticPlateMZCState
+ip_state_type(mat::ElasticPlateMZC) = ElasticPlateMZCState
 
 
-function ip_state_vals(matparams::ElasticPlateMZC, state::ElasticPlateMZCState)
+function ip_state_vals(mat::ElasticPlateMZC, state::ElasticPlateMZCState)
     return OrderedDict{Symbol, Float64}()
 end

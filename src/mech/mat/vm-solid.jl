@@ -10,7 +10,7 @@ A type for linear elastic materials with Von Mises failure criterion.
 
 $(TYPEDFIELDS)
 """
-mutable struct VonMises<:MatParams
+mutable struct VonMises<:Material
     "Young modulus"
     E ::Float64
     "Poisson ratio"
@@ -63,17 +63,17 @@ mutable struct VonMisesState<:IpState
     "Environment information"
     env::ModelEnv
     "Stress tensor"
-    σ::Tensor2
+    σ::Vec6
     "Strain tensor"
-    ε::Tensor2
+    ε::Vec6
     "Accumulated plastic strain"
     εpa::Float64
     "Plastic multiplier"
     Δγ::Float64
     function VonMisesState(env::ModelEnv=ModelEnv())
         this = new(env)
-        this.σ   = zeros(6)
-        this.ε   = zeros(6)
+        this.σ   = zeros(Vec6)
+        this.ε   = zeros(Vec6)
         this.εpa = 0.0
         this.Δγ  = 0.0
         this
@@ -82,24 +82,24 @@ end
 
 
 
-ip_state_type(::MechSolidElem, ::VonMises) = VonMisesState
+ip_state_type(::MechSolid, ::VonMises) = VonMisesState
 
 
-function yield_func(matparams::VonMises, state::VonMisesState, σ::Tensor2)
+function yield_func(mat::VonMises, state::VonMisesState, σ::AbstractArray)
     j1  = J1(σ)
     j2d = J2D(σ)
-    σy  = matparams.σy
-    H   = matparams.H
+    σy  = mat.σy
+    H   = mat.H
     εpa = state.εpa
     return √(3*j2d) - σy - H*εpa
 end
 
 
-function calcD(matparams::VonMises, state::VonMisesState)
-    σy = matparams.σy
-    H  = matparams.H
-    #De = matparams.De
-    De  = calcDe(matparams.E, matparams.ν, state.env.anaprops.stressmodel)
+function calcD(mat::VonMises, state::VonMisesState)
+    σy = mat.σy
+    H  = mat.H
+    #De = mat.De
+    De  = calcDe(mat.E, mat.ν, state.env.ana.stressmodel)
 
     if state.Δγ==0.0
         return De
@@ -112,15 +112,17 @@ function calcD(matparams::VonMises, state::VonMisesState)
     V  = √(3/2)*su # df/dσ
     Nu = su
 
-    return De - inner(De,Nu) ⊗ inner(V,De) / (inner(V,De,Nu) + H)
+    # return De - inner(De,Nu) ⊗ inner(V,De) / (inner(V,De,Nu) + H)
+    return De - De*Nu*V'*De / (V'*De*Nu + H)
+
 end
 
 
-function update_state(matparams::VonMises, state::VonMisesState, Δε::Array{Float64,1})
+function update_state(mat::VonMises, state::VonMisesState, Δε::Array{Float64,1})
     σini = state.σ
-    De   = calcDe(matparams.E, matparams.ν, state.env.anaprops.stressmodel)
-    σtr  = state.σ + inner(De, Δε)
-    ftr  = yield_func(matparams, state, σtr)
+    De   = calcDe(mat.E, mat.ν, state.env.ana.stressmodel)
+    σtr  = state.σ + De*Δε
+    ftr  = yield_func(mat, state, σtr)
 
     if ftr < 1.e-8
         # elastic
@@ -128,8 +130,8 @@ function update_state(matparams::VonMises, state::VonMisesState, Δε::Array{Flo
         state.σ  = σtr
     else
         # plastic
-        K, G  = matparams.E/(3.0*(1.0-2.0*matparams.ν)), matparams.E/(2.0*(1.0+matparams.ν))
-        H     = matparams.H
+        K, G  = mat.E/(3.0*(1.0-2.0*mat.ν)), mat.E/(2.0*(1.0+mat.ν))
+        H     = mat.H
         j1tr  = J1(σtr)
         j2dtr = J2D(σtr)
 
@@ -149,13 +151,13 @@ function update_state(matparams::VonMises, state::VonMisesState, Δε::Array{Flo
 end
 
 
-function ip_state_vals(matparams::VonMises, state::VonMisesState)
+function ip_state_vals(mat::VonMises, state::VonMisesState)
     ndim  = state.env.ndim
     σ, ε  = state.σ, state.ε
     j1    = tr(σ)
     srj2d = √J2D(σ)
 
-    D = stress_strain_dict(σ, ε, state.env.anaprops.stressmodel)
+    D = stress_strain_dict(σ, ε, state.env.ana.stressmodel)
     D[:epa]   = state.εpa
     D[:j1]    = j1
     D[:srj2d] = srj2d

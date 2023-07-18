@@ -215,7 +215,7 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
     if !quiet && cstage==1 
         printstyled(name, "\n", bold=true, color=:cyan)
         println("  active threads: ", Threads.nthreads())
-        # println("  model type: ", env.anaprops.stressmodel)
+        # println("  model type: ", env.ana.stressmodel)
     end
 
     outdir = rstrip(outdir, ['/', '\\'])
@@ -303,7 +303,9 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
         elseif stage.status == :error
             # trim not important frames; search for the frame that contains current function
             idx = findfirst(contains("iterator"), string(frame) for frame in error_st)
-            error_st = error_st[1:idx-1]
+            if idx!==nothing
+                error_st = error_st[1:idx-1]
+            end
 
             alert("Amaru internal error", level=1)
             showerror(stdout, runerror, error_st)
@@ -322,5 +324,5 @@ end
 
 
 function solve!(model::FEModel; args...)
-    solve!(model, model.env.anaprops; args...)
+    solve!(model, model.env.ana; args...)
 end

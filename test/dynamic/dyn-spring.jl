@@ -7,12 +7,12 @@ conns  = [ [ 1, 2 ], [2] ]
 msh = Mesh(coords, conns)
 
 
-matparams = [
+mat = [
        1 << ElasticSpring(kx=100.0) ,
        2 << LumpedMass(m=100.0) ,
       ]
 
-model = FEModel(msh, matparams)
+model = FEModel(msh, mat)
 
 log1 = NodeLogger()
 logs = [

@@ -17,36 +17,45 @@ mutable struct LinSeepState<:IpState
 end
 
 
-mutable struct LinSeep<:MatParams
+mutable struct LinSeep<:Material
     k ::Float64 # specific permeability
     S ::Float64 # storativity coefficient
 
-    function LinSeep(;k=NaN, S=0.0)
+    function LinSeep(; params...)
+        names = (k="Permeability", S="Storativity coefficient")
+        required = (:k, )
+        @checkmissing params required names
+
+        default = (S=0.0,)
+        params  = merge(default, params)
+
+        params  = (; params...)
+        k       = params.k
+        S       = params.S
+
         @check k>0.0
         @check S>=0.0
 
-        this = new(k, S)
-        return this
+        return new(k, S)
     end
 end
-
 
 
 # Type of corresponding state structure
-ip_state_type(::SeepSolidElem, ::LinSeep) = LinSeepState
+ip_state_type(::SeepSolid, ::LinSeep) = LinSeepState
 
 
-function calcK(matparams::LinSeep, state::LinSeepState) # Hydraulic conductivity matrix
+function calcK(mat::LinSeep, state::LinSeepState) # Hydraulic conductivity matrix
     if state.env.ndim==2
-        return matparams.k*eye(2)
+        return mat.k*eye(2)
     else
-        return matparams.k*eye(3)
+        return mat.k*eye(3)
     end
 end
 
 
-function update_state!(matparams::LinSeep, state::LinSeepState, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
-    K = calcK(matparams, state)
+function update_state!(mat::LinSeep, state::LinSeepState, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
+    K = calcK(mat, state)
     state.V   = -K*G
     state.D  += state.V*Δt
     state.uw += Δuw
@@ -54,7 +63,7 @@ function update_state!(matparams::LinSeep, state::LinSeepState, Δuw::Float64, G
 end
 
 
-function ip_state_vals(matparams::LinSeep, state::LinSeepState)
+function ip_state_vals(mat::LinSeep, state::LinSeepState)
     D = OrderedDict{Symbol, Float64}()
     D[:vx] = state.V[1]
     D[:vy] = state.V[2]

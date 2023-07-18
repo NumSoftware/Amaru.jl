@@ -4,41 +4,37 @@
 export MechJoint
 
 struct MechJointProps<:ElemProperties
-    function MechJointProps(;)
+    function MechJointProps(; props...)
         return new()
     end    
 end
 
-MechJoint = MechJointProps
 
-
-mutable struct MechJointElem<:MechElem
+mutable struct MechJoint<:Mech
     id    ::Int
     shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    matparams::MatParams
+    mat::Material
     props::MechJointProps
     active::Bool
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function MechJointElem(props=MechJointProps())
-        this = new()
-        this.props = props
-        return this
+    function MechJoint()
+        return new()
     end
 end
 
 # Return the shape family that works with this element
-matching_shape_family(::Type{MechJointElem}) = JOINTCELL
-matching_elem_type(::Type{MechJointProps}) = MechJointElem
+matching_shape_family(::Type{MechJoint}) = JOINTCELL
+matching_elem_props(::Type{MechJoint}) = MechJointProps
 
 
 
-function elem_init(elem::MechJointElem)
+function elem_init(elem::MechJoint)
 
     # Get linked elements
     e1 = elem.linked_elems[1]
@@ -105,9 +101,9 @@ function matrixT(J::Matrix{Float64})
 end
 
 
-function elem_stiffness(elem::MechJointElem)
+function elem_stiffness(elem::MechJoint)
     ndim   = elem.env.ndim
-    th     = elem.env.anaprops.thickness
+    th     = elem.env.ana.thickness
     nnodes = length(elem.nodes)
     hnodes = div(nnodes, 2) # half the number of total nodes
     fshape = elem.shape.facet_shape
@@ -120,12 +116,12 @@ function elem_stiffness(elem::MechJointElem)
     J  = zeros(ndim, ndim-1)
     NN = zeros(ndim, nnodes*ndim)
 
-    # @show elem.env.anaprops.stressmodel
+    # @show elem.env.ana.stressmodel
     # @show elem.ips
     # error()
 
     for ip in elem.ips
-    	if elem.env.anaprops.stressmodel=="axisymmetric"
+    	if elem.env.ana.stressmodel=="axisymmetric"
             th = 2*pi*ip.coord.x
         end
         
@@ -150,7 +146,7 @@ function elem_stiffness(elem::MechJointElem)
 
         # compute K
         coef = detJ*ip.w*th
-        D    = mountD(elem.matparams, ip.state)
+        D    = mountD(elem.mat, ip.state)
         @gemm DB = D*B
         @gemm K += coef*B'*DB
     end
@@ -161,9 +157,9 @@ function elem_stiffness(elem::MechJointElem)
 end
 
 
-function update_elem!(elem::MechJointElem, U::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::MechJoint, U::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
-    th     = elem.env.anaprops.thickness
+    th     = elem.env.ana.thickness
     nnodes = length(elem.nodes)
     hnodes = div(nnodes, 2) # half the number of total nodes
     fshape = elem.shape.facet_shape
@@ -180,7 +176,7 @@ function update_elem!(elem::MechJointElem, U::Array{Float64,1}, Δt::Float64)
     Δω = zeros(ndim)
 
     for ip in elem.ips
-    	if elem.env.anaprops.stressmodel=="axisymmetric"
+    	if elem.env.ana.stressmodel=="axisymmetric"
             th = 2*pi*ip.coord.x
         end
 
@@ -203,7 +199,7 @@ function update_elem!(elem::MechJointElem, U::Array{Float64,1}, Δt::Float64)
 
         # internal force
         @gemv Δω = B*dU
-        Δσ, status = update_state(elem.matparams, ip.state, Δω)
+        Δσ, status = update_state(elem.mat, ip.state, Δω)
         failed(status) && return dF, map, status
         coef = detJ*ip.w*th
         @gemv dF += coef*B'*Δσ
@@ -213,13 +209,13 @@ function update_elem!(elem::MechJointElem, U::Array{Float64,1}, Δt::Float64)
 end
 
 
-function elem_extrapolated_node_vals(elem::MechJointElem)
+function elem_extrapolated_node_vals(elem::MechJoint)
     nips = length(elem.ips)
 
-    keys = output_keys(elem.matparams)
+    keys = output_keys(elem.mat)
     vals = zeros(nips, length(keys))
     for (i,ip) in enumerate(elem.ips)
-        dict = ip_state_vals(elem.matparams, ip.state)
+        dict = ip_state_vals(elem.mat, ip.state)
         vals[i,:] = [ dict[key] for key in keys ]
     end
     

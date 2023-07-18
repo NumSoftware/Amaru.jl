@@ -1,31 +1,31 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 """
-    ShellDegeneratedElem
+    ShellDegenerated
 A bulk finite element for mechanical equilibrium analyses.
 """
-mutable struct ShellDegeneratedElem<:MechElem
+mutable struct ShellDegenerated<:Mech
     id    ::Int
     shape ::CellShape
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    matparams::MatParams
+    mat::Material
     active::Bool
     linked_elems::Array{Element,1}
     env   ::ModelEnv
     Dlmn::Array{ Array{Float64,2}, 1}
 
-    function ShellDegeneratedElem();
+    function ShellDegenerated();
         return new()
     end
 end
 
-matching_shape_family(::Type{ShellDegeneratedElem}) = BULKCELL
+matching_shape_family(::Type{ShellDegenerated}) = BULKCELL
 
 
-function elem_init(elem::ShellDegeneratedElem)
-    elem.shape==QUAD8 || error("elem_init: ShellDegeneratedElem only works with shape QUAD8.")
+function elem_init(elem::ShellDegenerated)
+    elem.shape==QUAD8 || error("elem_init: ShellDegenerated only works with shape QUAD8.")
 
     nnodes = length(elem.nodes)
     Dlmn = Array{Float64,2}[]
@@ -53,7 +53,7 @@ function elem_init(elem::ShellDegeneratedElem)
 end
 
 
-function setquadrature!(elem::ShellDegeneratedElem, n::Int=0)
+function setquadrature!(elem::ShellDegenerated, n::Int=0)
 
     # if !(n in keys(elem.shape.quadrature))
     #     alert("setquadrature!: cannot set $n integration points for shape $(elem.shape.name)")
@@ -72,7 +72,7 @@ function setquadrature!(elem::ShellDegeneratedElem, n::Int=0)
             j = (k-1)*n + i
             elem.ips[j] = Ip(R, w)
             elem.ips[j].id = j
-            elem.ips[j].state = ip_state_type(elem.matparams)(elem.env)
+            elem.ips[j].state = ip_state_type(elem.mat)(elem.env)
             elem.ips[j].owner = elem
         end
     end
@@ -89,7 +89,7 @@ function setquadrature!(elem::ShellDegeneratedElem, n::Int=0)
 end
 
 
-function distributed_bc(elem::ShellDegeneratedElem, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::ShellDegenerated, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     th    = elem.env.t
     suitable_keys = (:tx, :ty, :tz, :tn)
@@ -135,7 +135,7 @@ function distributed_bc(elem::ShellDegeneratedElem, facet::Cell, key::Symbol, va
                 n = [J[1,2], -J[1,1]]
                 Q = vip*normalize(n)
             end
-            if elem.env.anaprops.stressmodel=="axisymmetric"
+            if elem.env.ana.stressmodel=="axisymmetric"
                 th = 2*pi*X[1]
             end
         else
@@ -164,7 +164,7 @@ function distributed_bc(elem::ShellDegeneratedElem, facet::Cell, key::Symbol, va
 end
 
 # Rotation Matrix
-function set_dir_matrix(elem::ShellDegeneratedElem, J::Matx, dir::Matx)
+function set_dir_matrix(elem::ShellDegenerated, J::Matx, dir::Matx)
     V1 = J[:,1]
     V2 = J[:,2]
     V3 = cross(V1, V2)
@@ -181,7 +181,7 @@ function set_dir_matrix(elem::ShellDegeneratedElem, J::Matx, dir::Matx)
 end
 
 
-function set_jacobian_matrix(elem::ShellDegeneratedElem, C::Matx, R::Matx, J::Matx)
+function set_jacobian_matrix(elem::ShellDegenerated, C::Matx, R::Matx, J::Matx)
     V1 = J[:,1]
     V2 = J[:,2]
     V3 = cross(V1, V2)
@@ -198,7 +198,7 @@ function set_jacobian_matrix(elem::ShellDegeneratedElem, C::Matx, R::Matx, J::Ma
 end
 
 # Rotation Matrix
-function set_trans_matrix(elem::ShellDegeneratedElem, dir::Matx, T::Matx)
+function set_trans_matrix(elem::ShellDegenerated, dir::Matx, T::Matx)
 
 
     lx, ly, lz = dir[:,1]
@@ -233,11 +233,11 @@ function set_trans_matrix(elem::ShellDegeneratedElem, dir::Matx, T::Matx)
 end
 
 
-function setB(elem::ShellDegeneratedElem, R::Matx, J::Matx , ip::Ip, dNdR::Matx, dNdX::Matx, N::Vect, B::Matx)
+function setB(elem::ShellDegenerated, R::Matx, J::Matx , ip::Ip, dNdR::Matx, dNdX::Matx, N::Vect, B::Matx)
     nnodes, ndim = size(dNdX)
     ndof = 5
     B .= 0.0
-    t = elem.matparams.t
+    t = elem.mat.t
     ζ = ip.R[3]
     
        for i in 1:nnodes
@@ -316,11 +316,11 @@ function setB(elem::ShellDegeneratedElem, R::Matx, J::Matx , ip::Ip, dNdR::Matx,
 end
 
 
-function setD(elem::ShellDegeneratedElem, D::Matx)
+function setD(elem::ShellDegenerated, D::Matx)
 
-    nu = elem.matparams.nu
-    E1 = elem.matparams.E/(1-elem.matparams.nu^2)
-    G  = elem.matparams.E/(2*(1+elem.matparams.nu))
+    nu = elem.mat.nu
+    E1 = elem.mat.E/(1-elem.mat.nu^2)
+    G  = elem.mat.E/(2*(1+elem.mat.nu))
     G1 = 5/6*G
 
               D .=   [E1      nu*E1  0  0   0
@@ -332,9 +332,9 @@ function setD(elem::ShellDegeneratedElem, D::Matx)
 end
 
 
-function elem_config_dofs(elem::ShellDegeneratedElem)
+function elem_config_dofs(elem::ShellDegenerated)
     ndim = elem.env.ndim
-    ndim in (1,2) && error("ShellDegeneratedElem: Shell elements do not work in $(ndim)d analyses")
+    ndim in (1,2) && error("ShellDegenerated: Shell elements do not work in $(ndim)d analyses")
     for node in elem.nodes
         add_dof(node, :ux, :fx)
         add_dof(node, :uy, :fy)
@@ -346,7 +346,7 @@ function elem_config_dofs(elem::ShellDegeneratedElem)
 end
 
 
-function elem_map(elem::ShellDegeneratedElem)::Array{Int,1}
+function elem_map(elem::ShellDegenerated)::Array{Int,1}
 
     #dof_keys = (:ux, :uy, :uz, :rx, :ry, :rz)
 
@@ -356,7 +356,7 @@ function elem_map(elem::ShellDegeneratedElem)::Array{Int,1}
 end
 
 
-function elem_stiffness(elem::ShellDegeneratedElem)
+function elem_stiffness(elem::ShellDegenerated)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     K = zeros(5*nnodes, 5*nnodes)
@@ -370,7 +370,7 @@ function elem_stiffness(elem::ShellDegeneratedElem)
     D  = Array{Float64}(undef, 5, 5)
     setD(elem, D)
 
-    t = elem.matparams.t
+    t = elem.mat.t
     C = getcoords(elem)
 
     Dn = [ elem.Dlmn[i][j,3] for i in 1:nnodes, j in 1:3 ] # nx3
@@ -442,7 +442,7 @@ function elem_stiffness(elem::ShellDegeneratedElem)
 end
 
 
-function update_elem!(elem::ShellDegeneratedElem, U::Array{Float64,1}, dt::Float64)
+function update_elem!(elem::ShellDegenerated, U::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
     dU  = U[map]
     F[map] += K*dU
@@ -451,9 +451,9 @@ end
 
 
 #=
-function update_elem!(elem::ShellDegeneratedElem, U::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::ShellDegenerated, U::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
-    th     = elem.env.anaprops.thickness
+    th     = elem.env.ana.thickness
     nnodes = length(elem.nodes)
     keys   = (:ux, :uy, :uz)[1:ndim]
     map    = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
@@ -466,7 +466,7 @@ function update_elem!(elem::ShellDegeneratedElem, U::Array{Float64,1}, Δt::Floa
     Δε = zeros(6)
     C = getcoords(elem)
     for ip in elem.ips
-        if elem.env.anaprops.stressmodel=="axisymmetric"
+        if elem.env.ana.stressmodel=="axisymmetric"
             th = 2*pi*ip.coord.x
         end
         # compute B matrix

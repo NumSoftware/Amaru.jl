@@ -25,9 +25,9 @@ macro check(expr, exception=ArgumentError, args...)
                 # Get function name
                 st = stacktrace(backtrace())
                 fname = :_
-                for frm in st
-                    if !startswith(string(frm.func), "_") && frm.func!=Symbol("macro expansion")
-                        fname = frm.func
+                for frame in st
+                    if !startswith(string(frame.func), "_") && frame.func!=Symbol("macro expansion")
+                        fname = frame.func
                         break
                     end
                 end
@@ -47,6 +47,28 @@ macro check(expr, exception=ArgumentError, args...)
             else
                 throw($(exception)($(args)...))
             end
+        end
+    end
+end
+
+macro checkmissing(params, required, names)
+
+    return quote
+        # Get function name
+        st = stacktrace(backtrace())
+        fname = :_
+        for frame in st
+            if !startswith(string(frame.func), "_") && frame.func!=Symbol("macro expansion")
+                fname = frame.func
+                break
+            end
+        end
+
+        missingkeys = setdiff($(esc(required)), keys($(esc(params))) )
+        if length(missingkeys)>0
+            msg = "Missing arguments: $(join(missingkeys, ", ")). Possible inputs are: $($(esc(names)))"
+            msg = replace(msg, "=" => ":")
+            error("$fname: $msg")
         end
     end
 end

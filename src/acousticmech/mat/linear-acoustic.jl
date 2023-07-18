@@ -16,7 +16,7 @@ mutable struct LinearAcousticFluidState<:IpState
 end
 
 
-mutable struct LinearAcousticFluid<:MatParams
+mutable struct LinearAcousticFluid<:Material
     ρ::Float64 # densidade
     c::Float64 # sound speed
     # μ::Float64 # viscocity
@@ -36,12 +36,12 @@ end
 ip_state_type(::LinearAcousticFluid) = LinearAcousticFluidState
 
 
-function update_state!(matparams::LinearAcousticFluid, state::LinearAcousticFluidState, Δup::Float64, G::Array{Float64,1}, Δt::Float64)
+function update_state!(mat::LinearAcousticFluid, state::LinearAcousticFluidState, Δup::Float64, G::Array{Float64,1}, Δt::Float64)
     return nothing
 end
 
 
-function ip_state_vals(matparams::LinearAcousticFluid, state::LinearAcousticFluidState)
+function ip_state_vals(mat::LinearAcousticFluid, state::LinearAcousticFluidState)
     D = OrderedDict{Symbol, Float64}()
     D[:up] = state.up
     # D[:vx] = state.V[1]

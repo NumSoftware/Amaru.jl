@@ -14,7 +14,7 @@ bls = [
 msh= Mesh(bls)
 
 mats = [
-        "solids" << MechSolid() <<  DamageConcrete(E=27e6, nu=0.2, ft=2.4e3, GF=73e-3, fc=-30e3, epsc=-0.002),
+        "solids" << MechSolid <<  DamageConcrete << (E=27e6, nu=0.2, ft=2.4e3, GF=73e-3, fc=-30e3, epsc=-0.002),
        ]
 
 tol = 1.0

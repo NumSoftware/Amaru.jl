@@ -45,9 +45,9 @@ mesh=Mesh(bl1, bl2, bl3, bl4, bl5, bl6, bl7, bl8, bl9, bl10, bl21, bl11, bl12, b
 # Model definition
 
 materials = [
-    MaterialBind(:solids, DruckerPrager(E=Ec, nu=0.2, rho=roc, alpha=0.4312, kappa=3771.2) ),
+    MaterialBind(:solids, DruckerPrager << (E=Ec, nu=0.2, rho=roc, alpha=0.4312, kappa=3771.2) ),
     MaterialBind(:joints1D, ElasticJoint1D(ks=1.e7, kn=1.e7, A=Aa) ),
-    MaterialBind(:lines   , ElasticRod(E=Ea, A=Aa, rho=roa) ),
+    MaterialBind(:lines   , ElasticRod << (E=Ea, A=Aa, rho=roa) ),
 
 ]
 

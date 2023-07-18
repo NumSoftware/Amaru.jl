@@ -66,7 +66,7 @@ end
 # function complete_ut_T(model::Model)
 #     haskey(model.node_data, "ut") || return
 #     Ut = model.node_data["ut"]
-#     T0 = get(model.env.matparams, :T0, 0.0)
+#     T0 = get(model.env.mat, :T0, 0.0)
 
 #     for elem in model.elems
 #         elem.shape.family==BULKCELL || continue

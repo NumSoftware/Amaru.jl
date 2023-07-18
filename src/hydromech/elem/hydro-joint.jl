@@ -1,12 +1,12 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
-mutable struct HydroJointElem<:HydromechElem
+mutable struct HydroJoint<:Hydromech
     id    ::Int
     shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    matparams::MatParams
+    mat::Material
     active::Bool
     linked_elems::Array{Element,1}
     env ::ModelEnv
@@ -17,10 +17,10 @@ mutable struct HydroJointElem<:HydromechElem
 end
 
 # Return the shape family that works with this element
-matching_shape_family(::Type{HydroJointElem}) = JOINTCELL
+matching_shape_family(::Type{HydroJoint}) = JOINTCELL
 
 
-function elem_config_dofs(elem::HydroJointElem)
+function elem_config_dofs(elem::HydroJoint)
     nnodes = length(elem.nodes)
     for (i, node) in enumerate(elem.nodes)
             add_dof(node, :uw, :fw)
@@ -28,7 +28,7 @@ function elem_config_dofs(elem::HydroJointElem)
 end
 
 
-function elem_init(elem::HydroJointElem)
+function elem_init(elem::HydroJoint)
     # Get linked elements
     e1 = elem.linked_elems[1]
     e2 = elem.linked_elems[2]
@@ -76,9 +76,9 @@ function elem_init(elem::HydroJointElem)
 end
 
 
-function elem_conductivity_matrix(elem::HydroJointElem)
+function elem_conductivity_matrix(elem::HydroJoint)
     ndim     = elem.env.ndim
-    th       = elem.env.anaprops.thickness
+    th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     nlnodes  = Int((nnodes-nbsnodes)/2) 
@@ -126,12 +126,12 @@ function elem_conductivity_matrix(elem::HydroJointElem)
         Nt = [N0' -Np' Np']
 
         # compute H
-        coef  = detJ*ip.w*th*elem.matparams.kt
+        coef  = detJ*ip.w*th*elem.mat.kt
         H -= coef*Nb'*Nb
         H -= coef*Nt'*Nt
 
          # compute crack aperture
-        coef = detJ*ip.w*th*(elem.matparams.w^3)/(12*elem.matparams.η) 
+        coef = detJ*ip.w*th*(elem.mat.w^3)/(12*elem.mat.η) 
         H -= coef*Bf'*Bf
     end
     
@@ -142,9 +142,9 @@ function elem_conductivity_matrix(elem::HydroJointElem)
 end
 
 
-function elem_compressibility_matrix(elem::HydroJointElem)
+function elem_compressibility_matrix(elem::HydroJoint)
     ndim     = elem.env.ndim
-    th       = elem.env.anaprops.thickness
+    th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     nlnodes  = Int((nnodes-nbsnodes)/2) 
@@ -176,7 +176,7 @@ function elem_compressibility_matrix(elem::HydroJointElem)
         Nf = [N0' N0' Np']
 
         # compute Cpp
-        coef = detJ*ip.w*elem.matparams.β*elem.matparams.w*th
+        coef = detJ*ip.w*elem.mat.β*elem.mat.w*th
         Cpp -= coef*Nf'*Nf
     end
 
@@ -187,9 +187,9 @@ function elem_compressibility_matrix(elem::HydroJointElem)
 end
 
 
-function elem_RHS_vector(elem::HydroJointElem)
+function elem_RHS_vector(elem::HydroJoint)
     ndim     = elem.env.ndim
-    th       = elem.env.anaprops.thickness
+    th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     nlnodes  = Int((nnodes-nbsnodes)/2) 
@@ -235,8 +235,8 @@ function elem_RHS_vector(elem::HydroJointElem)
         # compute Q
 
         # compute crack aperture
-        coef = detJ*ip.w*th*(elem.matparams.w^3)/(12*elem.matparams.η)   
-        bf = T[(2:end), (1:end)]*Z*elem.env.anaprops.γw
+        coef = detJ*ip.w*th*(elem.mat.w^3)/(12*elem.mat.η)   
+        bf = T[(2:end), (1:end)]*Z*elem.env.ana.γw
         
         @gemm Q += coef*Bf'*bf
     end
@@ -247,9 +247,9 @@ function elem_RHS_vector(elem::HydroJointElem)
     return Q, map
 end
 #=
-function elem_internal_forces(elem::HydroJointElem, F::Array{Float64,1})
+function elem_internal_forces(elem::HydroJoint, F::Array{Float64,1})
     ndim     = elem.env.ndim
-    th       = elem.env.anaprops.thickness
+    th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
     bsnodes  = elem.shape.basic_shape.npoints
     nlnodes  = div(nnodes, 3)
@@ -293,7 +293,7 @@ function elem_internal_forces(elem::HydroJointElem, F::Array{Float64,1})
         Bf = [B0 B0 Bp]
 
         # compute bf vector
-        bf = T[(2:end), (1:end)]*Z*elem.env.anaprops.γw
+        bf = T[(2:end), (1:end)]*Z*elem.env.ana.γw
 
         # compute Bu matrix
         Np = elem.shape.basic_shape.func(ip.R)
@@ -304,7 +304,7 @@ function elem_internal_forces(elem::HydroJointElem, F::Array{Float64,1})
 
         # internal volumes dFw
         uwf  = ip.state.uw[3]
-        coef = detJ*ip.w*elem.matparams.β*th
+        coef = detJ*ip.w*elem.mat.β*th
         dFw -= coef*Nf'*uwf
 
         # longitudinal flow
@@ -322,9 +322,9 @@ function elem_internal_forces(elem::HydroJointElem, F::Array{Float64,1})
 end
 =#
 
-function update_elem!(elem::HydroJointElem, U::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::HydroJoint, U::Array{Float64,1}, Δt::Float64)
     ndim     = elem.env.ndim
-    th       = elem.env.anaprops.thickness
+    th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     nlnodes  = Int((nnodes-nbsnodes)/2) 
@@ -379,19 +379,19 @@ function update_elem!(elem::HydroJointElem, U::Array{Float64,1}, Δt::Float64)
         Bf = [B0 B0 Bp]
 
         # compute bf vector
-        bf = T[(2:end), (1:end)]*Z*elem.env.anaprops.γw
+        bf = T[(2:end), (1:end)]*Z*elem.env.ana.γw
 
         # interpolation to the integ. point
         Δuw  = [Np'*dUw[1:nbsnodes]; Np'*dUw[nbsnodes+1:2*nbsnodes]; Np'*dUw[2*nbsnodes+1:end]]
         G    = [ dot(Nt,Uw); dot(Nb,Uw)]
         BfUw = Bf*Uw + bf
 
-        Vt, L = update_state!(elem.matparams, ip.state, Δuw, G, BfUw, Δt)
+        Vt, L = update_state!(elem.mat, ip.state, Δuw, G, BfUw, Δt)
 
         # internal volumes dFw
 
         # compute fluid compressibility
-        coef = detJ*ip.w*elem.matparams.β*elem.matparams.w*th
+        coef = detJ*ip.w*elem.mat.β*elem.mat.w*th
         dFw -= coef*Nf'*Δuw[3]
 
         # longitudinal flow
@@ -408,7 +408,7 @@ function update_elem!(elem::HydroJointElem, U::Array{Float64,1}, Δt::Float64)
 end
 
 
-function elem_extrapolated_node_vals(elem::HydroJointElem)
+function elem_extrapolated_node_vals(elem::HydroJoint)
     nips = length(elem.ips)
 
     E  = extrapolator(elem.shape.facet_shape, nips)

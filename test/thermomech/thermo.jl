@@ -16,7 +16,7 @@ rho  = 1.6   # water specific weight Ton/m3
 cv   = 486e3  # specific heat (capacity) J/Ton/k
 
 materials = [
-             "solids" << ThermoSolid(rho=rho, cv=cv) << LinThermo(k=k)
+             "solids" << ThermoSolid << LinThermo << (k=k, rho=rho, cv=cv)
             ]
 
 ana = ThermoAnalysis(T0=0)

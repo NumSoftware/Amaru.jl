@@ -2,14 +2,14 @@
 
 export PlateRM8node
 
-mutable struct PlateRM8nodeElem<:MechElem
+mutable struct PlateRM8node<:Mech
     id    ::Int
     shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    matparams::MatParams
+    mat::Material
     active::Bool
     linked_elems::Array{Element,1}
     env::ModelEnv
@@ -19,23 +19,23 @@ mutable struct PlateRM8nodeElem<:MechElem
     end
 end
 
-matching_shape_family(::Type{PlateRM8nodeElem}) = BULKCELL
+matching_shape_family(::Type{PlateRM8node}) = BULKCELL
 
 
-function D_matrix(elem::PlateRM8nodeElem)
+function D_matrix(elem::PlateRM8node)
 
-    coef = elem.matparams.E/(1-elem.matparams.nu^2);
+    coef = elem.mat.E/(1-elem.mat.nu^2);
 
-    D_mat = coef*[1 elem.matparams.nu 0 0 0
-                  elem.matparams.nu 1 0 0 0
-                  0  0 (1/2)*(1-elem.matparams.nu) 0 0
-                  0  0 0 (5/12)*(1-elem.matparams.nu) 0
-                  0  0 0 0 (5/12)*(1-elem.matparams.nu)];
+    D_mat = coef*[1 elem.mat.nu 0 0 0
+                  elem.mat.nu 1 0 0 0
+                  0  0 (1/2)*(1-elem.mat.nu) 0 0
+                  0  0 0 (5/12)*(1-elem.mat.nu) 0
+                  0  0 0 0 (5/12)*(1-elem.mat.nu)];
     return D_mat
 end
 
 
-function elem_config_dofs(elem::PlateRM8nodeElem)
+function elem_config_dofs(elem::PlateRM8node)
     ndim = elem.env.ndim
     ndim == 1 && error("PlateRM8node: Plate elements do not work in 1d analyses")
     if ndim==2
@@ -61,7 +61,7 @@ function elem_config_dofs(elem::PlateRM8nodeElem)
 end
 
 
-function elem_map(elem::PlateRM8nodeElem)::Array{Int,1}
+function elem_map(elem::PlateRM8node)::Array{Int,1}
 
     #if elem.env.ndim==2
     #    dof_keys = (:uz, :rx, :ry)
@@ -76,7 +76,7 @@ function elem_map(elem::PlateRM8nodeElem)::Array{Int,1}
 end
 
 
-function elem_stiffness(elem::PlateRM8nodeElem)
+function elem_stiffness(elem::PlateRM8node)
 
     nnodes = length(elem.nodes)
     th     = 0.15 # COLOCAR AUTOMÁTICO
@@ -165,7 +165,7 @@ function elem_stiffness(elem::PlateRM8nodeElem)
 end
 
 
-function update_elem!(elem::PlateRM8nodeElem, U::Array{Float64,1}, dt::Float64)
+function update_elem!(elem::PlateRM8node, U::Array{Float64,1}, dt::Float64)
     K, map, map = elem_stiffness(elem)
     #println(K)
     dU  = U[map]

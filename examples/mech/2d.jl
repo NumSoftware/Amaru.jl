@@ -44,7 +44,7 @@ end;
 mplot(msh, axis=true)
 
 # ╔═╡ 8eabe5e8-c767-4073-b84f-89c7f79913dd
-md"#### MatParams properties"
+md"#### Material properties"
 
 # ╔═╡ 22d74a36-7a4f-4a6c-b1d4-70486454626a
 materials = [

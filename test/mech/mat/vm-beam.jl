@@ -9,8 +9,8 @@ msh= Mesh(bls)
 iptag!(msh.elems[end], "ip")
 
 # fem domain
-matparams = MaterialBind(:all, VonMises(E=210e6, nu=0.3, fy=0.24e6) )
-#matparams = MaterialBind(:all, DruckerPrager(E=210e6, nu=0.3, alpha=0.05e6, kappa=0.1 ) )
+mat = MaterialBind(:all, VonMises << (E=210e6, nu=0.3, fy=0.24e6) )
+#mat = MaterialBind(:all, DruckerPrager << (E=210e6, nu=0.3, alpha=0.05e6, kappa=0.1 ) )
 
 mon = NodeLogger("ip")
 
@@ -23,7 +23,7 @@ bcs = [
     SurfaceBC(:(y==1 && z==0), :(uz=-0.1)),
 ]
 
-model = FEModel(msh, matparams)
+model = FEModel(msh, mat)
 mon = NodeLogger(model.edges[:(y==1 && z==0)])
 setlogger!(model, mon)
 

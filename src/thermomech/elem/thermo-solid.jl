@@ -7,58 +7,66 @@ struct ThermoSolidProps<:ElemProperties
     ρ::Float64  # material specific weight Ton/m3
     cv::Float64 # Specific heat J/Ton/k
 
-    function ThermoSolidProps(;rho=0.0, cv=0.0)
-        @check rho>=0
-        @check cv>=0
+    function ThermoSolidProps(; props...)
+        names = (rho="Density", cv="Heat capacity")
+        required = (:cv, )
+        @checkmissing props required names
+
+        default = (rho=0.0,)
+        props  = merge(default, props)
+
+        cv  = props.cv
+        rho = props.rho
+
+        @check cv>0.0
+        @check rho>=0.0
 
         return new(rho, cv)
     end    
 end
 
-ThermoSolid = ThermoSolidProps
 
 
-mutable struct ThermoSolidElem<:ThermomechElem
+
+mutable struct ThermoSolid<:Thermomech
     id    ::Int
     shape ::CellShape
 
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    matparams::MatParams
+    mat::Material
     props ::ThermoSolidProps
     active::Bool
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function ThermoSolidElem(props=ThermoSolidProps())
-        this = new()
-        this.props = props
-        return this
+    function ThermoSolid()
+        return new()
     end
 end
 
 
-matching_shape_family(::Type{ThermoSolidElem}) = BULKCELL
-matching_elem_type(::Type{ThermoSolidProps}) = ThermoSolidElem
+matching_shape_family(::Type{ThermoSolid}) = BULKCELL
+matching_elem_props(::Type{ThermoSolid}) = ThermoSolidProps
 
 
 
-function elem_config_dofs(elem::ThermoSolidElem)
+function elem_config_dofs(elem::ThermoSolid)
     for node in elem.nodes
         add_dof(node, :ut, :ft)
     end
 end
 
 
-function elem_init(elem::ThermoSolidElem)
+function elem_init(elem::ThermoSolid)
     nothing
 end
 
 
-function distributed_bc(elem::ThermoSolidElem, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::ThermoSolid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
-    th    = elem.env.anaprops.thickness
+    th    = elem.env.ana.thickness
     suitable_keys = (:tq,)
 
     # Check keys
@@ -92,7 +100,7 @@ function distributed_bc(elem::ThermoSolidElem, facet::Union{Facet,Nothing}, key:
         if ndim==2
             x, y = X
             vip = eval_arith_expr(val, t=t, x=x, y=y)
-            if elem.env.anaprops.stressmodel=="axisymmetric"
+            if elem.env.ana.stressmodel=="axisymmetric"
                 th = 2*pi*X[1]
             end
         else
@@ -111,9 +119,9 @@ end
 
 
 # thermal conductivity
-function elem_conductivity_matrix(elem::ThermoSolidElem)
+function elem_conductivity_matrix(elem::ThermoSolid)
     ndim   = elem.env.ndim
-    th     = elem.env.anaprops.thickness
+    th     = elem.env.ana.thickness
     nnodes = length(elem.nodes)
     C      = getcoords(elem)
     H      = zeros(nnodes, nnodes)
@@ -124,7 +132,7 @@ function elem_conductivity_matrix(elem::ThermoSolidElem)
     J    = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        elem.env.anaprops.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
         dNdR = elem.shape.deriv(ip.R)
         @gemm J  = C'*dNdR
         detJ = det(J)
@@ -133,7 +141,7 @@ function elem_conductivity_matrix(elem::ThermoSolidElem)
         Bt .= dNdX'
 
         # compute H
-        K = calcK(elem.matparams, ip.state)
+        K = calcK(elem.mat, ip.state)
         coef = detJ*ip.w*th
         @gemm KBt = K*Bt
         @gemm H -= coef*Bt'*KBt
@@ -146,9 +154,9 @@ function elem_conductivity_matrix(elem::ThermoSolidElem)
 end
 
 
-function elem_mass_matrix(elem::ThermoSolidElem)
+function elem_mass_matrix(elem::ThermoSolid)
     ndim   = elem.env.ndim
-    th     = elem.env.anaprops.thickness
+    th     = elem.env.ana.thickness
     nnodes = length(elem.nodes)
     C      = getcoords(elem)
     M      = zeros(nnodes, nnodes)
@@ -156,7 +164,7 @@ function elem_mass_matrix(elem::ThermoSolidElem)
     J  = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        elem.env.anaprops.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
@@ -177,11 +185,11 @@ function elem_mass_matrix(elem::ThermoSolidElem)
 end
 
 #=
-function elem_internal_forces(elem::ThermoSolidElem, F::Array{Float64,1})
+function elem_internal_forces(elem::ThermoSolid, F::Array{Float64,1})
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     C   = getcoords(elem)
-    th     = elem.env.anaprops.thickness
+    th     = elem.env.ana.thickness
     θ0     = elem.env.T0 + 273.15
     map_p  = [ node.dofdict[:ut].eq_id for node in elem.nodes ]
 
@@ -192,7 +200,7 @@ function elem_internal_forces(elem::ThermoSolidElem, F::Array{Float64,1})
     dNdX = Array{Float64}(undef, nnodes, ndim)
 
     for ip in elem.ips
-        elem.env.anaprops.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
 
         # compute Bt matrix
@@ -222,10 +230,10 @@ end
 =#
 
 
-function update_elem!(elem::ThermoSolidElem, DU::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::ThermoSolid, DU::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
-    th     = elem.env.anaprops.thickness
+    th     = elem.env.ana.thickness
 
     map_t  = [ node.dofdict[:ut].eq_id for node in elem.nodes ]
 
@@ -242,7 +250,7 @@ function update_elem!(elem::ThermoSolidElem, DU::Array{Float64,1}, Δt::Float64)
     dNdX = Array{Float64}(undef, nnodes, ndim)
 
     for ip in elem.ips
-        elem.env.anaprops.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix
         N    = elem.shape.func(ip.R)
@@ -257,7 +265,7 @@ function update_elem!(elem::ThermoSolidElem, DU::Array{Float64,1}, Δt::Float64)
 
         Δut = N'*dUt # interpolation to the integ. point
 
-        q = update_state!(elem.matparams, ip.state, Δut, G, Δt)
+        q = update_state!(elem.mat, ip.state, Δut, G, Δt)
 
         #@showm q
         #error()

@@ -72,7 +72,7 @@ Uses a mesh and a list of meterial especifications to construct a finite element
 
 `mesh` : A finite element mesh
 
-`mats` : MatParams definitions given as an array of pairs ( tag or location => constitutive model instance )
+`mats` : Material definitions given as an array of pairs ( tag or location => constitutive model instance )
 
 # Keyword arguments
 
@@ -84,7 +84,7 @@ Uses a mesh and a list of meterial especifications to construct a finite element
 function FEModel(
     mesh    :: Mesh,
     matbinds:: Array{<:Tuple,1},
-    anaprops::AnalysisProps;
+    anatype:: Analysis;
     quiet   :: Bool = false,
 )
 
@@ -96,7 +96,7 @@ function FEModel(
     env = model.env
     env.ndim = ndim
     env.t = 0.0
-    env.anaprops = anaprops
+    env.ana = anatype
 
     # Save a mesh reference
     #model.mesh = mesh
@@ -111,24 +111,26 @@ function FEModel(
     ncells      = length(mesh.elems)
     model.elems = Array{Element,1}(undef, ncells)
     for matbind in matbinds
-        if length(matbind)!=3
-            throw(AmaruException("FEModel: Assigments of element and material models should be specified as: filter << Element(args) << Material(args)"))
+        if length(matbind)!=4
+            throw(AmaruException("FEModel: Assigments of element and material models should be specified as: filter << Element << Material << properties"))
         end
         
-        filter     = matbind[1]
-        elem_props = matbind[2]
-        mat_params = matbind[3]
-        elem_type  = matching_elem_type(typeof(elem_props))
+        filter    = matbind[1]
+        elem_type = matbind[2]
+        mat_type  = matbind[3]
+        args      = matbind[4]
+        
+        # elem_type = matching_elem_type(typeof(elem_props))
 
         # Check if material is compatible with the element
-        mat_params_type = typeof(mat_params)
-        if !hasmethod(ip_state_type, (elem_type, mat_params_type)) 
+        # mat_type = typeof(mat)
+        if !hasmethod(ip_state_type, (elem_type, mat_type)) 
             # available materials
             av_mats = [  fieldtypes(m.sig)[3] for m in methods(ip_state_type, (elem_type, Any))  ]
-            av_elems = [  fieldtypes(m.sig)[2] for m in methods(ip_state_type, (Any, mat_params_type))  ]
-            message = "FEModel: Element $(elem_type) is not compatible with material model $(mat_params_type). \
+            av_elems = [  fieldtypes(m.sig)[2] for m in methods(ip_state_type, (Any, mat_type))  ]
+            message = "FEModel: Element $(elem_type) is not compatible with material model $(mat_type). \
                        Compatible material models for element $(elem_type) are: $(join(av_mats, ", ", " and ")). \
-                       Compatible elements for material model $(mat_params_type) are: $(join(av_elems, ", ", " and "))"
+                       Compatible elements for material model $(mat_type) are: $(join(av_elems, ", ", " and "))"
             message = replace(message, r"Elem\b" => "")
             message = replace(message, r"Amaru\." => "")
             throw(AmaruException(message))
@@ -139,34 +141,39 @@ function FEModel(
             cells = [ cells ]
         end
         if isempty(cells)
-            warn("FEModel: binding material model $(typeof(mat_params)) to an empty list of elements for expr. $(repr(filter))")
+            warn("FEModel: binding attributes to an empty list of elements for expression $(repr(filter))")
         end
+
+        mat   = mat_type(;args...)
+        props = matching_elem_props(elem_type)(;args...)
+        # props = check_props(elem_type; args...)
 
         for cell in cells
             if cell.embedded
-                elem_t = matching_elem_type_if_embedded(mat_params)
+                elem_t = matching_elem_type_if_embedded(mat)
             else
                 elem_t = elem_type
             end
 
             if matching_shape_family(elem_t) != cell.shape.family
-                error("FEModel: material model $(typeof(mat_params)) cannot be used with elements for expr. $(repr(filter)) with shape $(cell.shape.name)\n")
+                error("FEModel: material model $(typeof(mat)) cannot be used with elements for expr. $(repr(filter)) with shape $(cell.shape.name)\n")
             end
 
-            elem = elem_t(elem_props)
+            elem = elem_t()
             
             conn = [ p.id for p in cell.nodes ]
 
-            elem.shape  = cell.shape
-            elem.nodes  = model.nodes[conn]
-            elem.ips    = [] # jet to be set
-            elem.tag    = cell.tag
-            elem.active = true
-            elem.linked_elems = [] # jet to be set
+            elem.id     = cell.id
             elem.env    = env
-            
-            elem.id = cell.id
-            elem.matparams = mat_params
+            elem.shape  = cell.shape
+            elem.tag    = cell.tag
+            elem.nodes  = model.nodes[conn]
+            elem.props  = props
+            elem.mat    = mat
+            elem.active = true
+            elem.ips    = [] # jet to be set
+            elem.linked_elems = [] # jet to be set
+
             model.elems[cell.id] = elem 
         end
     end
@@ -380,7 +387,7 @@ function FEModel(elems::Array{<:Element,1})
         elemnodes = nodes[nodeidxs]
         newelem = new_element(typeof(elem), elem.shape, elemnodes, elem.tag, model.env)
         newelem.id = i
-        newelem.matparams = elem.matparams
+        newelem.mat = elem.mat
         push!(model.elems, newelem)
     end
     
@@ -659,7 +666,7 @@ function nodal_patch_recovery(model::Model)
     all_fields_set = OrderedSet{Symbol}()
     for elem in model.elems
         if elem.shape.family==BULKCELL
-            ips_vals = [ ip_state_vals(elem.matparams, ip.state) for ip in elem.ips ]
+            ips_vals = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
             push!(all_ips_vals, ips_vals)
             union!(all_fields_set, keys(ips_vals[1]))
         else # skip data from non solid elements

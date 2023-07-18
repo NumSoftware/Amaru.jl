@@ -2,7 +2,7 @@
 
 export MechAnalysis
 
-mutable struct MechAnalysisProps<:AnalysisProps
+mutable struct MechAnalysisProps<:Analysis
     stressmodel::String # plane stress, plane strain, etc.
     thickness::Float64  # thickness for 2d analyses
     g::Float64 # gravity acceleration
@@ -185,7 +185,7 @@ subjected to a set of boundary conditions `bcs`.
 `quiet = false` : verbosity level from 0 (silent) to 2 (verbose)
 
 """
-function solve!(model::Model, anaprops::MechAnalysis; args...)
+function solve!(model::Model, ana::MechAnalysis; args...)
     name = "Solver for mechanical analyses"
     status = stage_iterator!(name, mech_stage_solver!, model; args...)
     return status
@@ -249,7 +249,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
         save_outs && save(model, "$outdir/$outkey-0.vtu", quiet=true)
     end
     lastflush = time()
-    flushinterval = 4
+    flushinterval = 5
 
     # Get the domain current state and backup
     State = [ ip.state for elem in active_elems for ip in elem.ips ]
