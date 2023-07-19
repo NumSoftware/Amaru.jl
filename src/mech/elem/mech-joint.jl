@@ -199,7 +199,7 @@ function update_elem!(elem::MechJoint, U::Array{Float64,1}, Δt::Float64)
 
         # internal force
         @gemv Δω = B*dU
-        Δσ, status = update_state(elem.mat, ip.state, Δω)
+        Δσ, status = update_state!(elem.mat, ip.state, Δω)
         failed(status) && return dF, map, status
         coef = detJ*ip.w*th
         @gemv dF += coef*B'*Δσ

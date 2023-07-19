@@ -4,11 +4,10 @@
 mutable struct MechEmbRod<:Mech
     id    ::Int
     shape ::CellShape
-
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    mat::Material
+    mat   ::Material
     props ::MechRodProps
     active::Bool
     linked_elems::Array{Element,1}
@@ -22,8 +21,8 @@ mutable struct MechEmbRod<:Mech
     end
 end
 
-matching_shape_family(::Type{MechEmbRod}) = LINECELL
 
+matching_shape_family(::Type{MechEmbRod}) = LINECELL
 
 
 function elem_config_dofs(::MechEmbRod)
@@ -142,7 +141,7 @@ function update_elem!(elem::MechEmbRod, U::Array{Float64,1}, Δt::Float64)
         end
 
         deps = (B*dUr)[1]
-        dsig, _ = update_state(elem.mat, ip.state, deps)
+        dsig, _ = update_state!(elem.mat, ip.state, deps)
         coef = A*detJ*ip.w
         dF  += coef*B'*dsig
     end

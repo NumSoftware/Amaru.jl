@@ -99,7 +99,7 @@ function update_elem!(elem::MechTipJoint, U::Array{Float64,1}, Δt::Float64)
     B  = mountB(elem, Ch, Ct)
     Δw = dot(B, dU)
     
-    Δf, _ = update_state(elem.mat, elem.ips[1].state, Δw)
+    Δf, _ = update_state!(elem.mat, elem.ips[1].state, Δw)
     coef = Δf
     dF = coef*B'
 

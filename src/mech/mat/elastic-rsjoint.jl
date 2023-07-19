@@ -40,7 +40,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::MechRSJoint, ::ElasticRSJoint) = ElasticRSJointState
+ip_state_type(::Type{ElasticRSJoint}) = ElasticRSJointState
+
+# Element types that work with this material
+matching_elem_types(::Type{ElasticRSJoint}) = (MechRSJoint,)
 
 
 function calcD(mat::ElasticRSJoint, state::ElasticRSJointState)
@@ -57,7 +60,7 @@ function calcD(mat::ElasticRSJoint, state::ElasticRSJointState)
 end
 
 
-function update_state(mat::ElasticRSJoint, state::ElasticRSJointState, Δu)
+function update_state!(mat::ElasticRSJoint, state::ElasticRSJointState, Δu)
     D = calcD(mat, state)
     Δσ = D*Δu
 

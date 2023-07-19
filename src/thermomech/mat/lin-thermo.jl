@@ -35,7 +35,7 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::ThermoSolid, ::LinThermo) = LinThermoState
+ip_state_type(::Type{LinThermo}) = LinThermoState
 
 
 function calcK(mat::LinThermo, state::LinThermoState) # Thermal conductivity matrix

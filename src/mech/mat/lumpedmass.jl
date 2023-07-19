@@ -25,7 +25,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(mat::LumpedMass) = LumpedMassState
+ip_state_type(::Type{LumpedMass}) = LumpedMassState
+
+# Element types that work with this material
+matching_elem_types(::Type{LumpedMass}) = (MechLumpedMass,)
 
 
 function ip_state_vals(mat::LumpedMass, state::LumpedMassState)

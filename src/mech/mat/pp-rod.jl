@@ -76,11 +76,12 @@ mutable struct PPRodState<:IpState
 end
 
 
-matching_elem_type_if_embedded(::PPRod) = MechEmbRod
-
 # Type of corresponding state structure
-ip_state_type(::MechRod, ::PPRod) = PPRodState
-ip_state_type(::MechEmbRod, ::PPRod) = PPRodState
+ip_state_type(::Type{PPRod}) = PPRodState
+
+# Element types that work with this material
+matching_elem_types(::Type{PPRod}) = (MechRod,)
+matching_elem_type_if_embedded(::Type{PPRod}) = MechEmbRod
 
 
 function yield_func(mat::PPRod, state::PPRodState, σ::Float64)
@@ -99,7 +100,7 @@ function calcD(mat::PPRod, state::PPRodState)
 end
 
 
-function update_state(mat::PPRod, state::PPRodState, Δε::Float64)
+function update_state!(mat::PPRod, state::PPRodState, Δε::Float64)
     E, H    = mat.E, mat.H
     σini    = state.σ
     σtr     = σini + E*Δε

@@ -68,7 +68,7 @@ macro checkmissing(params, required, names)
         if length(missingkeys)>0
             msg = "Missing arguments: $(join(missingkeys, ", ")). Possible inputs are: $($(esc(names)))"
             msg = replace(msg, "=" => ":")
-            error("$fname: $msg")
+            throw(AmaruException("$fname: $msg"))
         end
     end
 end

@@ -50,7 +50,7 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(mat::CompressiveConcrete) = CompressiveConcreteState
+ip_state_type(::Type{CompressiveConcrete}) = CompressiveConcreteState
 
 
 function uniaxial_σ(mat::CompressiveConcrete, state::CompressiveConcreteState, εi::Float64)
@@ -105,7 +105,7 @@ function calcD(mat::CompressiveConcrete, state::CompressiveConcreteState)
 end
 
 
-function update_state(mat::CompressiveConcrete, state::CompressiveConcreteState, Δε::Array{Float64,1})
+function update_state!(mat::CompressiveConcrete, state::CompressiveConcreteState, Δε::Array{Float64,1})
     # special function
     neg(x) = (-abs(x)+x)/2.0
 

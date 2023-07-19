@@ -484,7 +484,7 @@ function update_elem!(elem::HydromechSolid, DU::Array{Float64,1}, Δt::Float64)
         G[end] += 1.0; # gradient due to gravity
 
         # internal force dF
-        Δσ, V = update_state(elem.mat, ip.state, Δε, Δuw, G, Δt)
+        Δσ, V = update_state!(elem.mat, ip.state, Δε, Δuw, G, Δt)
         Δσ -= elem.mat.α*Δuw*m # get total stress
 
         coef = detJ*ip.w*th

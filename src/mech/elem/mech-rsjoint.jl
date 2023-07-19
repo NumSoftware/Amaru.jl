@@ -197,7 +197,7 @@ function update_elem!(elem::MechRSJoint, U::Array{Float64,1}, Δt::Float64)
         detJ = elem.cache_detJ[i]
         # D    = calcD(mat, ip.state)
         @gemv Δu = B*dU
-        Δσ, _ = update_state(elem.mat, ip.state, Δu)
+        Δσ, _ = update_state!(elem.mat, ip.state, Δu)
         coef = p*detJ*ip.w
         # Δσ[1]  *= p
         @gemv dF += coef*B'*Δσ

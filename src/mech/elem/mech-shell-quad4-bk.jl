@@ -24,9 +24,9 @@ matching_shape_family(::Type{ShellQUAD4}) = BULKCELL
 # the strain-displacement matrix for membrane forces
 function Dm_maxtrix(elem::ShellQUAD4)
 
-    coef1 = elem.mat.t*elem.mat.E/(1-elem.mat.nu^2)
-    coef2 = elem.mat.nu*coef1
-    coef3 = coef1*(1-elem.mat.nu)/2
+    coef1 = elem.mat.t*elem.mat.E/(1-elem.mat.ν^2)
+    coef2 = elem.mat.ν*coef1
+    coef3 = coef1*(1-elem.mat.ν)/2
 
         Dm = [coef1  coef2 0
                   coef2  coef1 0
@@ -49,7 +49,7 @@ end
 
 function Ds_maxtrix(elem::ShellQUAD4)
 
-    coef = elem.mat.t*(5/6)*elem.mat.E/(2*(1+elem.mat.nu))
+    coef = elem.mat.t*(5/6)*elem.mat.E/(2*(1+elem.mat.ν))
 
             Ds = [coef    0
                         0     coef]

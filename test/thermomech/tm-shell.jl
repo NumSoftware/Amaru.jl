@@ -24,7 +24,9 @@ nu    = 0.3
 alpha = 1.2e-5 # thermal expansion coefficient  1/K or 1/°C
 th    = 0.1
 
-materials = ["shell"<< TMShell << ElasticShellThermo << (E=E, nu=nu, k=k, alpha=alpha,thickness=th, rho=rho, cv=cv) ]
+# materials = ["shell"<< TMShell << ElasticShellThermo << (E=E, nu=nu, k=k, alpha=alpha,thickness=th, rho=rho, cv=cv) ]
+# materials = ["shell"<< TMShell << TMCombined{LinThermo, LinearElastic} << (E=E, nu=nu, k=k, alpha=alpha, thickness=th, rho=rho, cv=cv) ]
+materials = ["shell"<< TMShell << TMCombined{LinThermo, VonMises} << (E=E, nu=nu, k=k, alpha=alpha, thickness=th, rho=rho, cv=cv, H=0.0, fy=1000.0) ]
 
 ana = ThermomechAnalysis(T0=0.0)
 model = FEModel(mesh, materials, ana)
@@ -38,5 +40,5 @@ bcs = [
     :(z==$zmin) => NodeBC(ut = 50),
 ]
 
-addstage!(model, bcs, tspan=20_000_000,nincs=10)
-solve!(model, tol=0.1)
+addstage!(model, bcs, tspan=20_000_000, nincs=10)
+solve!(model, autoinc=true, tol=0.1)

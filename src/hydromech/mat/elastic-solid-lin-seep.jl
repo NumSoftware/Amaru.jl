@@ -23,7 +23,7 @@ end
 
 mutable struct LinearElasticSeep<:Material
     E ::Float64 # Young's modulus
-    nu::Float64 # Poisson ratio
+    ν::Float64 # Poisson ratio
     k ::Float64 # specific permeability
     α ::Float64 # Biot's coefficient
     S ::Float64 # Storativity coefficient
@@ -51,11 +51,11 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::HydromechSolid, ::LinearElasticSeep) = LinearElasticSeepState
+ip_state_type(::Type{LinearElasticSeep}) = LinearElasticSeepState
 
 
 function calcD(mat::LinearElasticSeep, state::LinearElasticSeepState)
-    return calcDe(mat.E, mat.nu, state.env.ana.stressmodel) # function calcDe defined at elastic-solid.jl
+    return calcDe(mat.E, mat.ν, state.env.ana.stressmodel) # function calcDe defined at elastic-solid.jl
 end
 
 
@@ -68,7 +68,7 @@ function calcK(mat::LinearElasticSeep, state::LinearElasticSeepState) # Hydrauli
 end
 
 
-function update_state(mat::LinearElasticSeep, state::LinearElasticSeepState, Δε::Array{Float64,1}, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
+function update_state!(mat::LinearElasticSeep, state::LinearElasticSeepState, Δε::Array{Float64,1}, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
     De = calcD(mat, state)
     Δσ = De*Δε
     state.ε  += Δε

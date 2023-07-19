@@ -263,7 +263,7 @@ function update_elem!(elem::CookShell, U::Array{Float64,1}, dt::Float64)
         dNdX = dNdR*invJ
         setB(elem, ip, invJ, N, dNdX, Rrot, Bil, Bi, B)
         Δε = T*B*dU
-        Δσ, status = update_state(elem.mat, ip.state, Δε)
+        Δσ, status = update_state!(elem.mat, ip.state, Δε)
         failed(status) && return failure("MechSolid: Error at integration point $(ip.id)")
 
         detJ = det(J)

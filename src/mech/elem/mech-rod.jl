@@ -47,7 +47,7 @@ mutable struct MechRod<:Mech
 end
 
 matching_shape_family(::Type{MechRod}) = LINECELL
-# matching_elem_type(::Type{MechRodProps}) = MechRod
+# matching_elem_types(::Type{MechRodProps}) = MechRod
 matching_elem_props(::Type{MechRod}) = MechRodProps
 
 
@@ -243,7 +243,7 @@ function update_elem!(elem::MechRod, U::Array{Float64,1}, Δt::Float64)
         end
 
         deps = (B*dU)[1]
-        dsig, _ = update_state(elem.mat, ip.state, deps)
+        dsig, _ = update_state!(elem.mat, ip.state, deps)
         coef = A*detJ*ip.w
         dF  .+= coef*vec(B')*dsig
     end

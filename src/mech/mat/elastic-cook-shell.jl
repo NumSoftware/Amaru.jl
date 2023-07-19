@@ -20,7 +20,7 @@ end
 
 mutable struct ElasticCookShell<:Material
     E::Float64
-    nu::Float64
+    ν::Float64
     th::Float64
 
     function ElasticCookShell(prms::Dict{Symbol,Float64})
@@ -37,14 +37,14 @@ mutable struct ElasticCookShell<:Material
 end
 
 
-
 # Type of corresponding state structure
-ip_state_type(mat::ElasticCookShell) = ElasticCookShellState
+ip_state_type(::Type{ElasticCookShell}) = ElasticCookShellState
+
 
 
 function calcD(mat::ElasticCookShell, state::ElasticCookShellState)
     E = mat.E
-    ν = mat.nu
+    ν = mat.ν
     c = E/(1.0-ν^2)
     # g = c*(1.0-ν)
     g = E/(1+ν)
@@ -59,7 +59,7 @@ function calcD(mat::ElasticCookShell, state::ElasticCookShellState)
 end
 
 
-function update_state(mat::ElasticCookShell, state::ElasticCookShellState, dε::Array{Float64,1})
+function update_state!(mat::ElasticCookShell, state::ElasticCookShellState, dε::Array{Float64,1})
     D = calcD(mat, state)
     dσ = D*dε
     state.ε += dε

@@ -1,5 +1,5 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
-mutable struct HydroMechJoint2<:Hydromech
+mutable struct HMJoint2<:Hydromech
     id    ::Int
     shape ::CellShape
 
@@ -11,16 +11,16 @@ mutable struct HydroMechJoint2<:Hydromech
     linked_elems::Array{Element,1}
     env ::ModelEnv
 
-    function HydroMechJoint2()
+    function HMJoint2()
         return new()
     end
 end
 
 # Return the shape family that works with this element
-matching_shape_family(::Type{HydroMechJoint2}) = JOINTCELL
+matching_shape_family(::Type{HMJoint2}) = JOINTCELL
 
 
-function elem_config_dofs(elem::HydroMechJoint2)
+function elem_config_dofs(elem::HMJoint2)
     nnodes   = length(elem.nodes)
     nlnodes  = div(nnodes, 2) # half the number of total nodes
     nbsnodes = elem.shape.basic_shape.npoints
@@ -36,7 +36,7 @@ function elem_config_dofs(elem::HydroMechJoint2)
 end
 
 
-function elem_init(elem::HydroMechJoint2)
+function elem_init(elem::HMJoint2)
     # Get linked elements
     e1 = elem.linked_elems[1]
     e2 = elem.linked_elems[2]
@@ -84,7 +84,7 @@ function elem_init(elem::HydroMechJoint2)
 end
 
 
-function elem_stiffness(elem::HydroMechJoint2)
+function elem_stiffness(elem::HMJoint2)
     ndim     = elem.env.ndim
     th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
@@ -135,7 +135,7 @@ function elem_stiffness(elem::HydroMechJoint2)
 end
 
 
-function elem_coupling_matrix(elem::HydroMechJoint2)
+function elem_coupling_matrix(elem::HMJoint2)
     ndim     = elem.env.ndim
     th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
@@ -199,7 +199,7 @@ function elem_coupling_matrix(elem::HydroMechJoint2)
 end
 
 
-function elem_conductivity_matrix(elem::HydroMechJoint2)
+function elem_conductivity_matrix(elem::HMJoint2)
     ndim     = elem.env.ndim
     th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
@@ -276,7 +276,7 @@ function elem_conductivity_matrix(elem::HydroMechJoint2)
 end
 
 
-function elem_compressibility_matrix(elem::HydroMechJoint2)
+function elem_compressibility_matrix(elem::HMJoint2)
     ndim     = elem.env.ndim
     th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
@@ -334,7 +334,7 @@ function elem_compressibility_matrix(elem::HydroMechJoint2)
 end
 
 
-function elem_RHS_vector(elem::HydroMechJoint2)
+function elem_RHS_vector(elem::HMJoint2)
     ndim     = elem.env.ndim
     th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
@@ -407,7 +407,7 @@ function elem_RHS_vector(elem::HydroMechJoint2)
 end
 
 #=
-function elem_internal_forces(elem::HydroMechJoint2, F::Array{Float64,1})
+function elem_internal_forces(elem::HMJoint2, F::Array{Float64,1})
     ndim     = elem.env.ndim
     th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
@@ -511,7 +511,7 @@ function elem_internal_forces(elem::HydroMechJoint2, F::Array{Float64,1})
 end
 =#
 
-function update_elem!(elem::HydroMechJoint2, U::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::HMJoint2, U::Array{Float64,1}, Δt::Float64)
     ndim     = elem.env.ndim
     th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
@@ -600,7 +600,7 @@ function update_elem!(elem::HydroMechJoint2, U::Array{Float64,1}, Δt::Float64)
         @gemv Δω = Bu*dU
 
         # internal force dF
-        Δσ, Vt, L = update_state(elem.mat, ip.state, Δω, Δuw, G, BfUw, Δt)
+        Δσ, Vt, L = update_state!(elem.mat, ip.state, Δω, Δuw, G, BfUw, Δt)
         Δσ -= mf*Δuw[3] # get total stress
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*Δσ

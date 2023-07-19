@@ -6,10 +6,11 @@ struct TMSolidProps<:ElemProperties
     ρ::Float64
     γ::Float64
     cv::Float64
+    α ::Float64 # thermal expansion coefficient  1/K or 1/°C
 
     function TMSolidProps(; props...)
-        names = (rho="Density", gamma="Specific weight", cv="Heat capacity")
-        required = (:cv, )
+        names = (rho="Density", gamma="Specific weight", cv="Heat capacity", alpha="Thermal expansion coefficient")
+        required = (:cv, :alpha)
         @checkmissing props required names
 
         default = (rho=0.0, gamma=0.0)
@@ -18,16 +19,16 @@ struct TMSolidProps<:ElemProperties
         cv  = props.cv
         rho = props.rho
         gamma = props.gamma
+        alpha = props.alpha
 
         @check cv>0.0
         @check rho>=0.0
         @check gamma>=0.0
+        @check 0<=alpha<=1
 
-        return new(rho, gamma, cv)
+        return new(rho, gamma, cv, alpha)
     end    
 end
-
-
 
 
 mutable struct TMSolid<:Thermomech
@@ -227,7 +228,7 @@ function elem_coupling_matrix(elem::TMSolid)
     J    = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, nnodes, ndim)
     m    = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
-    β    = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) # thermal stress modulus
+    β    = elem.mat.E*elem.props.α/(1-2*elem.mat.ν) # thermal stress modulus
 
     for ip in elem.ips
         elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
@@ -368,7 +369,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
 
         # internal force
         ut   = ip.state.ut + 273
-        β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu)
+        β   = elem.mat.E*elem.props.α/(1-2*elem.mat.ν)
         σ    = ip.state.σ - β*ut*m # get total stress
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*σ
@@ -402,9 +403,9 @@ function update_elem!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
     C       = getcoords(elem)
 
     E = elem.mat.E
-    α = elem.mat.α
+    α = elem.props.α
     ρ = elem.props.ρ
-    nu = elem.mat.nu
+    nu = elem.mat.ν
     cv = elem.props.cv
     β = E*α/(1-2*nu)
 
@@ -457,7 +458,7 @@ function update_elem!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
         G  = Bt*Ut
 
         # internal force dF
-        Δσ, q = update_state(elem.mat, ip.state, Δε, Δut, G, Δt)
+        Δσ, q, status = update_state!(elem.mat, ip.state, Δε, Δut, G, Δt)
         #@show Δσ
 
         #@show "HIIIIIIIIIIIIIIIIIII"

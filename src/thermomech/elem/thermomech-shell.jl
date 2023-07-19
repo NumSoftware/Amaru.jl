@@ -7,11 +7,12 @@ struct TMShellProps<:ElemProperties
     ρ::Float64
     γ::Float64
     cv::Float64
+    α ::Float64 # thermal expansion coefficient  1/K or 1/°C
     th::Float64
 
     function TMShellProps(; props...)
-        names = (rho="Density", gamma="Specific weight", thickness="Thickness", cv="Heat capacity")
-        required = (:thickness, :cv)
+        names = (rho="Density", gamma="Specific weight", thickness="Thickness", cv="Heat capacity", alpha="Thermal expansion coefficient")
+        required = (:thickness, :cv, :alpha)
         @checkmissing props required names
 
         default = (rho=0.0, gamma=0.0)
@@ -21,13 +22,15 @@ struct TMShellProps<:ElemProperties
         gamma     = props.gamma
         cv        = props.cv
         thickness = props.thickness
+        alpha = props.alpha
 
         @check rho>=0.0
         @check gamma>=0.0
         @check cv>0.0
         @check thickness>0.0
+        @check 0<=alpha<=1
 
-        return new(rho, gamma, cv, thickness)
+        return new(rho, gamma, cv, alpha, thickness)
     end    
 end
 
@@ -99,7 +102,7 @@ function setquadrature!(elem::TMShell, n::Int=0)
             j = (k-1)*n + i
             elem.ips[j] = Ip(R, w)
             elem.ips[j].id = j
-            elem.ips[j].state = ip_state_type(elem, elem.mat)(elem.env)
+            elem.ips[j].state = ip_state_type(typeof(elem.mat))(elem.env)
             elem.ips[j].owner = elem
         end
     end
@@ -222,7 +225,7 @@ function elem_stiffness(elem::TMShell)
         dNdR  = [ dNdR zeros(nnodes) ]
         dNdX′ = dNdR*invJ′
 
-        D = calcD(elem.mat, ip.state)
+        D = calcD(elem.mat, ip.state, "shell")
         #@show D
         #error()
 
@@ -265,7 +268,7 @@ function elem_coupling_matrix(elem::TMShell)
     #J    = Array{Float64}(undef, ndim, ndim)
     #dNdX = Array{Float64}(undef, nnodes, ndim)
     #m    = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
-    #β    = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) # thermal stress modulus
+    #β    = elem.mat.E*elem.props.α/(1-2*elem.mat.ν) # thermal stress modulus
 
     nnodes = length(elem.nodes)
     # 
@@ -285,7 +288,7 @@ function elem_coupling_matrix(elem::TMShell)
     C   = getcoords(elem)
     Cut = zeros(ndof*nnodes, nnodes) # u-t coupling matrix
     m    = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
-    β    = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu) 
+    β    = elem.mat.E*elem.props.α/(1-2*elem.mat.ν) 
 
     for ip in elem.ips
         #elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
@@ -437,7 +440,7 @@ function elem_internal_forces(elem::TMShell, F::Array{Float64,1}, DU::Array{Floa
         # compute N
         # internal force
         ut   = ip.state.ut + 273
-        β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu)
+        β   = elem.mat.E*elem.props.α/(1-2*elem.mat.ν)
         σ    = ip.state.σ - β*ut*m # get total stress
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*σ
@@ -467,9 +470,9 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     C      = getcoords(elem)
 
     E = elem.mat.E
-    α = elem.mat.α
+    α = elem.props.α
     ρ = elem.props.ρ
-    nu = elem.mat.nu
+    nu = elem.mat.ν
     cv = elem.props.cv
     β = E*α/(1-2*nu)
     
@@ -523,7 +526,7 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
         G  = Bt*Ut
 
          # internal force dF
-         Δσ, q = update_state(elem.mat, ip.state, Δε, Δut, G, Δt)
+         Δσ, q = update_state!(elem.mat, ip.state, Δε, Δut, G, Δt, "shell")
          #@showm Δσ
          #error()
          Δσ -= β*Δut*m # get total stress

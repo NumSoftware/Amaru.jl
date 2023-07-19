@@ -2,9 +2,7 @@
 
 export TCFJoint
 
-abstract type AbstractTCFJointState<:IpState end
-
-mutable struct TCFJointState<:AbstractTCFJointState
+mutable struct TCFJointState<:IpState
     env::ModelEnv
     σ  ::Array{Float64,1} # stress
     w  ::Array{Float64,1} # relative displacements
@@ -24,9 +22,7 @@ mutable struct TCFJointState<:AbstractTCFJointState
     end
 end
 
-abstract type AbstractTCFJoint<:Material end
-
-mutable struct TCFJoint<:AbstractTCFJoint
+mutable struct TCFJoint<:Material
     E     ::Float64 # Young's modulus
     ν     ::Float64 # Poisson ratio
     ft    ::Float64 # tensile strength
@@ -66,7 +62,7 @@ mutable struct TCFJoint<:AbstractTCFJoint
 end
 
 
-function paramsdict(mat::AbstractTCFJoint)
+function paramsdict(mat::TCFJoint)
     mat = OrderedDict( string(field)=> getfield(mat, field) for field in fieldnames(typeof(mat)) )
 
     mat.scurve in ("hordijk", "soft") && ( mat["GF"] = 0.1943*mat.ft*mat.wc )
@@ -74,13 +70,14 @@ function paramsdict(mat::AbstractTCFJoint)
 end
 
 
-
-
 # Type of corresponding state structure
-ip_state_type(::MechJoint, ::AbstractTCFJoint) = TCFJointState
+ip_state_type(::Type{TCFJoint}) = TCFJointState
+
+# Element types that work with this material
+matching_elem_types(::Type{TCFJoint}) = (MechJoint,)
 
 
-function yield_func(mat::AbstractTCFJoint, state::AbstractTCFJointState, σ::Array{Float64,1}, up::Float64)
+function yield_func(mat::TCFJoint, state::TCFJointState, σ::Array{Float64,1}, up::Float64)
     σmax = calc_σmax(mat, state, up)
     τmax = calc_τmax(mat, state, up)
     μ    = calc_μ(mat, state, up)
@@ -100,7 +97,7 @@ function yield_func(mat::AbstractTCFJoint, state::AbstractTCFJointState, σ::Arr
 end
 
 
-function yield_derivs(mat::AbstractTCFJoint, state::AbstractTCFJointState, σ::Array{Float64,1}, up::Float64)
+function yield_derivs(mat::TCFJoint, state::TCFJointState, σ::Array{Float64,1}, up::Float64)
     ft    = mat.ft
     α     = mat.α
     σmax  = calc_σmax(mat, state, up)
@@ -131,7 +128,7 @@ function yield_derivs(mat::AbstractTCFJoint, state::AbstractTCFJointState, σ::A
 end
 
 
-function potential_derivs(mat::AbstractTCFJoint, state::AbstractTCFJointState, σ::Array{Float64,1})
+function potential_derivs(mat::TCFJoint, state::TCFJointState, σ::Array{Float64,1})
     ndim = state.env.ndim
     if ndim == 3
         if σ[1] > 0.0 
@@ -160,7 +157,7 @@ function potential_derivs(mat::AbstractTCFJoint, state::AbstractTCFJointState, �
 end
 
 
-function calc_σmax(mat::AbstractTCFJoint, state::AbstractTCFJointState, up::Float64)
+function calc_σmax(mat::TCFJoint, state::TCFJointState, up::Float64)
     if mat.scurve == "hordijk"
         if up < mat.wc
             z = (1 + 27*(up/mat.wc)^3)*exp(-6.93*up/mat.wc) - 28*(up/mat.wc)*exp(-6.93)
@@ -184,7 +181,7 @@ function calc_σmax(mat::AbstractTCFJoint, state::AbstractTCFJointState, up::Flo
 end
 
 
-function deriv_σmax_up(mat::AbstractTCFJoint, state::AbstractTCFJointState, up::Float64)
+function deriv_σmax_up(mat::TCFJoint, state::TCFJointState, up::Float64)
     x = up/mat.wc
     if mat.scurve == "hordijk"
         if x<1
@@ -209,7 +206,7 @@ function deriv_σmax_up(mat::AbstractTCFJoint, state::AbstractTCFJointState, up:
 end
 
 
-function calc_τmax(mat::AbstractTCFJoint, state::AbstractTCFJointState, up::Float64)
+function calc_τmax(mat::TCFJoint, state::TCFJointState, up::Float64)
     xp = 0.13
     y0 = 0.8
     y0 = 0.7
@@ -249,7 +246,7 @@ function calc_τmax(mat::AbstractTCFJoint, state::AbstractTCFJointState, up::Flo
 end
 
 
-function deriv_τmax_up(mat::AbstractTCFJoint, state::AbstractTCFJointState, up::Float64)
+function deriv_τmax_up(mat::TCFJoint, state::TCFJointState, up::Float64)
     xp = 0.13
     y0 = 0.8
     y0 = 0.7
@@ -290,7 +287,7 @@ function deriv_τmax_up(mat::AbstractTCFJoint, state::AbstractTCFJointState, up:
 end
 
 
-function calc_μ(mat::AbstractTCFJoint, state::AbstractTCFJointState, up::Float64)
+function calc_μ(mat::TCFJoint, state::TCFJointState, up::Float64)
     x = up/mat.wc
     if x==0
         z = 1e-10
@@ -303,7 +300,7 @@ function calc_μ(mat::AbstractTCFJoint, state::AbstractTCFJointState, up::Float6
 end
 
 
-function deriv_μ_up(mat::AbstractTCFJoint, state::AbstractTCFJointState, up::Float64)
+function deriv_μ_up(mat::TCFJoint, state::TCFJointState, up::Float64)
     x = up/mat.wc
     if x<1.0
         dzdx = 1.0
@@ -314,7 +311,7 @@ function deriv_μ_up(mat::AbstractTCFJoint, state::AbstractTCFJointState, up::Fl
 end
 
 
-function calc_kn_ks(mat::AbstractTCFJoint, state::AbstractTCFJointState)
+function calc_kn_ks(mat::TCFJoint, state::TCFJointState)
     kn = mat.E*mat.ζ/state.h
     G  = mat.E/(2.0*(1.0+mat.ν))
     ks = G*mat.ζ/state.h
@@ -323,7 +320,7 @@ function calc_kn_ks(mat::AbstractTCFJoint, state::AbstractTCFJointState)
 end
 
 
-function mountD(mat::AbstractTCFJoint, state::AbstractTCFJointState)
+function mountD(mat::TCFJoint, state::TCFJointState)
 
     ndim   = state.env.ndim
     kn, ks = calc_kn_ks(mat, state)
@@ -364,7 +361,7 @@ function mountD(mat::AbstractTCFJoint, state::AbstractTCFJointState)
 end
 
 
-function calc_σ_up_Δλ(mat::AbstractTCFJoint, state::AbstractTCFJointState, σtr::Array{Float64,1})
+function calc_σ_up_Δλ(mat::TCFJoint, state::TCFJointState, σtr::Array{Float64,1})
 
     ndim = state.env.ndim
     Δλ   = 0.0
@@ -435,7 +432,7 @@ function calc_σ_up_Δλ(mat::AbstractTCFJoint, state::AbstractTCFJointState, σ
 end
 
 
-function yield_func_from_Δλ(mat::AbstractTCFJoint, state::AbstractTCFJointState, σtr::Array{Float64,1}, Δλ::Float64)
+function yield_func_from_Δλ(mat::TCFJoint, state::TCFJointState, σtr::Array{Float64,1}, Δλ::Float64)
     ndim    = state.env.ndim
     kn, ks  = calc_kn_ks(mat, state)
 
@@ -462,7 +459,7 @@ function yield_func_from_Δλ(mat::AbstractTCFJoint, state::AbstractTCFJointStat
 end
 
 
-function calc_σ_up_Δλ_bissection(mat::AbstractTCFJoint, state::AbstractTCFJointState, σtr::Array{Float64,1})
+function calc_σ_up_Δλ_bissection(mat::TCFJoint, state::TCFJointState, σtr::Array{Float64,1})
     ndim    = state.env.ndim
     kn, ks  = calc_kn_ks(mat, state)
     De      = diagm([kn, ks, ks][1:ndim])
@@ -558,7 +555,7 @@ function calc_σ_up_Δλ_bissection(mat::AbstractTCFJoint, state::AbstractTCFJoi
 end
 
 
-function find_σ_up_Δλ(mat::AbstractTCFJoint, state::AbstractTCFJointState, σtr::Array{Float64,1})
+function find_σ_up_Δλ(mat::TCFJoint, state::TCFJointState, σtr::Array{Float64,1})
     ndim    = state.env.ndim
     kn, ks  = calc_kn_ks(mat, state)
     De      = diagm([kn, ks, ks][1:ndim])
@@ -614,7 +611,7 @@ function find_σ_up_Δλ(mat::AbstractTCFJoint, state::AbstractTCFJointState, σ
 end
 
 
-function update_state(mat::AbstractTCFJoint, state::AbstractTCFJointState, Δw::Array{Float64,1})
+function update_state!(mat::TCFJoint, state::TCFJointState, Δw::Array{Float64,1})
     ndim = state.env.ndim
     σini = copy(state.σ)
 
@@ -622,7 +619,7 @@ function update_state(mat::AbstractTCFJoint, state::AbstractTCFJointState, Δw::
     De = diagm([kn, ks, ks][1:ndim])
 
     if isnan(Δw[1]) || isnan(Δw[2])
-        alert("AbstractTCFJoint: Invalid value for joint displacement: Δw = $Δw")
+        alert("TCFJoint: Invalid value for joint displacement: Δw = $Δw")
     end
 
     # σ trial and F trial
@@ -657,7 +654,7 @@ function update_state(mat::AbstractTCFJoint, state::AbstractTCFJointState, Δw::
 end
 
 
-function ip_state_vals(mat::AbstractTCFJoint, state::AbstractTCFJointState)
+function ip_state_vals(mat::TCFJoint, state::TCFJointState)
     ndim = state.env.ndim
     if ndim == 3
        return Dict(
@@ -681,6 +678,6 @@ function ip_state_vals(mat::AbstractTCFJoint, state::AbstractTCFJointState)
 end
 
 
-function output_keys(mat::AbstractTCFJoint)
+function output_keys(mat::TCFJoint)
     return Symbol[:jw1, :js1, :jup]
 end

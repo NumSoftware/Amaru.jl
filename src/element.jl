@@ -123,7 +123,7 @@ function setquadrature!(elem::Element, n::Int=0)
         w = ipc[i,4]
         elem.ips[i] = Ip(R, w)
         elem.ips[i].id = i
-        elem.ips[i].state = ip_state_type(elem, elem.mat)(elem.env)
+        elem.ips[i].state = ip_state_type(typeof(elem.mat))(elem.env)
         elem.ips[i].owner = elem
     end
 

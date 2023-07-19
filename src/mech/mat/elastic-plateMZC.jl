@@ -11,7 +11,7 @@ end
 
 mutable struct ElasticPlateMZC<:Material
     E::Float64
-    nu::Float64
+    ν::Float64
     thick::Float64
     ρ::Float64
 
@@ -31,7 +31,7 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticPlateMZC) = ElasticPlateMZCState
+ip_state_type(::Type{ElasticPlateMZC}) = ElasticPlateMZCState
 
 
 function ip_state_vals(mat::ElasticPlateMZC, state::ElasticPlateMZCState)

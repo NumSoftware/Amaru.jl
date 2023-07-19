@@ -76,9 +76,11 @@ mutable struct MMCJoint<:Material
 end
 
 
-
 # Type of corresponding state structure
-ip_state_type(mat::MMCJoint) = MMCJointState
+ip_state_type(::Type{MMCJoint}) = MMCJointState
+
+# Element types that work with this material
+matching_elem_types(::Type{MMCJoint}) = (MechJoint,)
 
 
 function yield_func(mat::MMCJoint, state::MMCJointState, σ::Array{Float64,1}, σmax::Float64)
@@ -363,7 +365,7 @@ function mountD(mat::MMCJoint, state::MMCJointState)
 end
 
 
-function update_state(mat::MMCJoint, state::MMCJointState, Δw::Array{Float64,1})
+function update_state!(mat::MMCJoint, state::MMCJointState, Δw::Array{Float64,1})
 
     ndim = state.env.ndim
     σini = copy(state.σ)

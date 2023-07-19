@@ -154,7 +154,7 @@ end
 
 
 # Matrix D for the simplified FEM analysis
-function matrixD(E::Float64, nu::Float64)
+function matrixD(E::Float64, ν::Float64)
     c = E/((1.0+nu)*(1.0-2.0*nu))
     [ c*(1.0-nu)      c*nu        c*nu             0.0             0.0             0.0
           c*nu   c*(1.0-nu)       c*nu             0.0             0.0             0.0
@@ -197,7 +197,7 @@ function matrixB(ndim::Int, dNdX::Matx, detJ::Float64, B::Matx)
 end
 
 
-function matrixK(cell::Cell, ndim::Int64, E::Float64, nu::Float64)
+function matrixK(cell::Cell, ndim::Int64, E::Float64, ν::Float64)
     nnodes = length(cell.nodes)
 
     C = getcoords(cell.nodes, ndim)
@@ -245,7 +245,7 @@ function get_map(c::Cell)
 end
 
 # Mount global stiffness matrix
-function mountKg(mesh::Mesh, E::Float64, nu::Float64, A)
+function mountKg(mesh::Mesh, E::Float64, ν::Float64, A)
     ndim = mesh.env.ndim
     ndof = ndim*length(mesh.nodes)
     R, C, V = Int64[], Int64[], Float64[]
@@ -505,7 +505,7 @@ end
 
 
 # Mount a vector with nodal forces
-function force_bc(mesh::Mesh, E::Float64, nu::Float64, α::Float64, extended::Bool)
+function force_bc(mesh::Mesh, E::Float64, ν::Float64, α::Float64, extended::Bool)
     n    = length(mesh.nodes)
     ndim = mesh.env.ndim
     Fbc  = zeros(n*ndim)

@@ -69,7 +69,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(mat::SmearedCrack) = SmearedCrackState
+ip_state_type(::Type{SmearedCrack}) = SmearedCrackState
+
+# Element types that work with this material
+matching_elem_types(::Type{SmearedCrack}) = (MechSolid,)
 
 
 function calc_ςmax(mat::SmearedCrack, state::SmearedCrackState, up::Float64)
@@ -323,7 +326,7 @@ function calcD(mat::SmearedCrack, state::SmearedCrackState)
 end
 
 
-function update_state(mat::SmearedCrack, state::SmearedCrackState, Δε::Array{Float64,1})
+function update_state!(mat::SmearedCrack, state::SmearedCrackState, Δε::Array{Float64,1})
     # σ : stress tensor in the xyz system
     # ε : strain tensor in the xyz system
     # ς : stress vector at crack plane

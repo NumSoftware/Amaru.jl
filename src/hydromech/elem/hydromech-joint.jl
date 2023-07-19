@@ -1,9 +1,9 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export HydromechJoint
+export HMJoint
 
-struct HydromechJointProps<:ElemProperties
-    function HydromechJointProps(; params...)
+struct HMJointProps<:ElemProperties
+    function HMJointProps(; params...)
         return new()
     end    
 end
@@ -11,7 +11,7 @@ end
 
 
 
-mutable struct HydromechJoint<:Hydromech
+mutable struct HMJoint<:Hydromech
     id    ::Int
     shape ::CellShape
 
@@ -19,23 +19,23 @@ mutable struct HydromechJoint<:Hydromech
     ips   ::Array{Ip,1}
     tag   ::String
     mat::Material
-    props ::HydromechJointProps
+    props ::HMJointProps
     active::Bool
     linked_elems::Array{Element,1}
     env ::ModelEnv
 
-    function HydromechJoint(props=HydromechJointProps())
+    function HMJoint(props=HMJointProps())
         return new()
     end
 end
 
 # Return the shape family that works with this element
-matching_shape_family(::Type{HydromechJoint}) = JOINTCELL
-matching_elem_props(::Type{HydromechJoint}) = HydromechJointProps
+matching_shape_family(::Type{HMJoint}) = JOINTCELL
+matching_elem_props(::Type{HMJoint}) = HMJointProps
 
 
 
-function elem_config_dofs(elem::HydromechJoint)
+function elem_config_dofs(elem::HMJoint)
     nnodes = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     nlnodes = Int((nnodes-nbsnodes)/2) 
@@ -53,7 +53,7 @@ function elem_config_dofs(elem::HydromechJoint)
 end
 
 
-function elem_init(elem::HydromechJoint)
+function elem_init(elem::HMJoint)
     # Get linked elements
     e1 = elem.linked_elems[1]
     e2 = elem.linked_elems[2]
@@ -116,7 +116,7 @@ function elem_init(elem::HydromechJoint)
 end
 
 
-function elem_stiffness(elem::HydromechJoint)
+function elem_stiffness(elem::HMJoint)
     ndim     = elem.env.ndim
     th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
@@ -168,7 +168,7 @@ function elem_stiffness(elem::HydromechJoint)
 end
 
 
-function elem_coupling_matrix(elem::HydromechJoint) 
+function elem_coupling_matrix(elem::HMJoint) 
     ndim     = elem.env.ndim
     th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
@@ -234,7 +234,7 @@ function elem_coupling_matrix(elem::HydromechJoint)
 end
 
 
-function elem_conductivity_matrix(elem::HydromechJoint)
+function elem_conductivity_matrix(elem::HMJoint)
     ndim     = elem.env.ndim
     th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
@@ -315,7 +315,7 @@ function elem_conductivity_matrix(elem::HydromechJoint)
 end
 
 
-function elem_compressibility_matrix(elem::HydromechJoint)
+function elem_compressibility_matrix(elem::HMJoint)
     ndim     = elem.env.ndim
     th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
@@ -375,7 +375,7 @@ function elem_compressibility_matrix(elem::HydromechJoint)
 end
 
 
-function elem_RHS_vector(elem::HydromechJoint)
+function elem_RHS_vector(elem::HMJoint)
     ndim     = elem.env.ndim
     th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
@@ -451,7 +451,7 @@ function elem_RHS_vector(elem::HydromechJoint)
 end
 
 #=
-function elem_internal_forces(elem::HydromechJoint, F::Array{Float64,1})
+function elem_internal_forces(elem::HMJoint, F::Array{Float64,1})
     ndim     = elem.env.ndim
     th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
@@ -558,7 +558,7 @@ function elem_internal_forces(elem::HydromechJoint, F::Array{Float64,1})
 end
 =#
 
-function update_elem!(elem::HydromechJoint, U::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::HMJoint, U::Array{Float64,1}, Δt::Float64)
     ndim     = elem.env.ndim
     th       = elem.env.ana.thickness
     nnodes   = length(elem.nodes)
@@ -651,8 +651,8 @@ function update_elem!(elem::HydromechJoint, U::Array{Float64,1}, Δt::Float64)
         @gemv Δω = Bu*dU
           
         # internal force dF
-        Δσ, Vt, L, status = update_state(elem.mat, ip.state, Δω, Δuw, G, BfUw, Δt)
-        failed(status) && return failure("HydromechJoint: error in update_elem!", status.message)
+        Δσ, Vt, L, status = update_state!(elem.mat, ip.state, Δω, Δuw, G, BfUw, Δt)
+        failed(status) && return failure("HMJoint: error in update_elem!", status.message)
         Δσ -= mf*Δuw[3] # get total stress
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*Δσ
@@ -693,7 +693,7 @@ function update_elem!(elem::HydromechJoint, U::Array{Float64,1}, Δt::Float64)
 end
 
 
-function elem_extrapolated_node_vals(elem::HydromechJoint)
+function elem_extrapolated_node_vals(elem::HMJoint)
     nips = length(elem.ips)
 
     keys = output_keys(elem.mat)

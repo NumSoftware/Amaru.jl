@@ -24,13 +24,13 @@ matching_shape_family(::Type{PlateRM8node}) = BULKCELL
 
 function D_matrix(elem::PlateRM8node)
 
-    coef = elem.mat.E/(1-elem.mat.nu^2);
+    coef = elem.mat.E/(1-elem.mat.ν^2);
 
-    D_mat = coef*[1 elem.mat.nu 0 0 0
-                  elem.mat.nu 1 0 0 0
-                  0  0 (1/2)*(1-elem.mat.nu) 0 0
-                  0  0 0 (5/12)*(1-elem.mat.nu) 0
-                  0  0 0 0 (5/12)*(1-elem.mat.nu)];
+    D_mat = coef*[1 elem.mat.ν 0 0 0
+                  elem.mat.ν 1 0 0 0
+                  0  0 (1/2)*(1-elem.mat.ν) 0 0
+                  0  0 0 (5/12)*(1-elem.mat.ν) 0
+                  0  0 0 0 (5/12)*(1-elem.mat.ν)];
     return D_mat
 end
 

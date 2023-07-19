@@ -23,7 +23,7 @@ end
 
 mutable struct ElasticShellThermo<:Material
     E ::Float64 # Young's Modulus kN/m2
-    nu::Float64 # Poisson coefficient
+    ν::Float64 # Poisson coefficient
     k ::Float64 # thermal conductivity  w/m/k
     α ::Float64 # thermal expansion coefficient  1/K or 1/°C
 
@@ -48,12 +48,15 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::TMShell, ::ElasticShellThermo) = ElasticShellThermoState
+ip_state_type(::Type{ElasticShellThermo}) = ElasticShellThermoState
+
+# Element types that work with this material
+matching_elem_types(::Type{ElasticShellThermo}) = (TMShell,)
 
 
-function calcD(mat::ElasticShellThermo, state::ElasticShellThermoState)
+function calcD(mat::ElasticShellThermo, state::ElasticShellThermoState, stressmodel="shell")
     E = mat.E
-    ν = mat.nu
+    ν = mat.ν
     c = E/(1.0-ν^2)
     g = E/(1+ν)
     return [
@@ -76,7 +79,7 @@ function calcK(mat::ElasticShellThermo, state::ElasticShellThermoState) # Therma
 end
 
 
-function update_state(mat::ElasticShellThermo, state::ElasticShellThermoState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
+function update_state!(mat::ElasticShellThermo, state::ElasticShellThermoState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1}, Δt::Float64, stressmodel="shell")
     De = calcD(mat, state)
     Δσ = De*Δε
     state.ε  += Δε
@@ -90,7 +93,7 @@ function update_state(mat::ElasticShellThermo, state::ElasticShellThermoState, �
 end
 
 
-function ip_state_vals(mat::ElasticShellThermo, state::ElasticShellThermoState)
+function ip_state_vals(mat::ElasticShellThermo, state::ElasticShellThermoState, stressmodel="shell")
     D = stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
     #=
     D[:qx] = state.QQ[1] # VERIFICAR NECESSIDADE

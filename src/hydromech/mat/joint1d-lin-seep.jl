@@ -32,11 +32,11 @@ mutable struct Joint1DLinSeep<:Material
 end
 
 
-# Returns the element type that works with this material
+# Element types that work with this material
 
 
 # Type of corresponding state structure
-ip_state_type(::SeepJoint1D, ::Joint1DLinSeep) = Joint1DLinSeepState
+ip_state_type(::Type{Joint1DLinSeep}) = Joint1DLinSeepState
 
 
 function update_state!(mat::Joint1DLinSeep, state::Joint1DLinSeepState, ΔFw::Float64, Δt::Float64)

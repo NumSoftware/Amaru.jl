@@ -7,7 +7,7 @@ int = MechIntegrator(mat)
 nu = 0.2
 Δε = [ 0.0025*nu, 0.0025*nu, -0.0025, 0, 0, 0 ]
 
-update_state(int, Δε, nincs=40)
+update_state!(int, Δε, nincs=40)
 
 using PyPlot
 t = int.table

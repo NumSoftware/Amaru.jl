@@ -120,7 +120,7 @@ function setquadrature!(elem::MechShell, n::Int=0)
             j = (k-1)*n + i
             elem.ips[j] = Ip(R, w)
             elem.ips[j].id = j
-            elem.ips[j].state = ip_state_type(elem, elem.mat)(elem.env)
+            elem.ips[j].state = ip_state_type(typeof(elem.mat))(elem.env)
             elem.ips[j].owner = elem
         end
     end
@@ -388,7 +388,7 @@ function update_elem!(elem::MechShell, U::Array{Float64,1}, dt::Float64)
 
         setB(elem, ip, N, L, dNdX′, Rrot, Bil, Bi, B)
         Δε = B*dU
-        Δσ, status = update_state(elem.mat, ip.state, Δε, "shell")
+        Δσ, status = update_state!(elem.mat, ip.state, Δε, "shell")
         failed(status) && return failure("MechShell: Error at integration point $(ip.id)")
         #@showm Δσ
         #error()

@@ -18,7 +18,7 @@ mutable struct JointSeepState<:IpState
         ndim     = env.ndim
         this.σ   = zeros(3)
         this.w   = zeros(3)
-        this.Vt  = zeros(2) 
+        this.Vt  = zeros(2)
         #this.D   = zeros(2) 
         this.L   = zeros(ndim-1)
         #this.S   = zeros(ndim-1)
@@ -31,7 +31,7 @@ end
 
 mutable struct ElasticJointSeep<:Material
     E  ::Float64        # Young's modulus
-    nu ::Float64        # Poisson ration 
+    ν  ::Float64        # Poisson ratio 
     ζ  ::Float64        # factor ζ controls the elastic relative displacements 
     β  ::Float64        # compressibility of fluid
     η  ::Float64        # viscosity
@@ -57,14 +57,13 @@ mutable struct ElasticJointSeep<:Material
 end
 
 
-
 # Type of corresponding state structure
-ip_state_type(::HydromechJoint, ::ElasticJointSeep) = JointSeepState
+ip_state_type(::Type{ElasticJointSeep}) = JointSeepState
 
 
 function mountD(mat::ElasticJointSeep, state::JointSeepState)
     ndim = state.env.ndim
-    G  = mat.E/(1.0+mat.nu)/2.0
+    G  = mat.E/(1.0+mat.ν)/2.0
     kn = mat.E*mat.ζ/state.h
     ks =     G*mat.ζ/state.h
     if ndim==2
@@ -78,7 +77,7 @@ function mountD(mat::ElasticJointSeep, state::JointSeepState)
 end
 
 
-function update_state(mat::ElasticJointSeep, state::JointSeepState, Δu::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
+function update_state!(mat::ElasticJointSeep, state::JointSeepState, Δu::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
     ndim = state.env.ndim
     D  = mountD(mat, state)
     Δσ = D*Δu

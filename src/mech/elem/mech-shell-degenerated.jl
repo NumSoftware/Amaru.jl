@@ -318,9 +318,9 @@ end
 
 function setD(elem::ShellDegenerated, D::Matx)
 
-    nu = elem.mat.nu
-    E1 = elem.mat.E/(1-elem.mat.nu^2)
-    G  = elem.mat.E/(2*(1+elem.mat.nu))
+    nu = elem.mat.ν
+    E1 = elem.mat.E/(1-elem.mat.ν^2)
+    G  = elem.mat.E/(2*(1+elem.mat.ν))
     G1 = 5/6*G
 
               D .=   [E1      nu*E1  0  0   0

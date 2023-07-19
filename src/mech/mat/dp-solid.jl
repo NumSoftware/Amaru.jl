@@ -88,7 +88,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::MechSolid, ::DruckerPrager) = DruckerPragerState
+ip_state_type(::Type{DruckerPrager}) = DruckerPragerState
+
+# Element types that work with this material
+matching_elem_types(::Type{DruckerPrager}) = (MechSolid,)
 
 
 function nlE(fc::Float64, εc::Float64, ε::Array{Float64,1})
@@ -133,7 +136,7 @@ function calcD(mat::DruckerPrager, state::DruckerPragerState)
 end
 
 
-function update_state(mat::DruckerPrager, state::DruckerPragerState, Δε::Array{Float64,1})
+function update_state!(mat::DruckerPrager, state::DruckerPragerState, Δε::Array{Float64,1})
     σini = state.σ
     De   = calcDe(mat.E, mat.ν, state.env.ana.stressmodel)
     σtr  = state.σ + De*Δε

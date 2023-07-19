@@ -75,8 +75,11 @@ mutable struct CebRSJoint<:Material
 end
 
 
-# Creates a new instance of Ip data
-ip_state_type(::MechRSJoint, ::CebRSJoint) = CebRSJointState
+# Type of corresponding state structure
+ip_state_type(::Type{CebRSJoint}) = CebRSJointState
+
+# Element types that work with this material
+matching_elem_types(::Type{CebRSJoint}) = (MechRSJoint,)
 
 CEBJoint1D = CebRSJoint #! deprecated
 export CEBJoint1D
@@ -236,7 +239,7 @@ function stress_update_n(mat::CebRSJoint, state::CebRSJointState, Δu::Vect)
 end
 
 
-function update_state(mat::CebRSJoint, state::CebRSJointState, Δu::Vect)
+function update_state!(mat::CebRSJoint, state::CebRSJointState, Δu::Vect)
     ks = mat.ks
     kn = mat.kn
     Δs = Δu[1]      # relative displacement

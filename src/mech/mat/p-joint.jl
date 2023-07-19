@@ -70,9 +70,11 @@ mutable struct PJoint<:Material
 end
 
 
-
 # Type of corresponding state structure
-ip_state_type(mat::PJoint) = PJointState
+ip_state_type(::Type{PJoint}) = PJointState
+
+# Element types that work with this material
+matching_elem_types(::Type{PJoint}) = (MechJoint,)
 
 
 function yield_func(mat::PJoint, state::PJointState, σ::Array{Float64,1}, σmax::Float64)
@@ -330,7 +332,7 @@ function mountD(mat::PJoint, state::PJointState)
 end
 
 
-function update_state(mat::PJoint, state::PJointState, Δw::Array{Float64,1})
+function update_state!(mat::PJoint, state::PJointState, Δw::Array{Float64,1})
 
     ndim = state.env.ndim
     σini = copy(state.σ)

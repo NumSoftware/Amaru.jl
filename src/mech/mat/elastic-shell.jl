@@ -20,7 +20,7 @@ end
 
 mutable struct ElasticShell<:Material
     E::Float64
-    nu::Float64
+    ν::Float64
     th::Float64
     ρ::Float64
 
@@ -38,16 +38,17 @@ mutable struct ElasticShell<:Material
     end
 end
 
-# 
-
 
 # Type of corresponding state structure
-ip_state_type(::ElasticShell) = ElasticShellState
+ip_state_type(::Type{ElasticShell}) = ElasticShellState
+
+# Element types that work with this material
+matching_elem_types(::Type{ElasticShell}) = (MechShell,)
 
 
 function calcD(mat::ElasticShell, state::ElasticShellState)
     E = mat.E
-    ν = mat.nu
+    ν = mat.ν
     c = E/(1.0-ν^2)
     g = E/(1+ν)
     return [
@@ -61,7 +62,7 @@ function calcD(mat::ElasticShell, state::ElasticShellState)
 end
 
 
-function update_state(mat::ElasticShell, state::ElasticShellState, dε::Array{Float64,1})
+function update_state!(mat::ElasticShell, state::ElasticShellState, dε::Array{Float64,1})
     D = calcD(mat, state)
     dσ = D*dε
     state.ε += dε

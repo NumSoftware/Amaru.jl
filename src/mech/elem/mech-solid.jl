@@ -43,7 +43,7 @@ mutable struct MechSolid<:Mech
 end
 
 matching_shape_family(::Type{MechSolid}) = BULKCELL
-# matching_elem_type(::Type{MechSolidProps}) = MechSolid
+# matching_elem_types(::Type{MechSolidProps}) = MechSolid
 matching_elem_props(::Type{MechSolid}) = MechSolidProps
 
 
@@ -293,7 +293,7 @@ function update_elem!(elem::MechSolid, U::Array{Float64,1}, Δt::Float64)
         setB(elem, ip, dNdX, B)
 
         @gemv Δε = B*dU
-        Δσ, status = update_state(elem.mat, ip.state, Δε)
+        Δσ, status = update_state!(elem.mat, ip.state, Δε)
         failed(status) && return dF, map, failure("MechSolid: Error at integration point $(ip.id)")
         coef = detJ*ip.w*th
         @gemv dF += coef*B'*Δσ

@@ -2,9 +2,7 @@
 
 export TCJoint
 
-abstract type AbstractTCJointState<:IpState end
-
-mutable struct TCJointState<:AbstractTCJointState
+mutable struct TCJointState<:IpState
     env::ModelEnv
     σ  ::Array{Float64,1} # stress
     w  ::Array{Float64,1} # relative displacements
@@ -23,9 +21,7 @@ mutable struct TCJointState<:AbstractTCJointState
     end
 end
 
-abstract type AbstractTCJoint<:Material end
-
-mutable struct TCJoint<:AbstractTCJoint
+mutable struct TCJoint<:Material
     E ::Float64       # Young's modulus
     ν ::Float64       # Poisson ratio
     ft::Float64       # tensile strength
@@ -84,7 +80,7 @@ mutable struct TCJoint<:AbstractTCJoint
 end
 
 
-function paramsdict(mat::AbstractTCJoint)
+function paramsdict(mat::TCJoint)
     mat = OrderedDict( string(field)=> getfield(mat, field) for field in fieldnames(typeof(mat)) )
 
     mat.softcurve in ("hordijk", "soft") && ( mat["GF"] = 0.1943*mat.ft*mat.wc )
@@ -92,20 +88,21 @@ function paramsdict(mat::AbstractTCJoint)
 end
 
 
-
-
 # Type of corresponding state structure
-ip_state_type(::MechJoint, ::AbstractTCJoint) = TCJointState
+ip_state_type(::Type{TCJoint}) = TCJointState
+
+# Element types that work with this material
+matching_elem_types(::Type{TCJoint}) = (MechJoint,)
 
 
-function beta(mat::AbstractTCJoint, σmax::Float64)
+function beta(mat::TCJoint, σmax::Float64)
     βini = mat.βini
     βres = mat.γ*βini
     return βres + (βini-βres)*(σmax/mat.ft)^mat.α
 end
 
 
-function yield_func(mat::AbstractTCJoint, state::AbstractTCJointState, σ::Array{Float64,1}, σmax::Float64)
+function yield_func(mat::TCJoint, state::TCJointState, σ::Array{Float64,1}, σmax::Float64)
     α  = mat.α
     β = beta(mat, σmax)
     ft = mat.ft
@@ -117,7 +114,7 @@ function yield_func(mat::AbstractTCJoint, state::AbstractTCJointState, σ::Array
 end
 
 
-function yield_derivs(mat::AbstractTCJoint, state::AbstractTCJointState, σ::Array{Float64,1}, σmax::Float64)
+function yield_derivs(mat::TCJoint, state::TCJointState, σ::Array{Float64,1}, σmax::Float64)
     α = mat.α
     β = beta(mat, σmax)
     ft = mat.ft
@@ -134,7 +131,7 @@ function yield_derivs(mat::AbstractTCJoint, state::AbstractTCJointState, σ::Arr
 end
 
 
-function potential_derivs(mat::AbstractTCJoint, state::AbstractTCJointState, σ::Array{Float64,1})
+function potential_derivs(mat::TCJoint, state::TCJointState, σ::Array{Float64,1})
     ndim = state.env.ndim
     if ndim == 3
         if σ[1] > 0.0 
@@ -163,7 +160,7 @@ function potential_derivs(mat::AbstractTCJoint, state::AbstractTCJointState, σ:
 end
 
 
-function calc_σmax(mat::AbstractTCJoint, state::AbstractTCJointState, up::Float64)
+function calc_σmax(mat::TCJoint, state::TCJointState, up::Float64)
     if mat.softcurve == "linear"
         if up < mat.wc
             a = mat.ft 
@@ -222,7 +219,7 @@ function calc_σmax(mat::AbstractTCJoint, state::AbstractTCJointState, up::Float
 end
 
 
-function deriv_σmax_upa(mat::AbstractTCJoint, state::AbstractTCJointState, up::Float64)
+function deriv_σmax_upa(mat::TCJoint, state::TCJointState, up::Float64)
     if mat.softcurve == "linear"
         if up < mat.wc
             b = mat.ft /mat.wc
@@ -270,7 +267,7 @@ function deriv_σmax_upa(mat::AbstractTCJoint, state::AbstractTCJointState, up::
 end
 
 
-function calc_kn_ks(mat::AbstractTCJoint, state::AbstractTCJointState)
+function calc_kn_ks(mat::TCJoint, state::TCJointState)
     kn = mat.E*mat.ζ/state.h
     G  = mat.E/(2.0*(1.0+mat.ν))
     ks = G*mat.ζ/state.h
@@ -279,7 +276,7 @@ function calc_kn_ks(mat::AbstractTCJoint, state::AbstractTCJointState)
 end
 
 
-function consistentD(mat::AbstractTCJoint, state::AbstractTCJointState)
+function consistentD(mat::TCJoint, state::TCJointState)
     # numerical approximation
     # seems not to work under compressive loads
 
@@ -308,7 +305,7 @@ function consistentD(mat::AbstractTCJoint, state::AbstractTCJointState)
         statej = copy(state)
         V[j] = 1.0
         Δw = h*V
-        Δσ, succeeded = update_state(mat, statej, Δw)
+        Δσ, succeeded = update_state!(mat, statej, Δw)
         Dep[:,j] .= Δσ./h
         V[j] = 0.0
     end
@@ -317,7 +314,7 @@ function consistentD(mat::AbstractTCJoint, state::AbstractTCJointState)
 end
 
 
-function mountD(mat::AbstractTCJoint, state::AbstractTCJointState)
+function mountD(mat::TCJoint, state::TCJointState)
     # return consistentD(mat, state)
 
     ndim = state.env.ndim
@@ -366,7 +363,7 @@ function mountD(mat::AbstractTCJoint, state::AbstractTCJointState)
 end
 
 
-function calc_σ_up_Δλ(mat::AbstractTCJoint, state::AbstractTCJointState, σtr::Array{Float64,1})
+function calc_σ_up_Δλ(mat::TCJoint, state::TCJointState, σtr::Array{Float64,1})
     ndim = state.env.ndim
     Δλ   = 0.0
     up   = 0.0
@@ -434,7 +431,7 @@ function calc_σ_up_Δλ(mat::AbstractTCJoint, state::AbstractTCJointState, σtr
 end
 
 
-function yield_func_from_Δλ(mat::AbstractTCJoint, state::AbstractTCJointState, σtr::Array{Float64,1}, Δλ::Float64)
+function yield_func_from_Δλ(mat::TCJoint, state::TCJointState, σtr::Array{Float64,1}, Δλ::Float64)
     ndim = state.env.ndim
     kn, ks = calc_kn_ks(mat, state)
 
@@ -464,7 +461,7 @@ function yield_func_from_Δλ(mat::AbstractTCJoint, state::AbstractTCJointState,
 end
 
 
-function calc_σ_up_Δλ_bissection(mat::AbstractTCJoint, state::AbstractTCJointState, σtr::Array{Float64,1})
+function calc_σ_up_Δλ_bissection(mat::TCJoint, state::TCJointState, σtr::Array{Float64,1})
     ndim    = state.env.ndim
     kn, ks  = calc_kn_ks(mat, state)
     De      = diagm([kn, ks, ks][1:ndim])
@@ -528,7 +525,7 @@ function calc_σ_up_Δλ_bissection(mat::AbstractTCJoint, state::AbstractTCJoint
 end
 
 
-function update_state(mat::AbstractTCJoint, state::AbstractTCJointState, Δw::Array{Float64,1})
+function update_state!(mat::TCJoint, state::TCJointState, Δw::Array{Float64,1})
 
     ndim = state.env.ndim
     σini = copy(state.σ)
@@ -538,7 +535,7 @@ function update_state(mat::AbstractTCJoint, state::AbstractTCJointState, Δw::Ar
     σmax = calc_σmax(mat, state, state.up)  
 
     if isnan(Δw[1]) || isnan(Δw[2])
-        alert("AbstractTCJoint: Invalid value for joint displacement: Δw = $Δw")
+        alert("TCJoint: Invalid value for joint displacement: Δw = $Δw")
     end
 
     # σ trial and F trial
@@ -588,7 +585,7 @@ function update_state(mat::AbstractTCJoint, state::AbstractTCJointState, Δw::Ar
 end
 
 
-function ip_state_vals(mat::AbstractTCJoint, state::AbstractTCJointState)
+function ip_state_vals(mat::TCJoint, state::TCJointState)
     ndim = state.env.ndim
     if ndim == 3
        return Dict(
@@ -612,6 +609,6 @@ function ip_state_vals(mat::AbstractTCJoint, state::AbstractTCJointState)
 end
 
 
-function output_keys(mat::AbstractTCJoint)
+function output_keys(mat::TCJoint)
     return Symbol[:jw1, :js1, :jup]
 end

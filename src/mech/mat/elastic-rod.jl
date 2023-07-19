@@ -14,14 +14,6 @@ $(TYPEDFIELDS)
 mutable struct ElasticRod<:Material
     "Young Modulus"
     E::Float64
-    # "Section area"
-    # A::Float64
-    # "Density"
-    # ρ::Float64
-
-    function ElasticRod(prms::Dict{Symbol,Float64})
-        return  ElasticRod(;prms...)
-    end
 
     @doc """
         $(SIGNATURES)
@@ -30,17 +22,18 @@ mutable struct ElasticRod<:Material
 
     # Arguments
     - `E`: Young modulus
-    - `A`: Section area
-    - `dm`: Diameter (only if `A` is not provided)
     - `rho`: Density
     """
-    function ElasticRod(;E::Number=NaN)
-        @check E>0.0
+    function ElasticRod(; params...)
+        names = (E="Young modulus")
+        required = (:E,)
+        @checkmissing params required names
+
+        params  = values(params)
+        E       = params.E
+
+        @check E>=0.0
         return new(E)
-        # @check A>0.0 || dm>0.0
-        # @check rho>=0.0
-        # dm>0 && (A=π*dm^2/4)
-        # return new(E, A, rho)
     end
 end
 
@@ -70,13 +63,16 @@ mutable struct ElasticRodState<:IpState
 end
 
 
-matching_elem_type_if_embedded(::ElasticRod) = MechEmbRod
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticRod) = ElasticRodState
+ip_state_type(::Type{ElasticRod}) = ElasticRodState
+
+# Element types that work with this material
+matching_elem_types(::Type{ElasticRod}) = (MechRod,)
+matching_elem_type_if_embedded(::Type{ElasticRod}) = MechEmbRod
 
 
-function update_state(mat::ElasticRod, state::ElasticRodState, Δε::Float64)
+function update_state!(mat::ElasticRod, state::ElasticRodState, Δε::Float64)
     Δσ = mat.E*Δε
     state.ε += Δε
     state.σ += Δσ

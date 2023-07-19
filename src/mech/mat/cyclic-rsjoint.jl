@@ -86,11 +86,11 @@ mutable struct CyclicRSJoint<:Material
     end
 end
 
-# Returns the element type that works with this material
+# Element types that work with this material
+matching_elem_types(::Type{CyclicRSJoint}) = (MechRSJoint,)
 
-
-# Creates a new instance of Ip data
-ip_state_type(::MechRSJoint, mat::CyclicRSJoint) = CyclicRSJointState
+# Type of corresponding state structure
+ip_state_type(::Type{CyclicRSJoint}) = CyclicRSJointState
 
 
 function tau(mat::CyclicRSJoint, ips::CyclicRSJointState, s::Float64)
@@ -167,7 +167,7 @@ function calcD(mat::CyclicRSJoint, ips::CyclicRSJointState)
 end
 
 
-function update_state(mat::CyclicRSJoint, ips::CyclicRSJointState, Δu::Vect)
+function update_state!(mat::CyclicRSJoint, ips::CyclicRSJointState, Δu::Vect)
     ks = mat.ks
     kn = mat.kn
     s  = ips.u[1]   # relative displacement

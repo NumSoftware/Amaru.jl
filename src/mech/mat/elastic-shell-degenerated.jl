@@ -13,7 +13,7 @@ end
 
 mutable struct ElasticShellDegenerated<:Material
     E::Float64
-    nu::Float64
+    ν::Float64
     t::Float64
 
     function ElasticShellDegenerated(prms::Dict{Symbol,Float64})
@@ -32,7 +32,7 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticShellDegenerated) = ElasticShellDegeneratedState
+ip_state_type(::Type{ElasticShellDegenerated}) = ElasticShellDegeneratedState
 
 
 function ip_state_vals(mat::ElasticShellDegenerated, state::ElasticShellDegeneratedState)

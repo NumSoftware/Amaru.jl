@@ -30,11 +30,11 @@ mutable struct TipJoint<:Material
 end
 
 
-# Returns the element type that works with this material
-matching_elem_type(::TipJoint) = MechTipJoint
+# Element types that work with this material
+matching_elem_types(::Type{TipJoint}) = (MechTipJoint,)
 
 # Type of corresponding state structure
-ip_state_type(mat::TipJoint) = TipJointState
+ip_state_type(::Type{TipJoint}) = TipJointState
 
 
 function calcD(mat::TipJoint, state::TipJointState)
@@ -46,7 +46,7 @@ function calcD(mat::TipJoint, state::TipJointState)
 end
 
 
-function update_state(mat::TipJoint, state::TipJointState, Δw)
+function update_state!(mat::TipJoint, state::TipJointState, Δw)
     fini = state.f
     ftr  = fini + mat.k*Δw
     

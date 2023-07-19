@@ -93,7 +93,7 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(mat::MCJointSeep2) = MCJointSeepState2
+ip_state_type(::Type{MCJointSeep2}) = MCJointSeepState2
 
 
 function yield_func(mat::MCJointSeep2, state::MCJointSeepState2, σ::Array{Float64,1})
@@ -360,7 +360,7 @@ function mountD(mat::MCJointSeep2, state::MCJointSeepState2)
 end
 
 
-function update_state(mat::MCJointSeep2, state::MCJointSeepState2, Δw::Array{Float64,1}, Δuw::Array{Float64,1},  G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
+function update_state!(mat::MCJointSeep2, state::MCJointSeepState2, Δw::Array{Float64,1}, Δuw::Array{Float64,1},  G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
     ndim = state.env.ndim
     σini = copy(state.σ)
 

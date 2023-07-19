@@ -35,7 +35,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticSpring) = ElasticSpringState
+ip_state_type(::Type{ElasticSpring}) = ElasticSpringState
+
+# Element types that work with this material
+matching_elem_types(::Type{ElasticSpring}) = (MechSpring,)
 
 
 function ip_state_vals(mat::ElasticSpring, state::ElasticSpringState)

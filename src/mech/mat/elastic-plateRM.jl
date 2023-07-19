@@ -13,7 +13,7 @@ end
 
 mutable struct ElasticPlateRM<:Material
     E::Float64
-    nu::Float64
+    ν::Float64
     ρ::Float64
 
     function ElasticPlateRM(prms::Dict{Symbol,Float64})
@@ -32,7 +32,7 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticPlateRM) = ElasticPlateRMState
+ip_state_type(::Type{ElasticPlateRM}) = ElasticPlateRMState
 
 
 function ip_state_vals(mat::ElasticPlateRM, state::ElasticPlateRMState)

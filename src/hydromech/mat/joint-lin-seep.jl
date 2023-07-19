@@ -50,7 +50,7 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(mat::JointLinSeep) = JointLinSeepState
+ip_state_type(::Type{JointLinSeep}) = JointLinSeepState
 
 
 function update_state!(mat::JointLinSeep, state::JointLinSeepState, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)

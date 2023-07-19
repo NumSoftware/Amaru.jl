@@ -21,29 +21,34 @@ end
 
 mutable struct ElasticBeam<:Material
     E::Float64
-    nu::Float64
+    ν::Float64
 
-    function ElasticBeam(prms::Dict{Symbol,Float64})
-        return  ElasticBeam(;prms...)
-    end
+    function ElasticBeam(; params...)
+        names = (E="Young modulus", nu="Poisson ratio")
+        required = (:E, :nu)
+        @checkmissing params required names
 
-    function ElasticBeam(;E=NaN, nu=0.0)
-        @check E>0.0
-        @check 0.0<=nu<0.5
-        this = new(E, nu)
-        return this
+        params  = values(params)
+        E       = params.E
+        nu      = params.nu
+
+        @check E>=0.0
+        @check 0<=nu<0.5
+        return new(E, nu)
     end
 end
 
 
-
 # Type of corresponding state structure
-ip_state_type(mat::ElasticBeam) = ElasticBeamState
+ip_state_type(::Type{ElasticBeam}) = ElasticBeamState
+
+# Element types that work with this material
+matching_elem_types(::Type{ElasticBeam}) = (MechBeam,)
 
 
 function calcD(mat::ElasticBeam, state::ElasticBeamState)
     E = mat.E
-    ν = mat.nu
+    ν = mat.ν
     c = E/(1.0-ν^2)
     g = E/(1+ν)
 
@@ -58,7 +63,7 @@ function calcD(mat::ElasticBeam, state::ElasticBeamState)
 end
 
 
-function update_state(mat::ElasticBeam, state::ElasticBeamState, dε::Array{Float64,1})
+function update_state!(mat::ElasticBeam, state::ElasticBeamState, dε::Array{Float64,1})
     D = calcD(mat, state)
     dσ = D*dε
     state.ε += dε

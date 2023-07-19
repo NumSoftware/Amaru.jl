@@ -23,11 +23,11 @@ matching_shape_family(::Type{PlateMZC}) = BULKCELL
 
 function D_matrix(elem::PlateMZC)
 
-    coef = elem.mat.E*elem.mat.thick^3/(12*(1-elem.mat.nu^2));
+    coef = elem.mat.E*elem.mat.thick^3/(12*(1-elem.mat.ν^2));
 
-    D_mat = coef*[1 elem.mat.nu 0
-                  elem.mat.nu 1 0
-                  0  0 (1-elem.mat.nu)/2];
+    D_mat = coef*[1 elem.mat.ν 0
+                  elem.mat.ν 1 0
+                  0  0 (1-elem.mat.ν)/2];
     return D_mat
 end
 

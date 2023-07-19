@@ -7,7 +7,7 @@ n     = 2
 bl    = Block(coord, nx=n, cellshape = LIN3, tag="beam")
 msh   = Mesh(bl, ndim=2)
 
-mats  = [ "beam" << MechBeam << LinearElastic << (E=1e4, nu=0, thy=0.1, thz=0.1) ]
+mats  = [ "beam" << MechBeam << ElasticBeam << (E=1e4, nu=0, thy=0.1, thz=0.1) ]
 
 ana = MechAnalysis()
 model = FEModel(msh, mats, ana)
@@ -36,7 +36,7 @@ n     = 2
 bl    = Block(coord, nx=n, cellshape = LIN3, tag="beam")
 msh   = Mesh(bl, ndim=3)
 
-mats  = [ "beam" << MechBeam << LinearElastic << (E=1e4, nu=0, thy=0.1, thz=0.1) ]
+mats  = [ "beam" << MechBeam << ElasticBeam << (E=1e4, nu=0, thy=0.1, thz=0.1) ]
 ana = MechAnalysis()
 model = FEModel(msh, mats, ana)
 

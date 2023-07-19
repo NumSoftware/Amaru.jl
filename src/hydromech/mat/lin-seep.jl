@@ -42,7 +42,7 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::SeepSolid, ::LinSeep) = LinSeepState
+ip_state_type(::Type{LinSeep}) = LinSeepState
 
 
 function calcK(mat::LinSeep, state::LinSeepState) # Hydraulic conductivity matrix

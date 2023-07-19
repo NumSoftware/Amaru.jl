@@ -58,7 +58,7 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::MechSolid, ::CompressibleBulk) = CompressibleBulkState
+ip_state_type(::Type{CompressibleBulk}) = CompressibleBulkState
 
 
 @inline function calc_py(mat::CompressibleBulk, state::CompressibleBulkState, εvp::Float64)
@@ -180,7 +180,7 @@ function calc_σ_Δεvp_Δλ(mat::CompressibleBulk, state::CompressibleBulkState
 end
 
 
-function update_state(mat::CompressibleBulk, state::CompressibleBulkState, Δε::Array{Float64,1})
+function update_state!(mat::CompressibleBulk, state::CompressibleBulkState, Δε::Array{Float64,1})
     σini = state.σ
 
     De  = calcDe(mat.E, mat.ν, state.env.ana.stressmodel)

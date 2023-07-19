@@ -24,7 +24,7 @@ end
 
 mutable struct Mazars<:Material
     E ::Float64
-    nu::Float64
+    ν::Float64
     ε̅0::Float64
     At::Float64
     Bt::Float64
@@ -56,9 +56,11 @@ mutable struct Mazars<:Material
 end
 
 
-
 # Type of corresponding state structure
-ip_state_type(::MechSolid, ::Mazars) = MazarsState
+ip_state_type(::Type{Mazars}) = MazarsState
+
+# Element types that work with this material
+matching_elem_types(::Type{Mazars}) = (MechSolid,)
 
 
 function calcD(mat::Mazars, state::MazarsState)
@@ -115,12 +117,12 @@ function calcD(mat::Mazars, state::MazarsState)
 end
 
 
-function update_state(mat::Mazars, state::MazarsState, Δε::AbstractArray)
+function update_state!(mat::Mazars, state::MazarsState, Δε::AbstractArray)
     σini  = state.σ
     state.ε = state.ε + Δε
 
     E  = mat.E
-    nu = mat.nu
+    nu = mat.ν
 
     # Principal stresses tensor
     εp = eigvals(state.ε)

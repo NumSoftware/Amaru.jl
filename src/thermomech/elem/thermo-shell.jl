@@ -216,7 +216,7 @@ function elem_internal_forces(elem::ThermoShell, F::Array{Float64,1})
         # compute N
         # internal force
         ut   = ip.state.ut + 273
-        β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.nu)
+        β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.ν)
         σ    = ip.state.σ - β*ut*m # get total stress
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*σ

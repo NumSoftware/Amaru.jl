@@ -2,7 +2,7 @@
 
 export TCJointSeep
 
-mutable struct TCJointSeepState<:AbstractTCJointState
+mutable struct TCJointSeepState<:IpState
     env::ModelEnv
     σ  ::Array{Float64,1} # stress
     w  ::Array{Float64,1} # relative displacements
@@ -27,7 +27,7 @@ mutable struct TCJointSeepState<:AbstractTCJointState
     end
 end
 
-mutable struct TCJointSeep<:AbstractTCJoint
+mutable struct TCJointSeep<:Material
     E ::Float64       # Young's modulus
     ν ::Float64       # Poisson ratio
     ft::Float64       # tensile strength
@@ -92,10 +92,10 @@ mutable struct TCJointSeep<:AbstractTCJoint
     end
 end
 
-matching_elem_type(::TCJointSeep) = HMJoint
+matching_elem_types(::Type{TCJointSeep}) = (HMJoint,)
 
 # Type of corresponding state structure
-ip_state_type(::TCJointSeep) = TCJointSeepState
+ip_state_type(::Type{TCJointSeep}) = TCJointSeepState
 
 
 function mountD(mat::TCJointSeep, state::TCJointSeepState)
@@ -105,13 +105,13 @@ function mountD(mat::TCJointSeep, state::TCJointSeepState)
         # mat.fracture = false
     end 
 
-    invoke(mountD, Tuple{AbstractTCJoint, AbstractTCJointState}, mat, state)
+    invoke(mountD, Tuple{Material, IpState}, mat, state)
 end
 
 
-function update_state(mat::TCJointSeep, state::TCJointSeepState, Δw::Array{Float64,1}, Δuw::Array{Float64,1},  G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
+function update_state!(mat::TCJointSeep, state::TCJointSeepState, Δw::Array{Float64,1}, Δuw::Array{Float64,1},  G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
     
-    Δσ, status = invoke(update_state, Tuple{AbstractTCJoint, AbstractTCJointState, Vector{Float64}}, mat, state, Δw)
+    Δσ, status = invoke(update_state, Tuple{Material, IpState, Vector{Float64}}, mat, state, Δw)
 
     state.uw += Δuw
     state.Vt  = -mat.kt*G

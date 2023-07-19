@@ -58,11 +58,11 @@ mutable struct DamageConcreteState<:IpState
     end
 end
 
-
-
+# Element types that work with this material
+matching_elem_types(::Type{DamageConcrete}) = (MechSolid,)
 
 # Type of corresponding state structure
-ip_state_type(mat::DamageConcrete) = DamageConcreteState
+ip_state_type(::Type{DamageConcrete}) = DamageConcreteState
 
 
 function uniaxial_σ(mat::DamageConcrete, state::DamageConcreteState, εi::Float64)
@@ -197,7 +197,7 @@ end
 
 
 #function calcDsec(mat::DamageConcrete, state::DamageConcreteState, Δε::Array{Float64,1}, stressmodel::Symbol)
-function update_state(mat::DamageConcrete, state::DamageConcreteState, Δε::Array{Float64,1})
+function update_state!(mat::DamageConcrete, state::DamageConcreteState, Δε::Array{Float64,1})
     # special functions
     pos(x)   = (abs(x)+x)/2.0
     neg(x)   = (-abs(x)+x)/2.0

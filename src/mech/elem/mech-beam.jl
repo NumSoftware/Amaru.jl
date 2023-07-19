@@ -103,7 +103,7 @@ function setquadrature!(elem::MechBeam, n::Int=0)
                 m = (i-1)*nj*nk + (j-1)*nk + k
                 elem.ips[m] = Ip(R, w)
                 elem.ips[m].id = m
-                elem.ips[m].state = ip_state_type(elem, elem.mat)(elem.env)
+                elem.ips[m].state = ip_state_type(typeof(elem.mat))(elem.env)
                 elem.ips[m].owner = elem
                 # @show m
             end
@@ -308,7 +308,7 @@ function update_elem!(elem::MechBeam, U::Array{Float64,1}, dt::Float64)
         dNdX′ = dNdR*inv(dx′dξ)
         setB(elem, ip, L, N, dNdX′, Rθ, Bil, Bi, B)
         Δε = B*dU
-        Δσ, status = update_state(elem.mat, ip.state, Δε)
+        Δσ, status = update_state!(elem.mat, ip.state, Δε)
         failed(status) && return failure("MechBeam: Error at integration point $(ip.id)")
         
         if ndim==2

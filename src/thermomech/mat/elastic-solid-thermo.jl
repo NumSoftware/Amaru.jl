@@ -23,7 +23,7 @@ end
 
 mutable struct LinearElasticThermo<:Material
     E ::Float64 # Young's Modulus kN/m2
-    nu::Float64 # Poisson coefficient
+    ν::Float64 # Poisson coefficient
     k ::Float64 # thermal conductivity  w/m/k
     α ::Float64 # thermal expansion coefficient  1/K or 1/°C
 
@@ -48,11 +48,14 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::TMSolid, ::LinearElasticThermo) = LinearElasticThermoState
+ip_state_type(::Type{LinearElasticThermo}) = LinearElasticThermoState
+
+# Element types that work with this material
+matching_elem_types(::Type{LinearElasticThermo}) = (TMSolid,)
 
 
 function calcD(mat::LinearElasticThermo, state::LinearElasticThermoState)
-    return calcDe(mat.E, mat.nu, state.env.ana.stressmodel) # function calcDe defined at elastic-solid.jl
+    return calcDe(mat.E, mat.ν, state.env.ana.stressmodel) # function calcDe defined at elastic-solid.jl
 end
 
 
@@ -65,7 +68,7 @@ function calcK(mat::LinearElasticThermo, state::LinearElasticThermoState) # Ther
 end
 
 
-function update_state(mat::LinearElasticThermo, state::LinearElasticThermoState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
+function update_state!(mat::LinearElasticThermo, state::LinearElasticThermoState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
     De = calcD(mat, state)
     Δσ = De*Δε
     state.ε  += Δε
@@ -74,7 +77,7 @@ function update_state(mat::LinearElasticThermo, state::LinearElasticThermoState,
     state.QQ = -K*G
     state.D  += state.QQ*Δt
     state.ut += Δut
-    return Δσ, state.QQ
+    return Δσ, state.QQ, success()
 end
 
 

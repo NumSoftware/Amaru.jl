@@ -107,7 +107,6 @@ function FEModel(
     model.nodes = copy.(mesh.nodes)
 
     # Setting new elements
-    # quiet || print("  setting elements...\r")
     ncells      = length(mesh.elems)
     model.elems = Array{Element,1}(undef, ncells)
     for matbind in matbinds
@@ -120,21 +119,31 @@ function FEModel(
         mat_type  = matbind[3]
         args      = matbind[4]
         
-        # elem_type = matching_elem_type(typeof(elem_props))
-
         # Check if material is compatible with the element
-        # mat_type = typeof(mat)
-        if !hasmethod(ip_state_type, (elem_type, mat_type)) 
-            # available materials
-            av_mats = [  fieldtypes(m.sig)[3] for m in methods(ip_state_type, (elem_type, Any))  ]
-            av_elems = [  fieldtypes(m.sig)[2] for m in methods(ip_state_type, (Any, mat_type))  ]
-            message = "FEModel: Element $(elem_type) is not compatible with material model $(mat_type). \
-                       Compatible material models for element $(elem_type) are: $(join(av_mats, ", ", " and ")). \
-                       Compatible elements for material model $(mat_type) are: $(join(av_elems, ", ", " and "))"
-            message = replace(message, r"Elem\b" => "")
+        comp_elem_types = matching_elem_types(mat_type)
+        if !(elem_type in comp_elem_types)
+
+            # get list of material models
+            all_mat_types = [ fieldtypes(m.sig)[2].parameters[1] for m in  methods(Amaru.matching_elem_types, (Any,)) if hasproperty(fieldtypes(m.sig)[2], :parameters)]
+            comp_mat_types = [ mat_t for mat_t in all_mat_types if elem_type in matching_elem_types(mat_t) ]
+
+            message = "FEModel: Material model $(mat_type) is not compatible with Element $(elem_type) \n\
+                       Compatible elements for material $(mat_type): $(join(comp_elem_types, ", ", " and ")) \n\
+                       Compatible materials for element $(elem_type): $(join(comp_mat_types, ", ", " and "))"
             message = replace(message, r"Amaru\." => "")
             throw(AmaruException(message))
         end
+        # if !hasmethod(ip_state_type, (Type{elem_type}, Type{mat_type})) 
+        #     # available materials
+        #     av_mats = [  fieldtypes(m.sig)[3] for m in methods(ip_state_type, (Type{elem_type}, Any))  ]
+        #     av_elems = [  fieldtypes(m.sig)[2] for m in methods(ip_state_type, (Any, Type{mat_type}))  ]
+        #     message = "FEModel: Element $(elem_type) is not compatible with material model $(mat_type).\n\
+        #                Compatible material models for element $(elem_type) are: $(join(av_mats, ", ", " and ")).\n\
+        #                Compatible elements for material model $(mat_type) are: $(join(av_elems, ", ", " and "))"
+        #     message = replace(message, r"Elem\b" => "")
+        #     message = replace(message, r"Amaru\." => "")
+        #     throw(AmaruException(message))
+        # end
 
         cells = mesh.elems[filter]
         if !(cells isa Array)
@@ -146,11 +155,10 @@ function FEModel(
 
         mat   = mat_type(;args...)
         props = matching_elem_props(elem_type)(;args...)
-        # props = check_props(elem_type; args...)
 
         for cell in cells
             if cell.embedded
-                elem_t = matching_elem_type_if_embedded(mat)
+                elem_t = matching_elem_type_if_embedded(mat_type)
             else
                 elem_t = elem_type
             end

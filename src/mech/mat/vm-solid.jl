@@ -36,17 +36,25 @@ mutable struct VonMises<:Material
     - `nu`: Poisson ratio
     - `fy`: Yielding stress
     - `H`: Hardening parameter
-    - `rho`: Density
     """
-    function VonMises(;E=NaN, nu=0.0, fy=0.0, H=0.0, rho=0.0)
-        @assert E>0.0
-        @assert 0.0<=nu<0.5
+    function VonMises(; params...)
+        names = (E="Young modulus", nu="Poisson ratio", fy="Yield stress", H="Hardening modulus")
+        required = (:E, :nu, :fy, :H)
+        @checkmissing params required names
+
+        default = (nu=0.0,)
+        params  = merge(default, params)
+        E       = params.E
+        nu      = params.nu
+        fy      = params.fy
+        H       = params.H
+
+        @check E>=0.0
+        @check 0<=nu<0.5
         @assert fy>0.0
         @assert H>=0.0
 
-        this    = new(E, nu, fy, H)
-        #this.De = calcDe(E, nu)
-        return this
+        return new(E, nu, fy, H)
     end
 end
 
@@ -81,9 +89,11 @@ mutable struct VonMisesState<:IpState
 end
 
 
+# Type of corresponding state structure
+ip_state_type(::Type{VonMises}) = VonMisesState
 
-ip_state_type(::MechSolid, ::VonMises) = VonMisesState
-
+# Element types that work with this material
+matching_elem_types(::Type{VonMises}) = (MechSolid, MechShell)
 
 function yield_func(mat::VonMises, state::VonMisesState, σ::AbstractArray)
     j1  = J1(σ)
@@ -118,7 +128,7 @@ function calcD(mat::VonMises, state::VonMisesState, stressmodel::String=state.en
 end
 
 
-function update_state(mat::VonMises, state::VonMisesState, Δε::Array{Float64,1}, stressmodel::String=state.env.ana.stressmodel)
+function update_state!(mat::VonMises, state::VonMisesState, Δε::Array{Float64,1}, stressmodel::String=state.env.ana.stressmodel)
     σini = state.σ
     De   = calcDe(mat.E, mat.ν, stressmodel)
     σtr  = state.σ + De*Δε
@@ -135,7 +145,7 @@ function update_state(mat::VonMises, state::VonMisesState, Δε::Array{Float64,1
         j1tr  = J1(σtr)
         j2dtr = J2D(σtr)
 
-        @assert √j2dtr - state.Δγ*√2*G > 0.0
+        √j2dtr - state.Δγ*√2*G <= 0.0 && return state.σ, failure("VonMisses: √j2dtr - state.Δγ*√2*G>0.0")
         state.Δγ = ftr/(√6*G + H)
         j1     = j1tr
         m      = 1.0 - state.Δγ*√2*G/√j2dtr

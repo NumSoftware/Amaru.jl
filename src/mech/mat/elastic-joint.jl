@@ -18,7 +18,7 @@ end
 
 mutable struct ElasticJoint<:Material
     E::Float64 # Young modulus from bulk material
-    ν::Float64 # Poisson ration from bulk material
+    ν::Float64 # Poisson ratio from bulk material
     kn::Float64 # Normal stiffness (used only if E and ν are NaN)
     ks::Float64 # Shear stiffness (used only if E and ν are NaN)
     ζ::Float64 # elastic displacement scale factor (formerly α)
@@ -45,12 +45,12 @@ mutable struct ElasticJoint<:Material
 
 end
 
-@static if @isdefined MechJoint
-    
-end
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticJoint) = JointState
+ip_state_type(::Type{ElasticJoint}) = JointState
+
+# Element types that work with this material
+matching_elem_types(::Type{ElasticJoint}) = (MechJoint,)
 
 
 function mountD(mat::ElasticJoint, state::JointState)
@@ -75,7 +75,7 @@ function mountD(mat::ElasticJoint, state::JointState)
 end
 
 
-function update_state(mat::ElasticJoint, state::JointState, Δu)
+function update_state!(mat::ElasticJoint, state::JointState, Δu)
     ndim = state.env.ndim
     D  = mountD(mat, state)
     Δσ = D*Δu

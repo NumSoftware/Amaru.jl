@@ -22,7 +22,7 @@ mutable struct LinThermoShell<:Material
     cv::Float64 # Specific heat J/Ton/k
     thickness::Float64 # thickness
     #E ::Float64 # Young's modulus kPa
-    #nu::Float64 # Poisson ratio
+    #ν::Float64 # Poisson ratio
     #α ::Float64 #  coefficient of thermal expansion 1/K or 1/°C
 
     function LinThermoShell(prms::Dict{Symbol,Float64})
@@ -42,7 +42,7 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(mat::LinThermoShell) = LinThermoShellState
+ip_state_type(::Type{LinThermoShell}) = LinThermoShellState
 
 
 function calcK(mat::LinThermoShell, state::LinThermoShellState) # Thermal conductivity matrix

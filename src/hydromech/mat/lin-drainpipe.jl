@@ -36,7 +36,7 @@ end
 #matching_elem_type_if_embedded(::LinDrainPipe) = SeepEmbRod
 
 # Type of corresponding state structure
-ip_state_type(::DrainPipe, ::LinDrainPipe) = LinDrainPipeState
+ip_state_type(::Type{LinDrainPipe}) = LinDrainPipeState
 
 
 function update_state!(mat::LinDrainPipe, state::LinDrainPipeState, Δuw::Float64, G::Float64, Δt::Float64)

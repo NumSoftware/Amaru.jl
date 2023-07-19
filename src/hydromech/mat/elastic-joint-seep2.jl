@@ -31,7 +31,7 @@ end
 
 mutable struct ElasticJointSeep2<:Material
     E  ::Float64        # Young's modulus
-    nu ::Float64        # Poisson ration
+    ν::Float64        # Poisson ratio
     ζ  ::Float64        # factor ζ controls the elastic relative displacements
     γw ::Float64        # specific weight of the fluid
     β  ::Float64        # compressibility of fluid
@@ -62,12 +62,12 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticJointSeep2) = JointSeepState2
+ip_state_type(::Type{ElasticJointSeep2}) = JointSeepState2
 
 
 function mountD(mat::ElasticJointSeep2, state::JointSeepState2)
     ndim = state.env.ndim
-    G  = mat.E/(1.0+mat.nu)/2.0
+    G  = mat.E/(1.0+mat.ν)/2.0
     kn = mat.E*mat.ζ/state.h
     ks =     G*mat.ζ/state.h
     if ndim==2
@@ -81,7 +81,7 @@ function mountD(mat::ElasticJointSeep2, state::JointSeepState2)
 end
 
 
-function update_state(mat::ElasticJointSeep2, state::JointSeepState2, Δu::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
+function update_state!(mat::ElasticJointSeep2, state::JointSeepState2, Δu::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
     ndim = state.env.ndim
     D  = mountD(mat, state)
     Δσ = D*Δu

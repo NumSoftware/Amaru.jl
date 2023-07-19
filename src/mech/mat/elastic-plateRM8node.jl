@@ -13,7 +13,7 @@ end
 
 mutable struct ElasticPlateRM8node<:Material
     E::Float64
-    nu::Float64
+    ν::Float64
     ρ::Float64
 
     function ElasticPlateRM8node(prms::Dict{Symbol,Float64})
@@ -32,7 +32,7 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(mat::ElasticPlateRM8node) = ElasticPlateRM8nodeState
+ip_state_type(::Type{ElasticPlateRM8node}) = ElasticPlateRM8nodeState
 
 
 function ip_state_vals(mat::ElasticPlateRM8node, state::ElasticPlateRM8nodeState)

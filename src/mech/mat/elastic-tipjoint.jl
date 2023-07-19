@@ -30,11 +30,11 @@ mutable struct ElasticTipJoint<:Material
 end
 
 
-# Returns the element type that works with this material
-
-
 # Type of corresponding state structure
-ip_state_type(mat::ElasticTipJoint) = ElasticTipJointState
+ip_state_type(::Type{ElasticTipJoint}) = ElasticTipJointState
+
+# Element types that work with this material
+matching_elem_types(::Type{ElasticTipJoint}) = (MechTipJoint,)
 
 
 function calcD(mat::ElasticTipJoint, state::ElasticTipJointState)
@@ -42,7 +42,7 @@ function calcD(mat::ElasticTipJoint, state::ElasticTipJointState)
 end
 
 
-function update_state(mat::ElasticTipJoint, state::ElasticTipJointState, Δw)
+function update_state!(mat::ElasticTipJoint, state::ElasticTipJointState, Δw)
     Δf = mat.k*Δw
     state.f += Δf
     state.w += Δw

@@ -16,10 +16,10 @@ mutable struct MechIntegrator
 end
 
 
-function update_state(int::MechIntegrator, Δε; nincs=1)
+function update_state!(int::MechIntegrator, Δε; nincs=1)
     Δεi = Δε/nincs
     for i in 1:nincs
-        update_state(int.mat, int.state, Δεi)
+        update_state!(int.mat, int.state, Δεi)
         vals = ip_state_vals(int.mat, int.state)
         push!(int.table, vals)
     end
