@@ -34,7 +34,6 @@ mutable struct LinThermo<:Material
 end
 
 
-
 # Type of corresponding state structure
 ip_state_type(::ThermoSolid, ::LinThermo) = LinThermoState
 

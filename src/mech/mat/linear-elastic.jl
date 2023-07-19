@@ -29,7 +29,6 @@ mutable struct LinearElastic<:Material
     function LinearElastic(;params...)
         names = (E="Young modulus", nu="Poisson ratio")
         required = (:E,)
-        # @show params
         @checkmissing params required names
 
         default = (nu=0.0,)
@@ -133,9 +132,9 @@ end
 
 # Type of corresponding state structure
 ip_state_type(::MechSolid, ::LinearElastic) = ElasticSolidState
+ip_state_type(::MechShell, ::LinearElastic) = ElasticSolidState
 ip_state_type(::MechRod, ::LinearElastic)  = ElasticRodState
 ip_state_type(::MechBeam, ::LinearElastic) = ElasticBeamState
-ip_state_type(::MechShell, ::LinearElastic) = ElasticShellState
 
 
 function calcDe(E::Number, ν::Number, stressmodel::String)
@@ -149,6 +148,16 @@ function calcDe(E::Number, ν::Number, stressmodel::String)
             0.0  0.0   0.0  0.0  0.0  0.0
             0.0  0.0   0.0  0.0  0.0  c*(1.0-ν) ]
         ezz = -ν/E*(sxx+syy)
+    elseif stressmodel=="shell"
+        c = E/(1.0-ν^2)
+        g = E/(1+ν)
+        return @Mat6x6 [
+            c    c*ν   0.0  0.0    0.0    0.0
+            c*ν  c     0.0  0.0    0.0    0.0
+            0.0  0.0   0.0  0.0    0.0    0.0
+            0.0  0.0   0.0  5/6*g  0.0    0.0
+            0.0  0.0   0.0  0.0    5/6*g  0.0
+            0.0  0.0   0.0  0.0    0.0    g ]
     else
         c = E/((1.0+ν)*(1.0-2.0*ν))
         return @Mat6x6 [
@@ -162,13 +171,13 @@ function calcDe(E::Number, ν::Number, stressmodel::String)
 end
 
 
-function calcD(mat::LinearElastic, state::ElasticSolidState)
-    return calcDe(mat.E, mat.nu, state.env.ana.stressmodel)
+function calcD(mat::LinearElastic, state::ElasticSolidState, stressmodel::String=state.env.ana.stressmodel)
+    return calcDe(mat.E, mat.nu, stressmodel)
 end
 
 
-function update_state(mat::LinearElastic, state::ElasticSolidState, dε::AbstractArray)
-    De = calcDe(mat.E, mat.nu, state.env.ana.stressmodel)
+function update_state(mat::LinearElastic, state::ElasticSolidState, dε::AbstractArray, stressmodel::String=state.env.ana.stressmodel)
+    De = calcDe(mat.E, mat.nu, stressmodel)
     dσ = De*dε
     state.ε += dε
     state.σ += dσ
@@ -176,8 +185,8 @@ function update_state(mat::LinearElastic, state::ElasticSolidState, dε::Abstrac
 end
 
 
-function ip_state_vals(mat::LinearElastic, state::ElasticSolidState)
-    return stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
+function ip_state_vals(mat::LinearElastic, state::ElasticSolidState, stressmodel::String=state.env.ana.stressmodel)
+    return stress_strain_dict(state.σ, state.ε, stressmodel)
 end
 
 
@@ -247,34 +256,34 @@ function ip_state_vals(mat::LinearElastic, state::ElasticBeamState)
 end
 
 
-## Shell
+# ## Shell
 
 
-function calcD(mat::LinearElastic, state::ElasticShellState)
-    E = mat.E
-    ν = mat.nu
-    c = E/(1.0-ν^2)
-    g = E/(1+ν)
-    return [
-        c    c*ν   0.0  0.0    0.0    0.0
-        c*ν  c     0.0  0.0    0.0    0.0
-        0.0  0.0   0.0  0.0    0.0    0.0
-        0.0  0.0   0.0  5/6*g  0.0    0.0
-        0.0  0.0   0.0  0.0    5/6*g  0.0
-        0.0  0.0   0.0  0.0    0.0    g ]
-    # ezz = -ν/E*(sxx+syy)
-end
+# function calcD(mat::LinearElastic, state::ElasticShellState)
+#     E = mat.E
+#     ν = mat.nu
+#     c = E/(1.0-ν^2)
+#     g = E/(1+ν)
+#     return [
+#         c    c*ν   0.0  0.0    0.0    0.0
+#         c*ν  c     0.0  0.0    0.0    0.0
+#         0.0  0.0   0.0  0.0    0.0    0.0
+#         0.0  0.0   0.0  5/6*g  0.0    0.0
+#         0.0  0.0   0.0  0.0    5/6*g  0.0
+#         0.0  0.0   0.0  0.0    0.0    g ]
+#     # ezz = -ν/E*(sxx+syy)
+# end
 
 
-function update_state(mat::LinearElastic, state::ElasticShellState, dε::AbstractArray)
-    D = calcD(mat, state)
-    dσ = D*dε
-    state.ε += dε
-    state.σ += dσ
-    return dσ, success()
-end
+# function update_state(mat::LinearElastic, state::ElasticShellState, dε::AbstractArray)
+#     D = calcD(mat, state)
+#     dσ = D*dε
+#     state.ε += dε
+#     state.σ += dσ
+#     return dσ, success()
+# end
 
 
-function ip_state_vals(mat::LinearElastic, state::ElasticShellState)
-    return stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
-end
+# function ip_state_vals(mat::LinearElastic, state::ElasticShellState)
+#     return stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
+# end

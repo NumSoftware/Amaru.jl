@@ -12,6 +12,7 @@ include("elem/thermomech-shell.jl")
 
 # Models for solid elements (2D and 3D)
 #include("mat/elastic-solid-lin-cond.jl")
+# include("mat/tm-combined.jl")
 include("mat/lin-thermo.jl")
 include("mat/lin-thermo-shell.jl")
 include("mat/elastic-solid-thermo.jl")

@@ -95,11 +95,11 @@ function yield_func(mat::VonMises, state::VonMisesState, σ::AbstractArray)
 end
 
 
-function calcD(mat::VonMises, state::VonMisesState)
+function calcD(mat::VonMises, state::VonMisesState, stressmodel::String=state.env.ana.stressmodel)
     σy = mat.σy
     H  = mat.H
     #De = mat.De
-    De  = calcDe(mat.E, mat.ν, state.env.ana.stressmodel)
+    De  = calcDe(mat.E, mat.ν, stressmodel)
 
     if state.Δγ==0.0
         return De
@@ -118,9 +118,9 @@ function calcD(mat::VonMises, state::VonMisesState)
 end
 
 
-function update_state(mat::VonMises, state::VonMisesState, Δε::Array{Float64,1})
+function update_state(mat::VonMises, state::VonMisesState, Δε::Array{Float64,1}, stressmodel::String=state.env.ana.stressmodel)
     σini = state.σ
-    De   = calcDe(mat.E, mat.ν, state.env.ana.stressmodel)
+    De   = calcDe(mat.E, mat.ν, stressmodel)
     σtr  = state.σ + De*Δε
     ftr  = yield_func(mat, state, σtr)
 
@@ -151,13 +151,13 @@ function update_state(mat::VonMises, state::VonMisesState, Δε::Array{Float64,1
 end
 
 
-function ip_state_vals(mat::VonMises, state::VonMisesState)
+function ip_state_vals(mat::VonMises, state::VonMisesState, stressmodel::String=state.env.ana.stressmodel)
     ndim  = state.env.ndim
     σ, ε  = state.σ, state.ε
     j1    = tr(σ)
     srj2d = √J2D(σ)
 
-    D = stress_strain_dict(σ, ε, state.env.ana.stressmodel)
+    D = stress_strain_dict(σ, ε, stressmodel)
     D[:epa]   = state.εpa
     D[:j1]    = j1
     D[:srj2d] = srj2d
