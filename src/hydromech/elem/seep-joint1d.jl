@@ -20,7 +20,6 @@ struct SeepJoint1DProps<:ElemProperties
 end
 
 
-
 mutable struct SeepJoint1D<:Hydromech
     id    ::Int
     shape ::CellShape
@@ -46,7 +45,6 @@ end
 
 matching_shape_family(::Type{SeepJoint1D}) = LINEJOINTCELL
 matching_elem_props(::Type{SeepJoint1D}) = SeepJoint1DProps
-
 
 
 function elem_config_dofs(elem::SeepJoint1D)

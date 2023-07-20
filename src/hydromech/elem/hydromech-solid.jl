@@ -1,27 +1,31 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export HydromechSolid
+export HMSolid
 
-struct HydromechSolidProps<:ElemProperties
+struct HMSolidProps<:ElemProperties
     ρ::Float64
     γ::Float64
+    α::Float64 # Biot's coefficient
 
-    function HydromechSolidProps(; props...)
-        default = (rho=0.0, gamma=0.0)
+    function HMSolidProps(; props...)
+        names = (rho="Density", gamma="Specific weight", alpha="Biot coefficient")
+
+        default = (rho=0.0, gamma=0.0, alpha=1.0)
         props   = merge(default, props)
         rho     = props.rho
         gamma   = props.gamma
+        alpha   = props.alpha
 
         @check rho>=0
         @check gamma>=0
+        @check 0<alpha<=1
 
-        return new(rho, gamma)
+        return new(rho, gamma, alpha)
     end    
 end
 
 
-
-mutable struct HydromechSolid<:Hydromech
+mutable struct HMSolid<:Hydromech
     id    ::Int
     shape ::CellShape
 
@@ -29,24 +33,22 @@ mutable struct HydromechSolid<:Hydromech
     ips   ::Array{Ip,1}
     tag   ::String
     mat::Material
-    props ::HydromechSolidProps
+    props ::HMSolidProps
     active::Bool
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function HydromechSolid(props=HydromechSolidProps())
-        this = new()
-        this.props = props
-        return this
+    function HMSolid()
+        return new()
     end
 end
 
-matching_shape_family(::Type{HydromechSolid}) = BULKCELL
-matching_elem_props(::Type{HydromechSolid}) = HydromechSolidProps
+matching_shape_family(::Type{HMSolid}) = BULKCELL
+matching_elem_props(::Type{HMSolid}) = HMSolidProps
 
 
 
-function elem_config_dofs(elem::HydromechSolid)
+function elem_config_dofs(elem::HMSolid)
     nbnodes = elem.shape.basic_shape.npoints
     for (i, node) in enumerate(elem.nodes)
             add_dof(node, :ux, :fx)
@@ -59,11 +61,11 @@ function elem_config_dofs(elem::HydromechSolid)
 end
 
 
-function elem_init(::HydromechSolid)
+function elem_init(::HMSolid)
 end
 
 
-function distributed_bc(elem::HydromechSolid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     th    = elem.env.ana.thickness
     suitable_keys = (:tx, :ty, :tz, :tn, :tq)
@@ -166,12 +168,12 @@ function distributed_bc(elem::HydromechSolid, facet::Union{Facet,Nothing}, key::
 end
 
 
-@inline function setBu(elem::HydromechSolid, ip::Ip, dNdX::Matx, B::Matx)
+@inline function setBu(elem::HMSolid, ip::Ip, dNdX::Matx, B::Matx)
     setB(elem, ip, dNdX, B) # using function setB from mechanical analysis
 end
 
 
-function elem_stiffness(elem::HydromechSolid)
+function elem_stiffness(elem::HMSolid)
     ndim   = elem.env.ndim
     th     = elem.env.ana.thickness
     nnodes = length(elem.nodes)
@@ -210,7 +212,7 @@ end
 
 
 # matrix C
-function elem_coupling_matrix(elem::HydromechSolid)
+function elem_coupling_matrix(elem::HMSolid)
     ndim   = elem.env.ndim
     th     = elem.env.ana.thickness
     nnodes = length(elem.nodes)
@@ -236,7 +238,7 @@ function elem_coupling_matrix(elem::HydromechSolid)
 
         # compute Cuw
         Nw    = elem.shape.basic_shape.func(ip.R)
-        coef  = elem.mat.α
+        coef  = elem.props.α
         coef *= detJ*ip.w*th
         mNw   = m*Nw'
         @gemm Cuw -= coef*Bu'*mNw
@@ -250,7 +252,7 @@ function elem_coupling_matrix(elem::HydromechSolid)
 end
 
 
-function elem_conductivity_matrix(elem::HydromechSolid)
+function elem_conductivity_matrix(elem::HMSolid)
     ndim   = elem.env.ndim
     th     = elem.env.ana.thickness
     nnodes = length(elem.nodes)
@@ -288,7 +290,7 @@ function elem_conductivity_matrix(elem::HydromechSolid)
 end
 
 
-function elem_compressibility_matrix(elem::HydromechSolid)
+function elem_compressibility_matrix(elem::HMSolid)
     ndim   = elem.env.ndim
     th     = elem.env.ana.thickness
     nnodes = length(elem.nodes)
@@ -320,7 +322,7 @@ function elem_compressibility_matrix(elem::HydromechSolid)
 end
 
 
-function elem_RHS_vector(elem::HydromechSolid)
+function elem_RHS_vector(elem::HMSolid)
     ndim   = elem.env.ndim
     th     = elem.env.ana.thickness
     nnodes = length(elem.nodes)
@@ -360,7 +362,7 @@ function elem_RHS_vector(elem::HydromechSolid)
 end
 
 
-function elem_internal_forces(elem::HydromechSolid, F::Array{Float64,1})
+function elem_internal_forces(elem::HMSolid, F::Array{Float64,1})
     ndim   = elem.env.ndim
     th     = elem.env.ana.thickness
     nnodes = length(elem.nodes)
@@ -403,14 +405,14 @@ function elem_internal_forces(elem::HydromechSolid, F::Array{Float64,1})
 
         # internal force
         uw   = ip.state.uw
-        σ    = ip.state.σ - elem.mat.α*uw*m # get total stress
+        σ    = ip.state.σ - elem.props.α*uw*m # get total stress
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*σ
 
         # internal volumes dFw
         ε    = ip.state.ε
         εvol = dot(m, ε)
-        coef = elem.mat.α*detJ*ip.w*th
+        coef = elem.props.α*detJ*ip.w*th
         dFw  -= coef*Nw*εvol
 
         coef = detJ*ip.w*elem.mat.S*th
@@ -426,7 +428,7 @@ function elem_internal_forces(elem::HydromechSolid, F::Array{Float64,1})
 end
 
 
-function update_elem!(elem::HydromechSolid, DU::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::HMSolid, DU::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     th     = elem.env.ana.thickness
     nnodes = length(elem.nodes)
@@ -485,14 +487,14 @@ function update_elem!(elem::HydromechSolid, DU::Array{Float64,1}, Δt::Float64)
 
         # internal force dF
         Δσ, V = update_state!(elem.mat, ip.state, Δε, Δuw, G, Δt)
-        Δσ -= elem.mat.α*Δuw*m # get total stress
+        Δσ -= elem.props.α*Δuw*m # get total stress
 
         coef = detJ*ip.w*th
         @gemv dF += coef*Bu'*Δσ
 
         # internal volumes dFw
         Δεvol = dot(m, Δε)
-        coef  = elem.mat.α
+        coef  = elem.props.α
         coef *= detJ*ip.w*th
         dFw  -= coef*Nw*Δεvol
 

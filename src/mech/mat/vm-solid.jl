@@ -110,7 +110,6 @@ function calcD(mat::VonMises, state::VonMisesState, stressmodel::String=state.en
     H  = mat.H
     #De = mat.De
     De  = calcDe(mat.E, mat.ν, stressmodel)
-    @show De
 
     if state.Δγ==0.0
         return De

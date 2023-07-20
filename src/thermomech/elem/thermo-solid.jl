@@ -26,8 +26,6 @@ struct ThermoSolidProps<:ElemProperties
 end
 
 
-
-
 mutable struct ThermoSolid<:Thermomech
     id    ::Int
     shape ::CellShape
@@ -49,7 +47,6 @@ end
 
 matching_shape_family(::Type{ThermoSolid}) = BULKCELL
 matching_elem_props(::Type{ThermoSolid}) = ThermoSolidProps
-
 
 
 function elem_config_dofs(elem::ThermoSolid)

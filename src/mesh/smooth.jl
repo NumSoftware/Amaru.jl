@@ -155,13 +155,13 @@ end
 
 # Matrix D for the simplified FEM analysis
 function matrixD(E::Float64, ν::Float64)
-    c = E/((1.0+nu)*(1.0-2.0*nu))
-    [ c*(1.0-nu)      c*nu        c*nu             0.0             0.0             0.0
-          c*nu   c*(1.0-nu)       c*nu             0.0             0.0             0.0
-          c*nu       c*nu    c*(1.0-nu)            0.0             0.0             0.0
-           0.0        0.0         0.0   c*(1.0-2.0*nu)            0.0             0.0
-           0.0        0.0         0.0             0.0   c*(1.0-2.0*nu)            0.0
-           0.0        0.0         0.0             0.0             0.0   c*(1.0-2.0*nu) ]
+    c = E/((1.0+ν)*(1.0-2.0*ν))
+    [ c*(1.0-ν)      c*ν        c*ν             0.0             0.0             0.0
+          c*ν   c*(1.0-ν)       c*ν             0.0             0.0             0.0
+          c*ν       c*ν    c*(1.0-ν)            0.0             0.0             0.0
+           0.0        0.0         0.0   c*(1.0-2.0*ν)            0.0             0.0
+           0.0        0.0         0.0             0.0   c*(1.0-2.0*ν)            0.0
+           0.0        0.0         0.0             0.0             0.0   c*(1.0-2.0*ν) ]
 end
 
 
@@ -209,7 +209,7 @@ function matrixK(cell::Cell, ndim::Int64, E::Float64, ν::Float64)
     dNdX = Array{Float64}(undef, nnodes, ndim)
 
     IP = get_ip_coords(cell.shape)
-    D = matrixD(E, nu)
+    D = matrixD(E, ν)
 
     for i in 1:size(IP,1)
         R    = vec(IP[i,1:3])
@@ -251,7 +251,7 @@ function mountKg(mesh::Mesh, E::Float64, ν::Float64, A)
     R, C, V = Int64[], Int64[], Float64[]
 
     for c in mesh.elems
-        Ke  = matrixK(c, ndim, E, nu)
+        Ke  = matrixK(c, ndim, E, ν)
         map = get_map(c)
         nr, nc = size(Ke)
         for i in 1:nr
@@ -540,7 +540,7 @@ function force_bc(mesh::Mesh, E::Float64, ν::Float64, α::Float64, extended::Bo
 
         U  = vec(U')  # displacements vector
 
-        K = matrixK(c, ndim, E, nu)
+        K = matrixK(c, ndim, E, ν)
 
         if extended
             if qmin<1.0

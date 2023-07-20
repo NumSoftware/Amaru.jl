@@ -4,16 +4,16 @@ export MCJointSeep
 
 mutable struct MCJointSeepState<:IpState
     env::ModelEnv
-    σ   ::Array{Float64,1}  # stress
-    w   ::Array{Float64,1}  # relative displacements
-    Vt  ::Array{Float64,1}  # transverse fluid velocity
+    σ  ::Array{Float64,1}  # stress
+    w  ::Array{Float64,1}  # relative displacements
+    Vt ::Array{Float64,1}  # transverse fluid velocity
     #D   ::Array{Float64,1}  # distance traveled by the fluid
-    L   ::Array{Float64,1} 
+    L  ::Array{Float64,1} 
     #S   ::Array{Float64,1}
-    uw  ::Array{Float64,1}  # interface pore pressure
+    uw ::Array{Float64,1}  # interface pore pressure
     up ::Float64           # effective plastic relative displacement
-    Δλ  ::Float64           # plastic multiplier
-    h   ::Float64           # characteristic length from bulk elements
+    Δλ ::Float64           # plastic multiplier
+    h  ::Float64           # characteristic length from bulk elements
     function MCJointSeepState(env::ModelEnv=ModelEnv())
         this = new(env)
         ndim = env.ndim
@@ -91,9 +91,11 @@ mutable struct MCJointSeep<:Material
 end
 
 
-
 # Type of corresponding state structure
 ip_state_type(::Type{MCJointSeep}) = MCJointSeepState
+
+# Element types that work with this material
+matching_elem_types(::Type{MCJointSeep}) = (HMJoint,)
 
 
 function yield_func(mat::MCJointSeep, state::MCJointSeepState, σ::Array{Float64,1})

@@ -9,8 +9,6 @@ struct HMJointProps<:ElemProperties
 end
 
 
-
-
 mutable struct HMJoint<:Hydromech
     id    ::Int
     shape ::CellShape

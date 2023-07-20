@@ -92,10 +92,12 @@ mutable struct TCJointSeep<:Material
     end
 end
 
-matching_elem_types(::Type{TCJointSeep}) = (HMJoint,)
 
 # Type of corresponding state structure
 ip_state_type(::Type{TCJointSeep}) = TCJointSeepState
+
+# Element types that work with this material
+matching_elem_types(::Type{TCJointSeep}) = (HMJoint,)
 
 
 function mountD(mat::TCJointSeep, state::TCJointSeepState)

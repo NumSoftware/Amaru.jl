@@ -1,8 +1,8 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export JointLinSeep
+export ConstPermeabilityJoint
 
-mutable struct JointLinSeepState<:IpState
+mutable struct ConstPermeabilityJointState<:IpState
     env  ::ModelEnv
     V    ::Array{Float64,1} # fluid velocity
     #D    ::Array{Float64,1} # distance traveled by the fluid
@@ -10,7 +10,7 @@ mutable struct JointLinSeepState<:IpState
     #S    ::Array{Float64,1}
     uw   ::Array{Float64,1} # interface pore pressure
     h    ::Float64          # characteristic length from bulk elements
-    function JointLinSeepState(env::ModelEnv=ModelEnv())
+    function ConstPermeabilityJointState(env::ModelEnv=ModelEnv())
         this     = new(env)
         ndim     = env.ndim
         this.V   = zeros(2)
@@ -23,24 +23,32 @@ mutable struct JointLinSeepState<:IpState
     end
 end
 
-mutable struct JointLinSeep<:Material
+mutable struct ConstPermeabilityJoint<:Material
     γw ::Float64        # specific weight of the fluid
     β  ::Float64        # compressibility of fluid
     η  ::Float64        # viscosity
     kt ::Float64        # leak-off coefficient
     w ::Float64        # initial fracture opening (longitudinal flow)
 
-    function JointLinSeep(prms::Dict{Symbol,Float64})
-        return  JointLinSeep(;prms...)
-    end
+    function ConstPermeabilityJoint(;gammaw=NaN, beta=0.0, eta=NaN, kt=NaN, w=0.0)
+        names = (E="Young modulus", nu="Poisson ratio")
+        required = (:E, :nu)
+        @checkmissing params required names
 
-    function JointLinSeep(;gammaw=NaN, beta=0.0, eta=NaN, kt=NaN, w=0.0)
+        params  = values(params)
+        E       = params.E
+        nu      = params.nu
+
+        @check E>=0.0
+        @check 0<=nu<0.5
+        return new(E, nu)
+        return this
         
-        gammaw>0    || error("Invalid value for gammaw: $gammaw")
-        beta>= 0    || error("Invalid value for beta: $beta")
-        eta>=0      || error("Invalid value for eta: $eta")
-        kt>=0       || error("Invalid value for kt: $kt")
-        w>=0       || error("Invalid value for w: $w")
+        @check gammaw>0
+        @check beta>=0
+        @check eta>=0  
+        @check kt>=0   
+        @check w>=0    
 
         this = new(gammaw, beta, eta, kt, w)
         return this
@@ -48,12 +56,14 @@ mutable struct JointLinSeep<:Material
 end
 
 
-
 # Type of corresponding state structure
-ip_state_type(::Type{JointLinSeep}) = JointLinSeepState
+ip_state_type(::Type{ConstPermeabilityJoint}) = ConstPermeabilityJointState
+
+# Element types that work with this material
+matching_elem_types(::Type{ConstPermeabilityJoint}) = (HydroJoint,)
 
 
-function update_state!(mat::JointLinSeep, state::JointLinSeepState, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
+function update_state!(mat::ConstPermeabilityJoint, state::ConstPermeabilityJointState, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
     state.uw +=  Δuw
     state.V   = -mat.kt*G
     #state.D  +=  state.V*Δt
@@ -64,7 +74,7 @@ function update_state!(mat::JointLinSeep, state::JointLinSeepState, Δuw::Array{
 end
 
 
-function ip_state_vals(mat::JointLinSeep, state::JointLinSeepState)
+function ip_state_vals(mat::ConstPermeabilityJoint, state::ConstPermeabilityJointState)
     return OrderedDict(
           :uwf => state.uw[3] ,
           :vb  => state.V[1] ,

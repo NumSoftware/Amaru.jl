@@ -137,7 +137,7 @@ function update_state!(active_elems::Array{<:Element,1}, ΔUt::Vect, t::Float64)
     yield()
     
     length(statuses)>0 && return ΔFin, statuses[1]
-    any(isnan.(ΔFin)) && return failure("solve_system!: NaN values in internal forces vector")
+    any(isnan.(ΔFin)) && return ΔFin, failure("solve_system!: NaN values in internal forces vector")
     return ΔFin, success()
 end
 

@@ -53,6 +53,9 @@ end
 # Type of corresponding state structure
 ip_state_type(::Type{LinearElasticSeep}) = LinearElasticSeepState
 
+# Element types that work with this material
+matching_elem_types(::Type{LinearElasticSeep}) = (HMSolid,)
+
 
 function calcD(mat::LinearElasticSeep, state::LinearElasticSeepState)
     return calcDe(mat.E, mat.ν, state.env.ana.stressmodel) # function calcDe defined at elastic-solid.jl

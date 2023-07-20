@@ -38,10 +38,6 @@ mutable struct ElasticJointSeep<:Material
     kt ::Float64        # leak-off coefficient
     w  ::Float64        # initial fracture opening (longitudinal flow)
 
-    function ElasticJointSeep(prms::Dict{Symbol,Float64})
-        return  ElasticJoint(;prms...)
-    end
-
     function ElasticJointSeep(;E=NaN, nu=NaN, zeta=NaN, beta=0.0, eta=NaN, kt=NaN, w=0.0)
         @check E>0.0
         @check 0<=nu<0.5
@@ -59,6 +55,9 @@ end
 
 # Type of corresponding state structure
 ip_state_type(::Type{ElasticJointSeep}) = JointSeepState
+
+# Element types that work with this material
+matching_elem_types(::Type{ElasticJointSeep}) = (HMJoint,)
 
 
 function mountD(mat::ElasticJointSeep, state::JointSeepState)

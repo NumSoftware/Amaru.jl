@@ -17,7 +17,7 @@ nu    = 0.3
 alpha = 1.2e-5 # thermal expansion coefficient  1/K or 1/°C
 
 # materials = ["solids" << TMSolid << LinearElasticThermo << (E=E, nu=nu, k=k, alpha = alpha, rho=rho, cv=cv) ]
-materials = ["solids" << TMSolid << TMCombined{LinThermo,LinearElastic} << (E=E, nu=nu, k=k, alpha=alpha, rho=rho, cv=cv) ]
+materials = ["solids" << TMSolid << TMCombined{ConstConductivity,LinearElastic} << (E=E, nu=nu, k=k, alpha=alpha, rho=rho, cv=cv) ]
 
 ana = ThermomechAnalysis(T0=0.0)
 model = FEModel(msh, materials, ana)

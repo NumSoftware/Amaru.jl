@@ -1,13 +1,13 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export Joint1DLinSeep
+export Joint1DConstPermeability
 
-mutable struct Joint1DLinSeepState<:IpState
+mutable struct Joint1DConstPermeabilityState<:IpState
     env::ModelEnv
     ndim::Int
     V::Float64     # fluid velocity
     D::Float64     # distance traveled by the fluid
-    function Joint1DLinSeepState(env::ModelEnv=ModelEnv())
+    function Joint1DConstPermeabilityState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.V = 0.0
         this.D = 0.0
@@ -15,10 +15,10 @@ mutable struct Joint1DLinSeepState<:IpState
     end
 end
 
-mutable struct Joint1DLinSeep<:Material
+mutable struct Joint1DConstPermeability<:Material
     k ::Float64    # specific permeability per meter
 
-    function Joint1DLinSeep(; params...)
+    function Joint1DConstPermeability(; params...)
         names = (k="Permeability",)
         required = (:k,)
         @checkmissing params required names
@@ -32,14 +32,14 @@ mutable struct Joint1DLinSeep<:Material
 end
 
 
-# Element types that work with this material
-
-
 # Type of corresponding state structure
-ip_state_type(::Type{Joint1DLinSeep}) = Joint1DLinSeepState
+ip_state_type(::Type{Joint1DConstPermeability}) = Joint1DConstPermeabilityState
+
+# Element types that work with this material
+matching_elem_types(::Type{Joint1DConstPermeability}) = (SeepJoint1D,)
 
 
-function update_state!(mat::Joint1DLinSeep, state::Joint1DLinSeepState, ΔFw::Float64, Δt::Float64)
+function update_state!(mat::Joint1DConstPermeability, state::Joint1DConstPermeabilityState, ΔFw::Float64, Δt::Float64)
     k = mat.k
     state.V  = -k*ΔFw
     state.D  += state.V*Δt
@@ -47,7 +47,7 @@ function update_state!(mat::Joint1DLinSeep, state::Joint1DLinSeepState, ΔFw::Fl
 end
 
 
-function ip_state_vals(mat::Joint1DLinSeep, state::Joint1DLinSeepState)
+function ip_state_vals(mat::Joint1DConstPermeability, state::Joint1DConstPermeabilityState)
     return OrderedDict(
       :vj => state.V)
 end

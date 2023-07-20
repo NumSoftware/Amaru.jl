@@ -29,6 +29,10 @@ include("mat/tc-joint-seep.jl")
 include("mat/joint1d-lin-seep.jl")
 include("mat/joint-lin-seep.jl")
 
+# Combined model
+include("mat/hm-combined.jl")
+
+# Solver
 include("hydromech-solver.jl")
 # include("hydromech-solver-bkp.jl")
 

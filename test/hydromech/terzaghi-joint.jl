@@ -39,9 +39,12 @@ S = (alpha - n)/Ks + n/Kw
 
 for i in 1:2
     materials = [
-        "solids" << HydromechSolid << LinearElasticSeep << (E=E, nu=nu, k=k, alpha=alpha, S=S),
+        "solids" << HMSolid << LinearElasticSeep << (E=E, nu=nu, k=k, alpha=alpha, S=S),
         "joints" << HMJoint << ElasticJointSeep << (E=E, nu=nu, zeta=100, eta=eta, kt=1),
         "joints" << HMJoint << MCJointSeep << (E=E, nu=nu, ft=2.4e3, mu=1.4, zeta=100, wc=1.7e-4, ws=1.85e-5, softcurve="hordijk", eta=eta, kt=1),
+        # "solids" << HMSolid << HMCombined{ConstPermeability,LinearElastic} << (E=E, nu=nu, k=k, alpha=alpha, S=S),
+        # "joints" << HMJoint << HMCombined{ConstPermeabilityJoint,ElasticJoint} << (E=E, nu=nu, zeta=100, eta=eta, kt=1),
+        # "joints" << HMJoint << HMCombined{ConstPermeabilityJoint,MCJoint} << (E=E, nu=nu, ft=2.4e3, mu=1.4, zeta=100, wc=1.7e-4, ws=1.85e-5, softcurve="hordijk", eta=eta, kt=1),
     ]
 
     if i==1

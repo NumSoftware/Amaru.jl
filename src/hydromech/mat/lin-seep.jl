@@ -1,13 +1,13 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export LinSeep
+export ConstPermeability
 
-mutable struct LinSeepState<:IpState
+mutable struct ConstPermeabilityState<:IpState
     env::ModelEnv
     V::Array{Float64,1} # fluid velocity
     D::Array{Float64,1} # distance traveled by the fluid
     uw::Float64         # pore pressure
-    function LinSeepState(env::ModelEnv=ModelEnv())
+    function ConstPermeabilityState(env::ModelEnv=ModelEnv())
         this = new(env)
         this.V  = zeros(env.ndim)
         this.D  = zeros(env.ndim)
@@ -17,11 +17,11 @@ mutable struct LinSeepState<:IpState
 end
 
 
-mutable struct LinSeep<:Material
+mutable struct ConstPermeability<:Material
     k ::Float64 # specific permeability
     S ::Float64 # storativity coefficient
 
-    function LinSeep(; params...)
+    function ConstPermeability(; params...)
         names = (k="Permeability", S="Storativity coefficient")
         required = (:k, )
         @checkmissing params required names
@@ -42,10 +42,13 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{LinSeep}) = LinSeepState
+ip_state_type(::Type{ConstPermeability}) = ConstPermeabilityState
+
+# Element types that work with this material
+matching_elem_types(::Type{ConstPermeability}) = (SeepSolid,)
 
 
-function calcK(mat::LinSeep, state::LinSeepState) # Hydraulic conductivity matrix
+function calcK(mat::ConstPermeability, state::ConstPermeabilityState) # Hydraulic conductivity matrix
     if state.env.ndim==2
         return mat.k*eye(2)
     else
@@ -54,7 +57,7 @@ function calcK(mat::LinSeep, state::LinSeepState) # Hydraulic conductivity matri
 end
 
 
-function update_state!(mat::LinSeep, state::LinSeepState, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
+function update_state!(mat::ConstPermeability, state::ConstPermeabilityState, Δuw::Float64, G::Array{Float64,1}, Δt::Float64)
     K = calcK(mat, state)
     state.V   = -K*G
     state.D  += state.V*Δt
@@ -63,7 +66,7 @@ function update_state!(mat::LinSeep, state::LinSeepState, Δuw::Float64, G::Arra
 end
 
 
-function ip_state_vals(mat::LinSeep, state::LinSeepState)
+function ip_state_vals(mat::ConstPermeability, state::ConstPermeabilityState)
     D = OrderedDict{Symbol, Float64}()
     D[:vx] = state.V[1]
     D[:vy] = state.V[2]

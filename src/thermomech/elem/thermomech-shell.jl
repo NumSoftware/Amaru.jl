@@ -527,7 +527,7 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
 
         # internal force dF
         Δσ, q, status = update_state!(elem.mat, ip.state, Δε, Δut, G, Δt, "shell")
-        failed(status) && return [dF; dFt], [map_u; map_t], failure("TMShell: Error at integration point $(ip.id)")
+        failed(status) && return [dF; dFt], [map_u; map_t], status
         #error()
         Δσ -= β*Δut*m # get total stress
         #@showm Δσ

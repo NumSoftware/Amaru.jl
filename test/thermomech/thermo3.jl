@@ -13,7 +13,7 @@ k = 50.2  # thermal conductivity W/m/K
 rho = 7.8   # densidade ton/m3
 cv = 486e3  # specific heat (capacity) J/ton/K
 
-materials = ["solids" << LinThermo(k = k, rho = rho, cv = cv)]
+materials = ["solids" << ConstConductivity(k = k, rho = rho, cv = cv)]
 model = FEModel(msh, materials)
 
 log1 = NodeGroupLogger()

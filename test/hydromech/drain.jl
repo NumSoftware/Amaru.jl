@@ -19,8 +19,8 @@ p  = 2*pi*(A/pi)^0.5
 
 # FEM analysis
 mats = [
-    "solids" << SeepSolid << LinSeep << (k=k, S=0.0),
-    "joints" << SeepJoint1D << Joint1DLinSeep << (k=kj, p=p),
+    "solids" << SeepSolid << ConstPermeability << (k=k, S=0.0),
+    "joints" << SeepJoint1D << Joint1DConstPermeability << (k=kj, p=p),
     "drains" << DrainPipe << LinDrainPipe << (k=kb, A=A),
 ]
 

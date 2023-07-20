@@ -357,16 +357,16 @@ function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
                 R .+= RHS
 
                 # Solve
-                status = solve_system!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
-                println(logfile, status.message)
+                sysstatus = solve_system!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
+                println(logfile, sysstatus.message)
 
 
-                failed(status) && (errored=true; break)
+                failed(sysstatus) && (errored=true; break)
 
                 copyto!.(State, StateBk)
                 ΔUt    = ΔUa + ΔUi
-                ΔFin, status = update_state!(model.elems, ΔUt, Δt)
-                failed(status) && (errored=true; break)
+                ΔFin, sysstatus = update_state!(model.elems, ΔUt, Δt)
+                failed(sysstatus) && (errored=true; break)
 
                 residue = maximum(abs, (ΔFex-ΔFin)[umap] )
             end
@@ -379,13 +379,13 @@ function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
                 elseif scheme=="BE"
                     G = G2
                 end
-                status = solve_system!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
-                failed(status) && (errored=true; break)
+                sysstatus = solve_system!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
+                failed(sysstatus) && (errored=true; break)
 
                 copyto!.(State, StateBk)
                 ΔUt    = ΔUa + ΔUi
-                ΔFin, status = update_state!(model.elems, ΔUt, Δt)
-                failed(status) && (errored=true; break)
+                ΔFin, sysstatus = update_state!(model.elems, ΔUt, Δt)
+                failed(sysstatus) && (errored=true; break)
 
                 residue = maximum(abs, (ΔFex-ΔFin)[umap])
             end
