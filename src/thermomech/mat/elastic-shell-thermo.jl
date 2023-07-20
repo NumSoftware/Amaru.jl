@@ -89,7 +89,7 @@ function update_state!(mat::ElasticShellThermo, state::ElasticShellThermoState, 
     state.QQ = -K*G
     state.D  += state.QQ*Δt
     state.ut += Δut
-    return Δσ, state.QQ
+    return Δσ, state.QQ, success()
 end
 
 
