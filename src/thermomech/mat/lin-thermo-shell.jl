@@ -18,24 +18,17 @@ end
 
 mutable struct ConstConductivityShell<:Material
     k ::Float64 # Thermal conductivity w/m/k
-    ρ ::Float64 # density Ton/m3
-    cv::Float64 # Specific heat J/Ton/k
-    thickness::Float64 # thickness
-    #E ::Float64 # Young's modulus kPa
-    #ν::Float64 # Poisson ratio
-    #α ::Float64 #  coefficient of thermal expansion 1/K or 1/°C
 
-    function ConstConductivityShell(prms::Dict{Symbol,Float64})
-        return  ConstConductivityShell(;prms...)
-    end
+    function ConstConductivityShell(; params...)
+        names = (k="Conductivity")
+        required = (:k, )
+        @checkmissing params required names
 
-    function ConstConductivityShell(;k=NaN, rho=NaN, cv=NaN, thickness =NaN)
-        k  >= 0.0 || error("Invalid value for k")
-        rho>= 0.0 || error("Invalid value for rho")
-        cv >= 0.0 || error("Invalid value for cv")
-        thickness>0.0       || error("Invalid value for thick: $thickness")
-        this = new(k,rho,cv,thickness)
-        return this
+        params  = values(params)
+        k       = params.k
+
+        @check k>=0.0
+        return new(k)
     end
 end
 
