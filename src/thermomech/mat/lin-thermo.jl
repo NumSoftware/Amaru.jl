@@ -21,7 +21,7 @@ mutable struct ConstConductivity<:Material
     k ::Float64 # thermal conductivity with/m/K
 
     function ConstConductivity(; params...)
-        names = (k="Permeability")
+        names = (k="Conductivity")
         required = (:k, )
         @checkmissing params required names
 
