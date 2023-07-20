@@ -525,33 +525,32 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
         Bt .= dNdX′'
         G  = Bt*Ut
 
-         # internal force dF
-         Δσ, q = update_state!(elem.mat, ip.state, Δε, Δut, G, Δt, "shell")
-         #@showm Δσ
-         #error()
-         Δσ -= β*Δut*m # get total stress
-         #@showm Δσ
-         #error()
+        # internal force dF
+        Δσ, q, status = update_state!(elem.mat, ip.state, Δε, Δut, G, Δt, "shell")
+        failed(status) && return [dF; dFt], [map_u; map_t], failure("TMShell: Error at integration point $(ip.id)")
+        #error()
+        Δσ -= β*Δut*m # get total stress
+        #@showm Δσ
+        #error()
+    
+        detJ′ = det(J′)
+        #coef = detJ′*ip.w*th
+        coef = detJ′*ip.w
+        @gemv dF += coef*B'*Δσ
 
-        
-         detJ′ = det(J′)
-         #coef = detJ′*ip.w*th
-         coef = detJ′*ip.w
-         @gemv dF += coef*B'*Δσ
- 
-         # internal volumes dFt
-         Δεvol = dot(m, Δε)
-         coef  = β*Δεvol*T0k
-         coef *= detJ′*ip.w
-         dFt  -= coef*N
- 
-         coef  = ρ*cv
-         coef *= detJ′*ip.w
-         dFt  -= coef*N*Δut
- 
-         coef  = Δt
-         coef *= detJ′*ip.w
-         @gemv dFt += coef*Bt'*q
+        # internal volumes dFt
+        Δεvol = dot(m, Δε)
+        coef  = β*Δεvol*T0k
+        coef *= detJ′*ip.w
+        dFt  -= coef*N
+
+        coef  = ρ*cv
+        coef *= detJ′*ip.w
+        dFt  -= coef*N*Δut
+
+        coef  = Δt
+        coef *= detJ′*ip.w
+        @gemv dFt += coef*Bt'*q
 
     end
     #@show "HIIIIIIIIIIIIIIIIIIIIII UPDATED"

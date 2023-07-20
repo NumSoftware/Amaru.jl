@@ -110,6 +110,7 @@ function calcD(mat::VonMises, state::VonMisesState, stressmodel::String=state.en
     H  = mat.H
     #De = mat.De
     De  = calcDe(mat.E, mat.ν, stressmodel)
+    @show De
 
     if state.Δγ==0.0
         return De
@@ -144,6 +145,9 @@ function update_state!(mat::VonMises, state::VonMisesState, Δε::Array{Float64,
         H     = mat.H
         j1tr  = J1(σtr)
         j2dtr = J2D(σtr)
+
+        # @show √j2dtr
+        # @show state.Δγ
 
         √j2dtr - state.Δγ*√2*G <= 0.0 && return state.σ, failure("VonMisses: √j2dtr - state.Δγ*√2*G>0.0")
         state.Δγ = ftr/(√6*G + H)
