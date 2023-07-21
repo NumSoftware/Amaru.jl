@@ -181,8 +181,8 @@ function setB(elem::TMShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx, B
         ζ = ip.R[3]
         Rrot[1:3,1:3] .= L
         #Rrot[4:5,4:6] .= L[1:2,:]
-         Rrot[1:3,1:3] .= elem.Dlmn[i]
-        #Rrot[4:5,4:6] .= elem.Dlmn[i][1:2,:]
+        #  Rrot[1:3,1:3] .= elem.Dlmn[i]
+        Rrot[4:5,4:6] .= elem.Dlmn[i][1:2,:]
         dNdx = dNdX[i,1]
         dNdy = dNdX[i,2]
         Ni = N[i]
