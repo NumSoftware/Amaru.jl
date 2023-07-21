@@ -1,8 +1,8 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export ConstPermeabilityJoint
+export LeakoffJoint
 
-mutable struct ConstPermeabilityJointState<:IpState
+mutable struct LeakoffJointState<:IpState
     env  ::ModelEnv
     V    ::Array{Float64,1} # fluid velocity
     #D    ::Array{Float64,1} # distance traveled by the fluid
@@ -10,7 +10,7 @@ mutable struct ConstPermeabilityJointState<:IpState
     #S    ::Array{Float64,1}
     uw   ::Array{Float64,1} # interface pore pressure
     h    ::Float64          # characteristic length from bulk elements
-    function ConstPermeabilityJointState(env::ModelEnv=ModelEnv())
+    function LeakoffJointState(env::ModelEnv=ModelEnv())
         this     = new(env)
         ndim     = env.ndim
         this.V   = zeros(2)
@@ -23,19 +23,21 @@ mutable struct ConstPermeabilityJointState<:IpState
     end
 end
 
-mutable struct ConstPermeabilityJoint<:Material
-    γw ::Float64        # specific weight of the fluid
-    β  ::Float64        # compressibility of fluid
+mutable struct LeakoffJoint<:Material
+    # γw ::Float64        # specific weight of the fluid
+    # β  ::Float64        # compressibility of fluid
     η  ::Float64        # viscosity
     kt ::Float64        # leak-off coefficient
     w ::Float64        # initial fracture opening (longitudinal flow)
 
-    function ConstPermeabilityJoint(;gammaw=NaN, beta=0.0, eta=NaN, kt=NaN, w=0.0)
-        names = (E="Young modulus", nu="Poisson ratio")
-        required = (:E, :nu)
+    # function LeakoffJoint(;gammaw=NaN, beta=0.0, eta=NaN, kt=NaN, w=0.0)
+    function LeakoffJoint(; params...)
+        names = (eta="Viscocity", nu="Leak-off coefficient", w="Initial opening")
+        required = (:eta, :nu)
         @checkmissing params required names
 
-        params  = values(params)
+        default = (w=0.0,)
+        params  = merge(default, params)
         E       = params.E
         nu      = params.nu
 
@@ -46,7 +48,7 @@ mutable struct ConstPermeabilityJoint<:Material
         
         @check gammaw>0
         @check beta>=0
-        @check eta>=0  
+        @check eta>=0
         @check kt>=0   
         @check w>=0    
 
@@ -57,13 +59,13 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{ConstPermeabilityJoint}) = ConstPermeabilityJointState
+ip_state_type(::Type{LeakoffJoint}) = LeakoffJointState
 
 # Element types that work with this material
-matching_elem_types(::Type{ConstPermeabilityJoint}) = (HydroJoint,)
+matching_elem_types(::Type{LeakoffJoint}) = (HydroJoint,)
 
 
-function update_state!(mat::ConstPermeabilityJoint, state::ConstPermeabilityJointState, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
+function update_state!(mat::LeakoffJoint, state::LeakoffJointState, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
     state.uw +=  Δuw
     state.V   = -mat.kt*G
     #state.D  +=  state.V*Δt
@@ -74,7 +76,7 @@ function update_state!(mat::ConstPermeabilityJoint, state::ConstPermeabilityJoin
 end
 
 
-function ip_state_vals(mat::ConstPermeabilityJoint, state::ConstPermeabilityJointState)
+function ip_state_vals(mat::LeakoffJoint, state::LeakoffJointState)
     return OrderedDict(
           :uwf => state.uw[3] ,
           :vb  => state.V[1] ,

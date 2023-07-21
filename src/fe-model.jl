@@ -677,6 +677,7 @@ function nodal_patch_recovery(model::Model)
             ips_vals = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
             push!(all_ips_vals, ips_vals)
             union!(all_fields_set, keys(ips_vals[1]))
+
         else # skip data from non solid elements
             push!(all_ips_vals, [])
         end

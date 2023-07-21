@@ -35,7 +35,7 @@ mutable struct CompressiveConcreteState<:IpState
     ε̅c         ::Float64
     ε̅min       ::Float64
 
-    function CompressiveConcreteState(env::ModelEnv=ModelEnv())
+    function CompressiveConcreteState()
         this      = new(env)
         this.σ    = zeros(6)
         this.ε    = zeros(6)

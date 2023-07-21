@@ -10,17 +10,16 @@ end
 
 
 mutable struct HMJoint<:Hydromech
+    env   ::ModelEnv
     id    ::Int
     shape ::CellShape
-
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    mat::Material
+    mat   ::Material
     props ::HMJointProps
     active::Bool
     linked_elems::Array{Element,1}
-    env ::ModelEnv
 
     function HMJoint(props=HMJointProps())
         return new()

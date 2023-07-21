@@ -13,7 +13,7 @@ mutable struct JointSeepState2<:IpState
     uw   ::Array{Float64,1} # interface pore pressure
     h    ::Float64          # characteristic length from bulk elements
     up  ::Float64          # effective plastic relative displacement
-    function JointSeepState2(env::ModelEnv=ModelEnv())
+    function JointSeepState2()
         this     = new(env)
         ndim     = env.ndim
         this.σ   = zeros(3)

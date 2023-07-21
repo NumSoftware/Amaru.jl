@@ -34,16 +34,16 @@ end
 A shell finite element for mechanical equilibrium analyses.
 """
 mutable struct MechShell<:Mech
+    env   ::ModelEnv
     id    ::Int
     shape ::CellShape
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    mat::Material
+    mat   ::Material
     props ::MechShellProps
     active::Bool
     linked_elems::Array{Element,1}
-    env   ::ModelEnv
     Dlmn::Array{ Array{Float64,2}, 1}
 
     function MechShell()

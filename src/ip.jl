@@ -15,7 +15,7 @@ abstract type IpState
 end
 
 
-function init_state(::IpState, ::Material)
+function init_state(::Material, ::IpState; args...)
 end
 
 
@@ -64,14 +64,14 @@ mutable struct Ip<:AbstractPoint
     coord::Vec3
     id   ::Int
     tag  ::String
-    owner::Any    # Element
+    owner::AbstractCell  # Element
     state::IpState  # Ip current state
 
     function Ip(R::AbstractArray{<:Float64}, w::Float64)
         this     = new(Vec3(R), w)
         this.coord = Vec3()
         this.tag = ""
-        this.owner = nothing
+        # this.owner = nothing
         return this
     end
 end

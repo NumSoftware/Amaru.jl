@@ -41,7 +41,7 @@ mutable struct DamageConcreteState<:IpState
     _ν         ::Float64
     in_tension ::Bool
 
-    function DamageConcreteState(env::ModelEnv=ModelEnv())
+    function DamageConcreteState()
         this           = new(env)
         this.σ         = zeros(6)
         this.ε         = zeros(6)

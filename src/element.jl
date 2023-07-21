@@ -67,7 +67,7 @@ This function can be specialized by concrete types.
 """
 function elem_init(elem::Element)
     for ip in elem.ips
-        init_state(ip.state, elem.mat)
+        init_state(elem.mat, ip.state)
     end
     return nothing
 end

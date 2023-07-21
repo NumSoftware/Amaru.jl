@@ -31,11 +31,24 @@ mutable struct MCJoint<:Material
     ws ::Float64      # openning at inflection (where the curve slope changes)
     softcurve::String # softening curve model ("linear" or bilinear" or "hordijk")
 
-    function MCJoint(prms::Dict{Symbol,Float64})
-        return  MCJoint(;prms...)
-    end
 
     function MCJoint(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="hordijk")
+        names = (E="Young modulus", nu="Poisson ratio", kn="Normal stiffness per area", ks="shear stiffness per area", 
+        zeta="elastic displacement scale factor", wc="Critical crack opening", ws="Crack opening at inflection", softcurve="softening curve")
+        
+        required = (:E, :nu, :ft, :zeta, :mu)
+        @checkmissing params required names
+
+        default = (E=NaN, nu=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="hordijk")
+        params  = merge(default, params)
+        E       = params.E
+        nu      = params.nu
+        ft      = params.ft
+        wc      = params.wc
+        ws      = params.ws
+        GF      = params.GF
+        Gf      = params.Gf
+
         @check GF>0 || Gf>0 || wc>0
         @check E>0.0    
         @check 0<=nu<0.5

@@ -1,5 +1,7 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
+export MechTipJoint
+
 mutable struct MechTipJoint<:Mech
     id    ::Int
     shape ::CellShape

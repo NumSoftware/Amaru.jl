@@ -1,15 +1,14 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 mutable struct HydroJoint<:Hydromech
+    env ::ModelEnv
     id    ::Int
     shape ::CellShape
-
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
     mat::Material
     active::Bool
     linked_elems::Array{Element,1}
-    env ::ModelEnv
 
     function HydroJoint()
         return new()

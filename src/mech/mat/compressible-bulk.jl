@@ -45,7 +45,7 @@ mutable struct CompressibleBulkState<:IpState
     εvp ::Float64           # current plastic volumetric strain
     Δλ  ::Float64          # plastic multiplier
 
-    function CompressibleBulkState(env::ModelEnv=ModelEnv())
+    function CompressibleBulkState()
         this      = new(env)
         this.σ    = zeros(Vec6)
         this.ε    = zeros(Vec6)

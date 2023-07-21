@@ -1,6 +1,5 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-
 export MechJoint
 
 struct MechJointProps<:ElemProperties
@@ -12,16 +11,15 @@ end
 
 mutable struct MechJoint<:Mech
     id    ::Int
+    env::ModelEnv
     shape ::CellShape
-
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    mat::Material
-    props::MechJointProps
+    mat   ::Material
+    props ::MechJointProps
     active::Bool
     linked_elems::Array{Element,1}
-    env::ModelEnv
 
     function MechJoint()
         return new()
@@ -31,7 +29,6 @@ end
 # Return the shape family that works with this element
 matching_shape_family(::Type{MechJoint}) = JOINTCELL
 matching_elem_props(::Type{MechJoint}) = MechJointProps
-
 
 
 function elem_init(elem::MechJoint)

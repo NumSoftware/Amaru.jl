@@ -77,6 +77,11 @@ ip_state_type(::Type{TCFJoint}) = TCFJointState
 matching_elem_types(::Type{TCFJoint}) = (MechJoint,)
 
 
+# function init_state(mat::TCFJoint, state::TCFJointState; h::Float64=0.0)
+    # state.h = h
+# end
+
+
 function yield_func(mat::TCFJoint, state::TCFJointState, σ::Array{Float64,1}, up::Float64)
     σmax = calc_σmax(mat, state, up)
     τmax = calc_τmax(mat, state, up)

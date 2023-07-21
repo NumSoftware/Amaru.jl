@@ -31,14 +31,14 @@ mutable struct LinearElastic<:Material
         required = (:E, :nu)
         @checkmissing params required names
 
-        params  = values(params)
-        E       = params.E
-        nu      = params.nu
+        params = values(params)
+        E      = params.E
+        nu     = params.nu
 
         @check E>=0.0
         @check 0<=nu<0.5
-        this = new(E, nu)
-        return this
+        
+        return new(E, nu)
     end
 end
 

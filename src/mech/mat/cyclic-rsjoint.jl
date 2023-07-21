@@ -15,7 +15,7 @@ mutable struct CyclicRSJointState<:IpState
     sneg   ::Float64
     spos   ::Float64
     elastic::Bool
-    function CyclicRSJointState(env::ModelEnv=ModelEnv())
+    function CyclicRSJointState()
         this         = new(env)
         ndim         = env.ndim
         this.σ       = zeros(ndim)
