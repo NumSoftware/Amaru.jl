@@ -154,7 +154,11 @@ function FEModel(
         end
 
         mat   = mat_type(;args...)
-        props = matching_elem_props(elem_type)(;args...)
+        if hasmethod(matching_elem_props, Tuple{Type{elem_type}})
+            props = matching_elem_props(elem_type)(;args...)
+        else
+            props = (;)
+        end
 
         for cell in cells
             if cell.embedded
@@ -176,11 +180,11 @@ function FEModel(
             elem.shape  = cell.shape
             elem.tag    = cell.tag
             elem.nodes  = model.nodes[conn]
-            elem.props  = props
             elem.mat    = mat
             elem.active = true
             elem.ips    = [] # jet to be set
             elem.linked_elems = [] # jet to be set
+            props!=(;) && (elem.props=props)
 
             model.elems[cell.id] = elem 
         end
