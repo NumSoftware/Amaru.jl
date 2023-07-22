@@ -31,5 +31,6 @@ makeplots = false
          # Static analysis: embeddeed and semi-embedded elements
          "elem/inset/embedded.jl",
          "elem/inset/ceb.jl",
+         "elem/inset/tip.jl",
         ]
 
