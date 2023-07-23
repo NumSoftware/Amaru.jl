@@ -19,7 +19,7 @@ mutable struct PlateRM8node<:Mech
     end
 end
 
-matching_shape_family(::Type{PlateRM8node}) = BULKCELL
+compat_shape_family(::Type{PlateRM8node}) = BULKCELL
 
 
 function D_matrix(elem::PlateRM8node)

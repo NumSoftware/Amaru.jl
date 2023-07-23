@@ -30,8 +30,8 @@ mutable struct SeepSolid<:Hydromech
     end
 end
 
-matching_shape_family(::Type{SeepSolid}) = BULKCELL
-matching_elem_props(::Type{SeepSolid}) = SeepSolidProps
+compat_shape_family(::Type{SeepSolid}) = BULKCELL
+compat_elem_props(::Type{SeepSolid}) = SeepSolidProps
 
 
 

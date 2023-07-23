@@ -18,7 +18,7 @@ mutable struct PlateMZC<:Mech
     end
 end
 
-matching_shape_family(::Type{PlateMZC}) = BULKCELL
+compat_shape_family(::Type{PlateMZC}) = BULKCELL
 
 
 function D_matrix(elem::PlateMZC)

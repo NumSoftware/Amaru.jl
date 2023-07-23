@@ -38,7 +38,7 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{ElasticCookShell}) = ElasticCookShellState
+compat_state_type(::Type{ElasticCookShell}) = ElasticCookShellState
 
 
 

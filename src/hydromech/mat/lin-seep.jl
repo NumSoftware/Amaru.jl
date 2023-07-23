@@ -42,10 +42,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{ConstPermeability}) = ConstPermeabilityState
+compat_state_type(::Type{ConstPermeability}) = ConstPermeabilityState
 
 # Element types that work with this material
-matching_elem_types(::Type{ConstPermeability}) = (SeepSolid,)
+compat_elem_types(::Type{ConstPermeability}) = (SeepSolid,)
 
 
 function calcK(mat::ConstPermeability, state::ConstPermeabilityState) # Hydraulic conductivity matrix

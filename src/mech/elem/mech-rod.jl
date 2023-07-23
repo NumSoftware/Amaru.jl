@@ -46,9 +46,9 @@ mutable struct MechRod<:Mech
     end
 end
 
-matching_shape_family(::Type{MechRod}) = LINECELL
-# matching_elem_types(::Type{MechRodProps}) = MechRod
-matching_elem_props(::Type{MechRod}) = MechRodProps
+compat_shape_family(::Type{MechRod}) = LINECELL
+# compat_elem_types(::Type{MechRodProps}) = MechRod
+compat_elem_props(::Type{MechRod}) = MechRodProps
 
 
 # function check_props(::Type{MechSolid}; props...)

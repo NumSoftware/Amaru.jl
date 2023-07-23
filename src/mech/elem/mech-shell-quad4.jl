@@ -18,7 +18,7 @@ mutable struct ShellQUAD4<:Mech
     end
 end
 
-matching_shape_family(::Type{ShellQUAD4}) = BULKCELL
+compat_shape_family(::Type{ShellQUAD4}) = BULKCELL
 
 
 function distributed_bc(elem::ShellQUAD4, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})

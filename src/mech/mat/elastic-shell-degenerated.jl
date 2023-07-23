@@ -32,7 +32,7 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{ElasticShellDegenerated}) = ElasticShellDegeneratedState
+compat_state_type(::Type{ElasticShellDegenerated}) = ElasticShellDegeneratedState
 
 
 function ip_state_vals(mat::ElasticShellDegenerated, state::ElasticShellDegeneratedState)

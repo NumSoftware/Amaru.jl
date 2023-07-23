@@ -21,7 +21,7 @@ mutable struct CookShell<:Mech
     end
 end
 
-matching_shape_family(::Type{CookShell}) = BULKCELL
+compat_shape_family(::Type{CookShell}) = BULKCELL
 
 
 function elem_init(elem::CookShell)
@@ -66,7 +66,7 @@ function setquadrature!(elem::CookShell, n::Int=0)
             j = (k-1)*n + i
             elem.ips[j] = Ip(R, w)
             elem.ips[j].id = j
-            elem.ips[j].state = ip_state_type(elem.mat)(elem.env)
+            elem.ips[j].state = compat_state_type(elem.mat)(elem.env)
             elem.ips[j].owner = elem
         end
     end

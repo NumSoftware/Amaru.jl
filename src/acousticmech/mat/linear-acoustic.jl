@@ -33,7 +33,7 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{LinearAcousticFluid}) = LinearAcousticFluidState
+compat_state_type(::Type{LinearAcousticFluid}) = LinearAcousticFluidState
 
 
 function update_state!(mat::LinearAcousticFluid, state::LinearAcousticFluidState, Δup::Float64, G::Array{Float64,1}, Δt::Float64)

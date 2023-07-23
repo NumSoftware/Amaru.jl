@@ -49,8 +49,8 @@ mutable struct TMSolid<:Thermomech
     end
 end
 
-matching_shape_family(::Type{TMSolid}) = BULKCELL
-matching_elem_props(::Type{TMSolid}) = TMSolidProps
+compat_shape_family(::Type{TMSolid}) = BULKCELL
+compat_elem_props(::Type{TMSolid}) = TMSolidProps
 
 
 

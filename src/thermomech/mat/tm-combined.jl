@@ -38,9 +38,9 @@ mutable struct TMCombined{M1,M2}<:Material
 end
 
 # Type of corresponding state structure
-ip_state_type(::Type{TMCombined{M1,M2}}) where {M1,M2} = TMCombinedState{ip_state_type(M1), ip_state_type(M2)} 
+compat_state_type(::Type{TMCombined{M1,M2}}) where {M1,M2} = TMCombinedState{compat_state_type(M1), compat_state_type(M2)} 
 
-matching_elem_types(::Type{TMCombined{M1,M2}}) where {M1,M2} = (TMSolid, TMShell)
+compat_elem_types(::Type{TMCombined{M1,M2}}) where {M1,M2} = (TMSolid, TMShell)
 
 
 function Base.getproperty(mat::TMCombined, s::Symbol)

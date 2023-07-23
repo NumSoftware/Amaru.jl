@@ -52,8 +52,8 @@ mutable struct MechShell<:Mech
 end
 
 
-matching_shape_family(::Type{MechShell}) = BULKCELL
-matching_elem_props(::Type{MechShell}) = MechShellProps
+compat_shape_family(::Type{MechShell}) = BULKCELL
+compat_elem_props(::Type{MechShell}) = MechShellProps
 
 
 function check_props(::Type{MechShell}; props...)
@@ -120,7 +120,7 @@ function setquadrature!(elem::MechShell, n::Int=0)
             j = (k-1)*n + i
             elem.ips[j] = Ip(R, w)
             elem.ips[j].id = j
-            elem.ips[j].state = ip_state_type(typeof(elem.mat))(elem.env)
+            elem.ips[j].state = compat_state_type(typeof(elem.mat))(elem.env)
             elem.ips[j].owner = elem
         end
     end

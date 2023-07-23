@@ -57,10 +57,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{Mazars}) = MazarsState
+compat_state_type(::Type{Mazars}) = MazarsState
 
 # Element types that work with this material
-matching_elem_types(::Type{Mazars}) = (MechSolid,)
+compat_elem_types(::Type{Mazars}) = (MechSolid,)
 
 
 function calcD(mat::Mazars, state::MazarsState)

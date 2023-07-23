@@ -61,10 +61,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{ElasticJointSeep2}) = JointSeepState2
+compat_state_type(::Type{ElasticJointSeep2}) = JointSeepState2
 
 # Element types that work with this material
-matching_elem_types(::Type{ElasticJointSeep2}) = (HydroJoint,)
+compat_elem_types(::Type{ElasticJointSeep2}) = (HydroJoint,)
 
 
 function mountD(mat::ElasticJointSeep2, state::JointSeepState2)

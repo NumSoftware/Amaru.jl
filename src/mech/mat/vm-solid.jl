@@ -90,10 +90,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{VonMises}) = VonMisesState
+compat_state_type(::Type{VonMises}) = VonMisesState
 
 # Element types that work with this material
-matching_elem_types(::Type{VonMises}) = (MechSolid, MechShell)
+compat_elem_types(::Type{VonMises}) = (MechSolid, MechShell)
 
 function yield_func(mat::VonMises, state::VonMisesState, σ::AbstractArray)
     j1  = J1(σ)

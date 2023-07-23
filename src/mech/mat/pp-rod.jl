@@ -77,11 +77,11 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{PPRod}) = PPRodState
+compat_state_type(::Type{PPRod}) = PPRodState
 
 # Element types that work with this material
-matching_elem_types(::Type{PPRod}) = (MechRod,)
-matching_elem_type_if_embedded(::Type{PPRod}) = MechEmbRod
+compat_elem_types(::Type{PPRod}) = (MechRod,)
+compat_elem_type_if_embedded(::Type{PPRod}) = MechEmbRod
 
 
 function yield_func(mat::PPRod, state::PPRodState, σ::Float64)

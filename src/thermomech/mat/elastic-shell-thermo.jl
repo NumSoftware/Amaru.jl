@@ -48,10 +48,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{ElasticShellThermo}) = ElasticShellThermoState
+compat_state_type(::Type{ElasticShellThermo}) = ElasticShellThermoState
 
 # Element types that work with this material
-matching_elem_types(::Type{ElasticShellThermo}) = (TMShell,)
+compat_elem_types(::Type{ElasticShellThermo}) = (TMShell,)
 
 
 function calcD(mat::ElasticShellThermo, state::ElasticShellThermoState, stressmodel="shell")

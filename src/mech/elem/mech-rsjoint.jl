@@ -48,8 +48,8 @@ mutable struct MechRSJoint<:Mech
     end
 end
 
-matching_shape_family(::Type{MechRSJoint}) = LINEJOINTCELL
-matching_elem_props(::Type{MechRSJoint}) = MechRSJointProps
+compat_shape_family(::Type{MechRSJoint}) = LINEJOINTCELL
+compat_elem_props(::Type{MechRSJoint}) = MechRSJointProps
 
 
 

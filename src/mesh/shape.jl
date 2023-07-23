@@ -241,6 +241,10 @@ end
 function is_inside(shape::CellShape, C::Array{Float64,2}, X::Array{Float64,1}, tol = 1.e-7)
     if shape.family!=BULKCELL return false end
 
+    # fix dimension
+    ndim = size(C, 2)
+    X    = X[1:ndim]
+
     # Testing with bounding box
     Cmin = vec(minimum(C, dims=1))
     Cmax = vec(maximum(C, dims=1))

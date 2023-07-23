@@ -17,7 +17,7 @@ mutable struct HMJoint2<:Hydromech
 end
 
 # Return the shape family that works with this element
-matching_shape_family(::Type{HMJoint2}) = JOINTCELL
+compat_shape_family(::Type{HMJoint2}) = JOINTCELL
 
 
 function elem_config_dofs(elem::HMJoint2)

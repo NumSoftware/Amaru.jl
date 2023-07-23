@@ -27,8 +27,8 @@ mutable struct HMJoint<:Hydromech
 end
 
 # Return the shape family that works with this element
-matching_shape_family(::Type{HMJoint}) = JOINTCELL
-matching_elem_props(::Type{HMJoint}) = HMJointProps
+compat_shape_family(::Type{HMJoint}) = JOINTCELL
+compat_elem_props(::Type{HMJoint}) = HMJointProps
 
 
 

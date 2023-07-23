@@ -87,10 +87,10 @@ mutable struct CyclicRSJoint<:Material
 end
 
 # Element types that work with this material
-matching_elem_types(::Type{CyclicRSJoint}) = (MechRSJoint,)
+compat_elem_types(::Type{CyclicRSJoint}) = (MechRSJoint,)
 
 # Type of corresponding state structure
-ip_state_type(::Type{CyclicRSJoint}) = CyclicRSJointState
+compat_state_type(::Type{CyclicRSJoint}) = CyclicRSJointState
 
 
 function tau(mat::CyclicRSJoint, ips::CyclicRSJointState, s::Float64)

@@ -491,13 +491,12 @@ function update_logger!(logger::SegmentLogger, model; flush=true)
 
     if logger.filename!="" && flush
         filename = joinpath(model.env.outdir, logger.filename)
-        save(logger, filename)
+        save(logger, filename, quiet=true)
     end
 end
 
 
 # Functions to save loggers
-
 
 function save(logger::AbstractLogger, filename::String; quiet=false)
     if isdefined(logger, :table)

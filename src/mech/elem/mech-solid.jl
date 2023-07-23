@@ -42,9 +42,9 @@ mutable struct MechSolid<:Mech
     end
 end
 
-matching_shape_family(::Type{MechSolid}) = BULKCELL
-# matching_elem_types(::Type{MechSolidProps}) = MechSolid
-matching_elem_props(::Type{MechSolid}) = MechSolidProps
+compat_shape_family(::Type{MechSolid}) = BULKCELL
+# compat_elem_types(::Type{MechSolidProps}) = MechSolid
+compat_elem_props(::Type{MechSolid}) = MechSolidProps
 
 
 # function check_props(::Type{MechSolid}; props...)

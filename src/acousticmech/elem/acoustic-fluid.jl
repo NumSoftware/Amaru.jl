@@ -17,7 +17,7 @@ mutable struct AcousticFluid<:Element
     end
 end
 
-matching_shape_family(::Type{AcousticFluid}) = BULKCELL
+compat_shape_family(::Type{AcousticFluid}) = BULKCELL
 
 
 function elem_config_dofs(elem::AcousticFluid)

@@ -31,10 +31,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{ElasticTipJoint}) = ElasticTipJointState
+compat_state_type(::Type{ElasticTipJoint}) = ElasticTipJointState
 
 # Element types that work with this material
-matching_elem_types(::Type{ElasticTipJoint}) = (MechTipJoint,)
+compat_elem_types(::Type{ElasticTipJoint}) = (MechTipJoint,)
 
 
 function calcD(mat::ElasticTipJoint, state::ElasticTipJointState)

@@ -50,7 +50,7 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{CompressiveConcrete}) = CompressiveConcreteState
+compat_state_type(::Type{CompressiveConcrete}) = CompressiveConcreteState
 
 
 function uniaxial_σ(mat::CompressiveConcrete, state::CompressiveConcreteState, εi::Float64)

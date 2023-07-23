@@ -17,7 +17,7 @@ mutable struct MechSpring<:Mech
     end
 end
 
-matching_shape_family(::Type{MechSpring}) = LINECELL
+compat_shape_family(::Type{MechSpring}) = LINECELL
 
 
 function elem_stiffness(elem::MechSpring)

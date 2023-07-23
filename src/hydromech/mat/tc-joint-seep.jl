@@ -94,10 +94,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{TCJointSeep}) = TCJointSeepState
+compat_state_type(::Type{TCJointSeep}) = TCJointSeepState
 
 # Element types that work with this material
-matching_elem_types(::Type{TCJointSeep}) = (HMJoint,)
+compat_elem_types(::Type{TCJointSeep}) = (HMJoint,)
 
 
 function mountD(mat::TCJointSeep, state::TCJointSeepState)

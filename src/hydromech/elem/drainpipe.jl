@@ -38,8 +38,8 @@ mutable struct DrainPipe<:Hydromech
     end
 end
 
-matching_shape_family(::Type{DrainPipe}) = LINECELL
-matching_elem_props(::Type{DrainPipe}) = DrainPipeProps
+compat_shape_family(::Type{DrainPipe}) = LINECELL
+compat_elem_props(::Type{DrainPipe}) = DrainPipeProps
 
 
 

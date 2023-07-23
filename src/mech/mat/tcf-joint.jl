@@ -71,10 +71,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{TCFJoint}) = TCFJointState
+compat_state_type(::Type{TCFJoint}) = TCFJointState
 
 # Element types that work with this material
-matching_elem_types(::Type{TCFJoint}) = (MechJoint,)
+compat_elem_types(::Type{TCFJoint}) = (MechJoint,)
 
 
 # function init_state(mat::TCFJoint, state::TCFJointState; h::Float64=0.0)

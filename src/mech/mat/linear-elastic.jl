@@ -70,10 +70,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{LinearElastic}) = ElasticSolidState
+compat_state_type(::Type{LinearElastic}) = ElasticSolidState
 
 # Element types that work with this material
-matching_elem_types(::Type{LinearElastic}) = (MechSolid, MechShell)
+compat_elem_types(::Type{LinearElastic}) = (MechSolid, MechShell)
 
 
 function calcDe(E::Number, ν::Number, stressmodel::String)

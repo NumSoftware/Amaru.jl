@@ -43,8 +43,8 @@ mutable struct HMSolid<:Hydromech
     end
 end
 
-matching_shape_family(::Type{HMSolid}) = BULKCELL
-matching_elem_props(::Type{HMSolid}) = HMSolidProps
+compat_shape_family(::Type{HMSolid}) = BULKCELL
+compat_elem_props(::Type{HMSolid}) = HMSolidProps
 
 
 

@@ -76,10 +76,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{CebRSJoint}) = CebRSJointState
+compat_state_type(::Type{CebRSJoint}) = CebRSJointState
 
 # Element types that work with this material
-matching_elem_types(::Type{CebRSJoint}) = (MechRSJoint,)
+compat_elem_types(::Type{CebRSJoint}) = (MechRSJoint,)
 
 CEBJoint1D = CebRSJoint #! deprecated
 export CEBJoint1D

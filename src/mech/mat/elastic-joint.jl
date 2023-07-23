@@ -71,10 +71,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{ElasticJoint}) = JointState
+compat_state_type(::Type{ElasticJoint}) = JointState
 
 # Element types that work with this material
-matching_elem_types(::Type{ElasticJoint}) = (MechJoint,)
+compat_elem_types(::Type{ElasticJoint}) = (MechJoint,)
 
 
 # function init_state(mat::ElasticJoint, state::JointState; h::Float64=0.0)

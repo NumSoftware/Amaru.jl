@@ -22,7 +22,7 @@ mutable struct MechEmbRod<:Mech
 end
 
 
-matching_shape_family(::Type{MechEmbRod}) = LINECELL
+compat_shape_family(::Type{MechEmbRod}) = LINECELL
 
 
 function elem_config_dofs(::MechEmbRod)

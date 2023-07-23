@@ -33,10 +33,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{Joint1DConstPermeability}) = Joint1DConstPermeabilityState
+compat_state_type(::Type{Joint1DConstPermeability}) = Joint1DConstPermeabilityState
 
 # Element types that work with this material
-matching_elem_types(::Type{Joint1DConstPermeability}) = (SeepJoint1D,)
+compat_elem_types(::Type{Joint1DConstPermeability}) = (SeepJoint1D,)
 
 
 function update_state!(mat::Joint1DConstPermeability, state::Joint1DConstPermeabilityState, ΔFw::Float64, Δt::Float64)

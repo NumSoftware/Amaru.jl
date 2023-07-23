@@ -38,9 +38,9 @@ mutable struct HMCombined{M1,M2}<:Material
 end
 
 # Type of corresponding state structure
-ip_state_type(::Type{HMCombined{M1,M2}}) where {M1,M2} = HMCombinedState{ip_state_type(M1), ip_state_type(M2)} 
+compat_state_type(::Type{HMCombined{M1,M2}}) where {M1,M2} = HMCombinedState{compat_state_type(M1), compat_state_type(M2)} 
 
-matching_elem_types(::Type{HMCombined{M1,M2}}) where {M1,M2} = (HMSolid, HMJoint)
+compat_elem_types(::Type{HMCombined{M1,M2}}) where {M1,M2} = (HMSolid, HMJoint)
 
 
 function Base.getproperty(mat::HMCombined, s::Symbol)

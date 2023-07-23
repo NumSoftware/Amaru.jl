@@ -19,7 +19,7 @@ mutable struct PlateRM<:Mech
     end
 end
 
-matching_shape_family(::Type{PlateRM}) = BULKCELL
+compat_shape_family(::Type{PlateRM}) = BULKCELL
 
 
 function D_matrix(elem::PlateRM)

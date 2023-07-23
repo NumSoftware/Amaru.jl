@@ -101,8 +101,9 @@ end
 
 # Find the cell that contains a given point
 function find_elem(X::Array{Float64,1}, cells::Array{<:AbstractCell,1}, cellpartition::ElemPartition, tol::Float64=1e-7; exclude::Array{<:AbstractCell,1}=AbstractCell[])
+    X = vcat(X, 0)[1:3]
     # Node coordinates
-    x, y, z = vcat(X, 0)[1:3]
+    x, y, z = X
     lbin = cellpartition.lbin
 
     # Build cellpartition if empty

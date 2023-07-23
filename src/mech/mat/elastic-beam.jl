@@ -40,10 +40,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{ElasticBeam}) = ElasticBeamState
+compat_state_type(::Type{ElasticBeam}) = ElasticBeamState
 
 # Element types that work with this material
-matching_elem_types(::Type{ElasticBeam}) = (MechBeam,)
+compat_elem_types(::Type{ElasticBeam}) = (MechBeam,)
 
 
 function calcD(mat::ElasticBeam, state::ElasticBeamState)

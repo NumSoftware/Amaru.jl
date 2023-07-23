@@ -92,10 +92,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{MCJointSeep2}) = MCJointSeepState2
+compat_state_type(::Type{MCJointSeep2}) = MCJointSeepState2
 
 # Element types that work with this material
-matching_elem_types(::Type{MCJointSeep2}) = (HMJoint2,)
+compat_elem_types(::Type{MCJointSeep2}) = (HMJoint2,)
 
 
 function yield_func(mat::MCJointSeep2, state::MCJointSeepState2, σ::Array{Float64,1})

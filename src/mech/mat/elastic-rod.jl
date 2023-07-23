@@ -65,11 +65,11 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{ElasticRod}) = ElasticRodState
+compat_state_type(::Type{ElasticRod}) = ElasticRodState
 
 # Element types that work with this material
-matching_elem_types(::Type{ElasticRod}) = (MechRod,)
-matching_elem_type_if_embedded(::Type{ElasticRod}) = MechEmbRod
+compat_elem_types(::Type{ElasticRod}) = (MechRod,)
+compat_elem_type_if_embedded(::Type{ElasticRod}) = MechEmbRod
 
 
 function update_state!(mat::ElasticRod, state::ElasticRodState, Δε::Float64)

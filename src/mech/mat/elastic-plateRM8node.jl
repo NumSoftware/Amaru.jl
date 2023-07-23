@@ -32,7 +32,7 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{ElasticPlateRM8node}) = ElasticPlateRM8nodeState
+compat_state_type(::Type{ElasticPlateRM8node}) = ElasticPlateRM8nodeState
 
 
 function ip_state_vals(mat::ElasticPlateRM8node, state::ElasticPlateRM8nodeState)

@@ -59,10 +59,10 @@ mutable struct DamageConcreteState<:IpState
 end
 
 # Element types that work with this material
-matching_elem_types(::Type{DamageConcrete}) = (MechSolid,)
+compat_elem_types(::Type{DamageConcrete}) = (MechSolid,)
 
 # Type of corresponding state structure
-ip_state_type(::Type{DamageConcrete}) = DamageConcreteState
+compat_state_type(::Type{DamageConcrete}) = DamageConcreteState
 
 
 function uniaxial_σ(mat::DamageConcrete, state::DamageConcreteState, εi::Float64)

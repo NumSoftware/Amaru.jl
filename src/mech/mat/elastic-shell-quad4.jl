@@ -32,7 +32,7 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{ElasticShellQUAD4}) = ElasticShellQuad4State
+compat_state_type(::Type{ElasticShellQUAD4}) = ElasticShellQuad4State
 
 
 function ip_state_vals(mat::ElasticShellQUAD4, state::ElasticShellQuad4State)

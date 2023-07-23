@@ -77,10 +77,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{MMCJoint}) = MMCJointState
+compat_state_type(::Type{MMCJoint}) = MMCJointState
 
 # Element types that work with this material
-matching_elem_types(::Type{MMCJoint}) = (MechJoint,)
+compat_elem_types(::Type{MMCJoint}) = (MechJoint,)
 
 
 function yield_func(mat::MMCJoint, state::MMCJointState, σ::Array{Float64,1}, σmax::Float64)

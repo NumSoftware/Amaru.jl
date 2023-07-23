@@ -69,10 +69,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{SmearedCrack}) = SmearedCrackState
+compat_state_type(::Type{SmearedCrack}) = SmearedCrackState
 
 # Element types that work with this material
-matching_elem_types(::Type{SmearedCrack}) = (MechSolid,)
+compat_elem_types(::Type{SmearedCrack}) = (MechSolid,)
 
 
 function calc_ςmax(mat::SmearedCrack, state::SmearedCrackState, up::Float64)

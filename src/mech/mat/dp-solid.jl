@@ -88,10 +88,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{DruckerPrager}) = DruckerPragerState
+compat_state_type(::Type{DruckerPrager}) = DruckerPragerState
 
 # Element types that work with this material
-matching_elem_types(::Type{DruckerPrager}) = (MechSolid,)
+compat_elem_types(::Type{DruckerPrager}) = (MechSolid,)
 
 
 function nlE(fc::Float64, εc::Float64, ε::Array{Float64,1})

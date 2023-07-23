@@ -16,7 +16,7 @@ mutable struct HydroJoint<:Hydromech
 end
 
 # Return the shape family that works with this element
-matching_shape_family(::Type{HydroJoint}) = JOINTCELL
+compat_shape_family(::Type{HydroJoint}) = JOINTCELL
 
 
 function elem_config_dofs(elem::HydroJoint)

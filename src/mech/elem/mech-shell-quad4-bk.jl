@@ -18,7 +18,7 @@ mutable struct ShellQUAD4<:Mech
     end
 end
 
-matching_shape_family(::Type{ShellQUAD4}) = BULKCELL
+compat_shape_family(::Type{ShellQUAD4}) = BULKCELL
 
 
 # the strain-displacement matrix for membrane forces

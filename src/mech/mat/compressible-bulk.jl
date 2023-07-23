@@ -58,7 +58,7 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{CompressibleBulk}) = CompressibleBulkState
+compat_state_type(::Type{CompressibleBulk}) = CompressibleBulkState
 
 
 @inline function calc_py(mat::CompressibleBulk, state::CompressibleBulkState, εvp::Float64)

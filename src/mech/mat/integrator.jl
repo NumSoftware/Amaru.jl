@@ -8,7 +8,7 @@ mutable struct MechIntegrator
     function MechIntegrator(mat::Material)
         this = new()
         env = ModelEnv()
-        this.state = ip_state_type(mat)(env)
+        this.state = compat_state_type(mat)(env)
         this.mat = mat
         this.table = DataTable()
         return this

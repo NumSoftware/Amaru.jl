@@ -18,7 +18,7 @@ mutable struct ThermoShell<:Thermomech
     end
 end
 
-matching_shape_family(::Type{ThermoShell}) = BULKCELL
+compat_shape_family(::Type{ThermoShell}) = BULKCELL
 
 
 function elem_config_dofs(elem::ThermoShell)

@@ -19,7 +19,7 @@ mutable struct MechClassicalBeam<:Mech
     end
 end
 
-matching_shape_family(::Type{MechClassicalBeam}) = LINECELL
+compat_shape_family(::Type{MechClassicalBeam}) = LINECELL
 
 
 function beam_shape_func(x::Float64, L::Float64)

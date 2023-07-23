@@ -31,7 +31,7 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{ElasticPlateMZC}) = ElasticPlateMZCState
+compat_state_type(::Type{ElasticPlateMZC}) = ElasticPlateMZCState
 
 
 function ip_state_vals(mat::ElasticPlateMZC, state::ElasticPlateMZCState)

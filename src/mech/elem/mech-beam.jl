@@ -54,8 +54,8 @@ mutable struct MechBeam<:Mech
 end
 
 
-matching_shape_family(::Type{MechBeam}) = LINECELL
-matching_elem_props(::Type{MechBeam}) = MechBeamProps
+compat_shape_family(::Type{MechBeam}) = LINECELL
+compat_elem_props(::Type{MechBeam}) = MechBeamProps
 
 
 
@@ -103,7 +103,7 @@ function setquadrature!(elem::MechBeam, n::Int=0)
                 m = (i-1)*nj*nk + (j-1)*nk + k
                 elem.ips[m] = Ip(R, w)
                 elem.ips[m].id = m
-                elem.ips[m].state = ip_state_type(typeof(elem.mat))(elem.env)
+                elem.ips[m].state = compat_state_type(typeof(elem.mat))(elem.env)
                 elem.ips[m].owner = elem
                 # @show m
             end

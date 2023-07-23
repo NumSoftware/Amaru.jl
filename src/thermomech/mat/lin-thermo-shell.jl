@@ -35,7 +35,7 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{ConstConductivityShell}) = ConstConductivityShellState
+compat_state_type(::Type{ConstConductivityShell}) = ConstConductivityShellState
 
 
 function calcK(mat::ConstConductivityShell, state::ConstConductivityShellState) # Thermal conductivity matrix

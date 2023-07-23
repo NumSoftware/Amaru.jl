@@ -27,8 +27,8 @@ mutable struct MechJoint<:Mech
 end
 
 # Return the shape family that works with this element
-matching_shape_family(::Type{MechJoint}) = JOINTCELL
-matching_elem_props(::Type{MechJoint}) = MechJointProps
+compat_shape_family(::Type{MechJoint}) = JOINTCELL
+compat_elem_props(::Type{MechJoint}) = MechJointProps
 
 
 function elem_init(elem::MechJoint)

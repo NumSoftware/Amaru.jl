@@ -71,10 +71,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{PJoint}) = PJointState
+compat_state_type(::Type{PJoint}) = PJointState
 
 # Element types that work with this material
-matching_elem_types(::Type{PJoint}) = (MechJoint,)
+compat_elem_types(::Type{PJoint}) = (MechJoint,)
 
 
 function yield_func(mat::PJoint, state::PJointState, σ::Array{Float64,1}, σmax::Float64)

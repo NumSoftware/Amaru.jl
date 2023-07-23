@@ -17,7 +17,7 @@ mutable struct MechLumpedMass<:Mech
     end
 end
 
-matching_shape_family(::Type{MechLumpedMass}) = VERTEXCELL
+compat_shape_family(::Type{MechLumpedMass}) = VERTEXCELL
 
 
 function elem_stiffness(elem::MechLumpedMass)

@@ -40,10 +40,10 @@ end
 
 
 # Type of corresponding state structure
-ip_state_type(::Type{ElasticShell}) = ElasticShellState
+compat_state_type(::Type{ElasticShell}) = ElasticShellState
 
 # Element types that work with this material
-matching_elem_types(::Type{ElasticShell}) = (MechShell,)
+compat_elem_types(::Type{ElasticShell}) = (MechShell,)
 
 
 function calcD(mat::ElasticShell, state::ElasticShellState)
