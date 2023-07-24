@@ -101,7 +101,7 @@ end
 
 
 function yield_func(mat::DruckerPrager, state::DruckerPragerState, σ::AbstractArray)
-    j1  = J1(σ)
+    j1  = calcJ1(σ)
     j2d = J2D(σ)
     α,κ = mat.α, mat.κ
     H   = mat.H
@@ -151,7 +151,7 @@ function update_state!(mat::DruckerPrager, state::DruckerPragerState, Δε::Arra
         K, G  = mat.E/(3.0*(1.0-2.0*mat.ν)), mat.E/(2.0*(1.0+mat.ν))
         α, H  = mat.α, mat.H
         n     = 1.0/√(3.0*α*α+0.5)
-        j1tr  = J1(σtr)
+        j1tr  = calcJ1(σtr)
         j2dtr = J2D(σtr)
 
         if √j2dtr - state.Δγ*n*G > 0.0 # conventional return

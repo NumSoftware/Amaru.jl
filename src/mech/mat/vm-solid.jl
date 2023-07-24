@@ -96,7 +96,7 @@ compat_state_type(::Type{VonMises}) = VonMisesState
 compat_elem_types(::Type{VonMises}) = (MechSolid, MechShell)
 
 function yield_func(mat::VonMises, state::VonMisesState, σ::AbstractArray)
-    j1  = J1(σ)
+    j1  = calcJ1(σ)
     j2d = J2D(σ)
     σy  = mat.σy
     H   = mat.H
@@ -142,7 +142,7 @@ function update_state!(mat::VonMises, state::VonMisesState, Δε::Array{Float64,
         # plastic
         K, G  = mat.E/(3.0*(1.0-2.0*mat.ν)), mat.E/(2.0*(1.0+mat.ν))
         H     = mat.H
-        j1tr  = J1(σtr)
+        j1tr  = calcJ1(σtr)
         j2dtr = J2D(σtr)
 
         # @show √j2dtr

@@ -28,13 +28,13 @@ dev(T::Vec6) = Psd*T # deviatoric tensor
 
 # Tensor invariants
 LinearAlgebra.tr(T::Vec6) = sum(T[1:3])
-J1(T::Vec6) = sum(T[1:3])
-J2(T::Vec6) = 0.5*dot(T,T)
+calcJ1(T::Vec6) = sum(T[1:3])
+calcJ2(T::Vec6) = 0.5*dot(T,T)
 
 
 # Deviatoric tensor invariants
 function J2D(T::Vec6)
-    #return J2(Psd*T)
+    #return calcJ2(Psd*T)
     t11, t22, t33, t12, t23, t13 = T
     t12 /= SR2
     t23 /= SR2

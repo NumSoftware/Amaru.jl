@@ -32,8 +32,9 @@ mutable struct MCJoint<:Material
     softcurve::String # softening curve model ("linear" or bilinear" or "hordijk")
 
 
-    function MCJoint(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="hordijk")
+    function MCJoint(; params...)
         names = (E="Young modulus", nu="Poisson ratio", kn="Normal stiffness per area", ks="shear stiffness per area", 
+        mu="Tangent of the friction angle", ft="Tensile strength",
         zeta="elastic displacement scale factor", wc="Critical crack opening", ws="Crack opening at inflection", softcurve="softening curve")
         
         required = (:E, :nu, :ft, :zeta, :mu)
@@ -44,10 +45,12 @@ mutable struct MCJoint<:Material
         E       = params.E
         nu      = params.nu
         ft      = params.ft
+        mu      = params.mu
         wc      = params.wc
         ws      = params.ws
         GF      = params.GF
-        Gf      = params.Gf
+        zeta    = params.zeta
+        softcurve = params.softcurve
 
         @check GF>0 || Gf>0 || wc>0
         @check E>0.0    
