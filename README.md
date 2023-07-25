@@ -1,4 +1,4 @@
-# Amaru
+# Amaru - Finite element code
 
 <!-- <p align="center">
   <img src="docs/src/assets/amaru2.png" />
