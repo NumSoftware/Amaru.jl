@@ -1,19 +1,54 @@
-export mod_solve!
+
+export ModalAnalysis
+
+mutable struct ModalAnalysis<:Analysis
+    stressmodel::String # plane stress, plane strain, etc.
+    thickness::Float64  # thickness for 2d analyses
+    g::Float64 # gravity acceleration
+    
+    function ModalAnalysis(;stressmodel="3d", thickness=1.0, g=0.0)
+        @check stressmodel in ("plane-stress", "plane-strain", "axisymmetric", "3d")
+        @check thickness>0
+        @check g>=0
+        return new(stressmodel, thickness, g)
+    end
+end
 
 
-function mod_solve!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, outdir="", quiet=false)
+function solve!(model::Model, ana::ModalAnalysis; args...)
+    name = "Solver for dynamic modal analyses"
+    status = stage_iterator!(name, dyn_modal_solver!, model; args...)
+    return status
+end
 
-    quiet || printstyled("FEM modal analysis:\n", bold=true, color=:cyan)
+
+function dyn_modal_solver!(model::Model, stage::Stage, logfile::IOStream, sline::StatusLine; 
+    nmods::Int=5,
+    rayleigh=false, 
+    outdir::String  = ".",
+    outkey::String  = "mod",
+    quiet ::Bool    = false
+)
+
+    println(logfile, "Dynamic modal analysis")
+    stage.status = :solving
 
     # get only bulk elements
     model = Model(model.elems.bulks)
 
+    # check density
+    for elem in model.elems
+        elem.props.ρ==0 && error("dyn_modal_solver: density should not be zero")
+    end
+
     # get dofs organized according to boundary conditions
-    dofs, nu    = configure_dofs!(model, bcs)
+    dofs, nu    = configure_dofs!(model, stage.bcs)
 
     ndofs       = length(dofs)
     model.ndofs = length(dofs)
-    quiet || println("  unknown dofs: $nu")
+    println(logfile, "unknown dofs: $nu")
+    message(sline, "  unknown dofs: $nu")
+    # quiet || println("  unknown dofs: $nu\n")
 
     # setup quantities at dofs
     for dof in dofs
@@ -32,8 +67,12 @@ function mod_solve!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, outd
     # inverse of the lumped matrix in vector form
     P = m11.*K11
 
+    # m11 = inv(Matrix(M11))
+    # P = m11*K11
+
     # eingenvalues and eingenvectors
-    Eig = eigs(P, nev=20, which=:SM)
+    Eig = eigs(P, nev=nmods, which=:SR) # only real
+    # Eig = eigs(P, nev=20, which=:SM)
     w0  = Eig[1] # frequencies
     wi  = copy(w0)
 
@@ -49,17 +88,22 @@ function mod_solve!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, outd
     w = wi.^0.5
 
     update_output_data!(model)
-    save(model, joinpath(outdir, "mod-0.vtu"))
+    save(model, joinpath(outdir, "$outkey-0.vtu"), quiet=true)
 
+    model.env.inc = 1
+    model.env.ΔT  = 1.0
+    
     # save modes
     for i in 1:nmods
         U = v[:,i] # modal displacements
-
+        
         for (k,dof) in enumerate(dofs[1:nu])
             dof.vals[dof.name] = U[k]
         end
+        model.env.T = i/nmods
+        model.env.out = i
         update_output_data!(model)
-        save(model, joinpath(outdir, "mod-$i.vtu"))
+        save(model, joinpath(outdir, "$outkey-$i.vtu"), quiet=true)
     end
 
     # reset displacement values
@@ -67,15 +111,15 @@ function mod_solve!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, outd
         dof.vals[dof.name] = 0.0
     end
 
-    # show modal frequencies
-    if !quiet
-        message("modal frequencies:")
-        for i in 1:nmods
-            # @show i
-            # println("ω$i = ", abs(w[i]))
-            info("ω$i = ", abs(w[i]))
-        end
-    end
+    # # show modal frequencies
+    # if !quiet
+    #     message("modal frequencies:")
+    #     for i in 1:nmods
+    #         # @show i
+    #         # println("ω$i = ", abs(w[i]))
+    #         info("ω$i = ", abs(w[i]))
+    #     end
+    # end
 
     # show("Modal Frequencies rad/s")
     # @show w
@@ -105,6 +149,8 @@ function mod_solve!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, outd
         info("Rayleigh alpha: ", alpha)
         info("Rayleigh beta:", beta)
     end
+
+    return success()
 
 end
 
@@ -271,4 +317,3 @@ function modsolvex!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, save
 
 
 end
-

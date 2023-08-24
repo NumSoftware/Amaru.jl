@@ -365,7 +365,15 @@ end
 
 
 function FEModel(elems::Array{<:Element,1})
-    model = FEModel()
+    model            = FEModel()
+    env              = elems[1].env
+    model.env        = env
+    model.env.ndim   = env.ndim
+    model.env.outdir = env.outdir
+    model.env.ana    = env.ana
+
+    # @show env.ana 
+    # @show newenv.ana
 
     # Copying nodes
     nodesset = OrderedSet(node for elem in elems for node in elem.nodes)
@@ -400,6 +408,7 @@ function FEModel(elems::Array{<:Element,1})
         newelem = new_element(typeof(elem), elem.shape, elemnodes, elem.tag, model.env)
         newelem.id = i
         newelem.mat = elem.mat
+        newelem.props = elem.props
         push!(model.elems, newelem)
     end
     
