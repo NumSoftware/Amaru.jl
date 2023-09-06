@@ -35,6 +35,9 @@ end
 # Type of corresponding state structure
 compat_state_type(::Type{LinearAcousticFluid}) = LinearAcousticFluidState
 
+# Element types that work with this material
+compat_elem_types(::Type{LinearAcousticFluid}) = (AcousticFluid,)
+
 
 function update_state!(mat::LinearAcousticFluid, state::LinearAcousticFluidState, Δup::Float64, G::Array{Float64,1}, Δt::Float64)
     return nothing

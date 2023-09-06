@@ -1,5 +1,7 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
+export AcousticFluid
+
 mutable struct AcousticFluid<:Element
     id    ::Int
     shape ::CellShape
@@ -196,7 +198,7 @@ function elem_RHS_vector(elem::AcousticFluid)
 end
 
 # TODO
-function update_elem!(elem::AcousticFluid, DU::Array{Float64,1}, DF::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::AcousticFluid, DU::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     th     = elem.env.ana.thickness
@@ -205,15 +207,16 @@ function update_elem!(elem::AcousticFluid, DU::Array{Float64,1}, DF::Array{Float
 
     C   = getcoords(elem)
 
-    dUp = DU[map_p] # nodal pore-pressure increments
+    dP = DU[map_p] # nodal pore-pressure increments
     P  = [ node.dofdict[:up].vals[:up] for node in elem.nodes ]
-    P += dUp # nodal pore-pressure at step n+1
+    P += dP # nodal pore-pressure at step n+1
     A  = [ node.dofdict[:up].vals[:ap] for node in elem.nodes ]
 
     K, m, m = elem_acoustic_stiffness(elem)
     M, m, m = elem_acoustic_mass(elem)
 
-    dF = K*P + M*A
+    # dF = K*P + M*A
+    dF = K*dP + M*A
 
     # dFw = zeros(nnodes)
     # Bw  = zeros(ndim, nnodes)
@@ -244,7 +247,7 @@ function update_elem!(elem::AcousticFluid, DU::Array{Float64,1}, DF::Array{Float
     #     @gemv dFw += coef*dNdX*V
     # end
 
-    return dF, map, success()
+    return dF, map_p, success()
     # DF[map_p] += dF
     # return success()
 end

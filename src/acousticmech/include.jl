@@ -5,4 +5,4 @@ include("elem/acoustic-fluid.jl")
 include("mat/linear-acoustic.jl")
 include("acousticmech-solver.jl")
 
-export am_solve!
+# export am_solve!

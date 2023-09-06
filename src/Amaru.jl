@@ -15,6 +15,7 @@ Node, Element, Model, Dof, Ip, NodeBC, SurfaceBC
 module Amaru
 using StatsBase, Statistics, LinearAlgebra, SparseArrays, Arpack, Gmsh
 using Printf, DelimitedFiles, DataStructures, Glob, DocStringExtensions
+using Dates
 import DataStructures: OrderedDict, OrderedSet
 
 # Tools module

@@ -1,5 +1,21 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
+export AcousticMechAnalysis
+
+mutable struct AcousticMechAnalysisProps<:Analysis
+    stressmodel::String # plane stress, plane strain, etc.
+    thickness::Float64  # thickness for 2d analyses
+    g::Float64 # gravity acceleration
+    
+    function AcousticMechAnalysisProps(;stressmodel="3d", thickness=1.0, g=0.0)
+        @check stressmodel in ("plane-stress", "plane-strain", "axisymmetric", "3d")
+        @check thickness>0
+        @check g>=0
+        return new(stressmodel, thickness, g)
+    end
+end
+
+AcousticMechAnalysis = AcousticMechAnalysisProps
 
 function am_mount_M(elems::Array{<:Element,1}, ndofs::Int )
 
@@ -130,10 +146,10 @@ subjected to a list of boundary conditions `bcs`.
 
 `silent = false` : If true, no information is printed
 """
-function am_solve!(model::Model; args...)
-    name = "Acoustic solver"
-    st = stage_iterator!(name, am_stage_solver!, model; args...)
-    return st
+function solve!(model::Model, ana::AcousticMechAnalysis; args...)
+    name = "Solver for acoustic mechanical analyses"
+    status = stage_iterator!(name, am_stage_solver!, model; args...)
+    return status
 end
 
 
@@ -179,9 +195,9 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     pmap     = nu+1:ndofs   # map for prescribed bcs
     model.ndofs = length(dofs)
     println(logfile, "unknown dofs: $nu")
-    message(sline, "  unknown dofs: $nu")
+    # message(sline, "  unknown dofs: $nu") # TODO
 
-    quiet || nu==ndofs && message(sline, "solve_system!: No essential boundary conditions", Base.warn_color)
+    # quiet || nu==ndofs && message(sline, "solve_system!: No essential boundary conditions", Base.warn_color) #TODO
 
     # Dictionary of data keys related with a dof
     components_dict = Dict( 
@@ -206,6 +222,16 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
         A = zeros(ndofs)
         V = zeros(ndofs)
         Uex, Fex = get_bc_vals(model, bcs) # get values at time t
+
+        M = am_mount_M(model.elems, ndofs)
+        # @showm M
+        # @showm inv(Matrix(M))
+        # @show nu
+        # @show length(dofs)
+
+        solve_system!(M, A, Fex, nu)
+        @showm A
+
 
         # Initial values at nodes
         for (i,dof) in enumerate(dofs)
@@ -274,8 +300,6 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
         F[i] = dof.vals[dof.natname]
     end
 
-    @show 10000000
-
     local G::SparseMatrixCSC{Float64,Int64}
     local RHS::Array{Float64,1}
 
@@ -333,8 +357,8 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
             K = am_mount_K(model.elems, ndofs)
             M = am_mount_M(model.elems, ndofs)
 
-            KK = K + (4/(Δt^2))*M # pseudo-stiffness matrix
-            ΔQQ = Fex_Fin + M*(A + 4*V/Δt - 4*ΔUa/Δt^2) 
+            KK = K + (4/Δt^2)*M # pseudo-stiffness matrix
+            ΔQQ = Fex_Fin + M*(A + 4*V/Δt - 4*ΔUa/Δt^2)
 
             # Solve
             solve_system!(KK, ΔUi, ΔQQ, nu)
@@ -346,11 +370,22 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
             ΔFin .= 0.0
             ΔUt   = ΔUa + ΔUi
             ΔFin, sysstatus = update_state!(model.elems, ΔUt, Δt)
+            failed(sysstatus) && (errored=true; break)
 
-            Fina = Fin + ΔFin            
+            V = -V + 2/Δt*(ΔUa + ΔUi)
+            A = -A + 4/Δt^2*((ΔUa + ΔUi) - V*Δt)
 
-            # TFin = Fina + C*Va + M*Aa  # Internal force including dynamic effects
-            TFin = Fina + M*Aa  # Internal force including dynamic effects
+            @show Δt
+            @showm K
+            @showm KK
+            @showm ΔQQ
+            @showm ΔUa
+            @showm ΔUi
+            @showm V
+            @showm A
+
+            Fina = Fin + ΔFin        
+            TFin = Fina + M*A  # Internal force including dynamic effects
 
             residue = maximum(abs, (Fex-TFin)[umap] )
             
@@ -362,6 +397,8 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
             Fex_Fin[pmap] .= 0.0  # Zero at prescribed positions
 
             @printf(logfile, "    it %d  residue: %-10.4e\n", it, residue)
+
+            @show residue
 
             it==1 && (residue1=residue)
             residue > tol && (Fina -= ΔFin)
