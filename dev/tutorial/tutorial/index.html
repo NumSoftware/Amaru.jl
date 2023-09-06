@@ -115,7 +115,14 @@ mplot(solid, &quot;solid.svg&quot;, markers=true, dist=13)</code></pre><pre clas
   Available element fields:
     quality, elem-id, cell-type, tag
   file solid.svg saved</code></pre><p><img src="../solid.svg" alt/></p><p>Note that, the <code>solid</code> variable is an array with four blocks, as shown in the figure. This array is used to generate the structured mesh.</p><pre><code class="language-julia hljs">mesh = Mesh(solid)
-mplot(mesh, &quot;mesh.svg&quot;, dist=13)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
+mplot(mesh, &quot;mesh.svg&quot;, dist=13)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh generation:
+      8 blocks
+  spliting block 1...      spliting block 2...      spliting block 3...      spliting block 4...      spliting block 5...      spliting block 6...      spliting block 7...      spliting block 8...      finding facets...     finding edges...        3d mesh
+   4360 nodes
+    800 cells
+    720 faces
+   1440 surface edges
+Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
      fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
@@ -130,13 +137,13 @@ mplot(mesh, &quot;mesh.svg&quot;, dist=13)</code></pre><pre class="documenter-ex
 mplot(smooth_mesh, &quot;smooth_mesh.svg&quot;, dist=13)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh Laplacian smoothing:
   it   qmin     q1     q2     q3   qmax   qavg     sdev       time  histogram (0:0.05:1]
    0  0.662  0.764  0.820  0.868  0.930  0.813  0.07626          -  [             ▂▄▆▇▅▆ ]
-   1  0.688  0.770  0.838  0.909  0.956  0.834  0.07929  0m  0.08s  [             ▂▃▄▆▅▇▁]
-   2  0.688  0.785  0.855  0.911  0.956  0.846  0.07911  0m  0.08s  [             ▁▃▄▃▅▇_]
+   1  0.688  0.770  0.838  0.909  0.956  0.834  0.07929  0m  0.12s  [             ▂▃▄▆▅▇▁]
+   2  0.688  0.785  0.855  0.911  0.956  0.846  0.07911  0m  0.03s  [             ▁▃▄▃▅▇_]
    3  0.694  0.793  0.863  0.922  0.966  0.852  0.07937  0m  0.04s  [             ▁▃▃▂▅▇▁]
-   4  0.700  0.799  0.872  0.929  0.973  0.856  0.07920  0m  0.05s  [              ▃▂▃▄▇▁]
-   5  0.706  0.805  0.878  0.930  0.977  0.858  0.07879  0m  0.07s  [              ▃▁▅▄▇▁]
-   6  0.712  0.810  0.883  0.929  0.981  0.860  0.07830  0m  0.04s  [              ▄▁▆▅▇▂]
-   7  0.718  0.813  0.886  0.927  0.983  0.860  0.07784  0m  0.07s  [              ▄▁▇▅▇▃]
+   4  0.700  0.799  0.872  0.929  0.973  0.856  0.07920  0m  0.07s  [              ▃▂▃▄▇▁]
+   5  0.706  0.805  0.878  0.930  0.977  0.858  0.07879  0m  0.03s  [              ▃▁▅▄▇▁]
+   6  0.712  0.810  0.883  0.929  0.981  0.860  0.07830  0m  0.03s  [              ▄▁▆▅▇▂]
+   7  0.718  0.813  0.886  0.927  0.983  0.860  0.07784  0m  0.06s  [              ▄▁▇▅▇▃]
 Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
@@ -152,7 +159,14 @@ mplot(smooth_mesh, &quot;smooth_mesh.svg&quot;, dist=13)</code></pre><pre class=
 
 block = Block([0 0 ; 2 2], nx=8, ny=6)
 mesh  = Mesh(block)
-mplot(mesh, &quot;mesh-quad4.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
+mplot(mesh, &quot;mesh-quad4.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh generation:
+      1 blocks
+  spliting block 1...      finding facets...        2d mesh
+     63 nodes
+     48 cells
+     28 faces
+     28 surface edges
+Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
      fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
@@ -167,7 +181,14 @@ mplot(mesh, &quot;mesh-quad4.svg&quot;, markers=true)</code></pre><pre class="do
 
 block = Block([0 0 ; 2 2], nx=8, ny=6, cellshape=QUAD8)
 mesh  = Mesh(block)
-mplot(mesh, &quot;mesh-quad8.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
+mplot(mesh, &quot;mesh-quad8.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh generation:
+      1 blocks
+  spliting block 1...      finding facets...        2d mesh
+    173 nodes
+     48 cells
+     28 faces
+     28 surface edges
+Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
      fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
@@ -181,7 +202,14 @@ mplot(mesh, &quot;mesh-quad8.svg&quot;, markers=true)</code></pre><pre class="do
   file mesh-quad8.svg saved</code></pre><p><img src="../mesh-quad8.svg" alt/></p><h3 id="Simple-3D-mesh"><a class="docs-heading-anchor" href="#Simple-3D-mesh">Simple 3D mesh</a><a id="Simple-3D-mesh-1"></a><a class="docs-heading-anchor-permalink" href="#Simple-3D-mesh" title="Permalink"></a></h3><pre><code class="language-julia hljs">using Amaru
 block = Block([0 0 0; 2 4 3], nx=3, ny=6, nz=6)
 mesh = Mesh(block)
-mplot(mesh, &quot;mesh-hex8.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
+mplot(mesh, &quot;mesh-hex8.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh generation:
+      1 blocks
+  spliting block 1...      finding facets...     finding edges...        3d mesh
+    196 nodes
+    108 cells
+    144 faces
+    288 surface edges
+Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
      fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
@@ -208,7 +236,14 @@ block1 = Block(
 )
 block2 = mirror(block1, base=[0, 0], axis=[0.7643, -0.7643])
 mesh = Mesh(block1, block2)
-mplot(mesh, &quot;mesh-2d.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
+mplot(mesh, &quot;mesh-2d.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh generation:
+      2 blocks
+  spliting block 1...      spliting block 2...      finding facets...        2d mesh
+    181 nodes
+     50 cells
+     30 faces
+     30 surface edges
+Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
      fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
@@ -233,7 +268,14 @@ block = BlockGrid(
 )
 
 mesh = Mesh(block)
-mplot(mesh, &quot;mesh-rate.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
+mplot(mesh, &quot;mesh-rate.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh generation:
+      2 blocks
+  spliting block 1...      spliting block 2...      finding facets...        2d mesh
+    117 nodes
+     96 cells
+     40 faces
+     40 surface edges
+Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
      fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
@@ -265,7 +307,14 @@ block1 = Block([0 0 0; 1 0 1; 0.7 0 0.3 ], n=7) # curved wire (quadratic)
 block2 = Block([1 0 1; 1 0 2], n=5) # straight wire
 mesh = Mesh(block1, block2)
 
-mplot(mesh, &quot;mesh-arc.svg&quot;, azim=-90, elev=0, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
+mplot(mesh, &quot;mesh-arc.svg&quot;, azim=-90, elev=0, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh generation:
+      2 blocks
+  spliting block 1...      spliting block 2...      finding facets...     finding edges...        3d mesh
+     13 nodes
+     12 cells
+      0 faces
+      0 surface edges
+Mesh plotting
   Optional arguments:
     axis, lw, markers, nodelabels, celllabels, opacity, field,
      fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
@@ -440,4 +489,4 @@ cplot(
     ylabel = raw&quot;$\sigma_{xx}$ [MPa]&quot;,
 )
 
-nothing # hide</code></pre><p><img src="./uz_vs_fz.svg" alt/></p><p><img src="./x_vs_uz.svg" alt/></p><p><img src="./x_vs_sxx.svg" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Introduction</a><a class="docs-footer-nextpage" href="../../meshing/meshing/">Mesh »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Wednesday 6 September 2023 15:59">Wednesday 6 September 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+nothing # hide</code></pre><p><img src="./uz_vs_fz.svg" alt/></p><p><img src="./x_vs_uz.svg" alt/></p><p><img src="./x_vs_sxx.svg" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Introduction</a><a class="docs-footer-nextpage" href="../../meshing/meshing/">Mesh »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Wednesday 6 September 2023 17:14">Wednesday 6 September 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
