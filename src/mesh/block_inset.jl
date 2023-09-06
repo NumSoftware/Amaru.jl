@@ -84,6 +84,10 @@ function Base.copy(bl::BlockInset; dx=0.0, dy=0.0, dz=0.0)
                        jointtag=bl.jointtag, tipjointtag=bl.tipjointtag, tipjoint=bl.tipjoint)
 end
 
+function Base.copy(blocks::Array{BlockInset,1}; dx=0.0, dy=0.0, dz=0.0)
+    return [ copy(obj; dx=dx, dy=dy, dz=dz) for obj in blocks ]
+end
+
 
 function cubicBezier(s::Float64, coords::Array{Float64,2}, isQ::Bool=false)
     # check
