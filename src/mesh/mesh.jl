@@ -607,7 +607,7 @@ function Mesh(
     genfacets ::Bool = true,
     genedges  ::Bool = true,
     reorder   ::Bool = true,
-    quiet     ::Bool=true,
+    quiet     ::Bool = false,
 )
 
     # Flatten items list
@@ -897,44 +897,41 @@ function randmesh(n::Int...)
 end
 
 
-function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
+function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false, quiet=false)
+    if !quiet
+        printstyled("Unstructured mesh generation:\n", bold=true, color=:cyan)
+        nsurfs = length(geo.surfaces)
+        nvols  = length(geo.volumes)
+        @printf "  %5d surfaces\n" nsurfs
+        nvols>0 && @printf "  %5d volumes\n" nvols
+    end
+
     gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", 1)
     gmsh.model.add("t1")
 
-    isvolumemesh = false
-    for v in geo.entities
-        if v isa Volume
-            isvolumemesh = true
-            break
-        end
-    end
+    isvolumemesh = length(geo.volumes)>0
 
     # add points
     # ndim = 2
-    for p in geo.entities
-        p isa Point || continue
+    for p in geo.points
         sz = p.size==0 ? size : p.size
         gmsh.model.geo.addPoint(p.coord.x, p.coord.y, p.coord.z, sz, p.id)
         # p.coord.z != 0.0 && (ndim=3)
     end
 
     # add lines
-    for l in geo.entities
-        l isa Curve || continue
-
+    for l in geo.lines
         if l isa Line
             p1 = l.points[1].id
             p2 = l.points[2].id
             gmsh.model.geo.addLine(p1, p2, l.id)
-        else
+        else #Arc
             p1 = l.points[1].id
             pc = l.points[2].id
             p2 = l.points[3].id
             gmsh.model.geo.addCircleArc(p1, pc, p2, l.id)
         end
-
-
     end
 
     function get_loop_idxs(loop::Loop)
@@ -957,17 +954,13 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
     end
 
     # add loops
-    for loop in geo.entities
-        loop isa Loop || continue
-
+    for loop in geo.loops
         line_idxs = get_loop_idxs(loop)
         gmsh.model.geo.addCurveLoop(line_idxs, loop.id)
     end
 
     # add surfaces
-    for surf in geo.entities
-        surf isa AbstractSurface || continue
-
+    for surf in geo.surfaces
         lo_idxs = [ lo.id for lo in surf.loops ]
         if surf isa PlaneSurface
             gmsh.model.geo.addPlaneSurface(lo_idxs, surf.id) # plane surface
@@ -975,24 +968,22 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
             gmsh.model.geo.addSurfaceFilling(lo_idxs, surf.id) # filling surf
         end
     end
-    surf_idxs = [ surf.id for surf in geo.entities if surf isa Surface ]
+    surf_idxs = [ surf.id for surf in geo.surfaces ]
 
     # add volumes
-    for vol in geo.entities
-        vol isa Volume || continue
+    for vol in geo.volumes
         surf_idxs = [ surf.id for surf in vol.surfaces ]
 
         gmsh.model.geo.addSurfaceLoop(surf_idxs, vol.id)
         gmsh.model.geo.addVolume([vol.id], vol.id) # not considering volume holes
     end
-    vol_idxs = [ vol.id for vol in geo.entities if vol isa Volume ]
+    vol_idxs = [ vol.id for vol in geo.volumes ]
 
     # generate mesh
     gmsh.model.geo.synchronize()
     gmsh.option.setNumber("Mesh.Algorithm", 5) # Delaunay
 
-    for l in geo.entities
-        l isa Line || continue
+    for l in geo.lines
         # transfinite
         if l.n>0
             # @show l.n+1
@@ -1000,27 +991,26 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
         end
     end
 
-    for s in geo.entities
-        s isa AbstractSurface || continue
+    for s in geo.surfaces
         s.recombine && gmsh.model.mesh.set_recombine(2, s.id)
         s.transfinite && gmsh.model.mesh.set_transfinite_surface(s.id)
     end
 
     if !isvolumemesh
-        tagset = Set([ surf.tag for surf in geo.entities if surf isa AbstractSurface ])
+        tagset = Set([ surf.tag for surf in geo.surfaces ])
         tagsdict = Dict( tag=>i for (i,tag) in enumerate(tagset) )
         for (tag, gidx) in tagsdict
-            surf_idxs = [ surf.id for surf in geo.entities if surf isa AbstractSurface && surf.tag==tag]
+            surf_idxs = [ surf.id for surf in geo.surfaces if surf.tag==tag ]
             gmsh.model.addPhysicalGroup(2, surf_idxs, gidx) # ndim, entities, group_id
         end
 
         # gmsh.model.addPhysicalGroup(2, surf_idxs) # ndim, entities
         # gmsh.model.mesh.generate(2)
     else
-        tagset = Set([ vol.tag for vol in geo.entities if vol isa Volume  ])
+        tagset = Set([ vol.tag for vol in geo.volumes  ])
         tagsdict = Dict( tag=>i for (i,tag) in enumerate(tagset) )
         for (tag, gidx) in tagsdict
-            vol_idxs = [ vol.id for vol in geo.entities if vol isa Volume && vol.tag==tag]
+            vol_idxs = [ vol.id for vol in geo.volumes if vol.tag==tag]
             gmsh.model.addPhysicalGroup(3, vol_idxs, gidx) # ndim, entities, group_id
         end
 
@@ -1036,13 +1026,11 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
     end
 
     # embed points
-    for p in geo.entities
-        p isa Point || continue
+    for p in geo.points
         length(p.adj)==0 || continue
     
         # search surfaces
-        for s in geo.entities
-            s isa AbstractSurface || continue
+        for s in geo.surfaces
             if inside(p, s.loops[1])
                 gmsh.model.mesh.embed(0,[p.id],2,s.id)
             end
@@ -1092,8 +1080,7 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
 
     # set tag for nodes
     ptagdict = Dict()
-    for p in geo.entities
-        p isa Point || continue
+    for p in geo.points
         p.tag!="" || continue
         ptagdict[p.coord] = p.tag
     end
@@ -1105,6 +1092,19 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false)
     end
 
     fixup!(mesh, reorder=true)
+
+    if !quiet
+        npoints = length(mesh.nodes)
+        ncells  = length(mesh.elems)
+        @printf "  %4dd mesh                             \n" mesh.env.ndim
+        @printf "  %5d nodes\n" npoints
+        @printf "  %5d cells\n" ncells
+
+        nfaces  = length(mesh.faces)
+        nedges  = length(mesh.edges)
+        @printf "  %5d faces\n" nfaces
+        @printf "  %5d surface edges\n" nedges
+    end
 
     return mesh
 
