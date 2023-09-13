@@ -54,9 +54,6 @@ include("mat/elastic-spring.jl")
 # Models for truss elements
 include("mat/pp-rod.jl")
 
-# Models for beams
-include("mat/pp-beam.jl")
-
 # Models for plates
 include("mat/elastic-plateMZC.jl")
 include("mat/elastic-plateRM.jl")
