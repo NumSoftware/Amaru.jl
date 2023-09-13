@@ -208,6 +208,8 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
                             :rx => (:rx, :mx, :vrx, :arx),
                             :ry => (:ry, :my, :vry, :ary),
                             :rz => (:rz, :mz, :vrz, :arz))
+    
+    model.env.transient = true
 
     if stage.id == 1
         for dof in dofs
@@ -230,8 +232,7 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
         # @show length(dofs)
 
         solve_system!(M, A, Fex, nu)
-        @showm A
-
+        # @showm A
 
         # Initial values at nodes
         for (i,dof) in enumerate(dofs)
@@ -287,12 +288,14 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     # Get boundary conditions
     Uex, Fex = get_bc_vals(model, bcs, t) # get values at time t  #TODO pick internal forces and displacements instead!
 
+    # @show Fex
+
     # Get unbalanced forces
     Fin = zeros(ndofs)
     # for elem in model.elems
     #     elem_internal_forces(elem, Fin)
     # end
-    Fex .-= Fin # add negative forces to external forces vector
+    # Fex .-= Fin # add negative forces to external forces vector
 
     # Get global vectors from values at dofs
     for (i,dof) in enumerate(dofs)
@@ -360,6 +363,7 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
             KK = K + (4/Δt^2)*M # pseudo-stiffness matrix
             ΔQQ = Fex_Fin + M*(A + 4*V/Δt - 4*ΔUa/Δt^2)
 
+
             # Solve
             solve_system!(KK, ΔUi, ΔQQ, nu)
 
@@ -375,19 +379,13 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
             V = -V + 2/Δt*(ΔUa + ΔUi)
             A = -A + 4/Δt^2*((ΔUa + ΔUi) - V*Δt)
 
-            @show Δt
-            @showm K
-            @showm KK
-            @showm ΔQQ
-            @showm ΔUa
-            @showm ΔUi
-            @showm V
-            @showm A
 
             Fina = Fin + ΔFin        
             TFin = Fina + M*A  # Internal force including dynamic effects
 
-            residue = maximum(abs, (Fex-TFin)[umap] )
+            RR = ΔFin + M*A - ΔFex
+            # residue = maximum(abs, RR[umap] )
+            residue = maximum(abs, (FexN-TFin)[umap] )
             
             # Update accumulated displacement
             ΔUa .+= ΔUi
@@ -421,20 +419,24 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
         if converged
             # Update nodal natural and essential values for the current stage
             U .+= ΔUa
+            Fin = Fina
             F .+= ΔFin
             Uex .= UexN
             Fex .= FexN
+
+            # @showm ΔUa
 
             # Backup converged state at ips
             copyto!.(StateBk, State)
 
             # Update nodal variables at dofs
             for (i,dof) in enumerate(dofs)
+                # @show dof.name, ΔUa[i]
                 dof.vals[dof.name]    += ΔUa[i]
                 dof.vals[dof.natname] += ΔFin[i]
-                if dof.name==:ut
-                    dof.vals[:T] = U[i] + T0
-                end
+                # if dof.name==:ut
+                #     dof.vals[:T] = U[i] + T0
+                # end
             end
 
             # Update time
@@ -451,9 +453,9 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
                 rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
                 
                 update_output_data!(model)
-                # update_embedded_disps!(active_elems, model.node_data["U"])
 
                 update_multiloggers!(model)
+                # @show "$outdir/$outkey-$iout.vtu"
                 save(model, "$outdir/$outkey-$iout.vtu", quiet=true)
 
                 Tcheck += ΔTcheck # find the next output time
