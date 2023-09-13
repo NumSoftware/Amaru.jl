@@ -229,8 +229,10 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
     umap  = 1:nu         # map for unknown displacements
     pmap  = nu+1:ndofs   # map for prescribed displacements
     model.ndofs = length(dofs)
+    pause(sline)
+    println("  unknown dofs: $nu\e[K")
+    resume(sline)
     println(logfile, "unknown dofs: $nu")
-    message(sline, "  unknown dofs: $nu")
 
     quiet || nu==ndofs && message(sline, "solve_system!: No essential boundary conditions", Base.warn_color)
 
@@ -398,8 +400,6 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
             err = norm(ΔUi, Inf)/norm(ΔUa, Inf)
             err = norm(ΔUi)/norm(ΔUa)
 
-
-
             @printf(logfile, "    it %d  residue: %-10.5e\n", it, res)
 
             # tol1 = rtol*maximum(abs, ΔFin)
@@ -416,6 +416,10 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
             it==1 && (res1=err)
             it==2 && (err2=err)
             it>1  && (still_linear=false)
+            # @show err
+            # @show res
+            # @show ftol
+
             res<ftol && (converged=true; break)
             err<rtol  && (converged=true; break)
 
@@ -431,9 +435,10 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
 
         if syserror
             println(logfile, sysstatus.message)
+            message(sline, sysstatus.message, Base.default_color_warn)
             converged = false
         end
-        quiet || sysstatus.message!="" && message(sline, sysstatus.message, Base.default_color_warn)
+        # quiet || sysstatus.message!="" && message(sline, sysstatus.message, Base.default_color_warn)
 
         if converged
             # Update forces and displacement for the current stage

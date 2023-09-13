@@ -40,10 +40,10 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{ElasticRSJoint}) = ElasticRSJointState
+compat_state_type(::Type{ElasticRSJoint}, ::Type{MechRSJoint}, env::ModelEnv) = ElasticRSJointState
 
 # Element types that work with this material
-compat_elem_types(::Type{ElasticRSJoint}) = (MechRSJoint,)
+# compat_elem_types(::Type{ElasticRSJoint}) = (MechRSJoint,)
 
 
 function calcD(mat::ElasticRSJoint, state::ElasticRSJointState)

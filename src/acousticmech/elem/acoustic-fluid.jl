@@ -60,8 +60,8 @@ function distributed_bc(elem::AcousticFluid, facet::Union{Facet,Nothing}, key::S
     ips   = get_ip_coords(shape)
 
     for i in 1:size(ips,1)
-        R = vec(ips[i,:])
-        w = R[end]
+        R = ips[i].coord
+        w = ips[i].w
         N = shape.func(R)
         D = shape.deriv(R)
 
@@ -110,15 +110,15 @@ function elem_acoustic_stiffness(elem::AcousticFluid)
         elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J  = C'*dNdR
+        @mul J  = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
-        @gemm dNdX = dNdR*inv(J)
+        @mul dNdX = dNdR*inv(J)
         Bp = dNdX'
 
         coef = detJ*ip.w*th
 
-        # @gemm 
+        # @mul 
         K += coef*Bp'*Bp
     end
 
@@ -142,7 +142,7 @@ function elem_acoustic_mass(elem::AcousticFluid)
 
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
@@ -159,43 +159,6 @@ function elem_acoustic_mass(elem::AcousticFluid)
     return M, map, map
 end
 
-#TODO 
-function elem_RHS_vector(elem::AcousticFluid)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
-    nnodes = length(elem.nodes)
-    C      = getcoords(elem)
-    Q      = zeros(nnodes)
-    Bw     = zeros(ndim, nnodes)
-    KZ     = zeros(ndim)
-
-    J      = Array{Float64}(undef, ndim, ndim)
-    dNdX   = Array{Float64}(undef, nnodes, ndim)
-    Z      = zeros(ndim) # hydrostatic gradient
-    Z[end] = 1.0
-
-    for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
-
-        N    = elem.shape.func(ip.R)
-        dNdR = elem.shape.deriv(ip.R)
-        @gemm J  = C'*dNdR
-        @gemm dNdX = dNdR*inv(J) # Bw = dNdX'
-        detJ = det(J)
-        detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
-
-        # compute Q
-        K = calcK(elem.mat, ip.state)
-        coef = detJ*ip.w*th
-        @gemv KZ = K*Z
-        @gemm Q += coef*dNdX*KZ
-    end
-
-    # map
-    map = [ node.dofdict[:up].eq_id for node in elem.nodes  ]
-
-    return Q, map
-end
 
 # TODO
 function update_elem!(elem::AcousticFluid, DU::Array{Float64,1}, Δt::Float64)
@@ -216,7 +179,8 @@ function update_elem!(elem::AcousticFluid, DU::Array{Float64,1}, Δt::Float64)
     M, m, m = elem_acoustic_mass(elem)
 
     # dF = K*P + M*A
-    dF = K*dP + M*A
+    # dF = K*dP + M*A
+    dF = K*dP #+ M*A
 
     # dFw = zeros(nnodes)
     # Bw  = zeros(ndim, nnodes)
@@ -230,10 +194,10 @@ function update_elem!(elem::AcousticFluid, DU::Array{Float64,1}, Δt::Float64)
     #     # compute Bu matrix
     #     N    = elem.shape.func(ip.R)
     #     dNdR = elem.shape.deriv(ip.R)
-    #     @gemm J = C'*dNdR
+    #     @mul J = C'*dNdR
     #     detJ = det(J)
     #     detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
-    #     @gemm dNdX = dNdR*inv(J) # Bw = dNdX'
+    #     @mul dNdX = dNdR*inv(J) # Bw = dNdX'
 
     #     Δuw = N'*dUp # interpolation to the integ. point
 
@@ -244,7 +208,7 @@ function update_elem!(elem::AcousticFluid, DU::Array{Float64,1}, Δt::Float64)
     #     dFw  -= coef*N*Δuw
 
     #     coef = Δt*detJ*ip.w*th
-    #     @gemv dFw += coef*dNdX*V
+    #     @mul dFw += coef*dNdX*V
     # end
 
     return dF, map_p, success()

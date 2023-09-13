@@ -15,7 +15,7 @@ mutable struct CyclicRSJointState<:IpState
     sneg   ::Float64
     spos   ::Float64
     elastic::Bool
-    function CyclicRSJointState()
+    function CyclicRSJointState(env::ModelEnv)
         this         = new(env)
         ndim         = env.ndim
         this.σ       = zeros(ndim)
@@ -87,10 +87,10 @@ mutable struct CyclicRSJoint<:Material
 end
 
 # Element types that work with this material
-compat_elem_types(::Type{CyclicRSJoint}) = (MechRSJoint,)
+# compat_elem_types(::Type{CyclicRSJoint}) = (MechRSJoint,)
 
 # Type of corresponding state structure
-compat_state_type(::Type{CyclicRSJoint}) = CyclicRSJointState
+compat_state_type(::Type{CyclicRSJoint}, ::Type{MechRSJoint}, env::ModelEnv) = CyclicRSJointState
 
 
 function tau(mat::CyclicRSJoint, ips::CyclicRSJointState, s::Float64)

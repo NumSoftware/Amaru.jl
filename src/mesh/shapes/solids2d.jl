@@ -285,32 +285,30 @@ export TRI10
 
 # natural coordinates
 const coords_QUAD4 =
-[ -1.0 -1.0
-   1.0 -1.0
-   1.0  1.0
-  -1.0  1.0  ]
+@SArray [ -1.0 -1.0
+           1.0 -1.0
+           1.0  1.0
+          -1.0  1.0  ]
 
 const facet_idxs_QUAD4 = [ [1, 2], [2, 3], [3, 4], [4, 1] ]
 
 function shape_func_QUAD4(R::AbstractArray{<:Float64,1})
     r, s = R[1:2]
-    N = Array{Float64}(undef,4)
-    N[1] = 0.25*(1.0-r-s+r*s)
-    N[2] = 0.25*(1.0+r-s-r*s)
-    N[3] = 0.25*(1.0+r+s+r*s)
-    N[4] = 0.25*(1.0-r+s-r*s)
-    return N
+    return @SArray [
+        0.25*(1.0-r-s+r*s),
+        0.25*(1.0+r-s-r*s),
+        0.25*(1.0+r+s+r*s),
+        0.25*(1.0-r+s-r*s) ]
 end
 
 
 function shape_deriv_QUAD4(R::AbstractArray{<:Float64,1})
     r, s = R[1:2]
-    D = Array{Float64}(undef,4,2)
-    D[1,1] = 0.25*(-1.0+s);   D[1,2] = 0.25*(-1.0+r)
-    D[2,1] = 0.25*(+1.0-s);   D[2,2] = 0.25*(-1.0-r)
-    D[3,1] = 0.25*(+1.0+s);   D[3,2] = 0.25*(+1.0+r)
-    D[4,1] = 0.25*(-1.0-s);   D[4,2] = 0.25*(+1.0-r)
-    return D
+    return @SArray [
+        0.25*(-1.0+s)   0.25*(-1.0+r)
+        0.25*(+1.0-s)   0.25*(-1.0-r)
+        0.25*(+1.0+s)   0.25*(+1.0+r)
+        0.25*(-1.0-s)   0.25*(+1.0-r) ]
 end
 
 # constructor

@@ -212,20 +212,20 @@ function matrixK(cell::Cell, ndim::Int64, E::Float64, ν::Float64)
     D = matrixD(E, ν)
 
     for i in 1:size(IP,1)
-        R    = vec(IP[i,1:3])
-        w    = IP[i,4]
+        R    = IP[i].coord
+        w    = IP[i].w
 
         # compute B matrix
         dNdR = cell.shape.deriv(R)
-        @gemm J = C'*dNdR
-        @gemm dNdX = dNdR*inv(J)
+        @mul J = C'*dNdR
+        @mul dNdX = dNdR*inv(J)
         detJ = det(J)
         matrixB(ndim, dNdX, detJ, B)
 
         # compute K
         coef = detJ*w
-        @gemm DB = D*B
-        @gemm K += coef*B'*DB
+        @mul DB = D*B
+        @mul K += coef*B'*DB
     end
     return K
 end
@@ -1141,14 +1141,16 @@ function fitting_smooth!(mesh::Mesh; quiet=true, alpha::Float64=1.0, target::Flo
         #quiet || print("\rupdating mesh...  ")
         for node in mesh.nodes
             id = node.id
-            X0 = [node.coord.x, node.coord.y, node.coord.z][1:ndim]
+            X0 = node.coord
+            # X0 = [node.coord.x, node.coord.y, node.coord.z][1:ndim]
             pos = (node.id-1)*ndim+1
-            X   = X0 + vec( U[pos:pos+ndim-1] )
+            X   = X0 + extend!(vec( U[pos:pos+ndim-1] ), 3)
 
             # update key node coordinates
-            node.coord.x = X[1]
-            node.coord.y = X[2]
-            if ndim==3 node.coord.z = X[3] end
+            # node.coord.x = X[1]
+            # node.coord.y = X[2]
+            # if ndim==3 node.coord.z = X[3] end
+            node.coord = X
 
             if smart
                 patch = patches[node.id]
@@ -1168,9 +1170,10 @@ function fitting_smooth!(mesh::Mesh; quiet=true, alpha::Float64=1.0, target::Flo
                 if patch_qmin < γ*patch_qmin0
                 #if patch_qavg < γ*patch_qavg0
                     # restore node coordinates if no improvement
-                    node.coord.x = X0[1]
-                    node.coord.y = X0[2]
-                    if ndim==3; node.coord.z = X0[3] end
+                    node.coord = X0
+                    # node.coord.x = X0[1]
+                    # node.coord.y = X0[2]
+                    # if ndim==3; node.coord.z = X0[3] end
                 else
                     # update quality values
                     for (c,q) in zip(patch, patch_q)
@@ -1346,9 +1349,10 @@ function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, quiet=true, fixed=false,
             end
 
             # update key node coordinates
-            node.coord.x = X[1]
-            node.coord.y = X[2]
-            if ndim==3 node.coord.z = X[3] end
+            node.coord = X
+            # node.coord.x = X[1]
+            # node.coord.y = X[2]
+            # if ndim==3 node.coord.z = X[3] end
 
             # Smart Laplacian smoothing
             if smart

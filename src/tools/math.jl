@@ -178,7 +178,7 @@ function findroot(f::Function, a, b, tol)
             y2, y3 = y3, y2
         end
 
-        err = abs(x3-x2)
+        err = x3-x2
 
         # update x1, x2 and x4
         if y1*y2<0 || (y2*y3<0 && abs(y1)<abs(y4))
@@ -193,10 +193,17 @@ function findroot(f::Function, a, b, tol)
             y2 = y3
         end
 
+        # @show i
+        # @show y1
+        # @show y2
+        # @show x1
+        # @show x2
+
         if err<tol
             x = x2 # x3 is discarded
             break
         end
+
 
         # if i==maxits
         #     @show tol

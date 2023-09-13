@@ -87,11 +87,11 @@ function distributed_bc(elem::ThermoSolid, facet::Union{Facet,Nothing}, key::Sym
     ips   = get_ip_coords(shape)
 
     for i in 1:size(ips,1)
-        R = vec(ips[i,:])
-        w = R[end]
+        R = ips[i].coord
+        w = ips[i].w
         N = shape.func(R)
         D = shape.deriv(R)
-        @gemm J = C'*D
+        @mul J = C'*D
         nJ = norm2(J)
         X = C'*N
         if ndim==2
@@ -131,7 +131,7 @@ function elem_conductivity_matrix(elem::ThermoSolid)
     for ip in elem.ips
         elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J  = C'*dNdR
+        @mul J  = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         dNdX = dNdR*inv(J)
@@ -140,8 +140,8 @@ function elem_conductivity_matrix(elem::ThermoSolid)
         # compute H
         K = calcK(elem.mat, ip.state)
         coef = detJ*ip.w*th
-        @gemm KBt = K*Bt
-        @gemm H -= coef*Bt'*KBt
+        @mul KBt = K*Bt
+        @mul H -= coef*Bt'*KBt
     end
 
     # map
@@ -165,7 +165,7 @@ function elem_mass_matrix(elem::ThermoSolid)
 
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
@@ -202,10 +202,10 @@ function elem_internal_forces(elem::ThermoSolid, F::Array{Float64,1})
 
         # compute Bt matrix
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
-        @gemm dNdX = dNdR*inv(J)
+        @mul dNdX = dNdR*inv(J)
 
         Bt = dNdX
 
@@ -219,7 +219,7 @@ function elem_internal_forces(elem::ThermoSolid, F::Array{Float64,1})
 
         D    = ip.state.D
         coef = detJ*ip.w*th/θ0
-        @gemv dFt -= coef*Bt'*D
+        @mul dFt -= coef*Bt'*D
     end
 
     F[map_p] += dFt
@@ -252,10 +252,10 @@ function update_elem!(elem::ThermoSolid, DU::Array{Float64,1}, Δt::Float64)
         # compute Bu matrix
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
-        @gemm dNdX = dNdR*inv(J)
+        @mul dNdX = dNdR*inv(J)
 
         Bt .= dNdX'
         G  = Bt*Ut # temperature gradient
@@ -269,10 +269,10 @@ function update_elem!(elem::ThermoSolid, DU::Array{Float64,1}, Δt::Float64)
 
         coef  = elem.props.ρ*elem.props.cv
         coef *= detJ*ip.w*th
-        dFt  -= coef*N*Δut
+        dFt  .-= coef*N*Δut
 
         coef = Δt*detJ*ip.w*th
-        @gemv dFt += coef*Bt'*q
+        @mul dFt += coef*Bt'*q
     end
 
     return dFt, map_t, success()

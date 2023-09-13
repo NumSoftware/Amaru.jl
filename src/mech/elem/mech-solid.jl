@@ -168,8 +168,8 @@ function elem_stiffness(elem::MechSolid)
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
-        @gemm dNdX = dNdR*inv(J)
+        @mul J = C'*dNdR
+        @mul dNdX = dNdR*inv(J)
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         setB(elem, ip, dNdX, B)
@@ -177,8 +177,8 @@ function elem_stiffness(elem::MechSolid)
         # compute K
         coef = detJ*ip.w*th
         D    = calcD(elem.mat, ip.state)
-        @gemm DB = D*B
-        @gemm K += coef*B'*DB
+        @mul DB = D*B
+        @mul K += coef*B'*DB
     end
 
     keys = (:ux, :uy, :uz)[1:ndim]
@@ -213,13 +213,13 @@ function elem_mass(elem::MechSolid)
             end
         end
 
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute M
         coef = ρ*detJ*ip.w*th
-        @gemm M += coef*N'*N
+        @mul M += coef*N'*N
     end
 
     keys = (:ux, :uy, :uz)[1:ndim]
@@ -250,14 +250,14 @@ function elem_internal_forces(elem::MechSolid)
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
-        @gemm dNdX = dNdR*inv(J)
+        @mul J = C'*dNdR
+        @mul dNdX = dNdR*inv(J)
         detJ = det(J)
         setB(elem, ip, dNdX, B)
 
         σ    = ip.state.σ
         coef = detJ*ip.w*th
-        @gemv dF += coef*B'*σ
+        @mul dF += coef*B'*σ
     end
     
     return dF, map, success()
@@ -287,16 +287,16 @@ function update_elem!(elem::MechSolid, U::Array{Float64,1}, Δt::Float64)
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
-        @gemm dNdX = dNdR*inv(J)
+        @mul J = C'*dNdR
+        @mul dNdX = dNdR*inv(J)
         detJ = det(J)
         setB(elem, ip, dNdX, B)
 
-        @gemv Δε = B*dU
+        @mul Δε = B*dU
         Δσ, status = update_state!(elem.mat, ip.state, Δε)
         failed(status) && return dF, map, failure("MechSolid: Error at integration point $(ip.id)")
         coef = detJ*ip.w*th
-        @gemv dF += coef*B'*Δσ
+        @mul dF += coef*B'*Δσ
     end
 
     return dF, map, success()

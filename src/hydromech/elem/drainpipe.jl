@@ -64,7 +64,7 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
     for ip in elem.ips
 
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = norm(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
@@ -74,7 +74,7 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
 
         # compute H
         coef = detJ*ip.w*(elem.mat.k/elem.env.ana.γw)*A
-        @gemm H -= coef*Bw'*Bw
+        @mul H -= coef*Bw'*Bw
     end
 
     # map
@@ -96,7 +96,7 @@ function elem_RHS_vector(elem::DrainPipe)
 
     for ip in elem.ips
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = norm(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         Jvert = J[end]/detJ
@@ -106,7 +106,7 @@ function elem_RHS_vector(elem::DrainPipe)
 
         # compute Q 
         coef = detJ*ip.w*elem.mat.k*A*Jvert
-        Q += coef*Bw'
+        Q .+= coef*Bw'
     end
 
     # map
@@ -133,7 +133,7 @@ function elem_internal_forces(elem::DrainPipe, F::Array{Float64,1})
     for ip in elem.ips
 
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = norm(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
@@ -173,7 +173,7 @@ function update_elem!(elem::DrainPipe, DU::Array{Float64,1}, Δt::Float64)
     for ip in elem.ips
 
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = norm(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         Jvert = J[end]/detJ

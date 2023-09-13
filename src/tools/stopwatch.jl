@@ -29,7 +29,7 @@ end
 function getlapse(sw::StopWatch)
     sw.stopped && return sw.lapse
     t = time()
-    if t-sw.lasttime>30 # ignore if time interval is greater that 10 seconds
+    if t-sw.lasttime>30 # ignore if time interval is greater that 30 seconds
         sw.lasttime = t
     end
     sw.lapse = sw.lapse + t - sw.lasttime
@@ -61,9 +61,3 @@ end
 function see(sw::StopWatch; format::Symbol=:short)
     return formatlapse(getlapse(sw), format=format)
 end
-
-
-
-
-
-

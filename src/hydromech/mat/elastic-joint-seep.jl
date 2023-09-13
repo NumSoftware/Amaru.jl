@@ -54,10 +54,10 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{ElasticJointSeep}) = ElasticJointSeepState
+compat_state_type(::Type{ElasticJointSeep}, ::Type{HMJoint}, env::ModelEnv) = ElasticJointSeepState
 
 # Element types that work with this material
-compat_elem_types(::Type{ElasticJointSeep}) = (HMJoint,)
+# compat_elem_types(::Type{ElasticJointSeep}) = (HMJoint,)
 
 
 function mountD(mat::ElasticJointSeep, state::ElasticJointSeepState)

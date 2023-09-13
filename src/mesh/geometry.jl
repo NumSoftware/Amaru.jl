@@ -1025,7 +1025,7 @@ function inside(p::Point, lo::Loop; withborder=true)
 end
 
 
-function inside(p::Point, points::Array{Point,1}, normal::Array{Float64,1}; withborder=true)
+function inside(p::Point, points::Array{Point,1}, normal::AbstractArray{Float64,1}; withborder=true)
     tol = 1e-8
     n = length(points)
     θ = 0.0

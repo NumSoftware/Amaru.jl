@@ -11,6 +11,11 @@ mutable struct ArgCond
     cond::Expr
 end
 
+mutable struct ArgOpt
+    args1::Union{Symbol,Expr}
+    args2::Union{Symbol,Expr}
+end
+
 macro arginfo(args...)
     if typeof(args[1])==Symbol
         key = args[1]
@@ -33,6 +38,12 @@ macro argcond(cond)
     end
 end
 
+macro argopt(args1, args2)
+    return quote
+        ArgOpt( $(Meta.quot(args1)), $(Meta.quot(args2)) ) 
+    end
+end
+
 function checkargs(args, args_rules::Array)
      # Get function caller
      st = stacktrace(backtrace())
@@ -46,24 +57,37 @@ function checkargs(args, args_rules::Array)
 
     argkeys = keys(args)
 
-    # check mandatory keys
-    arginfos = [ item for item in args_rules if item isa ArgInfo ]
+    # list of optional keys to skip
+    argopts  = [ item for item in args_rules if item isa ArgOpt ]
+    skipkeys = []
+    for opt in argopts
+        args1 = opt.args1 isa Symbol ? (opt.args1,) : opt.args1.args
+        args2 = opt.args2 isa Symbol ? (opt.args2,) : opt.args2.args
+        if all(key in argkeys for key in args1)
+            append!(skipkeys, args2)
+        end
+        if all(key in argkeys for key in args2)
+            append!(skipkeys, args1)
+        end
+    end
 
-    alldescs = join( ["$(item.key): $(item.desc)" for item in arginfos], ", ")
+    arginfos = [ item for item in args_rules if item isa ArgInfo && !(item.key in skipkeys) ]
+    alldescs = join( ["$(item.key): $(item.desc)" for item in arginfos], ", ", " and ")
+    allconds = [ item for item in args_rules if item isa ArgCond ]
 
+    # check mandatory keys (skip optional args)
     mandatorykeys = [ item.key for item in arginfos if item.default===nothing ]
     missingkeys = setdiff(mandatorykeys, argkeys)
 
-    # @show mandatorykeys
-    # @show missingkeys
-
     if length(missingkeys)>0
-        msg = "Missing arguments found: $(join(missingkeys, ", ")). Possible inputs are: $alldescs"
+        msg = "Missing arguments: $(join(missingkeys, ", ")).\nPossible inputs are: $alldescs"
+        for opt in argopts
+            args1 = opt.args1 isa Symbol ? (opt.args1,) : opt.args1.args
+            args2 = opt.args2 isa Symbol ? (opt.args2,) : opt.args2.args
+            msg = msg*"\nArgument(s) $(join(args1, ", ", " and ")) can be used instead of $(join(args2, ", ", " and "))."
+        end
         throw(AmaruException("$fname: $msg"))
     end
-
-    # check consistency of optional arguments
-    # todo
 
     # update args with defaults
     alldefaults  = NamedTuple([ item.key => item.default for item in arginfos ])
@@ -80,9 +104,7 @@ function checkargs(args, args_rules::Array)
         end
     end
     
-    # check independent conditions
-    allconds = [ item for item in args_rules if item isa ArgCond ]
-    
+    # check relational conditions
     for argcond in allconds
         if !eval_arith_expr(argcond.cond, args...)
             msg = "Given arguments do not satisfy condition $(argcond.cond)"

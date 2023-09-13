@@ -71,15 +71,7 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{ElasticJoint}) = JointState
-
-# Element types that work with this material
-compat_elem_types(::Type{ElasticJoint}) = (MechJoint,)
-
-
-# function init_state(mat::ElasticJoint, state::JointState; h::Float64=0.0)
-#     state.h = h
-# end
+compat_state_type(::Type{ElasticJoint}, ::Type{MechJoint}, env::ModelEnv) = JointState
 
 
 function mountD(mat::ElasticJoint, state::JointState)

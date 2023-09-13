@@ -85,10 +85,10 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{MCJoint}) = MCJointState
+compat_state_type(::Type{MCJoint}, ::Type{MechJoint}, env::ModelEnv) = MCJointState
 
 # Element types that work with this material
-compat_elem_types(::Type{MCJoint}) = (MechJoint,)
+# compat_elem_types(::Type{MCJoint}) = (MechJoint,)
 
 
 function yield_func(mat::MCJoint, state::MCJointState, σ::Array{Float64,1})

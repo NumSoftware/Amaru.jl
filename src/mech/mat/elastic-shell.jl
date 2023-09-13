@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export ElasticShell
+export LinearElastic
 
 mutable struct ElasticShellState<:IpState
     "Environment information"
@@ -18,17 +18,17 @@ mutable struct ElasticShellState<:IpState
     end
 end
 
-mutable struct ElasticShell<:Material
+mutable struct LinearElastic<:Material
     E::Float64
     ν::Float64
     th::Float64
     ρ::Float64
 
-    function ElasticShell(prms::Dict{Symbol,Float64})
-        return  ElasticShell(;prms...)
+    function LinearElastic(prms::Dict{Symbol,Float64})
+        return  LinearElastic(;prms...)
     end
 
-    function ElasticShell(;E=NaN, nu=NaN, thickness=NaN, rho=0.0)
+    function LinearElastic(;E=NaN, nu=NaN, thickness=NaN, rho=0.0)
         E>0.0 || error("Invalid value for E: $E")
         (0<=nu<0.5) || error("Invalid value for nu: $nu")
         thickness >0.0 || error("Invalid value for thickness: $thickness")
@@ -40,16 +40,16 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{ElasticShell}) = ElasticShellState
+compat_state_type(::Type{LinearElastic}) = ElasticShellState
 
 # Element types that work with this material
-compat_elem_types(::Type{ElasticShell}) = (MechShell,)
+compat_elem_types(::Type{LinearElastic}) = (MechShell,)
 
 
-function calcD(mat::ElasticShell, state::ElasticShellState)
+function calcD(mat::LinearElastic, state::ElasticShellState)
     E = mat.E
     ν = mat.ν
-    c = E/(1.0-ν^2)
+    c = E/(1-ν^2)
     g = E/(1+ν)
     return [
         c    c*ν   0.0  0.0    0.0    0.0
@@ -62,7 +62,7 @@ function calcD(mat::ElasticShell, state::ElasticShellState)
 end
 
 
-function update_state!(mat::ElasticShell, state::ElasticShellState, dε::Array{Float64,1})
+function update_state!(mat::LinearElastic, state::ElasticShellState, dε::Array{Float64,1})
     D = calcD(mat, state)
     dσ = D*dε
     state.ε += dε
@@ -71,6 +71,6 @@ function update_state!(mat::ElasticShell, state::ElasticShellState, dε::Array{F
 end
 
 
-function ip_state_vals(mat::ElasticShell, state::ElasticShellState)
+function ip_state_vals(mat::LinearElastic, state::ElasticShellState)
     return stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
 end

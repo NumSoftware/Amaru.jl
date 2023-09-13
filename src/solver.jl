@@ -4,21 +4,38 @@ mutable struct StatusLine
     model::Model
     stage::Stage
     sw::StopWatch
-    msg_queue::Array{String,1}
+    messages::Array{String,1}
+    paused::Bool
     function StatusLine(model, stage, sw)
-        return new(model, stage, sw, [])
+        return new(model, stage, sw, [], false)
     end
+end
+
+function pause(sline::StatusLine)
+    sline.paused=true
+    sleep(0.02)
+end
+
+function resume(sline::StatusLine)
+    sline.paused=false
 end
 
 
 function message(sline::StatusLine, msg::String, color::Symbol=:default)
+    msg = "  "*string(Time(now()))*" "*msg
+
     iscolor = get(stdout, :color, false)
     if iscolor
         enable_ansi  = get(Base.text_colors, color, Base.text_colors[:default])
         disable_ansi = get(Base.disable_text_style, color, Base.text_colors[:default])
         msg = string(enable_ansi, msg, disable_ansi)
     end
-    push!(sline.msg_queue, msg)
+
+    if length(sline.messages)==5
+        popfirst!(sline.messages)
+        sline.messages[1] = "  ..."
+    end
+    push!(sline.messages, msg)
 end
 
 
@@ -81,15 +98,20 @@ function run_status_line(sline::StatusLine)
     nlines = 0
     last_loop = false
     while true
+        
         # sleep(0.1) # !fixme
-
         print("\r")
         nlines>0 && print("\e[$(nlines)A")
 
+        while sline.paused
+            sleep(0.01)
+        end
+
         # Print messages
-        if length(sline.msg_queue)>0
-            println.(sline.msg_queue, "\e[K")
-            sline.msg_queue = []
+        nlines = length(sline.messages)
+        if nlines>0
+            println.(sline.messages, "\e[K")
+            # sline.messages = []
         end
         
         # Print status
@@ -115,12 +137,13 @@ function run_status_line(sline::StatusLine)
         printstyled(" $(progress)% \e[K\n", bold=true, color=:light_blue)
 
         # Print monitors
-        nlines = 2
+        nlines += 2
         for mon in sline.model.monitors
             str     = output(mon)
             nlines += count("\n", str)
             printstyled(str, color=:light_blue)
         end
+
         last_loop && break
         stage.status != :solving && (last_loop=true)
         yield()
@@ -158,7 +181,7 @@ function solve_system!(
     U1 = zeros(nu)
     if nu>0
         RHS = F1 - K12*U2
-        
+
         try
             # try
                 LUfact = lu(K11)
@@ -187,7 +210,7 @@ function solve_system!(
         end
     end
 
-    maxU = 1e5 # maximum essential value
+    maxU = 1e8 # maximum essential value
     if maximum(abs, U1)>maxU 
         return failure("$msg\nsolve_system!: Possible syngular matrix")
     end

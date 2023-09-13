@@ -17,14 +17,14 @@ mutable struct Compressible<:Material
     H   ::Float64
 
     function Compressible(; args...)
-        args_info = arguments_info(Compressible)
+        args_info = arg_rules(Compressible)
         args = checkargs(args, args_info)
         this = new(args.E, args.nu, args.J1y, args.H)
         return this
     end
 end
 
-arguments_info(::Type{Compressible}) = 
+arg_rules(::Type{Compressible}) = 
 [
     @arginfo E E>=0.0 "Young modulus"
     @arginfo nu 0.0<=nu<0.5 "Poisson ratio"
@@ -66,7 +66,7 @@ function calcD(mat::Compressible, state::CompressibleState)
 
     state.Δλ==0.0 && return De
 
-    dfdσ = -tI
+    dfdσ = -I2
     dgdσ = state.σ
     H    = mat.H
     J1   = calcJ1(state.σ)
@@ -97,7 +97,7 @@ function update_state!(mat::Compressible, state::CompressibleState, Δε::Array{
 
         J1    = J1tr/(1+3*K*Δλ)
         s     = 1/(1+2*G*Δλ)*dev(σtr)
-        state.σ  = s + J1/3*tI
+        state.σ  = s + J1/3*I2
 
         state.Δλ   = Δλ
         state.εvp += state.Δλ*J1

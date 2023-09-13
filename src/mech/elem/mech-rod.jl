@@ -50,6 +50,9 @@ compat_shape_family(::Type{MechRod}) = LINECELL
 # compat_elem_types(::Type{MechRodProps}) = MechRod
 compat_elem_props(::Type{MechRod}) = MechRodProps
 
+embedded_type(::Type{MechRod}) = MechEmbRod
+# embedded_type(::Type{MechEmbRod}) = MechEmbRod
+
 
 # function check_props(::Type{MechSolid}; props...)
 #     names = (rho="Density", gamma="Specific weight", A="Section area", diameter="diameter")
@@ -83,7 +86,7 @@ function elem_stiffness(elem::MechRod)
 
     for ip in elem.ips
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = norm(J)
 
         # mount B
@@ -96,7 +99,7 @@ function elem_stiffness(elem::MechRod)
 
         E    = calcD(elem.mat, ip.state)
         coef = E*A*detJ*ip.w
-        @gemm K += coef*B'*B
+        @mul K += coef*B'*B
     end
     keys = [:ux, :uy, :uz][1:ndim]
     map  = Int[ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
@@ -122,13 +125,13 @@ function elem_mass(elem::MechRod)
         Ni = elem.shape.func(ip.R)
         setNt(ndim,Ni,N)
 
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = norm(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute M
         coef = ρ*A*detJ*ip.w
-        @gemm M += coef*N'*N
+        @mul M += coef*N'*N
 
     end
 
@@ -189,7 +192,7 @@ function elem_internal_forces(elem::MechRod, F::Array{Float64,1})
 
     for ip in elem.ips
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = norm(J)
 
         # mount B
@@ -231,7 +234,7 @@ function update_elem!(elem::MechRod, U::Array{Float64,1}, Δt::Float64)
 
     for ip in elem.ips
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = norm(J)
 
         # mount B

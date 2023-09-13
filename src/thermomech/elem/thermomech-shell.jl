@@ -97,12 +97,12 @@ function setquadrature!(elem::TMShell, n::Int=0)
     resize!(elem.ips, 2*n)
     for k in 1:2
         for i in 1:n
-            R = [ ip2d[i,1:2]; ip1d[k,1] ]
-            w = ip2d[i,4]*ip1d[k,4]
+            R = [ ip2d[i].coord[1:2]; ip1d[k].coord[1] ]
+            w = ip2d[i].w*ip1d[k].w
             j = (k-1)*n + i
             elem.ips[j] = Ip(R, w)
             elem.ips[j].id = j
-            elem.ips[j].state = compat_state_type(typeof(elem.mat))(elem.env)
+            elem.ips[j].state = compat_state_type(typeof(elem.mat), typeof(elem), elem.env)(elem.env)
             elem.ips[j].owner = elem
         end
     end
@@ -196,7 +196,7 @@ function setB(elem::TMShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx, B
         Bil[6,1] = dNdy/SR2; Bil[6,2] = dNdx/SR2;                       Bil[6,4] = -1/SR2*dNdx*ζ*th/2;  Bil[6,5] = 1/SR2*dNdy*ζ*th/2
 
         c = (i-1)*ndof
-        @gemm Bi = Bil*Rrot
+        @mul Bi = Bil*Rrot
         B[:, c+1:c+6] .= Bi
     end 
 end
@@ -267,7 +267,7 @@ function elem_coupling_matrix(elem::TMShell)
 
     #J    = Array{Float64}(undef, ndim, ndim)
     #dNdX = Array{Float64}(undef, nnodes, ndim)
-    #m    = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
+    #m    = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
     #β    = elem.mat.E*elem.props.α/(1-2*elem.mat.ν) # thermal stress modulus
 
     nnodes = length(elem.nodes)
@@ -287,7 +287,7 @@ function elem_coupling_matrix(elem::TMShell)
 
     C   = getcoords(elem)
     Cut = zeros(ndof*nnodes, nnodes) # u-t coupling matrix
-    m    = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
+    m    = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
     β    = elem.mat.E*elem.props.α/(1-2*elem.mat.ν) 
 
     for ip in elem.ips
@@ -295,8 +295,8 @@ function elem_coupling_matrix(elem::TMShell)
 
         # compute Bu matrix
         #dNdR = elem.shape.deriv(ip.R)
-        #@gemm J = C'*dNdR
-        #@gemm dNdX = dNdR*inv(J)
+        #@mul J = C'*dNdR
+        #@mul dNdX = dNdR*inv(J)
         #detJ = det(J)
         #detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         
@@ -316,7 +316,7 @@ function elem_coupling_matrix(elem::TMShell)
         coef  = β
         coef *= detJ′*ip.w
         mN   = m*N'
-        @gemm Cut -= coef*B'*mN
+        @mul Cut -= coef*B'*mN
     end
     # map
     map_u = elem_map_u(elem)
@@ -359,8 +359,8 @@ function elem_conductivity_matrix(elem::TMShell)
         
         coef = detJ′*ip.w
         #coef = detJ′*ip.w*th
-        @gemm KBt = K*Bt
-        @gemm H -= coef*Bt'*KBt
+        @mul KBt = K*Bt
+        @mul H -= coef*Bt'*KBt
     end
 
     map = elem_map_t(elem)
@@ -418,7 +418,7 @@ function elem_internal_forces(elem::TMShell, F::Array{Float64,1}, DU::Array{Floa
     Bu  = zeros(6, nnodes*ndim)
     dFt = zeros(nbnodes)
     Bt  = zeros(ndim, nbnodes)
-    m = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  tI
+    m = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  I2
     J  = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, nnodes, ndim)
     Jp  = Array{Float64}(undef, ndim, nbnodes)
@@ -428,14 +428,14 @@ function elem_internal_forces(elem::TMShell, F::Array{Float64,1}, DU::Array{Floa
         elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
         # compute Bu matrix and Bt
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
-        @gemm dNdX = dNdR*inv(J)
+        @mul dNdX = dNdR*inv(J)
         set_Bu(elem, ip, dNdX, Bu)
         dNtdR = elem.shape.deriv(ip.R)
         Jp = dNtdR*Ct
-        @gemm dNtdX = inv(Jp)*dNtdR
+        @mul dNtdX = inv(Jp)*dNtdR
         Bt = dNtdX
         # compute N
         # internal force
@@ -443,7 +443,7 @@ function elem_internal_forces(elem::TMShell, F::Array{Float64,1}, DU::Array{Floa
         β   = elem.mat.E*elem.props.α/(1-2*elem.mat.ν)
         σ    = ip.state.σ - β*ut*m # get total stress
         coef = detJ*ip.w*th
-        @gemv dF += coef*Bu'*σ
+        @mul dF += coef*Bu'*σ
         # internal volumes dFt
         ε    = ip.state.ε
         εvol = dot(m, ε)
@@ -453,7 +453,7 @@ function elem_internal_forces(elem::TMShell, F::Array{Float64,1}, DU::Array{Floa
         dFt -= coef*N*ut
         QQ   = ip.state.QQ
         coef = detJ*ip.w*th/T0
-        @gemv dFt += coef*Bt'*QQ
+        @mul dFt += coef*Bt'*QQ
     end
     F[map_u] += dF
     F[mat_t] += dFt
@@ -483,7 +483,7 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     dUt = DU[map_t] # nodal temperature increments
     Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes]
     Ut += dUt # nodal tempeture at step n+1
-    m   = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  #
+    m   = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  #
 
     dF = zeros(length(dU))
     B = zeros(6, ndof*nnodes)
@@ -514,7 +514,7 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
         setB(elem, ip, N, L, dNdX′, Rrot, Bil, Bi, B)
 
         # compute Δε
-        @gemv Δε = B*dU
+        @mul Δε = B*dU
 
         # compute Δut
         Δut = N'*dUt # interpolation to the integ. point
@@ -536,7 +536,7 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
         detJ′ = det(J′)
         #coef = detJ′*ip.w*th
         coef = detJ′*ip.w
-        @gemv dF += coef*B'*Δσ
+        @mul dF += coef*B'*Δσ
 
         # internal volumes dFt
         Δεvol = dot(m, Δε)
@@ -550,7 +550,7 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
 
         coef  = Δt
         coef *= detJ′*ip.w
-        @gemv dFt += coef*Bt'*q
+        @mul dFt += coef*Bt'*q
 
     end
     #@show "HIIIIIIIIIIIIIIIIIIIIII UPDATED"

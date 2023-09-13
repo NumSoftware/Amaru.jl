@@ -29,7 +29,7 @@ for shape in ALL_ISO_SHAPES
         print("  nip = ", nip)
         P = zeros(nip)
         for i in 1:nip
-            x, y, z = [ Cip[i,:]; 0.0; 0.0 ]
+            x, y, z = Cip[i].coord
             P[i] = x+y+z+1.0
         end
 

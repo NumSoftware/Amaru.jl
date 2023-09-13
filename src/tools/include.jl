@@ -8,9 +8,9 @@ include("constants.jl")
 include("math.jl")
 
 include("linalg.jl")
-include("vec3.jl")
-include("vec6.jl")
-include("mat6x6.jl")
+# include("vec3.jl")
+# include("vec6.jl")
+# include("mat6x6.jl")
 include("quaternion.jl")
 include("tensors.jl")
 

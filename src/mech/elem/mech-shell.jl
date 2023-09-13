@@ -5,27 +5,24 @@ export MechShell
 struct MechShellProps<:ElemProperties
     ρ::Float64
     γ::Float64
+    α::Float64
     th::Float64
 
-    function MechShellProps(; props...)
-        names = (rho="Density", gamma="Specific weight", thickness="Thickness")
-        required = (:thickness,)
-        @checkmissing props required names
-    
-        default = (rho=0.0, gamma=0.0)
-        props   = merge(default, props)
+    function MechShellProps(; args...)
 
-        rho     = props.rho
-        gamma   = props.gamma
-        thickness = props.thickness
-    
-        @check rho>=0
-        @check gamma>=0
-        @check thickness>0
-    
-        return new(rho, gamma, thickness)
-    end    
+        args = checkargs(args, arg_rules(MechShellProps))
+
+        return new(args.rho, args.gamma, args.alpha, args.thickness)
+    end
 end
+
+arg_rules(::Type{MechShellProps}) = 
+[
+    @arginfo rho=0.0 rho>=0.0 "Density"
+    @arginfo gamma=0.0 gamma>=0.0 "Specific weight"
+    @arginfo thickness thickness>0.0 "Thickness"
+    @arginfo alpha=5/6 alpha>0 "Shear correction coef."
+]
 
 
 
@@ -44,7 +41,7 @@ mutable struct MechShell<:Mech
     props ::MechShellProps
     active::Bool
     linked_elems::Array{Element,1}
-    Dlmn::Array{ Array{Float64,2}, 1}
+    Dlmn::Array{ SMatrix{3,3,Float64}, 1}
 
     function MechShell()
         return new()
@@ -79,7 +76,7 @@ end
 function elem_init(elem::MechShell)
     # Compute nodal rotation matrices
     nnodes = length(elem.nodes)
-    Dlmn = Array{Float64,2}[]
+    elem.Dlmn = Array{SMatrix{3,3,Float64}}(undef,nnodes)
     C = getcoords(elem)
 
     for i in 1:nnodes
@@ -95,9 +92,8 @@ function elem_init(elem::MechShell)
         normalize!(V2)
         normalize!(V3)
 
-        push!(Dlmn, [V1'; V2'; V3' ])
+        elem.Dlmn[i] = [V1'; V2'; V3' ]
     end
-    elem.Dlmn = Dlmn
 
     return nothing
 end
@@ -115,12 +111,12 @@ function setquadrature!(elem::MechShell, n::Int=0)
     resize!(elem.ips, 2*n)
     for k in 1:2
         for i in 1:n
-            R = [ ip2d[i,1:2]; ip1d[k,1] ]
-            w = ip2d[i,4]*ip1d[k,4]
+            R = [ ip2d[i].coord[1:2]; ip1d[k].coord[1] ]
+            w = ip2d[i].w*ip1d[k].w
             j = (k-1)*n + i
             elem.ips[j] = Ip(R, w)
             elem.ips[j].id = j
-            elem.ips[j].state = compat_state_type(typeof(elem.mat))(elem.env)
+            elem.ips[j].state = compat_state_type(typeof(elem.mat), typeof(elem), elem.env)(elem.env)
             elem.ips[j].owner = elem
         end
     end
@@ -184,6 +180,15 @@ function set_rot_x_xp(elem::MechShell, J::Matx, R::Matx)
     R[3,:] .= V3
 end
 
+function calcS(elem::MechShell, α::Float64)
+    return @SMatrix [ 
+        1.  0.  0.  0.  0.  0.
+        0.  1.  0.  0.  0.  0.
+        0.  0.  1.  0.  0.  0.
+        0.  0.  0.  α   0.  0.
+        0.  0.  0.  0.  α   0.
+        0.  0.  0.  0.  0.  1. ]
+end
 
 function setB(elem::MechShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx, Bil::Matx, Bi::Matx, B::Matx)
     nnodes = size(dNdX,1)
@@ -210,7 +215,7 @@ function setB(elem::MechShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx,
         Bil[6,1] = dNdy/SR2; Bil[6,2] = dNdx/SR2;                       Bil[6,4] = -1/SR2*dNdx*ζ*th/2;  Bil[6,5] = 1/SR2*dNdy*ζ*th/2
 
         c = (i-1)*ndof
-        @gemm Bi = Bil*Rrot
+        @mul Bi = Bil*Rrot
         B[:, c+1:c+6] .= Bi
     end 
 end
@@ -254,11 +259,11 @@ function setNN(elem::MechShell, ip::Ip, N::Vect, NNil::Matx, NNi::Matx, L::Matx,
         #@show size(NN_A+NN_B)
        # error()
 
-        # @gemm NNi = (NN_A+NN_B)*Rrot
+        # @mul NNi = (NN_A+NN_B)*Rrot
         #@show NNi
         #error()
 
-        @gemm NNi = NNil*Rrot
+        @mul NNi = NNil*Rrot
 
         NN[:, c+1:c+6] .= NNi
 
@@ -282,6 +287,7 @@ function elem_stiffness(elem::MechShell)
     Rrot   = zeros(5,ndof)
     Bil    = zeros(nstr,5)
     Bi     = zeros(nstr,ndof)
+    S      = calcS(elem, elem.props.α)
 
     for ip in elem.ips
         N    = elem.shape.func(ip.R)
@@ -294,7 +300,7 @@ function elem_stiffness(elem::MechShell)
         dNdX′ = dNdR*invJ′
 
         # D = calcD(elem.mat, ip.state)
-        D = calcD(elem.mat, ip.state, "shell")
+        D = calcD(elem.mat, ip.state, "plane-stress")
         #@show D
         #error()
 
@@ -303,7 +309,7 @@ function elem_stiffness(elem::MechShell)
         
         setB(elem, ip, N, L, dNdX′, Rrot, Bil, Bi, B)
         coef = detJ′*ip.w
-        K += coef*B'*D*B
+        K += coef*B'*S*D*B
     end
 
     δ = 1e-5
@@ -347,7 +353,7 @@ function elem_mass(elem::MechShell)
 
             # compute M
             coef = ρ*detJ′*ip.w
-            @gemm M += coef*NN'*NN
+            @mul M += coef*NN'*NN
         end
 
         map = elem_map(elem)
@@ -358,7 +364,7 @@ end
 function update_elem!(elem::MechShell, U::Array{Float64,1}, dt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
-    th = elem.props.th
+    th   = elem.props.th
     ndof = 6
 
     map = elem_map(elem)
@@ -373,6 +379,8 @@ function update_elem!(elem::MechShell, U::Array{Float64,1}, dt::Float64)
     Bil  = zeros(6,5)
     Bi   = zeros(6,ndof)
     Δε   = zeros(6)
+    S    = calcS(elem, elem.props.α)
+
 
     for ip in elem.ips
         N = elem.shape.func(ip.R)
@@ -388,14 +396,15 @@ function update_elem!(elem::MechShell, U::Array{Float64,1}, dt::Float64)
 
         setB(elem, ip, N, L, dNdX′, Rrot, Bil, Bi, B)
         Δε = B*dU
-        Δσ, status = update_state!(elem.mat, ip.state, Δε, "shell")
-        failed(status) && return failure("MechShell: Error at integration point $(ip.id)")
+        Δσ, status = update_state!(elem.mat, ip.state, Δε, "plane-stress")
+        Δσ = S*Δσ
+        failed(status) && return dF, map, failure("MechShell: Error at integration point $(ip.id)")
         #@showm Δσ
         #error()
 
         detJ′ = det(J′)
-        coef = detJ′*ip.w
-        dF += coef*B'*Δσ
+        coef  = detJ′*ip.w
+        dF   += coef*B'*Δσ
 
     end
 

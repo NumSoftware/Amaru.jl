@@ -46,10 +46,6 @@ mutable struct MCJointSeep<:Material
     w ::Float64        # initial fracture opening (longitudinal flow)
     fracture::Bool     # pre-existing fracture (true or false)
 
-    function MCJointSeep(prms::Dict{Symbol,Float64})
-        return  MCJointSeep(;prms...)
-    end
-
      function MCJointSeep(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", beta=0.0, eta=NaN, kt=NaN, w=0.0, fracture=false)  
 
         !(isnan(GF) || GF>0) && error("Invalid value for GF: $GF")
@@ -92,10 +88,10 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{MCJointSeep}) = MCJointSeepState
+compat_state_type(::Type{MCJointSeep}, ::Type{HMJoint}, env::ModelEnv) = MCJointSeepState
 
 # Element types that work with this material
-compat_elem_types(::Type{MCJointSeep}) = (HMJoint,)
+# compat_elem_types(::Type{MCJointSeep}) = (HMJoint,)
 
 
 function yield_func(mat::MCJointSeep, state::MCJointSeepState, σ::Array{Float64,1})

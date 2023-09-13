@@ -118,8 +118,8 @@ function distributed_bc(elem::ShellDegenerated, facet::Cell, key::Symbol, val::U
     ips   = get_ip_coords(shape)
 
     for i in 1:size(ips,1)
-        R = vec(ips[i,:])
-        w = R[end]
+        R = ips[i].coord
+        w = ips[i].w
         N = shape.func(R)
         D = shape.deriv(R)
         J = D*C
@@ -153,7 +153,7 @@ function distributed_bc(elem::ShellDegenerated, facet::Cell, key::Symbol, val::U
             end
         end
         coef = norm2(J)*w*th
-        @gemm F += coef*N*Q' # F is a matrix
+        @mul F += coef*N*Q' # F is a matrix
     end
 
     # generate a map
@@ -471,8 +471,8 @@ function update_elem!(elem::ShellDegenerated, U::Array{Float64,1}, Δt::Float64)
         end
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
-        @gemm dNdX = dNdR*inv(J)
+        @mul J = C'*dNdR
+        @mul dNdX = dNdR*inv(J)
         detJ = det(J)
         detJ > 0.0 || er
         =#

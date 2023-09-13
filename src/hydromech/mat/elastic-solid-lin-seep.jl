@@ -51,10 +51,10 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{LinearElasticSeep}) = LinearElasticSeepState
+compat_state_type(::Type{LinearElasticSeep}, ::Type{HMSolid}, env::ModelEnv) = LinearElasticSeepState
 
 # Element types that work with this material
-compat_elem_types(::Type{LinearElasticSeep}) = (HMSolid,)
+# compat_elem_types(::Type{LinearElasticSeep}) = (HMSolid,)
 
 
 function calcD(mat::LinearElasticSeep, state::LinearElasticSeepState)

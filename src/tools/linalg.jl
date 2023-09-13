@@ -1,8 +1,30 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 # Types
-const Vect = Array{Float64, 1}
-const Matx = Array{Float64, 2}
+const Vect = AbstractArray{Float64, 1}
+const Matx = AbstractArray{Float64, 2}
+
+# Static arrays
+const Vec2 = SVector{2, Float64}
+const Vec3 = SVector{3, Float64}
+const Vec4 = SVector{4, Float64}
+const Vec6 = SVector{6, Float64}
+const Mat6x6 = SMatrix{6, 6, Float64, 36} 
+
+
+function Base.convert(::Type{Vec3}, A::Array{Float64,1})
+    n = length(A)
+    @assert n in (1,2,3)
+    if n==3
+        return SVector(A[1], A[2], A[3])
+    elseif n==2
+        return SVector(A[1], A[2], 0.0)
+    else
+        return SVector(A[1], 0.0, 0.0)
+    end
+end
+
+
 
 eye(n) = Array{Float64,2}(I, n, n)
 
@@ -15,6 +37,13 @@ function print_matrix(M::Array{Float64,2})
         end
         println()
     end
+end
+
+function extend!(V::AbstractArray{Float64,1}, n::Int)
+    while length(V)<n
+        push!(V, 0.0)
+    end
+    return V
 end
 
 # Pseudo determinant of non-square matrices
@@ -42,67 +71,11 @@ function norm2(J)
     error("No rule to calculate norm2 of a $r x $c matrix")
 end
 
-
-# C  = α*A*B
-# C  = α*A'*B'
-# C += α*A'*B'
-# C -= α*A'*B'
-macro gemm(expr)
-    β = 0.0
-    s = 1.0
-    if expr.head == :(=)
-    elseif expr.head == :(+=)
-        β = 1.0
-    elseif expr.head == :(-=)
-        s = -1.0
-        β =  1.0
-    else
-        error("@gemm: =, +=, -= operator expected, found $(expr.head)")
-    end
-
-    C = expr.args[1]
-    rhs = expr.args[2]
-
-    if rhs.args[1] !=  :(*)
-        error("@gemm: * operator expected, found $(rhs.args[1])")
-    end
-
-    if length(rhs.args) == 4
-        α = rhs.args[2]
-        A = rhs.args[3]
-        B = rhs.args[4]
-    else
-        α = 1.0
-        A = rhs.args[2]
-        B = rhs.args[3]
-    end
-
-    tA = 'N'
-    if typeof(A) == Expr
-        if A.head == Symbol("'");
-            tA = 'T'
-            A  = A.args[1]
-        end
-    end
-
-    tB = 'N'
-    if typeof(B) == Expr
-        if B.head == Symbol("'");
-            tB = 'T'
-            B  = B.args[1]
-        end
-    end
-
-    res  = :( BLAS.gemm!($tA, $tB, $(esc(α))*$s, $(esc(A)), $(esc(B)), $β, $(esc(C)) ) )
-    return res
-end
-
-
 # Y  = α*A*X
 # Y  = α*A'*X
 # Y += α*A'*X
 # Y -= α*A'*X
-macro gemv(expr)
+macro mul(expr)
     β = 0.0
     s = 1.0
     if expr.head == :(=)
@@ -112,14 +85,14 @@ macro gemv(expr)
         s = -1.0
         β =  1.0
     else
-        error("@gemv: =, +=, -= operator expected, found $(expr.head)")
+        error("@mul: =, +=, -= operator expected, found $(expr.head)")
     end
 
     Y = expr.args[1]
     rhs = expr.args[2]
 
     if rhs.args[1] !=  :(*)
-        error("@gemv: * operator expected, found $(rhs.args[1])")
+        error("@mul: * operator expected, found $(rhs.args[1])")
     end
 
     if length(rhs.args) == 4
@@ -132,16 +105,9 @@ macro gemv(expr)
         X = rhs.args[3]
     end
 
-    tA = 'N'
-    if typeof(A) == Expr
-        if A.head == Symbol("'");
-            tA = 'T'
-            A  = A.args[1]
-        end
-    end
-
-    return :( BLAS.gemv!($tA, $(esc(α))*$s, $(esc(A)), $(esc(X)), $(β), $(esc(Y)) ) )
+    return esc(Expr(:call, :mul!, Y, A, X, :($α*$s), β))
 end
+
 
 # Y  = α*X
 # Y += α*X

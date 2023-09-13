@@ -119,11 +119,11 @@ function setquadrature!(elem::Element, n::Int=0)
 
     resize!(elem.ips, n)
     for i in 1:n
-        R = ipc[i,1:3]
-        w = ipc[i,4]
+        R = ipc[i].coord
+        w = ipc[i].w
         elem.ips[i] = Ip(R, w)
         elem.ips[i].id = i
-        elem.ips[i].state = compat_state_type(typeof(elem.mat))(elem.env)
+        elem.ips[i].state = compat_state_type(typeof(elem.mat), typeof(elem), elem.env)(elem.env)
         elem.ips[i].owner = elem
     end
 
@@ -150,24 +150,24 @@ function setquadrature!(elem::Element, n::Int=0)
     # interpolation
     for ip in elem.ips
         N = shape.func(ip.R)
-        ip.coord = C'*N
+        ip.coord = extend!(C'*N, 3)
     end
 
 end
 
 
 function setquadrature!(elems::Array{<:Element,1}, n::Int=0)
-    shapes = CellShape[]
+    # shapes = CellShape[]
 
     for elem in elems
-        if n in keys(elem.shape.quadrature)
-            setquadrature!(elem, n)
-        else
-            if !(elem.shape in shapes)
-                alert("setquadrature: cannot set $n integration points for shape $(elem.shape.name)")
-                push!(shapes, elem.shape)
-            end
-        end
+        setquadrature!(elem, n)
+        # if n in keys(elem.shape.quadrature)
+        # else
+        #     if !(elem.shape in shapes)
+        #         alert("setquadrature: cannot set $n integration points for shape $(elem.shape.name)")
+        #         push!(shapes, elem.shape)
+        #     end
+        # end
     end
 end
 

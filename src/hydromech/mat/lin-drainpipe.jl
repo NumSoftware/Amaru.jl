@@ -34,10 +34,10 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{LinDrainPipe}) = LinDrainPipeState
+compat_state_type(::Type{LinDrainPipe}, ::Type{DrainPipe}, env::ModelEnv) = LinDrainPipeState
 
 # Element types that work with this material
-compat_elem_types(::Type{LinDrainPipe}) = (DrainPipe,)
+# compat_elem_types(::Type{LinDrainPipe}) = (DrainPipe,)
 
 
 function update_state!(mat::LinDrainPipe, state::LinDrainPipeState, Δuw::Float64, G::Float64, Δt::Float64)

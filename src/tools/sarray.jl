@@ -85,8 +85,7 @@ function Base.getindex(A::SArray{S,T,N,L}, idxs::Int...) where {S,T,N,L}
         i, j = idxs
         k = S[1]*(j-1) + i
     end
-    # @show idxs
-    # @show k
-    @assert k<=length(A.data)
+    
+    k>length(A.data) && throw(BoundsError(A, idxs))
     return A.data[k]
 end

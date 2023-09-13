@@ -95,8 +95,8 @@ function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol,
     if key == :tq # fluid volume per area
         F = zeros(nnodes)
         for i in 1:size(ips,1)
-            R = vec(ips[i,:])
-            w = R[end]
+            R = ips[i].coord
+            w = ips[i].w
             N = shape.func(R)
             D = shape.deriv(R)
             J = C'*D
@@ -122,8 +122,8 @@ function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol,
     F = zeros(nnodes, ndim)
     for i in 1:size(ips,1)
 
-        R = vec(ips[i,:])
-        w = R[end]
+        R = ips[i].coord
+        w = ips[i].w
         N = shape.func(R)
         D = shape.deriv(R)
         J = C'*D
@@ -157,7 +157,7 @@ function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol,
             end
         end
         coef = norm2(J)*w*th
-        @gemm F += coef*N*Q' # F is a matrix
+        @mul F += coef*N*Q' # F is a matrix
     end
 
     # generate a map
@@ -190,8 +190,8 @@ function elem_stiffness(elem::HMSolid)
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
-        @gemm dNdX = dNdR*inv(J)
+        @mul J = C'*dNdR
+        @mul dNdX = dNdR*inv(J)
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         setBu(elem, ip, dNdX, Bu)
@@ -199,8 +199,8 @@ function elem_stiffness(elem::HMSolid)
         # compute K
         coef = detJ*ip.w*th
         D    = calcD(elem.mat, ip.state)
-        @gemm DBu = D*Bu
-        @gemm K += coef*Bu'*DBu
+        @mul DBu = D*Bu
+        @mul K += coef*Bu'*DBu
     end
 
     # map
@@ -223,15 +223,15 @@ function elem_coupling_matrix(elem::HMSolid)
 
     J    = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, nnodes, ndim)
-    m = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
+    m = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
 
     for ip in elem.ips
         elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
-        @gemm dNdX = dNdR*inv(J)
+        @mul J = C'*dNdR
+        @mul dNdX = dNdR*inv(J)
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         setBu(elem, ip, dNdX, Bu)
@@ -241,7 +241,7 @@ function elem_coupling_matrix(elem::HMSolid)
         coef  = elem.props.α
         coef *= detJ*ip.w*th
         mNw   = m*Nw'
-        @gemm Cuw -= coef*Bu'*mNw
+        @mul Cuw -= coef*Bu'*mNw
     end
 
     keys = (:ux, :uy, :uz)[1:ndim]
@@ -269,18 +269,18 @@ function elem_conductivity_matrix(elem::HMSolid)
 
         dNdR  = elem.shape.deriv(ip.R)
         dNwdR = elem.shape.basic_shape.deriv(ip.R)
-        @gemm J  = C'*dNdR
+        @mul J  = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
-        @gemm dNwdX = dNwdR*inv(J)
+        @mul dNwdX = dNwdR*inv(J)
 	    Bw .= dNwdX'
 
         # compute H
         K = calcK(elem.mat, ip.state)
         coef  = 1/elem.env.ana.γw
         coef *= detJ*ip.w*th
-        @gemm KBw = K*Bw
-        @gemm H -= coef*Bw'*KBw
+        @mul KBw = K*Bw
+        @mul H -= coef*Bw'*KBw
     end
 
     # map
@@ -305,7 +305,7 @@ function elem_compressibility_matrix(elem::HMSolid)
 
         Nw   = elem.shape.basic_shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
@@ -342,17 +342,17 @@ function elem_RHS_vector(elem::HMSolid)
 
         dNdR  = elem.shape.deriv(ip.R)
         dNwdR = elem.shape.basic_shape.deriv(ip.R)
-        @gemm J  = C'*dNdR
+        @mul J  = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
-        @gemm dNwdX = dNwdR*inv(J)
+        @mul dNwdX = dNwdR*inv(J)
         Bw .= dNwdX'
 
         # compute Q
         K = calcK(elem.mat, ip.state)
         coef = detJ*ip.w*th
-        @gemv KZ = K*Z
-        @gemm Q += coef*Bw'*KZ
+        @mul KZ = K*Z
+        @mul Q += coef*Bw'*KZ
     end
 
     # map
@@ -379,7 +379,7 @@ function elem_internal_forces(elem::HMSolid, F::Array{Float64,1})
     dFw = zeros(nbnodes)
     Bw  = zeros(ndim, nbnodes)
 
-    m = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
+    m = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
 
     J  = Array{Float64}(undef, ndim, ndim)
     dNdX  = Array{Float64}(undef, nnodes, ndim)
@@ -390,14 +390,14 @@ function elem_internal_forces(elem::HMSolid, F::Array{Float64,1})
 
         # compute Bu matrix and Bw
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
-        @gemm dNdX = dNdR*inv(J)
+        @mul dNdX = dNdR*inv(J)
         setBu(elem, ip, dNdX, Bu)
 
         dNwdR = elem.shape.basic_shape.deriv(ip.R)
-        @gemm dNwdX = dNwdR*inv(J)
+        @mul dNwdX = dNwdR*inv(J)
         Bw .= dNwdX'
 
         # compute N
@@ -407,20 +407,20 @@ function elem_internal_forces(elem::HMSolid, F::Array{Float64,1})
         uw   = ip.state.uw
         σ    = ip.state.σ - elem.props.α*uw*m # get total stress
         coef = detJ*ip.w*th
-        @gemv dF += coef*Bu'*σ
+        @mul dF += coef*Bu'*σ
 
         # internal volumes dFw
         ε    = ip.state.ε
         εvol = dot(m, ε)
         coef = elem.props.α*detJ*ip.w*th
-        dFw  -= coef*Nw*εvol
+        dFw  .-= coef*Nw*εvol
 
         coef = detJ*ip.w*elem.mat.S*th
-        dFw -= coef*Nw*uw
+        dFw .-= coef*Nw*uw
 
         D    = ip.state.D
         coef = detJ*ip.w*th
-        @gemv dFw += coef*Bw'*D
+        @mul dFw += coef*Bw'*D
     end
 
     F[map_u] += dF
@@ -443,7 +443,7 @@ function update_elem!(elem::HMSolid, DU::Array{Float64,1}, Δt::Float64)
     dUw = DU[map_w] # nodal pore-pressure increments
     Uw  = [ node.dofdict[:uw].vals[:uw] for node in elem.nodes[1:nbnodes] ]
     Uw += dUw # nodal pore-pressure at step n+1
-    m = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
+    m = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
 
     dF  = zeros(nnodes*ndim)
     Bu  = zeros(6, nnodes*ndim)
@@ -460,22 +460,22 @@ function update_elem!(elem::HMSolid, DU::Array{Float64,1}, Δt::Float64)
 
         # compute Bu matrix and Bw
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
         invJ = inv(J)
-        @gemm dNdX = dNdR*invJ
+        @mul dNdX = dNdR*invJ
         setBu(elem, ip, dNdX, Bu)
 
         dNwdR = elem.shape.basic_shape.deriv(ip.R)
-        @gemm dNwdX = dNwdR*invJ
+        @mul dNwdX = dNwdR*invJ
         Bw .= dNwdX'
 
         # compute Nw
         Nw = elem.shape.basic_shape.func(ip.R)
 
         # compute Δε
-        @gemv Δε = Bu*dU
+        @mul Δε = Bu*dU
 
         # compute Δuw
         Δuw = Nw'*dUw # interpolation to the integ. point
@@ -490,21 +490,21 @@ function update_elem!(elem::HMSolid, DU::Array{Float64,1}, Δt::Float64)
         Δσ -= elem.props.α*Δuw*m # get total stress
 
         coef = detJ*ip.w*th
-        @gemv dF += coef*Bu'*Δσ
+        @mul dF += coef*Bu'*Δσ
 
         # internal volumes dFw
         Δεvol = dot(m, Δε)
         coef  = elem.props.α
         coef *= detJ*ip.w*th
-        dFw  -= coef*Nw*Δεvol
+        dFw  .-= coef*Nw*Δεvol
 
         coef  = elem.mat.S
         coef *= detJ*ip.w*th
-        dFw  -= coef*Nw*Δuw
+        dFw  .-= coef*Nw*Δuw
 
         coef  = Δt
         coef *= detJ*ip.w*th
-        @gemv dFw += coef*Bw'*V
+        @mul dFw += coef*Bw'*V
     end
 
     return [dF; dFw], [map_u; map_w], success()

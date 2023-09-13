@@ -50,7 +50,7 @@ mutable struct PPRod<:Material
 end
 
 """
-    ElasticRodState
+    PPRodState
 
 A type for the state data of a PPRod type.
 
@@ -74,6 +74,9 @@ mutable struct PPRodState<:IpState
         return this
     end
 end
+
+compat_state_type(::Type{PPRod}, ::Type{MechRod}, env::ModelEnv) = PPRodState
+compat_state_type(::Type{PPRod}, ::Type{MechEmbRod}, env::ModelEnv) = PPRodState
 
 
 # Type of corresponding state structure
@@ -117,9 +120,9 @@ end
 
 function ip_state_vals(mat::PPRod, state::PPRodState)
     return OrderedDict{Symbol,Float64}(
-        :sa  => state.σ,
-        :ea  => state.ε,
-        :eap => state.εp,
+        :sX  => state.σ,
+        :eX  => state.ε,
+        :eXp => state.εp,
     )
 end
 

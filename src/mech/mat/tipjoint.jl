@@ -31,10 +31,10 @@ end
 
 
 # Element types that work with this material
-compat_elem_types(::Type{TipJoint}) = (MechTipJoint,)
+# compat_elem_types(::Type{TipJoint}) = (MechTipJoint,)
 
 # Type of corresponding state structure
-compat_state_type(::Type{TipJoint}) = TipJointState
+compat_state_type(::Type{TipJoint}, ::Type{MechTipJoint}, evn::ModelEnv) = TipJointState
 
 
 function calcD(mat::TipJoint, state::TipJointState)

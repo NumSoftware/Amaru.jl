@@ -8,32 +8,34 @@ struct MechBeamProps<:ElemProperties
     thy::Float64
     thz::Float64
 
-    function MechBeamProps(; props...)
-        names = (rho="Density", gamma="Specific weight", thy="y' thickness", thz="z' thickness")
-        default = (rho=0.0, gamma=0.0)
-        props   = merge(default, props)
-        required = (:thy, :thz)
-        @checkmissing props required names
+    function MechBeamProps(; args...)
+        args = checkargs(args, arg_rules(MechBeamProps))
 
-        rho   = props.rho
-        gamma = props.gamma
-        thy   = props.thy
-        thz   = props.thz
+        if haskey(args, :A)
+            thy = thz = √args.A # assuming circular section
+        else
+            thy, thz = args.thy, args.thz
+        end
 
-        @check rho>=0
-        @check gamma>=0
-        @check thy>0
-        @check thz>0
-
-        return new(rho, gamma, thy, thz)
+        return new(args.rho, args.gamma, thy, thz)
     end    
 end
+
+arg_rules(::Type{MechBeamProps}) = 
+[
+    @argopt  A thy, thz
+    @arginfo thy thy>0.0 "y' thickness"
+    @arginfo thz thz>0.0 "z' thickness"
+    @arginfo A A>0.0 "Section area"
+    @arginfo gamma=0 gamma>=0.0 "Specific weight"
+    @arginfo rho=0 rho>=0.0 "Density"
+]
 
 
 
 """
     MechBeam
-Am beam finite element for mechanical equilibrium analyses.
+A beam finite element for mechanical equilibrium analyses.
 """
 mutable struct MechBeam<:Mech
     id    ::Int
@@ -82,30 +84,57 @@ end
 function setquadrature!(elem::MechBeam, n::Int=0)
     ndim = elem.env.ndim
 
-    ipL = get_ip_coords(LIN2, n) # longitudinal
-    ipT = get_ip_coords(LIN2, 2) # transversal
-    
-    n = size(ipL,1)
-    nj = 2
-    nk = ndim-1
+    if ndim==3
+        if n in (0,8)
+            nl, nj, nk = 2, 2, 2
+        elseif n==12
+            nl, nj, nk = 3, 2, 2
+        elseif n==2
+            nl, nj, nk = 2, 1, 1
+        elseif n==3
+            nl, nj, nk = 3, 1, 1
+        elseif n==32
+            nl, nj, nk = 2, 4, 4
+        elseif n==48
+            nl, nj, nk = 3, 4, 4
+        elseif n==16
+            nl, nj, nk = 4, 2, 2
+        elseif n==18
+            nl, nj, nk = 2, 3, 3
+        elseif n==27
+            nl, nj, nk = 3, 3, 3
+        end
+    else
+        if n in (0,4)
+            nl, nj, nk = 2, 2, 1
+        elseif n==6
+            nl, nj, nk = 3, 2, 1
+        elseif n==2
+            nl, nj, nk = 2, 1, 1
+        elseif n==3
+            nl, nj, nk = 3, 1, 1
+        end
+    end
 
-    resize!(elem.ips, n*nj*nk)
-    for i in 1:n
-        for j in 1:2
+    ipL = get_ip_coords(LIN2, nl) # longitudinal
+    ipT = get_ip_coords(LIN2, nj) # transversal
+    
+    resize!(elem.ips, nl*nj*nk)
+    for i in 1:nl
+        for j in 1:nj
             for k in 1:nk
                 if ndim==2
-                    R = [ ipL[i,1], ipT[j,1], 0.0 ]
-                    w = ipL[i,4]*ipT[j,4]
+                    R = [ ipL[i].coord[1], ipT[j].coord[1], 0.0 ]
+                    w = ipL[i].w*ipT[j].w
                 else
-                    R = [ ipL[i,1], ipT[j,1], ipT[k,1] ]
-                    w = ipL[i,4]*ipT[j,4]*ipT[k,4]
+                    R = [ ipL[i].coord[1], ipT[j].coord[1], ipT[k].coord[1] ]
+                    w = ipL[i].w*ipT[j].w*ipT[k].w
                 end
                 m = (i-1)*nj*nk + (j-1)*nk + k
                 elem.ips[m] = Ip(R, w)
                 elem.ips[m].id = m
-                elem.ips[m].state = compat_state_type(typeof(elem.mat))(elem.env)
+                elem.ips[m].state = compat_state_type(typeof(elem.mat), typeof(elem), elem.env)(elem.env)
                 elem.ips[m].owner = elem
-                # @show m
             end
         end
     end
@@ -113,6 +142,13 @@ function setquadrature!(elem::MechBeam, n::Int=0)
     # finding ips global coordinates
     C     = getcoords(elem)
     shape = elem.shape
+
+    s = 0.0
+    for ip in elem.ips
+        # @show ip.w ip.R
+        s+= ip.w
+    end
+    # @show s
 
     for ip in elem.ips
         R = [ ip.R[1], 0.0, 0.0 ]
@@ -212,7 +248,7 @@ function setB(elem::MechBeam, ip::Ip, L::Matx, N::Vect, dNdX::Matx, Rθ::Matx, B
                               Bil[2,2] = dNdx/SR2;  Bil[2,3] = -1/SR2*Ni
 
             c = (i-1)*ndof
-            @gemm Bi = Bil*Rθ
+            @mul Bi = Bil*Rθ
             B[:, c+1:c+ndof] .= Bi
         end
     else
@@ -230,12 +266,11 @@ function setB(elem::MechBeam, ip::Ip, L::Matx, N::Vect, dNdX::Matx, Rθ::Matx, B
                              Bil[3,2] = dNdx/SR2;                        Bil[3,4] = -1/SR2*dNdx*ζ*thz/2;                           Bil[3,6] = -1/SR2*Ni
 
             c = (i-1)*ndof
-            @gemm Bi = Bil*Rθ
+            @mul Bi = Bil*Rθ
             B[:, c+1:c+ndof] .= Bi
         end
     end
 end
-
 
 function elem_stiffness(elem::MechBeam)
     ndim = elem.env.ndim
@@ -269,10 +304,14 @@ function elem_stiffness(elem::MechBeam)
         else
             detJ′ = dx′dξ*thz/2*thy/2
         end
+        # @show ip.id, detJ′
         coef = detJ′*ip.w
         K += coef*B'*D*B
-
     end
+
+    # @showm B
+    # global KK = K
+    # global BB = B
 
     map = elem_map(elem)
     return K, map, map
@@ -400,8 +439,8 @@ function elem_extrapolated_node_vals(elem::MechBeam)
         Vxy = ones(nnodes)*mean(Vxy)
 
         return OrderedDict(
-            Symbol("Mx'y'") => Mxy,
-            Symbol("Vx'y'") => Vxy
+            :MXY => Mxy,
+            :VXY => Vxy
         )
     else
         θY = U′[5:ndof:ndof*nnodes-1]
@@ -420,10 +459,10 @@ function elem_extrapolated_node_vals(elem::MechBeam)
         Vxy = ones(nnodes)*mean(Vxy)
 
         return OrderedDict(
-            Symbol("Mx'z'") => Mxz,
-            Symbol("Mx'y'") => Mxy,
-            Symbol("Vx'z'") => Vxz,
-            Symbol("Vx'y'") => Vxy
+            :MXZ => Mxz,
+            :MXY => Mxy,
+            :VXZ => Vxz,
+            :VXY => Vxy
         )
     end
 end

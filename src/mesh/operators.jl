@@ -39,11 +39,7 @@ Block
 """
 function move!(block::AbstractBlock; dx=0.0, dy=0.0, dz=0.0)
     for p in block.nodes
-        p.coord.x += dx
-        p.coord.y += dy
-        p.coord.z += dz
-
-        round!(p.coord, digits=8)
+        p.coord = round.( p.coord .+ (dx, dy, dz), digits=8)
     end
     return block
 end
@@ -278,10 +274,10 @@ function LinearAlgebra.rotate!(bl::AbstractBlock; base=[0.0,0,0], axis=[0.0,0,1]
     R    = Quaternion(cos(θ/2), axis[1]*sin(θ/2), axis[2]*sin(θ/2), axis[3]*sin(θ/2))
     digs = 8
 
-    X = Vec3()
+    local X
     for node in bl.nodes
         X = base + R*(node.coord-base)*conj(R)
-        node.coord .= round.(X, digits=digs) 
+        node.coord = round.(X, digits=digs) 
     end
 
     # isinverted(bl) && flip!(bl)

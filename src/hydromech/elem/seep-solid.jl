@@ -72,11 +72,11 @@ function distributed_bc(elem::SeepSolid, facet::Union{Facet,Nothing}, key::Symbo
     ips   = get_ip_coords(shape)
 
     for i in 1:size(ips,1)
-        R = vec(ips[i,:])
-        w = R[end]
+        R = ips[i].coord
+        w = ips[i].w
         N = shape.func(R)
         D = shape.deriv(R)
-        @gemm J = C'*D
+        @mul J = C'*D
         nJ = norm2(J)
         X = C'*N
         if ndim==2
@@ -116,17 +116,17 @@ function elem_conductivity_matrix(elem::SeepSolid)
         elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J  = C'*dNdR
+        @mul J  = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
-        @gemm dNdX = dNdR*inv(J) # Bw = dNdX'
+        @mul dNdX = dNdR*inv(J) # Bw = dNdX'
 
         # compute H
         K = calcK(elem.mat, ip.state)
         coef  = 1/elem.env.ana.γw
         coef *= detJ*ip.w*th
-        @gemm KBw = K*dNdX'
-        @gemm H -= coef*dNdX*KBw
+        @mul KBw = K*dNdX'
+        @mul H -= coef*dNdX*KBw
     end
 
     # map
@@ -150,7 +150,7 @@ function elem_compressibility_matrix(elem::SeepSolid)
 
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
@@ -185,16 +185,16 @@ function elem_RHS_vector(elem::SeepSolid)
         elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
 
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J  = C'*dNdR
-        @gemm dNdX = dNdR*inv(J) # Bw = dNdX'
+        @mul J  = C'*dNdR
+        @mul dNdX = dNdR*inv(J) # Bw = dNdX'
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute Q
         K = calcK(elem.mat, ip.state)
         coef = detJ*ip.w*th
-        @gemv KZ = K*Z
-        @gemm Q += coef*dNdX*KZ
+        @mul KZ = K*Z
+        @mul Q += coef*dNdX*KZ
     end
 
     # map
@@ -222,10 +222,10 @@ function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
 
         # compute Bw matrix
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
-        @gemm dNdX = dNdR*inv(J) # Bw'
+        @mul dNdX = dNdR*inv(J) # Bw'
 
         # compute N
         N    = elem.shape.func(ip.R)
@@ -233,14 +233,14 @@ function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
         # internal volumes dFw
         uw   = ip.state.uw
         coef = detJ*ip.w*elem.mat.S*th
-        dFw -= coef*N*uw
+        dFw .-= coef*uw*N
 
         D    = ip.state.D
         coef = detJ*ip.w*th
-        @gemv dFw += coef*dNdX*D
+        @mul dFw += coef*dNdX*D
     end
 
-    F[map_w] += dFw
+    F[map_w] .+= dFw
 end
 
 
@@ -267,10 +267,10 @@ function update_elem!(elem::SeepSolid, DU::Array{Float64,1}, Δt::Float64)
         # compute Bu matrix
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
-        @gemm dNdX = dNdR*inv(J) # Bw = dNdX'
+        @mul dNdX = dNdR*inv(J) # Bw = dNdX'
 
         G  = dNdX'*Uw/elem.env.ana.γw # flow gradient
         G[end] += 1.0; # gradient due to gravity
@@ -281,10 +281,10 @@ function update_elem!(elem::SeepSolid, DU::Array{Float64,1}, Δt::Float64)
 
         coef  = elem.mat.S
         coef *= detJ*ip.w*th
-        dFw  -= coef*N*Δuw
+        dFw  .-= coef*N*Δuw
 
         coef = Δt*detJ*ip.w*th
-        @gemv dFw += coef*dNdX*V
+        @mul dFw += coef*dNdX*V
     end
 
     return dFw, map_w, success()

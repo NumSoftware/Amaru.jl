@@ -57,7 +57,8 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{Mazars}) = MazarsState
+compat_state_type(::Type{Mazars}, ::Type{MechSolid}, env::ModelEnv) = MazarsState
+
 
 # Element types that work with this material
 compat_elem_types(::Type{Mazars}) = (MechSolid,)

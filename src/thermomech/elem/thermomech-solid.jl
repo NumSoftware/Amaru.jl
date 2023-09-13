@@ -101,8 +101,8 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
 
     if key == :tq # energy per area
         for i in 1:size(ips,1)
-            R = vec(ips[i,:])
-            w = R[end]
+            R = ips[i].coord
+            w = ips[i].w
             N = shape.func(R)
             D = shape.deriv(R)
             J = C'*D
@@ -126,8 +126,8 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
     end
 
     for i in 1:size(ips,1)
-        R = vec(ips[i,:])
-        w = R[end]
+        R = ips[i].coord
+        w = ips[i].w
         N = shape.func(R)
         D = shape.deriv(R)
         J = C'*D
@@ -161,7 +161,7 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
             end
         end
         coef = norm2(J)*w*th
-        @gemm F += coef*N*Q' # F is a matrix
+        @mul F += coef*N*Q' # F is a matrix
     end
 
     # generate a map
@@ -194,8 +194,8 @@ function elem_stiffness(elem::TMSolid)
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
-        @gemm dNdX = dNdR*inv(J)
+        @mul J = C'*dNdR
+        @mul dNdX = dNdR*inv(J)
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         set_Bu(elem, ip, dNdX, Bu)
@@ -203,8 +203,8 @@ function elem_stiffness(elem::TMSolid)
         # compute K
         coef = detJ*ip.w*th
         D    = calcD(elem.mat, ip.state)
-        @gemm DBu = D*Bu
-        @gemm K += coef*Bu'*DBu
+        @mul DBu = D*Bu
+        @mul K += coef*Bu'*DBu
     end
 
     # map
@@ -227,7 +227,7 @@ function elem_coupling_matrix(elem::TMSolid)
 
     J    = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, nnodes, ndim)
-    m    = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
+    m    = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
     β    = elem.mat.E*elem.props.α/(1-2*elem.mat.ν) # thermal stress modulus
 
     for ip in elem.ips
@@ -235,8 +235,8 @@ function elem_coupling_matrix(elem::TMSolid)
 
         # compute Bu matrix
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
-        @gemm dNdX = dNdR*inv(J)
+        @mul J = C'*dNdR
+        @mul dNdX = dNdR*inv(J)
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
         set_Bu(elem, ip, dNdX, Bu)
@@ -246,7 +246,7 @@ function elem_coupling_matrix(elem::TMSolid)
         coef  = β
         coef *= detJ*ip.w*th
         mNt   = m*Nt'
-        @gemm Cut -= coef*Bu'*mNt
+        @mul Cut -= coef*Bu'*mNt
     end
     # map
     keys = (:ux, :uy, :uz)[1:ndim]
@@ -274,17 +274,17 @@ function elem_conductivity_matrix(elem::TMSolid)
 
         dNdR  = elem.shape.deriv(ip.R)
         dNtdR = elem.shape.basic_shape.deriv(ip.R)
-        @gemm J  = C'*dNdR
+        @mul J  = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
-        @gemm dNtdX = dNtdR*inv(J)
+        @mul dNtdX = dNtdR*inv(J)
         Bt .= dNtdX'
 
         # compute H
         K = calcK(elem.mat, ip.state)
         coef = detJ*ip.w*th
-        @gemm KBt = K*Bt
-        @gemm H  -= coef*Bt'*KBt
+        @mul KBt = K*Bt
+        @mul H  -= coef*Bt'*KBt
     end
 
     # map
@@ -309,7 +309,7 @@ function elem_mass_matrix(elem::TMSolid)
 
         Nt   = elem.shape.basic_shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
@@ -343,7 +343,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
     dFt = zeros(nbnodes)
     Bt  = zeros(ndim, nbnodes)
 
-    m = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  tI
+    m = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  I2
 
     J  = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, nnodes, ndim)
@@ -355,15 +355,15 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
 
         # compute Bu matrix and Bt
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
-        @gemm dNdX = dNdR*inv(J)
+        @mul dNdX = dNdR*inv(J)
         set_Bu(elem, ip, dNdX, Bu)
 
         dNtdR = elem.shape.basic_shape.deriv(ip.R)
         Jp = dNtdR*Ct
-        @gemm dNtdX = inv(Jp)*dNtdR
+        @mul dNtdX = inv(Jp)*dNtdR
         Bt = dNtdX
         # compute N
 
@@ -372,7 +372,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
         β   = elem.mat.E*elem.props.α/(1-2*elem.mat.ν)
         σ    = ip.state.σ - β*ut*m # get total stress
         coef = detJ*ip.w*th
-        @gemv dF += coef*Bu'*σ
+        @mul dF += coef*Bu'*σ
 
         # internal volumes dFt
         ε    = ip.state.ε
@@ -385,7 +385,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Floa
 
         QQ   = ip.state.QQ
         coef = detJ*ip.w*th/T0k
-        @gemv dFt += coef*Bt'*QQ
+        @mul dFt += coef*Bt'*QQ
     end
 
     F[map_u] += dF
@@ -417,7 +417,7 @@ function update_elem!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
     dUt = DU[map_t] # nodal temperature increments
     Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes]
     Ut += dUt # nodal tempeture at step n+1
-    m   = tI  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
+    m   = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
 
     dF  = zeros(nnodes*ndim)
     Bu  = zeros(6, nnodes*ndim)
@@ -434,21 +434,21 @@ function update_elem!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
 
         # compute Bu and Bt matrices
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
         invJ = inv(J)
-        @gemm dNdX = dNdR*invJ
+        @mul dNdX = dNdR*invJ
         set_Bu(elem, ip, dNdX, Bu)
 
         dNtdR = elem.shape.basic_shape.deriv(ip.R)
-        @gemm dNtdX = dNtdR*invJ
+        @mul dNtdX = dNtdR*invJ
 
         # compute Nt
         Nt = elem.shape.basic_shape.func(ip.R)
 
         # compute Δε
-        @gemv Δε = Bu*dU
+        @mul Δε = Bu*dU
 
         # compute Δut
         Δut = Nt'*dUt # interpolation to the integ. point
@@ -466,21 +466,21 @@ function update_elem!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
         #@show Δσ
 
         coef = detJ*ip.w*th
-        @gemv dF += coef*Bu'*Δσ
+        @mul dF += coef*Bu'*Δσ
 
         # internal volumes dFt
         Δεvol = dot(m, Δε)
         coef  = β*Δεvol*T0k
         coef *= detJ*ip.w*th
-        dFt  -= coef*Nt
+        dFt  .-= coef*Nt
 
         coef  = ρ*cv
         coef *= detJ*ip.w*th
-        dFt  -= coef*Nt*Δut
+        dFt  .-= coef*Nt*Δut
 
         coef  = Δt
         coef *= detJ*ip.w*th
-        @gemv dFt += coef*Bt'*q
+        @mul dFt += coef*Bt'*q
     end
 
     return [dF; dFt], [map_u; map_t], success()

@@ -50,8 +50,8 @@ function distributed_bc(elem::ShellQUAD4, facet::Cell, key::Symbol, val::Union{R
     ips   = get_ip_coords(shape)
 
     for i in 1:size(ips,1)
-        R = vec(ips[i,:])
-        w = R[end]
+        R = ips[i].coord
+        w = ips[i].w
         N = shape.func(R)
         D = shape.deriv(R)
         J = D*C
@@ -85,7 +85,7 @@ function distributed_bc(elem::ShellQUAD4, facet::Cell, key::Symbol, val::Union{R
             end
         end
         coef = norm2(J)*w*th
-        @gemm F += coef*N*Q' # F is a matrix
+        @mul F += coef*N*Q' # F is a matrix
     end
 
     # generate a map

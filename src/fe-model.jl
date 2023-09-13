@@ -120,27 +120,35 @@ function FEModel(
         args      = matbind[4]
         
         # Check if material is compatible with the element
-        comp_elem_types = compat_elem_types(mat_type)
-        if !(elem_type in comp_elem_types)
+        # comp_elem_types = compat_elem_types(mat_type)
+        # state_type = compat_state_type(mat_type, elem_type, env)
 
-            # get list of material models
-            all_mat_types = [ fieldtypes(m.sig)[2].parameters[1] for m in  methods(Amaru.compat_elem_types, (Any,)) if hasproperty(fieldtypes(m.sig)[2], :parameters)]
-            comp_mat_types = [ mat_t for mat_t in all_mat_types if elem_type in compat_elem_types(mat_t) ]
+        # comp_elem_types = [ argtps[2].parameters[1] for argtps in typeofargs(compat_state_type) if length(argtps)>1 && typeof(argtps[1])!=UnionAll && argtps[1].parameters[1]==mat_type  ]
+        comp_elem_types = [ argtps[2] for argtps in typeofargs(compat_state_type) if length(argtps)>1 && mat_type isa argtps[1] ]
+        # @show comp_elem_types
+
+        # if !(elem_type in comp_elem_types)
+        if !any(isa.(elem_type, comp_elem_types))
+            comp_mat_types  = [ argtps[1].parameters[1] for argtps in typeofargs(compat_state_type) if length(argtps)>1 && typeof(argtps[1])!=UnionAll && argtps[2].parameters[1]==elem_type ]
+            # comp_mat_types  = [ argtps[1].parameters[1] for argtps in typeofargs(compat_state_type) if length(argtps)>1 && typeof(argtps[1])!=UnionAll && argtps[2].parameters[1]==elem_type ]
 
             message = "FEModel: Material model $(mat_type) is not compatible with Element $(elem_type) \n\
-                       Compatible elements for material $(mat_type): $(join(comp_elem_types, ", ", " and ")) \n\
-                       Compatible materials for element $(elem_type): $(join(comp_mat_types, ", ", " and "))"
+            Compatible elements for material $(mat_type): $(join(comp_elem_types, ", ", " and ")) \n\
+            Compatible materials for element $(elem_type): $(join(comp_mat_types, ", ", " and "))"
             message = replace(message, r"Amaru\." => "")
             throw(AmaruException(message))
         end
-        # if !hasmethod(compat_state_type, (Type{elem_type}, Type{mat_type})) 
-        #     # available materials
-        #     av_mats = [  fieldtypes(m.sig)[3] for m in methods(compat_state_type, (Type{elem_type}, Any))  ]
-        #     av_elems = [  fieldtypes(m.sig)[2] for m in methods(compat_state_type, (Any, Type{mat_type}))  ]
-        #     message = "FEModel: Element $(elem_type) is not compatible with material model $(mat_type).\n\
-        #                Compatible material models for element $(elem_type) are: $(join(av_mats, ", ", " and ")).\n\
-        #                Compatible elements for material model $(mat_type) are: $(join(av_elems, ", ", " and "))"
-        #     message = replace(message, r"Elem\b" => "")
+
+
+        # if !(elem_type in comp_elem_types)
+
+        #     # get list of material models
+        #     all_mat_types = [ fieldtypes(m.sig)[2].parameters[1] for m in  methods(Amaru.compat_elem_types, (Any,)) if hasproperty(fieldtypes(m.sig)[2], :parameters)]
+        #     comp_mat_types = [ mat_t for mat_t in all_mat_types if elem_type in compat_elem_types(mat_t) ]
+
+        #     message = "FEModel: Material model $(mat_type) is not compatible with Element $(elem_type) \n\
+        #                Compatible elements for material $(mat_type): $(join(comp_elem_types, ", ", " and ")) \n\
+        #                Compatible materials for element $(elem_type): $(join(comp_mat_types, ", ", " and "))"
         #     message = replace(message, r"Amaru\." => "")
         #     throw(AmaruException(message))
         # end
@@ -162,7 +170,8 @@ function FEModel(
 
         for cell in cells
             if cell.embedded
-                elem_t = compat_elem_type_if_embedded(mat_type)
+                # elem_t = compat_elem_type_if_embedded(mat_type)
+                elem_t = embedded_type(elem_type)
             else
                 elem_t = elem_type
             end

@@ -33,25 +33,22 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{LinearAcousticFluid}) = LinearAcousticFluidState
+compat_state_type(::Type{LinearAcousticFluid}, ::Type{AcousticFluid}, env::ModelEnv) = LinearAcousticFluidState
 
 # Element types that work with this material
-compat_elem_types(::Type{LinearAcousticFluid}) = (AcousticFluid,)
+# compat_elem_types(::Type{LinearAcousticFluid}) = (AcousticFluid,)
 
 
 function update_state!(mat::LinearAcousticFluid, state::LinearAcousticFluidState, Δup::Float64, G::Array{Float64,1}, Δt::Float64)
+    state.up += Δup
     return nothing
 end
 
 
 function ip_state_vals(mat::LinearAcousticFluid, state::LinearAcousticFluidState)
     D = OrderedDict{Symbol, Float64}()
-    D[:up] = state.up
-    # D[:vx] = state.V[1]
-    # D[:vy] = state.V[2]
-    # if state.env.ndim==3
-    #     D[:vz] = state.V[3]
-    # end
+    
+    # D[:up] = state.up
 
     return D
 end

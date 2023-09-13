@@ -75,6 +75,9 @@ mutable struct CebRSJoint<:Material
 end
 
 
+compat_state_type(::Type{CebRSJoint}, ::Type{MechRSJoint}, env::ModelEnv) = CebRSJointState
+
+
 # Type of corresponding state structure
 compat_state_type(::Type{CebRSJoint}) = CebRSJointState
 

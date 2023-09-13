@@ -71,10 +71,10 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{TCFJoint}) = TCFJointState
+compat_state_type(::Type{TCFJoint}, ::Type{MechJoint}, env::ModelEnv) = TCFJointState
 
 # Element types that work with this material
-compat_elem_types(::Type{TCFJoint}) = (MechJoint,)
+# compat_elem_types(::Type{TCFJoint}) = (MechJoint,)
 
 
 # function init_state(mat::TCFJoint, state::TCFJointState; h::Float64=0.0)
@@ -492,7 +492,7 @@ function calc_σ_up_Δλ_bissection(mat::TCFJoint, state::TCFJointState, σtr::A
             δ *= 1.5
 
             if i==maxits
-                return 0.0, state.σ, 0.0, failure("TCFJoint: could not find Δλ (could not find interval for bissection)")
+                return state.σ, 0.0, 0.0, failure("TCFJoint: could not find Δλ (could not find interval for bissection)")
             end
         end
     end
@@ -553,7 +553,7 @@ function calc_σ_up_Δλ_bissection(mat::TCFJoint, state::TCFJointState, σtr::A
         end
         σ0 .= σ
 
-        i==maxits && return 0.0, state.σ, 0.0, failure("TCFJoint: could not find Δλ with NR/bissection (maxits reached, f=$f)")
+        i==maxits && return state.σ, 0.0, 0.0, failure("TCFJoint: could not find Δλ with NR/bissection (maxits reached, f=$f)")
     end
 
     return σ, up, Δλ, success()   

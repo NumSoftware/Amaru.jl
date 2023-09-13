@@ -3,6 +3,13 @@
 export elem_config_dofs, elem_init, elem_stiffness, elem_mass, update_elem!, elem_vals
 export set_state
 
+@enum(StressState,
+    PLANESTRESS = 0,
+    PLANESTRAIN = 1,
+    AXISYMMETRIC = 2,
+    THREEDIMENSIONAL = 3,
+)
+
 # include("mech-properties.jl")
 
 include("elem/mech.jl")
@@ -33,8 +40,8 @@ include("mat/dp-solid.jl")
 include("mat/vm-solid.jl")
 include("mat/mazars-solid.jl")
 include("mat/sc-solid.jl")
-include("mat/compressible.jl")
-# include("mat/compressible-bulk-v2.jl")
+# include("mat/compressible.jl")
+include("mat/compressible-bulk-v2.jl")
 # include("mat/compressible-bulk-v4.jl")
 include("mat/damageconcrete-solid.jl")
 
@@ -45,11 +52,10 @@ include("elem/mech-spring.jl")
 include("mat/elastic-spring.jl")
 
 # Models for truss elements
-include("mat/elastic-rod.jl")
 include("mat/pp-rod.jl")
 
 # Models for beams
-include("mat/elastic-beam.jl")
+include("mat/pp-beam.jl")
 
 # Models for plates
 include("mat/elastic-plateMZC.jl")

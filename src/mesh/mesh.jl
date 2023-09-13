@@ -725,11 +725,12 @@ end
 function Mesh(elems::Array{Cell,1})
     length(elems)==0 && return Mesh()
 
-    digs = 8
     nodes = copy.(getnodes(elems))
-    for node in nodes
-        round!(node.coord, digits=digs)
-    end
+    # digs = 8
+    # for node in nodes
+    #     node.coord = round.(node.coord, digits=digs)
+    #     # round!(node.coord, digits=digs)
+    # end
 
     newmesh = Mesh(getndim(nodes))
     newmesh.nodes = nodes

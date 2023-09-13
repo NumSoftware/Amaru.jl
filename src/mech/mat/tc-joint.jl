@@ -89,10 +89,10 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{TCJoint}) = TCJointState
+compat_state_type(::Type{TCJoint}, ::Type{MechJoint}, env::ModelEnv) = TCJointState
 
 # Element types that work with this material
-compat_elem_types(::Type{TCJoint}) = (MechJoint,)
+# compat_elem_types(::Type{TCJoint}) = (MechJoint,)
 
 
 function beta(mat::TCJoint, σmax::Float64)

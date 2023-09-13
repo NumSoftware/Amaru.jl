@@ -138,7 +138,7 @@ function setB(elem::CookShell, ip::Ip, invJ::Matx, N::Vect, dNdX::Matx, Rrot::Ma
         Bil[6,1] = dNdy/SR2; Bil[6,2] = dNdx/SR2;                       Bil[6,4] = -1/SR2*(dNζdy*th/2*mx+dNζdx*th/2*my);  Bil[6,5] = 1/SR2*(dNζdy*th/2*lx+dNζdx*th/2*ly)
         
         c = (i-1)*ndof
-        @gemm Bi = Bil*Rrot
+        @mul Bi = Bil*Rrot
         B[:, c+1:c+6] .= Bi
 
     end 

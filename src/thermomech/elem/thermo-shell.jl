@@ -63,11 +63,11 @@ function distributed_bc(elem::ThermoShell, facet::Union{Facet,Nothing}, key::Sym
     ips   = get_ip_coords(shape)
 
     for i in 1:size(ips,1)
-        R = vec(ips[i,:])
-        w = R[end]
+        R = ips[i].coord
+        w = ips[i].w
         N = shape.func(R)
         D = shape.deriv(R)
-        @gemm J = C'*D
+        @mul J = C'*D
         nJ = norm2(J)
         X = C'*N
         if ndim==2
@@ -194,7 +194,7 @@ function elem_internal_forces(elem::ThermoShell, F::Array{Float64,1})
     Bu  = zeros(6, nnodes*ndim)
     dFt = zeros(nbnodes)
     Bt  = zeros(ndim, nbnodes)
-    m = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  tI
+    m = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  I2
     J  = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, nnodes, ndim)
     Jp  = Array{Float64}(undef, ndim, nbnodes)
@@ -204,14 +204,14 @@ function elem_internal_forces(elem::ThermoShell, F::Array{Float64,1})
         elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
         # compute Bu matrix and Bt
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
-        @gemm dNdX = dNdR*inv(J)
+        @mul dNdX = dNdR*inv(J)
         set_Bu(elem, ip, dNdX, Bu)
         dNtdR = elem.shape.deriv(ip.R)
         Jp = dNtdR*Ct
-        @gemm dNtdX = inv(Jp)*dNtdR
+        @mul dNtdX = inv(Jp)*dNtdR
         Bt = dNtdX
         # compute N
         # internal force
@@ -219,7 +219,7 @@ function elem_internal_forces(elem::ThermoShell, F::Array{Float64,1})
         β   = elem.mat.E*elem.mat.α/(1-2*elem.mat.ν)
         σ    = ip.state.σ - β*ut*m # get total stress
         coef = detJ*ip.w*th
-        @gemv dF += coef*Bu'*σ
+        @mul dF += coef*Bu'*σ
         # internal volumes dFt
         ε    = ip.state.ε
         εvol = dot(m, ε)
@@ -229,7 +229,7 @@ function elem_internal_forces(elem::ThermoShell, F::Array{Float64,1})
         dFt -= coef*N*ut
         QQ   = ip.state.QQ
         coef = detJ*ip.w*th/T0
-        @gemv dFt += coef*Bt'*QQ
+        @mul dFt += coef*Bt'*QQ
     end
     F[map_u] += dF
     F[mat_t] += dFt
@@ -288,7 +288,7 @@ function update_elem!(elem::ThermoShell, DU::Array{Float64,1}, Δt::Float64)
         dFt  -= coef*N*Δut
 
         coef = Δt*detJ′*ip.w
-        @gemv dFt += coef*Bt'*q
+        @mul dFt += coef*Bt'*q
 
     end
     #@show "HIIIIIIIIIIIIIIIIIIIIII UPDATED"

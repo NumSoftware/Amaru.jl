@@ -38,9 +38,10 @@ mutable struct HMCombined{M1,M2}<:Material
 end
 
 # Type of corresponding state structure
-compat_state_type(::Type{HMCombined{M1,M2}}) where {M1,M2} = HMCombinedState{compat_state_type(M1), compat_state_type(M2)} 
+compat_state_type(::Type{HMCombined{M1,M2}}, ::Type{HMSolid}, env::ModelEnv) where {M1,M2} = HMCombinedState{compat_state_type(M1,SeepSolid,env), compat_state_type(M2,MechSolid,env)} 
+compat_state_type(::Type{HMCombined{M1,M2}}, ::Type{HMJoint}, env::ModelEnv) where {M1,M2} = HMCombinedState{compat_state_type(M1,HMJoint,env), compat_state_type(M2,HMJoint,env)} 
 
-compat_elem_types(::Type{HMCombined{M1,M2}}) where {M1,M2} = (HMSolid, HMJoint)
+# compat_elem_types(::Type{HMCombined{M1,M2}}) where {M1,M2} = (HMSolid, HMJoint)
 
 
 function Base.getproperty(mat::HMCombined, s::Symbol)

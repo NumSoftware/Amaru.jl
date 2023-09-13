@@ -126,7 +126,7 @@ function elem_stiffness(elem::MechJoint)
         N    = fshape.func(ip.R)
         dNdR = fshape.deriv(ip.R)
 
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = norm2(J)
 
         # compute B matrix
@@ -139,13 +139,13 @@ function elem_stiffness(elem::MechJoint)
             end
         end
 
-        @gemm B = T*NN
+        @mul B = T*NN
 
         # compute K
         coef = detJ*ip.w*th
         D    = mountD(elem.mat, ip.state)
-        @gemm DB = D*B
-        @gemm K += coef*B'*DB
+        @mul DB = D*B
+        @mul K += coef*B'*DB
     end
 
     keys = (:ux, :uy, :uz)[1:ndim]
@@ -180,7 +180,7 @@ function update_elem!(elem::MechJoint, U::Array{Float64,1}, Δt::Float64)
         # compute shape Jacobian
         N    = fshape.func(ip.R)
         dNdR = fshape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = norm2(J)
 
         # compute B matrix
@@ -192,14 +192,14 @@ function update_elem!(elem::MechJoint, U::Array{Float64,1}, Δt::Float64)
                 NN[dof, hnodes*ndim + (i-1)*ndim + dof] =  N[i]
             end
         end
-        @gemm B = T*NN
+        @mul B = T*NN
 
         # internal force
-        @gemv Δω = B*dU
+        @mul Δω = B*dU
         Δσ, status = update_state!(elem.mat, ip.state, Δω)
         failed(status) && return dF, map, status
         coef = detJ*ip.w*th
-        @gemv dF += coef*B'*Δσ
+        @mul dF += coef*B'*Δσ
     end
 
     return dF, map, success()

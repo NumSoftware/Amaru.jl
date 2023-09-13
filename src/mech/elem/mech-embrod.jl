@@ -90,7 +90,7 @@ function elem_stiffness(elem::MechEmbRod)
 
     for ip in elem.ips
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = norm(J)
 
         # mount B
@@ -103,7 +103,7 @@ function elem_stiffness(elem::MechEmbRod)
 
         E    = calcD(elem.mat, ip.state)
         coef = E*A*detJ*ip.w
-        @gemm K += coef*B'*B
+        @mul K += coef*B'*B
     end
 
     NN = elem.cache_NN
@@ -129,7 +129,7 @@ function update_elem!(elem::MechEmbRod, U::Array{Float64,1}, Δt::Float64)
     J  = Array{Float64}(undef, ndim, 1)
     for ip in elem.ips
         dNdR = elem.shape.deriv(ip.R)
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = norm(J)
 
         # mount B
@@ -153,8 +153,8 @@ end
 function elem_vals(elem::MechEmbRod)
     # get area and average stress and axial force
     vals = OrderedDict(:A => elem.props.A )
-    mean_sa = mean( ip_state_vals(elem.mat, ip.state)[:sa] for ip in elem.ips )
-    vals[:sa] = mean_sa
-    vals[:fa] = elem.props.A*mean_sa
+    mean_sa = mean( ip_state_vals(elem.mat, ip.state)[:sX] for ip in elem.ips )
+    vals[:sX] = mean_sa
+    vals[:fX] = elem.props.A*mean_sa
     return vals
 end

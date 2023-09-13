@@ -49,14 +49,14 @@ compat_elem_types(::Type{ElasticBeam}) = (MechBeam,)
 function calcD(mat::ElasticBeam, state::ElasticBeamState)
     E = mat.E
     ν = mat.ν
-    c = E/(1.0-ν^2)
+    c = E/(1-ν^2)
     g = E/(1+ν)
 
     if state.env.ndim==2
-        return [ c      0.0  
+        return [ c      0.0
                  0.0  5/6*g ]
     else
-        return [ c    0.0    0.0  
+        return [ c   0.0    0.0  
                 0.0  5/6*g  0.0  
                 0.0  0.0    5/6*g ]
     end
@@ -73,13 +73,14 @@ end
 
 
 function ip_state_vals(mat::ElasticBeam, state::ElasticBeamState)
-    vals =  OrderedDict(
-      "sx'"   => state.σ[1],
-      "ex'"   => state.ε[1],
-      "sx'y'" => state.σ[2]/SR2)
+    vals = OrderedDict{Symbol,Float64}(
+      :sX  => state.σ[1],
+      :eX  => state.ε[1],
+      :sXY => state.σ[2]/SR2
+    )
     if state.env.ndim==3
-        vals["sx'z'"] = state.σ[2]/SR2
-        vals["sx'y'"] = state.σ[3]/SR2
+        vals[:sXZ] = state.σ[2]/SR2
+        vals[:sXY] = state.σ[3]/SR2
     end
     return vals
 end

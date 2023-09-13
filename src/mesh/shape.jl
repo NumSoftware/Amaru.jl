@@ -288,7 +288,7 @@ function extrapolator(shape::CellShape, nips::Int)
     #filling N matrix with shape functions of all ips
     N = Array{Float64}(undef, nips, npoints)
     for i in 1:nips
-        N[i,:] = shape.func(vec(IP[i,:]))
+        N[i,:] = shape.func(IP[i].coord)
     end
 
     #calculate extrapolator matrix
@@ -304,7 +304,12 @@ function extrapolator(shape::CellShape, nips::Int)
     #I = eye(nips)
 
     # εip matrix: Local ip coordinates of integration points
-    εip = [ IP[:,1:ndim] ones(nips) ]
+    εip = Array{Float64}(undef, nips, ndim+1)
+    for i in 1:nips
+        εip[i,:] .= IP[i].coord[1:ndim]..., 1.0
+    end
+
+    # εip = [ IP[:,1:ndim] ones(nips) ]
 
     # ε matrix: Local coordinates of nodal points
     ε = [ shape.nat_coords ones(npoints) ] # increase a column of ones

@@ -28,8 +28,8 @@ function mech_line_distributed_forces(elem::Element, key::Symbol, val::Union{Rea
     ips   = get_ip_coords(shape)
 
     for i in 1:size(ips,1)
-        R = vec(ips[i,:])
-        w = R[end]
+        R = ips[i].coord
+        w = ips[i].w
         N = shape.func(R)
         D = shape.deriv(R)
         J = C'*D
@@ -102,8 +102,8 @@ function mech_solid_boundary_forces(elem::Element, facet::Cell, key::Symbol, val
     ips   = get_ip_coords(shape)
 
     for i in 1:size(ips,1)
-        R = vec(ips[i,:])
-        w = R[end]
+        R = ips[i].coord
+        w = ips[i].w
         N = shape.func(R)
         D = shape.deriv(R)
         J = C'*D
@@ -136,7 +136,7 @@ function mech_solid_boundary_forces(elem::Element, facet::Cell, key::Symbol, val
         end
 
         coef = norm2(J)*w*th
-        @gemm F += coef*N*Q' # F is a matrix
+        @mul F += coef*N*Q' # F is a matrix
     end
 
     # generate a map
@@ -172,8 +172,8 @@ function mech_solid_body_forces(elem::Element, key::Symbol, val::Union{Real,Symb
     ips   = get_ip_coords(shape)
 
     for i in 1:size(ips,1)
-        R = vec(ips[i,:])
-        w = R[end]
+        R = ips[i].coord
+        w = ips[i].w
         N = shape.func(R)
         D = shape.deriv(R)
         J = C'*D
@@ -199,7 +199,7 @@ function mech_solid_body_forces(elem::Element, key::Symbol, val::Union{Real,Symb
         end
 
         coef = det(J)*w*th
-        @gemm F += coef*N*Q' # F is a matrix
+        @mul F += coef*N*Q' # F is a matrix
     end
 
     # generate a map
@@ -237,8 +237,8 @@ function mech_shell_boundary_forces(elem::Element, facet::Cell, key::Symbol, val
     ips   = get_ip_coords(shape)
 
     for i in 1:size(ips,1)
-        R = vec(ips[i,:])
-        w = R[end]
+        R = ips[i].coord
+        w = ips[i].w
         N = shape.func(R)
         D = shape.deriv(R)
         J = C'*D
@@ -254,7 +254,7 @@ function mech_shell_boundary_forces(elem::Element, facet::Cell, key::Symbol, val
         end
 
         coef = norm2(J)*w
-        @gemm F += coef*N*Q' # F is a matrix
+        @mul F += coef*N*Q' # F is a matrix
     end
 
     # generate a map

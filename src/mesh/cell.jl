@@ -473,10 +473,10 @@ function cell_extent(c::AbstractCell)
     # calc metric
     vol = 0.0
     for i in 1:nip
-        R    = vec(IP[i,1:3])
+        R    = IP[i].coord
+        w    = IP[i].w
         dNdR = c.shape.deriv(R)
-        @gemm J = C'*dNdR
-        w    = IP[i,4]
+        @mul J = C'*dNdR
         normJ = norm2(J)
         #if normJ<0
             #error("cell_extent: Negative Jacobian while calculating cell volume/area/length id=$(c.id) shape=$(c.shape.name) ")

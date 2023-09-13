@@ -134,7 +134,7 @@ function elem_stiffness(elem::HMJoint)
         N    = fshape.func(ip.R)
         dNdR = fshape.deriv(ip.R)
 
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = norm2(J)
 
         # compute Bu matrix
@@ -148,13 +148,13 @@ function elem_stiffness(elem::HMJoint)
             end
         end
 
-        @gemm Bu = T*NN
+        @mul Bu = T*NN
 
         # compute K
         coef = detJ*ip.w*th
         D    = mountD(elem.mat, ip.state)
-        @gemm DBu = D*Bu
-        @gemm K  += coef*Bu'*DBu
+        @mul DBu = D*Bu
+        @mul K  += coef*Bu'*DBu
     end
     
     # map
@@ -194,7 +194,7 @@ function elem_coupling_matrix(elem::HMJoint)
         # compute shape Jacobian
         dNdR = fshape.deriv(ip.R)
 
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = norm2(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
@@ -215,7 +215,7 @@ function elem_coupling_matrix(elem::HMJoint)
             end
         end
 
-        @gemm Bu = T*NN
+        @mul Bu = T*NN
         # compute Cup
         coef = detJ*ip.w*th  
         mfNf = mf*Nf
@@ -261,7 +261,7 @@ function elem_conductivity_matrix(elem::HMJoint)
         # compute shape Jacobian
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
 
-        @gemm J = C'*dNpdR
+        @mul J = C'*dNpdR
         detJ = norm2(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
@@ -269,7 +269,7 @@ function elem_conductivity_matrix(elem::HMJoint)
         T    = matrixT(J) # rotation matrix
         Cl   = C*T[(2:end), (1:end)]'  # new coordinate nodes
 
-        @gemm Jl = Cl'*dNpdR
+        @mul Jl = Cl'*dNpdR
         dNdX = dNpdR*inv(Jl)
         Bp = dNdX'
         B0 = 0*Bp
@@ -336,7 +336,7 @@ function elem_compressibility_matrix(elem::HMJoint)
     for ip in elem.ips
         # compute shape Jacobian
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
-        @gemm J = C'*dNpdR
+        @mul J = C'*dNpdR
         detJ = norm2(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
@@ -404,7 +404,7 @@ function elem_RHS_vector(elem::HMJoint)
         # compute shape Jacobian
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
 
-        @gemm J = C'*dNpdR
+        @mul J = C'*dNpdR
         detJ = norm2(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
@@ -412,7 +412,7 @@ function elem_RHS_vector(elem::HMJoint)
         T    = matrixT(J) #rotation matrix
         Cl   = C*T[(2:end), (1:end)]'  #coordinate of new nodes
 
-        @gemm Jl = Cl'*dNpdR
+        @mul Jl = Cl'*dNpdR
         dNdX = dNpdR*inv(Jl)
         Bp = dNdX'
         B0 = 0*Bp
@@ -438,7 +438,7 @@ function elem_RHS_vector(elem::HMJoint)
         coef = detJ*ip.w*th*(w^3)/(12*elem.mat.η)   
         bf = T[(2:end), (1:end)]*Z*elem.env.ana.γw
         
-        @gemm Q += coef*Bf'*bf
+        @mul Q += coef*Bf'*bf
     end
 
     # map
@@ -490,14 +490,14 @@ function elem_internal_forces(elem::HMJoint, F::Array{Float64,1})
         # compute shape Jacobian
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
 
-        @gemm J = dNpdR*C 
+        @mul J = dNpdR*C 
         detJ = norm2(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
         # compute Bp matrix
         T    = matrixT(J) # rotation matrix
         Cl   = C*T[(2:end), (1:end)]'  # coordinate of new nodes
-        @gemm Jl = dNpdR*Cl
+        @mul Jl = dNpdR*Cl
         Bp = inv(Jl)*dNpdR #dNdX
         B0 = 0*Bp
         Bf = [B0 B0 Bp] 
@@ -522,13 +522,13 @@ function elem_internal_forces(elem::HMJoint, F::Array{Float64,1})
             end
         end
 
-        @gemm Bu = T*NN
+        @mul Bu = T*NN
 
         # internal force 
         uwf  = ip.state.uw[3]
         σ    = ip.state.σ[1:ndim] - mf*uwf # get total stress
         coef = detJ*ip.w*th
-        @gemv dF += coef*Bu'*σ
+        @mul dF += coef*Bu'*σ
 
         # internal volumes dFw
         w  = ip.state.w[1:ndim]
@@ -603,7 +603,7 @@ function update_elem!(elem::HMJoint, U::Array{Float64,1}, Δt::Float64)
         # compute shape Jacobian
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
 
-        @gemm J = C'*dNpdR
+        @mul J = C'*dNpdR
         detJ = norm2(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
@@ -618,7 +618,7 @@ function update_elem!(elem::HMJoint, U::Array{Float64,1}, Δt::Float64)
         T    = matrixT(J) # rotation matrix
         Cl   = C*T[(2:end), (1:end)]'  # coordinate of new nodes
 
-        @gemm Jl = Cl'*dNpdR
+        @mul Jl = Cl'*dNpdR
         dNdX = dNpdR*inv(Jl)
         Bp = dNdX'
         B0 = 0*Bp
@@ -638,21 +638,21 @@ function update_elem!(elem::HMJoint, U::Array{Float64,1}, Δt::Float64)
             end
         end
 
-        @gemm Bu = T*NN
+        @mul Bu = T*NN
 
         # interpolation to the integ. point 
         Δuw  = [Np'*dUw[1:nbsnodes]; Np'*dUw[nbsnodes+1:2*nbsnodes]; Np'*dUw[2*nbsnodes+1:end]]
         G    = [ dot(Nt,Uw); dot(Nb,Uw)]
         BfUw = Bf*Uw + bf
 
-        @gemv Δω = Bu*dU
+        @mul Δω = Bu*dU
           
         # internal force dF
         Δσ, Vt, L, status = update_state!(elem.mat, ip.state, Δω, Δuw, G, BfUw, Δt)
         failed(status) && return failure("HMJoint: error in update_elem!", status.message)
         Δσ -= mf*Δuw[3] # get total stress
         coef = detJ*ip.w*th
-        @gemv dF += coef*Bu'*Δσ
+        @mul dF += coef*Bu'*Δσ
 
         # internal volumes dFw
         coef = detJ*ip.w*th

@@ -68,21 +68,19 @@ const coords_LIN3 = [ -1.0, 1.0,  0.0]
 # shape functions
 function shape_func_LIN3(R::AbstractArray{<:Float64,1})
     r = R[1]
-    N = Array{Float64}(undef,3)
-    N[1] = 0.5*(r*r - r)
-    N[2] = 0.5*(r*r + r)
-    N[3] = 1.0 - r*r
-    return N
+    return @SArray [
+        0.5*(r*r - r),
+        0.5*(r*r + r),
+        1.0 - r*r  ]
 end
 
 # shape derivatives
 function shape_deriv_LIN3(R::AbstractArray{<:Float64,1})
     r = R[1]
-    D = Array{Float64}(undef,3,1)
-    D[1,1] = r - 0.5
-    D[2,1] = r + 0.5
-    D[3,1] = -2.0*r
-    return D
+    return @SArray [
+        r - 0.5
+        r + 0.5
+        -2.0*r;; ]
 end
 
 

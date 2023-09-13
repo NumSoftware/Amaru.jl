@@ -168,8 +168,8 @@ function elem_stiffness(elem::MechRSJoint)
         detJ = elem.cache_detJ[i]
         D    = calcD(elem.mat, ip.state)
         coef = p*detJ*ip.w
-        @gemm DB = D*B
-        @gemm K += coef*B'*DB
+        @mul DB = D*B
+        @mul K += coef*B'*DB
     end
 
     keys = (:ux, :uy, :uz)[1:ndim]
@@ -196,11 +196,11 @@ function update_elem!(elem::MechRSJoint, U::Array{Float64,1}, Δt::Float64)
         B    = elem.cache_B[i]
         detJ = elem.cache_detJ[i]
         # D    = calcD(mat, ip.state)
-        @gemv Δu = B*dU
+        @mul Δu = B*dU
         Δσ, _ = update_state!(elem.mat, ip.state, Δu)
         coef = p*detJ*ip.w
         # Δσ[1]  *= p
-        @gemv dF += coef*B'*Δσ
+        @mul dF += coef*B'*Δσ
     end
 
     return dF, map, success()

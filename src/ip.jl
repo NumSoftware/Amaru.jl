@@ -69,7 +69,8 @@ mutable struct Ip<:AbstractPoint
 
     function Ip(R::AbstractArray{<:Float64}, w::Float64)
         this     = new(Vec3(R), w)
-        this.coord = Vec3()
+        this.coord = zeros(SVector{3})
+        # this.coord = Vec3()
         this.tag = ""
         # this.owner = nothing
         return this

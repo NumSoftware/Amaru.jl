@@ -3,20 +3,11 @@
 # Tensor definitions using Mandel notation
 
 import DataStructures.OrderedDict
-export Vec6, Tensor4
 
-# const Tensor2 = Array{Float64,1}
-# const Tensor4 = Array{Float64,2}
+const I2 = SVector(1., 1., 1., 0., 0., 0.)
+const I4 = SMatrix{6,6}(I)
 
-
-
-const V2M = [ 1., 1., 1., SR2, SR2, SR2 ]
-const M2V = [ 1., 1., 1., 1.0/SR2, 1.0/SR2, 1.0/SR2 ] # Use .* operator
-
-const tI  = @Vec6 [1., 1., 1., 0., 0., 0.]
-const Isym = eye(6)
-
-const Psd = [
+const Psd = @SArray [
     2/3. -1/3. -1/3. 0. 0. 0.
    -1/3.  2/3. -1/3. 0. 0. 0.
    -1/3. -1/3.  2/3. 0. 0. 0.
@@ -24,22 +15,22 @@ const Psd = [
       0.    0.    0. 0. 1. 0.
       0.    0.    0. 0. 0. 1. ]
 
+const Pps = @SArray [ # For some cases in plane-stress models
+    2/3. -1/3. 0. 0. 0. 0.
+   -1/3.  2/3. 0. 0. 0. 0.
+      0.    0. 0. 0. 0. 0.
+      0.    0. 0. 1. 0. 0.
+      0.    0. 0. 0. 1. 0.
+      0.    0. 0. 0. 0. 1. ]
+
 dev(T::Vec6) = Psd*T # deviatoric tensor
 
 # Tensor invariants
-LinearAlgebra.tr(T::Vec6) = sum(T[1:3])
-calcJ1(T::Vec6) = sum(T[1:3])
-calcJ2(T::Vec6) = 0.5*dot(T,T)
+LinearAlgebra.tr(σ::Vec6) = σ[1]+σ[2]+σ[3]
 
-
-# Deviatoric tensor invariants
-function J2D(T::Vec6)
-    #return calcJ2(Psd*T)
-    t11, t22, t33, t12, t23, t13 = T
-    t12 /= SR2
-    t23 /= SR2
-    t13 /= SR2
-    return 1/6*( (t11-t22)^2 + (t22-t33)^2 + (t33-t11)^2 ) + t12*t12 + t23*t23 + t13*t13
+# Deviatoric tensor invariants (Mandel notation)
+function J2D(σ::Vec6)
+    return 1/6*( (σ[1]-σ[2])^2 + (σ[2]-σ[3])^2 + (σ[3]-σ[1])^2 ) + 0.5*( σ[4]^2 + σ[5]^2 + σ[6]^2)
 end
 
 
@@ -68,7 +59,7 @@ end
 """
 This function is not precise enouugh...
 """
-function eigvals2(T::Vec6)::Vect
+function eigvals2(T::Vec6)
     @assert length(T) == 6
 
     t11, t22, t33, t12, t23, t13 = T[1], T[2], T[3], T[4]/SR2, T[5]/SR2, T[6]/SR2
@@ -126,57 +117,28 @@ function LinearAlgebra.eigen(T::Vec6)
 end
 
 
-function tfull(T::Vec6)
-    t1, t2, t3, t4, t5, t6 = T.*M2V
-    return [
-        t1 t6 t5
-        t6 t2 t4
-        t5 t4 t3 ]
-end
+# function tfull(T::Vec6)
+#     t1, t2, t3, t4, t5, t6 = T.*M2V
+#     return [
+#         t1 t6 t5
+#         t6 t2 t4
+#         t5 t4 t3 ]
+# end
 
 
-function matrix2Mandel(M::Array{Float64,2})
-    t11 = M[1,1]
-    t22 = M[2,2]
-    t33 = M[3,3]
-    t23 = M[2,3]*SR2
-    t13 = M[1,3]*SR2
-    t12 = M[1,2]*SR2
-    return [t11, t22, t33, t23, t13, t12]
-end
+# function matrix2Mandel(M::Array{Float64,2})
+#     t11 = M[1,1]
+#     t22 = M[2,2]
+#     t33 = M[3,3]
+#     t23 = M[2,3]*SR2
+#     t13 = M[1,3]*SR2
+#     t12 = M[1,2]*SR2
+#     return [t11, t22, t33, t23, t13, t12]
+# end
 
 
 LinearAlgebra.norm(T::Vec6) = √dot(T,T)
 
-
-# function dyad(T1::Vec6, T2::Vec6)
-#     return T1 * T2'
-# end
-
-
-# ⊗ = dyad
-
-
-# function inner(T1::Tensor4, T2::Tensor4)
-#     return sum(T1 .* T2)
-# end
-
-
-# function inner(T1::Tensor4, T2::Vec6)
-#     return T1 * T2
-# end
-
-
-# function inner(T1::Vec6, T2::Tensor4)
-#     return T2*T1
-# end
-
-
-# function inner(T1::Vec6, T2::Tensor4, T3::Vec6)
-#     return dot(T2*T1, T3)
-# end
-
-# ∷ = inner
 
 
 # function set_tensor_rot!(V::Array{Float64,2}, R::Tensor4)
@@ -205,7 +167,7 @@ function rotation_tensor!(V::Array{Float64,2})
     mx, my, mz = V[2,:]
     nx, ny, nz = V[3,:]
 
-    return @Mat6x6 [
+    return @SArray [
             lx*lx      ly*ly      lz*lz    SR2*ly*lz    SR2*lz*lx    SR2*lx*ly
             mx*mx      my*my      mz*mz    SR2*my*mz    SR2*mz*mx    SR2*mx*my
             nx*nx      ny*ny      nz*nz    SR2*ny*nz    SR2*nz*nx    SR2*nx*ny
@@ -214,13 +176,6 @@ function rotation_tensor!(V::Array{Float64,2})
         SR2*lx*mx  SR2*ly*my  SR2*lz*mz  ly*mz+my*lz  lx*mz+mx*lz  lx*my+mx*ly ]
 end
 
-
-
-# function tensor_rot(V::Array{Float64,2})
-#     T = zeros(6,6)
-#     tensor_rot!(V, T)
-#     return T
-# end
 
 
 """

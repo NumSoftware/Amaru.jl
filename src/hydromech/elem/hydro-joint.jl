@@ -105,7 +105,7 @@ function elem_conductivity_matrix(elem::HydroJoint)
         # compute shape Jacobian
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
 
-        @gemm J = C'*dNpdR
+        @mul J = C'*dNpdR
         detJ = norm2(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
@@ -113,7 +113,7 @@ function elem_conductivity_matrix(elem::HydroJoint)
         T    = matrixT(J) # rotation matrix
         Cl   = C*T[(2:end), (1:end)]'  # new coordinate nodes
 
-        @gemm Jl = dNpdR*Cl
+        @mul Jl = dNpdR*Cl
         Bp = inv(Jl)*dNpdR
         B0 = 0*Bp
         Bf = [B0 B0 Bp] 
@@ -165,7 +165,7 @@ function elem_compressibility_matrix(elem::HydroJoint)
     for ip in elem.ips
         # compute shape Jacobian
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
-        @gemm J = C'*dR
+        @mul J = C'*dR
         detJ = norm2(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
@@ -218,7 +218,7 @@ function elem_RHS_vector(elem::HydroJoint)
         # compute shape Jacobian
         dNpdR = elem.shape.basic_shape.deriv(ip.R)
 
-        @gemm J = C'*dNpdR
+        @mul J = C'*dNpdR
         detJ = norm2(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
@@ -226,7 +226,7 @@ function elem_RHS_vector(elem::HydroJoint)
         T    = matrixT(J) #rotation matrix
         Cl   = C*T[(2:end), (1:end)]'  #coordinate of new nodes
 
-        @gemm Jl = dNpdR*Cl
+        @mul Jl = dNpdR*Cl
         Bp = inv(Jl)*dNpdR
         B0 = 0*Bp
         Bf = [B0 B0 Bp] 
@@ -237,7 +237,7 @@ function elem_RHS_vector(elem::HydroJoint)
         coef = detJ*ip.w*th*(elem.mat.w^3)/(12*elem.mat.η)   
         bf = T[(2:end), (1:end)]*Z*elem.env.ana.γw
         
-        @gemm Q += coef*Bf'*bf
+        @mul Q += coef*Bf'*bf
     end
 
     # map
@@ -276,7 +276,7 @@ function elem_internal_forces(elem::HydroJoint, F::Array{Float64,1})
         N    = fshape.func(ip.R)
         dNdR = elem.shape.basic_shape.deriv(ip.R)
 
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = norm2(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
@@ -286,7 +286,7 @@ function elem_internal_forces(elem::HydroJoint, F::Array{Float64,1})
         # compute Bp matrix
         T    = matrixT(J) # rotation matrix
         Cl   = C*T[(2:end), (1:end)]'  # coordinate of new nodes
-        @gemm Jl = dNdR*Cl
+        @mul Jl = dNdR*Cl
         Bp = inv(Jl)*dNdR #dNdX
         B0 = 0*Bp
         Bf = [B0 B0 Bp]
@@ -357,7 +357,7 @@ function update_elem!(elem::HydroJoint, U::Array{Float64,1}, Δt::Float64)
         # compute shape Jacobian
         dNdR = elem.shape.basic_shape.deriv(ip.R)
 
-        @gemm J = C'*dNdR
+        @mul J = C'*dNdR
         detJ = norm2(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
 
@@ -372,7 +372,7 @@ function update_elem!(elem::HydroJoint, U::Array{Float64,1}, Δt::Float64)
         T    = matrixT(J) # rotation matrix
         Cl   = C*T[(2:end), (1:end)]'  # coordinate of new nodes
 
-        @gemm Jl = dNdR*Cl
+        @mul Jl = dNdR*Cl
         Bp = inv(Jl)*dNdR #dNdX
         B0 = 0*Bp
         Bf = [B0 B0 Bp]

@@ -117,8 +117,8 @@ function distributed_bc(elem::MechClassicalBeam, facet::Nothing, key::Symbol, va
     ips   = get_ip_coords(shape)
 
     for i in 1:size(ips,1)
-        R = vec(ips[i,:])
-        w = R[end]
+        R = ips[i].coord
+        w = ips[i].w
         X = C'*LIN2.func(R)
 
         l = (C[2,:]-C[1,:])./L

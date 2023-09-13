@@ -2,10 +2,10 @@ using Amaru
 
 L  = 6
 R  = 3
-nx = 50
-n  = 50
+nx = 20
+n  = 20
 
-bl1 = Block( [-R 0 0; -R L 0], nx=nx, cellshape=LIN4, tag="shell")
+bl1 = Block( [-R 0 0; -R L 0], nx=nx, cellshape=LIN3, tag="shell")
 msh = Mesh(bl1, quiet=true, reorder=false)
 msh = revolve(msh, angle=180, n=n, base=[0,0,0], axis=[0,1,0])
 

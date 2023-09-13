@@ -13,9 +13,14 @@ Node, Element, Model, Dof, Ip, NodeBC, SurfaceBC
 
 """
 module Amaru
-using StatsBase, Statistics, LinearAlgebra, SparseArrays, Arpack, Gmsh
-using Printf, DelimitedFiles, DataStructures, Glob, DocStringExtensions
-using Dates
+
+# Returns a list containing the arguments for each method of function
+typeofargs(f) = [ ((t for t in fieldtypes(m.sig)[2:end])...,) for m in methods(f) ]
+# typeofargs(f::Function) =  [ [t for t in fieldtypes(m.sig)][2:end] for m in methods(f) ]
+
+using StatsBase, Statistics, LinearAlgebra, StaticArrays, SparseArrays, Arpack, Gmsh
+using Printf, DelimitedFiles, DataStructures, Glob, DocStringExtensions, Dates
+
 import DataStructures: OrderedDict, OrderedSet
 
 # Tools module

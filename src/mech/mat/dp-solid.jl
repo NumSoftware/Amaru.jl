@@ -88,10 +88,10 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{DruckerPrager}) = DruckerPragerState
+compat_state_type(::Type{DruckerPrager}, ::Type{MechSolid}, env::ModelEnv) = DruckerPragerState
 
 # Element types that work with this material
-compat_elem_types(::Type{DruckerPrager}) = (MechSolid,)
+# compat_elem_types(::Type{DruckerPrager}) = (MechSolid,)
 
 
 function nlE(fc::Float64, εc::Float64, ε::Array{Float64,1})
@@ -101,7 +101,7 @@ end
 
 
 function yield_func(mat::DruckerPrager, state::DruckerPragerState, σ::AbstractArray)
-    j1  = calcJ1(σ)
+    j1  = tr(σ)
     j2d = J2D(σ)
     α,κ = mat.α, mat.κ
     H   = mat.H
@@ -123,11 +123,11 @@ function calcD(mat::DruckerPrager, state::DruckerPragerState)
     if j2d != 0.0
         s  = dev(state.σ)
         su = s/norm(s)
-        V  = α*tI + su/√2 # df/dσ
+        V  = α*I2 + su/√2 # df/dσ
         N  = V
         Nu = N/norm(N)
     else # apex
-        Nu = 1.0/√3.0*tI
+        Nu = 1.0/√3.0*I2
         V  = Nu
     end
 
@@ -151,19 +151,19 @@ function update_state!(mat::DruckerPrager, state::DruckerPragerState, Δε::Arra
         K, G  = mat.E/(3.0*(1.0-2.0*mat.ν)), mat.E/(2.0*(1.0+mat.ν))
         α, H  = mat.α, mat.H
         n     = 1.0/√(3.0*α*α+0.5)
-        j1tr  = calcJ1(σtr)
+        j1tr  = tr(σtr)
         j2dtr = J2D(σtr)
 
         if √j2dtr - state.Δγ*n*G > 0.0 # conventional return
             state.Δγ = ftr/(9*α*α*n*K + n*G + H)
             j1     = j1tr - 9*state.Δγ*α*n*K
             m      = 1.0 - state.Δγ*n*G/√j2dtr
-            state.σ  = m*dev(σtr) + j1/3.0*tI
+            state.σ  = m*dev(σtr) + j1/3.0*I2
         else # return to apex
             κ      = mat.κ
             state.Δγ = (α*j1tr-κ-H*state.εpa)/(3*√3*α*K + H)
             j1     = j1tr - 3*√3*state.Δγ*K
-            state.σ  = j1/3.0*tI
+            state.σ  = j1/3.0*I2
         end
 
         state.εpa += state.Δγ

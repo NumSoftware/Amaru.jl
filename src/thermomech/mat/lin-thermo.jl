@@ -35,10 +35,11 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{ConstConductivity}) = ConstConductivityState
+compat_state_type(::Type{ConstConductivity}, ::Type{ThermoSolid}, env::ModelEnv) = ConstConductivityState
+compat_state_type(::Type{ConstConductivity}, ::Type{ThermoShell}, env::ModelEnv) = ConstConductivityState
 
 # Element types that work with this material
-compat_elem_types(::Type{ConstConductivity}) = (ThermoSolid,)
+# compat_elem_types(::Type{ConstConductivity}) = (ThermoSolid,)
 
 
 function calcK(mat::ConstConductivity, state::ConstConductivityState) # Thermal conductivity matrix

@@ -1,78 +1,56 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export ElasticRod
+export LinearElastic
 
-"""
-    ElasticRod
+# """
+#     LinearElastic
 
-A type for linear elastic materials in rods.
+# A type for linear elastic materials in rods.
 
-# Fields
+# # Fields
 
-$(TYPEDFIELDS)
-"""
-mutable struct ElasticRod<:Material
-    "Young Modulus"
-    E::Float64
+# $(TYPEDFIELDS)
+# """
+# mutable struct LinearElastic<:Material
+#     "Young Modulus"
+#     E::Float64
 
-    @doc """
-        $(SIGNATURES)
+#     @doc """
+#         $(SIGNATURES)
 
-    Creates an `ElasticRod` material type
+#     Creates an `LinearElastic` material type
 
-    # Arguments
-    - `E`: Young modulus
-    - `rho`: Density
-    """
-    function ElasticRod(; params...)
-        names = (E="Young modulus")
-        required = (:E,)
-        @checkmissing params required names
+#     # Arguments
+#     - `E`: Young modulus
+#     - `rho`: Density
+#     """
+#     function LinearElastic(; params...)
+#         names = (E="Young modulus")
+#         required = (:E,)
+#         @checkmissing params required names
 
-        params  = values(params)
-        E       = params.E
+#         params  = values(params)
+#         E       = params.E
 
-        @check E>=0.0
-        return new(E)
-    end
-end
+#         @check E>=0.0
+#         return new(E)
+#     end
+# end
 
 
-"""
-    ElasticRodState
 
-A type for the state data of a `ElasticRod` type.
-
-# Fields
-
-$(TYPEDFIELDS)
-"""
-mutable struct ElasticRodState<:IpState
-    "environment information"
-    env::ModelEnv
-    "Axial stress"
-    σ::Float64
-    "Axial strain"
-    ε::Float64
-    function ElasticRodState(env::ModelEnv=ModelEnv())
-        this = new(env)
-        this.σ = 0.0
-        this.ε = 0.0
-        return this
-    end
-end
 
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{ElasticRod}) = ElasticRodState
+compat_state_type(::Type{LinearElastic}) = ElasticRodState
 
 # Element types that work with this material
-compat_elem_types(::Type{ElasticRod}) = (MechRod,)
-compat_elem_type_if_embedded(::Type{ElasticRod}) = MechEmbRod
+compat_elem_types(::Type{LinearElastic}) = (MechRod,)
+compat_elem_type_if_embedded(::Type{LinearElastic}) = MechEmbRod
 
 
-function update_state!(mat::ElasticRod, state::ElasticRodState, Δε::Float64)
+function update_state!(mat::LinearElastic, state::ElasticRodState, Δε::Float64)
     Δσ = mat.E*Δε
     state.ε += Δε
     state.σ += Δσ
@@ -80,17 +58,15 @@ function update_state!(mat::ElasticRod, state::ElasticRodState, Δε::Float64)
 end
 
 
-function ip_state_vals(mat::ElasticRod, state::ElasticRodState)
+function ip_state_vals(mat::LinearElastic, state::ElasticRodState)
     return OrderedDict(
-      :sa => state.σ,
-      :ea => state.ε,
-    #   :fa => state.σ*mat.A,
-    #   :A  => mat.A 
+      "sX" => state.σ,
+      "eX" => state.ε,
       )
 end
 
 
-function calcD(mat::ElasticRod, ips::ElasticRodState)
+function calcD(mat::LinearElastic, ips::ElasticRodState)
     return mat.E
 end
 
