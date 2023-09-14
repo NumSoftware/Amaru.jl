@@ -65,97 +65,20 @@ mplot(block1, &quot;block1.svg&quot;, markers=true)</code></pre><pre class="docu
     node-id
   Available element fields:
     quality, elem-id, cell-type, tag
-  file block1.svg saved</code></pre><p><img src="../block1.svg" alt/></p><p>A mirror operation can be applyed to this block to get a second one. Then, both blocks can be grouped in an array for further manipulation.</p><pre><code class="language-julia hljs">block2 = mirror(block1, base=[0, 0], axis=[0.7643, -0.7643])
+  file block1.svg saved</code></pre><p><img src="../block1.svg" alt/></p><p>A mirror operation can be applyed to this block to get a second one. Then, both blocks can be grouped in an array for further manipulation.</p><pre><code class="language- hljs">block2 = mirror(block1, base=[0, 0], axis=[0.7643, -0.7643])
 blocks = [block1, block2]
-mplot(blocks, &quot;blocks.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
-  Optional arguments:
-    axis, lw, markers, nodelabels, celllabels, opacity, field,
-     fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
-     colorbarlabel, colorbarlocation, colorbarorientation, colorbarpad,
-     warpscale, hicells, elev, azim, dist, outline, outlineangle,
-     figsize, leaveopen, quiet
-  Available node fields:
-    node-id
-  Available element fields:
-    quality, elem-id, cell-type, tag
-  file blocks.svg saved</code></pre><p><img src="../blocks.svg" alt/></p><p>The center of the circle that contains the arc is located at the coordinates (1,1). To place the center at the origin (0,0) we perform a <code>move!</code> operation.</p><pre><code class="language-julia hljs">move!(blocks, dx=-1.0, dy=-1.0)
-mplot(blocks, &quot;moved.svg&quot;, markers=true, axis=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
-  Optional arguments:
-    axis, lw, markers, nodelabels, celllabels, opacity, field,
-     fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
-     colorbarlabel, colorbarlocation, colorbarorientation, colorbarpad,
-     warpscale, hicells, elev, azim, dist, outline, outlineangle,
-     figsize, leaveopen, quiet
-  Available node fields:
-    node-id
-  Available element fields:
-    quality, elem-id, cell-type, tag
-  file moved.svg saved</code></pre><p><img src="../moved.svg" alt/></p><p>Next, we can apply a <code>polar</code> operation to the current geometry to  obtain the square region with a central hole. Note that the original geometry was replicated four times (<code>n=4</code>) with different rotation angles. For this purpose a rotation axis and a base point were employed.</p><pre><code class="language-julia hljs">hole = polar(blocks, base=[0, 0], axis=[0, 0, 1], angle=360, n=4)
-mplot(hole, &quot;hole.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
-  Optional arguments:
-    axis, lw, markers, nodelabels, celllabels, opacity, field,
-     fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
-     colorbarlabel, colorbarlocation, colorbarorientation, colorbarpad,
-     warpscale, hicells, elev, azim, dist, outline, outlineangle,
-     figsize, leaveopen, quiet
-  Available node fields:
-    node-id
-  Available element fields:
-    quality, elem-id, cell-type, tag
-  file hole.svg saved</code></pre><p><img src="../hole.svg" alt/></p><p>Then, an <code>extrude</code> operation is used to obtain a volume following a defined axis and length. The argument <code>n=4</code> represents the number of divisions intended along the new dimension.</p><pre><code class="language-julia hljs">solid = extrude(hole, axis=[0, 0, 1], length=1, n=4)
-mplot(solid, &quot;solid.svg&quot;, markers=true, dist=13)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh plotting
-  Optional arguments:
-    axis, lw, markers, nodelabels, celllabels, opacity, field,
-     fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
-     colorbarlabel, colorbarlocation, colorbarorientation, colorbarpad,
-     warpscale, hicells, elev, azim, dist, outline, outlineangle,
-     figsize, leaveopen, quiet
-  Available node fields:
-    node-id
-  Available element fields:
-    quality, elem-id, cell-type, tag
-  file solid.svg saved</code></pre><p><img src="../solid.svg" alt/></p><p>Note that, the <code>solid</code> variable is an array with four blocks, as shown in the figure. This array is used to generate the structured mesh.</p><pre><code class="language-julia hljs">mesh = Mesh(solid)
-mplot(mesh, &quot;mesh.svg&quot;, dist=13)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh generation:
-      8 blocks
-  spliting block 1...      spliting block 2...      spliting block 3...      spliting block 4...      spliting block 5...      spliting block 6...      spliting block 7...      spliting block 8...      finding facets...     finding edges...        3d mesh
-   4360 nodes
-    800 cells
-    720 faces
-   1440 surface edges
-Mesh plotting
-  Optional arguments:
-    axis, lw, markers, nodelabels, celllabels, opacity, field,
-     fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
-     colorbarlabel, colorbarlocation, colorbarorientation, colorbarpad,
-     warpscale, hicells, elev, azim, dist, outline, outlineangle,
-     figsize, leaveopen, quiet
-  Available node fields:
-    node-id
-  Available element fields:
-    quality, elem-id, cell-type, tag
-  file mesh.svg saved</code></pre><p><img src="../mesh.svg" alt/></p><p>Finally, a <code>smooth</code> operation can be applied to improve the cells quality.</p><pre><code class="language-julia hljs">smooth_mesh = smooth!(mesh)
-mplot(smooth_mesh, &quot;smooth_mesh.svg&quot;, dist=13)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh Laplacian smoothing:
-  it   qmin     q1     q2     q3   qmax   qavg     sdev       time  histogram (0:0.05:1]
-   0  0.662  0.764  0.820  0.868  0.930  0.813  0.07626          -  [             ▂▄▆▇▅▆ ]
-   1  0.688  0.770  0.838  0.909  0.956  0.834  0.07929  0m  0.15s  [             ▂▃▄▆▅▇▁]
-   2  0.688  0.785  0.855  0.911  0.956  0.846  0.07911  0m  0.06s  [             ▁▃▄▃▅▇_]
-   3  0.694  0.793  0.863  0.922  0.966  0.852  0.07937  0m  0.08s  [             ▁▃▃▂▅▇▁]
-   4  0.700  0.799  0.872  0.929  0.973  0.856  0.07920  0m  0.05s  [              ▃▂▃▄▇▁]
-   5  0.706  0.805  0.878  0.930  0.977  0.858  0.07879  0m  0.07s  [              ▃▁▅▄▇▁]
-   6  0.712  0.810  0.883  0.929  0.981  0.860  0.07830  0m  0.05s  [              ▄▁▆▅▇▂]
-   7  0.718  0.813  0.886  0.927  0.983  0.860  0.07784  0m  0.05s  [              ▄▁▇▅▇▃]
-Mesh plotting
-  Optional arguments:
-    axis, lw, markers, nodelabels, celllabels, opacity, field,
-     fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
-     colorbarlabel, colorbarlocation, colorbarorientation, colorbarpad,
-     warpscale, hicells, elev, azim, dist, outline, outlineangle,
-     figsize, leaveopen, quiet
-  Available node fields:
-    node-id
-  Available element fields:
-    quality, elem-id, cell-type, tag
-  file smooth_mesh.svg saved</code></pre><p><img src="../smooth_mesh.svg" alt/></p><h2 id="Mesh-generation-examples"><a class="docs-heading-anchor" href="#Mesh-generation-examples">Mesh generation examples</a><a id="Mesh-generation-examples-1"></a><a class="docs-heading-anchor-permalink" href="#Mesh-generation-examples" title="Permalink"></a></h2><p>Below are presented some examples of structured mesh generation using Amaru.</p><h3 id="Simple-2D-mesh"><a class="docs-heading-anchor" href="#Simple-2D-mesh">Simple 2D mesh</a><a id="Simple-2D-mesh-1"></a><a class="docs-heading-anchor-permalink" href="#Simple-2D-mesh" title="Permalink"></a></h3><pre><code class="language-julia hljs">using Amaru
+mplot(blocks, &quot;blocks.svg&quot;, markers=true)
+nothing # hide</code></pre><p><img src="./blocks.svg" alt/></p><p>The center of the circle that contains the arc is located at the coordinates (1,1). To place the center at the origin (0,0) we perform a <code>move!</code> operation.</p><pre><code class="language- hljs">move!(blocks, dx=-1.0, dy=-1.0)
+mplot(blocks, &quot;moved.svg&quot;, markers=true, axis=true)
+nothing # hide</code></pre><p><img src="./moved.svg" alt/></p><p>Next, we can apply a <code>polar</code> operation to the current geometry to  obtain the square region with a central hole. Note that the original geometry was replicated four times (<code>n=4</code>) with different rotation angles. For this purpose a rotation axis and a base point were employed.</p><pre><code class="language- hljs">hole = polar(blocks, base=[0, 0], axis=[0, 0, 1], angle=360, n=4)
+mplot(hole, &quot;hole.svg&quot;, markers=true)
+nothing # hide</code></pre><p><img src="./hole.svg" alt/></p><p>Then, an <code>extrude</code> operation is used to obtain a volume following a defined axis and length. The argument <code>n=4</code> represents the number of divisions intended along the new dimension.</p><pre><code class="language- hljs">solid = extrude(hole, axis=[0, 0, 1], length=1, n=4)
+mplot(solid, &quot;solid.svg&quot;, markers=true, dist=13)
+nothing # hide</code></pre><p><img src="./solid.svg" alt/></p><p>Note that, the <code>solid</code> variable is an array with four blocks, as shown in the figure. This array is used to generate the structured mesh.</p><pre><code class="language- hljs">mesh = Mesh(solid)
+mplot(mesh, &quot;mesh.svg&quot;, dist=13)
+nothing # hide</code></pre><p><img src="./mesh.svg" alt/></p><p>Finally, a <code>smooth</code> operation can be applied to improve the cells quality.</p><pre><code class="language- hljs">smooth_mesh = smooth!(mesh)
+mplot(smooth_mesh, &quot;smooth_mesh.svg&quot;, dist=13)
+nothing # hide</code></pre><p><img src="./smooth_mesh.svg" alt/></p><h2 id="Mesh-generation-examples"><a class="docs-heading-anchor" href="#Mesh-generation-examples">Mesh generation examples</a><a id="Mesh-generation-examples-1"></a><a class="docs-heading-anchor-permalink" href="#Mesh-generation-examples" title="Permalink"></a></h2><p>Below are presented some examples of structured mesh generation using Amaru.</p><h3 id="Simple-2D-mesh"><a class="docs-heading-anchor" href="#Simple-2D-mesh">Simple 2D mesh</a><a id="Simple-2D-mesh-1"></a><a class="docs-heading-anchor-permalink" href="#Simple-2D-mesh" title="Permalink"></a></h3><pre><code class="language-julia hljs">using Amaru
 
 block = Block([0 0 ; 2 2], nx=8, ny=6)
 mesh  = Mesh(block)
@@ -220,41 +143,24 @@ mplot(mesh, &quot;mesh-hex8.svg&quot;, markers=true)</code></pre><pre class="doc
     node-id
   Available element fields:
     quality, elem-id, cell-type, tag
-  file mesh-hex8.svg saved</code></pre><p><img src="../mesh-hex8.svg" alt/></p><h3 id="D-mesh-constructed-from-two-quadratic-blocks"><a class="docs-heading-anchor" href="#D-mesh-constructed-from-two-quadratic-blocks">2D mesh constructed from two quadratic blocks</a><a id="D-mesh-constructed-from-two-quadratic-blocks-1"></a><a class="docs-heading-anchor-permalink" href="#D-mesh-constructed-from-two-quadratic-blocks" title="Permalink"></a></h3><pre><code class="language-julia hljs">using Amaru
+  file mesh-hex8.svg saved</code></pre><p><img src="../mesh-hex8.svg" alt/></p><h3 id="D-mesh-constructed-from-two-quadratic-blocks"><a class="docs-heading-anchor" href="#D-mesh-constructed-from-two-quadratic-blocks">2D mesh constructed from two quadratic blocks</a><a id="D-mesh-constructed-from-two-quadratic-blocks-1"></a><a class="docs-heading-anchor-permalink" href="#D-mesh-constructed-from-two-quadratic-blocks" title="Permalink"></a></h3><pre><code class="language- hljs">using Amaru
 block1 = Block(
-    [
-        0.0      0.0
-        0.7643   0.7643
-        0.6667   1.0
-        0.0      1.0
+    [ 
+        0.0      0.0    
+        0.7643   0.7643 
+        0.6667   1.0    
+        0.0      1.0    
         0.38215  0.38215
-        0.692    0.8724
-        0.3333   1.0
-        0.0      0.5
+        0.692    0.8724 
+        0.3333   1.0    
+        0.0      0.5 
     ],
     cellshape=QUAD8, nx=5, ny=5
 )
 block2 = mirror(block1, base=[0, 0], axis=[0.7643, -0.7643])
 mesh = Mesh(block1, block2)
-mplot(mesh, &quot;mesh-2d.svg&quot;, markers=true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Mesh generation:
-      2 blocks
-  spliting block 1...      spliting block 2...      finding facets...        2d mesh
-    181 nodes
-     50 cells
-     30 faces
-     30 surface edges
-Mesh plotting
-  Optional arguments:
-    axis, lw, markers, nodelabels, celllabels, opacity, field,
-     fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
-     colorbarlabel, colorbarlocation, colorbarorientation, colorbarpad,
-     warpscale, hicells, elev, azim, dist, outline, outlineangle,
-     figsize, leaveopen, quiet
-  Available node fields:
-    node-id
-  Available element fields:
-    quality, elem-id, cell-type, tag
-  file mesh-2d.svg saved</code></pre><p><img src="../mesh-2d.svg" alt/></p><h3 id="Mesh-with-cells-growing-in-the-x-direction"><a class="docs-heading-anchor" href="#Mesh-with-cells-growing-in-the-x-direction">Mesh with cells growing in the <span>$x$</span> direction</a><a id="Mesh-with-cells-growing-in-the-x-direction-1"></a><a class="docs-heading-anchor-permalink" href="#Mesh-with-cells-growing-in-the-x-direction" title="Permalink"></a></h3><pre><code class="language-julia hljs">using Amaru
+mplot(mesh, &quot;mesh-2d.svg&quot;, markers=true)
+nothing # hide</code></pre><p><img src="./mesh-2d.svg" alt/></p><h3 id="Mesh-with-cells-growing-in-the-x-direction"><a class="docs-heading-anchor" href="#Mesh-with-cells-growing-in-the-x-direction">Mesh with cells growing in the <span>$x$</span> direction</a><a id="Mesh-with-cells-growing-in-the-x-direction-1"></a><a class="docs-heading-anchor-permalink" href="#Mesh-with-cells-growing-in-the-x-direction" title="Permalink"></a></h3><pre><code class="language-julia hljs">using Amaru
 
 R = 5.0
 r = 1.0
@@ -286,22 +192,11 @@ mplot(mesh, &quot;mesh-rate.svg&quot;, markers=true)</code></pre><pre class="doc
     node-id
   Available element fields:
     quality, elem-id, cell-type, tag
-  file mesh-rate.svg saved</code></pre><p><img src="../mesh-rate.svg" alt/></p><h3 id="D-mesh-obtained-revolving-the-last-example"><a class="docs-heading-anchor" href="#D-mesh-obtained-revolving-the-last-example">3D mesh obtained revolving the last example</a><a id="D-mesh-obtained-revolving-the-last-example-1"></a><a class="docs-heading-anchor-permalink" href="#D-mesh-obtained-revolving-the-last-example" title="Permalink"></a></h3><pre><code class="language-julia hljs">mesh = revolve(mesh, minangle=0, maxangle=90, base=[0,0,0], axis=[0,1,0])
+  file mesh-rate.svg saved</code></pre><p><img src="../mesh-rate.svg" alt/></p><h3 id="D-mesh-obtained-revolving-the-last-example"><a class="docs-heading-anchor" href="#D-mesh-obtained-revolving-the-last-example">3D mesh obtained revolving the last example</a><a id="D-mesh-obtained-revolving-the-last-example-1"></a><a class="docs-heading-anchor-permalink" href="#D-mesh-obtained-revolving-the-last-example" title="Permalink"></a></h3><pre><code class="language- hljs">mesh = revolve(mesh, minangle=0, maxangle=90, base=[0,0,0], axis=[0,1,0])
 changeaxes!(mesh, &quot;xzy&quot;)
 rotate!(mesh, axis=[0,0,1], angle=90)
-mplot(mesh, &quot;mesh-rev.svg&quot;, azim=-45)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">  changeaxes!: mesh associated data was not reordered according to new axes.
-Mesh plotting
-  Optional arguments:
-    axis, lw, markers, nodelabels, celllabels, opacity, field,
-     fieldmult, fieldlims, vectorfield, arrowscale, colormap, colorbarscale,
-     colorbarlabel, colorbarlocation, colorbarorientation, colorbarpad,
-     warpscale, hicells, elev, azim, dist, outline, outlineangle,
-     figsize, leaveopen, quiet
-  Available node fields:
-    node-id
-  Available element fields:
-    quality, elem-id, cell-type, tag
-  file mesh-rev.svg saved</code></pre><p><img src="../mesh-rev.svg" alt/></p><h3 id="Wire-mesh"><a class="docs-heading-anchor" href="#Wire-mesh">Wire mesh</a><a id="Wire-mesh-1"></a><a class="docs-heading-anchor-permalink" href="#Wire-mesh" title="Permalink"></a></h3><pre><code class="language-julia hljs">using Amaru
+mplot(mesh, &quot;mesh-rev.svg&quot;, azim=-45)
+nothing # hide</code></pre><p><img src="./mesh-rev.svg" alt/></p><h3 id="Wire-mesh"><a class="docs-heading-anchor" href="#Wire-mesh">Wire mesh</a><a id="Wire-mesh-1"></a><a class="docs-heading-anchor-permalink" href="#Wire-mesh" title="Permalink"></a></h3><pre><code class="language-julia hljs">using Amaru
 
 block1 = Block([0 0 0; 1 0 1; 0.7 0 0.3 ], n=7) # curved wire (quadratic)
 block2 = Block([1 0 1; 1 0 2], n=5) # straight wire
@@ -337,11 +232,13 @@ mplot(mesh, &quot;mesh-surf.svg&quot;, elev=15)</code></pre><pre class="document
     node-id
   Available element fields:
     quality, elem-id, cell-type, tag
-  file mesh-surf.svg saved</code></pre><p><img src="../mesh-surf.svg" alt/></p><h2 id="Finite-element-model"><a class="docs-heading-anchor" href="#Finite-element-model">Finite element model</a><a id="Finite-element-model-1"></a><a class="docs-heading-anchor-permalink" href="#Finite-element-model" title="Permalink"></a></h2><p>To performe a finite element analysis, an instance of the <code>Model</code> type is required. This represents the domain model and contains nodes and finite elements. The element instances are different from the cells in a <code>Mesh</code> object since the elements are constructed according to the analysis problem. To instantiate a <code>Model</code> object a mesh and a list of material models objects are needed. The <code>Model</code> type is used for all analysis problems, e.g. mechanical, thermal, seepage, etc. Thus, for a particular problem, a consistent list of materials should be used. For example, in a mechanical analysis, all elements should be associated to mechanical material types. Based on the choosen materials, the <code>Model</code> object will setup the corresponding finite elements and degrees of freedom.</p><h3 id="Material-definitions"><a class="docs-heading-anchor" href="#Material-definitions">Material definitions</a><a id="Material-definitions-1"></a><a class="docs-heading-anchor-permalink" href="#Material-definitions" title="Permalink"></a></h3><p>There are several material models implemented in Amaru and are associated to a corresponding type, e.g.  <code>LinearElastic</code>, <code>DruckerPrager</code>, <code>VonMises</code>, <code>ElasticRod</code>, etc. A particular material instance is defined by calling the construcor with set of corresponding parameters.</p><pre><code class="language-julia hljs">using Amaru
+  file mesh-surf.svg saved</code></pre><p><img src="../mesh-surf.svg" alt/></p><h2 id="Finite-element-model"><a class="docs-heading-anchor" href="#Finite-element-model">Finite element model</a><a id="Finite-element-model-1"></a><a class="docs-heading-anchor-permalink" href="#Finite-element-model" title="Permalink"></a></h2><p>To performe a finite element analysis, an instance of the <code>Model</code> type is required. This represents the domain model and contains nodes and finite elements. The element instances are different from the cells in a <code>Mesh</code> object since the elements are constructed according to the analysis problem. To instantiate a <code>Model</code> object a mesh and a list of material models objects are needed. The <code>Model</code> type is used for all analysis problems, e.g. mechanical, thermal, seepage, etc. Thus, for a particular problem, a consistent list of materials should be used. For example, in a mechanical analysis, all elements should be associated to mechanical material types. Based on the choosen materials, the <code>Model</code> object will setup the corresponding finite elements and degrees of freedom.</p><h3 id="Material-definitions"><a class="docs-heading-anchor" href="#Material-definitions">Material definitions</a><a id="Material-definitions-1"></a><a class="docs-heading-anchor-permalink" href="#Material-definitions" title="Permalink"></a></h3><p>There are several material models implemented in Amaru and are associated to a corresponding type, e.g.  <code>LinearElastic</code>, <code>DruckerPrager</code>, <code>VonMises</code>, <code>ElasticRod</code>, etc. A particular material instance is defined by calling the construcor with set of corresponding parameters.</p><pre><code class="language- hljs">using Amaru
 
 steel = LinearElastic(E=2e8, nu=0.2) # E in kPa
 rock = DruckerPrager(E=2e8, nu=0.2, alpha=0.4, kappa=2500, H=1e4)
-rebar = ElasticRod(E=2e8, A=1e-4)</code></pre><h3 id="Model-generation"><a class="docs-heading-anchor" href="#Model-generation">Model generation</a><a id="Model-generation-1"></a><a class="docs-heading-anchor-permalink" href="#Model-generation" title="Permalink"></a></h3><p>The following example shows the walk through of creating a <code>Model</code> object. Note that the list of materials contains a pair relating a domain region  to material instance.</p><pre><code class="language- hljs">using Amaru
+rebar = ElasticRod(E=2e8, A=1e-4)
+
+nothing # hide</code></pre><h3 id="Model-generation"><a class="docs-heading-anchor" href="#Model-generation">Model generation</a><a id="Model-generation-1"></a><a class="docs-heading-anchor-permalink" href="#Model-generation" title="Permalink"></a></h3><p>The following example shows the walk through of creating a <code>Model</code> object. Note that the list of materials contains a pair relating a domain region  to material instance.</p><pre><code class="language- hljs">using Amaru
 
 # Mesh generation
 block = Block([0 0 0; 1 0.1 0.1], nx=20, ny=2, nz=2, cellshape=HEX20)
@@ -489,4 +386,4 @@ cplot(
     ylabel = raw&quot;$\sigma_{xx}$ [MPa]&quot;,
 )
 
-nothing # hide</code></pre><p><img src="./uz_vs_fz.svg" alt/></p><p><img src="./x_vs_uz.svg" alt/></p><p><img src="./x_vs_sxx.svg" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Introduction</a><a class="docs-footer-nextpage" href="../../meshing/meshing/">Mesh »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Wednesday 13 September 2023 15:07">Wednesday 13 September 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+nothing # hide</code></pre><p><img src="./uz_vs_fz.svg" alt/></p><p><img src="./x_vs_uz.svg" alt/></p><p><img src="./x_vs_sxx.svg" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Introduction</a><a class="docs-footer-nextpage" href="../../meshing/meshing/">Mesh »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Thursday 14 September 2023 00:54">Thursday 14 September 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
