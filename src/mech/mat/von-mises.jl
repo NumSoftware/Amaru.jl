@@ -40,7 +40,7 @@ mutable struct VonMises<:Material
     function VonMises(; args...)
         args = checkargs(args, arg_rules(VonMises))       
 
-        return new(args.E, args.nu, args.fy, args.H)
+        return new(args.E, args.nu, args.fy, args.H, args.rho)
     end
 end
 
@@ -50,6 +50,7 @@ arg_rules(::Type{VonMises}) =
     @arginfo nu=0.0 0.0<=nu<0.5 "Poisson ratio"
     @arginfo fy fy>=0.0 "Yield stress"
     @arginfo H=0.0 H>=0.0 "Hardening modulus"
+    @arginfo rho=0.0 rho>=0.0 "Density"
 ]
 
 
@@ -373,8 +374,8 @@ function ip_state_vals(mat::VonMises, state::VonMisesPlaneStressState, stressmod
 end
 
 
-# Von Mises for beam stress components
-# ====================================
+# Von Mises for beam elements
+# ===========================
 
 
 function yield_func(mat::VonMises, state::VonMisesBeamState, σ::Vec3, εpa::Float64)
@@ -382,11 +383,12 @@ function yield_func(mat::VonMises, state::VonMisesBeamState, σ::Vec3, εpa::Flo
     # f = J2D - 1/3 (fy + H εp)^2
     # s = [ 2/3*σ1, -1/3*σ1, -1/3*σ1, 0.0, σ2, σ3 ]
 
+    @show σ
+
     j2d = σ[1]^2/3 + σ[2]^2/2 + σ[3]^2/2
 
     σy  = mat.σy
     H   = mat.H
-    # return 1.3*j2d - 1/3*(σy + H*εpa)^2
     return j2d - 1/3*(σy + H*εpa)^2
 end
 
@@ -441,6 +443,10 @@ function update_state!(mat::VonMises, state::VonMisesBeamState, Δε::Array{Floa
 
     state.ε += Δε
     Δσ     = state.σ - σini
+
+    # @show σtr
+    # @show state.σ
+    # @show Δσ
 
     return Δσ, success()
 end
@@ -533,9 +539,15 @@ function calc_σ_εpa(mat::VonMises, state::VonMisesBeamState, σtr::Vec3, Δλ:
     # σ at n+1
     σ = SVector( 
         3*σtr[1]/(2*E*Δλ + 3),
-        σtr[2]/(2*G*Δλ + 1),
-        σtr[3]/(2*G*Δλ + 1)
+        σtr[2]/(2*G*Δλ + 1.5),
+        σtr[3]/(2*G*Δλ + 1.5)
     )
+
+    # @show σtr
+    # @show σ
+    # @show Δσ
+
+    # error()
 
     dfdσ = SVector( 2/3*σ[1], -1/3*σ[1], -1/3*σ[1], 0.0, σ[2], σ[3] )
     εpa  = state.εpa + Δλ*norm(dfdσ)

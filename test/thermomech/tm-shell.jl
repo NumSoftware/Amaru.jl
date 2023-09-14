@@ -24,6 +24,11 @@ nu    = 0.3
 alpha = 1.2e-5 # thermal expansion coefficient  1/K or 1/°C
 th    = 0.1
 
+# alpha = [
+#     0.0 1.2e-5
+#     10  1.25e-5
+# ]
+
 # materials = ["shell"<< TMShell << ElasticShellThermo << (E=E, nu=nu, k=k, alpha=alpha,thickness=th, rho=rho, cv=cv) ]
 materials = ["shell"<< TMShell << TMCombined{ConstConductivity, LinearElastic} << (E=E, nu=nu, k=k, alpha=alpha, thickness=th, rho=rho, cv=cv) ]
 # materials = ["shell"<< TMShell << TMCombined{ConstConductivity, VonMises} << (E=E, nu=nu, k=k, alpha=alpha, thickness=th, rho=rho, cv=cv, H=0.0, fy=100000.0) ]

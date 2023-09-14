@@ -108,8 +108,16 @@ function setquadrature!(elem::MechBeam, n::Int=0)
     else
         if n in (0,4)
             nl, nj, nk = 2, 2, 1
+        # elseif n==10
+            # nl, nj, nk = 5, 2, 1
+        elseif n==12
+            nl, nj, nk = 4, 3, 1
+        elseif n==9
+            nl, nj, nk = 3, 3, 1
         elseif n==6
             nl, nj, nk = 3, 2, 1
+        elseif n==8
+            nl, nj, nk = 4, 2, 1
         elseif n==2
             nl, nj, nk = 2, 1, 1
         elseif n==3
@@ -360,7 +368,7 @@ function update_elem!(elem::MechBeam, U::Array{Float64,1}, dt::Float64)
         setB(elem, ip, L, N, dNdX′, Rθ, Bil, Bi, B)
         Δε = B*dU
         Δσ, status = update_state!(elem.mat, ip.state, Δε)
-        failed(status) && return failure("MechBeam: Error at integration point $(ip.id)")
+        failed(status) && return dF, map, failure("MechBeam: Error at integration point $(ip.id)")
         
         if ndim==2
             detJ′ = dx′dξ*thz*thy/2

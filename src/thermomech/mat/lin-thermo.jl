@@ -19,19 +19,19 @@ end
 
 mutable struct ConstConductivity<:Material
     k ::Float64 # thermal conductivity with/m/K
+    cv::Float64
 
-    function ConstConductivity(; params...)
-        names = (k="Conductivity")
-        required = (:k, )
-        @checkmissing params required names
-
-        params  = (; params...)
-        k       = params.k
-
-        @check k>=0.0
-        return new(k)
+    function ConstConductivity(; args...)
+        args = checkargs(args, arg_rules(NLConductivity))
+        return new(args.k, args.cv)
     end
 end
+
+arg_rules(::Type{ConstConductivity}) =
+[
+    @arginfo k k>=0 "Conductivity"
+    @arginfo cv=0 cv>=0 "Specific heat"
+]
 
 
 # Type of corresponding state structure
@@ -41,6 +41,9 @@ compat_state_type(::Type{ConstConductivity}, ::Type{ThermoShell}, env::ModelEnv)
 # Element types that work with this material
 # compat_elem_types(::Type{ConstConductivity}) = (ThermoSolid,)
 
+function calc_cv(mat::ConstConductivity, ut::Float64) # Specific heat
+    return mat.cv
+end
 
 function calcK(mat::ConstConductivity, state::ConstConductivityState) # Thermal conductivity matrix
     if state.env.ndim==2

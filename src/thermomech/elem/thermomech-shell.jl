@@ -6,33 +6,33 @@ export TMShell
 struct TMShellProps<:ElemProperties
     ρ::Float64
     γ::Float64
-    cv::Float64
-    α ::Float64 # thermal expansion coefficient  1/K or 1/°C
+    α::Float64 # thermal expansion coefficient  1/K or 1/°C
+    α_table::Array{Float64,2}
     th::Float64
 
-    function TMShellProps(; props...)
-        names = (rho="Density", gamma="Specific weight", thickness="Thickness", cv="Heat capacity", alpha="Thermal expansion coefficient")
-        required = (:thickness, :cv, :alpha)
-        @checkmissing props required names
+    function TMShellProps(; args...)
+        args = checkargs(args, arg_rules(TMShellProps))   
+        if args.alpha isa Array
+            alpha = 0.0
+            alpha_table = args.alpha
+        else
+            alpha = args.alpha
+            alpha_table = zeros(0,0)
+        end
 
-        default = (rho=0.0, gamma=0.0)
-        props  = merge(default, props)
-
-        rho       = props.rho
-        gamma     = props.gamma
-        cv        = props.cv
-        thickness = props.thickness
-        alpha = props.alpha
-
-        @check rho>=0.0
-        @check gamma>=0.0
-        @check cv>0.0
-        @check thickness>0.0
-        @check 0<=alpha<=1
-
-        return new(rho, gamma, cv, alpha, thickness)
+        return new(args.rho, args.gamma, alpha, alpha_table, args.thickness)
     end    
 end
+
+
+arg_rules(::Type{TMShellProps}) = 
+[
+    @arginfo rho rho>0 "Density"
+    @arginfo gamma=0 gamma>=0 "Specific weight"
+    @arginfo alpha 1==1 "Thermal expansion coefficient"
+    @arginfo thickness thickness>0 "Thickness"
+]
+
 
 
 mutable struct TMShell<:Thermomech
@@ -56,6 +56,25 @@ end
 
 compat_shape_family(::Type{TMShell}) = BULKCELL
 compat_elem_props(::Type{TMShell}) = TMShellProps
+
+
+function calc_α(elem::TMShell, ut::Float64) # thermal expansion coefficient  1/K or 1/°C
+    length(elem.props.α_table)==0 && return elem.props.α
+
+    T = elem.props.α_table[:,1]
+    A = elem.props.α_table[:,2]
+
+    i = searchsortedfirst(T, ut)
+    if i==1
+        α = A[1]
+    elseif i>length(T)
+        α = A[end]
+    else
+        α = A[i-1] + (ut-T[i-1]) * (A[i]-A[i-1])/(T[i]-T[i-1])
+    end
+
+    return α
+end
 
 
 function elem_init(elem::TMShell)
@@ -288,7 +307,7 @@ function elem_coupling_matrix(elem::TMShell)
     C   = getcoords(elem)
     Cut = zeros(ndof*nnodes, nnodes) # u-t coupling matrix
     m    = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
-    β    = elem.mat.E*elem.props.α/(1-2*elem.mat.ν) 
+
 
     for ip in elem.ips
         #elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
@@ -313,6 +332,8 @@ function elem_coupling_matrix(elem::TMShell)
         detJ′ = det(J′)
         @assert detJ′>0
         # compute Cut
+        α    = calc_α(elem, ip.state.ut)
+        β    = elem.mat.E*α/(1-2*elem.mat.ν) 
         coef  = β
         coef *= detJ′*ip.w
         mN   = m*N'
@@ -373,10 +394,9 @@ function elem_mass_matrix(elem::TMShell)
     th     = elem.props.th
     nnodes = length(elem.nodes)
     
-    C      = getcoords(elem)
-    M      = zeros(nnodes, nnodes)
-
-    L      = zeros(3,3)
+    C = getcoords(elem)
+    M = zeros(nnodes, nnodes)
+    L = zeros(3,3)
 
     for ip in elem.ips
         N    = elem.shape.func(ip.R)
@@ -389,7 +409,8 @@ function elem_mass_matrix(elem::TMShell)
         @assert detJ′>0
 
         # compute Cut
-        coef  = elem.props.ρ*elem.props.cv
+        cv = calc_cv(elem.mat, ip.state.ut)
+        coef  = elem.props.ρ*cv
         coef *= detJ′*ip.w
         M    -= coef*N*N'
     end
@@ -469,12 +490,7 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     ndof = 6
     C      = getcoords(elem)
 
-    E = elem.mat.E
-    α = elem.props.α
     ρ = elem.props.ρ
-    nu = elem.mat.ν
-    cv = elem.props.cv
-    β = E*α/(1-2*nu)
     
     map_u = elem_map_u(elem)
     map_t = elem_map_t(elem)
@@ -528,6 +544,10 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
         # internal force dF
         Δσ, q, status = update_state!(elem.mat, ip.state, Δε, Δut, G, Δt, "shell")
         failed(status) && return [dF; dFt], [map_u; map_t], status
+
+        α = calc_α(elem, ip.state.ut)
+        β = elem.mat.E*α/(1-2*elem.mat.ν)
+
         #error()
         Δσ -= β*Δut*m # get total stress
         #@showm Δσ
@@ -540,10 +560,12 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
 
         # internal volumes dFt
         Δεvol = dot(m, Δε)
+        
         coef  = β*Δεvol*T0k
         coef *= detJ′*ip.w
         dFt  -= coef*N
 
+        cv = calc_cv(elem.mat, ip.state.ut)
         coef  = ρ*cv
         coef *= detJ′*ip.w
         dFt  -= coef*N*Δut

@@ -61,6 +61,10 @@ function calcD(mat::TMCombined, state::TMCombinedState, stressmodel::String=stat
     return calcD(mat.mmat, state.mstate, stressmodel)
 end
 
+function calc_cv(mat::TMCombined, ut::Float64) # Hydraulic conductivity matrix
+    return calc_cv(mat.tmat, ut)
+end
+
 function calcK(mat::TMCombined, state::TMCombinedState) # Hydraulic conductivity matrix
     return calcK(mat.tmat, state.tstate)
 end

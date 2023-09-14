@@ -60,7 +60,7 @@ export POLYVERTEX
 
 
 function get_ip_coords(shape::CellShape, nips=0)
-    !haskey(shape.quadrature, nips) && error("Cannot set $nips integ. points for shape $shape. Available numbers are $(collect(keys(shape.quadrature))).")
+    !haskey(shape.quadrature, nips) && error("Cell shape $(shape.name) cannot use $nips integration points. Available values are $(collect(keys(shape.quadrature))).")
     return shape.quadrature[nips]
 end
 
