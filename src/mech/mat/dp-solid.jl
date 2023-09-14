@@ -76,7 +76,7 @@ mutable struct DruckerPragerState<:IpState
     εpa::Float64
     "Plastic multiplier"
     Δγ::Float64
-    function DruckerPragerState(env::ModelEnv=ModelEnv())
+    function DruckerPragerState(env::ModelEnv)
         this = new(env)
         this.σ   = zeros(Vec6)
         this.ε   = zeros(Vec6)

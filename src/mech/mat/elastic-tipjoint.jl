@@ -6,7 +6,7 @@ mutable struct ElasticTipJointState<:IpState
     env::ModelEnv
     f ::Float64
     w ::Float64
-    function ElasticTipJointState(env::ModelEnv=ModelEnv())
+    function ElasticTipJointState(env::ModelEnv)
         this = new(env)
         this.f = 0.0
         this.w = 0.0

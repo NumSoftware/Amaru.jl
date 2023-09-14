@@ -6,7 +6,7 @@ mutable struct ElasticRSJointState<:IpState
     env::ModelEnv
     σ ::Array{Float64,1}
     u ::Array{Float64,1}
-    function ElasticRSJointState(env::ModelEnv=ModelEnv())
+    function ElasticRSJointState(env::ModelEnv)
         this = new(env)
         this.σ = zeros(env.ndim)
         this.u = zeros(env.ndim)

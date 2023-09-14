@@ -6,7 +6,7 @@ mutable struct TipJointState<:IpState
     env::ModelEnv
     f ::Float64
     w ::Float64
-    function TipJointState(env::ModelEnv=ModelEnv())
+    function TipJointState(env::ModelEnv)
         this = new(env)
         this.f = 0.0
         this.w = 0.0

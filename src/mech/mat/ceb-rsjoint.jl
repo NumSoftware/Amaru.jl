@@ -9,7 +9,7 @@ mutable struct CebRSJointState<:IpState
     τy ::Float64      # max stress
     sy ::Float64      # accumulated relative displacement
     elastic::Bool
-    function CebRSJointState(env::ModelEnv=ModelEnv())
+    function CebRSJointState(env::ModelEnv)
         this = new(env)
         ndim = env.ndim
         this.σ = zeros(ndim)

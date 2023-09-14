@@ -59,7 +59,7 @@ mutable struct VonMisesState<:IpState
     ε::Vec6
     εpa::Float64
     Δλ::Float64
-    function VonMisesState(env::ModelEnv=ModelEnv())
+    function VonMisesState(env::ModelEnv)
         this = new(env)
         this.σ   = zeros(Vec6)
         this.ε   = zeros(Vec6)
@@ -75,7 +75,7 @@ mutable struct VonMisesPlaneStressState<:IpState
     ε::Vec6
     εpa::Float64
     Δλ::Float64
-    function VonMisesPlaneStressState(env::ModelEnv=ModelEnv())
+    function VonMisesPlaneStressState(env::ModelEnv)
         this = new(env)
         this.σ   = zeros(Vec6)
         this.ε   = zeros(Vec6)
@@ -87,19 +87,14 @@ end
 
 mutable struct VonMisesBeamState<:IpState
     env::ModelEnv
-    σ::SVector
-    ε::SVector
+    σ::Vec3
+    ε::Vec3
     εpa::Float64
     Δλ::Float64
-    function VonMisesBeamState(env::ModelEnv=ModelEnv())
+    function VonMisesBeamState(env::ModelEnv)
         this = new(env)
-        if env.ndim==2
-            this.σ   = zeros(Vec2)
-            this.ε   = zeros(Vec2)
-        else
-            this.σ   = zeros(Vec3)
-            this.ε   = zeros(Vec3)
-        end
+        this.σ   = zeros(Vec3)
+        this.ε   = zeros(Vec3)
         this.εpa = 0.0
         this.Δλ  = 0.0
         this
@@ -202,9 +197,6 @@ function calcD(mat::VonMises, state::VonMisesPlaneStressState, stressmodel::Stri
     De  = calcDe(mat.E, mat.ν, stressmodel)
     state.Δλ==0.0 && return De
     σ = state.σ
-
-    j2d = J2D(σ)
-    @assert j2d>0
 
     # s     = SVector( 2/3*σ[1] - 1/3*σ[2], 2/3*σ[2] - 1/3*σ[1], 0.0, σ[4], σ[5], σ[6] )
     s     = SVector( 2/3*σ[1] - 1/3*σ[2], 2/3*σ[2] - 1/3*σ[1], -1/3*σ[1]-1/3*σ[2], σ[4], σ[5], σ[6] )
@@ -385,80 +377,87 @@ end
 # ====================================
 
 
-function yield_func(mat::VonMises, state::VonMisesBeamState, σ::AbstractArray, εpa::Float64)
+function yield_func(mat::VonMises, state::VonMisesBeamState, σ::Vec3, εpa::Float64)
     # f = 1/2 σ*Psd*σ - 1/3 (fy + H εp)^2
     # f = J2D - 1/3 (fy + H εp)^2
+    # s = [ 2/3*σ1, -1/3*σ1, -1/3*σ1, 0.0, σ2, σ3 ]
 
-    j2d = σ[1]^2/3 + σ[5]^2/2 + σ[6]^2/2
+    j2d = σ[1]^2/3 + σ[2]^2/2 + σ[3]^2/2
 
     σy  = mat.σy
     H   = mat.H
+    # return 1.3*j2d - 1/3*(σy + H*εpa)^2
     return j2d - 1/3*(σy + H*εpa)^2
 end
 
 
 function calcD(mat::VonMises, state::VonMisesBeamState, stressmodel::String=state.env.ana.stressmodel)
-    G  = E/2/(1+ν)
+    E, ν = mat.E, mat.ν
+    G    = E/2/(1+ν)
     De = @SMatrix [ E    0.0  0.0  
                     0.0  2*G  0.0  
                     0.0  0.0  2*G ]
 
     state.Δλ==0.0 && return De
+    
     σ = state.σ
-
-    j2d = J2D(σ)
-    @assert j2d>0
-
-    s     = SVector( 2/3*σ[1], σ[5], σ[6] ) # incomplete dev vector
-    dfdσ  = s
     dfdεp = -2/3*mat.H*(mat.σy + mat.H*state.εpa)
 
-    return De - De*dfdσ*dfdσ'*De / (dfdσ'*De*dfdσ - norm(s)*dfdεp)
+    s = SVector( 2/3*σ[1], -σ[1]/3, -σ[1]/3, 0.0, σ[2], σ[3] )
+
+    De_dfdσ          = Vec3( 2/3*E*σ[1], 2*G*σ[2], 2*G*σ[3] ) # reduced vector
+    De_dfdσ_dfdσ′_De = De_dfdσ*De_dfdσ'
+    dfdσ′_De_dfdσ    = 4/9*E*σ[1]^2 + 2*G*σ[2]^2 + 2*G*σ[3]^2
+
+    return De - De_dfdσ_dfdσ′_De / (dfdσ′_De_dfdσ - norm(s)*dfdεp)
 
 end
 
 
 function update_state!(mat::VonMises, state::VonMisesBeamState, Δε::Array{Float64,1}, stressmodel::String=state.env.ana.stressmodel)
     σini = state.σ
-    De   = calcDe(mat.E, mat.ν, stressmodel)
-    σtr  = state.σ + De*Δε
-    ftr  = yield_func(mat, state, σtr, state.εpa)
+    
+    E, ν = mat.E, mat.ν
+    G    = E/2/(1+ν)
+    De = @SMatrix [ 
+        E    0.0  0.0  
+        0.0  2*G  0.0  
+        0.0  0.0  2*G 
+    ]
+    σtr = state.σ + De*Δε
+    ftr = yield_func(mat, state, σtr, state.εpa)
     tol = 1e-8
-
     
     if ftr<tol
         # elastic
         state.Δλ = 0.0
         state.σ  = σtr
     else
-        # plastic
-        # @show state.σ
-        # @show σtr
-
         σ, εpa, Δλ, status = calc_σ_εpa_Δλ(mat, state, σtr)
         failed(status) && return state.σ, status
 
         state.σ, state.εpa, state.Δλ = σ, εpa, Δλ
-
-        # @show state.σ
-        # @show yield_func(mat, state, σ, εpa)
-
-        # error()
     end
 
     state.ε += Δε
     Δσ     = state.σ - σini
 
-
     return Δσ, success()
 end
 
 
-function calc_σ_εpa_Δλ(mat::VonMises, state::VonMisesBeamState, σtr::Vec6)
+function calc_σ_εpa_Δλ(mat::VonMises, state::VonMisesBeamState, σtr::Vec3)
     # Δλ estimative
-    De   = calcDe(mat.E, mat.ν, state.env.ana.stressmodel)
-    dfdσ = SVector( 2/3*σtr[1], -1/3*σtr[1], -1/3*σtr[1], 0.0, σtr[5], σtr[6] )
+    E, ν = mat.E, mat.ν
+    G    = E/2/(1+ν)
+    De = @SMatrix [ 
+        E    0.0  0.0  
+        0.0  2*G  0.0  
+        0.0  0.0  2*G 
+    ]
 
+    dfdσ = SVector( 2/3*σtr[1], σtr[2], σtr[3] )
+    
     Δλ0  = norm(σtr-state.σ)/norm(De*dfdσ)
     
     # find initial interval
@@ -498,18 +497,9 @@ function calc_σ_εpa_Δλ(mat::VonMises, state::VonMisesBeamState, σtr::Vec6)
     # σ, εpa = calc_σ_εpa(mat, state, σtr, Δλ)
 
 
-
-    # @show (a,b)
-    # @show status
-    # @show yield_func(mat, state, σ, εpa)
-    # @show σ
-    # @show εpa
-
-
-
     # bissection method
     local f, Δλ, σ, εpa
-    σ0  = zeros(SVector{6}) # initial value
+    σ0  = zeros(Vec3) # initial value
 
     tol    = 10^-(10-log10(mat.σy))
     maxits = 50
@@ -518,10 +508,6 @@ function calc_σ_εpa_Δλ(mat::VonMises, state::VonMisesBeamState, σtr::Vec6)
         Δλ = (a+b)/2
         σ, εpa = calc_σ_εpa(mat, state, σtr, Δλ)
         f = yield_func(mat, state, σ, εpa)
-
-        # @show f
-        # @show Δλ
-        # error()
 
         if fa*f<0
             b = Δλ
@@ -534,26 +520,24 @@ function calc_σ_εpa_Δλ(mat::VonMises, state::VonMisesBeamState, σtr::Vec6)
         σ0 = σ
 
         i==maxits && return state.σ, 0.0, 0.0, failure("VonMises: could not find Δλ with NR/bissection (maxits reached, f=$f)")
-        # @show i
     end
 
     return σ, εpa, Δλ, success()   
 end
 
 
-function calc_σ_εpa(mat::VonMises, state::VonMisesBeamState, σtr::Vec6, Δλ::Float64)
+function calc_σ_εpa(mat::VonMises, state::VonMisesBeamState, σtr::Vec3, Δλ::Float64)
     E, ν = mat.E, mat.ν
     G    = E/(2*(1+ν))
 
     # σ at n+1
-    σ1 = (- 3*ν^2 + 3)/(2*E*Δλ - 3*ν^2 + 3)
-    σ5 = σ[5]/(2*G*Δλ + 1)
-    σ6 = σ[6]/(2*G*Δλ + 1)
+    σ = SVector( 
+        3*σtr[1]/(2*E*Δλ + 3),
+        σtr[2]/(2*G*Δλ + 1),
+        σtr[3]/(2*G*Δλ + 1)
+    )
 
-    σ = SVector( σ1, 0.0, 0.0, 0.0, σ5, σ6 )
-
-    dfdσ = SVector( 2/3*σ[1], -1/3*σ[1], -1/3*σ[1], 0.0, σ[5], σ[6] )
-
+    dfdσ = SVector( 2/3*σ[1], -1/3*σ[1], -1/3*σ[1], 0.0, σ[2], σ[3] )
     εpa  = state.εpa + Δλ*norm(dfdσ)
     
     return σ, εpa
@@ -561,14 +545,16 @@ end
 
 
 function ip_state_vals(mat::VonMises, state::VonMisesBeamState, stressmodel::String=state.env.ana.stressmodel)
-    σ, ε  = state.σ, state.ε
-    j1    = tr(σ)
-    srj2d = √J2D(σ)
-
-    D = stress_strain_dict(σ, ε, stressmodel)
-    D[:epa]   = state.εpa
-    D[:j1]    = j1
-    D[:srj2d] = srj2d
+    vals = OrderedDict{Symbol,Float64}(
+        :sX  => state.σ[1],
+        :eX  => state.ε[1],
+        :sXY => state.σ[2]/SR2
+    )
+    if state.env.ndim==3
+        vals[:sXZ] = state.σ[2]/SR2
+        vals[:sXY] = state.σ[3]/SR2
+    end
+    return vals
 
     return D
 end

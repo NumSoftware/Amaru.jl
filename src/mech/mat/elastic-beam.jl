@@ -10,7 +10,7 @@ mutable struct ElasticBeamState<:IpState
     "Strain tensor"
     ε::Array{Float64,1} # in the local system
 
-    function ElasticBeamState(env::ModelEnv=ModelEnv())
+    function ElasticBeamState(env::ModelEnv)
         this = new(env)
         nstr = env.ndim==2 ? 2 : 3
         this.σ = zeros(nstr)

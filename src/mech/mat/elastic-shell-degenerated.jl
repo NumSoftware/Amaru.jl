@@ -5,7 +5,7 @@ export ElasticShellDegenerated
 mutable struct ElasticShellDegeneratedState<:IpState
     env::ModelEnv
     σ::Array{Float64,1}
-    function ElasticShellDegeneratedState(env::ModelEnv=ModelEnv())
+    function ElasticShellDegeneratedState(env::ModelEnv)
         σ = zeros(5)
         return new(env, σ)
     end

@@ -7,7 +7,7 @@ mutable struct JointState<:IpState
     σ   ::Array{Float64,1}
     w   ::Array{Float64,1}
     h   ::Float64
-    function JointState(env::ModelEnv=ModelEnv())
+    function JointState(env::ModelEnv)
         this = new(env)
         this.σ   = zeros(3)
         this.w = zeros(3)

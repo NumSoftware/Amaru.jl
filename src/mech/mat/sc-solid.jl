@@ -11,7 +11,7 @@ mutable struct SmearedCrackState<:IpState
     up::Float64  # max plastic displacement
     Δλ ::Float64  # plastic multiplier
     h  ::Float64  # element size fraction for a integration point
-    function SmearedCrackState(env::ModelEnv=ModelEnv())
+    function SmearedCrackState(env::ModelEnv)
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)

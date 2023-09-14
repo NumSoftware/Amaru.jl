@@ -9,7 +9,7 @@ mutable struct ElasticShellThermoState<:IpState
     QQ::Array{Float64,1} # heat flux
     D::Array{Float64,1}
     ut::Float64
-    function ElasticShellThermoState(env::ModelEnv=ModelEnv())
+    function ElasticShellThermoState(env::ModelEnv)
         this = new(env)
         this.σ = zeros(Vec6)
         this.ε = zeros(Vec6)

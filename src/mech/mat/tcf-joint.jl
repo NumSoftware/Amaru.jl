@@ -10,7 +10,7 @@ mutable struct TCFJointState<:IpState
     Δλ ::Float64          # plastic multiplier
     h  ::Float64          # characteristic length from bulk elements
     w_rate::Float64       # w rate wrt T
-    function TCFJointState(env::ModelEnv=ModelEnv())
+    function TCFJointState(env::ModelEnv)
         this = new(env)
         ndim = env.ndim
         this.σ   = zeros(ndim)

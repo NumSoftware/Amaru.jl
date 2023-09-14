@@ -146,7 +146,7 @@ end
 
 function elem_config_dofs(elem::MechShell)
     ndim = elem.env.ndim
-    ndim in (1,2) && error("MechShell: Shell elements do not work in $(ndim)d analyses")
+    ndim==3 || error("MechShell: Shell elements do not work in $(ndim)d analyses")
     for node in elem.nodes
         add_dof(node, :ux, :fx)
         add_dof(node, :uy, :fy)
@@ -397,14 +397,13 @@ function update_elem!(elem::MechShell, U::Array{Float64,1}, dt::Float64)
         setB(elem, ip, N, L, dNdX′, Rrot, Bil, Bi, B)
         Δε = B*dU
         Δσ, status = update_state!(elem.mat, ip.state, Δε, "plane-stress")
-        Δσ = S*Δσ
         failed(status) && return dF, map, failure("MechShell: Error at integration point $(ip.id)")
         #@showm Δσ
         #error()
 
         detJ′ = det(J′)
         coef  = detJ′*ip.w
-        dF   += coef*B'*Δσ
+        dF   += coef*B'*S*Δσ
 
     end
 

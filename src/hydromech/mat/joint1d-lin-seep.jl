@@ -7,7 +7,7 @@ mutable struct Joint1DConstPermeabilityState<:IpState
     ndim::Int
     V::Float64     # fluid velocity
     D::Float64     # distance traveled by the fluid
-    function Joint1DConstPermeabilityState(env::ModelEnv=ModelEnv())
+    function Joint1DConstPermeabilityState(env::ModelEnv)
         this = new(env)
         this.V = 0.0
         this.D = 0.0

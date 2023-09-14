@@ -9,7 +9,7 @@ mutable struct LinearElasticSeepState<:IpState
     V::Array{Float64,1} # fluid velocity
     D::Array{Float64,1} # distance traveled by the fluid
     uw::Float64         # pore pressure
-    function LinearElasticSeepState(env::ModelEnv=ModelEnv())
+    function LinearElasticSeepState(env::ModelEnv)
         this = new(env)
         this.σ = zeros(Vec6)
         this.ε = zeros(Vec6)

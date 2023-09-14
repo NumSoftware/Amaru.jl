@@ -65,7 +65,7 @@ mutable struct PPRodState<:IpState
     εp::Float64
     Δγ ::Float64
 
-    function PPRodState(env::ModelEnv=ModelEnv())
+    function PPRodState(env::ModelEnv)
         this = new(env)
         this.σ = 0.0
         this.ε = 0.0

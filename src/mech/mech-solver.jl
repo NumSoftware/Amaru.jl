@@ -435,7 +435,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
 
         if syserror
             println(logfile, sysstatus.message)
-            message(sline, sysstatus.message, Base.default_color_warn)
+            # message(sline, sysstatus.message, Base.default_color_warn)
             converged = false
         end
         # quiet || sysstatus.message!="" && message(sline, sysstatus.message, Base.default_color_warn)
@@ -490,7 +490,8 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
                     ΔTbk = 0.0
                 else
                     if nits==1
-                        q = 1+tanh(log10(ftol/res))
+                        # q = 1+tanh(log10(ftol/res))
+                        q = 1.333
                     else
                         q = 1+tanh(log10(rtol/err))
                     end
@@ -522,7 +523,8 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
             if autoinc
                 println(logfile, "      increment failed")
                 if nits==1
-                    q = 1+tanh(log10(ftol/res))
+                    # q = 1+tanh(log10(ftol/res))
+                    q = 0.666
                 else
                     q = 1+tanh(log10(rtol/err))
                 end

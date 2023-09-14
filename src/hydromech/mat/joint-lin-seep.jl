@@ -10,7 +10,7 @@ mutable struct LeakoffJointState<:IpState
     #S    ::Array{Float64,1}
     uw   ::Array{Float64,1} # interface pore pressure
     h    ::Float64          # characteristic length from bulk elements
-    function LeakoffJointState(env::ModelEnv=ModelEnv())
+    function LeakoffJointState(env::ModelEnv)
         this     = new(env)
         ndim     = env.ndim
         this.V   = zeros(2)

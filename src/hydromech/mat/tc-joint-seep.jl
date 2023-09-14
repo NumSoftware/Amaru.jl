@@ -12,7 +12,7 @@ mutable struct TCJointSeepState<:IpState
     uw ::Array{Float64,1} # interface pore pressure
     Vt ::Array{Float64,1} # transverse fluid velocity
     L  ::Array{Float64,1} 
-    function TCJointSeepState(env::ModelEnv=ModelEnv())
+    function TCJointSeepState(env::ModelEnv)
         this = new(env)
         ndim = env.ndim
         this.σ   = zeros(ndim)

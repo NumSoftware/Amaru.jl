@@ -10,7 +10,7 @@ mutable struct ElasticShellState<:IpState
     "Strain tensor"
     ε::Array{Float64,1} # in the local system
 
-    function ElasticShellState(env::ModelEnv=ModelEnv())
+    function ElasticShellState(env::ModelEnv)
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)

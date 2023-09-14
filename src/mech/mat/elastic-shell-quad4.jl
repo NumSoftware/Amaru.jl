@@ -5,7 +5,7 @@ export ElasticShellQUAD4
 mutable struct ElasticShellQuad4State<:IpState
     env::ModelEnv
     σ::Array{Float64,1}
-    function ElasticShellQuad4State(env::ModelEnv=ModelEnv())
+    function ElasticShellQuad4State(env::ModelEnv)
         σ = zeros(5)
         return new(env, σ)
     end

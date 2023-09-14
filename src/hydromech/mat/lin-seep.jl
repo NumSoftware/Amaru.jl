@@ -7,7 +7,7 @@ mutable struct ConstPermeabilityState<:IpState
     V::Array{Float64,1} # fluid velocity
     D::Array{Float64,1} # distance traveled by the fluid
     uw::Float64         # pore pressure
-    function ConstPermeabilityState(env::ModelEnv=ModelEnv())
+    function ConstPermeabilityState(env::ModelEnv)
         this = new(env)
         this.V  = zeros(env.ndim)
         this.D  = zeros(env.ndim)

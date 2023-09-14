@@ -10,7 +10,7 @@ mutable struct ElasticCookShellState<:IpState
     "Strain tensor"
     ε::Array{Float64,1}
 
-    function ElasticCookShellState(env::ModelEnv=ModelEnv())
+    function ElasticCookShellState(env::ModelEnv)
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)

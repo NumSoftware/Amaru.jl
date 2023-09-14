@@ -7,7 +7,7 @@ mutable struct LinearAcousticFluidState<:IpState
     up ::Float64          # pressure
     # V  ::Array{Float64,1} # fluid velocity?
     
-    function LinearAcousticFluidState(env::ModelEnv=ModelEnv())
+    function LinearAcousticFluidState(env::ModelEnv)
         this = new(env)
         # this.V  = zeros(env.ndim)
         this.up = 0.0

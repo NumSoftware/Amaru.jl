@@ -14,7 +14,7 @@ mutable struct MCJointSeepState<:IpState
     up ::Float64           # effective plastic relative displacement
     Δλ ::Float64           # plastic multiplier
     h  ::Float64           # characteristic length from bulk elements
-    function MCJointSeepState(env::ModelEnv=ModelEnv())
+    function MCJointSeepState(env::ModelEnv)
         this = new(env)
         ndim = env.ndim
         this.σ   = zeros(ndim)

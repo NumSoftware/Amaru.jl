@@ -6,7 +6,7 @@ export ElasticPlateRM
 
 mutable struct ElasticPlateRMState<:IpState
     env::ModelEnv
-    function ElasticPlateRMState(env::ModelEnv=ModelEnv())
+    function ElasticPlateRMState(env::ModelEnv)
         return new(env)
     end
 end

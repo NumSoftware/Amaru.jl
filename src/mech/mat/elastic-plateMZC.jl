@@ -4,7 +4,7 @@ export ElasticPlateMZC
 
 mutable struct ElasticPlateMZCState<:IpState
     env::ModelEnv
-    function ElasticPlateMZCState(env::ModelEnv=ModelEnv())
+    function ElasticPlateMZCState(env::ModelEnv)
         return new(env)
     end
 end

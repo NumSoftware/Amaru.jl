@@ -7,7 +7,7 @@ mutable struct LinDrainPipeState<:IpState
     V::Float64       # fluid velocity
     D::Float64       # distance traveled by the fluid
     uw::Float64      # pore pressure
-    function LinDrainPipeState(env::ModelEnv=ModelEnv())
+    function LinDrainPipeState(env::ModelEnv)
         this = new(env)
         this.V  = 0.0
         this.D  = 0.0

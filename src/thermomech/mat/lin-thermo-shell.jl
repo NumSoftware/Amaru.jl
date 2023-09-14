@@ -7,7 +7,7 @@ mutable struct ConstConductivityShellState<:IpState
     ut::Float64
     QQ::Array{Float64,1}
     D::Array{Float64,1} #
-    function ConstConductivityShellState(env::ModelEnv=ModelEnv())
+    function ConstConductivityShellState(env::ModelEnv)
         this = new(env)
         this.ut = 0.0
         this.QQ  = zeros(env.ndim)

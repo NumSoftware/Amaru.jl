@@ -47,7 +47,7 @@ mutable struct ElasticSolidState<:IpState
     "Strain tensor"
     ε::Vec6
 
-    function ElasticSolidState(env::ModelEnv=ModelEnv())
+    function ElasticSolidState(env::ModelEnv)
         this = new(env)
         this.σ = zeros(Vec6)
         this.ε = zeros(Vec6)
@@ -56,33 +56,20 @@ mutable struct ElasticSolidState<:IpState
 end
 
 
-"""
-    ElasticSolidState
+# mutable struct ElasticPlaneStressState<:IpState
+#     env::ModelEnv
+#     σ::SArray
+#     ε::SArray
 
-A type for the state data of a `LinearElastic` type.
-
-# Fields
-
-$(TYPEDFIELDS)
-"""
-mutable struct ElasticPlaneStressState<:IpState
-    "Environment information"
-    env::ModelEnv
-    "Stress tensor"
-    σ::SArray
-    "Strain tensor"
-    ε::SArray
-
-    function ElasticPlaneStressState(env::ModelEnv=ModelEnv())
-        this = new(env)
-        this.σ = zeros(Vec6)
-        this.ε = zeros(Vec6)
-        return this
-    end
-end
+#     function ElasticPlaneStressState(env::ModelEnv)
+#         this = new(env)
+#         this.σ = zeros(Vec6)
+#         this.ε = zeros(Vec6)
+#         return this
+#     end
+# end
 
 # compat_state_type(::Type{LinearElastic}, ::Type{MechSolid}, env::ModelEnv) = env.ana.stressmodel=="plane-stress" ? ElasticSolidPlaneStressState : ElasticSolidState
-
 compat_state_type(::Type{LinearElastic}, ::Type{MechSolid}, env::ModelEnv)  = ElasticSolidState
 compat_state_type(::Type{LinearElastic}, ::Type{MechShell}, env::ModelEnv)  = ElasticSolidState
 
@@ -97,21 +84,11 @@ function calcDe(E::Number, ν::Number, stressmodel::String)
         return @SArray [
             c     c*ν   0.0   0.0        0.0        0.0
             c*ν   c     0.0   0.0        0.0        0.0
-            0.0   0.0   1.0   0.0        0.0        0.0
+            0.0   0.0   0.0   0.0        0.0        0.0
             0.0   0.0   0.0   c*(1.0-ν)  0.0        0.0
             0.0   0.0   0.0   0.0        c*(1.0-ν)  0.0
             0.0   0.0   0.0   0.0        0.0        c*(1.0-ν) ]
         ezz = -ν/E*(sxx+syy)
-    # elseif stressmodel=="shell"
-    #     c = E/(1.0-ν^2)
-    #     g = E/(1+ν)
-    #     return @SArray [
-    #         c    c*ν   0.0  0.0    0.0    0.0
-    #         c*ν  c     0.0  0.0    0.0    0.0
-    #         0.0  0.0   0.0  0.0    0.0    0.0
-    #         0.0  0.0   0.0  5/6*g  0.0    0.0
-    #         0.0  0.0   0.0  0.0    5/6*g  0.0
-    #         0.0  0.0   0.0  0.0    0.0    g ]
     else
         c = E/((1+ν)*(1-2*ν))
         return @SArray [
@@ -161,7 +138,7 @@ mutable struct ElasticRodState<:IpState
     σ::Float64
     "Axial strain"
     ε::Float64
-    function ElasticRodState(env::ModelEnv=ModelEnv())
+    function ElasticRodState(env::ModelEnv)
         this = new(env)
         this.σ = 0.0
         this.ε = 0.0
@@ -196,49 +173,34 @@ end
 
 
 
+# LinearElastic for beam elements
 
 mutable struct ElasticBeamState<:IpState
-    "Environment information"
     env::ModelEnv
-    "Stress tensor"
-    σ::Array{Float64,1} # in the local system
-    "Strain tensor"
-    ε::Array{Float64,1} # in the local system
+    σ::Vec3
+    ε::Vec3
 
-    function ElasticBeamState(env::ModelEnv=ModelEnv())
+    function ElasticBeamState(env::ModelEnv)
         this = new(env)
-        nstr = env.ndim==2 ? 2 : 3
-        this.σ = zeros(nstr)
-        this.ε = zeros(nstr)
+        this.σ = zeros(Vec3)
+        this.ε = zeros(Vec3)
         return this
     end
 end
 
 
 compat_state_type(::Type{LinearElastic}, ::Type{MechBeam}, env::ModelEnv) = ElasticBeamState
-# compat_state_type(::Type{LinearElastic}, ::Type{MechShell}, env::ModelEnv) = ElasticShellState
-# compat_state_type(::Type{LinearElastic}, ::Type{MechBeam}, env::ModelEnv)  = ElasticBeamState
-
-# Type of corresponding state structure
-# compat_state_type(::Type{LinearElastic}) = ElasticBeamState
-
-# Element types that work with this material
-# compat_elem_types(::Type{LinearElastic}) = (MechBeam,)
 
 
 function calcD(mat::LinearElastic, state::ElasticBeamState)
-    E = mat.E
-    ν = mat.ν
-    G = E/2/(1+ν)
-
-    if state.env.ndim==2
-        return [ E      0.0
-                 0.0  5/6*2*G ]
-    else
-        return [ E   0.0    0.0  
-                0.0  5/6*2*G  0.0  
-                0.0  0.0    5/6*2*G ]
-    end
+    E, ν = mat.E, mat.ν
+    G    = E/2/(1+ν)
+    
+    return @SMatrix [ 
+        E    0.0  0.0  
+        0.0  2*G  0.0  
+        0.0  0.0  2*G 
+    ]
 end
 
 
@@ -263,51 +225,3 @@ function ip_state_vals(mat::LinearElastic, state::ElasticBeamState)
     end
     return vals
 end
-
-
-
-# mutable struct ElasticShellState<:IpState
-#     "Environment information"
-#     env::ModelEnv
-#     "Stress tensor"
-#     σ::Vec6 # in the local system
-#     "Strain tensor"
-#     ε::Vec6 # in the local system
-
-#     function ElasticShellState(env::ModelEnv=ModelEnv())
-#         this = new(env)
-#         this.σ = zeros(6)
-#         this.ε = zeros(6)
-#         return this
-#     end
-# end
-
-# function calcD(mat::LinearElastic, state::ElasticShellState)
-#     E = mat.E
-#     ν = mat.ν
-#     c = E/(1-ν^2)
-#     g = E/(1+ν)
-#     return [
-#         c    c*ν   0.0  0.0    0.0    0.0
-#         c*ν  c     0.0  0.0    0.0    0.0
-#         0.0  0.0   0.0  0.0    0.0    0.0
-#         0.0  0.0   0.0  5/6*g  0.0    0.0
-#         0.0  0.0   0.0  0.0    5/6*g  0.0
-#         0.0  0.0   0.0  0.0    0.0    g ]
-#     # ezz = -ν/E*(sxx+syy)
-# end
-
-
-# function update_state!(mat::LinearElastic, state::ElasticShellState, dε::Array{Float64,1})
-#     D = calcD(mat, state)
-#     dσ = D*dε
-#     state.ε += dε
-#     state.σ += dσ
-#     return dσ, success()
-# end
-
-
-# function ip_state_vals(mat::LinearElastic, state::ElasticShellState)
-#     return stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
-# end
-

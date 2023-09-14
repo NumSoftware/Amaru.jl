@@ -5,6 +5,7 @@ export MechBeam
 struct MechBeamProps<:ElemProperties
     ρ::Float64
     γ::Float64
+    α::Float64
     thy::Float64
     thz::Float64
 
@@ -17,7 +18,7 @@ struct MechBeamProps<:ElemProperties
             thy, thz = args.thy, args.thz
         end
 
-        return new(args.rho, args.gamma, thy, thz)
+        return new(args.rho, args.gamma, args.alpha, thy, thz)
     end    
 end
 
@@ -29,8 +30,8 @@ arg_rules(::Type{MechBeamProps}) =
     @arginfo A A>0.0 "Section area"
     @arginfo gamma=0 gamma>=0.0 "Specific weight"
     @arginfo rho=0 rho>=0.0 "Density"
+    @arginfo alpha=5/6 alpha>0 "Shear correction coef."
 ]
-
 
 
 """
@@ -171,7 +172,7 @@ end
 
 function elem_config_dofs(elem::MechBeam)
     ndim = elem.env.ndim
-    # ndim in (1,2) && error("MechBeam: Beam elements do not work in $(ndim)d analyses")
+    ndim in (2,3) || error("MechBeam: Beam elements do not work in $(ndim)d analyses")
     for node in elem.nodes
         add_dof(node, :ux, :fx)
         add_dof(node, :uy, :fy)
@@ -227,6 +228,13 @@ function set_rot_x_xp(elem::MechBeam, J::Matx, R::Matx)
     end
 end
 
+function calcS(elem::MechBeam, α::Float64)
+    return @SMatrix [ 
+        1.  0.  0.
+        0.  α   0.
+        0.  0.  α 
+    ]
+end
 
 function setB(elem::MechBeam, ip::Ip, L::Matx, N::Vect, dNdX::Matx, Rθ::Matx, Bil::Matx, Bi::Matx, B::Matx)
     ndim = elem.env.ndim
@@ -244,8 +252,8 @@ function setB(elem::MechBeam, ip::Ip, L::Matx, N::Vect, dNdX::Matx, Rθ::Matx, B
             Ni = N[i]
             dNdx = dNdX[i]
 
-            Bil[1,1] = dNdx;                        Bil[1,3] = -dNdx*η*thy/2
-                              Bil[2,2] = dNdx/SR2;  Bil[2,3] = -1/SR2*Ni
+            Bil[1,1] = dNdx;                              Bil[1,3] = -dNdx*η*thy/2
+                                 Bil[3,2] = dNdx/SR2;     Bil[3,3] = -1/SR2*Ni
 
             c = (i-1)*ndof
             @mul Bi = Bil*Rθ
@@ -278,7 +286,8 @@ function elem_stiffness(elem::MechBeam)
     thz = elem.props.thz
     thy = elem.props.thy
     ndof = ndim==2 ? 3 : 6
-    nstr = ndim==2 ? 2 : 3
+    # nstr = ndim==2 ? 2 : 3
+    nstr = 3
 
     C   = getcoords(elem)
     K   = zeros(ndof*nnodes, ndof*nnodes)
@@ -287,6 +296,7 @@ function elem_stiffness(elem::MechBeam)
     Rθ  = zeros(ndof,ndof)
     Bil = zeros(nstr,ndof)
     Bi  = zeros(nstr,ndof)
+    S      = calcS(elem, elem.props.α)
 
     for ip in elem.ips
         N    = elem.shape.func(ip.R)
@@ -296,7 +306,7 @@ function elem_stiffness(elem::MechBeam)
         dx′dξ = norm(J1D)
         dNdX′ = dNdR*inv(dx′dξ)
         D     = calcD(elem.mat, ip.state)
-        
+
         setB(elem, ip, L, N, dNdX′, Rθ, Bil, Bi, B)
         
         if ndim==2
@@ -306,7 +316,7 @@ function elem_stiffness(elem::MechBeam)
         end
         # @show ip.id, detJ′
         coef = detJ′*ip.w
-        K += coef*B'*D*B
+        K += coef*B'*S*D*B
     end
 
     # @showm B
@@ -324,19 +334,21 @@ function update_elem!(elem::MechBeam, U::Array{Float64,1}, dt::Float64)
     thz = elem.props.thz
     thy = elem.props.thy
     ndof = ndim==2 ? 3 : 6
-    nstr = ndim==2 ? 2 : 3
+    # nstr = ndim==2 ? 2 : 3
+    nstr = 3
 
     C   = getcoords(elem)
     B   = zeros(nstr, ndof*nnodes)
     L   = zeros(ndim,ndim)
-    Rθ  = zeros(6,ndof)
-    Bil = zeros(nstr,6)
+    Rθ  = zeros(ndof,ndof)
+    Bil = zeros(nstr,ndof)
     Bi  = zeros(nstr,ndof)
 
     map = elem_map(elem)
     dU  = U[map]
     dF  = zeros(length(dU))
     Δε  = zeros(nstr)
+    S   = calcS(elem, elem.props.α)
 
     for ip in elem.ips
         N    = elem.shape.func(ip.R)
@@ -356,10 +368,10 @@ function update_elem!(elem::MechBeam, U::Array{Float64,1}, dt::Float64)
             detJ′ = dx′dξ*thz/2*thy/2
         end
         coef = detJ′*ip.w
-        dF += coef*B'*Δσ
+        dF += coef*B'*S*Δσ
     end
 
-     return dF, map, success()
+    return dF, map, success()
 end
 
 
@@ -384,7 +396,7 @@ function elem_extrapolated_node_vals(elem::MechBeam)
     Ξ = elem.shape.nat_coords # natural coordinates
 
     # get local displacementhy from global
-    if elem.env.ndim==2
+    if ndim==2
         keys =(:ux, :uy, :rz)
     else
         keys =(:ux, :uy, :uz, :rx, :ry, :rz)
@@ -411,7 +423,7 @@ function elem_extrapolated_node_vals(elem::MechBeam)
 
         # first derivatives and jacobian
         dNdξ = elem.shape.deriv([ξ])
-        jac = norm(C'*dNdξ)
+        jac  = norm(C'*dNdξ)
 
         # second derivatives
         d2Ndξ2 = elem.shape.deriv2([ξ])
@@ -466,4 +478,4 @@ function elem_extrapolated_node_vals(elem::MechBeam)
         )
     end
 end
-
+ 

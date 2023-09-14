@@ -9,7 +9,7 @@ mutable struct LinearElasticThermoState<:IpState
     QQ::Array{Float64,1} # heat flux
     D::Array{Float64,1}
     ut::Float64
-    function LinearElasticThermoState(env::ModelEnv=ModelEnv())
+    function LinearElasticThermoState(env::ModelEnv)
         this    = new(env)
         this.σ  = zeros(Vec6)
         this.ε  = zeros(Vec6)

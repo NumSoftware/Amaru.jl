@@ -10,7 +10,7 @@ mutable struct MazarsState<:IpState
     φc::Float64
     φ::Float64  # damage
     ε̅max::Float64
-    function MazarsState(env::ModelEnv=ModelEnv())
+    function MazarsState(env::ModelEnv)
         this = new(env)
         this.σ = zeros(6)
         this.ε = zeros(6)
