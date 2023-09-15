@@ -83,7 +83,8 @@ function calc_cv(mat::NLConductivity, ut::Float64) # Specific heat
     return cv
 end
 
-function calcK(mat::NLConductivity, ut::Float64) # Thermal conductivity matrix
+function calcK(mat::NLConductivity, state::NLConductivityState) # Thermal conductivity matrix
+    ut = state.ut
     length(mat.k_table)==0 && return mat.k
 
     T  = mat.k_table[:,1]
