@@ -190,6 +190,17 @@ function set_rot_x_xp(elem::TMShell, J::Matx, R::Matx)
 end
 
 
+function calcS(elem::TMShell, α::Float64)
+    return @SMatrix [ 
+        1.  0.  0.  0.  0.  0.
+        0.  1.  0.  0.  0.  0.
+        0.  0.  1.  0.  0.  0.
+        0.  0.  0.  α   0.  0.
+        0.  0.  0.  0.  α   0.
+        0.  0.  0.  0.  0.  1. ]
+end
+
+
 function setB(elem::TMShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx, Bil::Matx, Bi::Matx, B::Matx)
     nnodes = size(dNdX,1)
     th = elem.props.th
@@ -233,6 +244,7 @@ function elem_stiffness(elem::TMShell)
     Rrot   = zeros(5,ndof)
     Bil    = zeros(nstr,5)
     Bi     = zeros(nstr,ndof)
+    S      = calcS(elem, elem.props.α)
 
     for ip in elem.ips
         N    = elem.shape.func(ip.R)
@@ -244,7 +256,7 @@ function elem_stiffness(elem::TMShell)
         dNdR  = [ dNdR zeros(nnodes) ]
         dNdX′ = dNdR*invJ′
 
-        D = calcD(elem.mat, ip.state, "shell")
+        D = calcD(elem.mat, ip.state)
         #@show D
         #error()
 
@@ -253,7 +265,7 @@ function elem_stiffness(elem::TMShell)
         
         setB(elem, ip, N, L, dNdX′, Rrot, Bil, Bi, B)
         coef = detJ′*ip.w
-        K += coef*B'*D*B
+        K += coef*B'*S*D*B
     end
 
     δ = 1e-5
@@ -506,11 +518,13 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     dFt = zeros(nnodes)
     Bt  = zeros(ndim, nnodes)
 
-    L = zeros(3,3)
+    L    = zeros(3,3)
     Rrot = zeros(5,ndof)
-    Bil = zeros(6,5)
-    Bi = zeros(6,ndof)
-    Δε = zeros(6)
+    Bil  = zeros(6,5)
+    Bi   = zeros(6,ndof)
+    Δε   = zeros(6)
+    S    = calcS(elem, elem.props.α)
+
 
     for ip in elem.ips
         #elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
@@ -542,7 +556,7 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
         G  = Bt*Ut
 
         # internal force dF
-        Δσ, q, status = update_state!(elem.mat, ip.state, Δε, Δut, G, Δt, "shell")
+        Δσ, q, status = update_state!(elem.mat, ip.state, Δε, Δut, G, Δt)
         failed(status) && return [dF; dFt], [map_u; map_t], status
 
         α = calc_α(elem, ip.state.ut)
@@ -556,7 +570,7 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
         detJ′ = det(J′)
         #coef = detJ′*ip.w*th
         coef = detJ′*ip.w
-        @mul dF += coef*B'*Δσ
+        dF += coef*B'*S*Δσ
 
         # internal volumes dFt
         Δεvol = dot(m, Δε)
@@ -575,6 +589,5 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
         @mul dFt += coef*Bt'*q
 
     end
-    #@show "HIIIIIIIIIIIIIIIIIIIIII UPDATED"
     return [dF; dFt], [map_u; map_t], success()
 end

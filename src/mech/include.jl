@@ -10,7 +10,6 @@ export set_state
     THREEDIMENSIONAL = 3,
 )
 
-# include("mech-properties.jl")
 
 include("elem/mech.jl")
 include("elem/distributed.jl")
@@ -50,9 +49,6 @@ include("elem/mech-lumpedmass.jl")
 include("mat/lumpedmass.jl")
 include("elem/mech-spring.jl")
 include("mat/elastic-spring.jl")
-
-# Models for truss elements
-include("mat/pp-rod.jl")
 
 # Models for plates
 include("mat/elastic-plateMZC.jl")

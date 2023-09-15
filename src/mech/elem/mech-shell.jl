@@ -300,7 +300,7 @@ function elem_stiffness(elem::MechShell)
         dNdX′ = dNdR*invJ′
 
         # D = calcD(elem.mat, ip.state)
-        D = calcD(elem.mat, ip.state, "plane-stress")
+        D = calcD(elem.mat, ip.state)
         #@show D
         #error()
 
@@ -396,7 +396,7 @@ function update_elem!(elem::MechShell, U::Array{Float64,1}, dt::Float64)
 
         setB(elem, ip, N, L, dNdX′, Rrot, Bil, Bi, B)
         Δε = B*dU
-        Δσ, status = update_state!(elem.mat, ip.state, Δε, "plane-stress")
+        Δσ, status = update_state!(elem.mat, ip.state, Δε)
         failed(status) && return dF, map, failure("MechShell: Error at integration point $(ip.id)")
         #@showm Δσ
         #error()

@@ -30,21 +30,9 @@ arg_rules(::Type{LinearElastic}) =
 ]
 
 
-"""
-    ElasticSolidState
-
-A type for the state data of a `LinearElastic` type.
-
-# Fields
-
-$(TYPEDFIELDS)
-"""
 mutable struct ElasticSolidState<:IpState
-    "Environment information"
     env::ModelEnv
-    "Stress tensor"
     σ::Vec6
-    "Strain tensor"
     ε::Vec6
 
     function ElasticSolidState(env::ModelEnv)
@@ -56,29 +44,41 @@ mutable struct ElasticSolidState<:IpState
 end
 
 
-# mutable struct ElasticPlaneStressState<:IpState
-#     env::ModelEnv
-#     σ::SArray
-#     ε::SArray
+mutable struct ElasticPlaneStressState<:IpState
+    env::ModelEnv
+    σ::Vec6
+    ε::Vec6
 
-#     function ElasticPlaneStressState(env::ModelEnv)
-#         this = new(env)
-#         this.σ = zeros(Vec6)
-#         this.ε = zeros(Vec6)
-#         return this
-#     end
-# end
-
-# compat_state_type(::Type{LinearElastic}, ::Type{MechSolid}, env::ModelEnv) = env.ana.stressmodel=="plane-stress" ? ElasticSolidPlaneStressState : ElasticSolidState
-compat_state_type(::Type{LinearElastic}, ::Type{MechSolid}, env::ModelEnv)  = ElasticSolidState
-compat_state_type(::Type{LinearElastic}, ::Type{MechShell}, env::ModelEnv)  = ElasticSolidState
+    function ElasticPlaneStressState(env::ModelEnv)
+        this = new(env)
+        this.σ = zeros(Vec6)
+        this.ε = zeros(Vec6)
+        return this
+    end
+end
 
 
-# Element types that work with this material
-# compat_elem_types(::Type{LinearElastic}) = (MechSolid, MechShell)
+mutable struct ElasticBarState<:IpState
+    env::ModelEnv
+    σ::Float64
+    ε::Float64
+    function ElasticBarState(env::ModelEnv)
+        this = new(env)
+        this.σ = 0.0
+        this.ε = 0.0
+        return this
+    end
+end
 
 
-function calcDe(E::Number, ν::Number, stressmodel::String)
+compat_state_type(::Type{LinearElastic}, ::Type{MechSolid}, env::ModelEnv)  = env.ana.stressmodel=="plane-stress" ? ElasticPlaneStressState : ElasticSolidState
+compat_state_type(::Type{LinearElastic}, ::Type{MechShell}, env::ModelEnv)  = ElasticPlaneStressState
+compat_state_type(::Type{LinearElastic}, ::Type{MechBeam}, env::ModelEnv)   = ElasticBeamState
+compat_state_type(::Type{LinearElastic}, ::Type{MechBar}, env::ModelEnv)    = ElasticBarState
+compat_state_type(::Type{LinearElastic}, ::Type{MechEmbBar}, env::ModelEnv) = ElasticBarState
+
+
+function calcDe(E::Float64, ν::Float64, stressmodel::String="3d")
     if stressmodel=="plane-stress"
         c = E/(1-ν^2)
         return @SArray [
@@ -102,13 +102,17 @@ function calcDe(E::Number, ν::Number, stressmodel::String)
 end
 
 
-function calcD(mat::LinearElastic, state::ElasticSolidState, stressmodel::String=state.env.ana.stressmodel)
-    return calcDe(mat.E, mat.ν, stressmodel)
+# LinearElastic model for 3D and 2D bulk elements under plain-strain state
+
+
+function calcD(mat::LinearElastic, state::ElasticSolidState)
+    return calcDe(mat.E, mat.ν)
 end
 
 
-function update_state!(mat::LinearElastic, state::ElasticSolidState, dε::AbstractArray, stressmodel::String=state.env.ana.stressmodel)
-    De = calcDe(mat.E, mat.ν, stressmodel)
+function update_state!(mat::LinearElastic, state::ElasticSolidState, dε::AbstractArray)
+    De = calcDe(mat.E, mat.ν)
+
     dσ = De*dε
     state.ε += dε
     state.σ += dσ
@@ -116,61 +120,31 @@ function update_state!(mat::LinearElastic, state::ElasticSolidState, dε::Abstra
 end
 
 
-function ip_state_vals(mat::LinearElastic, state::ElasticSolidState, stressmodel::String=state.env.ana.stressmodel)
-    return stress_strain_dict(state.σ, state.ε, stressmodel)
+function ip_state_vals(mat::LinearElastic, state::ElasticSolidState)
+    return stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
 end
 
 
+# LinearElastic model for 2D bulk elements under plane-stress state and shell elements
 
-"""
-    ElasticRodState
 
-A type for the state data of a `ElasticRod` type.
-
-# Fields
-
-$(TYPEDFIELDS)
-"""
-mutable struct ElasticRodState<:IpState
-    "environment information"
-    env::ModelEnv
-    "Axial stress"
-    σ::Float64
-    "Axial strain"
-    ε::Float64
-    function ElasticRodState(env::ModelEnv)
-        this = new(env)
-        this.σ = 0.0
-        this.ε = 0.0
-        return this
-    end
+function calcD(mat::LinearElastic, state::ElasticPlaneStressState)
+    return calcDe(mat.E, mat.ν, "plane-stress")
 end
 
 
-compat_state_type(::Type{LinearElastic}, ::Type{MechRod}, env::ModelEnv) = ElasticRodState
-compat_state_type(::Type{LinearElastic}, ::Type{MechEmbRod}, env::ModelEnv) = ElasticRodState
-
-
-function calcD(mat::LinearElastic, ips::ElasticRodState)
-    return mat.E
+function update_state!(mat::LinearElastic, state::ElasticPlaneStressState, dε::AbstractArray)
+    De = calcDe(mat.E, mat.ν, "plane-stress")
+    dσ = De*dε
+    state.ε += dε
+    state.σ += dσ
+    return dσ, success()
 end
 
 
-function update_state!(mat::LinearElastic, state::ElasticRodState, Δε::Float64)
-    Δσ = mat.E*Δε
-    state.ε += Δε
-    state.σ += Δσ
-    return Δσ, success()
+function ip_state_vals(mat::LinearElastic, state::ElasticPlaneStressState)
+    return stress_strain_dict(state.σ, state.ε, "plane-stress")
 end
-
-
-function ip_state_vals(mat::LinearElastic, state::ElasticRodState)
-    return OrderedDict(
-      :sX => state.σ,
-      :eX => state.ε,
-      )
-end
-
 
 
 # LinearElastic for beam elements
@@ -187,9 +161,6 @@ mutable struct ElasticBeamState<:IpState
         return this
     end
 end
-
-
-compat_state_type(::Type{LinearElastic}, ::Type{MechBeam}, env::ModelEnv) = ElasticBeamState
 
 
 function calcD(mat::LinearElastic, state::ElasticBeamState)
@@ -224,4 +195,27 @@ function ip_state_vals(mat::LinearElastic, state::ElasticBeamState)
         vals[:sXY] = state.σ[3]/SR2
     end
     return vals
+end
+
+
+# LinearElastic model for bar elements
+
+function calcD(mat::LinearElastic, ips::ElasticBarState)
+    return mat.E
+end
+
+
+function update_state!(mat::LinearElastic, state::ElasticBarState, Δε::Float64)
+    Δσ = mat.E*Δε
+    state.ε += Δε
+    state.σ += Δσ
+    return Δσ, success()
+end
+
+
+function ip_state_vals(mat::LinearElastic, state::ElasticBarState)
+    return OrderedDict(
+      :sX => state.σ,
+      :eX => state.ε,
+      )
 end

@@ -57,22 +57,22 @@ function Base.getproperty(mat::HMCombined, s::Symbol)
 end
 
 
-function calcD(mat::HMCombined, state::HMCombinedState, stressmodel::String=state.env.ana.stressmodel)
-    return calcD(mat.mmat, state.mstate, stressmodel)
+function calcD(mat::HMCombined, state::HMCombinedState)
+    return calcD(mat.mmat, state.mstate)
 end
 
 function calcK(mat::HMCombined, state::HMCombinedState) # Hydraulic conductivity matrix
     return calcK(mat.tmat, state.hstate)
 end
 
-function update_state!(mat::HMCombined, state::HMCombinedState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1}, Δt::Float64, stressmodel::String=state.env.ana.stressmodel)
+function update_state!(mat::HMCombined, state::HMCombinedState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
     QQ = update_state!(mat.tmat, state.hstate, Δut, G, Δt)
-    Δσ, status = update_state!(mat.mmat, state.mstate, Δε, stressmodel)
+    Δσ, status = update_state!(mat.mmat, state.mstate, Δε)
     return Δσ, QQ, status
 end
 
-function ip_state_vals(mat::HMCombined, state::HMCombinedState, stressmodel::String=state.env.ana.stressmodel)
+function ip_state_vals(mat::HMCombined, state::HMCombinedState)
     vals1 = ip_state_vals(mat.tmat, state.hstate)
-    vals2 = ip_state_vals(mat.mmat, state.mstate, stressmodel)
+    vals2 = ip_state_vals(mat.mmat, state.mstate)
     return merge(vals1, vals2)
 end

@@ -1,10 +1,10 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export PPRod
+export PPBar
 
 
 """
-    PPRod
+    PPBar
 
 A type for linear elastic perfectly plastic materials in rods.
 
@@ -12,7 +12,7 @@ A type for linear elastic perfectly plastic materials in rods.
 
 $(TYPEDFIELDS)
 """
-mutable struct PPRod<:Material
+mutable struct PPBar<:Material
     "Young modulus"
     E::Float64
     "Yielding stress"
@@ -23,14 +23,14 @@ mutable struct PPRod<:Material
     @doc """
         $(SIGNATURES)
 
-    Creates an `PPRod` material type
+    Creates an `PPBar` material type
 
     # Arguments
     - `E`: Young modulus
     - `fy`: Yielding stress
     - `H`: Hardening parameter
     """
-    function PPRod(; params...)
+    function PPBar(; params...)
         names = (E="Young modulus", fy="Yielding stress", H="Hardening modulus")
         required = (:E, :fy)    
         @checkmissing params required names
@@ -50,22 +50,22 @@ mutable struct PPRod<:Material
 end
 
 """
-    PPRodState
+    PPBarState
 
-A type for the state data of a PPRod type.
+A type for the state data of a PPBar type.
 
 # Fields
 
 $(TYPEDFIELDS)
 """
-mutable struct PPRodState<:IpState
+mutable struct PPBarState<:IpState
     env::ModelEnv
     σ::Float64
     ε::Float64
     εp::Float64
     Δγ ::Float64
 
-    function PPRodState(env::ModelEnv)
+    function PPBarState(env::ModelEnv)
         this = new(env)
         this.σ = 0.0
         this.ε = 0.0
@@ -75,25 +75,25 @@ mutable struct PPRodState<:IpState
     end
 end
 
-compat_state_type(::Type{PPRod}, ::Type{MechRod}, env::ModelEnv) = PPRodState
-compat_state_type(::Type{PPRod}, ::Type{MechEmbRod}, env::ModelEnv) = PPRodState
+compat_state_type(::Type{PPBar}, ::Type{MechBar}, env::ModelEnv) = PPBarState
+compat_state_type(::Type{PPBar}, ::Type{MechEmbBar}, env::ModelEnv) = PPBarState
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{PPRod}) = PPRodState
+compat_state_type(::Type{PPBar}) = PPBarState
 
 # Element types that work with this material
-compat_elem_types(::Type{PPRod}) = (MechRod,)
-compat_elem_type_if_embedded(::Type{PPRod}) = MechEmbRod
+compat_elem_types(::Type{PPBar}) = (MechBar,)
+compat_elem_type_if_embedded(::Type{PPBar}) = MechEmbBar
 
 
-function yield_func(mat::PPRod, state::PPRodState, σ::Float64)
+function yield_func(mat::PPBar, state::PPBarState, σ::Float64)
     σya = mat.fy + mat.H*state.εp
     return abs(σ) - σya
 end
 
 
-function calcD(mat::PPRod, state::PPRodState)
+function calcD(mat::PPBar, state::PPBarState)
     if state.Δγ == 0.0
         return mat.E
     else
@@ -103,7 +103,7 @@ function calcD(mat::PPRod, state::PPRodState)
 end
 
 
-function update_state!(mat::PPRod, state::PPRodState, Δε::Float64)
+function update_state!(mat::PPBar, state::PPBarState, Δε::Float64)
     E, H    = mat.E, mat.H
     σini    = state.σ
     σtr     = σini + E*Δε
@@ -118,7 +118,7 @@ function update_state!(mat::PPRod, state::PPRodState, Δε::Float64)
 end
 
 
-function ip_state_vals(mat::PPRod, state::PPRodState)
+function ip_state_vals(mat::PPBar, state::PPBarState)
     return OrderedDict{Symbol,Float64}(
         :sX  => state.σ,
         :eX  => state.ε,

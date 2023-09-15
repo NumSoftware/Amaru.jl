@@ -8,7 +8,8 @@ msh = Mesh(coord, conn)
 tag!(msh.elems, "bars")
 
 mats = [
-        "bars" << MechRod << PPRod << (E=210e6, fy=500e3, A=0.01),
+        # "bars" << MechBar << PPBar << (E=210e6, fy=500e3, A=0.01),
+        "bars" << MechBar << VonMises << (E=210e6, fy=500e3, A=0.01),
         #"bars" << PPRod << (E=210e6, A=0.01, sig_y=500e3, H=1000),
        ]
 

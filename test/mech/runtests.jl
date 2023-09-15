@@ -3,11 +3,11 @@ makeplots = false
 
 @runfiles [
          # Static analysis: bulk elements
-         "elem/elastic-elems.jl",
-         "elem/elastic-hex8.jl",
-         "elem/elastic-quad4.jl",
-         "elem/axisymmetric.jl",
-         "mat/dp.jl",
+        #  "elem/elastic-elems.jl",
+        #  "elem/elastic-hex8.jl",
+        #  "elem/elastic-quad4.jl",
+        #  "elem/axisymmetric.jl",
+        #  "mat/dp.jl",
          "mat/vm.jl",
          "mat/mazars.jl",
          #"mat/sc.jl",

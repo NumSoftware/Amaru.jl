@@ -25,48 +25,36 @@ mutable struct ElasticShellThermo<:Material
     E ::Float64 # Young's Modulus kN/m2
     ν::Float64 # Poisson coefficient
     k ::Float64 # thermal conductivity  w/m/k
-    α ::Float64 # thermal expansion coefficient  1/K or 1/°C
+    cv::Float64
+    # α ::Float64 # thermal expansion coefficient  1/K or 1/°C
 
-    function ElasticShellThermo(; params...)
-        names = (E="Young modulus", nu="Poisson ratio", k="Conductivity", alpha="Thermal expansion coefficient")
-        required = (:E, :k, :nu, :alpha)
-        @checkmissing params required names
-
-        params = (; params...)
-        E      = params.E
-        nu     = params.nu
-        k      = params.k
-        alpha  = params.alpha
-
-        @check E>=0.0
-        @check 0<=nu<0.5
-        @check k>0
-        @check 0<=alpha<=1
-        return new(E, nu, k, alpha)
+    function ElasticShellThermo(; args...)
+        args = checkargs(args, arg_rules(ElasticShellThermo))
+        
+        return new(args.E, args.nu, args.k, args.cv)
     end
 end
 
+arg_rules(::Type{ElasticShellThermo}) =
+[
+    @arginfo E E>0.0 "Young modulus"
+    @arginfo nu=0.0 0.0<=nu<0.5 "Poisson ratio"
+    @arginfo k k>=0 "Conductivity"
+    @arginfo cv=0 cv>=0 "Specific heat"
+]
+
 
 # Type of corresponding state structure
-compat_state_type(::Type{ElasticShellThermo}) = ElasticShellThermoState
-
-# Element types that work with this material
-compat_elem_types(::Type{ElasticShellThermo}) = (TMShell,)
+compat_state_type(::Type{ElasticShellThermo}, ::Type{TMShell}, env::ModelEnv) = ElasticShellThermoState
 
 
-function calcD(mat::ElasticShellThermo, state::ElasticShellThermoState, stressmodel="shell")
-    E = mat.E
-    ν = mat.ν
-    c = E/(1.0-ν^2)
-    g = E/(1+ν)
-    return [
-        c    c*ν   0.0  0.0    0.0    0.0
-        c*ν  c     0.0  0.0    0.0    0.0
-        0.0  0.0   0.0  0.0    0.0    0.0
-        0.0  0.0   0.0  5/6*g  0.0    0.0
-        0.0  0.0   0.0  0.0    5/6*g  0.0
-        0.0  0.0   0.0  0.0    0.0    g ]
-    # ezz = -ν/E*(sxx+syy)
+function calc_cv(mat::ElasticShellThermo, ut::Float64) # Specific heat
+    return mat.cv
+end
+
+
+function calcD(mat::ElasticShellThermo, state::ElasticShellThermoState)
+    return calcDe(mat.E, mat.ν, "plane-stress")
 end
 
 
@@ -79,7 +67,7 @@ function calcK(mat::ElasticShellThermo, state::ElasticShellThermoState) # Therma
 end
 
 
-function update_state!(mat::ElasticShellThermo, state::ElasticShellThermoState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1}, Δt::Float64, stressmodel="shell")
+function update_state!(mat::ElasticShellThermo, state::ElasticShellThermoState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
     De = calcD(mat, state)
     Δσ = De*Δε
     state.ε  += Δε
@@ -93,15 +81,7 @@ function update_state!(mat::ElasticShellThermo, state::ElasticShellThermoState, 
 end
 
 
-function ip_state_vals(mat::ElasticShellThermo, state::ElasticShellThermoState, stressmodel="shell")
+function ip_state_vals(mat::ElasticShellThermo, state::ElasticShellThermoState)
     D = stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
-    #=
-    D[:qx] = state.QQ[1] # VERIFICAR NECESSIDADE
-    D[:qy] = state.QQ[2] # VERIFICAR NECESSIDADE
-        if state.env.ndim==3 # VERIFICAR NECESSIDADE
-            D[:qz] = state.QQ[3] # VERIFICAR NECESSIDADE
-        end # VERIFICAR NECESSIDADE
-    =#
     return D
-    #return stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
 end

@@ -1,13 +1,13 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export MechRod
+export MechBar, MechRod
 
-struct MechRodProps<:ElemProperties
+struct MechBarProps<:ElemProperties
     ρ::Float64
     γ::Float64
     A::Float64
 
-    function MechRodProps(; props...)
+    function MechBarProps(; props...)
         names = (rho="Density", gamma="Specific weight", A="Section area")
         default = (rho=0.0, gamma=0.0)
         props   = merge(default, props)
@@ -25,33 +25,35 @@ end
 # 
 
 """
-    MechRod
+    MechBar
 
 A line finite element for mechanical equilibrium analyses.
 """
-mutable struct MechRod<:Mech
+mutable struct MechBar<:Mech
     id    ::Int
     shape ::CellShape
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
     mat::Material
-    props ::MechRodProps
+    props ::MechBarProps
     active::Bool
     linked_elems::Array{Element,1}
     env::ModelEnv
 
-    function MechRod()
+    function MechBar()
         return new()
     end
 end
 
-compat_shape_family(::Type{MechRod}) = LINECELL
-# compat_elem_types(::Type{MechRodProps}) = MechRod
-compat_elem_props(::Type{MechRod}) = MechRodProps
+const MechRod = MechBar
 
-embedded_type(::Type{MechRod}) = MechEmbRod
-# embedded_type(::Type{MechEmbRod}) = MechEmbRod
+compat_shape_family(::Type{MechBar}) = LINECELL
+# compat_elem_types(::Type{MechBarProps}) = MechBar
+compat_elem_props(::Type{MechBar}) = MechBarProps
+
+embedded_type(::Type{MechBar}) = MechEmbBar
+# embedded_type(::Type{MechEmbBar}) = MechEmbBar
 
 
 # function check_props(::Type{MechSolid}; props...)
@@ -72,7 +74,7 @@ embedded_type(::Type{MechRod}) = MechEmbRod
 # end
 
 
-function elem_stiffness(elem::MechRod)
+function elem_stiffness(elem::MechBar)
     local E::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
 
     ndim   = elem.env.ndim
@@ -107,7 +109,7 @@ function elem_stiffness(elem::MechRod)
 end
 
 
-function elem_mass(elem::MechRod)
+function elem_mass(elem::MechBar)
 
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
@@ -168,17 +170,17 @@ function setNt(ndim::Int,Ni::Vect, N::Matx)
 end
 
 
-function distributed_bc(elem::MechRod, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::MechBar, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
     return mech_line_distributed_forces(elem, key, val)
 end
 
 
-function body_c(elem::MechRod, key::Symbol, val::Union{Real,Symbol,Expr})
+function body_c(elem::MechBar, key::Symbol, val::Union{Real,Symbol,Expr})
     return mech_line_distributed_forces(elem, key, val)
 end
 
 
-function elem_internal_forces(elem::MechRod, F::Array{Float64,1})
+function elem_internal_forces(elem::MechBar, F::Array{Float64,1})
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
     A      = elem.props.A
@@ -212,12 +214,12 @@ function elem_internal_forces(elem::MechRod, F::Array{Float64,1})
 end
 
 
-function elem_activate(elem::MechRod, F::Array{Float64,1})
+function elem_activate(elem::MechBar, F::Array{Float64,1})
     elem_internal_forces(elem, F)
 end
 
 
-function update_elem!(elem::MechRod, U::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::MechBar, U::Array{Float64,1}, Δt::Float64)
 
     ndim   = elem.env.ndim 
     nnodes = length(elem.nodes)
@@ -255,7 +257,7 @@ function update_elem!(elem::MechRod, U::Array{Float64,1}, Δt::Float64)
 end
 
 
-function elem_vals(elem::MechRod)
+function elem_vals(elem::MechBar)
     # get ip average values
     ipvals = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
     sum  = merge(+, ipvals... )
