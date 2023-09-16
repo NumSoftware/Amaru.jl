@@ -6,21 +6,20 @@ export TMShell
 struct TMShellProps<:ElemProperties
     ρ::Float64
     γ::Float64
-    α::Float64 # thermal expansion coefficient  1/K or 1/°C
-    α_table::Array{Float64,2}
+    αs::Float64
     th::Float64
 
     function TMShellProps(; args...)
         args = checkargs(args, arg_rules(TMShellProps))   
-        if args.alpha isa Array
-            alpha = 0.0
-            alpha_table = args.alpha
-        else
-            alpha = args.alpha
-            alpha_table = zeros(0,0)
-        end
+        # if args.alpha isa Array
+        #     alpha = 0.0
+        #     alpha_table = args.alpha
+        # else
+        #     alpha = args.alpha
+        #     alpha_table = zeros(0,0)
+        # end
 
-        return new(args.rho, args.gamma, alpha, alpha_table, args.thickness)
+        return new(args.rho, args.gamma, args.alpha_s, args.thickness)
     end    
 end
 
@@ -29,8 +28,9 @@ arg_rules(::Type{TMShellProps}) =
 [
     @arginfo rho rho>0 "Density"
     @arginfo gamma=0 gamma>=0 "Specific weight"
-    @arginfo alpha 1==1 "Thermal expansion coefficient"
+    # @arginfo alpha 1==1 "Thermal expansion coefficient"
     @arginfo thickness thickness>0 "Thickness"
+    @arginfo alpha_s=5/6 alpha_s>0 "Shear correction coefficient"
 ]
 
 
@@ -46,7 +46,7 @@ mutable struct TMShell<:Thermomech
     active::Bool
     linked_elems::Array{Element,1}
     env   ::ModelEnv
-    Dlmn::Array{ Array{Float64,2}, 1}
+    Dlmn::Array{ SMatrix{3,3,Float64}, 1}
 
     function TMShell();
         return new()
@@ -58,29 +58,29 @@ compat_shape_family(::Type{TMShell}) = BULKCELL
 compat_elem_props(::Type{TMShell}) = TMShellProps
 
 
-function calc_α(elem::TMShell, ut::Float64) # thermal expansion coefficient  1/K or 1/°C
-    length(elem.props.α_table)==0 && return elem.props.α
+# function calc_α(elem::TMShell, ut::Float64) # thermal expansion coefficient  1/K or 1/°C
+#     length(elem.props.α_table)==0 && return elem.props.α
 
-    T = elem.props.α_table[:,1]
-    A = elem.props.α_table[:,2]
+#     T = elem.props.α_table[:,1]
+#     A = elem.props.α_table[:,2]
 
-    i = searchsortedfirst(T, ut)
-    if i==1
-        α = A[1]
-    elseif i>length(T)
-        α = A[end]
-    else
-        α = A[i-1] + (ut-T[i-1]) * (A[i]-A[i-1])/(T[i]-T[i-1])
-    end
+#     i = searchsortedfirst(T, ut)
+#     if i==1
+#         α = A[1]
+#     elseif i>length(T)
+#         α = A[end]
+#     else
+#         α = A[i-1] + (ut-T[i-1]) * (A[i]-A[i-1])/(T[i]-T[i-1])
+#     end
 
-    return α
-end
+#     return α
+# end
 
 
 function elem_init(elem::TMShell)
-    
+    # Compute nodal rotation matrices
     nnodes = length(elem.nodes)
-    Dlmn = Array{Float64,2}[]
+    elem.Dlmn = Array{SMatrix{3,3,Float64}}(undef,nnodes)
     C = getcoords(elem)
 
     for i in 1:nnodes
@@ -96,16 +96,15 @@ function elem_init(elem::TMShell)
         normalize!(V2)
         normalize!(V3)
 
-        push!(Dlmn, [V1'; V2'; V3' ])
+        elem.Dlmn[i] = [V1'; V2'; V3' ]
     end
-    elem.Dlmn = Dlmn
 
     return nothing
 end
 
 
 function setquadrature!(elem::TMShell, n::Int=0)
-
+    # Set integration points
     if n in (8, 18)
         n = div(n,2)
     end
@@ -138,9 +137,9 @@ function setquadrature!(elem::TMShell, n::Int=0)
 
 end
 
-# DUVIDA!!!!!!
+
 function distributed_bc(elem::TMShell, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
-        return mech_shell_boundary_forces(elem, facet, key, val)
+    return mech_shell_boundary_forces(elem, facet, key, val)
 end
 
 
@@ -151,7 +150,7 @@ end
 
 function elem_config_dofs(elem::TMShell)
     ndim = elem.env.ndim
-    ndim in (1,2) && error("TMShell: Shell elements do not work in $(ndim)d analyses")
+    ndim==3 || error("MechShell: Shell elements do not work in $(ndim)d analyses")
     for node in elem.nodes
         add_dof(node, :ux, :fx)
         add_dof(node, :uy, :fy)
@@ -159,9 +158,10 @@ function elem_config_dofs(elem::TMShell)
         add_dof(node, :rx, :mx)
         add_dof(node, :ry, :my)
         add_dof(node, :rz, :mz)
-        add_dof(node, :ut, :ft) # VERIFICAR
+        add_dof(node, :ut, :ft)
     end
 end
+
 
 @inline function elem_map_u(elem::TMShell)
     keys =(:ux, :uy, :uz, :rx, :ry, :rz)
@@ -190,13 +190,13 @@ function set_rot_x_xp(elem::TMShell, J::Matx, R::Matx)
 end
 
 
-function calcS(elem::TMShell, α::Float64)
+function calcS(elem::TMShell, αs::Float64)
     return @SMatrix [ 
         1.  0.  0.  0.  0.  0.
         0.  1.  0.  0.  0.  0.
         0.  0.  1.  0.  0.  0.
-        0.  0.  0.  α   0.  0.
-        0.  0.  0.  0.  α   0.
+        0.  0.  0.  αs  0.  0.
+        0.  0.  0.  0.  αs  0.
         0.  0.  0.  0.  0.  1. ]
 end
 
@@ -210,14 +210,11 @@ function setB(elem::TMShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx, B
     for i in 1:nnodes
         ζ = ip.R[3]
         Rrot[1:3,1:3] .= L
-        #Rrot[4:5,4:6] .= L[1:2,:]
-        #  Rrot[1:3,1:3] .= elem.Dlmn[i]
         Rrot[4:5,4:6] .= elem.Dlmn[i][1:2,:]
         dNdx = dNdX[i,1]
         dNdy = dNdX[i,2]
         Ni = N[i]
-
-        
+ 
         Bil[1,1] = dNdx;                                                                                Bil[1,5] = dNdx*ζ*th/2
                              Bil[2,2] = dNdy;                           Bil[2,4] = -dNdy*ζ*th/2
                                                   
@@ -244,7 +241,7 @@ function elem_stiffness(elem::TMShell)
     Rrot   = zeros(5,ndof)
     Bil    = zeros(nstr,5)
     Bi     = zeros(nstr,ndof)
-    S      = calcS(elem, elem.props.α)
+    S      = calcS(elem, elem.props.αs)
 
     for ip in elem.ips
         N    = elem.shape.func(ip.R)
@@ -257,8 +254,6 @@ function elem_stiffness(elem::TMShell)
         dNdX′ = dNdR*invJ′
 
         D = calcD(elem.mat, ip.state)
-        #@show D
-        #error()
 
         detJ′ = det(J′)
         @assert detJ′>0
@@ -274,8 +269,6 @@ function elem_stiffness(elem::TMShell)
     end
 
     map = elem_map_u(elem)
-    #@show K
-    #error()
     return K, map, map
 end
 
@@ -344,7 +337,7 @@ function elem_coupling_matrix(elem::TMShell)
         detJ′ = det(J′)
         @assert detJ′>0
         # compute Cut
-        α    = calc_α(elem, ip.state.ut)
+        α    = calc_α(elem.mat, ip.state.ut)
         β    = elem.mat.E*α/(1-2*elem.mat.ν) 
         coef  = β
         coef *= detJ′*ip.w
@@ -523,12 +516,10 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     Bil  = zeros(6,5)
     Bi   = zeros(6,ndof)
     Δε   = zeros(6)
-    S    = calcS(elem, elem.props.α)
+    S    = calcS(elem, elem.props.αs)
 
 
     for ip in elem.ips
-        #elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
-
         # compute Bu and Bt matrices
         N = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R) # 3xn
@@ -559,13 +550,10 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
         Δσ, q, status = update_state!(elem.mat, ip.state, Δε, Δut, G, Δt)
         failed(status) && return [dF; dFt], [map_u; map_t], status
 
-        α = calc_α(elem, ip.state.ut)
+        α = calc_α(elem.mat, ip.state.ut)
         β = elem.mat.E*α/(1-2*elem.mat.ν)
 
-        #error()
         Δσ -= β*Δut*m # get total stress
-        #@showm Δσ
-        #error()
     
         detJ′ = det(J′)
         #coef = detJ′*ip.w*th

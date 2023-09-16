@@ -74,7 +74,7 @@ end
 compat_state_type(::Type{ElasticJoint}, ::Type{MechJoint}, env::ModelEnv) = JointState
 
 
-function mountD(mat::ElasticJoint, state::JointState)
+function calcD(mat::ElasticJoint, state::JointState)
     ndim = state.env.ndim
     if isnan(mat.kn*mat.ks)
         G  = mat.E/(1.0+mat.ν)/2.0
@@ -98,7 +98,7 @@ end
 
 function update_state!(mat::ElasticJoint, state::JointState, Δu)
     ndim = state.env.ndim
-    D  = mountD(mat, state)
+    D  = calcD(mat, state)
     Δσ = D*Δu
 
     state.w[1:ndim] += Δu

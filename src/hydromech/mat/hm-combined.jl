@@ -25,6 +25,18 @@ function Base.getproperty(state::HMCombinedState, s::Symbol)
 end
 
 
+function Base.setproperty!(state::HMCombinedState, s::Symbol, value)
+    hstate = getfield(state, :hstate)
+    mstate = getfield(state, :mstate)
+    fields1 = propertynames(hstate)
+    fields2 = propertynames(mstate)
+    
+    s in fields1 && return setfield!(hstate, s, value)
+    s in fields2 && return setfield!(hstate, s, value)
+    error("type HMCombinedState has no field $s")
+end
+
+
 mutable struct HMCombined{M1,M2}<:Material
     tmat::M1 # hydro
     mmat::M2 # mech
@@ -39,7 +51,7 @@ end
 
 # Type of corresponding state structure
 compat_state_type(::Type{HMCombined{M1,M2}}, ::Type{HMSolid}, env::ModelEnv) where {M1,M2} = HMCombinedState{compat_state_type(M1,SeepSolid,env), compat_state_type(M2,MechSolid,env)} 
-compat_state_type(::Type{HMCombined{M1,M2}}, ::Type{HMJoint}, env::ModelEnv) where {M1,M2} = HMCombinedState{compat_state_type(M1,HMJoint,env), compat_state_type(M2,HMJoint,env)} 
+compat_state_type(::Type{HMCombined{M1,M2}}, ::Type{HMJoint}, env::ModelEnv) where {M1,M2} = HMCombinedState{compat_state_type(M1,HydroJoint,env), compat_state_type(M2,MechJoint,env)} 
 
 # compat_elem_types(::Type{HMCombined{M1,M2}}) where {M1,M2} = (HMSolid, HMJoint)
 

@@ -5,14 +5,14 @@ export MechShell
 struct MechShellProps<:ElemProperties
     ρ::Float64
     γ::Float64
-    α::Float64
+    αs::Float64
     th::Float64
 
     function MechShellProps(; args...)
 
         args = checkargs(args, arg_rules(MechShellProps))
 
-        return new(args.rho, args.gamma, args.alpha, args.thickness)
+        return new(args.rho, args.gamma, args.alpha_s, args.thickness)
     end
 end
 
@@ -21,7 +21,7 @@ arg_rules(::Type{MechShellProps}) =
     @arginfo rho=0.0 rho>=0.0 "Density"
     @arginfo gamma=0.0 gamma>=0.0 "Specific weight"
     @arginfo thickness thickness>0.0 "Thickness"
-    @arginfo alpha=5/6 alpha>0 "Shear correction coef."
+    @arginfo alpha_s=5/6 alpha_s>0 "Shear correction coef."
 ]
 
 
@@ -53,24 +53,24 @@ compat_shape_family(::Type{MechShell}) = BULKCELL
 compat_elem_props(::Type{MechShell}) = MechShellProps
 
 
-function check_props(::Type{MechShell}; props...)
-    names = (rho="Density", gamma="Specific weight", thickness="Thickness")
-    required = (:thickness,)
+# function check_props(::Type{MechShell}; props...)
+#     names = (rho="Density", gamma="Specific weight", thickness="Thickness")
+#     required = (:thickness,)
 
-    @checkmissing props required names
+#     @checkmissing props required names
 
-    default = (rho=0.0, gamma=0.0)
-    props   = merge(default, props)
-    rho     = props.rho
-    gamma   = props.gamma
-    thickness = props.thickness
+#     default = (rho=0.0, gamma=0.0)
+#     props   = merge(default, props)
+#     rho     = props.rho
+#     gamma   = props.gamma
+#     thickness = props.thickness
 
-    @check rho>=0
-    @check gamma>=0
-    @check thickness>0
+#     @check rho>=0
+#     @check gamma>=0
+#     @check thickness>0
 
-    return (props..., th=thickness)
-end
+#     return (props..., th=thickness)
+# end
 
 
 function elem_init(elem::MechShell)
@@ -180,15 +180,16 @@ function set_rot_x_xp(elem::MechShell, J::Matx, R::Matx)
     R[3,:] .= V3
 end
 
-function calcS(elem::MechShell, α::Float64)
+function calcS(elem::MechShell, αs::Float64)
     return @SMatrix [ 
         1.  0.  0.  0.  0.  0.
         0.  1.  0.  0.  0.  0.
         0.  0.  1.  0.  0.  0.
-        0.  0.  0.  α   0.  0.
-        0.  0.  0.  0.  α   0.
+        0.  0.  0.  αs  0.  0.
+        0.  0.  0.  0.  αs  0.
         0.  0.  0.  0.  0.  1. ]
 end
+
 
 function setB(elem::MechShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx, Bil::Matx, Bi::Matx, B::Matx)
     nnodes = size(dNdX,1)
@@ -287,7 +288,7 @@ function elem_stiffness(elem::MechShell)
     Rrot   = zeros(5,ndof)
     Bil    = zeros(nstr,5)
     Bi     = zeros(nstr,ndof)
-    S      = calcS(elem, elem.props.α)
+    S      = calcS(elem, elem.props.αs)
 
     for ip in elem.ips
         N    = elem.shape.func(ip.R)
@@ -299,10 +300,7 @@ function elem_stiffness(elem::MechShell)
         dNdR  = [ dNdR zeros(nnodes) ]
         dNdX′ = dNdR*invJ′
 
-        # D = calcD(elem.mat, ip.state)
         D = calcD(elem.mat, ip.state)
-        #@show D
-        #error()
 
         detJ′ = det(J′)
         @assert detJ′>0
@@ -318,8 +316,6 @@ function elem_stiffness(elem::MechShell)
     end
 
     map = elem_map(elem)
-    #@show K
-    #error()
     return K, map, map
 end
 
@@ -379,7 +375,7 @@ function update_elem!(elem::MechShell, U::Array{Float64,1}, dt::Float64)
     Bil  = zeros(6,5)
     Bi   = zeros(6,ndof)
     Δε   = zeros(6)
-    S    = calcS(elem, elem.props.α)
+    S    = calcS(elem, elem.props.αs)
 
 
     for ip in elem.ips
@@ -398,8 +394,6 @@ function update_elem!(elem::MechShell, U::Array{Float64,1}, dt::Float64)
         Δε = B*dU
         Δσ, status = update_state!(elem.mat, ip.state, Δε)
         failed(status) && return dF, map, failure("MechShell: Error at integration point $(ip.id)")
-        #@showm Δσ
-        #error()
 
         detJ′ = det(J′)
         coef  = detJ′*ip.w

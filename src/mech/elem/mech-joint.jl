@@ -143,7 +143,7 @@ function elem_stiffness(elem::MechJoint)
 
         # compute K
         coef = detJ*ip.w*th
-        D    = mountD(elem.mat, ip.state)
+        D    = calcD(elem.mat, ip.state)
         @mul DB = D*B
         @mul K += coef*B'*DB
     end

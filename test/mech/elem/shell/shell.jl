@@ -26,6 +26,6 @@ bcs =
     :(z==0.0) << NodeBC(uz=0, ry=0),
     :(y==$L/2 && z==$R) << NodeBC(fz=-0.01),
     ]
-addstage!(model, bcs, nouts=1)
+addstage!(model, bcs, nincs=1)
 
 solve!(model, tol=0.1)

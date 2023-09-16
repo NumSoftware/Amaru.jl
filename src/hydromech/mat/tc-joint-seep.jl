@@ -100,14 +100,14 @@ compat_state_type(::Type{TCJointSeep}) = TCJointSeepState
 compat_elem_types(::Type{TCJointSeep}) = (HMJoint,)
 
 
-function mountD(mat::TCJointSeep, state::TCJointSeepState)
+function calcD(mat::TCJointSeep, state::TCJointSeepState)
     if mat.fracture 
         # state.up = max(mat.wc, state.up)
         # state.w[1] = mat.w
         # mat.fracture = false
     end 
 
-    invoke(mountD, Tuple{Material, IpState}, mat, state)
+    invoke(calcD, Tuple{Material, IpState}, mat, state)
 end
 
 

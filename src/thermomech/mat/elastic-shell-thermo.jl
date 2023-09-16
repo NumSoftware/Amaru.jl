@@ -26,7 +26,7 @@ mutable struct ElasticShellThermo<:Material
     ν::Float64 # Poisson coefficient
     k ::Float64 # thermal conductivity  w/m/k
     cv::Float64
-    # α ::Float64 # thermal expansion coefficient  1/K or 1/°C
+    α ::Float64 # thermal expansion coefficient  1/K or 1/°C
 
     function ElasticShellThermo(; args...)
         args = checkargs(args, arg_rules(ElasticShellThermo))
@@ -41,6 +41,7 @@ arg_rules(::Type{ElasticShellThermo}) =
     @arginfo nu=0.0 0.0<=nu<0.5 "Poisson ratio"
     @arginfo k k>=0 "Conductivity"
     @arginfo cv=0 cv>=0 "Specific heat"
+    @arginfo alpha alpha>=0 "Thermal expansion coefficient"
 ]
 
 
@@ -52,6 +53,9 @@ function calc_cv(mat::ElasticShellThermo, ut::Float64) # Specific heat
     return mat.cv
 end
 
+function calc_α(mat::ElasticShellThermo, ut::Float64) # Specific heat
+    return mat.α
+end
 
 function calcD(mat::ElasticShellThermo, state::ElasticShellThermoState)
     return calcDe(mat.E, mat.ν, "plane-stress")
@@ -68,7 +72,7 @@ end
 
 
 function update_state!(mat::ElasticShellThermo, state::ElasticShellThermoState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
-    De = calcD(mat, state)
+    De = calcDe(mat.E, mat.ν, "plane-stress")
     Δσ = De*Δε
     state.ε  += Δε
     state.σ  += Δσ

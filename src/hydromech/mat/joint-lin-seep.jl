@@ -59,10 +59,10 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{LeakoffJoint}) = LeakoffJointState
+compat_state_type(::Type{LeakoffJoint}, ::Type{HydroJoint}, env::ModelEnv) = LeakoffJointState
 
 # Element types that work with this material
-compat_elem_types(::Type{LeakoffJoint}) = (HydroJoint,)
+# compat_elem_types(::Type{LeakoffJoint}) = (HydroJoint,)
 
 
 function update_state!(mat::LeakoffJoint, state::LeakoffJointState, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)

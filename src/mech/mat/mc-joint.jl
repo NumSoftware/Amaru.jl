@@ -28,67 +28,49 @@ mutable struct MCJoint<:Material
     μ  ::Float64      # tangent of friction angle
     ζ  ::Float64      # factor ζ controls the elastic relative displacements (formerly α)
     wc ::Float64      # critical crack opening
-    ws ::Float64      # openning at inflection (where the curve slope changes)
-    softcurve::String # softening curve model ("linear" or bilinear" or "hordijk")
+    scurve::String    # softening curve model ("linear" or bilinear" or "hordijk")
 
 
-    function MCJoint(; params...)
-        names = (E="Young modulus", nu="Poisson ratio", kn="Normal stiffness per area", ks="shear stiffness per area", 
-        mu="Tangent of the friction angle", ft="Tensile strength",
-        zeta="elastic displacement scale factor", wc="Critical crack opening", ws="Crack opening at inflection", softcurve="softening curve")
+    function MCJoint(; args...)
+        args = checkargs(args, arg_rules(MCJoint))
+
+        wc = args.wc
+        ft = args.ft
+        scurve = args.scurve
         
-        required = (:E, :nu, :ft, :zeta, :mu)
-        @checkmissing params required names
-
-        default = (E=NaN, nu=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="hordijk")
-        params  = merge(default, params)
-        E       = params.E
-        nu      = params.nu
-        ft      = params.ft
-        mu      = params.mu
-        wc      = params.wc
-        ws      = params.ws
-        GF      = params.GF
-        zeta    = params.zeta
-        softcurve = params.softcurve
-
-        @check GF>0 || Gf>0 || wc>0
-        @check E>0.0    
-        @check 0<=nu<0.5
-        @check ft>=0  
-        @check mu>=0  
-        @check zeta>0
-        @check softcurve in ("linear", "bilinear", "hordijk", "soft")
-
+        @check scurve in ("linear", "hordijk", "soft")
+        
         if isnan(wc)
-            if softcurve == "linear"
-                 wc = round(2*GF/ft, digits=10)
-            elseif softcurve == "bilinear"
-                if isnan(Gf)
-                    wc = round(5*GF/ft, digits=10)
-                    ws = round(wc*0.15, digits=10)
-                else
-                    wc = round((8*GF- 6*Gf)/ft, digits=10)
-                    ws = round(1.5*Gf/ft, digits=10)
-                end
-            elseif softcurve=="hordijk" || softcurve=="soft"
-                wc = round(GF/(0.1947019536*ft), digits=10) 
+            GF = args.GF
+            if scurve == "linear"
+                wc = round(2*GF/ft, digits=8)
+            elseif scurve=="hordijk" || scurve=="soft"
+                wc = round(GF/(0.1947019536*ft), digits=8) 
             end    
         end
 
-        @check isnan(ws) || ws>0
-
-        this = new(E, nu, ft, mu, zeta, wc, ws, softcurve)
+        this = new(args.E, args.nu, args.ft, args.mu, args.zeta, wc, scurve)
         return this
     end
 end
 
 
+arg_rules(::Type{MCJoint}) = 
+[
+    # @arginfo kn kn>=0.0 "Normal stiffness per area"
+    @argopt  wc  GF
+    @arginfo E       E>0        "Young modulus"
+    @arginfo nu=0    0<=nu<0.5  "Poisson ratio"
+    @arginfo ft=0    ft>0       "Poisson ratio"
+    @arginfo mu      mu>=0      "Tangent of the friction angle"
+    @arginfo zeta    zeta>=0    "Elastic displacement factor"
+    @arginfo GF      GF>=0      "Fracture energy"
+    @arginfo wc=NaN  wc>=0      "Critical opening"
+    @arginfo scurve="hordijk"  1==1  "Softening curve"
+]
+
 # Type of corresponding state structure
 compat_state_type(::Type{MCJoint}, ::Type{MechJoint}, env::ModelEnv) = MCJointState
-
-# Element types that work with this material
-# compat_elem_types(::Type{MCJoint}) = (MechJoint,)
 
 
 function yield_func(mat::MCJoint, state::MCJointState, σ::Array{Float64,1})
@@ -136,7 +118,7 @@ end
 
 
 function calc_σmax(mat::MCJoint, state::MCJointState, up::Float64)
-    if mat.softcurve == "linear"
+    if mat.scurve == "linear"
         if up < mat.wc
             a = mat.ft 
             b = mat.ft /mat.wc
@@ -145,7 +127,7 @@ function calc_σmax(mat::MCJoint, state::MCJointState, up::Float64)
             b = 0.0
         end
         σmax = a - b*up
-    elseif mat.softcurve == "bilinear"
+    elseif mat.scurve == "bilinear"
         σs = 0.25*mat.ft 
         if up < mat.ws
             a  = mat.ft  
@@ -158,7 +140,7 @@ function calc_σmax(mat::MCJoint, state::MCJointState, up::Float64)
             b = 0.0
         end
         σmax = a - b*up
-    elseif mat.softcurve == "hordijk"
+    elseif mat.scurve == "hordijk"
         if up < mat.wc
             e = exp(1.0)
             z = (1 + 27*(up/mat.wc)^3)*e^(-6.93*up/mat.wc) - 28*(up/mat.wc)*e^(-6.93)           
@@ -166,7 +148,7 @@ function calc_σmax(mat::MCJoint, state::MCJointState, up::Float64)
             z = 0.0
         end
         σmax = z*mat.ft 
-    elseif mat.softcurve == "soft"
+    elseif mat.scurve == "soft"
         m = 0.55
         a = 1.30837
         if up == 0.0
@@ -186,14 +168,14 @@ end
 
 function σmax_deriv(mat::MCJoint, state::MCJointState, up::Float64)
     # ∂σmax/∂up = dσmax
-    if mat.softcurve == "linear"
+    if mat.scurve == "linear"
         if up < mat.wc
             b = mat.ft /mat.wc
         else
             b = 0.0
         end
         dσmax = -b
-    elseif mat.softcurve == "bilinear"
+    elseif mat.scurve == "bilinear"
         σs = 0.25*mat.ft 
         if up < mat.ws
             b  = (mat.ft  - σs)/mat.ws
@@ -203,7 +185,7 @@ function σmax_deriv(mat::MCJoint, state::MCJointState, up::Float64)
             b = 0.0
         end
         dσmax = -b
-    elseif mat.softcurve == "hordijk"
+    elseif mat.scurve == "hordijk"
         if up < mat.wc
             e = exp(1.0)
             dz = ((81*up^2*e^(-6.93*up/mat.wc)/mat.wc^3) - (6.93*(1 + 27*up^3/mat.wc^3)*e^(-6.93*up/mat.wc)/mat.wc) - 0.02738402432/mat.wc)
@@ -211,7 +193,7 @@ function σmax_deriv(mat::MCJoint, state::MCJointState, up::Float64)
             dz = 0.0
         end
         dσmax = dz*mat.ft 
-    elseif mat.softcurve == "soft"
+    elseif mat.scurve == "soft"
         m = 0.55
         a = 1.30837
 
@@ -345,7 +327,7 @@ function calc_σ_upa(mat::MCJoint, state::MCJointState, σtr::Array{Float64,1})
 end
 
 
-function mountD(mat::MCJoint, state::MCJointState)
+function calcD(mat::MCJoint, state::MCJointState)
     ndim = state.env.ndim
     kn, ks, De = calc_kn_ks_De(mat, state)
     σmax = calc_σmax(mat, state, state.up)

@@ -608,6 +608,7 @@ function update_state!(mat::VonMises, state::VonMisesBarState, Δε::Float64)
 
     if ftr<0
         state.Δλ = 0.0
+        state.σ   = σtr
     else
         state.Δλ  = ftr/(E+H)
         Δεp       = state.Δλ*sign(σtr)

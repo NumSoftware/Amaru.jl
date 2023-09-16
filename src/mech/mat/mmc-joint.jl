@@ -300,7 +300,7 @@ function calc_σ_upa(mat::MMCJoint, state::MMCJointState, σtr::Array{Float64,1}
 end
 
 
-function mountD(mat::MMCJoint, state::MMCJointState)
+function calcD(mat::MMCJoint, state::MMCJointState)
     ndim = state.env.ndim
     kn, ks = calc_kn_ks(mat, state)
     σmax = calc_σmax(mat, state, state.up)

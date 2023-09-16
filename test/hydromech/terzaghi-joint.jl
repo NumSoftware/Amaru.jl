@@ -46,7 +46,7 @@ for i in 1:2
         # "joints" << HMJoint << HMCombined{LeakoffJoint,ElasticJoint} << (E=E, nu=nu, zeta=100, eta=eta, kt=1),
 
         "joints" << HMJoint << MCJointSeep << (E=E, nu=nu, ft=2.4e3, mu=1.4, zeta=100, wc=1.7e-4, ws=1.85e-5, softcurve="hordijk", eta=eta, kt=1),
-        # "joints" << HMJoint << HMCombined{LeakoffJoint,MCJoint} << (E=E, nu=nu, ft=2.4e3, mu=1.4, zeta=100, wc=1.7e-4, ws=1.85e-5, softcurve="hordijk", eta=eta, kt=1),
+        # "joints" << HMJoint << HMCombined{LeakoffJoint,MCJoint} << (E=E, nu=nu, ft=2.4e3, mu=1.4, zeta=100, wc=1.7e-4, ws=1.85e-5, eta=eta, kt=1),
     ]
 
     if i==1

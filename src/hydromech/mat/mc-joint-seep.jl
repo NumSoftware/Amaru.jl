@@ -9,7 +9,6 @@ mutable struct MCJointSeepState<:IpState
     Vt ::Array{Float64,1}  # transverse fluid velocity
     #D   ::Array{Float64,1}  # distance traveled by the fluid
     L  ::Array{Float64,1} 
-    #S   ::Array{Float64,1}
     uw ::Array{Float64,1}  # interface pore pressure
     up ::Float64           # effective plastic relative displacement
     Δλ ::Float64           # plastic multiplier
@@ -22,7 +21,6 @@ mutable struct MCJointSeepState<:IpState
         this.Vt  = zeros(2) 
         #this.D   = zeros(2) 
         this.L   = zeros(ndim-1)
-        #this.S   = zeros(ndim-1)
         this.uw  = zeros(3) 
         this.up = 0.0
         this.Δλ  = 0.0
@@ -38,7 +36,6 @@ mutable struct MCJointSeep<:Material
     μ  ::Float64       # tangent of friction angle
     ζ  ::Float64       # factor ζ controls the elastic relative displacements (formerly α)
     wc ::Float64       # critical crack opening
-    ws ::Float64       # openning at inflection (where the curve slope changes)
     softcurve::String  # softening curve model ("linear" or bilinear" or "hordijk")
     β  ::Float64       # compressibility of fluid
     η  ::Float64       # viscosity
@@ -46,52 +43,51 @@ mutable struct MCJointSeep<:Material
     w ::Float64        # initial fracture opening (longitudinal flow)
     fracture::Bool     # pre-existing fracture (true or false)
 
-     function MCJointSeep(;E=NaN, nu=NaN, ft=NaN, mu=NaN, zeta=NaN, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="bilinear", beta=0.0, eta=NaN, kt=NaN, w=0.0, fracture=false)  
+     function MCJointSeep(; args...)
+        args = checkargs(args, arg_rules(MCJointSeep))
 
-        !(isnan(GF) || GF>0) && error("Invalid value for GF: $GF")
-        !(isnan(Gf) || Gf>0) && error("Invalid value for Gf: $Gf")
-
+        wc = args.wc
+        ft = args.ft
+        scurve = args.scurve
+        
+        @check scurve in ("linear", "hordijk", "soft")
+        
         if isnan(wc)
-            if softcurve == "linear"
-                 wc = round(2*GF/ft, digits=10)
-            elseif softcurve == "bilinear"
-                if isnan(Gf)
-                    wc = round(5*GF/ft, digits=10)
-                    ws = round(wc*0.15, digits=10)
-                else
-                    wc = round((8*GF- 6*Gf)/ft, digits=10)
-                    ws = round(1.5*Gf/ft, digits=10)
-                end
-            elseif softcurve == "hordijk"
-                wc = round(GF/(0.1947019536*ft), digits=10)
+            GF = args.GF
+            if scurve == "linear"
+                wc = round(2*GF/ft, digits=8)
+            elseif scurve=="hordijk" || scurve=="soft"
+                wc = round(GF/(0.1947019536*ft), digits=8) 
             end    
         end
 
-        @check E>0.0
-        @check 0<=nu<0.5
-        @check ft>=0
-        @check mu>0
-        @check zeta>0
-        @check wc>0
-        @check isnan(ws) || ws>0
-        (softcurve=="linear" || softcurve=="bilinear" || softcurve=="hordijk") || error("Invalid softcurve: softcurve must to be linear or bilinear or hordijk")
-        @check beta>= 0
-        @check eta>=0
-        @check kt>=0
-        @check w>=0
-        (fracture==true || fracture==false) || error("Invalid fracture: fracture must to be true or false")
-
-        this = new(E, nu, ft, mu, zeta, wc, ws, softcurve, beta, eta, kt, w, fracture)
+        this = new(args.E, args.nu, args.ft, args.mu, args.zeta, wc, scurve, args.beta, args.eta, args.kt, args.w, args.fracture)
         return this
     end
 end
 
 
+arg_rules(::Type{MCJointSeep}) = 
+[
+    @argopt  wc  GF
+    @arginfo E       E>0        "Young modulus"
+    @arginfo nu=0    0<=nu<0.5  "Poisson ratio"
+    @arginfo ft=0    ft>0       "Poisson ratio"
+    @arginfo mu      mu>=0      "Tangent of the friction angle"
+    @arginfo zeta    zeta>=0    "Elastic displacement factor"
+    @arginfo GF      GF>=0      "Fracture energy"
+    @arginfo wc=NaN  wc>=0      "Critical opening"
+    @arginfo scurve="hordijk"  1==1  "Softening curve"
+    @arginfo beta=0  beta>=0    "Compressibility of fluid"
+    @arginfo eta     eta>=0     "Viscosity"
+    @arginfo kt      kt>=0      "Transverse leak-off coefficient"
+    @arginfo w=0     w>=0       "Initial fracture opening (longitudinal flow)"
+    @arginfo fracture=false 1==1      "Pre-existing fracture"
+]
+
+
 # Type of corresponding state structure
 compat_state_type(::Type{MCJointSeep}, ::Type{HMJoint}, env::ModelEnv) = MCJointSeepState
-
-# Element types that work with this material
-# compat_elem_types(::Type{MCJointSeep}) = (HMJoint,)
 
 
 function yield_func(mat::MCJointSeep, state::MCJointSeepState, σ::Array{Float64,1})
@@ -321,7 +317,7 @@ function calc_σ_upa(mat::MCJointSeep, state::MCJointSeepState, σtr::Array{Floa
 end
 
 
-function mountD(mat::MCJointSeep, state::MCJointSeepState)
+function calcD(mat::MCJointSeep, state::MCJointSeepState)
 
     ndim = state.env.ndim
     kn, ks, De = calc_kn_ks_De(mat, state)

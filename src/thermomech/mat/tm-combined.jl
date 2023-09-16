@@ -28,20 +28,55 @@ end
 mutable struct TMCombined{M1,M2}<:Material
     tmat::M1 # thermo
     mmat::M2 # mech
+    α::Float64 # thermal expansion coefficient
+    α_table::Array{Float64,2}
 
-    function TMCombined{M1,M2}(; params...) where {M1,M2}
-        tmat = M1(;params...)
-        mmat = M2(;params...)
-        
-        return new{M1,M2}(tmat, mmat)
+    function TMCombined{M1,M2}(; args...) where {M1,M2}
+        tmat = M1(;args...)
+        mmat = M2(;args...)
+
+        args = checkargs(args, arg_rules(TMCombined{M1,M2}))
+
+        if args.alpha isa Array
+            alpha = 0.0
+            alpha_table = args.alpha
+        else
+            alpha = args.alpha
+            alpha_table = zeros(0,0)
+        end
+
+        return new{M1,M2}(tmat, mmat, alpha, alpha_table)
     end
 end
+
+# Additional parameters for THCombined
+arg_rules(::Type{TMCombined{M1,M2}}) where {M1,M2} = 
+[
+    @arginfo alpha 1==1 "Thermal expansion coefficient"
+]
+
+function calc_α(mat::TMCombined{M1,M2}, ut::Float64) where {M1,M2} # thermal expansion coefficient  1/K or 1/°C
+    length(mat.α_table)==0 && return mat.α
+
+    T = elem.props.α_table[:,1]
+    A = elem.props.α_table[:,2]
+
+    i = searchsortedfirst(T, ut)
+    if i==1
+        α = A[1]
+    elseif i>length(T)
+        α = A[end]
+    else
+        α = A[i-1] + (ut-T[i-1]) * (A[i]-A[i-1])/(T[i]-T[i-1])
+    end
+
+    return α
+end
+
 
 # Type of corresponding state structure
 compat_state_type(::Type{TMCombined{M1,M2}}, ::Type{TMSolid}, env::ModelEnv) where {M1,M2} = TMCombinedState{compat_state_type(M1,ThermoSolid,env), compat_state_type(M2,MechSolid,env)} 
 compat_state_type(::Type{TMCombined{M1,M2}}, ::Type{TMShell}, env::ModelEnv) where {M1,M2} = TMCombinedState{compat_state_type(M1,ThermoShell,env), compat_state_type(M2,MechShell,env)} 
-
-# compat_elem_types(::Type{TMCombined{M1,M2}}) where {M1,M2} = (TMSolid, TMShell)
 
 
 function Base.getproperty(mat::TMCombined, s::Symbol)
@@ -49,10 +84,9 @@ function Base.getproperty(mat::TMCombined, s::Symbol)
     mmat = getfield(mat, :mmat)
     s==:tmat && return tmat
     s==:mmat && return mmat
-    fields1 = propertynames(tmat)
-    fields2 = propertynames(mmat)
-    s in fields1 && return getfield(tmat, s)
-    s in fields2 && return getfield(mmat, s)
+    s in propertynames(tmat) && return getfield(tmat, s)
+    s in propertynames(mmat) && return getfield(mmat, s)
+    s in propertynames(mat) && return getfield(mat, s)
     error("type TMCombined has no field $s")
 end
 

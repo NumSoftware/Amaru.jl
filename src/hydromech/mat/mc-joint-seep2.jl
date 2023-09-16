@@ -325,7 +325,7 @@ function calc_σ_upa(mat::MCJointSeep2, state::MCJointSeepState2, σtr::Array{Fl
 end
 
 
-function mountD(mat::MCJointSeep2, state::MCJointSeepState2)
+function calcD(mat::MCJointSeep2, state::MCJointSeepState2)
 
     ndim = state.env.ndim
     kn, ks, De = calc_kn_ks_De(mat, state)

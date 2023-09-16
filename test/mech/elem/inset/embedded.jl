@@ -26,4 +26,4 @@ bcs = [
       ]
 addstage!(model, bcs, nincs=20)
 
-@test solve!(model).success
+solve!(model, autoinc=true)

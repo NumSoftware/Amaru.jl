@@ -314,7 +314,7 @@ function consistentD(mat::TCJoint, state::TCJointState)
 end
 
 
-function mountD(mat::TCJoint, state::TCJointState)
+function calcD(mat::TCJoint, state::TCJointState)
     # return consistentD(mat, state)
 
     ndim = state.env.ndim

@@ -55,7 +55,7 @@ include("mat/elastic-plateMZC.jl")
 include("mat/elastic-plateRM.jl")
 include("mat/elastic-plateRM8node.jl")
 
-# Models for shels
+# Models for shells
 include("mat/elastic-shell-quad4.jl")
 include("mat/elastic-shell-degenerated.jl")
 include("mat/elastic-cook-shell.jl")

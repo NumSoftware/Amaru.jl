@@ -60,7 +60,7 @@ compat_state_type(::Type{ElasticJointSeep}, ::Type{HMJoint}, env::ModelEnv) = El
 # compat_elem_types(::Type{ElasticJointSeep}) = (HMJoint,)
 
 
-function mountD(mat::ElasticJointSeep, state::ElasticJointSeepState)
+function calcD(mat::ElasticJointSeep, state::ElasticJointSeepState)
     ndim = state.env.ndim
     G  = mat.E/(1.0+mat.ν)/2.0
     kn = mat.E*mat.ζ/state.h
@@ -78,7 +78,7 @@ end
 
 function update_state!(mat::ElasticJointSeep, state::ElasticJointSeepState, Δu::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
     ndim = state.env.ndim
-    D  = mountD(mat, state)
+    D  = calcD(mat, state)
     Δσ = D*Δu
 
     state.w[1:ndim] += Δu

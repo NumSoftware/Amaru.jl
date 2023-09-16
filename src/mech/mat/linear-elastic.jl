@@ -78,7 +78,7 @@ compat_state_type(::Type{LinearElastic}, ::Type{MechBar}, env::ModelEnv)    = El
 compat_state_type(::Type{LinearElastic}, ::Type{MechEmbBar}, env::ModelEnv) = ElasticBarState
 
 
-function calcDe(E::Float64, ν::Float64, stressmodel::String="3d")
+function calcDe(E::Real, ν::Real, stressmodel::String="3d")
     if stressmodel=="plane-stress"
         c = E/(1-ν^2)
         return @SArray [

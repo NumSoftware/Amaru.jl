@@ -29,7 +29,7 @@ th    = 0.1
 #     10  1.25e-5
 # ]
 
-# materials = ["shell"<< TMShell << ElasticShellThermo << (E=E, nu=nu, k=k, alpha=alpha,thickness=th, rho=rho, cv=cv) ]
+# materials = ["shell"<< TMShell << ElasticShellThermo << (E=E, nu=nu, k=k, alpha=alpha, thickness=th, rho=rho, cv=cv) ]
 materials = ["shell"<< TMShell << TMCombined{ConstConductivity, LinearElastic} << (E=E, nu=nu, k=k, alpha=alpha, thickness=th, rho=rho, cv=cv) ]
 # materials = ["shell"<< TMShell << TMCombined{ConstConductivity, VonMises} << (E=E, nu=nu, k=k, alpha=alpha, thickness=th, rho=rho, cv=cv, H=0.0, fy=100000.0) ]
 
@@ -45,5 +45,5 @@ bcs = [
     :(z==$zmin) => NodeBC(ut = 50),
 ]
 
-addstage!(model, bcs, tspan=20_000_000, nincs=10)
-solve!(model, autoinc=true, tol=0.1,)
+addstage!(model, bcs, tspan=20_000_000, nincs=1)
+solve!(model, autoinc=false, tol=0.01,)

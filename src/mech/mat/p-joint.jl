@@ -284,7 +284,7 @@ function calc_Δλ(mat::PJoint, state::PJointState, σtr::Array{Float64,1})
 end
 
 
-function mountD(mat::PJoint, state::PJointState)
+function calcD(mat::PJoint, state::PJointState)
     ndim = state.env.ndim
     kn, ks = calc_kn_ks(mat, state)
     α = mat.α

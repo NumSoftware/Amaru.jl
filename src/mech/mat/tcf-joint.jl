@@ -325,7 +325,7 @@ function calc_kn_ks(mat::TCFJoint, state::TCFJointState)
 end
 
 
-function mountD(mat::TCFJoint, state::TCFJointState)
+function calcD(mat::TCFJoint, state::TCFJointState)
 
     ndim   = state.env.ndim
     kn, ks = calc_kn_ks(mat, state)
