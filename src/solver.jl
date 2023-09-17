@@ -295,7 +295,7 @@ function print_alerts(model::FEModel, alerts::Array{String,1})
     n = length(alerts)
     if n>5
         splice!(alerts, 1:n-5)
-        alerts[1] = "⋮"
+        alerts[1] = "  ⋮"
     end
 
     for m in alerts

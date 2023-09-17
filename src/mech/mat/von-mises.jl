@@ -240,18 +240,11 @@ function update_state!(mat::VonMises, state::VonMisesPlaneStressState, Δε::Arr
         state.σ  = σtr
     else
         # plastic
-        # @show state.σ
-        # @show σtr
 
         σ, εpa, Δλ, status = calc_σ_εpa_Δλ(mat, state, σtr)
         failed(status) && return state.σ, status
 
         state.σ, state.εpa, state.Δλ = σ, εpa, Δλ
-
-        # @show state.σ
-        # @show yield_func(mat, state, σ, εpa)
-
-        # error()
     end
 
     state.ε += Δε
@@ -398,8 +391,6 @@ function yield_func(mat::VonMises, state::VonMisesBeamState, σ::Vec3, εpa::Flo
     # f = 1/2 σ*Psd*σ - 1/3 (fy + H εp)^2
     # f = J2D - 1/3 (fy + H εp)^2
     # s = [ 2/3*σ1, -1/3*σ1, -1/3*σ1, 0.0, σ2, σ3 ]
-
-    @show σ
 
     j2d = σ[1]^2/3 + σ[2]^2/2 + σ[3]^2/2
 
@@ -569,16 +560,15 @@ end
 function ip_state_vals(mat::VonMises, state::VonMisesBeamState)
     vals = OrderedDict{Symbol,Float64}(
         :sX  => state.σ[1],
-        :eX  => state.ε[1],
-        :sXY => state.σ[2]/SR2
+        :eXp => state.ε[1],
+        :sXY => state.σ[3]/SR2 # XY component is the third one
     )
-    if state.env.ndim==3
-        vals[:sXZ] = state.σ[2]/SR2
-        vals[:sXY] = state.σ[3]/SR2
-    end
-    return vals
 
-    return D
+    if state.env.ndim==3
+        vals[:sXZ] = state.σ[2]/SR2 # adds the second component
+    end
+
+    return vals
 end
 
 

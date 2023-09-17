@@ -46,4 +46,4 @@ bcs = [
 ]
 
 addstage!(model, bcs, tspan=20_000_000, nincs=1)
-solve!(model, autoinc=false, tol=0.01,)
+solve!(model, autoinc=false, tol=0.0001,)

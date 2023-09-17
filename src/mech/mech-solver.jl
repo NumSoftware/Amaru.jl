@@ -234,7 +234,7 @@ function mech_stage_solver!(model::Model, stage::Stage;
     println(env.info,"unknown dofs: $nu")
     println(env.log, "unknown dofs: $nu")
 
-    quiet || nu==ndofs && message(sline, "solve_system!: No essential boundary conditions", color=Base.warn_color)
+    quiet || nu==ndofs && println(env.alerts, "No essential boundary conditions")
 
     if stage.id == 1
         # Setup quantities at dofs
@@ -278,7 +278,7 @@ function mech_stage_solver!(model::Model, stage::Stage;
     still_linear = true
     sysstatus = ReturnStatus()
 
-    # Get forces and displacements from boundary conditions
+    # Get boundary conditions
     Uex, Fex = get_bc_vals(model, bcs)
 
     # Get unbalanced forces from activated elements
@@ -392,20 +392,17 @@ function mech_stage_solver!(model::Model, stage::Stage;
             R[pmap] .= 0.0  # zero at prescribed positions
 
             err = norm(ΔUi, Inf)/norm(ΔUa, Inf)
-            err = norm(ΔUi)/norm(ΔUa)
+            # err = norm(ΔUi)/norm(ΔUa)
 
-            @printf(env.log, "    it %d  residue: %-10.5e\n", it, res)
+            @printf(env.log, "    it %d  residue: %-10.4e\n", it, res)
 
             it>1  && (still_linear=false)
-            # @show err
-            # @show res
-            # @show ftol
 
             res<ftol && (converged=true; break)
             err<rtol  && (converged=true; break)
 
             isnan(res) && break
-            it>maxits   && break
+            it>maxits  && break
 
             it>1 && err>lastres && break
         end
@@ -431,7 +428,7 @@ function mech_stage_solver!(model::Model, stage::Stage;
                 dof.vals[dof.name]    += ΔUa[i]
                 dof.vals[dof.natname] += ΔFin[i]
             end
-            
+
             # Update time
             T += ΔT
             env.T = T
