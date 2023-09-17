@@ -31,7 +31,7 @@ mutable struct ElasticShellThermo<:Material
     function ElasticShellThermo(; args...)
         args = checkargs(args, arg_rules(ElasticShellThermo))
         
-        return new(args.E, args.nu, args.k, args.cv)
+        return new(args.E, args.nu, args.k, args.cv, args.alpha)
     end
 end
 
@@ -53,7 +53,7 @@ function calc_cv(mat::ElasticShellThermo, ut::Float64) # Specific heat
     return mat.cv
 end
 
-function calc_α(mat::ElasticShellThermo, ut::Float64) # Specific heat
+function calc_α(mat::ElasticShellThermo, ut::Float64)
     return mat.α
 end
 
