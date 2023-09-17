@@ -48,10 +48,7 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{LinearElasticThermo}) = LinearElasticThermoState
-
-# Element types that work with this material
-compat_elem_types(::Type{LinearElasticThermo}) = (TMSolid,)
+compat_state_type(::Type{LinearElasticThermo}, ::Type{TMSolid}, env::ModelEnv) = LinearElasticThermoState
 
 
 function calcD(mat::LinearElasticThermo, state::LinearElasticThermoState)

@@ -574,7 +574,7 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
 
         coef  = Δt
         coef *= detJ′*ip.w
-        @mul dFt += coef*Bt'*q
+        dFt += coef*Bt'*q
 
     end
     return [dF; dFt], [map_u; map_t], success()
