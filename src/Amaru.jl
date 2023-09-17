@@ -115,6 +115,8 @@ include("thermomech/include.jl")
 # Acoustic module
 include("acousticmech/include.jl")
 
+include("deprecated.jl")
+
 # show function for FE related types
 Base.show(io::IO, obj::Dof)            = _show(io, obj, 2, "")
 Base.show(io::IO, obj::Node)           = _show(io, obj, 2, "")
