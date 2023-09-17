@@ -633,6 +633,15 @@ function nodal_patch_recovery(model::Model)
     nnodes = length(model.nodes)
     length(model.faces)==0 && return zeros(nnodes,0), Symbol[]
 
+    # get node field symbols (to skip if later found at ips)
+    node_fields_set = OrderedSet{Symbol}()
+    for node in model.nodes
+        for dof in node.dofs
+            union!(node_fields_set, keys(dof.vals))
+        end
+    end
+    node_fields = collect(node_fields_set)
+
     # get surface nodes
     bry_nodes_set = Set( node for face in model.faces for node in face.nodes )
 
@@ -723,10 +732,11 @@ function nodal_patch_recovery(model::Model)
 
             # list of fields
             fields = unique( key for elem in patch for key in keys(all_ips_vals[elem.id][1]) )
+            setdiff!(fields, node_fields) # remove fields already at nodes if any
 
             last_subpatch  = [] # elements of a subpatch for a particular field
             invM = Array{Float64,2}(undef,0,0)
-            #N    = Array{Int64,2}(0,0)
+            
             local N
             subpatch_ips = Ip[]
             subpatch_nodes = Node[]

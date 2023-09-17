@@ -153,7 +153,7 @@ function solve!(model::Model, ana::DynAnalysis; args...)
 end
 
 
-function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::StatusLine; 
+function dyn_stage_solver!(model::Model, stage::Stage; 
     tol     :: Real = 1e-2,
     alpha   :: Real = 0.0,
     beta    :: Real = 0.0,
@@ -172,7 +172,8 @@ function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
     quiet  :: Bool    = false
     )
 
-    println(logfile, "Dynamic FE analysis: Stage $(stage.id)")
+    env = model.env
+    println(env.log, "Dynamic FE analysis: Stage $(stage.id)")
     stage.status = :solving
 
     solstatus = success()
@@ -197,8 +198,8 @@ function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
     umap  = 1:nu         # map for unknown displacements
     pmap  = nu+1:ndofs   # map for prescribed displacements
     model.ndofs = length(dofs)
-    println(logfile, "unknown dofs: $nu")
-    message(sline, "  unknown dofs: $nu")
+    println(env.log, "unknown dofs: $nu")
+    println(env.info, "unknown dofs: $nu")
 
     # Dictionary of data keys related with a dof
     components_dict = Dict(:ux => (:ux, :fx, :vx, :ax),
@@ -299,10 +300,10 @@ function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
         inc += 1
         env.inc += 1
 
-        println(logfile, "  inc $inc")
+        println(env.log, "  inc $inc")
 
         if inc > maxincs
-            quiet || message(sline, "solver maxincs = $maxincs reached (try maxincs=0)", Base.default_color_error)
+            quiet || println(env.alerts, "solver maxincs = $maxincs reached (try maxincs=0)")
             return failure("$maxincs reached")
         end
 
@@ -370,7 +371,7 @@ function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
             Fex_Fin .= Fex .- Fina  # Check this variable, it is not the residue actually
             Fex_Fin[pmap] .= 0.0  # Zero at prescribed positions
 
-            @printf(logfile, "    it %d  residue: %-10.4e\n", it, residue)
+            @printf(env.log, "    it %d  residue: %-10.4e\n", it, residue)
 
             it==1 && (residue1=residue)
             residue > tol && (Fina -= ΔFin)
@@ -429,7 +430,7 @@ function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
 
             update_single_loggers!(model)
             update_monitors!(model)
-            flush(logfile)
+            flush(env.log)
 
             if autoinc
                 if ΔTbk>0.0
@@ -461,7 +462,7 @@ function dyn_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
             copyto!.(State, StateBk)
 
             if autoinc
-                println(logfile, "      increment failed")
+                println(env.log, "      increment failed")
                 q = (1+tanh(log10(tol/residue1)))
                 q = clamp(q, 0.2, 0.9)
                 errored && (q=0.7)

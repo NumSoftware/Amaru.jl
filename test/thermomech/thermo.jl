@@ -33,7 +33,7 @@ bcs = [
        :(y==0) << NodeBC(ut=10.0),
        :(y==2) << NodeBC(ut=20.0),
 ]
-addstage!(model, bcs, tspan=10000, nincs=5)
+addstage!(model, bcs, tspan=10000, nincs=5, nouts=1)
 solve!(model, tol=0.1)
 
 # Output

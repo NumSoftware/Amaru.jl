@@ -153,7 +153,7 @@ function solve!(model::Model, ana::AcousticMechAnalysis; args...)
 end
 
 
-function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::StatusLine; 
+function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream; 
     tol     :: Number  = 1e-2,
     Ttol    :: Number  = 1e-9,
     rspan   :: Number  = 1e-2,

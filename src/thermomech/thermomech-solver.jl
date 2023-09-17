@@ -193,7 +193,7 @@ function solve!(model::Model, ana::ThermomechAnalysis; args...)
 end
 
 
-function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::StatusLine; 
+function tm_stage_solver!(model::Model, stage::Stage; 
     tol     :: Number  = 1e-2,
     Ttol    :: Number  = 1e-9,
     rspan   :: Number  = 1e-2,
@@ -204,9 +204,10 @@ function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     outdir  :: String  = ".",
     outkey  :: String  = "out",
     quiet  :: Bool    = false
-                  )
+    )
 
-    println(logfile, "Hydromech FE analysis: Stage $(stage.id)")
+    env = model.env
+    println(env.log, "Hydromech FE analysis: Stage $(stage.id)")
     stage.status = :solving
 
     solstatus = success()
@@ -232,10 +233,10 @@ function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
     umap  = 1:nu         # map for unknown bcs
     pmap  = nu+1:ndofs   # map for prescribed bcs
     model.ndofs = length(dofs)
-    println(logfile, "unknown dofs: $nu")
-    message(sline, "  unknown dofs: $nu")
+    println(env.log, "unknown dofs: $nu")
+    println(env.info, "unknown dofs: $nu")
 
-    quiet || nu==ndofs && message(sline, "solve_system!: No essential boundary conditions", Base.warn_color)
+    quiet || nu==ndofs && println(env.alerts, "solve_system!: No essential boundary conditions")
 
     if stage.id == 1
         # Setup quantities at dofs
@@ -309,10 +310,10 @@ function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
         inc += 1
         env.inc = inc
 
-        println(logfile, "  inc $inc")
+        println(env.log, "  inc $inc")
 
         if inc > maxincs
-            quiet || message(sline, "solver maxincs = $maxincs reached (try maxincs=0)", Base.default_color_error)
+            quiet || println(env.alerts, "solver maxincs = $maxincs reached (try maxincs=0)")
             return failure("$maxincs reached")
         end
 
@@ -358,7 +359,7 @@ function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
 
                 # Solve
                 sysstatus = solve_system!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
-                println(logfile, sysstatus.message)
+                println(env.log, sysstatus.message)
 
 
                 failed(sysstatus) && (errored=true; break)
@@ -397,7 +398,7 @@ function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
             R .= ΔFex .- ΔFin
             R[pmap] .= 0.0  # zero at prescribed positions
 
-            @printf(logfile, "    it %d  residue: %-10.4e\n", it, residue)
+            @printf(env.log, "    it %d  residue: %-10.4e\n", it, residue)
 
             it==1 && (residue1=residue)
             residue < tol  && (converged=true; break)
@@ -411,10 +412,10 @@ function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
         q = 0.0 # increment size factor for autoinc
 
         if errored
-            println(logfile, sysstatus.message)
+            println(env.log, sysstatus.message)
             converged = false
         end
-        quiet || sysstatus.message!="" && message(sline, sysstatus.message, Base.default_color_warn)
+        quiet || sysstatus.message!="" && println(env.alerts, sysstatus.message, Base.default_color_warn)
 
         if converged
             # Update nodal natural and essential values for the current stage
@@ -460,7 +461,7 @@ function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
 
             update_single_loggers!(model)
             update_monitors!(model)
-            flush(logfile)
+            flush(env.log)
 
             if autoinc
                 if ΔTbk>0.0
@@ -492,7 +493,7 @@ function tm_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::
             copyto!.(State, StateBk)
 
             if autoinc
-                println(logfile, "      increment failed")
+                println(env.log, "      increment failed")
                 q = (1+tanh(log10(tol/residue1)))
                 q = clamp(q, 0.2, 0.9)
                 errored && (q=0.7)

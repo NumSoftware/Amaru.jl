@@ -22,7 +22,7 @@ function solve!(model::Model, ana::ModalAnalysis; args...)
 end
 
 
-function dyn_modal_solver!(model::Model, stage::Stage, logfile::IOStream, sline::StatusLine; 
+function dyn_modal_solver!(model::Model, stage::Stage; 
     nmods::Int=5,
     rayleigh=false, 
     outdir::String  = ".",
@@ -30,7 +30,8 @@ function dyn_modal_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
     quiet ::Bool    = false
 )
 
-    println(logfile, "Dynamic modal analysis")
+    env = model.env
+    println(env.log, "Dynamic modal analysis")
     stage.status = :solving
 
     # get only bulk elements
@@ -46,8 +47,8 @@ function dyn_modal_solver!(model::Model, stage::Stage, logfile::IOStream, sline:
 
     ndofs       = length(dofs)
     model.ndofs = length(dofs)
-    println(logfile, "unknown dofs: $nu")
-    message(sline, "  unknown dofs: $nu")
+    println(env.log, "unknown dofs: $nu")
+    println(env.info, "unknown dofs: $nu")
     # quiet || println("  unknown dofs: $nu\n")
 
     # setup quantities at dofs

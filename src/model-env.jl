@@ -17,8 +17,11 @@ mutable struct ModelEnv
     outdir   ::String    # Output directory
     ana      ::Analysis
     pool     ::ArrayPool
+    
+    log      ::IOStream # solver log file
+    alerts   ::IOBuffer # alerts
+    info     ::IOBuffer 
 
-    # stagebits::StageBits
     T      ::Float64  # Pseudo time for current stage
     ΔT     ::Float64  # Pseudo time current increment
     residue::Float64  # Ambient absolute temperature in Celsius
@@ -35,6 +38,9 @@ mutable struct ModelEnv
         this.t         = 0.0
         this.outdir    = ""
         this.pool      = ArrayPool()
+
+        this.alerts    = IOBuffer()
+        this.info      = IOBuffer()
         
         # Stage related:
         # this.stagebits = StageBits(0.0, 0.0, 0.0, 0, 0, 0, true)

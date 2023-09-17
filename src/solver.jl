@@ -1,155 +1,5 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-mutable struct StatusLine
-    model::Model
-    stage::Stage
-    sw::StopWatch
-    messages::Array{String,1}
-    paused::Bool
-    function StatusLine(model, stage, sw)
-        return new(model, stage, sw, [], false)
-    end
-end
-
-function pause(sline::StatusLine)
-    sline.paused=true
-    sleep(0.02)
-end
-
-function resume(sline::StatusLine)
-    sline.paused=false
-end
-
-
-function message(sline::StatusLine, msg::String, color::Symbol=:default)
-    msg = "  "*string(Time(now()))*" "*msg
-
-    iscolor = get(stdout, :color, false)
-    if iscolor
-        enable_ansi  = get(Base.text_colors, color, Base.text_colors[:default])
-        disable_ansi = get(Base.disable_text_style, color, Base.text_colors[:default])
-        msg = string(enable_ansi, msg, disable_ansi)
-    end
-
-    if length(sline.messages)==5
-        popfirst!(sline.messages)
-        sline.messages[1] = "  ..."
-    end
-    push!(sline.messages, msg)
-end
-
-
-function progress_bar(T::Float64)
-    dwidth  = displaysize(stdout)[2]-2
-    width   = max(2, min(25, dwidth-35))
-    ch_done = T*width
-    frac    = ch_done - floor(ch_done)
-
-    barl = repeat(['━'], floor(Int, ch_done))
-    barr = Char[]
-
-    if frac<=0.25
-        # @show 10
-        push!(barr, '╶')
-        push!(barr, '─')
-    elseif 0.25<frac<0.75
-        push!(barl, '╸')
-        push!(barr, '─')
-    else
-        push!(barl, '━')
-        push!(barr, '╶')
-    end
-
-    if length(barl)>=width
-        barl = barl[1:width]
-        barr = Char[]
-    end
-    
-    if length(barl)+length(barr)==width+1
-        barr = Char[barr[1]]
-    end
-
-    append!(barr, repeat(['─'], width -length(barl) -length(barr) ))
-    barls = reduce(*, barl) 
-    barrs = reduce(*, barr) 
-
-    iscolor = get(stdout, :color, false)
-    if iscolor
-        color        = :blue
-        enable_color = get(Base.text_colors, color, Base.text_colors[:default])
-        enable_bold  = get(Base.text_colors, :bold, Base.text_colors[:default])
-        normal_color  = get(Base.disable_text_style, :normal, Base.text_colors[:default])
-        disable_bold = get(Base.disable_text_style, :bold, Base.text_colors[:default])
-        barls        = string(enable_color, enable_bold, barls, disable_bold, normal_color)
-        enable_color = get(Base.text_colors, :light_black, Base.text_colors[:default])
-        normal_color = get(Base.disable_text_style, :bold, Base.text_colors[:default])
-        barrs        = string(enable_color, barrs, normal_color)
-    end
-
-    return barls*barrs
-
-end
-
-
-function run_status_line(sline::StatusLine)
-    env    = sline.model.env
-    stage  = sline.stage
-
-    nlines = 0
-    last_loop = false
-    while true
-        
-        # sleep(0.1) # !fixme
-        print("\r")
-        nlines>0 && print("\e[$(nlines)A")
-
-        while sline.paused
-            sleep(0.01)
-        end
-
-        # Print messages
-        nlines = length(sline.messages)
-        if nlines>0
-            println.(sline.messages, "\e[K")
-            # sline.messages = []
-        end
-        
-        # Print status
-        T = env.T
-        ΔT = env.ΔT
-        progress = @sprintf("%5.3f", T*100)
-        bar = progress_bar(T)
-        
-        # line 1:
-        printstyled("  inc $(env.inc) output $(env.out)", bold=true, color=:light_blue)
-        if env.transient
-            t = round(env.t, sigdigits=3)
-            printstyled(" t=$t", bold=true, color=:light_blue)
-        end
-        dT = round(ΔT,sigdigits=4)
-        res = round(env.residue,sigdigits=4)
-
-        printstyled(" dT=$dT res=$res\e[K\n", bold=true, color=:light_blue)
-        
-        # line 2:
-        printstyled("  $(see(sline.sw)) ", bold=true, color=:light_blue)
-        print(bar)
-        printstyled(" $(progress)% \e[K\n", bold=true, color=:light_blue)
-
-        # Print monitors
-        nlines += 2
-        for mon in sline.model.monitors
-            str     = output(mon)
-            nlines += count("\n", str)
-            printstyled(str, color=:light_blue)
-        end
-
-        last_loop && break
-        stage.status != :solving && (last_loop=true)
-        yield()
-    end
-end
-
 
 # Solves a system with unknowns in U and F vectors
 function solve_system!(
@@ -251,9 +101,9 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
 
 
     if cstage==1
-        logfile = open("solve.log", "w")
+        env.log = open("solve.log", "w")
     else
-        logfile = open("solve.log", "a")
+        env.log = open("solve.log", "a")
     end
 
     
@@ -288,16 +138,16 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
         end
 
         sw = StopWatch() # timing
-        sline = StatusLine(model, stage, sw)
+        # sline = StatusLine(model, stage, sw)
         if !quiet
             print("\e[?25l") # disable cursor
-            sline_task = Threads.@spawn run_status_line(sline)
+            status_cycler_task = Threads.@spawn status_cycler(model, sw)
         end
 
         local runerror
         local error_st
         try
-            solstatus = stage_solver!(model, stage, logfile, sline; args...)
+            solstatus = stage_solver!(model, stage; args...)
             if succeeded(solstatus)
                 stage.status = :done
             else
@@ -305,7 +155,7 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
             end
         catch err            
             runerror = err
-            flush(logfile)
+            flush(env.log)
             if err isa InterruptException
                 stage.status = :interrupted
             else
@@ -313,10 +163,10 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
                 error_st = stacktrace(catch_backtrace())
             end
         end
-        close(logfile)
+        close(env.log)
 
         if !quiet
-            wait(sline_task)
+            wait(status_cycler_task)
             print("\e[?25h") # enable cursor
             solstatus.message != "" && println(solstatus.message)
         end
@@ -345,7 +195,147 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
 
 end
 
-
+# Main function to call specific solvers
 function solve!(model::FEModel; args...)
     solve!(model, model.env.ana; args...)
+end
+
+
+function progress_bar(T::Float64)
+    dwidth  = displaysize(stdout)[2]-2
+    width   = max(2, min(25, dwidth-35))
+    ch_done = T*width
+    frac    = ch_done - floor(ch_done)
+
+    barl = repeat(['━'], floor(Int, ch_done))
+    barr = Char[]
+
+    if frac<=0.25
+        # @show 10
+        push!(barr, '╶')
+        push!(barr, '─')
+    elseif 0.25<frac<0.75
+        push!(barl, '╸')
+        push!(barr, '─')
+    else
+        push!(barl, '━')
+        push!(barr, '╶')
+    end
+
+    if length(barl)>=width
+        barl = barl[1:width]
+        barr = Char[]
+    end
+    
+    if length(barl)+length(barr)==width+1
+        barr = Char[barr[1]]
+    end
+
+    append!(barr, repeat(['─'], width -length(barl) -length(barr) ))
+    barls = reduce(*, barl) 
+    barrs = reduce(*, barr) 
+
+    iscolor = get(stdout, :color, false)
+    if iscolor
+        color        = :blue
+        enable_color = get(Base.text_colors, color, Base.text_colors[:default])
+        enable_bold  = get(Base.text_colors, :bold, Base.text_colors[:default])
+        normal_color  = get(Base.disable_text_style, :normal, Base.text_colors[:default])
+        disable_bold = get(Base.disable_text_style, :bold, Base.text_colors[:default])
+        barls        = string(enable_color, enable_bold, barls, disable_bold, normal_color)
+        enable_color = get(Base.text_colors, :light_black, Base.text_colors[:default])
+        normal_color = get(Base.disable_text_style, :bold, Base.text_colors[:default])
+        barrs        = string(enable_color, barrs, normal_color)
+    end
+
+    return barls*barrs
+
+end
+
+
+function status_cycler(model::FEModel, sw::StopWatch)
+    stage  = model.stages[model.env.stage]
+
+    last_loop = false
+    alerts = String[]
+    while true
+        nlines = 0
+
+        nlines += print_info(model)
+        nlines += print_alerts(model, alerts)
+        nlines += print_summary(model, sw)
+        
+        last_loop && break
+
+        print("\e[$(nlines)A")
+        stage.status != :solving && (last_loop=true)
+        sleep(0.1)
+        yield()
+    end
+end
+
+
+function print_info(model::FEModel)
+    str = strip(String(take!(model.env.info)))
+    str!="" && println("  ", str, "\e[K")
+
+    return 0
+end
+
+
+function print_alerts(model::FEModel, alerts::Array{String,1})
+    str = strip(String(take!(model.env.alerts)))
+    
+    if str!=""
+        list = split(str, "\n")
+        list = String[ string("  ", Time(now()), "  ", m) for m in list ]
+        append!(alerts, list)
+    end
+    
+    n = length(alerts)
+    if n>5
+        splice!(alerts, 1:n-5)
+        alerts[1] = "⋮"
+    end
+
+    for m in alerts
+        printstyled(m, "\e[K\n", color=Base.warn_color())
+    end
+
+    return length(alerts)
+end
+
+
+function print_summary(model::FEModel, sw::StopWatch)
+    env = model.env
+    nlines = 2
+
+    # line 1:
+    T  = env.T
+    ΔT = env.ΔT
+    printstyled("  inc $(env.inc) output $(env.out)", bold=true, color=:light_blue)
+    if env.transient
+        t = round(env.t, sigdigits=3)
+        printstyled(" t=$t", bold=true, color=:light_blue)
+    end
+    dT  = round(ΔT,sigdigits=4)
+    res = round(env.residue,sigdigits=4)
+
+    printstyled(" dT=$dT res=$res\e[K\n", bold=true, color=:light_blue)
+    
+    # line 2:
+    bar = progress_bar(T)
+    progress = @sprintf("%5.3f", T*100)
+    printstyled("  $(see(sw)) ", bold=true, color=:light_blue)
+    print(bar)
+    printstyled(" $(progress)% \e[K\n", bold=true, color=:light_blue)
+
+    # Print monitors
+    for mon in model.monitors
+        str     = output(mon)
+        nlines += count("\n", str)
+        printstyled(str, color=:light_blue)
+    end
+
+    return nlines
 end

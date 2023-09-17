@@ -192,7 +192,7 @@ function solve!(model::Model, ana::MechAnalysis; args...)
 end
 
 
-function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline::StatusLine; 
+function mech_stage_solver!(model::Model, stage::Stage; 
     tol     :: Number  = 1e-2,
     rtol    :: Number  = 1e-2,
     Tmin    :: Number  = 1e-8,
@@ -205,7 +205,8 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
     quiet   :: Bool    = false
     )
 
-    println(logfile, "Mechanical FE analysis: Stage $(stage.id)")
+    env = model.env
+    println(env.log, "Mechanical FE analysis: Stage $(stage.id)")
 
     solstatus = success()
     scheme in ("FE", "ME", "BE", "Ralston") || error("solve! : invalid scheme \"$(scheme)\"")
@@ -229,12 +230,11 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
     umap  = 1:nu         # map for unknown displacements
     pmap  = nu+1:ndofs   # map for prescribed displacements
     model.ndofs = length(dofs)
-    pause(sline)
-    println("  unknown dofs: $nu\e[K")
-    resume(sline)
-    println(logfile, "unknown dofs: $nu")
 
-    quiet || nu==ndofs && message(sline, "solve_system!: No essential boundary conditions", Base.warn_color)
+    println(env.info,"unknown dofs: $nu")
+    println(env.log, "unknown dofs: $nu")
+
+    quiet || nu==ndofs && message(sline, "solve_system!: No essential boundary conditions", color=Base.warn_color)
 
     if stage.id == 1
         # Setup quantities at dofs
@@ -267,7 +267,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
     Tcheck  = ΔTcheck
 
     inc  = 0             # increment counter
-    iout = env.out # file output counter
+    iout = env.out       # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
@@ -299,7 +299,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
         inc += 1
         env.inc = inc
 
-        println(logfile, "  inc $inc")
+        println(env.log, "  inc $inc")
 
         ΔUex, ΔFex = ΔT*Uex, ΔT*Fex     # increment of external vectors
 
@@ -312,18 +312,12 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
         ΔUi .= ΔUex  # essential values at iteration i
 
         # Newton Rapshon iterations
-        residue   = 0.0
-        maxfails  = 3  # maximum number of it. fails with residual change less than 90%
-        nfails    = 0  # counter for iteration fails
         nits      = 0
-        residue1  = 0.0
         err       = 0.0
-        ures1     = 0.0
         res       = 0.0
         converged = false
-        syserror   = false
-        # ftol = eps()^0.5
-        # ftol = 0.001
+        syserror  = false
+
         for it=1:maxits
             yield()
 
@@ -400,21 +394,8 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
             err = norm(ΔUi, Inf)/norm(ΔUa, Inf)
             err = norm(ΔUi)/norm(ΔUa)
 
-            @printf(logfile, "    it %d  residue: %-10.5e\n", it, res)
+            @printf(env.log, "    it %d  residue: %-10.5e\n", it, res)
 
-            # tol1 = rtol*maximum(abs, ΔFin)
-            # residue = norm((ΔFex-ΔFin)[umap])
-            # tol1 = rtol*norm(ΔFin, Inf)
-
-            # println()
-            # @show T
-            # @show ΔT
-            # @show it
-            # @show res
-            # @show err
-
-            it==1 && (res1=err)
-            it==2 && (err2=err)
             it>1  && (still_linear=false)
             # @show err
             # @show res
@@ -427,18 +408,14 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
             it>maxits   && break
 
             it>1 && err>lastres && break
-            # err>0.9*lastres && (nfails+=1)
-            # nfails==maxfails    && break
         end
 
         q = 0.0 # increment size factor for autoinc
 
         if syserror
-            println(logfile, sysstatus.message)
-            # message(sline, sysstatus.message, Base.default_color_warn)
+            println(env.alerts, sysstatus.message)
             converged = false
         end
-        # quiet || sysstatus.message!="" && message(sline, sysstatus.message, Base.default_color_warn)
 
         if converged
             # Update forces and displacement for the current stage
@@ -479,7 +456,7 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
             update_single_loggers!(model, flush=flushfiles)
             update_monitors!(model, flush=flushfiles)
             if flushfiles
-                flush(logfile)
+                flush(env.log)
                 lastflush = time()
                 GC.gc()
             end
@@ -521,14 +498,13 @@ function mech_stage_solver!(model::Model, stage::Stage, logfile::IOStream, sline
             copyto!.(State, StateBk)
 
             if autoinc
-                println(logfile, "      increment failed")
+                println(env.log, "      increment failed")
                 if nits==1
                     # q = 1+tanh(log10(ftol/res))
                     q = 0.666
                 else
                     q = 1+tanh(log10(rtol/err))
                 end
-                # q = (1+tanh(log10(rtol/ures1)))
                 q = clamp(q, 0.2, 0.9)
                 syserror && (q=0.7)
                 ΔT = q*ΔT
