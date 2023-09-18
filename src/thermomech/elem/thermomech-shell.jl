@@ -298,10 +298,7 @@ function elem_coupling_matrix(elem::TMShell)
     # 
     ndim   = elem.env.ndim
 
-    E  = elem.mat.E
-    ν  = elem.mat.ν
-    th = elem.props.th
-
+    th     = elem.props.th
     ndof   = 6
     nstr   = 6
     C      = getcoords(elem)
@@ -315,7 +312,7 @@ function elem_coupling_matrix(elem::TMShell)
     C   = getcoords(elem)
     Cut = zeros(ndof*nnodes, nnodes) # u-t coupling matrix
     m    = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
-    m   = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]*(1-2*ν)/(1-ν)  #
+    m   = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  #
 
 
     for ip in elem.ips
@@ -341,12 +338,11 @@ function elem_coupling_matrix(elem::TMShell)
         detJ′ = det(J′)
         @assert detJ′>0
         # compute Cut
-        α = calc_α(elem.mat, ip.state.ut)
-        β = α*E/(1-2*ν)*3/2
-
+        α    = calc_α(elem.mat, ip.state.ut)
+        β    = elem.mat.E*α/(1-2*elem.mat.ν) 
         coef  = β
         coef *= detJ′*ip.w
-        mN    = m*N'
+        mN   = m*N'
         @mul Cut -= coef*B'*mN
     end
     # map
@@ -512,7 +508,7 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes]
     Ut += dUt # nodal tempeture at step n+1
     m   = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  #
-    m   = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]*(1-2*ν)/(1-ν)  #
+    m   = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  #
 
     dF = zeros(length(dU))
     B = zeros(6, ndof*nnodes)
@@ -548,6 +544,8 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
         # compute Δut
         Δut = N'*dUt # interpolation to the integ. point
 
+        #@show size(Ut)
+        #@show size(Bt)
         # compute thermal gradient G
         Bt .= dNdX′'
         G  = Bt*Ut
@@ -557,11 +555,12 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
         failed(status) && return [dF; dFt], [map_u; map_t], status
 
         α = calc_α(elem.mat, ip.state.ut)
-        β = E*α/(1-2*ν)*3/2
+        β = E*α/(1-2*ν)
 
         Δσ -= β*Δut*m # get total stress
     
         detJ′ = det(J′)
+        #coef = detJ′*ip.w*th
         coef = detJ′*ip.w
         dF += coef*B'*S*Δσ
 
