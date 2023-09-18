@@ -339,7 +339,7 @@ function elem_coupling_matrix(elem::TMShell)
         @assert detJ′>0
         # compute Cut
         α    = calc_α(elem.mat, ip.state.ut)
-        β    = elem.mat.E*α/(1-2*elem.mat.ν) *0.9
+        β    = elem.mat.E*α/(1-2*elem.mat.ν) 
         coef  = β
         coef *= detJ′*ip.w
         mN   = m*N'
@@ -555,7 +555,7 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
         failed(status) && return [dF; dFt], [map_u; map_t], status
 
         α = calc_α(elem.mat, ip.state.ut)
-        β = E*α/(1-2*ν)*0.9
+        β = E*α/(1-2*ν)
 
         Δσ -= β*Δut*m # get total stress
     
