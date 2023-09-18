@@ -132,9 +132,7 @@ function FEModel(
             comp_mat_types  = [ argtps[1].parameters[1] for argtps in typeofargs(compat_state_type) if length(argtps)>1 && typeof(argtps[1])!=UnionAll && argtps[2].parameters[1]==elem_type ]
             # comp_mat_types  = [ argtps[1].parameters[1] for argtps in typeofargs(compat_state_type) if length(argtps)>1 && typeof(argtps[1])!=UnionAll && argtps[2].parameters[1]==elem_type ]
 
-            message = "FEModel: Material model $(mat_type) is not compatible with Element $(elem_type) \n\
-            Compatible elements for material $(mat_type): $(join(comp_elem_types, ", ", " and ")) \n\
-            Compatible materials for element $(elem_type): $(join(comp_mat_types, ", ", " and "))"
+            message = "FEModel: Material model $(mat_type) is not compatible with Element $(elem_type) Compatible elements for material $(mat_type): $(join(comp_elem_types, ", ", " and ")) Compatible materials for element $(elem_type): $(join(comp_mat_types, ", ", " and "))"
             message = replace(message, r"Amaru\." => "")
             throw(AmaruException(message))
         end
