@@ -1,5 +1,23 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
+export ThermoShell
+
+struct ThermoShellProps<:ElemProperties
+    ρ::Float64
+    th::Float64
+
+    function ThermoShellProps(; args...)
+        args = checkargs(args, arg_rules(ThermoShellProps))
+
+        return new(args.rho, args.thickness)
+    end
+end
+
+arg_rules(::Type{ThermoShellProps}) = 
+[
+    @arginfo rho rho>=0.0 "Density"
+    @arginfo thickness thickness>0.0 "Thickness"
+]
 
 mutable struct ThermoShell<:Thermomech
     id    ::Int
@@ -8,10 +26,11 @@ mutable struct ThermoShell<:Thermomech
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    mat::Material
+    mat   ::Material
+    props ::ThermoShellProps
     active::Bool
     linked_elems::Array{Element,1}
-    env::ModelEnv
+    env   ::ModelEnv
 
     function ThermoShell();
         return new()
@@ -19,6 +38,7 @@ mutable struct ThermoShell<:Thermomech
 end
 
 compat_shape_family(::Type{ThermoShell}) = BULKCELL
+compat_elem_props(::Type{ThermoShell}) = ThermoShellProps
 
 
 function elem_config_dofs(elem::ThermoShell)
@@ -109,7 +129,7 @@ end
 # thermal conductivity
 function elem_conductivity_matrix(elem::ThermoShell)
     ndim   = elem.env.ndim
-    th     = elem.mat.thickness   # elem.env.ana.thickness
+    th     = elem.props.th   # elem.env.ana.thickness
     nnodes = length(elem.nodes)
     C      = getcoords(elem)
     H      = zeros(nnodes, nnodes)
@@ -144,7 +164,7 @@ end
 
 function elem_mass_matrix(elem::ThermoShell)
     ndim   = elem.env.ndim
-    th     = elem.mat.thickness
+    th     = elem.props.th
     nnodes = length(elem.nodes)
     
     C      = getcoords(elem)
@@ -152,7 +172,6 @@ function elem_mass_matrix(elem::ThermoShell)
 
     J  = Array{Float64}(undef, ndim, ndim)
     L      = zeros(3,3)
-    #@show "HIIIIIIIIIIIIIIIIIIIIIIIIIIIIII"
 
     for ip in elem.ips
         N    = elem.shape.func(ip.R)
@@ -165,7 +184,7 @@ function elem_mass_matrix(elem::ThermoShell)
         @assert detJ′>0
 
         # compute Cut
-        coef  = elem.mat.ρ*elem.mat.cv
+        coef  = elem.props.ρ*elem.mat.cv
         coef *= detJ′*ip.w
         M    -= coef*N*N'
 
@@ -174,8 +193,6 @@ function elem_mass_matrix(elem::ThermoShell)
     # map
     map = elem_map_t(elem)
 
-    #@show "HIIIIIIIIIIIIIIIIIIIIIIIIIIIIII"
-    #@show M
     return M, map, map
 end
 
@@ -225,7 +242,7 @@ function elem_internal_forces(elem::ThermoShell, F::Array{Float64,1})
         εvol = dot(m, ε)
         coef = β*detJ*ip.w*th
         dFt  -= coef*N*εvol
-        coef = detJ*ip.w*elem.mat.ρ*elem.mat.cv*th/T0
+        coef = detJ*ip.w*elem.props.ρ*elem.mat.cv*th/T0
         dFt -= coef*N*ut
         QQ   = ip.state.QQ
         coef = detJ*ip.w*th/T0
@@ -240,7 +257,7 @@ end
 function update_elem!(elem::ThermoShell, DU::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
-    th     = elem.mat.thickness
+    th     = elem.props.th
     ndof = 6
 
     map_t = elem_map_t(elem)
@@ -280,17 +297,14 @@ function update_elem!(elem::ThermoShell, DU::Array{Float64,1}, Δt::Float64)
         Δut = N'*dUt # interpolation to the integ. point
 
         q = update_state!(elem.mat, ip.state, Δut, G, Δt)
-        #@showm q
-        #error()
 
-        coef  = elem.mat.ρ*elem.mat.cv
+        coef  = elem.props.ρ*elem.mat.cv
         coef *= detJ′*ip.w
         dFt  -= coef*N*Δut
 
         coef = Δt*detJ′*ip.w
-        @mul dFt += coef*Bt'*q
+        dFt += coef*Bt'*q
 
     end
-    #@show "HIIIIIIIIIIIIIIIIIIIIII UPDATED"
     return dFt, map_t, success()
 end
