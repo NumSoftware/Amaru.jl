@@ -298,6 +298,9 @@ function elem_coupling_matrix(elem::TMShell)
     # 
     ndim   = elem.env.ndim
 
+    E = elem.mat.E
+    ν = elem.mat.ν
+
     th     = elem.props.th
     ndof   = 6
     nstr   = 6
@@ -312,7 +315,7 @@ function elem_coupling_matrix(elem::TMShell)
     C   = getcoords(elem)
     Cut = zeros(ndof*nnodes, nnodes) # u-t coupling matrix
     m    = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
-    m   = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  #
+    m   = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]*(1-2*ν)/(1-ν)  #
 
 
     for ip in elem.ips
@@ -339,7 +342,8 @@ function elem_coupling_matrix(elem::TMShell)
         @assert detJ′>0
         # compute Cut
         α    = calc_α(elem.mat, ip.state.ut)
-        β    = elem.mat.E*α/(1-2*elem.mat.ν) 
+        β = E*α/(1-ν)
+
         coef  = β
         coef *= detJ′*ip.w
         mN   = m*N'
@@ -508,7 +512,7 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes]
     Ut += dUt # nodal tempeture at step n+1
     m   = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  #
-    m   = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  #
+    m   = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]*(1-2*ν)/(1-ν)  #
 
     dF = zeros(length(dU))
     B = zeros(6, ndof*nnodes)
@@ -555,7 +559,7 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
         failed(status) && return [dF; dFt], [map_u; map_t], status
 
         α = calc_α(elem.mat, ip.state.ut)
-        β = E*α/(1-2*ν)
+        β = E*α/(1-ν)
 
         Δσ -= β*Δut*m # get total stress
     

@@ -128,11 +128,10 @@ subjected to a list of boundary conditions `bcs`.
 
 `autoinc = false` : Sets automatic increments size. The first increment size will be `1/nincs`
 
-`maxincs = 1000000` : Maximum number of increments
 
 `tol     = 1e-2` : Tolerance for the maximum absolute error in forces vector
 
-`Ttol     = 1e-9` : Pseudo-time tolerance
+`Tmin     = 1e-8` : Pseudo-time tolerance
 
 `scheme  = :FE` : Predictor-corrector scheme at each increment. Available scheme is `:FE`
 
@@ -140,11 +139,10 @@ subjected to a list of boundary conditions `bcs`.
 
 `outdir  = ""` : Output directory
 
-`filekey = ""` : File key for output files
+`outkey = ""` : File key for output files
 
-`verbose = true` : If true, provides information of the analysis steps
+`quiet = false` : verbosity level from 0 (silent) to 2 (verbose)
 
-`silent = false` : If true, no information is printed
 """
 function solve!(model::Model, ana::AcousticMechAnalysis; args...)
     name = "Solver for acoustic mechanical analyses"
@@ -153,19 +151,21 @@ function solve!(model::Model, ana::AcousticMechAnalysis; args...)
 end
 
 
-function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream; 
+function am_stage_solver!(model::Model, stage::Stage; 
     tol     :: Number  = 1e-2,
-    Ttol    :: Number  = 1e-9,
+    rtol    :: Number  = 1e-2,
+    Tmin    :: Number  = 1e-9,
     rspan   :: Number  = 1e-2,
     maxits  :: Int     = 5,
     autoinc :: Bool    = false,
-    maxincs :: Int     = 1000000,
     outdir  :: String  = ".",
     outkey  :: String  = "out",
     quiet  :: Bool    = false
-                  )
+    )
 
-    println(logfile, "Acoustic FE analysis: Stage $(stage.id)")
+    env = model.env
+
+    println(env.log, "Acoustic FE analysis: Stage $(stage.id)")
     stage.status = :solving
 
     solstatus = success()
@@ -176,6 +176,7 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream;
     tspan     = stage.tspan
     env       = model.env
     save_outs = stage.nouts > 0
+    ftol      = tol
 
     # Get active elements
     for elem in stage.toactivate
@@ -194,10 +195,10 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream;
     umap     = 1:nu         # map for unknown bcs
     pmap     = nu+1:ndofs   # map for prescribed bcs
     model.ndofs = length(dofs)
-    println(logfile, "unknown dofs: $nu")
-    # message(sline, "  unknown dofs: $nu") # TODO
+    println(env.log, "unknown dofs: $nu")
+    # println(env.alerts, "  unknown dofs: $nu") # TODO
 
-    # quiet || nu==ndofs && message(sline, "solve_system!: No essential boundary conditions", Base.warn_color) #TODO
+    # quiet || nu==ndofs && println(env.alerts, "solve_system!: No essential boundary conditions", Base.warn_color) #TODO
 
     # Dictionary of data keys related with a dof
     components_dict = Dict( 
@@ -211,6 +212,7 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream;
     
     model.env.transient = true
 
+    # Setup quantities at dofs
     if stage.id == 1
         for dof in dofs
             us, fs, vs, as = components_dict[dof.name]
@@ -223,29 +225,21 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream;
         # Initial accelerations
         A = zeros(ndofs)
         V = zeros(ndofs)
-        Uex, Fex = get_bc_vals(model, bcs) # get values at time t
-
+        Uex, Fexa = get_bc_vals(model, bcs) # get values at time t
+        
         M = am_mount_M(model.elems, ndofs)
-        # @showm M
-        # @showm inv(Matrix(M))
-        # @show nu
-        # @show length(dofs)
 
-        solve_system!(M, A, Fex, nu)
-        # @showm A
+        # initial acceleration
+        sysstatus = solve_system!(M, A, Fexa, nu)
+        # failed(sysstatus) && return failure("solver: Reduced mass matrix is singular")
+
 
         # Initial values at nodes
         for (i,dof) in enumerate(dofs)
             us, fs, vs, as = components_dict[dof.name]
             dof.vals[vs] = V[i]
             dof.vals[as] = A[i]
-            dof.vals[fs] = Fex[i]
-        end
-
-        # Setup quantities at dofs
-        for dof in dofs
-            dof.vals[dof.name]    = 0.0
-            dof.vals[dof.natname] = 0.0
+            dof.vals[fs] = Fexa[i]
         end
 
         # Save initial file and loggers
@@ -256,46 +250,51 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream;
         # complete_ut_T(model)
         save_outs && save(model, "$outdir/$outkey-0.vtu", quiet=true)
     end
+    lastflush = time()
+    flushinterval = 5.0
 
     # Get the domain current state and backup
-    State = [ ip.state for elem in model.elems for ip in elem.ips ]
+    State = [ ip.state for elem in active_elems for ip in elem.ips ]
     StateBk = copy.(State)
 
     # Incremental analysis
-    t    = env.t     # current time
-
+    
     T  = 0.0
     ΔT = 1.0/nincs       # initial ΔT value
-    autoinc && (ΔT=min(ΔT,0.01))
+    autoinc && (ΔT=min(ΔT, 0.01))
 
-    ΔTbk = 0.0
+    ΔTbk    = 0.0
     ΔTcheck = save_outs ? 1/nouts : 1.0
     Tcheck  = ΔTcheck
 
+    t    = env.t     # current time
+    
     inc  = 0             # increment counter
-    iout = env.out # file output counter
+    iout = env.out       # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
     ΔFin = zeros(ndofs)  # vector of internal natural values for current increment
-    ΔUa  = zeros(ndofs)  # vector of essential values (e.g. displacements) for this increment
-    ΔUi  = zeros(ndofs)  # vector of essential values for current iteration
+    ΔUi  = zeros(ndofs)  # vector of essential values (e.g. displacements) for this increment
+    ΔUk  = zeros(ndofs)  # vector of essential values for current iteration
     Rc   = zeros(ndofs)  # vector of cumulated residues
     Fina = zeros(ndofs)  # current internal forces
+    
+    
+    ΔFexi = zeros(ndofs)  # increment of external natural bc
+    ΔUexi = zeros(ndofs)  # increment of external essential bc
+    Fexi! = zeros(ndofs)  # last value of external natural bc
+    Uexi! = zeros(ndofs)  # last value of external essential bc
 
     sysstatus = ReturnStatus()
 
     # Get boundary conditions
-    Uex, Fex = get_bc_vals(model, bcs, t) # get values at time t  #TODO pick internal forces and displacements instead!
+    # Uex, Fexa = get_bc_vals(model, bcs, t) # get values at time t  #TODO pick internal forces and displacements instead!
 
-    # @show Fex
-
-    # Get unbalanced forces
-    Fin = zeros(ndofs)
     # for elem in model.elems
     #     elem_internal_forces(elem, Fin)
     # end
-    # Fex .-= Fin # add negative forces to external forces vector
+    # Fexa .-= Fin # add negative forces to external forces vector
 
     # Get global vectors from values at dofs
     for (i,dof) in enumerate(dofs)
@@ -306,137 +305,114 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream;
     local G::SparseMatrixCSC{Float64,Int64}
     local RHS::Array{Float64,1}
 
-    while T < 1.0-Ttol
+    while T < 1.0-Tmin
         env.ΔT = ΔT
+        Δt     = tspan*ΔT
+        env.t  = t + Δt
 
         # Update counters
         inc += 1
-        env.inc = inc
+        env.inc = inc 
 
-        println(logfile, "  inc $inc")
-
-        if inc > maxincs
-            quiet || message(sline, "solver maxincs = $maxincs reached (try maxincs=0)", Base.default_color_error)
-            return failure("$maxincs reached")
-        end
+        println(env.log, "  inc $inc")
 
         # Get forces and displacements from boundary conditions
-        Δt = tspan*ΔT
-        env.t = t + Δt
+        Uexi, Fexi = get_bc_vals(model, bcs, t+Δt) # get values at time t+Δt
+        ΔUexi = Uexi - Uexi!
+        ΔFexi = Fexi - Fexi!
 
-        UexN, FexN = get_bc_vals(model, bcs, t+Δt) # get values at time t+Δt
+        ΔUexi[umap] .= 0.0
+        ΔFexi[pmap] .= 0.0
 
-        ΔUex = UexN - U
-        ΔFex = FexN - F
+        ΔF = ΔFexi
+        ΔF[pmap] .= 0.0  # Zero at prescribed positions
 
-        # ΔTcr = min(rspan, 1-T)    # time span to apply cumulated residues
-        # αcr  = min(ΔT/ΔTcr, 1.0)  # fraction of cumulated residues to apply
-        # T<1-rspan && (ΔFex .+= αcr.*Rc) # addition of residuals
-
-        ΔUex[umap] .= 0.0
-        ΔFex[pmap] .= 0.0
-
-        # R   .= ΔFex
-        Fex_Fin = Fex-Fina    # residual
-        ΔUa .= 0.0
-        ΔUi .= ΔUex    # essential values at iteration i
+        ΔUi .= 0.0
+        ΔUk .= ΔUexi    # essential values at iteration i
 
         # Newton Rapshon iterations
-        residue   = 0.0
-        maxfails  = 3  # maximum number of it. fails with residual change less than 90%
-        nfails    = 0  # counter for iteration fails
-        nits      = 0
-        residue1  = 0.0
+        res   = 0.0
+        # maxfails  = 3  # maximum number of it. fails with residual change less than 90%
+        # nfails    = 0  # counter for iteration fails
+        nits  = 0
+        res1  = 0.0
         converged = false
-        errored   = false
+        syserror   = false
 
         for it=1:maxits
             yield()
 
             nits += 1
-            it>1 && (ΔUi.=0.0) # essential values are applied only at first iteration
-            lastres = residue # residue from last iteration
+            it>1 && (ΔUk.=0.0) # essential values are applied only at first iteration
+            lastres = res # res from last iteration
 
             K = am_mount_K(model.elems, ndofs)
             M = am_mount_M(model.elems, ndofs)
 
-            KK = K + (4/Δt^2)*M # pseudo-stiffness matrix
-            ΔQQ = Fex_Fin + M*(A + 4*V/Δt - 4*ΔUa/Δt^2)
-
+            K′ = K + 4/Δt^2*M   # pseudo-stiffness matrix
+            ΔF′ = ΔF + M*(A + 4*V/Δt - 4*ΔUi/Δt^2)
 
             # Solve
-            solve_system!(KK, ΔUi, ΔQQ, nu)
+            solve_system!(K′, ΔUk, ΔF′, nu)
 
             # Restore the state to last converged increment
             copyto!.(State, StateBk)
 
             # Get internal forces and update data at integration points (update ΔFin)
             ΔFin .= 0.0
-            ΔUt   = ΔUa + ΔUi
-            ΔFin, sysstatus = update_state!(model.elems, ΔUt, Δt)
-            failed(sysstatus) && (errored=true; break)
+            ΔUit   = ΔUi + ΔUk
+            ΔFin, sysstatus = update_state!(model.elems, ΔUit, Δt)
+            failed(sysstatus) && (syserror=true; break)
 
-            V = -V + 2/Δt*(ΔUa + ΔUi)
-            A = -A + 4/Δt^2*((ΔUa + ΔUi) - V*Δt)
-
-
-            Fina = Fin + ΔFin        
-            TFin = Fina + M*A  # Internal force including dynamic effects
-
-            RR = ΔFin + M*A - ΔFex
-            # residue = maximum(abs, RR[umap] )
-            residue = maximum(abs, (FexN-TFin)[umap] )
+            Vt = -V + 2/Δt*ΔUit
+            At = -A + 4/Δt^2*(ΔUit - Vt*Δt)
             
+            R = ΔFexi - (ΔFin + M*At)
+            res = maximum(abs, R[umap] )
+
             # Update accumulated displacement
-            ΔUa .+= ΔUi
+            ΔUi .+= ΔUk
 
             # Residual vector for next iteration
-            Fex_Fin .= Fex .- Fina  # Check this variable, it is not the residue actually
-            Fex_Fin[pmap] .= 0.0  # Zero at prescribed positions
+            # ΔF[pmap] .= 0.0  # Zero at prescribed positions
 
-            @printf(logfile, "    it %d  residue: %-10.4e\n", it, residue)
+            @printf(env.log, "    it %d  res: %-10.4e\n", it, res)
 
-            @show residue
+            # @show res
 
-            it==1 && (residue1=residue)
-            residue > tol && (Fina -= ΔFin)
-            residue < tol  && (converged=true; break)
-            isnan(residue) && break
-            it>maxits      && break
-            it>1 && residue>lastres && break
-            residue>0.9*lastres && (nfails+=1)
-            nfails==maxfails    && break
+            it==1 && (res1=res)
+            res < tol  && (converged=true; break)
+            isnan(res) && break
+            it>maxits  && break
+            it>1 && res>lastres && break
         end
 
         q = 0.0 # increment size factor for autoinc
 
-        if errored
-            println(logfile, sysstatus.message)
+        if syserror
+            println(env.log, sysstatus.message)
             converged = false
         end
-        quiet || sysstatus.message!="" && message(sline, sysstatus.message, Base.default_color_warn)
+        quiet || sysstatus.message!="" && println(env.alerts, sysstatus.message)
 
         if converged
             # Update nodal natural and essential values for the current stage
-            U .+= ΔUa
-            Fin = Fina
-            F .+= ΔFin
-            Uex .= UexN
-            Fex .= FexN
+            U  .+= ΔUi
+            F  .+= ΔFin
 
-            # @showm ΔUa
+            Uexi! = Uexi
+            Fexi! = Fexi
+
+            # @showm ΔUi
 
             # Backup converged state at ips
             copyto!.(StateBk, State)
 
             # Update nodal variables at dofs
             for (i,dof) in enumerate(dofs)
-                # @show dof.name, ΔUa[i]
-                dof.vals[dof.name]    += ΔUa[i]
+                # @show dof.name, ΔUi[i]
+                dof.vals[dof.name]    += ΔUi[i]
                 dof.vals[dof.natname] += ΔFin[i]
-                # if dof.name==:ut
-                #     dof.vals[:T] = U[i] + T0
-                # end
             end
 
             # Update time
@@ -444,10 +420,10 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream;
             T += ΔT
             env.t = t
             env.T = T
-            env.residue = residue
+            env.residue = res
 
             # Check for saving output file
-            if T>Tcheck-Ttol && save_outs
+            if T>Tcheck-Tmin && save_outs
                 env.out += 1
                 iout = env.out
                 rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
@@ -463,7 +439,7 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream;
 
             update_single_loggers!(model)
             update_monitors!(model)
-            flush(logfile)
+            flush(env.log)
 
             if autoinc
                 if ΔTbk>0.0
@@ -471,13 +447,13 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream;
                     ΔTbk = 0.0
                 else
                     if nits==1
-                        q = (1+tanh(log10(tol/residue1)))^1
+                        q = 1.0 + tanh(log10(tol/res1))
                     else
                         q = 1.0
                     end
 
                     ΔTtr = min(q*ΔT, 1/nincs, 1-T)
-                    if T+ΔTtr>Tcheck-Ttol
+                    if T+ΔTtr>Tcheck-Tmin
                         ΔTbk = ΔT
                         ΔT = Tcheck-T
                         @assert ΔT>=0.0
@@ -495,13 +471,13 @@ function am_stage_solver!(model::Model, stage::Stage, logfile::IOStream;
             copyto!.(State, StateBk)
 
             if autoinc
-                println(logfile, "      increment failed")
-                q = (1+tanh(log10(tol/residue1)))
+                println(env.log, "      increment failed")
+                q = (1+tanh(log10(tol/res1)))
                 q = clamp(q, 0.2, 0.9)
-                errored && (q=0.7)
+                syserror && (q=0.7)
                 ΔT = q*ΔT
                 ΔT = round(ΔT, sigdigits=3)  # round to 3 significant digits
-                if ΔT < Ttol
+                if ΔT < Tmin
                     solstatus = failure("solver did not converge")
                     break
                 end

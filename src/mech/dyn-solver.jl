@@ -272,8 +272,8 @@ function dyn_stage_solver!(model::Model, stage::Stage;
 
     t  = env.t
  
-    inc  = 0       # increment counter
-    iout = env.out      # file output counter
+    inc  = 0             # increment counter
+    iout = env.out       # file output counter
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
     Fin  = zeros(ndofs)  # total internal force
@@ -290,15 +290,13 @@ function dyn_stage_solver!(model::Model, stage::Stage;
 
     # while t < tend - ttol
     while T < 1.0-Ttol
-
         env.ΔT = ΔT
         Δt = tspan*ΔT
-        # t = t + Δt
         env.t = t
 
         # Update counters
         inc += 1
-        env.inc += 1
+        env.inc = inc
 
         println(env.log, "  inc $inc")
 
@@ -324,12 +322,12 @@ function dyn_stage_solver!(model::Model, stage::Stage;
         residue   = 0.0
         maxfails  = 3    # maximum number of it. fails with residual change less than 90%
         nfails    = 0    # counter for iteration fails
-        nits      = 0    # counter for iteration fails
-        residue1   = 0.0
+        nits      = 0
+        residue1  = 0.0
         converged = false
-        errored   = false
 
         for it=1:maxits
+            @show it
             yield()
             if it>1; ΔUi .= 0.0 end # essential values are applied only at first iteration
             lastres = residue # residue from last iteration
@@ -339,7 +337,10 @@ function dyn_stage_solver!(model::Model, stage::Stage;
 
             C   = alpha*M + beta*K # Damping matrix
             Kp  = K + (4/(Δt^2))*M + (2/Δt)*C # pseudo-stiffness matrix
-            ΔFp = Fex_Fin + M*(A + 4*V/Δt + 4*(-ΔUa)/(Δt^2)) + C*(V + (2*(-ΔUa)/Δt))
+            ΔFp = Fex_Fin + M*(A + 4*V/Δt - 4*ΔUa/Δt^2) + C*(V - 2*ΔUa/Δt)
+            @show norm(ΔUa)
+            @show norm(V)
+            @show norm(A)
 
             # Solve
             solve_system!(Kp, ΔUi, ΔFp, nu)
@@ -356,8 +357,8 @@ function dyn_stage_solver!(model::Model, stage::Stage;
 
             # Update V and A
             # Optional (V and A may be used from the interval beginning)
-            Va = -V + 2*(ΔUa + ΔUi)/Δt;
-            Aa = -A + 4*((ΔUa + ΔUi) - V*Δt)/(Δt^2);
+            Va = -V + 2*(ΔUt)/Δt
+            Aa = -A + 4*((ΔUt) - V*Δt)/(Δt^2)
 
 
             TFin = Fina + C*Va + M*Aa  # Internal force including dynamic effects
@@ -465,7 +466,6 @@ function dyn_stage_solver!(model::Model, stage::Stage;
                 println(env.log, "      increment failed")
                 q = (1+tanh(log10(tol/residue1)))
                 q = clamp(q, 0.2, 0.9)
-                errored && (q=0.7)
                 ΔT = q*ΔT
                 ΔT = round(ΔT, sigdigits=3)  # round to 3 significant digits
                 if ΔT < Ttol

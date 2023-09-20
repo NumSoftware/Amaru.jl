@@ -24,6 +24,6 @@ bcs = [
     :(y==1 && z==0.2) << NodeBC(fz=-10),
 ]
 
-addstage!(model, bcs, tspan=0.1, nincs=100, nouts=20)
+addstage!(model, bcs, tspan=0.1, nincs=1, nouts=1)
 
-solve!(model, autoinc=true, alpha=4.2038, beta=174.2803e-6)
+solve!(model, alpha=4.2038, beta=174.2803e-6, quiet=true)

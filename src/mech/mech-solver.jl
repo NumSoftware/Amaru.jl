@@ -251,7 +251,7 @@ function mech_stage_solver!(model::Model, stage::Stage;
         save_outs && save(model, "$outdir/$outkey-0.vtu", quiet=true)
     end
     lastflush = time()
-    flushinterval = 5
+    flushinterval = 5.0
 
     # Get the domain current state and backup
     State = [ ip.state for elem in active_elems for ip in elem.ips ]
@@ -260,9 +260,9 @@ function mech_stage_solver!(model::Model, stage::Stage;
     # Incremental analysis
     T  = 0.0
     ΔT = 1.0/nincs       # initial ΔT value
-    autoinc && (ΔT=min(ΔT,0.01))
+    autoinc && (ΔT=min(ΔT, 0.01))
 
-    ΔTbk = 0.0
+    ΔTbk    = 0.0
     ΔTcheck = save_outs ? 1/nouts : 1.0
     Tcheck  = ΔTcheck
 
