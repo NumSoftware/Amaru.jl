@@ -145,8 +145,7 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
         sw = StopWatch() # timing
         # sline = StatusLine(model, stage, sw)
         if !quiet
-            print("\e[?25l") # disable cursor
-            status_cycler_task = Threads.@spawn status_cycler(model, sw)
+            status_cycler_task = Threads.@spawn :interactive status_cycler(model, sw)
         end
 
         local runerror
@@ -172,7 +171,6 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
 
         if !quiet
             wait(status_cycler_task)
-            print("\e[?25h") # enable cursor
             solstatus.message != "" && println(solstatus.message)
         end
 
@@ -259,10 +257,11 @@ end
 
 
 function status_cycler(model::FEModel, sw::StopWatch)
-    stage  = model.stages[model.env.stage]
+    print("\e[?25l") # disable cursor
 
+    stage     = model.stages[model.env.stage]
     last_loop = false
-    alerts = String[]
+    alerts    = String[]
     while true
         nlines = 0
 
@@ -277,6 +276,8 @@ function status_cycler(model::FEModel, sw::StopWatch)
         sleep(0.1)
         yield()
     end
+
+    print("\e[?25h") # enable cursor
 end
 
 
@@ -335,7 +336,7 @@ function print_summary(model::FEModel, sw::StopWatch)
     print(bar)
     printstyled(" $(progress)% \e[K\n", bold=true, color=:light_blue)
 
-    # Print monitors
+    # print monitors
     for mon in model.monitors
         str     = output(mon)
         nlines += count("\n", str)
