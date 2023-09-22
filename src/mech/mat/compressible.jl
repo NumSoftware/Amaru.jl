@@ -52,8 +52,7 @@ mutable struct CompressibleState<:IpState
 end
 
 
-compat_state_type(::Type{Compressible}) = CompressibleState
-compat_elem_types(::Type{Compressible}) = (MechSolid,)
+compat_state_type(::Type{Compressible}, ::Type{MechSolid}, env::ModelEnv) = CompressibleState
 
 
 @inline function yield_func(mat::Compressible, state::CompressibleState, σ::Vec6,  εvp::Float64)

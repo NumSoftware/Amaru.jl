@@ -215,7 +215,7 @@ function mech_stage_solver!(model::Model, stage::Stage;
     nouts     = stage.nouts
     bcs       = stage.bcs
     env       = model.env
-    save_outs = stage.nouts > 0
+    saveouts = stage.nouts > 0
     ftol      = tol
 
     # Get active elements
@@ -243,12 +243,7 @@ function mech_stage_solver!(model::Model, stage::Stage;
             dof.vals[dof.natname] = 0.0
         end
 
-        # Save initial file and loggers
-        update_output_data!(model)
-        update_single_loggers!(model)
-        update_multiloggers!(model)
-        update_monitors!(model)
-        save_outs && save(model, "$outdir/$outkey-0.vtu", quiet=true)
+        update_records!(model)
     end
     lastflush = time()
     flushinterval = 5.0
@@ -263,7 +258,7 @@ function mech_stage_solver!(model::Model, stage::Stage;
     autoinc && (ΔT=min(ΔT, 0.01))
 
     ΔTbk    = 0.0
-    ΔTcheck = save_outs ? 1/nouts : 1.0
+    ΔTcheck = saveouts ? 1/nouts : 1.0
     Tcheck  = ΔTcheck
 
     inc  = 0             # increment counter
@@ -435,25 +430,23 @@ function mech_stage_solver!(model::Model, stage::Stage;
             env.residue = res
 
             # Check for saving output file
-            if T>Tcheck-Tmin && save_outs
+            checkpoint = T>Tcheck-Tmin 
+            # && saveouts
+            if checkpoint
                 env.out += 1
-                iout = env.out
-                rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
-                
-                update_output_data!(model)
                 update_embedded_disps!(active_elems, model.node_data["U"])
-
-                update_multiloggers!(model)
-                save(model, "$outdir/$outkey-$iout.vtu", quiet=true) #!
-
                 Tcheck += ΔTcheck # find the next output time
             end
 
-            flushfiles = time()-lastflush>flushinterval || T >= 1.0-Tmin
-            update_single_loggers!(model, flush=flushfiles)
-            update_monitors!(model, flush=flushfiles)
-            if flushfiles
-                flush(env.log)
+            flush = time()-lastflush>flushinterval || T >= 1.0-Tmin
+
+            rstatus = update_records!(model, checkpoint=checkpoint, flush=flush)
+            if failed(rstatus)
+                println(env.alerts, rstatus.message)
+                return rstatus
+            end
+            
+            if flush
                 lastflush = time()
                 GC.gc()
             end
@@ -517,10 +510,7 @@ function mech_stage_solver!(model::Model, stage::Stage;
         end
     end
 
-    if !save_outs
-        update_output_data!(model)
-        update_multiloggers!(model)
-    end
+    failed(solstatus) && update_records!(model, solverfailed=true)
 
     return solstatus
 

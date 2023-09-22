@@ -15,6 +15,7 @@ mutable struct ModelEnv
     transient::Bool      # Time dependent analysis
     t        ::Float64   # Time in time dependent analysis
     outdir   ::String    # Output directory
+    outkey   ::String    # Key name for output files
     ana      ::Analysis
     pool     ::ArrayPool
     
@@ -36,7 +37,8 @@ mutable struct ModelEnv
         this.ndim      = 3
         this.transient = false
         this.t         = 0.0
-        this.outdir    = ""
+        this.outdir    = "."
+        this.outkey    = "out"
         this.pool      = ArrayPool()
 
         this.alerts    = IOBuffer()

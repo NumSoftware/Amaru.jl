@@ -251,13 +251,15 @@ function tm_stage_solver!(model::Model, stage::Stage;
             end
         end
 
+        update_records!(model)
+
         # Save initial file and loggers
-        update_output_data!(model)
-        update_single_loggers!(model)
-        update_multiloggers!(model)
-        update_monitors!(model)
+        # update_output_data!(model)
+        # update_single_loggers!(model)
+        # update_multiloggers!(model)
+        # update_monitors!(model)
         complete_ut_T(model)
-        save_outs && save(model, "$outdir/$outkey-0.vtu", quiet=true)
+        # save_outs && save(model, "$outdir/$outkey-0.vtu", quiet=true)
     end
     lastflush = time()
     flushinterval = 5
@@ -315,11 +317,6 @@ function tm_stage_solver!(model::Model, stage::Stage;
         env.inc = inc
 
         println(env.log, "  inc $inc")
-
-        if inc > maxincs
-            quiet || println(env.alerts, "solver maxincs = $maxincs reached (try maxincs=0)")
-            return failure("$maxincs reached")
-        end
 
         # Get forces and displacements from boundary conditions
         Δt = tspan*ΔT
@@ -446,25 +443,36 @@ function tm_stage_solver!(model::Model, stage::Stage;
             env.residue = res
 
             # Check for saving output file
-            if T>Tcheck-Tmin && save_outs
+            # if T>Tcheck-Tmin && save_outs
+            checkpoint = T>Tcheck-Tmin 
+            if checkpoint
+
+
                 env.out += 1
-                iout = env.out
-                rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
+                # iout = env.out
+                # rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
                 
-                update_output_data!(model)
+                # update_output_data!(model)
+                # update_multiloggers!(model)
+                # save(model, "$outdir/$outkey-$iout.vtu", quiet=true)
+                
                 # update_embedded_disps!(active_elems, model.node_data["U"])
-
-                update_multiloggers!(model)
-                save(model, "$outdir/$outkey-$iout.vtu", quiet=true)
-
                 Tcheck += ΔTcheck # find the next output time
             end
 
-            flushfiles = time()-lastflush>flushinterval || T >= 1.0-Tmin
-            update_single_loggers!(model, flush=flushfiles)
-            update_monitors!(model, flush=flushfiles)
-            if flushfiles
-                flush(env.log)
+            flush = time()-lastflush>flushinterval || T >= 1.0-Tmin
+
+            rstatus = update_records!(model, checkpoint=checkpoint, flush=flush)
+            if failed(rstatus)
+                println(env.alerts, rstatus.message)
+                return rstatus
+            end
+
+
+            # update_single_loggers!(model, flush=flush)
+            # update_monitors!(model, flush=flush)
+            if flush
+                # flush(env.log)
                 lastflush = time()
                 GC.gc()
             end
@@ -523,11 +531,13 @@ function tm_stage_solver!(model::Model, stage::Stage;
         end
     end
 
-    if !save_outs
-        update_output_data!(model)
-        complete_ut_T(model)
-        update_multiloggers!(model)
-    end
+    failed(solstatus) && update_records!(model, solverfailed=true)
+    # if !save_outs
+    #     rstatus = update_records!(model, checkpoint=checkpoint, flush=false)
+
+    #     update_output_data!(model)
+    #     update_multiloggers!(model)
+    # end
 
     return solstatus
 

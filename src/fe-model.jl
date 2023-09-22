@@ -372,6 +372,48 @@ function update_monitors!(model::Model; flush=true)
     return success()
 end
 
+function update_records!(model::Model; checkpoint=true, flush=true, solverfailed=false)
+    # flush: flush files
+
+    outdir = model.env.outdir
+    outkey = model.env.outkey
+    count  = model.env.out
+
+    if solverfailed
+        checkpoint = true
+        flush = true
+    end
+
+    if checkpoint
+        rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
+        rm.(glob("*conflicted*.vtu", "$outdir/"), force=true)
+                
+        update_output_data!(model)
+
+        # update multiloggers
+        for logger in model.loggers
+            isa(logger, MultiLogger) && update_logger!(logger, model; flush)
+        end
+
+        !solverfailed && save(model, "$outdir/$outkey-$count.vtu", quiet=true)
+    end
+
+    flush && Base.flush(model.env.log)
+
+    # update single loggers
+    for logger in model.loggers
+        isa(logger, SingleLogger) && update_logger!(logger, model; flush)
+    end
+
+    # update monitors
+    for monitor in model.monitors
+        rstatus = update_monitor!(monitor, model; flush)
+        failed(rstatus) && return rstatus
+    end
+
+    return success()
+end
+
 
 function FEModel(elems::Array{<:Element,1})
     model            = FEModel()

@@ -82,6 +82,7 @@ end
 function stage_iterator!(name::String, stage_solver!::Function, model::Model; args...)
     autoinc = get(args, :autoinc, false)
     outdir  = get(args, :outdir, ".")
+    outkey  = get(args, :outkey, "out")
     quiet   = get(args, :quiet, false)
     env     = model.env
     
@@ -98,6 +99,7 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
 
     outdir = rstrip(outdir, ['/', '\\'])
     env.outdir = outdir
+    env.outkey = outkey
 
     if !isdir(outdir)
         info("solve!: creating output directory ./$outdir")
@@ -106,9 +108,9 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
 
 
     if cstage==1
-        env.log = open("solve.log", "w")
+        env.log = open("$outdir/solve.log", "w")
     else
-        env.log = open("solve.log", "a")
+        env.log = open("$outdir/solve.log", "a")
     end
 
     

@@ -376,7 +376,7 @@ end
 
 
 
-mutable struct PointLogger<:MultiLogger
+mutable struct PointLogger<:SingleLogger
     filename ::String
     filter   ::Array{Float64,1}
     table    ::DataTable
