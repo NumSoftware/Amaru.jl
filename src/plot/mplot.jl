@@ -1450,8 +1450,7 @@ function mplot(geo::GeoModel, filename::String;
     X = Float64[]
     Y = Float64[]
     Z = Float64[]
-    for p in geo.entities
-        p isa Point || continue
+    for p in geo.points
         push!(X, p.coord[1])
         push!(Y, p.coord[2])
         push!(Z, p.coord[3])
@@ -1630,8 +1629,7 @@ function mplot(geo::GeoModel, filename::String;
         facecolors = []
         lineweight = []
 
-        for s in geo.entities
-            s isa Surface || continue
+        for s in geo.surfaces
             
             points = getpoints(s.loops[1])
             npoints = length(points)
