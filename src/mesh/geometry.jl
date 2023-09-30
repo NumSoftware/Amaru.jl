@@ -776,9 +776,22 @@ end
 
 function addloops!(geo::GeoModel, c::Curve)
     loops = findloops(geo, c)
-    for lo in loops
-        addloop!(geo, lo) # may add a new surface
+    newtag = ""
+
+    if length(loops)==2
+        for s in geo.surfaces
+            if overlaps(loops[1], s) && overlaps(loops[2], s)
+                delete!(geo, s)
+                newtag = s.tag
+                break
+            end
+        end
     end
+
+    for lo in loops
+        addloop!(geo, lo, newtag) # may add a new surface
+    end
+
 end
 
 # function addline!2(geo::GeoModel, p1::Point, p2::Point; n=0, tag="")
@@ -1125,7 +1138,7 @@ end
 # end
 
 
-function addloop!(geo::GeoModel, lo::Loop)
+function addloop!(geo::GeoModel, lo::Loop, newtag::String="")
     loo = getloop(geo, lo)
     loo===nothing || return loo
 
@@ -1135,11 +1148,11 @@ function addloop!(geo::GeoModel, lo::Loop)
 
     # find if loop overlaps existing surface
     for s in geo.surfaces
-        s isa PlaneSurface || continue
 
         # check if lo is a hole
         if overlaps(lo, s, withborder=false)
             # @show "hole"
+            newtag = s.tag
             push!(s.loops, lo)
             for l in lo.curves
                 push!(l.surfaces, s)
@@ -1147,13 +1160,20 @@ function addloop!(geo::GeoModel, lo::Loop)
             break
         end
 
-        # check if lo is a subregion
-        if overlaps(lo, s)
-            # @show "ov"
-            delete!(geo, s) # also deletes the loop
-            break
-        end
+        # @show lo.id
+
+        # # check if lo is a subregion
+        # if overlaps(lo, s)
+        #     @show "overlap"
+        #     newtag = s.tag
+        #     delete!(geo, s) # also deletes the loop
+        #     break
+        # end
+
+        # @show "nothing"
     end
+
+    # @show newtag
 
     # hasarc = false
     # for l in lo
@@ -1165,6 +1185,7 @@ function addloop!(geo::GeoModel, lo::Loop)
     # else
     # end
     s = addplanesurface!(geo, lo)
+    s.tag = newtag
 
     # check if there are loops that represet holes for this surface
     for loop in geo.loops

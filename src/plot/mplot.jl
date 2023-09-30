@@ -1647,53 +1647,53 @@ function mplot(geo::GeoModel, filename::String;
     end
 
     # Draw node numbers
-    for o in geo.entities
-        if o isa Point
-            x = o.coord[1] + 0.01*ll
-            y = o.coord[2] - 0.01*ll
-            z = o.coord[3] - 0.01*ll
-            ndim==2 && ax.text(x, y, o.id, va="top", ha="left", backgroundcolor="none")
-            ndim==3 && ax.text(x, y, z, o.id, fontsize=4, va="center", ha="center", backgroundcolor="none")
-        elseif o isa Line
-            verts = [ p.coord for p in o.points ]
-            C = sum(verts)/length(verts)
-            x = C[1] + 0.01*ll
-            y = C[2] - 0.01*ll
-            z = C[3] - 0.01*ll
-            ndim==2 && ax.text(x, y, o.id, color="blue", va="top", ha="left", backgroundcolor="none")
-            ndim==3 && ax.text(x, y, z, o.id, fontsize=4, color="blue", va="center", ha="center", backgroundcolor="none")
-        elseif o isa Curve
-            p1 = o.points[1]
-            p2 = o.points[2]
-            p3 = o.points[3]
+    # for o in geo.entities
+    #     if o isa Point
+    #         x = o.coord[1] + 0.01*ll
+    #         y = o.coord[2] - 0.01*ll
+    #         z = o.coord[3] - 0.01*ll
+    #         ndim==2 && ax.text(x, y, o.id, va="top", ha="left", backgroundcolor="none")
+    #         ndim==3 && ax.text(x, y, z, o.id, fontsize=4, va="center", ha="center", backgroundcolor="none")
+    #     elseif o isa Line
+    #         verts = [ p.coord for p in o.points ]
+    #         C = sum(verts)/length(verts)
+    #         x = C[1] + 0.01*ll
+    #         y = C[2] - 0.01*ll
+    #         z = C[3] - 0.01*ll
+    #         ndim==2 && ax.text(x, y, o.id, color="blue", va="top", ha="left", backgroundcolor="none")
+    #         ndim==3 && ax.text(x, y, z, o.id, fontsize=4, color="blue", va="center", ha="center", backgroundcolor="none")
+    #     elseif o isa Curve
+    #         p1 = o.points[1]
+    #         p2 = o.points[2]
+    #         p3 = o.points[3]
 
-            P1, P2, P3 = p1.coord, p2.coord, p3.coord
-            r = norm(P3-P2)
-            α = acos(clamp(dot(P1-P2, P3-P2)/r^2, -1, 1))
-            θ = α/2
-            N = normalize(cross(P1-P2, P3-P2))
-            # N = normalize(N)
-            R = Quaternion(cos(θ/2), N[1]*sin(θ/2), N[2]*sin(θ/2), N[3]*sin(θ/2))
-            C = P2 + R*(P1-P2)*conj(R)
-            # C = P2 + 1.3*r*normalize(P-P2)
-            # @show C
+    #         P1, P2, P3 = p1.coord, p2.coord, p3.coord
+    #         r = norm(P3-P2)
+    #         α = acos(clamp(dot(P1-P2, P3-P2)/r^2, -1, 1))
+    #         θ = α/2
+    #         N = normalize(cross(P1-P2, P3-P2))
+    #         # N = normalize(N)
+    #         R = Quaternion(cos(θ/2), N[1]*sin(θ/2), N[2]*sin(θ/2), N[3]*sin(θ/2))
+    #         C = P2 + R*(P1-P2)*conj(R)
+    #         # C = P2 + 1.3*r*normalize(P-P2)
+    #         # @show C
 
-            x = C[1] + 0.01*ll
-            y = C[2] - 0.01*ll
-            z = C[3] - 0.01*ll
-            ndim==2 && ax.text(x, y, o.id, color="blue", va="top", ha="left", backgroundcolor="none")
-            ndim==3 && ax.text(x, y, z, o.id, fontsize=4, color="blue", va="center", ha="center", backgroundcolor="none")
-        elseif o isa Surface
-            points = getpoints(o.loops[1])
-            verts = [ p.coord for p in points ]
-            C = sum(verts)/length(verts)
-            x = C[1]
-            y = C[2]
-            z = C[3]
-            ndim==2 && ax.text(x, y, o.id, color="red", va="center", ha="center", backgroundcolor="none")
-            ndim==3 && ax.text(x, y, z, o.id, fontsize=4, color="red", va="center", ha="center", backgroundcolor="none")
-        end
-    end
+    #         x = C[1] + 0.01*ll
+    #         y = C[2] - 0.01*ll
+    #         z = C[3] - 0.01*ll
+    #         ndim==2 && ax.text(x, y, o.id, color="blue", va="top", ha="left", backgroundcolor="none")
+    #         ndim==3 && ax.text(x, y, z, o.id, fontsize=4, color="blue", va="center", ha="center", backgroundcolor="none")
+    #     elseif o isa Surface
+    #         points = getpoints(o.loops[1])
+    #         verts = [ p.coord for p in points ]
+    #         C = sum(verts)/length(verts)
+    #         x = C[1]
+    #         y = C[2]
+    #         z = C[3]
+    #         ndim==2 && ax.text(x, y, o.id, color="red", va="center", ha="center", backgroundcolor="none")
+    #         ndim==3 && ax.text(x, y, z, o.id, fontsize=4, color="red", va="center", ha="center", backgroundcolor="none")
+    #     end
+    # end
 
     # if nodelabels
     #     nnodes = length(X)

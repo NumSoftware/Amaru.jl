@@ -86,6 +86,11 @@ function Base.setproperty!(table::DataTable, sym::Symbol, val)
 end
 
 
+function Base.keys(table::DataTable)
+    return keys(getcolidx(table))
+end
+
+
 function Base.push!(table::DataTable, row::Array{T,1} where T)
     nr, nc = size(table)
     @assert nc==length(row)
@@ -97,49 +102,89 @@ function Base.push!(table::DataTable, row::Array{T,1} where T)
 end
 
 
-function Base.keys(table::DataTable)
-    return keys(getcolidx(table))
-end
 
-
-function Base.push!(table::DataTable, dict::AbstractDict)
+function Base.push!(table::DataTable, row::Union{NTuple, AbstractDict, Vector{<:Pair}, NTuple{N, <:Pair} where N})
     columns = getcolumns(table)
     colidx  = getcolidx(table)
     header  = getheader(table)
+    nr, nc = size(table)
 
-    if length(columns)==0
-        for (k,v) in dict
-            key = string(k)
+    if nc==0
+        for pair in row
+            key = string(pair.first)
             push!(header, key)
-            push!(columns, [v])
+            push!(columns, [pair.second])
             colidx[key] = length(header)
         end
     else
-        nrows = length(columns[1])
-        for (k,v) in dict
-            key = string(k)
-            # Add data
+        for pair in row
+            key = string(pair.first)
             idx = get(colidx, key, 0)
             if idx==0
                 # add new column
-                new_col = zeros(nrows)
-                push!(new_col, v)
-                push!(columns, new_col)
-                colidx[string(k)] = length(columns)
                 push!(header, key)
+                newcol = zeros(nr)
+                push!(newcol, pair.second)
+                push!(columns, newcol)
+                colidx[key] = length(columns)
             else
-                push!(columns[idx], v)
+                push!(columns[idx], pair.second)
             end
         end
 
-        # Add zero for missing values
+        # add zero for missing values
         for col in columns
-            if length(col)==nrows
-                push!(col, 0.0)
+            if length(col)==nr
+                if eltype(col)==String
+                    push!(col, "")
+                else
+                    push!(col, 0.0)
+                end
             end
         end
     end
+    
+    return row
 end
+
+# function Base.push!(table::DataTable, dict::AbstractDict)
+#     columns = getcolumns(table)
+#     colidx  = getcolidx(table)
+#     header  = getheader(table)
+
+#     if length(columns)==0
+#         for (k,v) in dict
+#             key = string(k)
+#             push!(header, key)
+#             push!(columns, [v])
+#             colidx[key] = length(header)
+#         end
+#     else
+#         nrows = length(columns[1])
+#         for (k,v) in dict
+#             key = string(k)
+#             # Add data
+#             idx = get(colidx, key, 0)
+#             if idx==0
+#                 # add new column
+#                 newcol = zeros(nrows)
+#                 push!(newcol, v)
+#                 push!(columns, newcol)
+#                 colidx[string(k)] = length(columns)
+#                 push!(header, key)
+#             else
+#                 push!(columns[idx], v)
+#             end
+#         end
+
+#         # Add zero for missing values
+#         for col in columns
+#             if length(col)==nrows
+#                 push!(col, 0.0)
+#             end
+#         end
+#     end
+# end
 
 
 function Base.setindex!(table::DataTable, column::AbstractVector, key::KeyType)
@@ -637,7 +682,7 @@ function DataTable(filename::String, delim::Char='\t')
 end
 
 
-# TODO: Improve display. Include column datatype
+# TODO: Improve display. Include columns datatypes
 function Base.show(io::IO, table::DataTable)
     columns = getcolumns(table)
     colidx = getcolidx(table)
@@ -656,23 +701,26 @@ function Base.show(io::IO, table::DataTable)
     end
 
     header = keys(colidx)
-    types  = typeof.(getindex.(columns,1))
+    types = eltype.(columns)
+    # types  = typeof.(getindex.(columns,1))
 
     hwidths = length.(header)
     widths  = zeros(Int, length(header))
     useformat   = falses(length(header))
     shortformat = falses(length(header))
 
-    for (i,col) in enumerate(columns)
-        etype = types[i]
-        widths[i] = maximum(length.(string.(col)))
-        if etype<:AbstractFloat
-            if widths[i] >= 11
-                widths[i] = 11
-                useformat[i] = true
+    if nr>0
+        for (i,col) in enumerate(columns)
+            etype = types[i]
+            widths[i] = maximum(length.(string.(col)))
+            if etype<:AbstractFloat
+                if widths[i] >= 11
+                    widths[i] = 11
+                    useformat[i] = true
+                end
             end
+            widths[i] = max(widths[i], hwidths[i])
         end
-        widths[i] = max(widths[i], hwidths[i])
     end
 
     total = sum(widths) + (length(header)+1)*3
@@ -686,6 +734,7 @@ function Base.show(io::IO, table::DataTable)
         end
     end
 
+    # print header
     print(io, " │ ")
     for (i,key) in enumerate(header)
         etype = types[i]

@@ -2,7 +2,7 @@
 
 abstract type ElemProperties end
 
-@inline Base.:(<<)(a, b::ElemProperties) = return (a, b)
-@inline Base.:(=>)(a, b::ElemProperties) = return (a, b)
+# @inline Base.:(<<)(a, b::ElemProperties) = return (a, b)
+# @inline Base.:(=>)(a, b::ElemProperties) = return (a, b)
 
-@inline Base.:(<<)(a, b::Type{<:ElemProperties}) = return (a, b)
+# @inline Base.:(<<)(a, b::Type{<:ElemProperties}) = return (a, b)

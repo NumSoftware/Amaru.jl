@@ -83,8 +83,8 @@ Uses a mesh and a list of meterial especifications to construct a finite element
 """
 function FEModel(
     mesh    :: Mesh,
-    matbinds:: Array{<:Tuple,1},
-    anatype:: Analysis;
+    matbinds:: Vector{<:Pair},
+    anatype :: Analysis;
     quiet   :: Bool = false,
 )
 
@@ -110,14 +110,19 @@ function FEModel(
     ncells      = length(mesh.elems)
     model.elems = Array{Element,1}(undef, ncells)
     for matbind in matbinds
-        if length(matbind)!=4
-            throw(AmaruException("FEModel: Assigments of element and material models should be specified as: filter << Element << Material << properties"))
-        end
+        matbind isa Pair{<:Any, Pair{DataType, Pair{DataType, NamedTuple}}} || throw(AmaruException("FEModel: Assigments of element and material models should be specified as: filter => Element => Material => properties"))
+        # if length(matbind)!=4
+            # throw(AmaruException("FEModel: Assigments of element and material models should be specified as: filter << Element << Material << properties"))
+        # end
         
-        filter    = matbind[1]
-        elem_type = matbind[2]
-        mat_type  = matbind[3]
-        args      = matbind[4]
+        filter    = matbind.first
+        elem_type = matbind.second.first
+        mat_type  = matbind.second.second.first
+        args      = matbind.second.second.second
+        # filter    = matbind[1]
+        # elem_type = matbind[2]
+        # mat_type  = matbind[3]
+        # args      = matbind[4]
         
         # Check if material is compatible with the element
         # comp_elem_types = compat_elem_types(mat_type)
@@ -327,9 +332,9 @@ function addloggers!(model::Model, loggers::Array{<:Tuple,1})
 end
 setloggers! = addloggers!
 
-function addmonitor!(model::Model, monpair::Tuple)
-    push!(model.monitors, monpair[2])
-    setup_monitor!(model, monpair[1], monpair[2])
+function addmonitor!(model::Model, monpair::Pair)
+    push!(model.monitors, monpair.second)
+    setup_monitor!(model, monpair.first, monpair.second)
 end
 
 """
@@ -338,7 +343,7 @@ end
 Register monitors from the array `loggers` into `model`.
 
 """
-function addmonitors!(model::Model, monitors::Array{<:Tuple,1})
+function addmonitors!(model::Model, monitors::Vector{<:Pair})
     model.monitors = []
     for (filter,monitor) in monitors
         push!(model.monitors, monitor)

@@ -4,8 +4,8 @@
 
 
 abstract type AbstractMonitor end
-@inline Base.:(<<)(a, b::AbstractMonitor) = return (a, b)
-@inline Base.:(=>)(a, b::AbstractMonitor) = return (a, b)
+@inline Base.:(<<)(a, b::AbstractMonitor) = return a=>b
+# @inline Base.:(=>)(a, b::AbstractMonitor) = return (a, b)
 
 # Ip Monitor
 
@@ -312,8 +312,8 @@ mutable struct NodeSumMonitor<:AbstractMonitor
                 length(varstr)>4 || continue
                 _, optstr = split(varstr, '_')
                 optstr in ("min","max") || continue
-                extra.args = union(extra.args, [var]) # add extra var as fx_min
-                expr.args  = union(expr.args, [var])  # add extra var as fx
+                extra.args = union(extra.args, [var]) # add extra var such as fx_min
+                expr.args  = union(expr.args, [var])  # add extra var such as fx
             end
         end
 

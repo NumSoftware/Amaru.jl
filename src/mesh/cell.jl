@@ -205,7 +205,7 @@ end
 
 
 function Base.getproperty(cells::Array{<:AbstractCell,1}, s::Symbol)
-    s in (:all, :solids, :bulks, :lines, :joints, :linejoints, :tipjoints, :embeddeds) && return cells[s]
+    s in (:all, :solids, :bulks, :lines, :joints, :joints1D, :linejoints, :tipjoints, :embeddeds) && return cells[s]
     s == :nodes  && return getnodes(cells)
     s == :filter && return cells
     s == :active && return filter(cell -> cell.active, cells)

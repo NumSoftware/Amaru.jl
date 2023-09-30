@@ -130,9 +130,17 @@ Base.show(io::IO, obj::AbstractLogger) = _show(io, obj, 2, "")
 Base.show(io::IO, obj::Model)         = _show(io, obj, 2, "")
 
 # Chaining
-Base.:(<<)(a::Tuple, b::Type{<:Material}) = return (a..., b)
-Base.:(<<)(a, b::Type{<:Material}) = return (a, b)
-Base.:(<<)(a::Tuple{<:Any, DataType, DataType}, b::NamedTuple) = return (a..., b)
+# Base.:(<<)(a::Tuple, b::Type{<:Material}) = return (a..., b)
+# Base.:(<<)(a, b::Type{<:Material}) = return (a, b)
+# Base.:(<<)(a::Tuple{<:Any, DataType, DataType}, b::NamedTuple) = return (a..., b)
+
+# @inline Base.:(<<)(a, b::Pair) = return (a=>b)
+# @inline Base.:(<<)(a, b::NamedTuple) = return (a=>b)
+
+Base.:(<<)(a, b::Type{<:Element}) = return (a=>b)
+Base.:(<<)(a::Pair, b::Type{<:Material}) = return (a.first => a.second => b)
+Base.:(<<)(a::Pair, b::NamedTuple) = return (a.first => a.second.first => a.second.second => b)
+
 
 # testing
 export @runfiles

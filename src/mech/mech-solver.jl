@@ -32,6 +32,7 @@ function mount_K(elems::Array{<:Element,1}, ndofs::Int )
                 for j in 1:nc
                     val = Ke[i,j]
                     abs(val) < eps() && continue
+                    # @redude R = append!(Int64[], rmap[i])
                     push!(R, rmap[i])
                     push!(C, cmap[j])
                     push!(V, val)
@@ -423,6 +424,14 @@ function mech_stage_solver!(model::Model, stage::Stage;
                 dof.vals[dof.name]    += ΔUa[i]
                 dof.vals[dof.natname] += ΔFin[i]
             end
+
+            # # Update nodal displacements
+            # for node in model.nodes
+            #     ux = ΔUa[node.dofdict[:ux].eq_id] 
+            #     uy = ΔUa[node.dofdict[:uy].eq_id] 
+            #     uz = ΔUa[node.dofdict[:uz].eq_id] 
+            #     node.coord = node.coord + [ux, uy, uz]
+            # end
 
             # Update time
             T += ΔT
