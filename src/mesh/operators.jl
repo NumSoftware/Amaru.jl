@@ -507,7 +507,7 @@ function changeaxes!(mesh::Mesh, order::String)
 
     idxs = [ char-'w' for char in order ]
     for p in mesh.nodes
-        p.coord[1:3] = p.coord[idxs]
+        p.coord = p.coord[idxs]
     end
 
     for elem in mesh.elems
