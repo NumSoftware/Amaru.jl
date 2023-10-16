@@ -70,7 +70,6 @@ end
 # Ip logger
 
 
-
 mutable struct IpLogger<:SingleLogger
     filename ::String
     filter   ::Union{AbstractArray,Int,Symbol,String,Expr}
