@@ -260,7 +260,6 @@ function deriv_σmax_upa(mat::TCJoint, state::TCJointState, up::Float64)
         dσmax = dz*mat.ft 
     end
 
-    # @show mat.softcurve
 
     return dσmax
 end
