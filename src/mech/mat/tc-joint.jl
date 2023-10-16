@@ -262,14 +262,13 @@ function deriv_σmax_upa(mat::TCJoint, state::TCJointState, up::Float64)
 
     # @show mat.softcurve
 
-
     return dσmax
 end
 
 
 function calc_kn_ks(mat::TCJoint, state::TCJointState)
     kn = mat.E*mat.ζ/state.h
-    G  = mat.E/(2.0*(1.0+mat.ν))
+    G  = mat.E/(2*(1+mat.ν))
     ks = G*mat.ζ/state.h
 
     return kn, ks
@@ -416,9 +415,9 @@ function calc_σ_up_Δλ(mat::TCJoint, state::TCJointState, σtr::Array{Float64,
         Δλ = Δλ - f/dfdΔλ
         
         if Δλ<=0 || isnan(Δλ) || i==maxits
+            # return 0.0, state.σ, 0.0, failure("TCJoint: failed to find Δλ")
             # switch to bissection method
-            return 0.0, state.σ, 0.0, failure("TCJoint: failed to find Δλ")
-            # return calc_σ_up_Δλ_bissection(mat, state, σtr)
+            return calc_σ_up_Δλ_bis(mat, state, σtr)
         end
 
         if maximum(abs, σ-σ0) <= tol
@@ -428,6 +427,62 @@ function calc_σ_up_Δλ(mat::TCJoint, state::TCJointState, σtr::Array{Float64,
     end
 
     return σ, up, Δλ, success()
+end
+
+
+function calc_σ_up(mat::TCJoint, state::TCJointState, σtr::Array{Float64,1}, Δλ::Float64)
+    ndim = state.env.ndim
+    kn, ks  = calc_kn_ks(mat, state)
+
+    if ndim == 3
+        if σtr[1]>0
+            σ = [ σtr[1]/(1+2*Δλ*kn),  σtr[2]/(1+2*Δλ*ks),  σtr[3]/(1+2*Δλ*ks) ]
+        else
+            σ = [ σtr[1],  σtr[2]/(1+2*Δλ*ks),  σtr[3]/(1+2*Δλ*ks) ]
+        end
+    else
+        if σtr[1]>0
+            σ = [ σtr[1]/(1+2*Δλ*kn),  σtr[2]/(1+2*Δλ*ks) ]
+        else
+            σ = [ σtr[1],  σtr[2]/(1+2*Δλ*ks) ]
+        end
+    end
+
+    r  = potential_derivs(mat, state, σ)
+    up = state.up + Δλ*norm(r)
+    return σ, up
+end
+
+function calc_σ_up_Δλ_bis(mat::TCJoint, state::TCJointState, σtr::Array{Float64,1})
+    ndim    = state.env.ndim
+    kn, ks  = calc_kn_ks(mat, state)
+    De      = diagm([kn, ks, ks][1:ndim])
+    r       = potential_derivs(mat, state, state.σ)
+
+    # Δλ estimative
+    Δλ0 = norm(σtr-state.σ)/norm(De*r)
+    
+    # find initial interval
+    # a  = 0.0
+    # b  = Δλ0
+
+    ff(Δλ)  = begin
+        # quantities at n+1
+        σ, up = calc_σ_up(mat, state, σtr, Δλ)
+        σmax = calc_σmax(mat, state, up)
+        yield_func(mat, state, σ, σmax)
+    end
+
+    a, b, status = findrootinterval(ff, 0.0, Δλ0)
+    failed(status) && return state.σ, 0.0, 0.0, status
+    # @show a, b
+
+    Δλ, status = findroot(ff, a, b, ftol=1e-5, method=:bisection)
+    failed(status) && return state.σ, 0.0, 0.0, status
+
+    σ, up = calc_σ_up(mat, state, σtr, Δλ)
+    return σ, up, Δλ, success()  
+
 end
 
 
@@ -461,7 +516,7 @@ function yield_func_from_Δλ(mat::TCJoint, state::TCJointState, σtr::Array{Flo
 end
 
 
-function calc_σ_up_Δλ_bissection(mat::TCJoint, state::TCJointState, σtr::Array{Float64,1})
+function calc_σ_up_Δλ_bisection(mat::TCJoint, state::TCJointState, σtr::Array{Float64,1})
     ndim    = state.env.ndim
     kn, ks  = calc_kn_ks(mat, state)
     De      = diagm([kn, ks, ks][1:ndim])
