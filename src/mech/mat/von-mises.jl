@@ -169,8 +169,8 @@ function update_state!(mat::VonMises, state::VonMisesState, Δε::Array{Float64,
         G     = E/(2*(1+ν))
         j2dtr = J2D(σtr)
 
-        √j2dtr - state.Δλ*√3*G >= 0.0 || return state.σ, failure("VonMisses: Negarive value for √J2D")
         state.Δλ = ftr/(3*G + √1.5*mat.H)
+        √j2dtr - state.Δλ*√3*G >= 0.0 || return state.σ, failure("VonMisses: Negative value for √J2D")
 
         s = (1 - √3*G*state.Δλ/√j2dtr)*dev(σtr)
         state.σ = σtr - √6*G*state.Δλ*s/norm(s)
@@ -500,40 +500,14 @@ function calc_σ_εpa_Δλ(mat::VonMises, state::VonMisesBeamState, σtr::Vec3)
         yield_func(mat, state, σ, εpa)
     end
 
-    tol = 10^-(8-log10(mat.σy))
-
+    ftol = (mat.σy*1e-3)^2
 
     # findroot
-    # Δλ, status = findroot(ff, a, b, tol)
-    # failed(status) && return state.σ, 0.0, 0.0, status
+    Δλ, status = findroot(ff, a, b, ftol=ftol, method=:bisection)
+    # Δλ, status = findroot(ff, a, b, ftol=ftol, method=:default)
+    failed(status) && return state.σ, 0.0, 0.0, status
 
-    # σ, εpa = calc_σ_εpa(mat, state, σtr, Δλ)
-
-
-    # bissection method
-    local f, Δλ, σ, εpa
-    σ0  = zeros(Vec3) # initial value
-
-    tol    = 10^-(10-log10(mat.σy))
-    maxits = 50
-
-    for i in 1:maxits
-        Δλ = (a+b)/2
-        σ, εpa = calc_σ_εpa(mat, state, σtr, Δλ)
-        f = yield_func(mat, state, σ, εpa)
-
-        if fa*f<0
-            b = Δλ
-        else
-            a  = Δλ
-            fa = f
-        end
-
-        maximum(abs, σ-σ0) <= tol && break
-        σ0 = σ
-
-        i==maxits && return state.σ, 0.0, 0.0, failure("VonMises: could not find Δλ with NR/bissection (maxits reached, f=$f)")
-    end
+    σ, εpa = calc_σ_εpa(mat, state, σtr, Δλ)
 
     return σ, εpa, Δλ, success()   
 end
