@@ -19,7 +19,10 @@ p1 = addpoint!(geo, 0, 0, 0.5, size=s)
 p2 = addpoint!(geo, 1, 0, 0.5, size=s)
 addline!(geo, p1, p2)
 
+mplot(geo, "geo.pdf")
+
 extrude!(geo, geo.surfaces, axis=[0, 1, 0], length=1)
+mplot(geo, "geo.pdf")
 
 # add a point to be embedded in top surface
 addpoint!(geo, [0.5, 0.5, 1], size=s) 

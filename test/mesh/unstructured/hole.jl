@@ -64,7 +64,7 @@ for mesh in [mesh1, mesh2]
     ]
     
     addstage!(model, bcs)
-    solve!(model, outkey=outkey)
+    solve!(model)
 
     push!(results, log.table.uy[end])
 end    

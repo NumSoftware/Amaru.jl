@@ -2,12 +2,15 @@ using Amaru
 
 @runfiles [
          # Meshing
-         "shape_deriv.jl",
-         "generation.jl",
+         "shape/shape_deriv.jl",
+         "shape/extrapolation.jl",
+         "structured.jl",
+         "unstructured/square.jl",
+         "unstructured/hole.jl",
+         "unstructured/cube.jl",
          "io.jl",
          "operations.jl",
          "extrude.jl",
-         "extrapolation.jl",
          "smoothing.jl",
          "revolve.jl",
         ]
