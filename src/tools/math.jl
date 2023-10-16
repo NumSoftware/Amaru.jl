@@ -10,6 +10,11 @@ Returns min(x,0)
 """
 neg(x) = (-abs(x)+x)/2.0
 
+
+@inline function norm_rms(V::Vector{Float64})
+    return norm(V)/√length(V)
+end
+
 # eye function
 eye(n::Int64) = Array{Float64}(I,n,n)
 
@@ -88,32 +93,73 @@ function cubic_roots(a,b,c,d)
 end
 
 
-function bissection(f::Function, a, b, tol)
+function findrootinterval(f::Function, x1, Δx)
+    x2 = x1 + Δx
+    f1 = f(x1)
+    f2 = f(x2)
+    maxits = 50
+
+    # search for a valid interval
+    if f1*f2>0
+        for i in 1:maxits
+            x2 += Δx*1.6^i
+            f2  = f(x2)
+            f1*f2<0 && break
+
+            i==maxits && return 0.0, 0.0, failure("findrootinterval: Could not find a valid interval")
+        end
+    end
+
+    # if !(f1*f2<0)
+    #     println()
+        
+    #     @show f1
+    #     @show f2
+    # end
+
+    return x1, x2, success()
+end
+
+function findroot(f::Function, a, b; tol=(b-a)*0.001, ftol=Inf, method=:default)
+    if method==:default
+        return findroot_default(f, a, b, tol, ftol)
+    elseif method==:bisection
+        return findroot_bisection(f, a, b, tol, ftol)
+    end
+end
+
+function findroot_bisection(f::Function, a, b, tol, ftol)
     fa = f(a)
     fb = f(b)
-    fa*fb>0 && return 0.0, failure("bissection: function must have opposite sings at endpoints")
+    # if fa*fb>0
+    #     @show a
+    #     @show b
+    # end
 
-    n = floor(Int, log(2, (b-a)/tol)) + 1
-    x = 0.0
+    fa*fb>0 && return 0.0, failure("findroot_bisection: function must have opposite sings at endpoints")
 
-    for i in 1:n
-        x = (a+b)/2
+    maxits = 50
+    x  = (a+b)/2
+    for i in 1:maxits
         fx = f(x)
         if fa*fx<0.0
             b  = x
-            fb = fx
         else
             a  = x
             fa = fx
         end
+        x  = (a+b)/2
+
+        (b-a)/2<tol && abs(fx-fa)<ftol && break
+        i==maxits && return 0.0, failure("findroot_bisection: maxits reached")
     end
 
-    isnan(x) && return 0.0, failure("bissection: NaN result")
+    isnan(x) && return 0.0, failure("findroot_bisection: NaN result")
     return x, success()
 end
 
 
-function findroot(f::Function, a, b, tol)
+function findroot_default(f::Function, a, b, tol, ftol)
     # bracketed method that combines bissection, quadratic interpolation and regula falsi methods
     # for points are used at each itearation
     # x1 and x4 are the endpoints
@@ -126,11 +172,14 @@ function findroot(f::Function, a, b, tol)
     x4 = b
     y1 = f(x1)
     y4 = f(x4)
+
     y1*y4>0 && return 0.0, failure("findroot: function must have opposite sings at endpoints")
 
     x2 = (y4*x1 - x4*y1)/(y4-y1) # regula falsi first approximation
     y2 = f(x2)
     x = 0
+    local n, err, x2, x3, y2, y3
+    n, err = 0, 0.0
 
     for i in 1:maxits
 
@@ -193,28 +242,21 @@ function findroot(f::Function, a, b, tol)
             y2 = y3
         end
 
-        # @show i
-        # @show y1
-        # @show y2
-        # @show x1
-        # @show x2
-
-        if err<tol
+        if err<tol && abs(y3-y2)<ftol
             x = x2 # x3 is discarded
             break
         end
 
-
-        # if i==maxits
-        #     @show tol
-        #     @show x1
-        #     @show x2
-        #     @show x3
-        #     @show x4
-        # end
+        n=i
 
         i==maxits && return 0.0, failure("findroot: maxits reached")
     end
+    # @show err
+    # @show tol
+    # @show y2
+    # @show y3
+    # @show n
+    # error()
 
     return x, success()
 end
