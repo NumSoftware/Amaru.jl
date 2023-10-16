@@ -935,9 +935,9 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false, quiet=f
         end
     end
 
-    function get_loop_idxs(loop::Loop)
-        l_idxs = [ l.id for l in loop.curves ]
-        l_conn = [ [ p.id for p in l.points] for l in loop.curves ]
+    function get_loop_idxs(loop::AbstractLoop)
+        l_idxs = [ l.id for l in loop.lines ]
+        l_conn = [ [ p.id for p in l.points] for l in loop.lines ]
 
         if !(l_conn[1][end] in l_conn[2])
             l_idxs[1] *= -1
@@ -1028,7 +1028,7 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false, quiet=f
 
     # embed points
     for p in geo.points
-        length(p.adj)==0 || continue
+        length(p.lines)==0 || continue
     
         # search surfaces
         for s in geo.surfaces

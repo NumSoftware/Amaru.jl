@@ -1513,8 +1513,7 @@ function mplot(geo::GeoModel, filename::String;
         edgecolor   = []
         facecolors  = []
         lineweight  = []
-        for s in geo.entities
-            s isa Surface || continue
+        for s in geo.surfaces
             points = getpoints(s.loops[1])
             npoints = length(points)
             # verts = [ p.coord[1:2] for p in points ]
@@ -1524,24 +1523,35 @@ function mplot(geo::GeoModel, filename::String;
             # @show verts
             # @show codes
 
+            # @show [ p.id for p in points ]
+            # error()
+
 
             # verts = [ s.loops[1].curves[1].points[1].coord[1:2] ]
             verts = []
             codes = []
-            for (i,c) in enumerate(s.loops[1].curves)
+            for (i,c) in enumerate(s.loops[1].lines)
+                j = i%npoints + 1
                 p1 = points[i]
-                p2 = i<npoints ? points[i+1] : points[1]
-                c = getcurve(geo, p1, p2)
+                p2 = points[j]
+                c = getline(geo, p1, p2)
 
                 if i==1 
                     push!(verts, p1.coord[1:2])
                     push!(codes, MOVETO)
                 end
 
+                # @show [ p.id for p in points ]
+# 
+                # @show p1
+                # @show p2
+                # @show p1.id
+                # @show p2.id
+                # @show typeof(c)
+
                 if c isa Line
                     push!(verts, p2.coord[1:2])
                     push!(codes, LINETO)
-
                 else
                     p3 = p2
                     p2 = c.points[2]
@@ -1584,8 +1594,7 @@ function mplot(geo::GeoModel, filename::String;
         lineweight  = []
     
         # draw curves
-        for c in geo.entities
-            c isa Curve || continue
+        for c in geo.lines
 
             if c isa Line
                 verts = [ p.coord[1:2] for p in c.points ]
@@ -1647,78 +1656,82 @@ function mplot(geo::GeoModel, filename::String;
     end
 
     # Draw node numbers
-    # for o in geo.entities
-    #     if o isa Point
-    #         x = o.coord[1] + 0.01*ll
-    #         y = o.coord[2] - 0.01*ll
-    #         z = o.coord[3] - 0.01*ll
-    #         ndim==2 && ax.text(x, y, o.id, va="top", ha="left", backgroundcolor="none")
-    #         ndim==3 && ax.text(x, y, z, o.id, fontsize=4, va="center", ha="center", backgroundcolor="none")
-    #     elseif o isa Line
-    #         verts = [ p.coord for p in o.points ]
-    #         C = sum(verts)/length(verts)
-    #         x = C[1] + 0.01*ll
-    #         y = C[2] - 0.01*ll
-    #         z = C[3] - 0.01*ll
-    #         ndim==2 && ax.text(x, y, o.id, color="blue", va="top", ha="left", backgroundcolor="none")
-    #         ndim==3 && ax.text(x, y, z, o.id, fontsize=4, color="blue", va="center", ha="center", backgroundcolor="none")
-    #     elseif o isa Curve
-    #         p1 = o.points[1]
-    #         p2 = o.points[2]
-    #         p3 = o.points[3]
+    for p in geo.points
+        x = p.coord[1] + 0.01*ll
+        y = p.coord[2] - 0.01*ll
+        z = p.coord[3] - 0.01*ll
+        ndim==2 && ax.text(x, y, p.id, va="top", ha="left", backgroundcolor="none")
+        ndim==3 && ax.text(x, y, z, p.id, fontsize=4, va="center", ha="center", backgroundcolor="none")
+    end
 
-    #         P1, P2, P3 = p1.coord, p2.coord, p3.coord
-    #         r = norm(P3-P2)
-    #         α = acos(clamp(dot(P1-P2, P3-P2)/r^2, -1, 1))
-    #         θ = α/2
-    #         N = normalize(cross(P1-P2, P3-P2))
-    #         # N = normalize(N)
-    #         R = Quaternion(cos(θ/2), N[1]*sin(θ/2), N[2]*sin(θ/2), N[3]*sin(θ/2))
-    #         C = P2 + R*(P1-P2)*conj(R)
-    #         # C = P2 + 1.3*r*normalize(P-P2)
-    #         # @show C
+    for l in geo.lines
+        if l isa Line
+            verts = [ p.coord for p in l.points ]
+            C = sum(verts)/length(verts)
+            x = C[1] + 0.01*ll
+            y = C[2] - 0.01*ll
+            z = C[3] - 0.01*ll
+            ndim==2 && ax.text(x, y, l.id, color="blue", va="top", ha="left", backgroundcolor="none")
+            ndim==3 && ax.text(x, y, z, l.id, fontsize=4, color="blue", va="center", ha="center", backgroundcolor="none")
+        else
+            p1 = l.points[1]
+            p2 = l.points[2]
+            p3 = l.points[3]
 
-    #         x = C[1] + 0.01*ll
-    #         y = C[2] - 0.01*ll
-    #         z = C[3] - 0.01*ll
-    #         ndim==2 && ax.text(x, y, o.id, color="blue", va="top", ha="left", backgroundcolor="none")
-    #         ndim==3 && ax.text(x, y, z, o.id, fontsize=4, color="blue", va="center", ha="center", backgroundcolor="none")
-    #     elseif o isa Surface
-    #         points = getpoints(o.loops[1])
-    #         verts = [ p.coord for p in points ]
-    #         C = sum(verts)/length(verts)
-    #         x = C[1]
-    #         y = C[2]
-    #         z = C[3]
-    #         ndim==2 && ax.text(x, y, o.id, color="red", va="center", ha="center", backgroundcolor="none")
-    #         ndim==3 && ax.text(x, y, z, o.id, fontsize=4, color="red", va="center", ha="center", backgroundcolor="none")
-    #     end
-    # end
+            P1, P2, P3 = p1.coord, p2.coord, p3.coord
+            r = norm(P3-P2)
+            α = acos(clamp(dot(P1-P2, P3-P2)/r^2, -1, 1))
+            θ = α/2
+            N = normalize(cross(P1-P2, P3-P2))
+            # N = normalize(N)
+            R = Quaternion(cos(θ/2), N[1]*sin(θ/2), N[2]*sin(θ/2), N[3]*sin(θ/2))
+            C = P2 + R*(P1-P2)*conj(R)
+            # C = P2 + 1.3*r*normalize(P-P2)
+            # @show C
 
-    # if nodelabels
-    #     nnodes = length(X)
-    #     for i in 1:nnodes
-    #         x = X[i] + 0.01*L
-    #         y = Y[i] - 0.01*L
-    #         z = Z[i] - 0.01*L
-    #         if ndim==3
-    #             ax.text(x, y, z, i, va="center", ha="center", backgroundcolor="none")
-    #         else
-    #             ax.text(x, y, i, va="top", ha="left", backgroundcolor="none")
-    #         end
-    #     end
-    # end
+            x = C[1] + 0.01*ll
+            y = C[2] - 0.01*ll
+            z = C[3] - 0.01*ll
+            ndim==2 && ax.text(x, y, l.id, color="blue", va="top", ha="left", backgroundcolor="none")
+            ndim==3 && ax.text(x, y, z, l.id, fontsize=4, color="blue", va="center", ha="center", backgroundcolor="none")
+        end
+    end
 
-  #  # Draw cell numbers
-  #  if celllabels && ndim==2
-  #      for i in 1:ncells
-  #          coo = getcoords(cells[i])
-  #          x = mean(coo[:,1])
-  #          y = mean(coo[:,2])
-  #          ax.text(x, y, i, va="top", ha="left", color="blue", backgroundcolor="none", size=8)
-  #      end
-  #  end
+    for lo in geo.loops
+        points = getpoints(lo)
+        verts = [ p.coord for p in points ]
+        C = sum(verts)/length(verts)
+        x = C[1] - 0.03*ll
+        y = C[2] - 0.03*ll
+        z = C[3] - 0.03*ll
+        ndim==2 && ax.text(x, y, lo.id, color="gray", va="center", ha="center", backgroundcolor="none")
+        ndim==3 && ax.text(x, y, z, lo.id, fontsize=3, color="gray", va="center", ha="center", backgroundcolor="none")
+    end
 
+    for s in geo.surfaces
+        points = getpoints(s.loops[1])
+        verts = [ p.coord for p in points ]
+        C = sum(verts)/length(verts)
+        x = C[1]
+        y = C[2]
+        z = C[3]
+        ndim==2 && ax.text(x, y, s.id, color="red", va="center", ha="center", backgroundcolor="none")
+        ndim==3 && ax.text(x, y, z, s.id, fontsize=4, color="red", va="center", ha="center", backgroundcolor="none")
+
+        x +=  0.03*ll
+        y += -0.03*ll
+        z += -0.03*ll
+        holes = join( [lo.id for lo in s.loops[2:end]], "," )
+
+        ndim==2 && ax.text(x, y, holes, color="gray", va="center", ha="center", backgroundcolor="none")
+        ndim==3 && ax.text(x, y, z, holes, fontsize=2, color="gray", va="center", ha="center", backgroundcolor="none")
+        
+        # x = C[1] + 0.03*ll
+        # y = C[2] - 0.03*ll
+        # z = C[3] - 0.03*ll
+        # ndim==2 && ax.text(x, y, s.loops[1].id, color="gray", va="center", ha="center", backgroundcolor="none")
+        # ndim==3 && ax.text(x, y, z, s.loops[1].id, fontsize=4, color="gray", va="center", ha="center", backgroundcolor="none")
+    end
 
     if filename!=""
         _, format = splitext(filename)
