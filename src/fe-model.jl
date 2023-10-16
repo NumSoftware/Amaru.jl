@@ -110,7 +110,7 @@ function FEModel(
     ncells      = length(mesh.elems)
     model.elems = Array{Element,1}(undef, ncells)
     for matbind in matbinds
-        matbind isa Pair{<:Any, Pair{DataType, Pair{DataType, NamedTuple}}} || throw(AmaruException("FEModel: Assigments of element and material models should be specified as: filter => Element => Material => properties"))
+        matbind isa Pair{<:Any, <:Pair{DataType, <:Pair{DataType, <:NamedTuple}}} || throw(AmaruException("FEModel: Assigments of element and material models should be specified as: filter => Element => Material => properties"))
         # if length(matbind)!=4
             # throw(AmaruException("FEModel: Assigments of element and material models should be specified as: filter << Element << Material << properties"))
         # end
