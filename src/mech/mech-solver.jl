@@ -286,6 +286,16 @@ function mech_stage_solver!(model::Model, stage::Stage;
         Fex .-= Fin # add negative forces to external forces vector
     end
 
+    if scheme=="FE"
+        p1=1.0; q11=1.0
+    elseif scheme=="ME"
+        p1=1.0; q11=1.0; a1=0.5; a2=0.5
+    elseif scheme=="BE"
+        p1=1.0; q11=1.0; a1=0.0; a2=1.0
+    elseif scheme=="Ralston"
+        p1=2/3; q11=2/3; a1=1/4; a2=3/4
+    end
+
     local K::SparseMatrixCSC{Float64,Int64}
 
     while T < 1.0-Tmin
@@ -311,6 +321,7 @@ function mech_stage_solver!(model::Model, stage::Stage;
         nits      = 0
         err       = 0.0
         res       = 0.0
+        res1      = 0.0
         converged = false
         syserror  = false
 
@@ -321,63 +332,29 @@ function mech_stage_solver!(model::Model, stage::Stage;
             it>1 && (ΔUi.=0.0) # essential values are applied only at first iteration
             lastres = err # residue from last iteration
 
-            # Predictor step for FE, ME and BE
-            if scheme in ("FE", "ME", "BE")
-                K = mount_K(active_elems, ndofs)
-                sysstatus = solve_system!(K, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
-                failed(sysstatus) && (syserror=true; break)
+            # Predictor step
+            K = mount_K(active_elems, ndofs)
+            ΔUitr = p1*ΔUi
+            Rtr   = q11*R
+            sysstatus = solve_system!(K, ΔUitr, Rtr, nu)   # Changes unknown positions in ΔUi and R
+            failed(sysstatus) && (syserror=true; break)
+            copyto!.(State, StateBk)
+            ΔUt   = ΔUa + ΔUitr
+            ΔFin, sysstatus = update_state!(active_elems, ΔUt, 0.0)
+            failed(sysstatus) && (syserror=true; break)
 
-                copyto!.(State, StateBk)
-                ΔUt   = ΔUa + ΔUi
-                ΔFin, sysstatus = update_state!(active_elems, ΔUt, 0.0)
-                failed(sysstatus) && (syserror=true; break)
-                
-                res = maximum(abs, (ΔFex-ΔFin)[umap])
-            end
-
-            # Corrector step for ME and BE
-            if res > ftol && scheme in ("ME", "BE")
+            # Corrector step
+            if scheme=="FE"
+                ΔUi = ΔUitr
+            else
                 K2 = mount_K(active_elems, ndofs)
-                if scheme=="ME"
-                    K = 0.5*(K + K2)
-                elseif scheme=="BE"
-                    K = K2
-                end
+                K = a1*K + a2*K2
                 sysstatus = solve_system!(K, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
                 failed(sysstatus) && (syserror=true; break)
-
                 copyto!.(State, StateBk)
                 ΔUt   = ΔUa + ΔUi
                 ΔFin, sysstatus = update_state!(active_elems, ΔUt, 0.0)
                 failed(sysstatus) && (syserror=true; break)
-
-                res = maximum(abs, (ΔFex-ΔFin)[umap])
-            end
-
-            if scheme=="Ralston"
-                # Predictor step
-                K = mount_K(active_elems, ndofs)
-                ΔUit = 2/3*ΔUi
-                sysstatus = solve_system!(K, ΔUit, 2/3*R, nu)   # Changes unknown positions in ΔUi and R
-                failed(sysstatus) && (syserror=true; break)
-
-                copyto!.(State, StateBk)
-                ΔUt = ΔUa + ΔUit
-                ΔFin, sysstatus = update_state!(active_elems, ΔUt, 0.0)
-                failed(sysstatus) && (syserror=true; break)
-
-                # Corrector step
-                K2 = mount_K(active_elems, ndofs)
-                K = 0.25*K + 0.75*K2
-                sysstatus = solve_system!(K, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
-                failed(sysstatus) && (syserror=true; break)
-
-                copyto!.(State, StateBk)
-                ΔUt   = ΔUa + ΔUi
-                ΔFin, sysstatus = update_state!(active_elems, ΔUt, 0.0)
-                failed(sysstatus) && (syserror=true; break)
-
-                res = maximum(abs, (ΔFex-ΔFin)[umap])
             end
 
             # Update accumulated displacement
@@ -386,23 +363,24 @@ function mech_stage_solver!(model::Model, stage::Stage;
             # Residual vector for next iteration
             R .= ΔFex .- ΔFin
             R[pmap] .= 0.0  # zero at prescribed positions
+            res = norm(R, Inf)
 
             err = norm(ΔUi, Inf)/norm(ΔUa, Inf)
-            # err = norm(ΔUi)/norm(ΔUa)
 
             @printf(env.log, "    it %d  residue: %-10.4e\n", it, res)
 
+            it==1 && (res1=res)
             it>1  && (still_linear=false)
-
             res<ftol && (converged=true; break)
-            err<rtol  && (converged=true; break)
+            err<rtol && (converged=true; break)
 
             isnan(res) && break
             it>maxits  && break
 
-            it>1 && err>lastres && break
+            it>1 && res>lastres && break
         end
 
+        env.residue = res
         q = 0.0 # increment size factor for autoinc
 
         if syserror
@@ -436,7 +414,6 @@ function mech_stage_solver!(model::Model, stage::Stage;
             # Update time
             T += ΔT
             env.T = T
-            env.residue = res
 
             # Check for saving output file
             checkpoint = T>Tcheck-Tmin 
@@ -465,12 +442,13 @@ function mech_stage_solver!(model::Model, stage::Stage;
                     ΔT = min(ΔTbk, Tcheck-T)
                     ΔTbk = 0.0
                 else
-                    if nits==1
-                        # q = 1+tanh(log10(ftol/res))
-                        q = 1.333
-                    else
-                        q = 1+tanh(log10(rtol/err))
-                    end
+                    # if nits==1
+                    #     # q = 1+tanh(log10(ftol/res))
+                    #     q = 1.333
+                    # else
+                    #     q = 1+tanh(log10(rtol/err))
+                    # end
+                    q = 1+tanh(log10(ftol/(res1+eps())))
                     q = max(q, 1.1)
 
                     if still_linear
@@ -498,12 +476,14 @@ function mech_stage_solver!(model::Model, stage::Stage;
 
             if autoinc
                 println(env.log, "      increment failed")
-                if nits==1
-                    # q = 1+tanh(log10(ftol/res))
-                    q = 0.666
-                else
-                    q = 1+tanh(log10(rtol/err))
-                end
+                # if nits==1
+                #     # q = 1+tanh(log10(ftol/res))
+                #     q = 0.666
+                # else
+                #     q = 1+tanh(log10(rtol/err))
+                # end
+
+                q = 1+tanh(log10(ftol/(res1+eps())))
                 q = clamp(q, 0.2, 0.9)
                 syserror && (q=0.7)
                 ΔT = q*ΔT
