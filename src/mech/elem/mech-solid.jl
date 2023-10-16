@@ -43,25 +43,9 @@ mutable struct MechSolid<:Mech
 end
 
 compat_shape_family(::Type{MechSolid}) = BULKCELL
-# compat_elem_types(::Type{MechSolidProps}) = MechSolid
 compat_elem_props(::Type{MechSolid}) = MechSolidProps
 
 
-# function check_props(::Type{MechSolid}; props...)
-#     names = (rho="Density", gamma="Specific weight")
-#     required = (;)
-#     @checkmissing props required names
-
-#     default = (rho=0.0, gamma=0.0)
-#     props   = merge(default, props)
-#     rho     = props.rho
-#     gamma   = props.gamma
-
-#     @check rho>=0
-#     @check gamma>=0
-
-#     return props
-# end
 
 # function elem_init(elem::MechSolid)
 #     ipdata_ty = typeof(elem.ips[1].state)
@@ -294,7 +278,7 @@ function update_elem!(elem::MechSolid, U::Array{Float64,1}, Δt::Float64)
 
         @mul Δε = B*dU
         Δσ, status = update_state!(elem.mat, ip.state, Δε)
-        failed(status) && return dF, map, failure("MechSolid: Error at integration point $(ip.id)")
+        failed(status) && return dF, map, status
         coef = detJ*ip.w*th
         @mul dF += coef*B'*Δσ
     end

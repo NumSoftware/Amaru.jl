@@ -368,7 +368,7 @@ function update_elem!(elem::MechBeam, U::Array{Float64,1}, dt::Float64)
         setB(elem, ip, L, N, dNdX′, Rθ, Bil, Bi, B)
         Δε = B*dU
         Δσ, status = update_state!(elem.mat, ip.state, Δε)
-        failed(status) && return dF, map, failure("MechBeam: Error at integration point $(ip.id)")
+        failed(status) && return dF, map, status
         
         if ndim==2
             detJ′ = dx′dξ*thz*thy/2
