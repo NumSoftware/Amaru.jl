@@ -18,10 +18,6 @@ mutable struct Point<:GeoEntity
     end
 end
 
-Pt = Luxor.Point
-A = Pt(1,2)
-@show A
-
 
 function Point(X::AbstractArray{<:Real}; size=0, id=0, tag="")
     if length(X)!=3
