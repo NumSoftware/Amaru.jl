@@ -18,6 +18,10 @@ mutable struct Point<:GeoEntity
     end
 end
 
+Pt = Luxor.Point
+A = Pt(1,2)
+@show A
+
 
 function Point(X::AbstractArray{<:Real}; size=0, id=0, tag="")
     if length(X)!=3
@@ -574,110 +578,82 @@ end
 
 function intersection(l1::Line, l2::Line)
     # Assumes:
-    # L1: X = X1 +V1*t
-    # L2: Y = Y2 +V2*s
-    # V1 = X2-X1
-    # V2 = Y2-Y1
+    # L1: P = P1 +V1*t
+    # L2: Q = Y2 +V2*s
+    # V1 = P2-P1
+    # V2 = Q2-Q1
 
     tol = 1e-8
-    X1 = l1.points[1].coord
-    X2 = l1.points[end].coord
-    V1 = X2-X1
+    P1 = l1.points[1].coord
+    P2 = l1.points[end].coord
+    V1 = P2-P1
 
-    Y1 = l2.points[1].coord
-    Y2 = l2.points[end].coord
-    V2 = Y2-Y1
+    Q1 = l2.points[1].coord
+    Q2 = l2.points[end].coord
+    V2 = Q2-Q1
 
     #check if they are parallel or colinear
     norm(cross(V1, V2)) > tol || return nothing
 
     # check if lines are coplanar
-    abs(dot(cross(V1,V2), X1-Y1)) < tol || return nothing
+    abs(dot(cross(V1,V2), P1-Q1)) < tol || return nothing
 
     # intersection point
     v1² = dot(V1,V1)
     v2² = dot(V2,V2)
     v1v2 = dot(V1,V2)
-    s = ( dot(Y1-X1, V2)*v1² - dot(Y1-X1,V1)*v1v2) / (v1v2^2 - v1²*v2²)
-    t = ( dot(Y1-X1, V1) + v1v2*s) / v1²
+    s = ( dot(Q1-P1, V2)*v1² - dot(Q1-P1,V1)*v1v2) / (v1v2^2 - v1²*v2²)
+    t = ( dot(Q1-P1, V1) + v1v2*s) / v1²
 
     # check if the intersection point is inside segments
     (-tol < s < 1+tol && -tol < t < 1+tol) || return nothing
 
-    X = X1 + t*V1
+    X = P1 + t*V1
 
     return Point(X...)
-end
-
-
-function getbranches(line::Line, seq::Bool)
-    tip = seq ? line.points[end] : line.points[1]
-
-    branches = Line[]
-    seqs = Bool[]
-    for l in tip.lines
-        line==l && continue # skip current line
-        seq = tip==l.points[1]
-        push!(branches, Dline(l, seq))
-        push!(seqs, seq)
-    end
-
-    return branches, seqs
-end
-
-
-function following(line1::Line, fwd1::Bool, line2::Line, fwd2::Bool)
-    if fwd1 && fwd2
-         return line1.points[end]==line2.points[1]
-    elseif fwd1 && fwd2==false
-        return line1.points[end]==line2.points[end]
-    elseif fwd1==false && fwd2 
-        return line1.points[1]==line2.points[1]
-    else # fdw1==false && fwd2==false
-        return line1.points[1]==line2.points[end]
-    end
 end
 
 
 function findloops(line::AbstractLine; lines::Vector{<:AbstractLine}=AbstractLine[], inner=true)
     
     # get a list of lines adjacent to the last point of l
-    function candidates(visited::Vector{<:AbstractLine}, seqs::Vector{Bool})
-        cands, seqs = getbranches(visited[end], seqs[end])
-        
-        if length(lines)>0
-            l = visited[end]
-            idxs = findall(l -> l in lines, cands)
-            cands = cands[idxs]
-            seqs = seqs[idxs]
+    function candidates(visited::Vector{<:AbstractLine})
+        l1 = visited[end]
+
+        if length(visited)==1
+            cands = copy(line.points[end].lines)
+        else
+            l0 = visited[end-1]
+            p1, p2 = l1.points[[1, end]]
+            if p1 in l0.points
+                cands = copy(p2.lines)
+            else
+                cands = copy(p1.lines)
+            end
         end
 
-        return cands, seqs
+        length(lines)>0 && intersect!(cands, lines) # warning: intersect uses hash
+        filter!(!=(l1), cands)
+
+        return cands
     end
 
-    function findloops(visited::Vector{<:AbstractLine}, seqs::Vector{Bool},  plane::Union{Plane,Nothing})
+    function findloops(visited::Vector{<:AbstractLine}, line::AbstractLine,  plane::Union{Plane,Nothing})
         if length(visited)>=2
-            line = visited[end]
-            seq = seqs[end]
-            idx = 0
-            for i in 1:length(visited)-1
-                if line==visited[i] && seq==seqs[i]
-                    idx = i; break
-                end
-            end
+            # todo: improve using directional graph
 
-            idx = findfirst(==(dline), visited)
+            idx = findfirst(==(line), visited)
             if idx==1
-                # visited[1].points[end] in visited[end].points && return Loop[] # closed from the wrong direction
-                return [ PlaneLoop(visited[1:end-1]) ]
-            elseif idx>0 # discard loop (does not contain initial line)
+                visited[1].points[end] in visited[end].points && return Loop[] # closed from the wrong direction
+                return [ PlaneLoop(visited) ]
+            elseif idx!==nothing # discard loop (does not contain initial point)
                 return PlaneLoop[]
             end
 
-            # visited[1].points[1] in line.points && return [ PlaneLoop([visited; line]) ] # checking initial point
+            visited[1].points[1] in line.points && return [ PlaneLoop([visited; line]) ] # checking initial point
         end
 
-        # visited = [visited; line] # make a new list
+        visited = [visited; line] # make a new list
 
         # @show [ l.id for l in visited ]
 
@@ -698,12 +674,9 @@ function findloops(line::AbstractLine; lines::Vector{<:AbstractLine}=AbstractLin
             return length(surfs)<2
         end
         
-        cands, seqs = candidates(visited)
-        idxs = findall(checkplane, cands)
-        if length(idxs)>0
-            cands = cands[idxs]
-            seqs = seqs[idxs]
-        end
+        cands = candidates(visited)
+        filter!(checkplane, cands)
+
 
         # check if loop is closed
         # if length(visited)>=2
@@ -715,16 +688,15 @@ function findloops(line::AbstractLine; lines::Vector{<:AbstractLine}=AbstractLin
         # end
 
         loops = PlaneLoop[]
-        for (l,seq) in zip(cands, seqs)
-            newvisited = [visited; l]
-            newseqs = [seqs; seq]
-            append!(loops, findloops(newvisited, newseqs, plane))
+        for l in cands
+            append!(loops, findloops(visited, l, plane))
         end
 
         return loops
     end
 
     return findloops(AbstractLine[], line, nothing)
+
 end
 
 
