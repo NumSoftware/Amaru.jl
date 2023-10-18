@@ -588,9 +588,10 @@ function find_σ_up_Δλ(mat::TCFJoint, state::TCFJointState, σtr::Array{Float6
         end
     end
 
-    tol   = Δλ0*10^-3
+    # tol   = Δλ0*10^-3
     f(Δλ) = yield_func_from_Δλ(mat, state, σtr, Δλ)
-    Δλ, status = findroot(f, a, b, tol)
+    ftol = mat.ft*1e-3
+    Δλ, status = findroot(f, a, b, ftol=ftol)
     failed(status) && return state.σ, 0.0, 0.0, status
 
     # quantities at n+1
