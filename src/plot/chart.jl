@@ -46,8 +46,8 @@ mutable struct Chart<:AbstractChart
             ArgInfo( :ymult, "y-axis values multiplier", default=1.0 ),
             ArgInfo( :xbins, "Number of bins in the x axis", default=7 ),
             ArgInfo( :ybins, "Number of bins in the y axis", default=6 ),
-            ArgInfo( :xlabel, "Label for the x axis", default="", type=AbstractString ),
-            ArgInfo( :ylabel, "Label for the y axis", default="", type=AbstractString ),
+            ArgInfo( :xlabel, "Label for the x axis", default=L"$x$", type=AbstractString ),
+            ArgInfo( :ylabel, "Label for the y axis", default=L"$y$", type=AbstractString ),
             ArgInfo( :xticks, "x-axis tick values", default=Float64[], type=AbstractArray ),
             ArgInfo( :yticks, "y-axis tick values", default=Float64[], type=AbstractArray ),
             ArgInfo( :xticklabels, "x-axis tick labels", default=String[], type=AbstractArray ),
@@ -121,9 +121,11 @@ function configure!(c::Chart)
         configure!(c, p)
     end
 
-    c.legend = Legend(; location=c.args.legendloc, fontsize=c.args.legendfontsize)
-    configure!(c, c.legend)
-
+    has_legend = any( ds.label!="" for ds in c.dataseries )
+    if has_legend
+        c.legend = Legend(; location=c.args.legendloc, fontsize=c.args.legendfontsize)
+        configure!(c, c.legend)
+    end
 end
 
 function draw!(c::Chart, cc::CairoContext)
@@ -154,11 +156,15 @@ function draw!(c::Chart, cc::CairoContext)
     end
     reset_clip(cc)
 
-    draw!(c, cc, c.legend)
+    has_legend = any( ds.label!="" for ds in c.dataseries )
+    if has_legend
+        draw!(c, cc, c.legend)
+    end
 end
 
 
 function addplot!(c::Chart, P::DataSeriesPlot...)
+    length(P)>0 || throw(AmaruException("No dataseries added"))
     for p in P
         push!(c.dataseries, p)
     end

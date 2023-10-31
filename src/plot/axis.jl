@@ -71,6 +71,7 @@ function configure!(chart::AbstractChart, ax::Axis)
     ax.ticklength = 0.015*minimum(chart.figsize)
     ax.innersep   = 0.02*minimum(chart.figsize)
 
+    @show ax.limits
     # configure limits
     if ax.limits==[0.0,0.0]
         if length(ax.ticks)==0
@@ -91,6 +92,9 @@ function configure!(chart::AbstractChart, ax::Axis)
             ax.limits = collect(limits)
         end
     end
+
+    @show ax.limits
+
 
     # configure ticks
     if length(ax.ticks)==0
