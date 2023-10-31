@@ -30,17 +30,15 @@ mutable struct MCJoint<:Material
     wc ::Float64      # critical crack opening
     scurve::String    # softening curve model ("linear" or bilinear" or "hordijk")
 
-
     function MCJoint(; args...)
         args = checkargs(args, arg_rules(MCJoint))
-
-        wc = args.wc
         ft = args.ft
         scurve = args.scurve
+        wc = haskey(args, :wc) ? args.wc : 0.0
         
         @check scurve in ("linear", "hordijk", "soft")
         
-        if isnan(wc)
+        if wc==0 # compute wc
             GF = args.GF
             if scurve == "linear"
                 wc = round(2*GF/ft, digits=8)
@@ -65,7 +63,7 @@ arg_rules(::Type{MCJoint}) =
     @arginfo mu      mu>=0      "Tangent of the friction angle"
     @arginfo zeta    zeta>=0    "Elastic displacement factor"
     @arginfo GF      GF>=0      "Fracture energy"
-    @arginfo wc=NaN  wc>=0      "Critical opening"
+    @arginfo wc      wc>=0      "Critical opening"
     @arginfo scurve="hordijk"  1==1  "Softening curve"
 ]
 
