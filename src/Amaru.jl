@@ -14,12 +14,9 @@ Node, Element, Model, Dof, Ip, NodeBC, SurfaceBC
 """
 module Amaru
 
-    # Returns a list containing the arguments for each method of function
-    typeofargs(f) = [ ((t for t in fieldtypes(m.sig)[2:end])...,) for m in methods(f) ]
-    # typeofargs(f::Function) =  [ [t for t in fieldtypes(m.sig)][2:end] for m in methods(f) ]
-
     using StatsBase, Statistics, LinearAlgebra, StaticArrays, SparseArrays, Arpack, Gmsh
     using Printf, DelimitedFiles, DataStructures, Glob, DocStringExtensions, Dates
+    using Cairo, LaTeXStrings, MathTeXEngine
 
     import DataStructures: OrderedDict, OrderedSet
 
@@ -66,12 +63,10 @@ module Amaru
     include("tag.jl")
     export tag!
 
-    import PyPlot:plt, matplotlib, figure, art3D, Axes3D, ColorMap, gcf
-    include("plot/mplot.jl")
-    include("plot/cplot.jl")
-
-    # import CairoMakie
-    using LaTeXStrings
+    # Plotting
+    include("plot/include.jl")
+    export Chart, LinePlot, MeshPlot
+    export addplot!
 
     # Boundary conditions
     include("bc.jl")
