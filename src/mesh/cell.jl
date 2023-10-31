@@ -103,7 +103,7 @@ Base.copy(cell::Cell)  = Cell(cell.shape, cell.nodes, tag=cell.tag, owner=cell.o
 Returns a matrix with the nodal coordinates of `c`.
 `ndim` (default 3) can be used to define the number axes.
 """
-function getcoords(c::AbstractCell, ndim=3)::Array{Float64,2}
+function getcoords(c::AbstractCell, ndim=3)
     n = length(c.nodes)
     C = Array{Float64}(undef, n, ndim)
     for (i,p) in enumerate(c.nodes)
@@ -116,7 +116,7 @@ end
 
 
 # Return all nodes in cells
-function getnodes(cells::Array{<:AbstractCell,1})::Array{Node,1}
+function getnodes(cells::Array{<:AbstractCell,1})
     return collect(Set(node for cell in cells for node in cell.nodes)) 
 end
 
@@ -435,6 +435,7 @@ function getfaces(cell::AbstractCell)
         nodes = cell.nodes[face_idxs]
         shape  = sameshape ? facet_shape : facet_shape[i]
         face   = Cell(shape, nodes, tag=cell.tag, owner=cell)
+        face.nodes = nodes # update nodes since Cell creates a copy
         push!(faces, face)
     end
 
@@ -558,26 +559,6 @@ function regular_volume(metric::Float64, shape::CellShape)
     #end
     error("No regular area/volume value for shape $(get_name(shape))")
 end
-
-
-#= Returns the cell aspect ratio
-function cell_aspect_ratio(c::AbstractCell)
-    # get faces
-    faces = getfaces(c)
-    if length(faces)==0
-        return 1.0
-    end
-
-    # cell surface
-    fmetrics = [ cell_extent(f) for f in faces ]
-    surf = sum(fmetrics)
-    ar = minimum(fmetrics)/maximum(fmetrics)
-
-    # quality calculation
-    metric = cell_extent(c) # volume or area
-    rsurf  = regular_surface(metric, c.shape)
-    return rsurf/surf
-end =#
 
 
 

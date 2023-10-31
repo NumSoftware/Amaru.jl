@@ -161,13 +161,6 @@ end
 
 # Node collection
 
-
-# Index operator for an collection of nodes
-#function Base.getindex(nodes::Array{Node,1}, s::Symbol)
-    #s==:all && return nodes
-    #error("Element getindex: Invalid symbol $s")
-#end
-
 """
     $(SIGNATURES)
 
@@ -204,19 +197,7 @@ end
 # Get node coordinates for a collection of nodes as a matrix
 function getcoords(nodes::Array{Node,1}, ndim=3)
     nnodes = length(nodes)
-    [ nodes[i].coord[j] for i in 1:nnodes, j=1:ndim]
-end
-
-
-function setcoords!(nodes::Array{Node,1}, coords::AbstractArray{Float64,2})
-    nrows, ncols = size(coords)
-    @assert nrows == length(nodes)
-
-    for (i,node) in enumerate(nodes)
-        node.coord.x = coords[i,1]
-        node.coord.y = coords[i,2]
-        ncols==3 && (node.coord.z = coords[i,3])
-    end
+    return [ nodes[i].coord[j] for i in 1:nnodes, j=1:ndim]
 end
 
 

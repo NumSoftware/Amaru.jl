@@ -90,7 +90,7 @@ end
 
 
 function get_surface(cells::Array{<:AbstractCell,1})
-    surf_dict = Dict{UInt64, Cell}()
+    surf_dict = OrderedDict{UInt64, Cell}()
 
     # Get only unique faces. If dup, original and dup are deleted
     for cell in cells
@@ -108,25 +108,6 @@ function get_surface(cells::Array{<:AbstractCell,1})
 
     return Face[ face for face in values(surf_dict) ]
 end
-
-# function get_surface(mesh::Mesh)
-#     newmesh = Mesh()
-#     elems = get_surface(mesh)
-#     newmesh.nodes = copy.(getnodes(elems))
-#     newmesh._pointdict = Dict{UInt64,Node}(hash(node)=>node for node in newmesh.nodes)
-
-
-
-#     for elem in elems
-#         newelemnodes = Node[ newmesh._pointdict[hash(node)] for node in elem.nodes ]
-#         newelem = Cell(elem.shape, newelemnodes, tag=elem.tag)
-#         push!(newmesh.elems, newelem)
-#     end
-
-#     fixup!(newmesh, reorder=false)
-
-#     return newmesh    
-# end
 
 
 function getedges(surf_cells::Array{<:AbstractCell,1})
@@ -327,7 +308,7 @@ end
 
 
 # Updates numbering, faces and edges in a Mesh object
-function fixup!(mesh::Mesh; quiet=true, genfacets::Bool=true, genedges::Bool=true, reorder::Bool=false)
+function fixup!(mesh::Mesh; quiet=true, genfacets=true, genedges=true, reorder=false, renumber=true)
 
     @assert mesh.env.ndim!=0
 
@@ -882,17 +863,17 @@ function get_segment_data(msh::AbstractDomain, X1::Array{<:Real,1}, X2::Array{<:
 end
 
 export randmesh
-function randmesh(n::Int...)
+function randmesh(n::Int...; cellshape=nothing)
     ndim = length(n)
     if ndim==2
         lx, ly = (1.0, 1.0)
         nx, ny = n
-        cellshape = rand((TRI3, TRI6, QUAD4, QUAD8))
+        isnothing(cellshape) && (cellshape=rand((TRI3, TRI6, QUAD4, QUAD8)))
         m = Mesh(Block([0.0 0.0; lx ly], nx=nx, ny=ny, cellshape=cellshape), quiet=true)
     else
         lx, ly, lz = (1.0, 1.0, 1.0)
         nx, ny, nz = n
-        cellshape = rand((TET4, TET10, HEX8, HEX20))
+        isnothing(cellshape) && (cellshape=rand((TET4, TET10, HEX8, HEX20)))
         m = Mesh(Block([0.0 0.0 0.0; lx ly lz], nx=nx, ny=ny, nz=nz, cellshape=cellshape), quiet=true)
     end
 end

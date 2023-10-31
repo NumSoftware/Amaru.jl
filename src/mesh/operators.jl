@@ -390,9 +390,6 @@ end
     `Block` objects.
 """
 function polar(blocks::Array; base=[0.0,0,0], axis=[0.0,0,1], angle=360, n=2 )
-    # flat array
-
-    # blocks = mapreduce(x->isa(x, Array) ? flat(x) : [x], append!, blocks, init=[])
     return polar.(blocks, base=base, axis=axis, angle=angle, n=n)
 end
 
@@ -472,7 +469,7 @@ function LinearAlgebra.rotate!(mesh::Mesh; base=[0.0,0,0], axis=[0.0,0,1], angle
     end
 
     for p in mesh.nodes
-        p.coord.x, p.coord.y, p.coord.z = base + R*([p.coord.x, p.coord.y, p.coord.z] - base)
+        p.coord = base + R*(p.coord-base)
     end
 
     return mesh
@@ -514,7 +511,7 @@ function changeaxes!(mesh::Mesh, order::String)
         isinverted(elem) && flip!(elem)
     end
 
-    fixup!(mesh, reorder=false)
+    # fixup!(mesh, reorder=false) # should not fix!
 
     if length(mesh.node_data)>0 || length(mesh.elem_data)>0
         notify("changeaxes!: mesh associated data was not reordered according to new axes.")

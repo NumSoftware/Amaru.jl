@@ -50,11 +50,6 @@ function Base.:(==)(p1::Point, p2::Point)
     return norm(p1.coord-p2.coord)<tol
 end
 
-# Base.isequal(p1::Point, p2::Point) = p1==p2
-
-function getcoords(points::Array{Point,1})
-    return Float64[ p.coord[j] for p in points, j=1:3 ]
-end
 
 abstract type AbstractLine<:GeoEntity
 end
