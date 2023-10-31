@@ -11,7 +11,6 @@ bl1  = Block( [0 0; 0.1 0; 0.1 0.1; 0 0.1], nx=1, ny=1, cellshape=QUAD4)
 bl2  = Block( [0.1 0; 0.2 0; 0.2 0.1; 0.1 0.1], nx=1, ny=1, cellshape=QUAD4)
 
 msh = Mesh(bl1, bl2)
-mplot(msh, "msh.pdf")
 
 
 generate_joints!(msh, tag="joints")
@@ -73,7 +72,7 @@ for i in (2,3)
     quiet = true
     solve!(model, autoinc=true, maxits=3, tol=0.01, rspan=0.01, scheme="Ralston", quiet=quiet)
 
-    if @isdefined(makeplots) && makeplots
+    if Amaru.makeplots
         using PyPlot
         table = log1.table
         # plot(table[:jup], table[:js1], marker="o")
