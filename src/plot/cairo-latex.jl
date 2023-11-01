@@ -1,5 +1,26 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
+
+function cairo_set_ft_font(cc, font)
+    font_face = ccall( (:cairo_ft_font_face_create_for_ft_face, Cairo.libcairo),
+        Ptr{Cvoid}, (FreeTypeAbstraction.FT_Face, Cint),
+        font, 0 )
+    
+    ccall((:cairo_set_font_face, Cairo.libcairo), Cvoid, (Ptr{Cvoid}, Ptr{Cvoid}), cc.ptr, font_face)
+
+    return font_face
+end
+
+
+function cairo_font_face_destroy(font_face)
+    ccall(
+        (:cairo_font_face_destroy, Cairo.libcairo),
+        Cvoid, (Ptr{Cvoid},),
+        font_face
+    )
+end
+ 
+
 function getsize(str::LaTeXString, fontsize::Float64)
     texelems = generate_tex_elements(str)
     width = maximum([elem[2][1] for elem in texelems], init=0.0) + 0.5
@@ -7,6 +28,7 @@ function getsize(str::LaTeXString, fontsize::Float64)
     minh = minimum([elem[2][2] for elem in texelems], init=0.0)
     height = maxh - minh
     ffactor = 96/72 # todo: check this factor
+    ffactor = 1
     return width*fontsize*ffactor, height*fontsize*ffactor
 end
 
@@ -38,6 +60,7 @@ function textext(cc::CairoContext, x, y, str::LaTeXString; halign="center", vali
     T = [ cos(-θ) -sin(-θ); sin(-θ) cos(-θ)]
 
     ffactor = 96/72  # converding points to dpi
+    ffactor = 1
 
     # for elem in texelems
         
@@ -51,8 +74,11 @@ function textext(cc::CairoContext, x, y, str::LaTeXString; halign="center", vali
         x0, y0 = elem[2]
 
         # todo: check these fix of baseline
-        elem[1] isa TeXChar && (y0 -= 0.43*elem[3])
-        y0 += 0.12
+        # elem[1] isa TeXChar && (y0 -= 0.43*elem[3])
+        # y0 += 0.12
+
+        # elem[1] isa TeXChar && (y0 -= 0.43*elem[3])
+        # y0 += 0.12
 
         # user coordinates
         xi = x + x0*fsize*ffactor
@@ -63,11 +89,19 @@ function textext(cc::CairoContext, x, y, str::LaTeXString; halign="center", vali
             texchar = elem[1]
             scale = elem[3]
             glyph = texchar.represented_char
-            force_italic = occursin(glyph, "αβγδεζηθικλμνξοπρστυφχψω")
-            fnt = texchar.slanted || force_italic ? "NewComputerModern Italic" : "NewComputerModern Regular"
+            # force_italic = occursin(glyph, "αβγδεζηθικλμνξοπρστυφχψω")
+            # fnt = texchar.slanted || force_italic ? "NewComputerModern Italic" : "NewComputerModern Regular"
+            # set_font_size(cc, fsize*scale)
             set_font_size(cc, fsize*scale)
-            set_font_face(cc, fnt*" "*string(round(fsize*scale, digits=1)))
-            text(cc, xi, yi, string(glyph), halign="left", valign="bottom", angle=angle)
+
+            # set_font_face(cc, fnt*" "*string(round(fsize*scale, digits=1)))
+            # @show fsize*scale
+
+            move_to(cc, xi, yi)
+            # @show fsize
+            # @show glyph
+            show_text(cc, string(glyph))
+            # text(cc, xi, yi, string(glyph), halign="left", valign="bottom", angle=angle)
         elseif elem[1] isa HLine
             hline = elem[1]
             w = hline.width*fsize*ffactor

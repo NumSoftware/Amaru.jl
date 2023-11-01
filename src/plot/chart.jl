@@ -28,7 +28,7 @@ mutable struct Chart<:AbstractChart
     yaxis::Union{ChartComponent, Nothing}
     canvas::Union{ChartComponent, Nothing}
     legend::Union{ChartComponent, Nothing}
-    colorbar::Union{ChartComponent, Nothing}
+    colorbar::Union{ChartComponent, Nothing} 
     dataseries::Array
 
     outerpad::Float64
@@ -39,7 +39,8 @@ mutable struct Chart<:AbstractChart
 
         args = checkargs( args, 
             ArgInfo( :figsize, "Chart drawing size in dpi", default=(300,200), length=2),
-            ArgInfo( :fontsize, "Font size", default=7.0, condition=:(fontsize>0)),
+            ArgInfo( :font, "Font name", default="NewComputerModern", type=AbstractString),
+            ArgInfo( :fontsize, "Font size", default=9.0, condition=:(fontsize>0)),
             ArgInfo( :xlimits, "x-axis limit values", default=[0.0,0.0], length=2 ),
             ArgInfo( :ylimits, "y-axis limit values", default=[0.0,0.0], length=2 ),
             ArgInfo( :xmult, "x-axis values multiplier", default=1.0 ),
@@ -82,23 +83,25 @@ function configure!(c::Chart)
     c.outerpad = 0.01*minimum(c.figsize)
 
     c.xaxis = Axis(; 
-        direction   = :horizontal,
-        limits      = c.args.xlimits,
-        label       = c.args.xlabel,
-        fontsize    = c.args.fontsize,
-        ticks       = c.args.xticks,
-        ticklabels  = c.args.xticklabels,
-        mult        = c.args.xmult,
+        direction  = :horizontal,
+        limits     = c.args.xlimits,
+        label      = c.args.xlabel,
+        font       = c.args.font,
+        fontsize   = c.args.fontsize,
+        ticks      = c.args.xticks,
+        ticklabels = c.args.xticklabels,
+        mult       = c.args.xmult,
     )
     
     c.yaxis = Axis(; 
-        direction   = :vertical,
-        limits      = c.args.ylimits,
-        label       = c.args.ylabel,
-        fontsize    = c.args.fontsize,
-        ticks       = c.args.yticks,
-        ticklabels  = c.args.yticklabels,
-        mult        = c.args.ymult,
+        direction  = :vertical,
+        limits     = c.args.ylimits,
+        label      = c.args.ylabel,
+        font       = c.args.font,
+        fontsize   = c.args.fontsize,
+        ticks      = c.args.yticks,
+        ticklabels = c.args.yticklabels,
+        mult       = c.args.ymult,
     )
 
     configure!(c, c.xaxis)
@@ -123,7 +126,11 @@ function configure!(c::Chart)
 
     has_legend = any( ds.label!="" for ds in c.dataseries )
     if has_legend
-        c.legend = Legend(; location=c.args.legendloc, fontsize=c.args.legendfontsize)
+        c.legend = Legend(; 
+            location = c.args.legendloc,
+            font     = c.args.font,
+            fontsize = c.args.legendfontsize
+        )
         configure!(c, c.legend)
     end
 end
@@ -179,5 +186,6 @@ function save(chart::Chart, filename::String)
     configure!(chart)
     draw!(chart, cc)
     
+    @show "finish chart"
     finish(surf)
 end

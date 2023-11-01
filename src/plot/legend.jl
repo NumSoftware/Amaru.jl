@@ -2,6 +2,7 @@
 
 mutable struct Legend<:ChartComponent
     location::Symbol
+    font::String
     fontsize::Float64
     handle_length::Float64
     label_sep::Float64
@@ -10,8 +11,8 @@ mutable struct Legend<:ChartComponent
     width::Float64
     height::Float64
 
-    function Legend(; location=:topright, fontsize=7)
-        return new(location, fontsize)
+    function Legend(; location=:topright, font="NewComputerModern", fontsize=7)
+        return new(location, font, fontsize)
     end
 end
 
@@ -38,7 +39,9 @@ end
 function draw!(c::Chart, cc::CairoContext, legend::Legend)
 
     set_font_size(cc, legend.fontsize)
-    set_font_face(cc, "NewComputerModern $(legend.fontsize)") # for pango text
+    # set_font_face(cc, "NewComputerModern $(legend.fontsize)") # for pango text
+    font = findfont(legend.font*" Regular")
+    select_font_face(cc, font.family_name, Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL )
 
     handle_length = legend.handle_length
     label_sep = legend.label_sep
@@ -108,7 +111,9 @@ function draw!(c::Chart, cc::CairoContext, legend::Legend)
         if plot.label isa LaTeXString
             setlatex(cc, x, y, plot.label, halign="left", valign="center", angle=0)
         else
-            text(cc, x, y, plot.label, halign="left", valign="center", angle=0)
+            move_to(cc, x, y)
+            show_text(cc, plot.label)
+            # text(cc, x, y, plot.label, halign="left", valign="center", angle=0)
         end
     end
 

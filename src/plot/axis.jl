@@ -5,6 +5,7 @@ mutable struct Axis<:ChartComponent
     location::Symbol
     limits::Vector{Float64}
     label::AbstractString
+    font::String
     fontsize::Float64
     ticks::Array
     ticklabels::Array
@@ -21,6 +22,7 @@ mutable struct Axis<:ChartComponent
             ArgInfo( :location, "Axis location", default=:none, values=(:none, :left, :right, :top, :bottom) ),
             ArgInfo( :limits, "Axis limit values", default=[0.0,0.0], length=2 ),
             ArgInfo( :label, "Axis label", default="", type=AbstractString ),
+            ArgInfo( :font, "Font name", default="NewComputerModern", type=AbstractString),
             ArgInfo( :fontsize, "Font size", default=7.0, condition=:(fontsize>0)),
             ArgInfo( :ticks, "Axis tick values", default=Float64[], type=AbstractArray ),
             ArgInfo( :ticklabels, "Axis tick labels", default=String[], type=AbstractArray ),
@@ -40,7 +42,7 @@ mutable struct Axis<:ChartComponent
             location = args.location
         end
 
-        return new(args.direction, location, args.limits, args.label, args.fontsize, args.ticks, args.ticklabels, args.ticklength, args.bins, args.mult, 3)
+        return new(args.direction, location, args.limits, args.label, args.font, args.fontsize, args.ticks, args.ticklabels, args.ticklength, args.bins, args.mult, 3)
     end
 end
 
@@ -71,7 +73,6 @@ function configure!(chart::AbstractChart, ax::Axis)
     ax.ticklength = 0.015*minimum(chart.figsize)
     ax.innersep   = 0.02*minimum(chart.figsize)
 
-    @show ax.limits
     # configure limits
     if ax.limits==[0.0,0.0]
         if length(ax.ticks)==0
@@ -92,9 +93,6 @@ function configure!(chart::AbstractChart, ax::Axis)
             ax.limits = collect(limits)
         end
     end
-
-    @show ax.limits
-
 
     # configure ticks
     if length(ax.ticks)==0
@@ -190,10 +188,21 @@ end
 
 
 function draw!(c::AbstractChart, cc::CairoContext, ax::Axis)
-    x0, y0 = get_current_point(cc)
 
+    Cairo.save(cc)
+
+    # @show font
+    # font_face = cairo_set_ft_font(cc, font)
+    
+    x0, y0 = get_current_point(cc)
+    
+    @show ax.fontsize
+    font = findfont(ax.font*" Regular")
     set_font_size(cc, ax.fontsize)
-    set_font_face(cc, "NewComputerModern $(ax.fontsize)") # for pango text
+    select_font_face(cc, font.family_name, Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL )
+    # set_font_face(cc, font.family_name*" "*font.style_name)
+
+    # set_font_face(cc, "NewComputerModern $(ax.fontsize)") # for pango text
     set_matrix(cc, CairoMatrix([1, 0, 0, 1, 0, 0]...))
     
     set_source_rgb(cc, 0, 0, 0) # black
@@ -262,8 +271,12 @@ function draw!(c::AbstractChart, cc::CairoContext, ax::Axis)
         if ax.label isa LaTeXString
             textext(cc, x, y, ax.label, halign="center", valign="center", angle=90)
         else
-            text(cc, x, y, ax.label, halign="center", valign="center", angle=90)
+            move_to(cc, x,y)
+            text(cc, ax.label)
+            # text(cc, x, y, ax.label, halign="center", valign="center", angle=90)
         end
     end
 
+    # cairo_font_face_destroy(font_face)
+    Cairo.restore(cc)
 end
