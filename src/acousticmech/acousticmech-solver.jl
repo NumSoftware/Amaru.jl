@@ -395,9 +395,11 @@ function am_stage_solver!(model::Model, stage::Stage;
 
             # Update nodal variables at dofs
             for (i,dof) in enumerate(dofs)
-                # @show dof.name, ΔUi[i]
-                dof.vals[dof.name]    += ΔUi[i]
-                dof.vals[dof.natname] += ΔFin[i]
+                us, fs, vs, as = components_dict[dof.name]
+                dof.vals[us] = U[i]
+                dof.vals[fs] = F[i]
+                dof.vals[vs] = V[i] 
+                dof.vals[as] = A[i]
             end
 
             # Update time
