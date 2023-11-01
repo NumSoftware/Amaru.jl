@@ -174,7 +174,6 @@ function am_stage_solver!(model::Model, stage::Stage;
     nouts     = stage.nouts
     bcs       = stage.bcs
     tspan     = stage.tspan
-    env       = model.env
     save_outs = stage.nouts > 0
     ftol      = tol
 
@@ -186,10 +185,6 @@ function am_stage_solver!(model::Model, stage::Stage;
 
     # Get dofs organized according to boundary conditions
     dofs, nu = configure_dofs!(model, stage.bcs) # unknown dofs first
-    # global DOFS = dofs
-    # global CC = stage.bcs
-    # error()
-
 
     ndofs    = length(dofs)
     umap     = 1:nu         # map for unknown bcs
@@ -277,9 +272,6 @@ function am_stage_solver!(model::Model, stage::Stage;
     ΔFin = zeros(ndofs)  # vector of internal natural values for current increment
     ΔUi  = zeros(ndofs)  # vector of essential values (e.g. displacements) for this increment
     ΔUk  = zeros(ndofs)  # vector of essential values for current iteration
-    Rc   = zeros(ndofs)  # vector of cumulated residues
-    Fina = zeros(ndofs)  # current internal forces
-    
     
     ΔFexi = zeros(ndofs)  # increment of external natural bc
     ΔUexi = zeros(ndofs)  # increment of external essential bc
@@ -304,6 +296,7 @@ function am_stage_solver!(model::Model, stage::Stage;
 
     local G::SparseMatrixCSC{Float64,Int64}
     local RHS::Array{Float64,1}
+    local At, Vt
 
     while T < 1.0-Tmin
         env.ΔT = ΔT
@@ -318,13 +311,12 @@ function am_stage_solver!(model::Model, stage::Stage;
 
         # Get forces and displacements from boundary conditions
         Uexi, Fexi = get_bc_vals(model, bcs, t+Δt) # get values at time t+Δt
-        ΔUexi = Uexi - Uexi!
-        ΔFexi = Fexi - Fexi!
+        ΔUexi .= Uexi - Uexi!
+        ΔF = Fexi - Fexi!
 
         ΔUexi[umap] .= 0.0
-        ΔFexi[pmap] .= 0.0
+        ΔF[pmap] .= 0.0
 
-        ΔF = ΔFexi
         ΔF[pmap] .= 0.0  # Zero at prescribed positions
 
         ΔUi .= 0.0
@@ -332,8 +324,6 @@ function am_stage_solver!(model::Model, stage::Stage;
 
         # Newton Rapshon iterations
         res   = 0.0
-        # maxfails  = 3  # maximum number of it. fails with residual change less than 90%
-        # nfails    = 0  # counter for iteration fails
         nits  = 0
         res1  = 0.0
         converged = false
@@ -351,7 +341,6 @@ function am_stage_solver!(model::Model, stage::Stage;
 
             K′ = K + 4/Δt^2*M   # pseudo-stiffness matrix
             ΔF′ = ΔF + M*(A + 4*V/Δt - 4*ΔUi/Δt^2)
-
             # Solve
             solve_system!(K′, ΔUk, ΔF′, nu)
 
@@ -365,20 +354,15 @@ function am_stage_solver!(model::Model, stage::Stage;
             failed(sysstatus) && (syserror=true; break)
 
             Vt = -V + 2/Δt*ΔUit
-            At = -A + 4/Δt^2*(ΔUit - Vt*Δt)
-            
-            R = ΔFexi - (ΔFin + M*At)
+            At = -A + 4/Δt^2*(ΔUit - V*Δt)
+
+            R = ΔF - (ΔFin + M*At)
             res = maximum(abs, R[umap] )
 
             # Update accumulated displacement
             ΔUi .+= ΔUk
 
-            # Residual vector for next iteration
-            # ΔF[pmap] .= 0.0  # Zero at prescribed positions
-
             @printf(env.log, "    it %d  res: %-10.4e\n", it, res)
-
-            # @show res
 
             it==1 && (res1=res)
             res < tol  && (converged=true; break)
@@ -401,9 +385,10 @@ function am_stage_solver!(model::Model, stage::Stage;
             F  .+= ΔFin
 
             Uexi! = Uexi
-            Fexi! = Fexi
+            Fexi! .= Fexi
 
-            # @showm ΔUi
+            A .= At
+            V .= Vt
 
             # Backup converged state at ips
             copyto!.(StateBk, State)
@@ -431,7 +416,6 @@ function am_stage_solver!(model::Model, stage::Stage;
                 update_output_data!(model)
 
                 update_multiloggers!(model)
-                # @show "$outdir/$outkey-$iout.vtu"
                 save(model, "$outdir/$outkey-$iout.vtu", quiet=true)
 
                 Tcheck += ΔTcheck # find the next output time
