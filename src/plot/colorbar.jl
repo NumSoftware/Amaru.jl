@@ -18,7 +18,7 @@ mutable struct Colorbar<:ChartComponent
             ArgInfo( :colormap, "Colormap", default=:coolwarm ),
             ArgInfo( :limits, "Colorbar limit values", default=[0.0,0.0], length=2 ),
             ArgInfo( :label, "Colorbar label", default="", type=AbstractString ),
-            ArgInfo( :fontsize, "Font size", default=7.0, condition=:(fontsize>0)),
+            ArgInfo( :fontsize, "Font size", default=9.0, condition=:(fontsize>0)),
             ArgInfo( :ticks, "Colorbar tick values", default=Float64[], type=AbstractArray ),
             ArgInfo( :ticklabels, "Colorbar tick labels", default=String[], type=AbstractArray ),
             ArgInfo( :ticklength, "Colorbar tick length", default=3 ),
@@ -64,6 +64,7 @@ end
 
 function draw!(c::AbstractChart, cc::CairoContext, cb::Colorbar)
     fmin, fmax = cb.axis.limits
+    set_matrix(cc, CairoMatrix([1, 0, 0, 1, 0, 0]...))
 
     if cb.location==:right
         # Axis

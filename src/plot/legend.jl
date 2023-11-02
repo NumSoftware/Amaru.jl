@@ -39,9 +39,9 @@ end
 function draw!(c::Chart, cc::CairoContext, legend::Legend)
 
     set_font_size(cc, legend.fontsize)
-    # set_font_face(cc, "NewComputerModern $(legend.fontsize)") # for pango text
-    font = findfont(legend.font*" Regular")
-    select_font_face(cc, font.family_name, Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL )
+
+    font = get_font(legend.font)
+    select_font_face(cc, font, Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL )
 
     handle_length = legend.handle_length
     label_sep = legend.label_sep
@@ -92,7 +92,7 @@ function draw!(c::Chart, cc::CairoContext, legend::Legend)
     for (i,plot) in enumerate(plots)
         # draw line
         x = x1 + inner_pad
-        y = y1 + inner_pad + label_heigh/2 + (i-1)*(label_heigh+label_sep)
+        y = y1 + inner_pad + label_heigh/2 + (i-1)*(label_heigh+label_sep) 
         move_to(cc, x, y)
         rel_line_to(cc, handle_length, 0)
         set_source_rgb(cc, plot.lc...)
@@ -107,14 +107,9 @@ function draw!(c::Chart, cc::CairoContext, legend::Legend)
         draw_marker(cc, x, y, plot.ms, plot.marker)
 
         x = x1 + inner_pad + handle_length + 2*inner_pad
+        y = y - 0.15*legend.fontsize
         set_source_rgb(cc, 0, 0, 0)
-        if plot.label isa LaTeXString
-            setlatex(cc, x, y, plot.label, halign="left", valign="center", angle=0)
-        else
-            move_to(cc, x, y)
-            show_text(cc, plot.label)
-            # text(cc, x, y, plot.label, halign="left", valign="center", angle=0)
-        end
+        draw_text(cc, x, y, plot.label, halign="left", valign="center", angle=0)
     end
 
 end

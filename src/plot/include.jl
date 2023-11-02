@@ -1,7 +1,7 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-include("cairo-latex.jl")
 include("colors.jl")
+include("text.jl")
 
 # include("chart-context.jl")
 

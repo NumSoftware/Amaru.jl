@@ -87,11 +87,15 @@ function configure!(chart::AbstractChart, ax::Axis)
                     limits[2] = max(limits[2], maximum(p.Y))
                 end
             end
-            ax.limits = limits
         else
-            limits = extrema(chart.args.xticks)
-            ax.limits = collect(limits)
+            limits = collect(extrema(chart.args.xticks))
         end
+
+        
+        # extend limits
+        dx = 0.025*(limits[2]-limits[1])
+        limits = [ limits[1]-dx, limits[2]+dx ]
+        ax.limits = limits
     end
 
     # configure ticks
@@ -191,18 +195,11 @@ function draw!(c::AbstractChart, cc::CairoContext, ax::Axis)
 
     Cairo.save(cc)
 
-    # @show font
-    # font_face = cairo_set_ft_font(cc, font)
-    
     x0, y0 = get_current_point(cc)
     
-    @show ax.fontsize
-    font = findfont(ax.font*" Regular")
+    font = get_font(ax.font)
+    select_font_face(cc, font, Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL )
     set_font_size(cc, ax.fontsize)
-    select_font_face(cc, font.family_name, Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL )
-    # set_font_face(cc, font.family_name*" "*font.style_name)
-
-    # set_font_face(cc, "NewComputerModern $(ax.fontsize)") # for pango text
     set_matrix(cc, CairoMatrix([1, 0, 0, 1, 0, 0]...))
     
     set_source_rgb(cc, 0, 0, 0) # black
@@ -217,21 +214,26 @@ function draw!(c::AbstractChart, cc::CairoContext, ax::Axis)
             x1 = x0 + ax.width/(xmax-xmin)*(x-xmin)
 
             move_to(cc, x1, y0); line_to(cc, x1, y0-ax.ticklength); stroke(cc)
-            if label isa LaTeXString
-                textext(cc, x1, y0+ax.ticklength+tk_lbs_height/2, label, halign="center", valign="center")
-            else
-                text(cc, x1, y0+ax.ticklength+tk_lbs_height/2, label, halign="center", valign="center")
-            end
+            draw_text(cc, x1, y0+ax.ticklength+tk_lbs_height/2, label, halign="center", valign="center")
+            # if label isa LaTeXString
+                # textext(cc, x1, y0+ax.ticklength+tk_lbs_height/2, label, halign="center", valign="center")
+            # else
+                # text(cc, x1, y0+ax.ticklength+tk_lbs_height/2, label, halign="center", valign="center")
+            # end
         end
 
         x = x0 + ax.width/2
         y = y0 + ax.height - label_height/2
 
-        if ax.label isa LaTeXString
-            textext(cc, x, y, ax.label, halign="center", valign="center", angle=0)
-        else
-            text(cc, x, y, ax.label, halign="center", valign="center", angle=0)
-        end
+
+        draw_text(cc, x, y, ax.label, halign="center", valign="center", angle=0)
+        # if ax.label isa LaTeXString
+        #     textext(cc, x, y, ax.label, halign="center", valign="center", angle=0)
+        # else
+        #     move_to(cc, x, y)
+        #     show_text(cc, ax.label)
+        #     # show_text(cc, x, y, ax.label, halign="center", valign="center", angle=0)
+        # end
 
     else # vertical ax
         tk_lbs_width = maximum( getsize(lbl, ax.fontsize)[1] for lbl in ax.ticklabels )
@@ -254,11 +256,12 @@ function draw!(c::AbstractChart, cc::CairoContext, ax::Axis)
             
             move_to(cc, x1, y1); line_to(cc, x1+ticklength, y1); stroke(cc)
 
-            if label isa LaTeXString
-                textext(cc, x1-ticklength, y1, label, halign=halign, valign="center")
-            else
-                text(cc, x1-ticklength, y1, label, halign=halign, valign="center")
-            end
+            draw_text(cc, x1-ticklength, y1, label, halign=halign, valign="center")
+            # if label isa LaTeXString
+                # textext(cc, x1-ticklength, y1, label, halign=halign, valign="center")
+            # else
+                # text(cc, x1-ticklength, y1, label, halign=halign, valign="center")
+            # end
         end
         
         if ax.location==:left
@@ -268,15 +271,15 @@ function draw!(c::AbstractChart, cc::CairoContext, ax::Axis)
         end
         y = y0 + ax.height/2
 
-        if ax.label isa LaTeXString
-            textext(cc, x, y, ax.label, halign="center", valign="center", angle=90)
-        else
-            move_to(cc, x,y)
-            text(cc, ax.label)
-            # text(cc, x, y, ax.label, halign="center", valign="center", angle=90)
-        end
+        draw_text(cc, x, y, ax.label, halign="center", valign="center", angle=90)
+        # if ax.label isa LaTeXString
+        #     textext(cc, x, y, ax.label, halign="center", valign="center", angle=90)
+        # else
+        #     move_to(cc, x,y)
+        #     show_text(cc, ax.label)
+        #     # text(cc, x, y, ax.label, halign="center", valign="center", angle=90)
+        # end
     end
 
-    # cairo_font_face_destroy(font_face)
     Cairo.restore(cc)
 end

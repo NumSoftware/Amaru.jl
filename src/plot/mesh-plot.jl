@@ -39,7 +39,7 @@ mutable struct MeshPlot<:AbstractChart
             ArgInfo( (:colorbarloc,:colorbar), "Colorbar location", default=:right, values=(:right, :bottom) ),
             ArgInfo( (:colorbarscale, :cbscale), "Colorbar scale", default=0.9, condition=:(colorbarscale>0) ),
             ArgInfo( (:label, :colorbarlabel, :cblabel, :colorbartitle), "Colorbar label", default="" ),
-            ArgInfo( (:fontsize, :colorbarfontsize, :cbfontsize), "Colorbar font size", default=7.0, condition=:(fontsize>0)),
+            ArgInfo( (:fontsize, :colorbarfontsize, :cbfontsize), "Colorbar font size", default=9.0, condition=:(fontsize>0)),
             ArgInfo( :azimut, "Azimut angle for 3d in degrees", default=30 ),
             ArgInfo( :elevation, "Elevation angle for 3d in degrees", default=30 ),
             ArgInfo( :distance, "Distance from camera in 3d", default=1.0, condition=:(distance>0) ),

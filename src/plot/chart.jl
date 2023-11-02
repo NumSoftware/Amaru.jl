@@ -54,7 +54,7 @@ mutable struct Chart<:AbstractChart
             ArgInfo( :xticklabels, "x-axis tick labels", default=String[], type=AbstractArray ),
             ArgInfo( :yticklabels, "y-axis tick labels", default=String[], type=AbstractArray ),
             ArgInfo( (:legendloc, :legend), "Legend location", default=:topright, values=_legend_positions ),
-            ArgInfo( :legendfontsize, "Legend font size", default=7.0, condition=:(legendfontsize>0)),
+            ArgInfo( :legendfontsize, "Legend font size", default=8.5, condition=:(legendfontsize>0)),
             ArgInfo( (:colorbarloc, :colorbar), "Colorbar location", default=:right, values=(:right, :bottom) ),
             ArgInfo( (:colorbarscale, :cbscale), "Colorbar scale", default=0.9, condition=:(colorbarscale>0) ),
             ArgInfo( (:colorbarlabel, :cblabel, :colorbartitle), "Colorbar label", default="" ),
@@ -186,6 +186,5 @@ function save(chart::Chart, filename::String)
     configure!(chart)
     draw!(chart, cc)
     
-    @show "finish chart"
     finish(surf)
 end
