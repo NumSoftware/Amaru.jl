@@ -14,8 +14,8 @@ mutable struct LinePlot<:DataSeriesPlot
     ms    ::Float64
     label ::String
     dash  ::Vector{Float64}
-    # xscale::String
-    # yscale::String
+    # xmult::String
+    # ymult::String
 
     function LinePlot( X::AbstractArray, Y::AbstractArray; args...)
 
@@ -72,10 +72,12 @@ function draw!(chart::Chart, cc::CairoContext, p::LinePlot)
 
     # Plot lines
     n = length(p.X)
-    x1, y1 = data2user(chart, p.X[1], p.Y[1])
+    X = p.X*chart.xaxis.mult
+    Y = p.Y*chart.yaxis.mult
+    x1, y1 = data2user(chart, X[1], Y[1])
 
     for i in 2:n
-        x, y = data2user(chart, p.X[i], p.Y[i])
+        x, y = data2user(chart, X[i], Y[i])
         move_to(cc, x1, y1); line_to(cc, x, y); stroke(cc)
         x1, y1 = x, y
     end
@@ -83,7 +85,7 @@ function draw!(chart::Chart, cc::CairoContext, p::LinePlot)
     set_dash(cc, Float64[])
     
     # Plot markers
-    for (x,y) in zip(p.X, p.Y)
+    for (x,y) in zip(X, Y)
         x, y = data2user(chart, x, y)
 
         draw_marker(cc, x, y, p.ms, p.marker)

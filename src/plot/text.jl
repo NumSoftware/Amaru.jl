@@ -23,14 +23,13 @@ end
 
 function getsize(str::LaTeXString, fontsize::Float64)
     texelems = generate_tex_elements(str)
-    width = maximum([elem[2][1] for elem in texelems], init=0.0) + 0.6
-    maxh = maximum([elem[2][2] for elem in texelems], init=0.0) + 0.75
-    minh = minimum([elem[2][2] for elem in texelems], init=0.0)
+    width = maximum([elem[2][1] for elem in texelems], init=0.0) + 0.7
+    maxh = maximum([elem[2][2] for elem in texelems], init=0.0) + 0.7
+    minh = minimum([elem[2][2] for elem in texelems], init=0.0) - 0.2
     height = maxh - minh
-    ffactor = 96/72 # todo: check this factor
-    ffactor = 1
-    return width*fontsize*ffactor, height*fontsize*ffactor
+    return width*fontsize, height*fontsize
 end
+
 
 function getsize(str::AbstractString, fontsize::Float64)
     str = LaTeXString(str)
@@ -63,21 +62,30 @@ function draw_text(cc::CairoContext, x, y, str::LaTeXString; halign="center", va
 
     texelems = generate_tex_elements(str)
     
+    # get the current font
+    font_face = ccall((:cairo_get_font_face, Cairo.libcairo), Ptr{Cvoid}, (Ptr{Cvoid},), cc.ptr)
+    font_family = ccall((:cairo_toy_font_face_get_family, Cairo.libcairo), Cstring, (Ptr{Cvoid},), font_face)
+    font = unsafe_string(font_family)
+
+    # get font size
     fmatrix = get_font_matrix(cc)
     fsize = norm([fmatrix.xx, fmatrix.xy])
-    width, height = getsize(str, fsize)
+
+    # get size
+    width = fsize*(maximum([elem[2][1] for elem in texelems], init=0.0) + 0.7)
+    maxh = maximum([elem[2][2] for elem in texelems], init=0.0) + 0.7
+    minh = minimum([elem[2][2] for elem in texelems], init=0.0) - 0.15
+    height = fsize*(maxh - minh)
+
+    # width, height = getsize(str, fsize)
     rw = halign=="center" ? 0.5 : halign=="right" ? 1.0 : 0.0
     rh = valign=="center" ? 0.5 : valign=="top" ? 1.0 : 0.0
 
     translate(cc, x, y)
     Cairo.rotate(cc, -angle*pi/180)
-    translate(cc, -rw*width, rh*height)
+    Cairo.translate(cc, -rw*width, rh*height + minh*fsize)
     move_to(cc, 0, 0)
 
-    # get the current font
-    font_face = ccall((:cairo_get_font_face, Cairo.libcairo), Ptr{Cvoid}, (Ptr{Cvoid},), cc.ptr)
-    font_family = ccall((:cairo_toy_font_face_get_family, Cairo.libcairo), Cstring, (Ptr{Cvoid},), font_face)
-    font = unsafe_string(font_family)
 
     for elem in texelems
         x0, y0 = elem[2]
@@ -95,14 +103,14 @@ function draw_text(cc::CairoContext, x, y, str::LaTeXString; halign="center", va
             set_font_size(cc, fsize*scale)
 
             move_to(cc, x0*fsize, -y0*fsize)
-            # fsize = 9
             show_text(cc, string(glyph))
 
         elseif elem[1] isa HLine
             hline = elem[1]
             w = hline.width*fsize
-            move_to(cc, xi, yi); rel_line_to(cc, w*cos(-θ), w*sin(-θ)); stroke(cc)
+            # move_to(cc, xi, yi); rel_line_to(cc, w*cos(-θ), w*sin(-θ)); stroke(cc)
             set_line_width(cc, hline.thickness*fsize)
+            move_to(cc, x0*fsize, -y0*fsize); rel_line_to(cc, w, 0); stroke(cc)
         end
     end
 

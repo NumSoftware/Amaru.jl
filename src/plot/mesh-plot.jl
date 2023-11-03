@@ -12,7 +12,7 @@ mutable struct MeshPlot<:AbstractChart
 
     figsize::Union{Array, Tuple}
     lw::Float64
-    facecolor::Symbol
+    facecolor::Tuple
     field::String
     limits::Vector{Float64}
     warp::Float64
@@ -35,11 +35,13 @@ mutable struct MeshPlot<:AbstractChart
             ArgInfo( :field, "Scalar field", default="" ),
             ArgInfo( :limits, "Field limit values", default=[0.0,0.0], length=2 ),
             ArgInfo( :label, "Colorbar label", default="", type=AbstractString ),
-            ArgInfo( :colormap, "Colormap for field display", default=:coolwarm),
+            ArgInfo( :colormap, "Colormap for field display", default=:coolwarm, values=_colormaps_list),
+            ArgInfo( :divergefromzero, "Sets if colormap will diverge from zero", default=false, type=Bool),
             ArgInfo( (:colorbarloc,:colorbar), "Colorbar location", default=:right, values=(:right, :bottom) ),
             ArgInfo( (:colorbarscale, :cbscale), "Colorbar scale", default=0.9, condition=:(colorbarscale>0) ),
             ArgInfo( (:label, :colorbarlabel, :cblabel, :colorbartitle), "Colorbar label", default="" ),
             ArgInfo( (:fontsize, :colorbarfontsize, :cbfontsize), "Colorbar font size", default=9.0, condition=:(fontsize>0)),
+            ArgInfo( :font, "Font name", default="NewComputerModern", type=AbstractString),
             ArgInfo( :azimut, "Azimut angle for 3d in degrees", default=30 ),
             ArgInfo( :elevation, "Elevation angle for 3d in degrees", default=30 ),
             ArgInfo( :distance, "Distance from camera in 3d", default=1.0, condition=:(distance>0) ),
@@ -57,12 +59,12 @@ mutable struct MeshPlot<:AbstractChart
 
         this.figsize = args.figsize
         this.lw = args.lw
-        this.facecolor = args.facecolor
+        this.facecolor = _colors_dict[args.facecolor]
         this.field = args.field
         this.limits = args.limits
         this.warp = args.warp
         this.label = args.label
-        this.colormap = coolwarm
+        this.colormap = _colormaps_dict[args.colormap]
         # this.colorbarloc = args.colorbarloc
         # this.colorbarscale = args.colorbarscale
         # this.colorbarfontsize = args.colorbarfontsize
@@ -205,11 +207,12 @@ function configure!(mplot::MeshPlot)
         distances = [ minimum(node.coord[3] for node in elem.nodes) for elem in elems ]
         perm = sortperm(distances, rev=true)
         elems = elems[perm]
-
     end
 
     # Field 
-    if mplot.field!=""
+    has_field = mplot.field != ""
+
+    if has_field
         mplot.label == ""  && (mplot.label = mplot.field)
         
         field = string(mplot.field)
@@ -235,10 +238,11 @@ function configure!(mplot::MeshPlot)
         # Colormap
         mplot.values = fvals
         mplot.limits = [fmin, fmax]
-        mplot.colormap = resize(coolwarm, fmin, fmax)
+        mplot.colormap = resize(mplot.colormap, fmin, fmax, divergefromzero=mplot.args.divergefromzero)
 
     else
         # Solid colormap
+        # mplot.values = 
     end
 
     mplot.nodes = nodes
@@ -248,8 +252,12 @@ function configure!(mplot::MeshPlot)
     mplot.canvas = GeometryCanvas()
     mplot.outerpad = 0.01*minimum(mplot.figsize)
 
+
+    rpane = 0.0
+    bpane = 0.0
+    
     # Colorbar
-    if mplot.field!=""
+    if has_field
         mplot.colorbar = Colorbar(;
             location   = mplot.args.colorbarloc,
             label      = mplot.label,
@@ -257,9 +265,27 @@ function configure!(mplot::MeshPlot)
             colormap   = mplot.colormap,
             limits     = mplot.limits,
             fontsize   = mplot.args.fontsize,
+            font       = mplot.args.font,
         )
         configure!(mplot, mplot.colorbar)
+
+        if has_field
+            if mplot.colorbar.location==:right
+                rpane = mplot.colorbar.width
+            else
+                bpane = mplot.colorbar.height
+            end
+        end
     end
+
+    # Canvas box
+    canvas = mplot.canvas
+    width, height = mplot.figsize
+    # pad = mplot.outerpad
+
+    canvas.width = width - rpane - 2*mplot.outerpad
+    canvas.height = height - bpane - 2*mplot.outerpad
+    canvas.box = [ mplot.outerpad, mplot.outerpad, width-rpane-mplot.outerpad, height-bpane-mplot.outerpad ]
 
 end
 
@@ -270,24 +296,9 @@ function draw!(mplot::MeshPlot, cc::CairoContext)
     xmin, xmax = extrema( node.coord[1] for node in mplot.nodes)
     ymin, ymax = extrema( node.coord[2] for node in mplot.nodes)
 
-    width, height = mplot.figsize
-    pad = mplot.outerpad
-
-    # Colorbar dims
-    hasfield = mplot.field != ""
-    rpane = 0.0
-    colorbar = mplot.colorbar
-    if hasfield
-        rpane = colorbar.width
-    end
-
-    # Canvas box
-    canvas = mplot.canvas
-    canvas.width = width - rpane - 2*mplot.outerpad
-    canvas.height = height - 2*mplot.outerpad
-    canvas.box = [ mplot.outerpad, mplot.outerpad, width-rpane-mplot.outerpad, height-mplot.outerpad ]
-
     Xmin, Ymin, Xmax, Ymax = mplot.canvas.box
+    has_field = mplot.field != ""
+    is_nodal_field = has_field && haskey(mplot.mesh.node_data, mplot.field)
 
     ratio = min((Xmax-Xmin)/(xmax-xmin), (Ymax-Ymin)/(ymax-ymin) )
     dx = 0.5*((Xmax-Xmin)-ratio*(xmax-xmin))
@@ -317,6 +328,12 @@ function draw!(mplot::MeshPlot, cc::CairoContext)
         mesh_pattern_move_to(pattern, x, y)
         nedges = length(edges)
 
+        # draw elements
+        color = mplot.facecolor
+        if has_field && !is_nodal_field
+            color = mplot.colormap(mplot.values[elem.id])
+        end
+
         if length(edges)==3
             for edge in edges[1:2]
                 x, y = edge.nodes[2].coord
@@ -331,37 +348,41 @@ function draw!(mplot::MeshPlot, cc::CairoContext)
 
         for (i,node) in enumerate(elem.nodes[1:nedges])
             id = node.id
-            color = mplot.colormap(mplot.values[id])
+            if has_field && is_nodal_field
+                color = mplot.colormap(mplot.values[id])
+            end
             mesh_pattern_set_corner_color_rgb(pattern, i-1, color...)
         end
 
         mesh_pattern_end_patch(pattern)
         set_source(cc, pattern)
         paint(cc)
-
+        
+        # draw edges
+        gray = sum(mplot.facecolor)/3*Vec3(0.5,0.5,0.5)
+        if has_field && !is_nodal_field
+            gray = sum(mplot.colormap(mplot.values[elem.id]))/3*Vec3(0.5,0.5,0.5)
+        end
+        
         x, y = edges[1].nodes[1].coord
         move_to(cc, x, y)
-        edgecolor = Vec3(0.3, 0.3, 0.3)
-        
         for edge in edges
             pts = bezier_points(edge)
             x, y = edge.nodes[1].coord
             move_to(cc, x, y)
             curve_to(cc, pts[2]..., pts[3]..., pts[4]...)
             id = edge.nodes[1].id
-            gray = sum(mplot.colormap(mplot.values[id]))/3
-            # color = 0.75*edgecolor .+ 0.25*gray
-            color = 0.5*gray*Vec3(1,1,1)
+            if has_field && is_nodal_field
+                gray = sum(mplot.colormap(mplot.values[id]))/3*Vec3(0.5,0.5,0.5)
+            end
             set_line_width(cc, mplot.lw)
-            # @show mplot.lw
-            set_source_rgb(cc, color...) # gray
+            set_source_rgb(cc, gray...) # gray
             stroke(cc)
         end
-        color = 0.6*edgecolor/nedges
     end
     
     # draw colorbar
-    draw!(mplot, cc, mplot.colorbar)
+    has_field && draw!(mplot, cc, mplot.colorbar)
 end
 
 

@@ -19,6 +19,7 @@ mutable struct Colorbar<:ChartComponent
             ArgInfo( :limits, "Colorbar limit values", default=[0.0,0.0], length=2 ),
             ArgInfo( :label, "Colorbar label", default="", type=AbstractString ),
             ArgInfo( :fontsize, "Font size", default=9.0, condition=:(fontsize>0)),
+            ArgInfo( :font, "Font name", default="NewComputerModern", type=AbstractString),
             ArgInfo( :ticks, "Colorbar tick values", default=Float64[], type=AbstractArray ),
             ArgInfo( :ticklabels, "Colorbar tick labels", default=String[], type=AbstractArray ),
             ArgInfo( :ticklength, "Colorbar tick length", default=3 ),
@@ -38,6 +39,7 @@ mutable struct Colorbar<:ChartComponent
             limits      = args.limits,
             label       = args.label,
             fontsize    = args.fontsize,
+            font        = args.font,
             # ticks       = c.args.colorbarticks,
             # ticklabels  = c.args.colorbarticklabels,
             # mult        = c.args.colorbarmult,
@@ -57,7 +59,11 @@ function configure!(c::AbstractChart, cb::Colorbar)
     if cb.location==:right
         cb.height = cb.scale*(c.figsize[2] - 2*c.outerpad)
         cb.axis.height = cb.height
-        cb.width = cb.innersep + cb.thickness + cb.axis.width 
+        cb.width = cb.innersep + cb.thickness + cb.axis.ticklength + cb.axis.width 
+    else
+        cb.width = cb.scale*(c.figsize[1] - 2*c.outerpad)
+        cb.axis.width = cb.width
+        cb.height = cb.innersep + cb.thickness + cb.axis.ticklength + cb.axis.height
     end
 end
 
@@ -93,5 +99,29 @@ function draw!(c::AbstractChart, cc::CairoContext, cb::Colorbar)
         rectangle(cc, x, y, w, -h)
         fill(cc)
     else
+        # Axis
+        w = cb.width
+        x = c.figsize[1]/2 - w/2
+        y = c.canvas.box[4]+cb.innersep+cb.thickness+cb.axis.ticklength
+        move_to(cc, x, y)
+        draw!(c, cc, cb.axis)
+        
+        # Colorbar
+        x = c.figsize[1]/2 - w/2
+        y = c.canvas.box[4] + cb.innersep
+        h = cb.thickness
+
+        pat = pattern_create_linear(x, 0.0,  x+w, 0.0)
+        nstops = length(cb.colormap.stops)
+        for i in 1:nstops
+            stop = cb.colormap.stops[i]
+            color = cb.colormap.colors[i]
+            stop = round((stop-fmin)/(fmax-fmin), digits=8)
+            pattern_add_color_stop_rgb(pat, stop, color...)
+        end
+
+        set_source(cc, pat)
+        rectangle(cc, x, y, w, h)
+        fill(cc)
     end
 end

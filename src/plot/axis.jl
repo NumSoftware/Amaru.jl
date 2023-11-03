@@ -47,8 +47,9 @@ mutable struct Axis<:ChartComponent
 end
 
 
-function roundbin(dx)
-    ex = floor(log10(dx)) # exponent 
+function get_bin_length(vinf, vsup, n)
+    dx = (vsup-vinf)/n*sign(vsup-vinf)
+    ex = floor(log10(abs(dx))) # exponent 
     mant = dx/10^ex
 
     if mant<=1.4
@@ -65,13 +66,13 @@ function roundbin(dx)
         mant=10.0
     end
 
-    return round(mant*10^ex, sigdigits=2)
+    return round(mant*10^ex, sigdigits=2)*sign(vsup-vinf)
 end
 
 
 function configure!(chart::AbstractChart, ax::Axis)
-    ax.ticklength = 0.015*minimum(chart.figsize)
-    ax.innersep   = 0.02*minimum(chart.figsize)
+
+    # ax.innersep   = 0.02*minimum(chart.figsize)
 
     # configure limits
     if ax.limits==[0.0,0.0]
@@ -93,29 +94,30 @@ function configure!(chart::AbstractChart, ax::Axis)
 
         
         # extend limits
-        dx = 0.025*(limits[2]-limits[1])
+        f = ax.direction == :horizontal ? 0.03 : 0.03*chart.figsize[1]/chart.figsize[2]
+        dx = f*(limits[2]-limits[1])
         limits = [ limits[1]-dx, limits[2]+dx ]
+        limits = [ limits[1]*ax.mult, limits[2]*ax.mult ]
         ax.limits = limits
     end
 
     # configure ticks
     if length(ax.ticks)==0
         len  = diff(ax.limits)[1]
-        vmin, vmax = ax.limits
+        vinf, vsup = ax.limits
 
         if len==0
-            vmin -= eps()
-            vmax += eps()
+            vinf -= eps()*sign(vsup-vinf)
+            vsup += eps()*sign(vsup-vinf)
         end
 
-        dv = roundbin((vmax-vmin)/ax.nbins)
+        dv = get_bin_length(vinf, vsup, ax.nbins)
 
         # roundup first tick
-        m = mod(vmin,dv) 
-        vmin = m==0 ? vmin : round(vmin - m + dv, sigdigits=2)
+        m = mod(vinf,dv)
+        vinf = m==0 ? vinf : vinf - m + dv
 
-        ax.ticks = round.(vmin:dv:vmax, digits=10)
-        # ax.ticks = round.(vmin:dv:vmax, sigdigits=3)
+        ax.ticks = round.(vinf:dv:vsup, digits=10)
     end
 
     if length(ax.ticklabels)!=length(ax.ticks)
@@ -128,21 +130,51 @@ function configure!(chart::AbstractChart, ax::Axis)
     end
 
     ax.ticklabels = [ !isa(label, LaTeXString) && contains(label, "\$") ? LaTeXString(label) : label for label in ax.ticklabels  ]
-
     ax.nbins = length(ax.ticks) - 1
 
-    # configure size
+    # configure size (axis dimensions do do not include tick lengths)
+    ax.ticklength = 0.4*ax.fontsize
+    ax.innersep = 0.2*ax.fontsize
+
     if ax.direction == :horizontal
         tk_lbs_height = maximum( getsize(lbl, ax.fontsize)[2] for lbl in ax.ticklabels )
         label_height = getsize(ax.label, ax.fontsize)[2]
-        ax.height = label_height + ax.innersep + tk_lbs_height + ax.innersep
+        ax.height = label_height + ax.innersep + tk_lbs_height + ax.ticklength
     else
         tk_lbs_width = maximum( getsize(lbl, ax.fontsize)[1] for lbl in ax.ticklabels )
         label_height = getsize(ax.label, ax.fontsize)[2]
-        ax.width = label_height + ax.innersep + tk_lbs_width + ax.innersep
+        ax.width = label_height + ax.innersep + tk_lbs_width + ax.ticklength
     end
     
     return ax
+end
+
+
+function configure!(chart::AbstractChart, xax::Axis, yax::Axis)
+    configure!(chart, xax)
+    configure!(chart, yax)
+
+    # set width and height of axes
+    width, height = chart.figsize
+    xax.width  = width - yax.width - chart.outerpad - chart.rightpad
+    yax.height = height - xax.height - chart.toppad - chart.outerpad
+
+    # update chart.rightpad if required
+    label_width = getsize(xax.ticklabels[end], xax.fontsize)[1] 
+    xdist = xax.width*(xax.limits[2]-xax.ticks[end])/(xax.limits[2]-xax.limits[1]) # distance of the right most tick to the right side of axis
+    if xdist-label_width/2 < 0
+        chart.rightpad += label_width/2 - xdist
+        xax.width   = width - yax.width - chart.outerpad - chart.rightpad
+    end
+
+    # update chart.toppad if required
+    label_height = getsize(yax.ticklabels[end], yax.fontsize)[2] 
+    ydist = yax.height * (yax.limits[2] - yax.ticks[end])/(yax.limits[2]-yax.limits[1]) # distance of the upper most tick to the top side of axis
+    if ydist-label_height/2 < 0
+        chart.toppad += label_height/2 - ydist
+        yax.height = height - xax.height - chart.toppad - chart.outerpad
+    end
+
 end
 
 function make_ticklabels(ticks)
@@ -203,42 +235,30 @@ function draw!(c::AbstractChart, cc::CairoContext, ax::Axis)
     set_matrix(cc, CairoMatrix([1, 0, 0, 1, 0, 0]...))
     
     set_source_rgb(cc, 0, 0, 0) # black
-    set_line_width(cc, 0.5)
+    set_line_width(cc, 0.05*ax.fontsize)
     
     if ax.direction==:horizontal
         tk_lbs_height = maximum( getsize(lbl, ax.fontsize)[2] for lbl in ax.ticklabels )
         label_height = getsize(ax.label, ax.fontsize)[2]
         xmin, xmax = ax.limits
 
+        # draw tick labels
         for (x,label) in zip(ax.ticks, ax.ticklabels)
             x1 = x0 + ax.width/(xmax-xmin)*(x-xmin)
 
-            move_to(cc, x1, y0); line_to(cc, x1, y0-ax.ticklength); stroke(cc)
+            move_to(cc, x1, y0); rel_line_to(cc, 0, -ax.ticklength); stroke(cc)
             draw_text(cc, x1, y0+ax.ticklength+tk_lbs_height/2, label, halign="center", valign="center")
-            # if label isa LaTeXString
-                # textext(cc, x1, y0+ax.ticklength+tk_lbs_height/2, label, halign="center", valign="center")
-            # else
-                # text(cc, x1, y0+ax.ticklength+tk_lbs_height/2, label, halign="center", valign="center")
-            # end
         end
 
         x = x0 + ax.width/2
         y = y0 + ax.height - label_height/2
-
-
+        # y = y0 + ax.ticklength + ax.innersep + label_height
         draw_text(cc, x, y, ax.label, halign="center", valign="center", angle=0)
-        # if ax.label isa LaTeXString
-        #     textext(cc, x, y, ax.label, halign="center", valign="center", angle=0)
-        # else
-        #     move_to(cc, x, y)
-        #     show_text(cc, ax.label)
-        #     # show_text(cc, x, y, ax.label, halign="center", valign="center", angle=0)
-        # end
 
     else # vertical ax
         tk_lbs_width = maximum( getsize(lbl, ax.fontsize)[1] for lbl in ax.ticklabels )
         label_height = getsize(ax.label, ax.fontsize)[2]
-
+        ymin, ymax = ax.limits
 
         if ax.location==:left
             halign="right"
@@ -250,20 +270,16 @@ function draw!(c::AbstractChart, cc::CairoContext, ax::Axis)
             x1 = x0
         end
 
-        ymin, ymax = ax.limits
+        # draw tick labels
         for (y,label) in zip(ax.ticks, ax.ticklabels)
             y1 = y0 + ax.height/(ymax-ymin)*(ymax-y)
             
-            move_to(cc, x1, y1); line_to(cc, x1+ticklength, y1); stroke(cc)
+            move_to(cc, x1, y1); rel_line_to(cc, ticklength, 0); stroke(cc)
 
             draw_text(cc, x1-ticklength, y1, label, halign=halign, valign="center")
-            # if label isa LaTeXString
-                # textext(cc, x1-ticklength, y1, label, halign=halign, valign="center")
-            # else
-                # text(cc, x1-ticklength, y1, label, halign=halign, valign="center")
-            # end
         end
         
+        # draw label
         if ax.location==:left
             x = x0 + label_height/2
         else
@@ -272,13 +288,6 @@ function draw!(c::AbstractChart, cc::CairoContext, ax::Axis)
         y = y0 + ax.height/2
 
         draw_text(cc, x, y, ax.label, halign="center", valign="center", angle=90)
-        # if ax.label isa LaTeXString
-        #     textext(cc, x, y, ax.label, halign="center", valign="center", angle=90)
-        # else
-        #     move_to(cc, x,y)
-        #     show_text(cc, ax.label)
-        #     # text(cc, x, y, ax.label, halign="center", valign="center", angle=90)
-        # end
     end
 
     Cairo.restore(cc)

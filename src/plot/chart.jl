@@ -32,6 +32,8 @@ mutable struct Chart<:AbstractChart
     dataseries::Array
 
     outerpad::Float64
+    toppad::Float64
+    rightpad::Float64
     icolor::Int
     args::NamedTuple
 
@@ -81,6 +83,8 @@ function configure!(c::Chart)
 
     width, height = c.figsize
     c.outerpad = 0.01*minimum(c.figsize)
+    c.toppad = c.outerpad
+    c.rightpad = c.outerpad
 
     c.xaxis = Axis(; 
         direction  = :horizontal,
@@ -104,19 +108,20 @@ function configure!(c::Chart)
         mult       = c.args.ymult,
     )
 
-    configure!(c, c.xaxis)
-    configure!(c, c.yaxis)
+    # configure axes, may change chart pads
+    configure!(c, c.xaxis, c.yaxis)
+    # configure!(c, c.xaxis)
+    # configure!(c, c.yaxis)
+
+    # set width and height of canvas
+    c.canvas = Canvas()
+    c.canvas.width = width - c.yaxis.width - c.outerpad - c.rightpad
+    c.canvas.height = height - c.xaxis.height - c.toppad - c.outerpad
+    c.canvas.box = [ c.outerpad + c.yaxis.width, c.toppad, width-c.rightpad, height - c.xaxis.height-c.outerpad ]
 
     # set width and height of axes
-    c.xaxis.width  = width - c.yaxis.width - 2*c.outerpad
-    c.yaxis.height = height - c.xaxis.height - 2*c.outerpad
-
-    # set width and height of c
-    c.canvas = Canvas()
-    c.canvas.width = width - c.yaxis.width - 2*c.outerpad
-    c.canvas.height = height - c.xaxis.height - 2*c.outerpad
-    c.canvas.box = [ c.outerpad + c.yaxis.width, c.outerpad, width-c.outerpad, height - c.xaxis.height-c.outerpad ]
-
+    # c.xaxis.width  = width - c.yaxis.width - c.outerpad - c.rightpad
+    # c.yaxis.height = height - c.xaxis.height - c.toppad - c.outerpad
 
     c.canvas.limits = [ c.xaxis.limits[1], c.yaxis.limits[1], c.xaxis.limits[2], c.yaxis.limits[2] ]
 
@@ -136,21 +141,19 @@ function configure!(c::Chart)
 end
 
 function draw!(c::Chart, cc::CairoContext)
-    set_source_rgb(cc, 1, 1, 1)  # White color
-    paint(cc)
+    # draw canvas grid
+    draw!(c, cc, c.canvas)
 
+    # draw axes
     x = c.outerpad+c.yaxis.width
-    y = c.outerpad+c.yaxis.height
+    y = c.toppad+c.yaxis.height
     move_to(cc, x, y)
     draw!(c, cc, c.xaxis)
     
     x = c.outerpad
-    y = c.outerpad
+    y = c.toppad
     move_to(cc, x, y)
     draw!(c, cc, c.yaxis)
-
-    # draw canvas grid
-    draw!(c, cc, c.canvas)
 
     # draw plots
     x, y = c.canvas.box[1:2]

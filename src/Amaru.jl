@@ -18,6 +18,7 @@ module Amaru
     using Printf, DelimitedFiles, DataStructures, Glob, DocStringExtensions, Dates
     using Cairo, LaTeXStrings, MathTeXEngine
     import FreeTypeAbstraction
+    export @L_str # reexport LaTeXStrings
 
     import DataStructures: OrderedDict, OrderedSet
 

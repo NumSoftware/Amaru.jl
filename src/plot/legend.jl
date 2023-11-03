@@ -19,7 +19,7 @@ end
 function configure!(c::Chart, legend::Legend)
     legend.handle_length = 0.06*c.figsize[1]
     legend.label_sep = 0.3*legend.fontsize
-    legend.inner_pad = 2*legend.label_sep
+    legend.inner_pad = 1.5*legend.label_sep
     legend.outer_pad = 0.015*c.figsize[1]
 
     plots = [ p for p in c.dataseries if p.label != ""]
