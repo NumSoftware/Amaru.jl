@@ -88,22 +88,53 @@ macro argopt(args1, args2)
     end
 end
 
-function checkargs(args, rules...)
-    return checkargs(args, [rules...])
+function get_descriptions(args_rules::AbstractArray)
+    descs = String[]
+    for item in args_rules
+        item isa ArgInfo || continue
+        desc = "$(item.key) "
+        if length(item.aliases)>0
+            desc = desc * "($(join(string.(item.aliases), ", "))) "
+        end
+        desc = desc*": $(item.desc)"
+        push!(descs, desc)
+    end
+    return join(descs, "\n", " and ")
 end
 
-function checkargs(args, args_rules::AbstractArray)
-     # Get function caller
-     st = stacktrace(backtrace())
-     fname = :_
-     for frame in st
-         if !startswith(string(frame.func), "_") && frame.func!=Symbol("checkargs")
-             fname = frame.func
-             break
-         end
-     end
+# function checkargs(args, rules...; checkwrong=false)
+    # return checkargs(args, [rules...], checkwrong=checkwrong)
+# end
 
-    argkeys = keys(args)
+function checkargs(args, args_rules::AbstractArray; checkwrong=false)
+    # Get function caller
+    st = stacktrace(backtrace())
+    fname = :_
+    for frame in st
+        if !startswith(string(frame.func), "_") && frame.func!=Symbol("checkargs")
+            fname = frame.func
+            break
+        end
+    end
+
+    # check for wrong arguments
+    if checkwrong
+        allkeys = []
+        for item in args_rules 
+            if item isa ArgInfo
+                push!(allkeys, item.key)
+                append!(allkeys, item.aliases)
+            end
+        end
+
+        argkeys = keys(args)
+        for key in argkeys
+            if !(key in allkeys)
+                msg = "Wrong argument $(key). Possible inputs are:\n"*get_descriptions(args_rules)
+                throw(AmaruException(msg))     
+            end
+        end
+    end
 
     # replace aliases (update args)
     pairs = []
@@ -120,7 +151,8 @@ function checkargs(args, args_rules::AbstractArray)
         end
         push!(pairs, newkey=>value)
     end
-    args = NamedTuple(pairs)
+    args = NamedTuple(pairs) # redefine args replacing aliases
+    argkeys = keys(args)
 
     # list of optional keys to skip
     argopts  = [ item for item in args_rules if item isa ArgOpt ]
@@ -138,15 +170,13 @@ function checkargs(args, args_rules::AbstractArray)
     end
 
     arginfos = [ item for item in args_rules if item isa ArgInfo && !(item.key in skipkeys) ] # skip non used optional keys
-    alldescs = join( ["$(item.key): $(item.desc)" for item in arginfos], ", ", " and ")
-    allconds = [ item for item in args_rules if item isa ArgCond ]
 
-    # check mandatory keys (skip optional args)
+    # check for missing keys (skip optional args)
     mandatorykeys = [ item.key for item in arginfos if item.default===nothing ]
-    missingkeys = setdiff(mandatorykeys, argkeys)
+    missingkeys = setdiff(mandatorykeys, keys(args))
 
     if length(missingkeys)>0
-        msg = "Missing arguments: $(join(missingkeys, ", ")).\nPossible inputs are: $alldescs"
+        msg = "Missing arguments: $(join(missingkeys, ", ")). Possible inputs are:\n"*get_descriptions(args_rules)
         for opt in argopts
             args1 = opt.args1 isa Symbol ? (opt.args1,) : opt.args1.args
             args2 = opt.args2 isa Symbol ? (opt.args2,) : opt.args2.args
@@ -156,8 +186,48 @@ function checkargs(args, args_rules::AbstractArray)
     end
 
     # update args with defaults
-    alldefaults  = NamedTuple([ item.key => item.default for item in arginfos ])
-    args = merge(alldefaults, args)
+    pairs = []
+    allkeys = [ item.key for item in arginfos ]
+    defaults  = NamedTuple([ item.key => item.default for item in arginfos ])
+    args_keys = keys(args)
+    for item in arginfos
+        key = item.key
+        if key in args_keys
+            value = args[key] # use given value
+        else
+            default = item.default
+            if default isa Symbol && default in allkeys # default value in terms of other values
+                if default in args_keys
+                    value = args[default]
+                else
+                    value = defaults[default]
+                end
+            else
+                value = default # use default value
+            end
+        end
+        push!(pairs, key=>value)
+    end
+
+    args = NamedTuple(pairs)
+
+    # allkeys = [ item.key for item in arginfos ]
+    # @show keys(args)
+    # for item in arginfos
+    #     @show item.key
+    #     @show item.default
+    #     if item.default isa Symbol && item.default in allkeys
+    #         @show "xxxxxxxxxxxxxxxx"
+    #         @show item.key
+    #         item.default = getindex(args, item.default, nothing)
+    #     end
+    # end
+
+    # alldefaults  = NamedTuple([ item.key => item.default for item in arginfos ])
+
+    # @show alldefaults
+
+    # args = merge(alldefaults, args)
 
     # check argument condition
     for arginfo in arginfos
@@ -197,8 +267,9 @@ function checkargs(args, args_rules::AbstractArray)
     end
     
     # check relational conditions between arguments
+    allconds = [ item for item in args_rules if item isa ArgCond ]
     for argcond in allconds
-        if !eval_arith_expr(argcond.cond, args...)
+        if !eval_arith_expr(argcond.cond, args...) # todo: update with eval
             msg = "Given arguments do not satisfy condition $(argcond.cond)"
             throw(AmaruException("$fname: $msg"))
         end

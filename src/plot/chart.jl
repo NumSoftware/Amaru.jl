@@ -40,28 +40,31 @@ mutable struct Chart<:AbstractChart
     function Chart(; args...)
 
         args = checkargs( args, 
-            ArgInfo( :figsize, "Chart drawing size in dpi", default=(300,200), length=2),
-            ArgInfo( :font, "Font name", default="NewComputerModern", type=AbstractString),
-            ArgInfo( :fontsize, "Font size", default=9.0, condition=:(fontsize>0)),
-            ArgInfo( :xlimits, "x-axis limit values", default=[0.0,0.0], length=2 ),
-            ArgInfo( :ylimits, "y-axis limit values", default=[0.0,0.0], length=2 ),
-            ArgInfo( :xmult, "x-axis values multiplier", default=1.0 ),
-            ArgInfo( :ymult, "y-axis values multiplier", default=1.0 ),
-            ArgInfo( :xbins, "Number of bins in the x axis", default=7 ),
-            ArgInfo( :ybins, "Number of bins in the y axis", default=6 ),
-            ArgInfo( :xlabel, "Label for the x axis", default=L"$x$", type=AbstractString ),
-            ArgInfo( :ylabel, "Label for the y axis", default=L"$y$", type=AbstractString ),
-            ArgInfo( :xticks, "x-axis tick values", default=Float64[], type=AbstractArray ),
-            ArgInfo( :yticks, "y-axis tick values", default=Float64[], type=AbstractArray ),
-            ArgInfo( :xticklabels, "x-axis tick labels", default=String[], type=AbstractArray ),
-            ArgInfo( :yticklabels, "y-axis tick labels", default=String[], type=AbstractArray ),
-            ArgInfo( (:legendloc, :legend), "Legend location", default=:topright, values=_legend_positions ),
-            ArgInfo( :legendfontsize, "Legend font size", default=8.5, condition=:(legendfontsize>0)),
-            ArgInfo( (:colorbarloc, :colorbar), "Colorbar location", default=:right, values=(:right, :bottom) ),
-            ArgInfo( (:colorbarscale, :cbscale), "Colorbar scale", default=0.9, condition=:(colorbarscale>0) ),
-            ArgInfo( (:colorbarlabel, :cblabel, :colorbartitle), "Colorbar label", default="" ),
-            ArgInfo( (:colorbarlimits, :cblimits), "Colorbar limits", default=Float64[0.0,0.0], length=2 ),
-            ArgInfo( (:colorbarfontsize, :cbfontsize), "Colorbar font size", default=7.0, condition=:(colorbarfontsize>0)),
+            [
+                ArgInfo( :figsize, "Chart drawing size in dpi", default=(220,150), length=2),
+                ArgInfo( :font, "Font name", default="NewComputerModern", type=AbstractString),
+                ArgInfo( :fontsize, "Font size", default=7.0, condition=:(fontsize>0)),
+                ArgInfo( :xlimits, "x-axis limit values", default=[0.0,0.0], length=2 ),
+                ArgInfo( :ylimits, "y-axis limit values", default=[0.0,0.0], length=2 ),
+                ArgInfo( :xmult, "x-axis values multiplier", default=1.0 ),
+                ArgInfo( :ymult, "y-axis values multiplier", default=1.0 ),
+                ArgInfo( :xbins, "Number of bins in the x axis", default=7 ),
+                ArgInfo( :ybins, "Number of bins in the y axis", default=6 ),
+                ArgInfo( :xlabel, "Label for the x axis", default=L"$x$", type=AbstractString ),
+                ArgInfo( :ylabel, "Label for the y axis", default=L"$y$", type=AbstractString ),
+                ArgInfo( :xticks, "x-axis tick values", default=Float64[], type=AbstractArray ),
+                ArgInfo( :yticks, "y-axis tick values", default=Float64[], type=AbstractArray ),
+                ArgInfo( :xticklabels, "x-axis tick labels", default=String[], type=AbstractArray ),
+                ArgInfo( :yticklabels, "y-axis tick labels", default=String[], type=AbstractArray ),
+                ArgInfo( (:legendloc, :legend), "Legend location", default=:topright, values=_legend_positions ),
+                ArgInfo( :legendfontsize, "Legend font size", default=:fontsize, condition=:(legendfontsize>0)),
+                ArgInfo( (:colorbarloc, :colorbar), "Colorbar location", default=:right, values=(:right, :bottom) ),
+                ArgInfo( (:colorbarscale, :cbscale), "Colorbar scale", default=0.9, condition=:(colorbarscale>0) ),
+                ArgInfo( (:colorbarlabel, :cblabel, :colorbartitle), "Colorbar label", default="" ),
+                ArgInfo( (:colorbarlimits, :cblimits), "Colorbar limits", default=Float64[0.0,0.0], length=2 ),
+                ArgInfo( (:colorbarfontsize, :cbfontsize), "Colorbar font size", default=7.0, condition=:(colorbarfontsize>0)),
+            ],
+            checkwrong=true,
         )
 
         this = new()
@@ -131,6 +134,7 @@ function configure!(c::Chart)
 
     has_legend = any( ds.label!="" for ds in c.dataseries )
     if has_legend
+        # fontsize = c.args.legendfontsize > c.args.fontsize ? c.args.fontsize || c.args.legendfontsize
         c.legend = Legend(; 
             location = c.args.legendloc,
             font     = c.args.font,
@@ -159,7 +163,7 @@ function draw!(c::Chart, cc::CairoContext)
     x, y = c.canvas.box[1:2]
     w, h = c.canvas.box[3:4] - c.canvas.box[1:2]
     rectangle(cc, x, y, w, h)
-    clip(cc)
+    Cairo.clip(cc)
 
     for p in c.dataseries
         draw!(c, cc, p)
@@ -178,6 +182,10 @@ function addplot!(c::Chart, P::DataSeriesPlot...)
     for p in P
         push!(c.dataseries, p)
     end
+end
+
+function addplot!(c::Chart, plots::Array{<:DataSeriesPlot,1})
+    addplot!(c, plots...)
 end
 
 

@@ -14,22 +14,25 @@ mutable struct Colorbar<:ChartComponent
 
     function Colorbar(; args...)
         args = checkargs(args, 
-            ArgInfo( :location, "Colorbar location", default=:right, values=(:right, :bottom) ),
-            ArgInfo( :colormap, "Colormap", default=:coolwarm ),
-            ArgInfo( :limits, "Colorbar limit values", default=[0.0,0.0], length=2 ),
-            ArgInfo( :label, "Colorbar label", default="", type=AbstractString ),
-            ArgInfo( :fontsize, "Font size", default=9.0, condition=:(fontsize>0)),
-            ArgInfo( :font, "Font name", default="NewComputerModern", type=AbstractString),
-            ArgInfo( :ticks, "Colorbar tick values", default=Float64[], type=AbstractArray ),
-            ArgInfo( :ticklabels, "Colorbar tick labels", default=String[], type=AbstractArray ),
-            ArgInfo( :ticklength, "Colorbar tick length", default=3 ),
-            ArgInfo( :bins, "Number of bins", default=6 ),
-            ArgInfo( :innersep, "Colorbar inner separation", default=3 ),
-            ArgInfo( :scale, "Colorbar inner separation", default=1.0 ),
+            [
+                ArgInfo( :location, "Colorbar location", default=:right, values=(:right, :bottom) ),
+                ArgInfo( :colormap, "Colormap", default=:coolwarm),
+                ArgInfo( :limits, "Colorbar limit values", default=[0.0,0.0], length=2 ),
+                ArgInfo( :label, "Colorbar label", default="", type=AbstractString ),
+                ArgInfo( :fontsize, "Font size", default=9.0, condition=:(fontsize>0)),
+                ArgInfo( :font, "Font name", default="NewComputerModern", type=AbstractString),
+                ArgInfo( :ticks, "Colorbar tick values", default=Float64[], type=AbstractArray ),
+                ArgInfo( :ticklabels, "Colorbar tick labels", default=String[], type=AbstractArray ),
+                ArgInfo( :ticklength, "Colorbar tick length", default=3 ),
+                ArgInfo( :bins, "Number of bins", default=6 ),
+                ArgInfo( :innersep, "Colorbar inner separation", default=3 ),
+                ArgInfo( :scale, "Colorbar inner separation", default=1.0 ),
+            ],
+            checkwrong=true
         )
 
-        # colormap = coolwarm
-        this = new(args.location, args.colormap)
+        colormap = args.colormap isa Symbol ? Colormap(args.colormap) : args.colormap
+        this = new(args.location, colormap)
 
         direction = args.location == :right ? :vertical : :horizontal
 

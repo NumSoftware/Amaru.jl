@@ -18,18 +18,21 @@ mutable struct Axis<:ChartComponent
 
     function Axis(; args...)
         args = checkargs(args,
-            ArgInfo( :direction, "Axis direction", default=:horizontal, values=(:horizontal, :vertical) ),
-            ArgInfo( :location, "Axis location", default=:none, values=(:none, :left, :right, :top, :bottom) ),
-            ArgInfo( :limits, "Axis limit values", default=[0.0,0.0], length=2 ),
-            ArgInfo( :label, "Axis label", default="", type=AbstractString ),
-            ArgInfo( :font, "Font name", default="NewComputerModern", type=AbstractString),
-            ArgInfo( :fontsize, "Font size", default=7.0, condition=:(fontsize>0)),
-            ArgInfo( :ticks, "Axis tick values", default=Float64[], type=AbstractArray ),
-            ArgInfo( :ticklabels, "Axis tick labels", default=String[], type=AbstractArray ),
-            ArgInfo( :ticklength, "Axis tick length", default=3 ),
-            ArgInfo( :bins, "Number of bins", default=6 ),
-            ArgInfo( :mult, "Axis values multiplier", default=1.0 ),
-            ArgInfo( :innersep, "Axis inner pad", default=3 ),
+            [
+                ArgInfo( :direction, "Axis direction", default=:horizontal, values=(:horizontal, :vertical) ),
+                ArgInfo( :location, "Axis location", default=:none, values=(:none, :left, :right, :top, :bottom) ),
+                ArgInfo( :limits, "Axis limit values", default=[0.0,0.0], length=2 ),
+                ArgInfo( :label, "Axis label", default="", type=AbstractString ),
+                ArgInfo( :font, "Font name", default="NewComputerModern", type=AbstractString),
+                ArgInfo( :fontsize, "Font size", default=7.0, condition=:(fontsize>0)),
+                ArgInfo( :ticks, "Axis tick values", default=Float64[], type=AbstractArray ),
+                ArgInfo( :ticklabels, "Axis tick labels", default=String[], type=AbstractArray ),
+                ArgInfo( :ticklength, "Axis tick length", default=3 ),
+                ArgInfo( :bins, "Number of bins", default=6 ),
+                ArgInfo( :mult, "Axis values multiplier", default=1.0 ),
+                ArgInfo( :innersep, "Axis inner pad", default=3 ),
+            ], 
+            checkwrong=true
         )
 
         if args.location==:none
@@ -134,7 +137,7 @@ function configure!(chart::AbstractChart, ax::Axis)
 
     # configure size (axis dimensions do do not include tick lengths)
     ax.ticklength = 0.4*ax.fontsize
-    ax.innersep = 0.2*ax.fontsize
+    ax.innersep = 0.4*ax.fontsize
 
     if ax.direction == :horizontal
         tk_lbs_height = maximum( getsize(lbl, ax.fontsize)[2] for lbl in ax.ticklabels )
@@ -255,7 +258,7 @@ function draw!(c::AbstractChart, cc::CairoContext, ax::Axis)
         # y = y0 + ax.ticklength + ax.innersep + label_height
         draw_text(cc, x, y, ax.label, halign="center", valign="center", angle=0)
 
-    else # vertical ax
+    else # :vertical ax
         tk_lbs_width = maximum( getsize(lbl, ax.fontsize)[1] for lbl in ax.ticklabels )
         label_height = getsize(ax.label, ax.fontsize)[2]
         ymin, ymax = ax.limits
@@ -282,6 +285,8 @@ function draw!(c::AbstractChart, cc::CairoContext, ax::Axis)
         # draw label
         if ax.location==:left
             x = x0 + label_height/2
+            x = x0 + ax.width - ticklength - tk_lbs_width - 0.5*ax.innersep - label_height/2
+            # x = x0 + ax.width - ticklength - tk_lbs_width - ticklength 
         else
             x = x0 + tk_lbs_width + ax.ticklength + label_height/2
         end

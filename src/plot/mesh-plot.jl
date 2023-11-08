@@ -28,24 +28,27 @@ mutable struct MeshPlot<:AbstractChart
 
     function MeshPlot(mesh; args...)
         args = checkargs( args, 
-            ArgInfo( :figsize, "Mesh drawing size in dpi", default=(300,200), length=2),
-            ArgInfo( :facecolor, "Surface color", default=:aliceblue),
-            ArgInfo( :warp, "Warping scale", default=1.0 ),
-            ArgInfo( (:lw, :lineweight), "Line weight", default=0.5,  condition=:(lw>0) ),
-            ArgInfo( :field, "Scalar field", default="" ),
-            ArgInfo( :limits, "Field limit values", default=[0.0,0.0], length=2 ),
-            ArgInfo( :label, "Colorbar label", default="", type=AbstractString ),
-            ArgInfo( :colormap, "Colormap for field display", default=:coolwarm, values=_colormaps_list),
-            ArgInfo( :divergefromzero, "Sets if colormap will diverge from zero", default=false, type=Bool),
-            ArgInfo( (:colorbarloc,:colorbar), "Colorbar location", default=:right, values=(:right, :bottom) ),
-            ArgInfo( (:colorbarscale, :cbscale), "Colorbar scale", default=0.9, condition=:(colorbarscale>0) ),
-            ArgInfo( (:label, :colorbarlabel, :cblabel, :colorbartitle), "Colorbar label", default="" ),
-            ArgInfo( (:fontsize, :colorbarfontsize, :cbfontsize), "Colorbar font size", default=9.0, condition=:(fontsize>0)),
-            ArgInfo( :font, "Font name", default="NewComputerModern", type=AbstractString),
-            ArgInfo( :azimut, "Azimut angle for 3d in degrees", default=30 ),
-            ArgInfo( :elevation, "Elevation angle for 3d in degrees", default=30 ),
-            ArgInfo( :distance, "Distance from camera in 3d", default=1.0, condition=:(distance>0) ),
-            ArgInfo( :outline, "Flag to show outline", default=true, type=Bool ),
+            [
+                ArgInfo( :figsize, "Mesh drawing size in dpi", default=(300,200), length=2),
+                ArgInfo( :facecolor, "Surface color", default=:aliceblue),
+                ArgInfo( :warp, "Warping scale", default=1.0 ),
+                ArgInfo( (:lw, :lineweight), "Line weight", default=0.5,  condition=:(lw>0) ),
+                ArgInfo( :field, "Scalar field", default="" ),
+                ArgInfo( :limits, "Limits for the scalar field", default=[0.0,0.0], length=2 ),
+                ArgInfo( :label, "Colorbar label", default="", type=AbstractString ),
+                ArgInfo( :colormap, "Colormap for field display", default=:coolwarm),
+                ArgInfo( :divergefromzero, "Sets if colormap will diverge from zero", default=false, type=Bool),
+                ArgInfo( (:colorbarloc,:colorbar), "Colorbar location", default=:right, values=(:right, :bottom) ),
+                ArgInfo( (:colorbarscale, :cbscale), "Colorbar scale", default=0.9, condition=:(colorbarscale>0) ),
+                ArgInfo( (:label, :colorbarlabel, :cblabel, :colorbartitle), "Colorbar label", default="" ),
+                ArgInfo( (:fontsize, :colorbarfontsize, :cbfontsize), "Colorbar font size", default=9.0, condition=:(fontsize>0)),
+                ArgInfo( :font, "Font name", default="NewComputerModern", type=AbstractString),
+                ArgInfo( :azimut, "Azimut angle for 3d in degrees", default=30 ),
+                ArgInfo( :elevation, "Elevation angle for 3d in degrees", default=30 ),
+                ArgInfo( :distance, "Distance from camera in 3d", default=1.0, condition=:(distance>0) ),
+                ArgInfo( :outline, "Flag to show outline", default=true, type=Bool )
+            ],
+            checkwrong=true
         )
 
         this = new()
@@ -64,7 +67,10 @@ mutable struct MeshPlot<:AbstractChart
         this.limits = args.limits
         this.warp = args.warp
         this.label = args.label
-        this.colormap = _colormaps_dict[args.colormap]
+
+        colormap = args.colormap isa Symbol ? Colormap(args.colormap) : args.colormap
+        this.colormap = colormap
+
         # this.colorbarloc = args.colorbarloc
         # this.colorbarscale = args.colorbarscale
         # this.colorbarfontsize = args.colorbarfontsize

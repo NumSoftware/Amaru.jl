@@ -38,8 +38,9 @@ end
 
 function draw!(c::Chart, cc::CairoContext, legend::Legend)
 
+    plots = [ p for p in c.dataseries if p.label != ""]
+    
     set_font_size(cc, legend.fontsize)
-
     font = get_font(legend.font)
     select_font_face(cc, font, Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL )
 
@@ -47,6 +48,10 @@ function draw!(c::Chart, cc::CairoContext, legend::Legend)
     label_sep = legend.label_sep
     inner_pad = legend.inner_pad
     outer_pad = legend.outer_pad
+    
+    # update the width
+    label_width = maximum( text_extents(cc, plot.label)[3] for plot in plots )
+    legend.width = handle_length + 2*inner_pad + label_width + 2*inner_pad
 
     # set legend location
     if legend.location in (:topright, :right, :bottomright)
@@ -87,7 +92,6 @@ function draw!(c::Chart, cc::CairoContext, legend::Legend)
     stroke(cc)
 
     # draw labels
-    plots = [ p for p in c.dataseries if p.label != ""]
     label_heigh = maximum( getsize(plot.label, legend.fontsize)[2] for plot in plots )
     for (i,plot) in enumerate(plots)
         # draw line
@@ -95,7 +99,7 @@ function draw!(c::Chart, cc::CairoContext, legend::Legend)
         y = y1 + inner_pad + label_heigh/2 + (i-1)*(label_heigh+label_sep) 
         move_to(cc, x, y)
         rel_line_to(cc, handle_length, 0)
-        set_source_rgb(cc, plot.lc...)
+        set_source_rgb(cc, plot.linecolor...)
         set_line_width(cc, plot.lw)
         if plot.ls!=:solid
             set_dash(cc, plot.dash)
@@ -104,7 +108,7 @@ function draw!(c::Chart, cc::CairoContext, legend::Legend)
         set_dash(cc, Float64[])
 
         x = x1 + inner_pad + handle_length/2
-        draw_marker(cc, x, y, plot.ms, plot.marker)
+        draw_marker(cc, x, y, plot.marker, plot.markersize, plot.markercolor, plot.markerstrokecolor)
 
         x = x1 + inner_pad + handle_length + 2*inner_pad
         y = y - 0.15*legend.fontsize

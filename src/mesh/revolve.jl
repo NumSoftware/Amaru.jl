@@ -221,6 +221,7 @@ function revolve(node::Node;
     maxangle::Real = 360,
     angle   ::Real = NaN,
     n       ::Int  = 8,
+    cellshape::CellShape = LIN3
 )
 
     @assert length(axis)==3
@@ -243,6 +244,7 @@ function revolve(node::Node;
     minθ = minangle*pi/180
     maxθ = maxangle*pi/180
     Δθ = (maxθ-minθ)/n
+    nnodes = cellshape==LIN2 ? 2 : 3
 
     for θ in range(minθ,step=Δθ,length=n)
         θhalf = θ + Δθ/2
@@ -253,12 +255,12 @@ function revolve(node::Node;
         Rend  = Quaternion(cos(θend/2), axis[1]*sin(θend/2), axis[2]*sin(θend/2), axis[3]*sin(θend/2))
 
         nodes = Node[]
-        for R in (Rend, Rini, Rhalf)
+        for R in (Rend, Rini, Rhalf)[1:nnodes]
             coord = base + R*(node.coord-base)*conj(R)
             push!(nodes, Node(coord))
         end
 
-        newcell = Cell(LIN3, nodes)
+        newcell = Cell(cellshape, nodes)
         push!(cells, newcell)
     end
 

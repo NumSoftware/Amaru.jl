@@ -6,6 +6,7 @@ function get_font(str)
         "NewComputerModern Regular",
         "Cambria",
         "Times New Roman",
+        "Palatino Linotype",
         "Georgia",
     ]
 

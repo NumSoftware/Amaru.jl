@@ -2,13 +2,13 @@
 
 const _default_colors = [ :C1, :C2, :C3, :C4, :C5, :C6, :C7, :C8, :C9, :C10, :C11, :C12, :C13, :C14, :C15, :C16, ]
 
-const _colors_dict = Dict(
-    :C1          => (0.298, 0.447, 0.690),
-    :C2          => (0.769, 0.306, 0.322),
-    :C3          => (0.333, 0.659, 0.408),
-    :C4          => (0.506, 0.447, 0.702),
-    :C5          => (0.867, 0.522, 0.322),
-    :C6          => (0.000, 0.667, 0.682),
+_colors_dict = Dict(
+    :C1          => (0.769, 0.306, 0.322), # red
+    :C2          => (0.333, 0.659, 0.408), # green
+    :C3          => (0.298, 0.447, 0.690), # blue
+    :C4          => (0.867, 0.522, 0.322), # orange
+    :C5          => (0.506, 0.447, 0.702), # purple
+    :C6          => (0.000, 0.667, 0.682).*0.9, # aquamarine
     :C7          => (0.576, 0.471, 0.376),
     :C8          => (0.647, 0.318, 0.580),
     # :C1          => (0.0,0.605,0.978),
@@ -60,7 +60,25 @@ const _colors_dict = Dict(
     :yellow      => (1.0, 1.0, 0.0),
 )
 
-const _colors_list = collect(keys(_colors_dict))
+_colors_list = collect(keys(_colors_dict))
+
+
+function get_color(color::Tuple, default=:black)
+    return color
+end
+
+function get_color(color::Symbol, default=:black)
+    if color==:default
+        if default isa Symbol
+            color = default
+        else
+            return default
+        end
+    end
+
+    color in keys(_colors_dict) || throw(AmaruException("get_color: color must be one of $_colors_list. Got $color"))
+    return _colors_dict[color]
+end
 
 
 struct Colormap
@@ -75,9 +93,14 @@ struct Colormap
     end
 end
 
-function Colormap(name::Symbol)
+function Colormap(name::Symbol; limits=Float64[], rev=false)
     name in _colormaps_list || throw(AmaruException("Colormap: colormap not found which must be one of $(_colormaps_list)"))
-    return _colormaps_dict[name]
+    colormap = _colormaps_dict[name]
+
+    length(limits)==2 && (colormap = clip_colormap(colormap, limits))
+    rev && (colormap = reverse(colormap))
+
+    return colormap
 end
 
 # Interpolate a color
@@ -118,6 +141,16 @@ end
 function Base.reverse(cmap::Colormap)
     stops = [ round(1-stop, digits=3) for stop in reverse(cmap.stops) ]
     colors = reverse(cmap.colors)
+    return Colormap(stops, colors)
+end
+
+function clip_colormap(cmap::Colormap, limits=Float64[])
+    n = 21
+    minstop, maxstop = extrema(cmap.stops)
+    @assert limits[1]>=minstop && limits[2]<=maxstop
+    minstop, maxstop = limits
+    stops = [ x for x in range(minstop, maxstop, n) ]
+    colors = [ cmap(x) for x in range(minstop,maxstop,n) ]
     return Colormap(stops, colors)
 end
 

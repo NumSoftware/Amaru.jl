@@ -67,7 +67,7 @@ module Amaru
 
     # Plotting
     include("plot/include.jl")
-    export Chart, LinePlot, MeshPlot
+    export Chart, LinePlot, Colormap, MeshPlot
     export addplot!
 
     # Boundary conditions
