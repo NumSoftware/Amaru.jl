@@ -489,7 +489,6 @@ function mplot(
         end
     end
     
-
     # Data limits
     limX = collect(extrema( node.coord[1] for node in mmesh.nodes) )
     limY = collect(extrema( node.coord[2] for node in mmesh.nodes) )

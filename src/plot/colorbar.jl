@@ -28,7 +28,7 @@ mutable struct Colorbar<:ChartComponent
                 ArgInfo( :innersep, "Colorbar inner separation", default=3 ),
                 ArgInfo( :scale, "Colorbar inner separation", default=1.0 ),
             ],
-            checkwrong=true
+            aliens=false,
         )
 
         colormap = args.colormap isa Symbol ? Colormap(args.colormap) : args.colormap

@@ -35,7 +35,6 @@ mutable struct MCJoint<:Material
         ft = args.ft
         scurve = args.scurve
         wc = haskey(args, :wc) ? args.wc : 0.0
-        
         @check scurve in ("linear", "hordijk", "soft")
         
         if wc==0 # compute wc

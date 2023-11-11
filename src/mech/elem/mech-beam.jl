@@ -5,7 +5,7 @@ export MechBeam
 struct MechBeamProps<:ElemProperties
     ρ::Float64
     γ::Float64
-    α::Float64
+    αs::Float64
     thy::Float64
     thz::Float64
 
@@ -18,7 +18,7 @@ struct MechBeamProps<:ElemProperties
             thy, thz = args.thy, args.thz
         end
 
-        return new(args.rho, args.gamma, args.alpha, thy, thz)
+        return new(args.rho, args.gamma, args.alpha_s, thy, thz)
     end    
 end
 
@@ -30,7 +30,7 @@ arg_rules(::Type{MechBeamProps}) =
     @arginfo A A>0.0 "Section area"
     @arginfo gamma=0 gamma>=0.0 "Specific weight"
     @arginfo rho=0 rho>=0.0 "Density"
-    @arginfo alpha=5/6 alpha>0 "Shear correction coef."
+    @arginfo alpha_s=5/6 alpha_s>0 "Shear correction coef."
 ]
 
 
@@ -236,11 +236,11 @@ function set_rot_x_xp(elem::MechBeam, J::Matx, R::Matx)
     end
 end
 
-function calcS(elem::MechBeam, α::Float64)
+function calcS(elem::MechBeam, αs::Float64)
     return @SMatrix [ 
         1.  0.  0.
-        0.  α   0.
-        0.  0.  α 
+        0.  αs   0.
+        0.  0.  αs 
     ]
 end
 
@@ -300,11 +300,11 @@ function elem_stiffness(elem::MechBeam)
     C   = getcoords(elem)
     K   = zeros(ndof*nnodes, ndof*nnodes)
     B   = zeros(nstr, ndof*nnodes)
-    L   = zeros(ndim,ndim)
-    Rθ  = zeros(ndof,ndof)
-    Bil = zeros(nstr,ndof)
-    Bi  = zeros(nstr,ndof)
-    S      = calcS(elem, elem.props.α)
+    L   = zeros(ndim, ndim)
+    Rθ  = zeros(ndof, ndof)
+    Bil = zeros(nstr, ndof)
+    Bi  = zeros(nstr, ndof)
+    S   = calcS(elem, elem.props.αs)
 
     for ip in elem.ips
         N    = elem.shape.func(ip.R)
@@ -322,14 +322,9 @@ function elem_stiffness(elem::MechBeam)
         else
             detJ′ = dx′dξ*thz/2*thy/2
         end
-        # @show ip.id, detJ′
         coef = detJ′*ip.w
         K += coef*B'*S*D*B
     end
-
-    # @showm B
-    # global KK = K
-    # global BB = B
 
     map = elem_map(elem)
     return K, map, map
@@ -356,7 +351,7 @@ function update_elem!(elem::MechBeam, U::Array{Float64,1}, dt::Float64)
     dU  = U[map]
     dF  = zeros(length(dU))
     Δε  = zeros(nstr)
-    S   = calcS(elem, elem.props.α)
+    S   = calcS(elem, elem.props.αs)
 
     for ip in elem.ips
         N    = elem.shape.func(ip.R)

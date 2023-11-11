@@ -16,26 +16,10 @@ mutable struct LinePlot<:DataSeriesPlot
     markerstrokecolor::Union{Symbol,Tuple}
     label ::String
     dash  ::Vector{Float64}
-    # xmult::String
-    # ymult::String
 
     function LinePlot( X::AbstractArray, Y::AbstractArray; args...)
 
-        args = checkargs( args, 
-            [
-                ArgInfo( (:ls, :linestyle), "Line style", default=:solid, values=_line_style_list ),
-                ArgInfo( (:linecolor, :lc, :color), "Line linecolor", default=:default),
-                ArgInfo( (:lw, :lineweight), "Line weight", default=0.5,  condition=:(lw>0) ),
-                ArgInfo( :marker, "Marker shape", default=:none,  values=_marker_list ),
-                ArgInfo( (:markersize, :ms), "Marker size", default=2.5, condition=:(markersize>0) ),
-                ArgInfo( (:markercolor, :mc), "Marker color", default=:white ),
-                ArgInfo( (:markerstrokecolor, :msc), "Marker stroke color", default=:default ),
-                ArgInfo( :label, "Legend label", default=""),
-                # ArgInfo( :xlims, "Limits for the x axis", default=:default ),
-                # ArgInfo( :ylims, "Limits for the y axis", default=:default ),
-            ],
-            checkwrong=true
-        )
+        args = checkargs(args, func_params(LinePlot), aliens=false)
 
         if args.linecolor!==:default
             linecolor = get_color(args.linecolor)
@@ -52,6 +36,18 @@ mutable struct LinePlot<:DataSeriesPlot
     end
 end
 
+func_params(::Type{LinePlot}) = [
+    FunInfo( :LinePlot, "Creates a customizable `LinePlot` instance.", (Array, Array)),
+    ArgInfo( (:ls, :linestyle), "Line style", default=:solid, values=_line_style_list ),
+    ArgInfo( (:linecolor, :lc, :color), "Line linecolor", default=:default),
+    ArgInfo( (:lw, :lineweight), "Line weight", default=0.5,  condition=:(lw>0) ),
+    ArgInfo( :marker, "Marker shape", default=:none,  values=_marker_list ),
+    ArgInfo( (:markersize, :ms), "Marker size", default=2.5, condition=:(markersize>0) ),
+    ArgInfo( (:markercolor, :mc), "Marker color", default=:white ),
+    ArgInfo( (:markerstrokecolor, :msc), "Marker stroke color", default=:default ),
+    ArgInfo( :label, "Legend label", default=""),
+]
+@doc make_doc(LinePlot) LinePlot()
 
 function data2user(c::Chart, x, y)
     Xmin, Ymin, Xmax, Ymax = c.canvas.box

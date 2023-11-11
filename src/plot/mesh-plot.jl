@@ -8,6 +8,7 @@ mutable struct MeshPlot<:AbstractChart
     elems::Vector{AbstractCell}
     values::Vector{Float64}
     outerpad::Float64
+    shades::Vector{Float64}
     args::NamedTuple
 
     figsize::Union{Array, Tuple}
@@ -25,31 +26,10 @@ mutable struct MeshPlot<:AbstractChart
     elevation::Float64
     distance::Float64
     outline::Bool
+    lightvector::Vector{Float64}
 
     function MeshPlot(mesh; args...)
-        args = checkargs( args, 
-            [
-                ArgInfo( :figsize, "Mesh drawing size in dpi", default=(300,200), length=2),
-                ArgInfo( :facecolor, "Surface color", default=:aliceblue),
-                ArgInfo( :warp, "Warping scale", default=1.0 ),
-                ArgInfo( (:lw, :lineweight), "Line weight", default=0.5,  condition=:(lw>0) ),
-                ArgInfo( :field, "Scalar field", default="" ),
-                ArgInfo( :limits, "Limits for the scalar field", default=[0.0,0.0], length=2 ),
-                ArgInfo( :label, "Colorbar label", default="", type=AbstractString ),
-                ArgInfo( :colormap, "Colormap for field display", default=:coolwarm),
-                ArgInfo( :divergefromzero, "Sets if colormap will diverge from zero", default=false, type=Bool),
-                ArgInfo( (:colorbarloc,:colorbar), "Colorbar location", default=:right, values=(:right, :bottom) ),
-                ArgInfo( (:colorbarscale, :cbscale), "Colorbar scale", default=0.9, condition=:(colorbarscale>0) ),
-                ArgInfo( (:label, :colorbarlabel, :cblabel, :colorbartitle), "Colorbar label", default="" ),
-                ArgInfo( (:fontsize, :colorbarfontsize, :cbfontsize), "Colorbar font size", default=9.0, condition=:(fontsize>0)),
-                ArgInfo( :font, "Font name", default="NewComputerModern", type=AbstractString),
-                ArgInfo( :azimut, "Azimut angle for 3d in degrees", default=30 ),
-                ArgInfo( :elevation, "Elevation angle for 3d in degrees", default=30 ),
-                ArgInfo( :distance, "Distance from camera in 3d", default=1.0, condition=:(distance>0) ),
-                ArgInfo( :outline, "Flag to show outline", default=true, type=Bool )
-            ],
-            checkwrong=true
-        )
+        args = checkargs(args, func_params(MeshPlot), aliens=false)
 
         this = new()
         this.mesh = mesh
@@ -58,6 +38,7 @@ mutable struct MeshPlot<:AbstractChart
         this.nodes = []
         this.elems = []
         this.values = []
+        this.shades = []
         this.outerpad = 0.0
 
         this.figsize = args.figsize
@@ -71,19 +52,40 @@ mutable struct MeshPlot<:AbstractChart
         colormap = args.colormap isa Symbol ? Colormap(args.colormap) : args.colormap
         this.colormap = colormap
 
-        # this.colorbarloc = args.colorbarloc
-        # this.colorbarscale = args.colorbarscale
-        # this.colorbarfontsize = args.colorbarfontsize
         this.azimut = args.azimut
         this.elevation = args.elevation
         this.distance = args.distance
         this.outline = args.outline
+        this.lightvector = args.lightvector
         this.args = args
 
         return this
     end
-
 end
+
+func_params(::Type{MeshPlot}) = [
+    FunInfo( :MeshPlot, "Creates a customizable `MeshPlot` instance used to plot finite element meshes.", ()),
+    ArgInfo( :figsize, "Mesh drawing size in dpi", default=(300,200), length=2),
+    ArgInfo( :facecolor, "Surface color", default=:aliceblue),
+    ArgInfo( :warp, "Warping scale", default=0.0 ),
+    ArgInfo( (:lw, :lineweight), "Line weight", default=0.5,  condition=:(lw>0) ),
+    ArgInfo( :field, "Scalar field", default="" ),
+    ArgInfo( :limits, "Limits for the scalar field", default=[0.0,0.0], length=2 ),
+    ArgInfo( :label, "Colorbar label", default="", type=AbstractString ),
+    ArgInfo( :colormap, "Colormap for field display", default=:coolwarm),
+    ArgInfo( :divergefromzero, "Sets if colormap will diverge from zero", default=false, type=Bool),
+    ArgInfo( (:colorbarloc,:colorbar), "Colorbar location", default=:right, values=(:right, :bottom) ),
+    ArgInfo( (:colorbarscale, :cbscale), "Colorbar scale", default=0.9, condition=:(colorbarscale>0) ),
+    ArgInfo( (:label, :colorbarlabel, :cblabel, :colorbartitle), "Colorbar label", default="" ),
+    ArgInfo( (:fontsize, :colorbarfontsize, :cbfontsize), "Colorbar font size", default=9.0, condition=:(fontsize>0)),
+    ArgInfo( :font, "Font name", default="NewComputerModern", type=AbstractString),
+    ArgInfo( :azimut, "Azimut angle for 3d in degrees", default=30 ),
+    ArgInfo( :elevation, "Elevation angle for 3d in degrees", default=30 ),
+    ArgInfo( :distance, "Distance from camera in 3d", default=0.0, condition=:(distance>=0) ),
+    ArgInfo( :outline, "Flag to show the outline", default=true, type=Bool ),
+    ArgInfo( (:lightvector, :lv), "Light direction vector", default=[0.0,0.0,0.0], length=3 )
+]
+@doc make_doc(MeshPlot) MeshPlot()
 
 
 function bezier_points(edge)
@@ -129,7 +131,7 @@ function project_to_2d!(nodes, azimut, elevation, distance)
     end
 
     # Set projection values
-    isnan(distance) && (distance=reflength*6)
+    distance==0 && (distance=reflength*3)
     distance = max(distance, reflength)
     focal_length = 0.1*distance
 
@@ -210,9 +212,22 @@ function configure!(mplot::MeshPlot)
         end
 
         # distances = [ sum(node.coord[3] for node in elem.nodes)/length(elem.nodes)  for elem in mesh.elems ]
-        distances = [ minimum(node.coord[3] for node in elem.nodes) for elem in elems ]
+        # distances = [ minimum(node.coord[3] for node in elem.nodes) for elem in elems ]
+        distances = [ 0.9*sum(node.coord[3] for node in elem.nodes)/length(elem.nodes) + 0.1*minimum(node.coord[3] for node in elem.nodes) for elem in elems ]
         perm = sortperm(distances, rev=true)
         elems = elems[perm]
+
+        # compute shades
+        V = Vec3( cosd(mplot.elevation)*cosd(mplot.azimut), cosd(mplot.elevation)*sind(mplot.azimut), sind(mplot.elevation) ) # observer vector
+        norm(mplot.lightvector)==0 && (mplot.lightvector = V)
+        L = mplot.lightvector
+        mplot.shades = zeros(length(elems))
+        for (i,elem) in enumerate(elems)
+            elem.shape.family==BULKCELL || continue
+            N = get_facet_normal(elem)
+            R = normalize(2*N*dot(L,N) - L)
+            mplot.shades[i] = 0.8 + 0.1*abs(dot(L,N)) + 0.1*(1+dot(V,R))/2
+        end
     end
 
     # Field 
@@ -312,8 +327,7 @@ function draw!(mplot::MeshPlot, cc::CairoContext)
     set_matrix(cc, CairoMatrix([ratio, 0, 0, -ratio, Xmin+dx-xmin*ratio, Ymax-dy+ymin*ratio]...))
 
     # Draw elements
-    for elem in mplot.elems
-        # @show elem.shape.name
+    for (i,elem) in enumerate(mplot.elems)
         if elem.tag=="_outline"
             x, y = elem.nodes[1].coord
             move_to(cc, x, y)
@@ -321,6 +335,18 @@ function draw!(mplot::MeshPlot, cc::CairoContext)
             pts = bezier_points(elem)
             curve_to(cc, pts[2]..., pts[3]..., pts[4]...)
             set_line_width(cc, 1.4*mplot.lw)
+            set_source_rgb(cc, color...) # gray
+            stroke(cc)
+            continue
+        end
+
+        if elem.shape.family==LINECELL
+            x, y = elem.nodes[1].coord
+            move_to(cc, x, y)
+            color = Vec3(0.8, 0.2, 0.1)
+            pts = bezier_points(elem)
+            curve_to(cc, pts[2]..., pts[3]..., pts[4]...)
+            set_line_width(cc, 2*mplot.lw)
             set_source_rgb(cc, color...) # gray
             stroke(cc)
             continue
@@ -352,12 +378,15 @@ function draw!(mplot::MeshPlot, cc::CairoContext)
             end
         end
 
+        # set nodal colors
+        shade = mplot.mesh.env.ndim==3 ? mplot.shades[i] : 1.0
         for (i,node) in enumerate(elem.nodes[1:nedges])
             id = node.id
             if has_field && is_nodal_field
                 color = mplot.colormap(mplot.values[id])
             end
-            mesh_pattern_set_corner_color_rgb(pattern, i-1, color...)
+            scolor = color.*shade # apply shade
+            mesh_pattern_set_corner_color_rgb(pattern, i-1, scolor...)
         end
 
         mesh_pattern_end_patch(pattern)

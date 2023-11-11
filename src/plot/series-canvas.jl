@@ -18,6 +18,7 @@ function draw!(c::Chart, cc::CairoContext, canvas::Canvas)
 
     xmin, xmax = c.xaxis.limits
     for x in c.xaxis.ticks
+        min(xmax, xmin) <= x<= max(xmax,xmin) || continue
         x1 = canvas.box[1] + c.xaxis.width/(xmax-xmin)*(x-xmin)
         y1 = canvas.box[2]
         y2 = canvas.box[4]
@@ -26,6 +27,7 @@ function draw!(c::Chart, cc::CairoContext, canvas::Canvas)
 
     ymin, ymax = c.yaxis.limits
     for y in c.yaxis.ticks
+        min(ymax, ymin) <= y<= max(ymax,ymin) || continue
         y1 = canvas.box[2] + c.yaxis.height/(ymax-ymin)*(ymax-y)
         x1 = canvas.box[1]
         x2 = canvas.box[3]

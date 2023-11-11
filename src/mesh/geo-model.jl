@@ -953,11 +953,11 @@ end
 function insidepolygon(testpoints::Vector{Point}, points::Vector{Point}; tol=1e-8)
     coords = [ p.coord for p in points ]
     testcoords = [ p.coord for p in testpoints ]
-    
-    # Rotating points to the xy plane. No need to rotate pt since it is the base
+
+    # Rotating points to the xy plane.
     Z = Vec3(0,0,1)
     P = Plane(points)
-    N = normalize(P.normal)
+    N = P.normal
     θ    = acos(dot(N, Z))
     axis = cross(N, Z)
     if norm(axis)>1e-8
@@ -969,6 +969,10 @@ function insidepolygon(testpoints::Vector{Point}, points::Vector{Point}; tol=1e-
     end
 
     polygon   = hcat(coords...)'[:,1:2]
+    # check if all testpoins are in the same level as the plane from points
+    for coord in testcoords
+        abs(coord[3] - coords[1][3])>1e-8 && return false
+    end
 
     # expand or shrink polygon according to tol
     center = mean(polygon, dims=1)
@@ -1014,8 +1018,7 @@ function enclosed(loop1::PlaneLoop, loop2::PlaneLoop)
     points1 = getpoints(loop1)
     points2 = getpoints(loop2)
     testpoints = setdiff(points1, points2)
-
-    length(testpoints)==0 && return true
+    length(testpoints)==0 && return true  # todo ???
     return insidepolygon(testpoints, points2, tol=1e-8)
 end
 
@@ -1137,7 +1140,11 @@ function splitplanesurface!(geo::GeoModel, s::PlaneSurface, loop1::PlaneLoop, lo
         end
     end
 
-    # todo: add and update volumes
+    # update volumes
+    append!(s1.volumes, s.volumes)
+    for v in s.volumes
+        push!(v.surfaces, s1)
+    end
 
     return s1
 end
@@ -1173,7 +1180,7 @@ function extrude!(geo::GeoModel, line::Line; axis=[0.,0,1], length=1.0)
     lo = PlaneLoop(l1, l2, l3, l4)
     s = addplanesurface!(geo, lo)
 
-    # @assert s!==nothing
+    @assert s!==nothing
     return s
 end
 
@@ -1213,7 +1220,6 @@ function extrude!(geo::GeoModel, surf::PlaneSurface; axis=[0.,0,1], length=1.0)
             push!(surfs, s)
         end
     end
-
 
     # find lid loops (outer and inner loops if existent)
     loops = PlaneLoop[]
@@ -1265,6 +1271,11 @@ end
 
 function extrude!(m::GeoModel; nargs...)
     extrude!(m, m.surfaces; nargs...)
+end
+
+
+function pull!(m::GeoModel, surf::AbstractSurface; axis=[0.,0,1], length=1.0)
+    
 end
 
 

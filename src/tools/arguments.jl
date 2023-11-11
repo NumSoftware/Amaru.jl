@@ -8,6 +8,12 @@ typeofargs(f) = [ ((t for t in fieldtypes(m.sig)[2:end])...,) for m in methods(f
 abstract type ArgObj
 end
 
+mutable struct FunInfo<:ArgObj
+    key::Symbol
+    desc::String
+    signature::Tuple
+end
+
 mutable struct ArgInfo<:ArgObj
     key::Symbol
     aliases::Tuple
@@ -88,9 +94,9 @@ macro argopt(args1, args2)
     end
 end
 
-function get_descriptions(args_rules::AbstractArray)
+function get_args_descriptions(args_params::AbstractArray)
     descs = String[]
-    for item in args_rules
+    for item in args_params
         item isa ArgInfo || continue
         desc = "$(item.key) "
         if length(item.aliases)>0
@@ -99,28 +105,25 @@ function get_descriptions(args_rules::AbstractArray)
         desc = desc*": $(item.desc)"
         push!(descs, desc)
     end
-    return join(descs, "\n", " and ")
+    return join(descs, "\n")
 end
 
-# function checkargs(args, rules...; checkwrong=false)
-    # return checkargs(args, [rules...], checkwrong=checkwrong)
-# end
 
-function checkargs(args, args_rules::AbstractArray; checkwrong=false)
+function checkargs(args, args_params::AbstractArray; aliens=true)
     # Get function caller
     st = stacktrace(backtrace())
     fname = :_
     for frame in st
-        if !startswith(string(frame.func), "_") && frame.func!=Symbol("checkargs")
+        if !startswith(string(frame.func), "_") && !contains(string(frame.func), "checkargs")
             fname = frame.func
             break
         end
     end
 
     # check for wrong arguments
-    if checkwrong
+    if !aliens
         allkeys = []
-        for item in args_rules 
+        for item in args_params 
             if item isa ArgInfo
                 push!(allkeys, item.key)
                 append!(allkeys, item.aliases)
@@ -130,7 +133,7 @@ function checkargs(args, args_rules::AbstractArray; checkwrong=false)
         argkeys = keys(args)
         for key in argkeys
             if !(key in allkeys)
-                msg = "Wrong argument $(key). Possible inputs are:\n"*get_descriptions(args_rules)
+                msg = "Wrong argument $(key). The named arguments are:\n"*get_args_descriptions(args_params)
                 throw(AmaruException(msg))     
             end
         end
@@ -141,7 +144,7 @@ function checkargs(args, args_rules::AbstractArray; checkwrong=false)
     for (key, value) in args
         hasalias = false
         newkey = key
-        for item in args_rules
+        for item in args_params
             item isa ArgInfo || continue
             if key in item.aliases
                 hasalias = true
@@ -155,12 +158,19 @@ function checkargs(args, args_rules::AbstractArray; checkwrong=false)
     argkeys = keys(args)
 
     # list of optional keys to skip
-    argopts  = [ item for item in args_rules if item isa ArgOpt ]
+    argopts  = [ item for item in args_params if item isa ArgOpt ]
     skipkeys = []
     for opt in argopts
         # check for more than one optionals per set
         args1 = opt.args1 isa Symbol ? (opt.args1,) : opt.args1.args
         args2 = opt.args2 isa Symbol ? (opt.args2,) : opt.args2.args
+
+        if issubset(args1, argkeys) && issubset(args2, argkeys)
+            s1 = join(args1, ", ")
+            s2 = join(args2, ", ")
+            throw(AmaruException("$fname: Invalid argument combination. Provide either argument(s) ($s1) or ($s2)"))
+        end
+
         if all(key in argkeys for key in args1)
             append!(skipkeys, args2)
         end
@@ -169,14 +179,14 @@ function checkargs(args, args_rules::AbstractArray; checkwrong=false)
         end
     end
 
-    arginfos = [ item for item in args_rules if item isa ArgInfo && !(item.key in skipkeys) ] # skip non used optional keys
+    arginfos = [ item for item in args_params if item isa ArgInfo && !(item.key in skipkeys) ] # skip non used optional keys
 
     # check for missing keys (skip optional args)
     mandatorykeys = [ item.key for item in arginfos if item.default===nothing ]
     missingkeys = setdiff(mandatorykeys, keys(args))
 
     if length(missingkeys)>0
-        msg = "Missing arguments: $(join(missingkeys, ", ")). Possible inputs are:\n"*get_descriptions(args_rules)
+        msg = "Missing arguments: $(join(missingkeys, ", ")). The named arguments are:\n"*get_args_descriptions(args_params)
         for opt in argopts
             args1 = opt.args1 isa Symbol ? (opt.args1,) : opt.args1.args
             args2 = opt.args2 isa Symbol ? (opt.args2,) : opt.args2.args
@@ -267,7 +277,7 @@ function checkargs(args, args_rules::AbstractArray; checkwrong=false)
     end
     
     # check relational conditions between arguments
-    allconds = [ item for item in args_rules if item isa ArgCond ]
+    allconds = [ item for item in args_params if item isa ArgCond ]
     for argcond in allconds
         if !eval_arith_expr(argcond.cond, args...) # todo: update with eval
             msg = "Given arguments do not satisfy condition $(argcond.cond)"
@@ -277,3 +287,41 @@ function checkargs(args, args_rules::AbstractArray; checkwrong=false)
 
     return args
 end
+
+
+function make_doc(typ)
+    fparams = func_params(typ)
+    
+    # find description
+    idx = findfirst(x->isa(x,FunInfo), fparams)
+    fdesc = fparams[idx]
+
+    # add function description
+    desc = String[]
+    push!(desc, "`$(fdesc.key)$(string(fdesc.signature))`\n")
+    push!(desc, "$(fdesc.desc)")
+    push!(desc, "# Optional arguments:\n")
+
+    # add arguments description
+    for item in fparams
+        item isa ArgInfo || continue
+        str = "- `$(item.key)` "
+        
+        # aliases
+        if length(item.aliases)>0
+            str_aliases = [ "`"*string(alias)*"`" for alias in item.aliases ]
+            str = str*"("*join(str_aliases, ", ")*")"
+        end
+        str = str*": $(item.desc)"
+
+        # suitable values
+        if length(item.values)>0
+            str = str*", any of: ("*join(repr.(item.values), ", ")*")"
+        end
+
+        push!(desc, str)
+    end
+
+    return join(desc, "\n")
+end
+

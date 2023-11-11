@@ -17,23 +17,7 @@ mutable struct Axis<:ChartComponent
     height::Float64
 
     function Axis(; args...)
-        args = checkargs(args,
-            [
-                ArgInfo( :direction, "Axis direction", default=:horizontal, values=(:horizontal, :vertical) ),
-                ArgInfo( :location, "Axis location", default=:none, values=(:none, :left, :right, :top, :bottom) ),
-                ArgInfo( :limits, "Axis limit values", default=[0.0,0.0], length=2 ),
-                ArgInfo( :label, "Axis label", default="", type=AbstractString ),
-                ArgInfo( :font, "Font name", default="NewComputerModern", type=AbstractString),
-                ArgInfo( :fontsize, "Font size", default=7.0, condition=:(fontsize>0)),
-                ArgInfo( :ticks, "Axis tick values", default=Float64[], type=AbstractArray ),
-                ArgInfo( :ticklabels, "Axis tick labels", default=String[], type=AbstractArray ),
-                ArgInfo( :ticklength, "Axis tick length", default=3 ),
-                ArgInfo( :bins, "Number of bins", default=6 ),
-                ArgInfo( :mult, "Axis values multiplier", default=1.0 ),
-                ArgInfo( :innersep, "Axis inner pad", default=3 ),
-            ], 
-            checkwrong=true
-        )
+        args = checkargs(args, func_params(Axis), aliens=false)
 
         if args.location==:none
             if args.direction==:horizontal
@@ -48,6 +32,23 @@ mutable struct Axis<:ChartComponent
         return new(args.direction, location, args.limits, args.label, args.font, args.fontsize, args.ticks, args.ticklabels, args.ticklength, args.bins, args.mult, 3)
     end
 end
+
+func_params(::Type{Axis}) = [
+    FunInfo( :Axis, "Creates an instance of an `Axis`.", ()),
+    ArgInfo( :direction, "Axis direction", default=:horizontal, values=(:horizontal, :vertical) ),
+    ArgInfo( :location, "Axis location", default=:none, values=(:none, :left, :right, :top, :bottom) ),
+    ArgInfo( :limits, "Axis limit values", default=[0.0,0.0], length=2 ),
+    ArgInfo( :label, "Axis label", default="", type=AbstractString ),
+    ArgInfo( :font, "Font name", default="NewComputerModern", type=AbstractString),
+    ArgInfo( :fontsize, "Font size", default=7.0, condition=:(fontsize>0)),
+    ArgInfo( :ticks, "Axis tick values", default=Float64[], type=AbstractArray ),
+    ArgInfo( :ticklabels, "Axis tick labels", default=String[], type=AbstractArray ),
+    ArgInfo( :ticklength, "Axis tick length", default=3 ),
+    ArgInfo( :bins, "Number of bins", default=6 ),
+    ArgInfo( :mult, "Axis values multiplier", default=1.0 ),
+    ArgInfo( :innersep, "Axis inner pad", default=3 ),
+]
+@doc make_doc(Axis) Axis()
 
 
 function get_bin_length(vinf, vsup, n)
@@ -247,6 +248,7 @@ function draw!(c::AbstractChart, cc::CairoContext, ax::Axis)
 
         # draw tick labels
         for (x,label) in zip(ax.ticks, ax.ticklabels)
+            min(xmin, xmax) <= x <=max(xmin, xmax) || continue
             x1 = x0 + ax.width/(xmax-xmin)*(x-xmin)
 
             move_to(cc, x1, y0); rel_line_to(cc, 0, -ax.ticklength); stroke(cc)
@@ -275,6 +277,7 @@ function draw!(c::AbstractChart, cc::CairoContext, ax::Axis)
 
         # draw tick labels
         for (y,label) in zip(ax.ticks, ax.ticklabels)
+            min(ymin, ymax) <= y <=max(ymin, ymax) || continue
             y1 = y0 + ax.height/(ymax-ymin)*(ymax-y)
             
             move_to(cc, x1, y1); rel_line_to(cc, ticklength, 0); stroke(cc)

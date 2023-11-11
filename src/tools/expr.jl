@@ -1,6 +1,8 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 export Symbolic
+export symbols
+
 mutable struct Symbolic
     expr::Expr
 
@@ -11,6 +13,10 @@ mutable struct Symbolic
     function Symbolic(expr::Expr)
         return new(expr)
     end
+end
+
+function symbols(syms::Symbol...)
+    return [ Symbolic(s) for s in syms ]
 end
 
 
@@ -64,7 +70,7 @@ end
 export @vars
 
 
-const arith_tol=1e-5
+const arith_tol=1e-6
 
 const op_dict = Dict{Symbol,Function}(
     :+ => +,
