@@ -74,7 +74,6 @@ end
 compat_state_type(::Type{LinearElastic}, ::Type{MechSolid}, env::ModelEnv)  = env.ana.stressmodel=="plane-stress" ? ElasticPlaneStressState : ElasticSolidState
 compat_state_type(::Type{LinearElastic}, ::Type{MechShell}, env::ModelEnv)  = ElasticPlaneStressState
 compat_state_type(::Type{LinearElastic}, ::Type{MechBeam}, env::ModelEnv)   = ElasticBeamState
-compat_state_type(::Type{LinearElastic}, ::Type{MechThickbeam}, env::ModelEnv) = ElasticSolidState
 compat_state_type(::Type{LinearElastic}, ::Type{MechBar}, env::ModelEnv)    = ElasticBarState
 compat_state_type(::Type{LinearElastic}, ::Type{MechEmbBar}, env::ModelEnv) = ElasticBarState
 
