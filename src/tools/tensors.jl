@@ -182,6 +182,8 @@ from stress and strain tensors defined in Mandel notation.
             :sxx => σ[1],
             :syy => σ[2],
             :szz => σ[3],
+            :syz => σ[4]/SR2,
+            :sxz => σ[5]/SR2,
             :sxy => σ[6]/SR2,
             :s1  => s1,
             :s3  => s3,

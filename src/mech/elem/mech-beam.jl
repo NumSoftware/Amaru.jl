@@ -10,7 +10,7 @@ struct MechBeamProps<:ElemProperties
     thz::Float64
 
     function MechBeamProps(; args...)
-        args = checkargs(args, arg_rules(MechBeamProps))
+        args = checkargs(args, func_params(MechBeamProps))
 
         if haskey(args, :A)
             thy = thz = √args.A # assuming circular section
@@ -22,15 +22,16 @@ struct MechBeamProps<:ElemProperties
     end    
 end
 
-arg_rules(::Type{MechBeamProps}) = 
-[
-    @argopt  A thy, thz
-    @arginfo thy thy>0.0 "y' thickness"
-    @arginfo thz thz>0.0 "z' thickness"
-    @arginfo A A>0.0 "Section area"
-    @arginfo gamma=0 gamma>=0.0 "Specific weight"
-    @arginfo rho=0 rho>=0.0 "Density"
-    @arginfo alpha_s=5/6 alpha_s>0 "Shear correction coef."
+
+func_params(::Type{MechBeamProps}) = [
+    FunInfo( :MechBeamProps, "Creates a `MechBeamProps` instance.", ()),
+    ArgInfo( :thy, "y' thickness", condition=:(thy>0) ),
+    ArgInfo( :thz, "z' thickness", condition=:(thz>0.0) ),
+    ArgInfo( :A, "Section area",  condition=:(A>0.0)  ),
+    ArgInfo( :gamma, "Specific weight", 0, condition=:(gamma>=0.0) ),
+    ArgInfo( :rho, "Density", 0, condition=:(rho>=0.0)  ),
+    ArgInfo( :alpha_s, "Shear correction coef.", 5/6, condition=:(alpha_s>0) ),
+    ArgOpt( :A, (:thy, :thz) ),
 ]
 
 
@@ -59,7 +60,6 @@ end
 
 compat_shape_family(::Type{MechBeam}) = LINECELL
 compat_elem_props(::Type{MechBeam}) = MechBeamProps
-
 
 
 function elem_init(elem::MechBeam)
@@ -266,12 +266,17 @@ function setB(elem::MechBeam, ip::Ip, L::Matx, N::Vect, dNdX::Matx, Rθ::Matx, B
             c = (i-1)*ndof
             @mul Bi = Bil*Rθ
             B[:, c+1:c+ndof] .= Bi
+            # @showm L
+            # @showm Rθ
+            # @showm Bil
+            # error()
         end
     else
         for i in 1:nnodes
             η = ip.R[2]
             ζ = ip.R[3]
             Rθ[1:3,1:3] .= L
+            # Rθ[1:3,1:3] .= elem.Dlmn[i]
             Rθ[4:6,4:6] .= elem.Dlmn[i]
 
             Ni = N[i]
@@ -284,6 +289,11 @@ function setB(elem::MechBeam, ip::Ip, L::Matx, N::Vect, dNdX::Matx, Rθ::Matx, B
             c = (i-1)*ndof
             @mul Bi = Bil*Rθ
             B[:, c+1:c+ndof] .= Bi
+
+            # @showm L
+            # @showm Rθ
+            # @showm Bil
+            # error()
         end
     end
 end

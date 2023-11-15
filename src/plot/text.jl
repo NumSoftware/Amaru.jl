@@ -4,8 +4,8 @@ function get_font(str)
     font = FreeTypeAbstraction.findfont(str)
     default_fonts = [
         "NewComputerModern Regular",
-        "Cambria",
         "Times New Roman",
+        "Cambria",
         "Palatino Linotype",
         "Georgia",
     ]

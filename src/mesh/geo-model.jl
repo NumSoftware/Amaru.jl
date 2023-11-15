@@ -776,21 +776,28 @@ function addarc!(geo::GeoModel, p1::Point, p2::Point, p3::Point; n=0, tag="")
     p2 = getpoint(geo, p2)
     p3 = getpoint(geo, p3)
 
-    a = Arc(p1, p2, p3, n=n, tag=tag)
-    aa = getline(geo, a)
+    arc = Arc(p1, p2, p3, n=n, tag=tag)
+    aa = getline(geo, arc)
     aa===nothing || return aa
 
     # TODO: look for intersections
 
     # add arc
     geo._id +=1
-    a.id = geo._id
-    push!(geo.lines, a)
-    push!(p1.adj, p3)
-    push!(p3.adj, p1)
-    addloops!(geo, a)
+    arc.id = geo._id
+    push!(geo.lines, arc)
 
-    return a
+    push!(p1.lines, arc)
+    push!(p3.lines, arc)
+
+    loops = findloops(arc, inner=false)
+
+    # add external surface
+    for lo in loops
+        addplanesurface!(geo, lo)
+    end
+
+    return arc
 end
 
 

@@ -200,7 +200,6 @@ function setB(elem::MechShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx,
     for i in 1:nnodes
         ζ = ip.R[3]
         Rrot[1:3,1:3] .= L
-        #Rrot[1:3,1:3] .= elem.Dlmn[i][1:3,:]
         # Rrot[4:5,4:6] .= L[1:2,:]
         # Rrot[1:3,1:3] .= elem.Dlmn[i]
         Rrot[4:5,4:6] .= elem.Dlmn[i][1:2,:]
@@ -218,6 +217,10 @@ function setB(elem::MechShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx,
         c = (i-1)*ndof
         @mul Bi = Bil*Rrot
         B[:, c+1:c+6] .= Bi
+
+        # @showm L
+        # @showm Bil
+        # error()
     end 
 end
 
@@ -310,7 +313,7 @@ function elem_stiffness(elem::MechShell)
         K += coef*B'*S*D*B
     end
 
-    δ = 1e-5
+    δ = 1e-7
     for i in 1:ndof*nnodes
         K[i,i] += δ
     end

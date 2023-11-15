@@ -97,15 +97,15 @@ function draw!(c::Chart, cc::CairoContext, legend::Legend)
         # draw line
         x = x1 + inner_pad
         y = y1 + inner_pad + label_heigh/2 + (i-1)*(label_heigh+label_sep) 
-        move_to(cc, x, y)
-        rel_line_to(cc, handle_length, 0)
         set_source_rgb(cc, plot.linecolor...)
-        set_line_width(cc, plot.lw)
-        if plot.ls!=:solid
-            set_dash(cc, plot.dash)
+        if plot.ls!=:none
+            move_to(cc, x, y)
+            rel_line_to(cc, handle_length, 0)
+            set_line_width(cc, plot.lw)
+            plot.ls!=:solid && set_dash(cc, plot.dash)
+            stroke(cc)
+            set_dash(cc, Float64[])
         end
-        stroke(cc)
-        set_dash(cc, Float64[])
 
         x = x1 + inner_pad + handle_length/2
         draw_marker(cc, x, y, plot.marker, plot.markersize, plot.markercolor, plot.markerstrokecolor)

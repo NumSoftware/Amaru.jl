@@ -29,24 +29,30 @@ mutable struct Axis<:ChartComponent
             location = args.location
         end
 
-        return new(args.direction, location, args.limits, args.label, args.font, args.fontsize, args.ticks, args.ticklabels, args.ticklength, args.bins, args.mult, 3)
+        if length(args.ticklabels)>0
+            length(args.ticks)!=length(args.ticklabels) && throw(AmaruException("Axis: the length of labels must match the number of ticks"))
+        end
+
+        limits = collect(args.limits)
+
+        return new(args.direction, location, limits, args.label, args.font, args.fontsize, args.ticks, args.ticklabels, args.ticklength, args.bins, args.mult, 3)
     end
 end
 
 func_params(::Type{Axis}) = [
     FunInfo( :Axis, "Creates an instance of an `Axis`.", ()),
-    ArgInfo( :direction, "Axis direction", default=:horizontal, values=(:horizontal, :vertical) ),
-    ArgInfo( :location, "Axis location", default=:none, values=(:none, :left, :right, :top, :bottom) ),
-    ArgInfo( :limits, "Axis limit values", default=[0.0,0.0], length=2 ),
-    ArgInfo( :label, "Axis label", default="", type=AbstractString ),
-    ArgInfo( :font, "Font name", default="NewComputerModern", type=AbstractString),
-    ArgInfo( :fontsize, "Font size", default=7.0, condition=:(fontsize>0)),
-    ArgInfo( :ticks, "Axis tick values", default=Float64[], type=AbstractArray ),
-    ArgInfo( :ticklabels, "Axis tick labels", default=String[], type=AbstractArray ),
-    ArgInfo( :ticklength, "Axis tick length", default=3 ),
-    ArgInfo( :bins, "Number of bins", default=6 ),
-    ArgInfo( :mult, "Axis values multiplier", default=1.0 ),
-    ArgInfo( :innersep, "Axis inner pad", default=3 ),
+    ArgInfo( :direction, "Axis direction", :horizontal, values=(:horizontal, :vertical) ),
+    ArgInfo( :location, "Axis location", :none, values=(:none, :left, :right, :top, :bottom) ),
+    ArgInfo( :limits, "Axis limit values", [0.0,0.0], length=2 ),
+    ArgInfo( :label, "Axis label", "", type=AbstractString ),
+    ArgInfo( :font, "Font name", "NewComputerModern", type=AbstractString),
+    ArgInfo( :fontsize, "Font size", 7.0, condition=:(fontsize>0)),
+    ArgInfo( :ticks, "Axis tick values", Float64[], type=AbstractArray ),
+    ArgInfo( :ticklabels, "Axis tick labels", String[], type=AbstractArray ),
+    ArgInfo( :ticklength, "Axis tick length", 3 ),
+    ArgInfo( :bins, "Number of bins", 6 ),
+    ArgInfo( :mult, "Axis values multiplier", 1.0 ),
+    ArgInfo( :innersep, "Axis inner pad", 3 ),
 ]
 @doc make_doc(Axis) Axis()
 
@@ -75,8 +81,6 @@ end
 
 
 function configure!(chart::AbstractChart, ax::Axis)
-
-    # ax.innersep   = 0.02*minimum(chart.figsize)
 
     # configure limits
     if ax.limits==[0.0,0.0]
@@ -122,6 +126,13 @@ function configure!(chart::AbstractChart, ax::Axis)
         vinf = m==0 ? vinf : vinf - m + dv
 
         ax.ticks = round.(vinf:dv:vsup, digits=10)
+    else # check ticks
+        vmin, = minimum(ax.limits)
+        vmax, = maximum(ax.limits)
+        idxs = [ i for (i,tick) in enumerate(ax.ticks) if vmin<=tick<=vmax ]
+        ax.ticks = ax.ticks[idxs]
+        
+        length(ax.ticklabels)!=0 && (ax.ticklabels = ax.ticklabels[idxs])
     end
 
     if length(ax.ticklabels)!=length(ax.ticks)

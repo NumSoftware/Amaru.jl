@@ -130,7 +130,8 @@ function compute_bc_vals!(bc::Union{SurfaceBC,EdgeBC}, t::Float64, U::Array{Floa
                     end
                 end
             else
-                Fd, map = distributed_bc(elem, facet, key, val)
+                Fd, map = distributed_bc(facet, key, val, elem.env, elem.env.ana)
+                # Fd, map = distributed_bc(elem, facet, key, val)
                 F[map] += Fd
             end
         end

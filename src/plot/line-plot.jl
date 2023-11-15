@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-const _line_style_list = [:solid, :dash, :dashdot]
+const _line_style_list = [:none, :solid, :dot, :dash, :dashdot]
 const _marker_list = [:none, :circle, :square, :triangle, :utriangle, :cross, :xcross, :diamond, :pentagon, :hexagon, :star]
 
 
@@ -16,6 +16,7 @@ mutable struct LinePlot<:DataSeriesPlot
     markerstrokecolor::Union{Symbol,Tuple}
     label ::String
     dash  ::Vector{Float64}
+    order::Union{Int,Nothing}
 
     function LinePlot( X::AbstractArray, Y::AbstractArray; args...)
 
@@ -30,22 +31,27 @@ mutable struct LinePlot<:DataSeriesPlot
             markercolor = args.markercolor
             markerstrokecolor = args.markerstrokecolor
         end
+        n = min(length(X), length(Y))
 
-        this = new(X, Y, args.ls, args.lw, linecolor, args.marker, args.markersize, markercolor, markerstrokecolor, args.label)
+        ls = length(args.dash)>0 ? :dash : args.ls
+
+        this = new(X[1:n], Y[1:n], ls, args.lw, linecolor, args.marker, args.markersize, markercolor, markerstrokecolor, args.label, args.dash, args.order)
         return this
     end
 end
 
 func_params(::Type{LinePlot}) = [
     FunInfo( :LinePlot, "Creates a customizable `LinePlot` instance.", (Array, Array)),
-    ArgInfo( (:ls, :linestyle), "Line style", default=:solid, values=_line_style_list ),
-    ArgInfo( (:linecolor, :lc, :color), "Line linecolor", default=:default),
-    ArgInfo( (:lw, :lineweight), "Line weight", default=0.5,  condition=:(lw>0) ),
-    ArgInfo( :marker, "Marker shape", default=:none,  values=_marker_list ),
-    ArgInfo( (:markersize, :ms), "Marker size", default=2.5, condition=:(markersize>0) ),
-    ArgInfo( (:markercolor, :mc), "Marker color", default=:white ),
-    ArgInfo( (:markerstrokecolor, :msc), "Marker stroke color", default=:default ),
-    ArgInfo( :label, "Legend label", default=""),
+    ArgInfo( (:ls, :linestyle), "Line style", :solid, values=_line_style_list ),
+    ArgInfo( :dash, "Dash pattern", Float64[] ),
+    ArgInfo( (:linecolor, :lc, :color), "Line linecolor", :default),
+    ArgInfo( (:lw, :lineweight), "Line weight", 0.5,  condition=:(lw>0) ),
+    ArgInfo( :marker, "Marker shape", :none,  values=_marker_list ),
+    ArgInfo( (:markersize, :ms), "Marker size", 2.5, condition=:(markersize>0) ),
+    ArgInfo( (:markercolor, :mc), "Marker color", :white ),
+    ArgInfo( (:markerstrokecolor, :msc), "Marker stroke color", :default ),
+    ArgInfo( :label, "Legend label", ""),
+    ArgInfo( :order, "Order fo drawing", nothing),
 ]
 @doc make_doc(LinePlot) LinePlot()
 
@@ -58,29 +64,25 @@ function data2user(c::Chart, x, y)
 end
 
 function configure!(chart::Chart, p::LinePlot)
-    if p.ls==:dash
-        reflen = 0.01*minimum(chart.figsize)
-        p.dash = [reflen, 0.7*reflen]
-    else
-        p.dash = []
+    if length(p.dash)==0
+        if p.ls==:dash
+            p.dash = [4.0, 2.4]*p.lw
+        elseif p.ls==:dashdot
+            p.dash = [2.0, 1.0, 2.0, 1.0]*p.lw
+        elseif p.ls==:dot
+            p.dash = [1.0, 1.0]*p.lw
+        end
     end
 end
 
 function draw!(chart::Chart, cc::CairoContext, p::LinePlot)
 
-    if p.linecolor===:default # update colors
-        p.linecolor = _colors_dict[_default_colors[chart.icolor]]
-        p.markercolor = get_color(p.markercolor, p.linecolor)
-        p.markerstrokecolor = get_color(p.markerstrokecolor, p.linecolor)
-        chart.icolor += 1
-    end
+    p.markercolor = get_color(p.markercolor, p.linecolor)
+    p.markerstrokecolor = get_color(p.markerstrokecolor, p.linecolor)
 
     set_matrix(cc, CairoMatrix([1, 0, 0, 1, 0, 0]...)) 
     set_source_rgb(cc, p.linecolor...)
     set_line_width(cc, p.lw)
-    if p.ls!=:solid
-        set_dash(cc, p.dash)
-    end
 
     # Plot lines
     n = length(p.X)
@@ -88,10 +90,15 @@ function draw!(chart::Chart, cc::CairoContext, p::LinePlot)
     Y = p.Y*chart.yaxis.mult
     x1, y1 = data2user(chart, X[1], Y[1])
 
-    for i in 2:n
-        x, y = data2user(chart, X[i], Y[i])
-        move_to(cc, x1, y1); line_to(cc, x, y); stroke(cc)
-        x1, y1 = x, y
+
+    if p.ls!==:none
+        p.ls!=:solid && set_dash(cc, p.dash)
+
+        for i in 2:n
+            x, y = data2user(chart, X[i], Y[i])
+            move_to(cc, x1, y1); line_to(cc, x, y); stroke(cc)
+            x1, y1 = x, y
+        end
     end
 
     set_dash(cc, Float64[])
@@ -187,6 +194,15 @@ function draw_marker(cc::CairoContext, x, y, marker, size, color, strokecolor)
         stroke(cc)
         move_to(cc, x-radius, y)
         line_to(cc, x+radius, y)
+        stroke(cc)
+    elseif marker==:xcross
+        radius = 1.35*radius
+        set_line_width(cc, radius/3)
+        move_to(cc, x-radius, y-radius)
+        line_to(cc, x+radius, y+radius)
+        stroke(cc)
+        move_to(cc, x+radius, y-radius)
+        line_to(cc, x-radius, y+radius)
         stroke(cc)
     end
 end

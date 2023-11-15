@@ -25,7 +25,7 @@ mutable struct ArgInfo<:ArgObj
     desc::String
 end
 
-function ArgInfo(key, desc; default=nothing, condition=:(), values=(), length=0, type=Any)
+function ArgInfo(key, desc, default=missing; condition=:(), values=(), length=0, type=Any)
     if key isa Tuple
         aliases = key[2:end]
         key = key[1]
@@ -41,8 +41,8 @@ mutable struct ArgCond<:ArgObj
 end
 
 mutable struct ArgOpt<:ArgObj
-    args1::Union{Symbol,Expr}
-    args2::Union{Symbol,Expr}
+    args1::Union{Symbol,Tuple}
+    args2::Union{Symbol,Tuple}
 end
 
 # todo: to be deprecated 
@@ -51,7 +51,7 @@ macro arginfo(args...)
     if arg1 isa Symbol
         key = args[1]
         aliases = ()
-        default = nothing
+        default = missing
     else # arg=value
         key = args[1].args[1]
         if key isa Tuple # has aliases
@@ -162,8 +162,8 @@ function checkargs(args, args_params::AbstractArray; aliens=true)
     skipkeys = []
     for opt in argopts
         # check for more than one optionals per set
-        args1 = opt.args1 isa Symbol ? (opt.args1,) : opt.args1.args
-        args2 = opt.args2 isa Symbol ? (opt.args2,) : opt.args2.args
+        args1 = opt.args1 isa Symbol ? (opt.args1,) : opt.args1
+        args2 = opt.args2 isa Symbol ? (opt.args2,) : opt.args2
 
         if issubset(args1, argkeys) && issubset(args2, argkeys)
             s1 = join(args1, ", ")
@@ -182,7 +182,7 @@ function checkargs(args, args_params::AbstractArray; aliens=true)
     arginfos = [ item for item in args_params if item isa ArgInfo && !(item.key in skipkeys) ] # skip non used optional keys
 
     # check for missing keys (skip optional args)
-    mandatorykeys = [ item.key for item in arginfos if item.default===nothing ]
+    mandatorykeys = [ item.key for item in arginfos if item.default===missing ]
     missingkeys = setdiff(mandatorykeys, keys(args))
 
     if length(missingkeys)>0

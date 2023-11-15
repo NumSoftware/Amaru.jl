@@ -21,7 +21,7 @@ mutable struct ModelEnv
     
     log      ::IOStream # solver log file
     alerts   ::IOBuffer # alerts
-    info     ::IOBuffer 
+    info     ::IOBuffer
 
     T      ::Float64  # Pseudo time for current stage
     ΔT     ::Float64  # Pseudo time current increment

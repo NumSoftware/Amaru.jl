@@ -74,6 +74,7 @@ end
 compat_state_type(::Type{LinearElastic}, ::Type{MechSolid}, env::ModelEnv)  = env.ana.stressmodel=="plane-stress" ? ElasticPlaneStressState : ElasticSolidState
 compat_state_type(::Type{LinearElastic}, ::Type{MechShell}, env::ModelEnv)  = ElasticPlaneStressState
 compat_state_type(::Type{LinearElastic}, ::Type{MechBeam}, env::ModelEnv)   = ElasticBeamState
+compat_state_type(::Type{LinearElastic}, ::Type{MechThickbeam}, env::ModelEnv) = ElasticSolidState
 compat_state_type(::Type{LinearElastic}, ::Type{MechBar}, env::ModelEnv)    = ElasticBarState
 compat_state_type(::Type{LinearElastic}, ::Type{MechEmbBar}, env::ModelEnv) = ElasticBarState
 
@@ -165,12 +166,11 @@ end
 
 function calcD(mat::LinearElastic, state::ElasticBeamState)
     E, ν = mat.E, mat.ν
-    G    = E/2/(1+ν)
     
     return @SMatrix [ 
-        E    0.0  0.0  
-        0.0  2*G  0.0  
-        0.0  0.0  2*G 
+        E  0.0  0.0  
+        0.0  E/(1+ν)  0.0  
+        0.0  0.0  E/(1+ν)
     ]
 end
 
