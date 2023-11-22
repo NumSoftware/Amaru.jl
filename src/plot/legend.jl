@@ -108,7 +108,7 @@ function draw!(c::Chart, cc::CairoContext, legend::Legend)
         end
 
         x = x1 + inner_pad + handle_length/2
-        draw_marker(cc, x, y, plot.marker, plot.markersize, plot.markercolor, plot.markerstrokecolor)
+        draw_marker(cc, x, y, plot.marker, plot.markersize, plot.markercolor, plot.mscolor)
 
         x = x1 + inner_pad + handle_length + 2*inner_pad
         y = y - 0.15*legend.fontsize

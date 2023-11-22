@@ -423,11 +423,36 @@ end
 
 function save(mplot::MeshPlot, filename::String)
     width, height = mplot.figsize
-    surf = CairoPDFSurface(filename, width, height)
-    cc = CairoContext(surf)
     
+    fmt = splitext(filename)[end]
+    if fmt==".pdf"
+        surf = CairoPDFSurface(filename, width, height)
+    elseif fmt==".svg"
+        surf = CairoSVGSurface(filename, width, height)
+    elseif fmt==".ps"
+        surf = CairoPSSurface(filename, width, height)
+    elseif fmt==".png"
+        surf = CairoImageSurface(width, height, Cairo.FORMAT_ARGB32)
+    else
+        formats = join(_available_formats, ", ", " and ")
+        throw(AmaruException("Cannot save image to format $fmt. Available formats are: $formats"))
+    end
+
+    cc = CairoContext(surf)
     configure!(mplot)
+
+    if fmt==".png"
+        set_source_rgb(cc, 1.0, 1.0, 1.0) # RGB values for white
+        paint(cc)
+    end
+    
     draw!(mplot, cc)
     
-    finish(surf)
+    if fmt==".png"
+        write_to_png(surf, filename)
+    else
+        finish(surf)
+    end
+    
+    return nothing
 end

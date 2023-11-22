@@ -299,7 +299,7 @@ function draw!(c::AbstractChart, cc::CairoContext, ax::Axis)
         # draw label
         if ax.location==:left
             x = x0 + label_height/2
-            x = x0 + ax.width - ticklength - tk_lbs_width - 0.5*ax.innersep - label_height/2
+            x = x0 + ax.width - ticklength - tk_lbs_width - ax.innersep - label_height/2
             # x = x0 + ax.width - ticklength - tk_lbs_width - ticklength 
         else
             x = x0 + tk_lbs_width + ax.ticklength + label_height/2
