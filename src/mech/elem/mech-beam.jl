@@ -108,8 +108,8 @@ function setquadrature!(elem::MechBeam, n::Int=0)
     else
         if n in (0,4)
             nl, nj, nk = 2, 2, 1
-        # elseif n==10
-            # nl, nj, nk = 5, 2, 1
+        # elseif n==6
+            # nl, nj, nk = 2, 3, 1
         elseif n==12
             nl, nj, nk = 4, 3, 1
         elseif n==9
@@ -266,10 +266,6 @@ function setB(elem::MechBeam, ip::Ip, L::Matx, N::Vect, dNdX::Matx, Rθ::Matx, B
             c = (i-1)*ndof
             @mul Bi = Bil*Rθ
             B[:, c+1:c+ndof] .= Bi
-            # @showm L
-            # @showm Rθ
-            # @showm Bil
-            # error()
         end
     else
         for i in 1:nnodes
@@ -289,11 +285,6 @@ function setB(elem::MechBeam, ip::Ip, L::Matx, N::Vect, dNdX::Matx, Rθ::Matx, B
             c = (i-1)*ndof
             @mul Bi = Bil*Rθ
             B[:, c+1:c+ndof] .= Bi
-
-            # @showm L
-            # @showm Rθ
-            # @showm Bil
-            # error()
         end
     end
 end
@@ -304,7 +295,6 @@ function elem_stiffness(elem::MechBeam)
     thz = elem.props.thz
     thy = elem.props.thy
     ndof = ndim==2 ? 3 : 6
-    # nstr = ndim==2 ? 2 : 3
     nstr = 3
 
     C   = getcoords(elem)
@@ -347,7 +337,6 @@ function update_elem!(elem::MechBeam, U::Array{Float64,1}, dt::Float64)
     thz = elem.props.thz
     thy = elem.props.thy
     ndof = ndim==2 ? 3 : 6
-    # nstr = ndim==2 ? 2 : 3
     nstr = 3
 
     C   = getcoords(elem)
@@ -371,7 +360,7 @@ function update_elem!(elem::MechBeam, U::Array{Float64,1}, dt::Float64)
         dx′dξ = norm(J1D)
         dNdX′ = dNdR*inv(dx′dξ)
         setB(elem, ip, L, N, dNdX′, Rθ, Bil, Bi, B)
-        Δε = B*dU
+        Δε = collect(S*B*dU)
         Δσ, status = update_state!(elem.mat, ip.state, Δε)
         failed(status) && return dF, map, status
         
@@ -381,7 +370,7 @@ function update_elem!(elem::MechBeam, U::Array{Float64,1}, dt::Float64)
             detJ′ = dx′dξ*thz/2*thy/2
         end
         coef = detJ′*ip.w
-        dF += coef*B'*S*Δσ
+        dF += coef*B'*Δσ
     end
 
     return dF, map, success()
@@ -391,7 +380,9 @@ end
 function elem_vals(elem::MechBeam)
     # get ip average values
     ipvals = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
-    sum  = merge(+, ipvals... )
+    mergef(x,y) = abs(x) > abs(y) ? x : y
+    sum  = merge(mergef, ipvals... )
+    # sum  = merge(+, ipvals... )
     nips = length(elem.ips)
     vals = OrderedDict( k=>v/nips for (k,v) in sum)
     return vals

@@ -52,28 +52,10 @@ end
 compat_shape_family(::Type{MechShell}) = BULKCELL
 compat_elem_props(::Type{MechShell}) = MechShellProps
 
-
-# function check_props(::Type{MechShell}; props...)
-#     names = (rho="Density", gamma="Specific weight", thickness="Thickness")
-#     required = (:thickness,)
-
-#     @checkmissing props required names
-
-#     default = (rho=0.0, gamma=0.0)
-#     props   = merge(default, props)
-#     rho     = props.rho
-#     gamma   = props.gamma
-#     thickness = props.thickness
-
-#     @check rho>=0
-#     @check gamma>=0
-#     @check thickness>0
-
-#     return (props..., th=thickness)
-# end
-
-
 function elem_init(elem::MechShell)
+    # check element dimension
+    elem.shape.ndim==2 || throw(AmaruException("MechShell: Invalid element shape. Got $(elem.shape.name)"))
+
     # Compute nodal rotation matrices
     nnodes = length(elem.nodes)
     elem.Dlmn = Array{SMatrix{3,3,Float64}}(undef,nnodes)
@@ -218,9 +200,6 @@ function setB(elem::MechShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx,
         @mul Bi = Bil*Rrot
         B[:, c+1:c+6] .= Bi
 
-        # @showm L
-        # @showm Bil
-        # error()
     end 
 end
 
@@ -244,8 +223,6 @@ function setNN(elem::MechShell, ip::Ip, N::Vect, NNil::Matx, NNi::Matx, L::Matx,
         #Rrot[4:5,4:6] .= elem.Dlmn[i][1:2,:]
 
         # R[1:3,4:5] .= elem.Dlmn[i][1:2,:]'
-        #@show R
-        #error()
 
         NNil[1,1] = N[i]
         NNil[2,2] = N[i]
