@@ -1019,6 +1019,8 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false, quiet=f
         end
 
     end
+
+    gmsh.model.geo.synchronize()
     
     tempfile = "_temp.vtk"
     logfile = "_gmsh.log"
@@ -1026,16 +1028,15 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false, quiet=f
         open(logfile, "w") do out
             redirect_stdout(out) do
                 gmsh.model.mesh.generate(isvolumemesh ? 3 : 2)
+                quadratic && gmsh.model.mesh.setOrder(2) # quadratic elements
+                recombine && gmsh.model.mesh.recombine()
                 gmsh.write(tempfile)
-                # gmsh.write("file.geo_unrolled")
+                gmsh.write("file.geo_unrolled")
             end
         end
     catch err
         error("Error generating unstructured mesh.")
     end
-    
-    quadratic && gmsh.model.mesh.setOrder(2) # quadratic elements
-    recombine && gmsh.model.mesh.recombine()
     
     gmsh.finalize()
     mesh = Mesh(tempfile)
