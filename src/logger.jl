@@ -318,9 +318,21 @@ function update_logger!(logger::NodeGroupLogger, model; flush=true)
     length(logger.nodes) == 0 && return
 
     table = DataTable()
-    for node in logger.nodes
-        push!(table, node_vals(node))
+
+    # add data
+    ids = [ node.id for node in logger.nodes ]
+    for (k,V) in model.node_data
+        table[k] = V[ids]
     end
+
+    # add coordinates
+    for (i,k) in enumerate((:x, :y, :z))
+        table[k] = [ node.coord[i] for node in logger.nodes ]
+    end
+
+    # for node in logger.nodes
+    #     # push!(table, node_vals(node))
+    # end
     push!(logger.book, table)
 
     if logger.filename!="" && flush
@@ -331,8 +343,6 @@ end
 
 
 # Logger for a group of ips
-
-
 
 mutable struct IpGroupLogger<:MultiLogger
     filename ::String
