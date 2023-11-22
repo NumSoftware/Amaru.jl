@@ -314,7 +314,6 @@ end
 
 function getline(geo::GeoModel, line::AbstractLine)
     idx = findfirst(==(line), geo.lines)
-    # idx = findfirst(l -> hs==hash(l), geo.lines)
     idx === nothing && (idx=0) 
     return get(geo.lines, idx, nothing)
 end
@@ -1077,6 +1076,7 @@ function addplanesurface!(geo::GeoModel, loop::PlaneLoop; tag="")
 
     # check if loop encloses other loops and shares any side (overlapping)
     for s in geo.surfaces
+        s isa PlaneSurface || continue
         s1.plane==s.plane || continue
         length(intersect(loop.lines, s.loops[1].lines))>0 && enclosed(s.loops[1], loop) && return nothing
     end
@@ -1089,15 +1089,41 @@ function addplanesurface!(geo::GeoModel, loop::PlaneLoop; tag="")
 
     # check if loop is inside other surfaces (set as hole) # todo: improve for hole inside hole
     for s in geo.surfaces
+        s isa PlaneSurface || continue
         loop.id==s.loops[1].id && continue
         inside(loop, s.loops[1]) && push!(s.loops, loop)
     end
 
     # check if loop encloses other loops (set holes) # todo: improve for hole inside hole
     for s in geo.surfaces
+        s isa PlaneSurface || continue
         loop.id==s.loops[1].id && continue
         inside(s.loops[1], loop) && push!(s1.loops, s.loops[1])
     end
+
+    # update edges
+    for lo in s1.loops
+        for l in lo.lines
+            push!(l.surfaces, s1)
+        end
+    end
+
+    # todo: add and update volumes
+
+    return s1
+end
+
+function addsurface!(geo::GeoModel, loop::Loop; tag="")
+
+    s1 = Surface(loop, tag=tag)
+    s = getsurface(geo, s1)
+    s === nothing || return s
+
+    # add new loop and surface
+    loop = addsingleloop!(geo, loop)
+    geo._id +=1
+    s1.id = geo._id
+    push!(geo.surfaces, s1)
 
     # update edges
     for lo in s1.loops
