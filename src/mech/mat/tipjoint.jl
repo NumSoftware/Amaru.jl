@@ -17,17 +17,19 @@ end
 
 mutable struct TipJoint<:Material
     k::Float64
+    fixed::Bool
 
-    function TipJoint(prms::Dict{Symbol,Float64})
-        return  TipJoint(;prms...)
-    end
-
-    function TipJoint(;k=NaN)
-        @check k>=0
-        this = new(k)
+    function TipJoint(;args...)
+        args = checkargs(args, func_params(TipJoint))
+        this = new(args.k, args.fixed)
         return this
     end
 end
+
+func_params(::Type{TipJoint}) = [
+    ArgInfo( :k, "Elastic stiffness", 1.0, condition=:(k>=0) ),
+    ArgInfo( :fixed, "Flag to control if the tip is fixed", false, type=Bool),
+]
 
 
 # Element types that work with this material
@@ -38,7 +40,7 @@ compat_state_type(::Type{TipJoint}, ::Type{MechTipJoint}, evn::ModelEnv) = TipJo
 
 
 function calcD(mat::TipJoint, state::TipJointState)
-    if state.w>0.0
+    if state.w>0.0 || mat.fixed
         return mat.k
     else
         return 0.0
@@ -50,7 +52,7 @@ function update_state!(mat::TipJoint, state::TipJointState, Δw)
     fini = state.f
     ftr  = fini + mat.k*Δw
     
-    if ftr>0.0
+    if ftr>0.0 || mat.fixed
         f = ftr
     else
         f = 0.0
