@@ -111,6 +111,11 @@ function setquadrature!(elem::MechShell, n::Int=0)
         R = [ ip.R[1:2]; 0.0 ]
         N = shape.func(R)
         ip.coord = C'*N
+
+        dNdR = elem.shape.deriv(ip.R) # 3xn
+        J = C'*dNdR
+        No = normalize(cross(J[:,1], J[:,2]))
+        ip.coord += elem.props.th/2*ip.R[3]*No
     end
 
 end
