@@ -305,7 +305,7 @@ function Model(filename::String; quiet=false)
         push!(domain.elems, elem)
     end
 
-    domain.faces = get_surface(domain.elems)
+    domain.faces = get_outer_facets(domain.elems)
     domain.edges = getedges(domain.faces)
 
     quiet || printstyled("  setting additional data...\e[K\r", color=:cyan)

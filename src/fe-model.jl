@@ -234,7 +234,9 @@ function FEModel(
     for (i,cell) in enumerate(mesh.faces)
         conn = [ p.id for p in cell.nodes ]
         face = Face(cell.shape, model.nodes[conn], tag=cell.tag)
-        face.owner = model.elems[cell.owner.id]
+        if cell.owner!==nothing
+            face.owner = model.elems[cell.owner.id]
+        end
         face.id = i
         push!(model.faces, face)
     end
@@ -244,7 +246,9 @@ function FEModel(
     for (i,cell) in enumerate(mesh.edges)
         conn = [ p.id for p in cell.nodes ]
         edge = Edge(cell.shape, model.nodes[conn], tag=cell.tag)
-        edge.owner = model.elems[cell.owner.id]
+        if cell.owner!==nothing
+            edge.owner = model.elems[cell.owner.id]
+        end
         edge.id = i
         push!(model.edges, edge)
     end
@@ -498,7 +502,7 @@ function FEModel(elems::Array{<:Element,1})
     end
 
     # Setting faces and edges
-    model.faces = get_surface(model.elems)
+    model.faces = get_outer_facets(model.elems)
     model.edges = getedges(model.faces)
 
     # Setting data

@@ -79,6 +79,11 @@ function setquadrature!(elem::CookShell, n::Int=0)
         R = [ ip.R[1:2]; 0.0 ]
         N = shape.func(R)
         ip.coord = C'*N
+
+        # dNdR = elem.shape.deriv(ip.R) # 3xn
+        # J = C'*dNdR
+        # No = normalize(cross(J[:,1], J[:,2]))
+        # ip.coord +=  elem.mat.th/2*R[end]*No
     end
 
 end

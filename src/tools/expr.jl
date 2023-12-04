@@ -7,7 +7,7 @@ mutable struct Symbolic
     expr::Expr
 
     function Symbolic(symbol::Symbol)
-        return new(Expr(:call, :identity, symbol))
+        return new(Expr(:quote, symbol))
     end
 
     function Symbolic(expr::Expr)
@@ -21,7 +21,7 @@ end
 
 
 function getexpr(a::Symbolic)
-    return a.expr.args[1]==:identity ? a.expr.args[2] : a.expr
+    return a.expr.head==:quote ? a.expr.args[1] : a.expr
 end
 
 getexpr(a) = a
@@ -47,27 +47,34 @@ for fun in (:abs, :sin, :cos, :tan, :log, :exp)
     end
 end
 
-for fun in (:and, :or)
+
+for (fun, op) in zip((:and, :or), (:&&, :||))
     @eval begin
-        $fun(x::Symbolic, y::Symbolic) = Symbolic(Expr(:&&,  getexpr(x), getexpr(y)))
+        $fun(x::Symbolic, y::Symbolic) = Symbolic(Expr($(QuoteNode(op)), getexpr(x), getexpr(y)))
+        $fun(x::Bool, y::Symbolic) = Symbolic(Expr($(QuoteNode(op)), x, getexpr(y)))
+        $fun(x::Symbolic, y::Bool) = Symbolic(Expr($(QuoteNode(op)), getexpr(x), y))
         export $fun
     end
 end
-
 
 function Base.convert(::Type{Expr}, ex::Symbolic)
     return ex.expr
 end
 
-macro vars(symbols...)
+macro symbols(syms...)
+    # @show syms
+    if syms[1].head==:tuple 
+        syms = syms[1].args
+    end
     expr = Expr(:block)
-    for sym in symbols
+    for sym in syms
         push!(expr.args, :($(esc(sym)) = Symbolic($(QuoteNode(sym)))))
     end
 
     return expr
 end
-export @vars
+@symbols x, y, z, t
+export @symbols, x, y, z, t
 
 
 const arith_tol=1e-6

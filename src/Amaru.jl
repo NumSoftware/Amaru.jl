@@ -30,7 +30,8 @@ module Amaru
 
     abstract type AbstractPoint end
     abstract type AbstractCell end
-    abstract type AbstractBlock<:AbstractCell end
+    # abstract type AbstractBlock<:AbstractCell end
+    abstract type AbstractBlock end
     abstract type AbstractDomain end
 
 

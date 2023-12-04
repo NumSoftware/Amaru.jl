@@ -15,7 +15,7 @@ abstract type MultiLogger<:AbstractLogger end
 
 mutable struct NodeLogger<:SingleLogger
     filename ::String
-    filter   ::Union{AbstractArray,Symbol,String,Expr}
+    filter   ::Union{AbstractArray,Symbol,String,Expr,Symbolic}
     table    ::DataTable
     node     ::Node
 
@@ -72,7 +72,7 @@ end
 
 mutable struct IpLogger<:SingleLogger
     filename ::String
-    filter   ::Union{AbstractArray,Int,Symbol,String,Expr}
+    filter   ::Union{AbstractArray,Int,Symbol,String,Expr,Symbolic}
     table    ::DataTable
     ip       ::Ip
 
@@ -138,7 +138,7 @@ abstract type FacetLogger<:SingleLogger end
 
 mutable struct FaceLogger<:FacetLogger
     filename ::String
-    filter   ::Union{Symbol,String,Expr}
+    filter   ::Union{Symbol,String,Expr,Symbolic}
     table    ::DataTable
     faces    ::Array{Face,1}
     nodes    ::Array{Node,1}
@@ -151,7 +151,7 @@ end
 
 mutable struct EdgeLogger<:FacetLogger
     filename ::String
-    filter   ::Union{Symbol,String,Expr}
+    filter   ::Union{Symbol,String,Expr,Symbolic}
     table    ::DataTable
     edges    ::Array{Edge,1}
     nodes    ::Array{Node,1}
@@ -223,7 +223,7 @@ end
 
 mutable struct NodeSumLogger<:SingleLogger
     filename ::String
-    filter   ::Union{Symbol,String,Expr}
+    filter   ::Union{Symbol,String,Expr,Symbolic}
     table    ::DataTable
     nodes    ::Array{Node,1}
 
@@ -277,7 +277,7 @@ end
 
 mutable struct NodeGroupLogger<:MultiLogger
     filename ::String
-    filter   ::Union{Symbol,String,Expr}
+    filter   ::Union{Symbol,String,Expr,Symbolic}
     book     ::DataBook
     nodes    ::Array{Node,1}
 
@@ -346,7 +346,7 @@ end
 
 mutable struct IpGroupLogger<:MultiLogger
     filename ::String
-    filter   ::Union{Symbol,String,Expr}
+    filter   ::Union{Symbol,String,Expr,Symbolic}
     book     ::DataBook
     ips      ::Array{Ip,1}
 

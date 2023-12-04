@@ -195,7 +195,7 @@ function ip_state_vals(mat::VonMises, state::VonMisesState)
 end
 
 
-# VonMises model for 2D bulk elements under plane-stress state includind shell elements
+# VonMises model for 2D bulk elements under plane-stress state including shell elements
 
 
 function yield_func(mat::VonMises, state::VonMisesPlaneStressState, σ::AbstractArray, εpa::Float64)
@@ -425,13 +425,7 @@ function update_state!(mat::VonMises, state::VonMisesBeamState, Δε::Array{Floa
         state.Δλ = 0.0
         state.σ  = σtr
     else
-        # @show ftr
-        # @show state.σ
-        # @show σtr
         σ, εpa, Δλ, status = calc_σ_εpa_Δλ(mat, state, σtr)
-        # @show σ
-        # @show yield_func(mat, state, σ, εpa)
-        # error()
         failed(status) && return state.σ, status
 
         state.σ, state.εpa, state.Δλ = σ, εpa, Δλ
@@ -465,7 +459,6 @@ function calc_σ_εpa_Δλ(mat::VonMises, state::VonMisesBeamState, σtr::Vec3)
     fa     = yield_func(mat, state, σ, εpa)
     σ, εpb = calc_σ_εpa(mat, state, σtr, b)
     fb     = yield_func(mat, state, σ, εpb)
-
 
     # search for a valid interval
     if fa*fb>0

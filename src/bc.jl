@@ -10,7 +10,7 @@ abstract type BC end
 
 mutable struct NodeBC<:BC
     conds::AbstractDict
-    filter::Union{Array{Int,1},Symbol,String,Expr}
+    filter::Union{Array{Int,1},Symbol,String,Expr,Symbolic}
     nodes::Array{Node,1}
 
     function NodeBC(;conds...)
@@ -19,7 +19,7 @@ mutable struct NodeBC<:BC
 end
 
 
-function setup_bc!(model, filter, bc::NodeBC)
+function setup_bc!(model::AbstractDomain, filter, bc::NodeBC)
     isa(filter, Int) && (filter = [filter])
     bc.filter = filter
 
@@ -39,7 +39,7 @@ function setup_bc!(model, filter, bc::NodeBC)
 end
 
 
-function compute_bc_vals!(bc::NodeBC, t::Float64, U::Array{Float64,1}, F::Array{Float64,1})
+function compute_bc_vals!(model::AbstractDomain, bc::NodeBC, t::Float64, U::Array{Float64,1}, F::Array{Float64,1})
     # essential_keys = Set( dof.name for node in bc.nodes for dof in node.dofs )
 
     for node in bc.nodes
@@ -60,11 +60,10 @@ end
 # SurfaceBC and EdgeBC
 
 
-
 mutable struct SurfaceBC<:BC
     conds ::AbstractDict
-    filter::Union{Symbol,String,Expr}
-    faces ::Array{Face,1}
+    filter::Union{Symbol,String,Expr,Symbolic}
+    facets ::Array{Face,1}
 
     function SurfaceBC(;conds...)
         return new(conds, :(), [])
@@ -76,7 +75,7 @@ FaceBC = SurfaceBC
 
 mutable struct EdgeBC<:BC
     conds ::AbstractDict
-    filter::Union{Symbol,String,Expr}
+    filter::Union{Symbol,String,Expr,Symbolic}
     edges ::Array{Edge,1}
 
     function EdgeBC(;conds...)
@@ -85,20 +84,22 @@ mutable struct EdgeBC<:BC
 end
 
 
-function setup_bc!(model, filter, bc::Union{SurfaceBC,EdgeBC})
+function setup_bc!(model::AbstractDomain, filter, bc::Union{SurfaceBC,EdgeBC})
     bc.filter = filter
 
     # Filter objects according to bc criteria
     if bc isa SurfaceBC
-        bc.faces = model.faces[bc.filter]
-        facets = bc.faces
+        if model.env.ndim==2
+            bc.facets = model.edges[bc.filter]
+        else
+            bc.facets = model.faces[bc.filter]
+        end
+        facets = bc.facets
     else
         bc.edges = model.edges[bc.filter]
         facets = bc.edges
     end
     length(facets)==0 && notify("setup_bc!: applying boundary conditions to empty array of faces/edges while evaluating expression ", string(bc.filter))
-
-    # not_found_keys = Set()
 
     # Find prescribed essential bcs
     for (key,val) in bc.conds
@@ -113,13 +114,12 @@ function setup_bc!(model, filter, bc::Union{SurfaceBC,EdgeBC})
 end
 
 
-function compute_bc_vals!(bc::Union{SurfaceBC,EdgeBC}, t::Float64, U::Array{Float64,1}, F::Array{Float64,1})
-    facets = bc isa SurfaceBC ? bc.faces : bc.edges
+function compute_bc_vals!(model::AbstractDomain, bc::Union{SurfaceBC,EdgeBC}, t::Float64, U::Array{Float64,1}, F::Array{Float64,1})
+    facets = bc isa SurfaceBC ? bc.facets : bc.edges
     essential_keys = Set( dof.name for facet in facets for node in facet.nodes for dof in node.dofs )
+    env = model.env
 
     for facet in facets
-        elem = facet.owner
-
         for (key,val) in bc.conds
             if key in essential_keys
                 for node in facet.nodes
@@ -130,7 +130,7 @@ function compute_bc_vals!(bc::Union{SurfaceBC,EdgeBC}, t::Float64, U::Array{Floa
                     end
                 end
             else
-                Fd, map = distributed_bc(facet, key, val, elem.env, elem.env.ana)
+                Fd, map = distributed_bc(facet, key, val, env, env.ana)
                 # Fd, map = distributed_bc(elem, facet, key, val)
                 F[map] += Fd
             end
@@ -142,10 +142,9 @@ end
 # BodyC
 
 
-
 mutable struct BodyC<:BC
     conds::AbstractDict
-    filter::Union{Array{Int,1},Symbol,String,Expr}
+    filter::Union{Array{Int,1},Symbol,String,Expr,Symbolic}
     elems::Array{Element,1}
 
     function BodyC(;conds...)
@@ -156,7 +155,7 @@ end
 ElemBC = BodyC
 
 
-function setup_bc!(model, filter, bc::BodyC)
+function setup_bc!(model::AbstractDomain, filter, bc::BodyC)
     isa(filter, Int) && (filter = [filter])
     bc.filter = filter
     # Filter objects according to bc criteria
@@ -176,7 +175,7 @@ function setup_bc!(model, filter, bc::BodyC)
 end
 
 
-function compute_bc_vals!(bc::BodyC, t::Float64, U::Array{Float64,1}, F::Array{Float64,1})
+function compute_bc_vals!(model::AbstractDomain, bc::BodyC, t::Float64, U::Array{Float64,1}, F::Array{Float64,1})
     essential_keys = Set( dof.name for elem in bc.elems for node in elem.nodes for dof in node.dofs )
 
     for elem in bc.elems
@@ -198,8 +197,8 @@ function compute_bc_vals!(bc::BodyC, t::Float64, U::Array{Float64,1}, F::Array{F
 end
 
 
-# Return a vector with all domain dofs and the number of unknown dofs according to bcs
-function configure_dofs!(model, bcbinds::Array{<:Tuple,1})
+# Return a vector with all model dofs and the number of unknown dofs according to bcs
+function configure_dofs!(model::AbstractDomain, bcbinds::Array{<:Tuple,1})
 
     # get active nodes
     ids = [ node.id for elem in model.elems.active for node in elem.nodes ]
@@ -237,15 +236,15 @@ end
 
 
 # Returns the values for essential and natural boundary conditions according to bcs
-function get_bc_vals(domain, bcs::Array{<:Tuple,1}, t=0.0)
+function get_bc_vals(model::AbstractDomain, bcs::Array{<:Tuple,1}, t=0.0)
     # This function will be called for each time increment
 
-    ndofs = domain.ndofs
+    ndofs = model.ndofs
     U = zeros(ndofs)
     F = zeros(ndofs)
 
     for (key,bc) in bcs
-        compute_bc_vals!(bc, t, U, F)
+        compute_bc_vals!(model, bc, t, U, F)
     end
 
     return U, F
