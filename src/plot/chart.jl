@@ -209,7 +209,7 @@ function addplot!(c::Chart, plots::Array{<:DataSeriesPlot,1})
 end
 
 
-function save(chart::Chart, filename::String)
+function save(chart::Chart, filename::String, copypath::String="")
     width, height = chart.figsize
 
     fmt = splitext(filename)[end]
@@ -241,6 +241,8 @@ function save(chart::Chart, filename::String)
     else
         finish(surf)
     end
+
+    copypath!="" && cp(filename, joinpath(dirname(copypath), basename(filename)), force=true)
 
     return nothing
 end

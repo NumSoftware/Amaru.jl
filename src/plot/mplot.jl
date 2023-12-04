@@ -417,7 +417,7 @@ function mplot(
         # get surface cells and update
         volcells  = [ elem for elem in mmesh.elems.active if elem.shape.family==BULKCELL && elem.shape.ndim==3 ]
         areacells = [ elem for elem in mmesh.elems.active if elem.shape.family==BULKCELL && elem.shape.ndim==2 ]
-        surfcells = get_surface(volcells)
+        surfcells = get_outer_facets(volcells)
         linecells = [ cell for cell in mmesh.elems.active if cell.shape.family==LINECELL]
         outlinecells = outline ? get_outline_edges(surfcells) : Cell[]
 

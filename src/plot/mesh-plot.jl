@@ -16,6 +16,7 @@ mutable struct MeshPlot<:AbstractChart
     facecolor::Tuple
     field::String
     limits::Vector{Float64}
+    mult::Float64
     warp::Float64
     label::AbstractString
     colormap::Colormap
@@ -26,6 +27,7 @@ mutable struct MeshPlot<:AbstractChart
     elevation::Float64
     distance::Float64
     outline::Bool
+    wireframe::Bool
     lightvector::Vector{Float64}
 
     function MeshPlot(mesh; args...)
@@ -46,6 +48,7 @@ mutable struct MeshPlot<:AbstractChart
         this.facecolor = _colors_dict[args.facecolor]
         this.field = args.field
         this.limits = args.limits
+        this.mult = args.mult
         this.warp = args.warp
         this.label = args.label
 
@@ -56,6 +59,7 @@ mutable struct MeshPlot<:AbstractChart
         this.elevation = args.elevation
         this.distance = args.distance
         this.outline = args.outline
+        this.wireframe = args.wireframe
         this.lightvector = args.lightvector
         this.args = args
 
@@ -65,24 +69,26 @@ end
 
 func_params(::Type{MeshPlot}) = [
     FunInfo( :MeshPlot, "Creates a customizable `MeshPlot` instance used to plot finite element meshes.", ()),
-    ArgInfo( :figsize, "Mesh drawing size in dpi", (300,200), length=2),
+    ArgInfo( :figsize, "Mesh drawing size in dpi", (220,150), length=2),
     ArgInfo( :facecolor, "Surface color", :aliceblue),
     ArgInfo( :warp, "Warping scale", 0.0 ),
-    ArgInfo( (:lw, :lineweight), "Line weight", 0.5,  condition=:(lw>0) ),
+    ArgInfo( (:lw, :lineweight), "Line weight", 0.4,  condition=:(lw>0) ),
     ArgInfo( :field, "Scalar field", "" ),
     ArgInfo( :limits, "Limits for the scalar field", [0.0,0.0], length=2 ),
+    ArgInfo( :mult, "Field multiplier", 1.0),
     ArgInfo( :label, "Colorbar label", "", type=AbstractString ),
     ArgInfo( :colormap, "Colormap for field display", :coolwarm),
     ArgInfo( :divergefromzero, "Sets if colormap will diverge from zero", false, type=Bool),
     ArgInfo( (:colorbarloc,:colorbar), "Colorbar location", :right, values=(:right, :bottom) ),
     ArgInfo( (:colorbarscale, :cbscale), "Colorbar scale", 0.9, condition=:(colorbarscale>0) ),
     ArgInfo( (:label, :colorbarlabel, :cblabel, :colorbartitle), "Colorbar label", "" ),
-    ArgInfo( (:fontsize, :colorbarfontsize, :cbfontsize), "Colorbar font size", 9.0, condition=:(fontsize>0)),
+    ArgInfo( (:fontsize, :colorbarfontsize, :cbfontsize), "Colorbar font size", 7.0, condition=:(fontsize>0)),
     ArgInfo( :font, "Font name", "NewComputerModern", type=AbstractString),
     ArgInfo( :azimut, "Azimut angle for 3d in degrees", 30 ),
     ArgInfo( :elevation, "Elevation angle for 3d in degrees", 30 ),
     ArgInfo( :distance, "Distance from camera in 3d", 0.0, condition=:(distance>=0) ),
     ArgInfo( :outline, "Flag to show the outline", true, type=Bool ),
+    ArgInfo( :wireframe, "Flag to show a wireframe", false, type=Bool ),
     ArgInfo( (:lightvector, :lv), "Light direction vector", [0.0,0.0,0.0], length=3 )
 ]
 @doc make_doc(MeshPlot) MeshPlot()
@@ -153,36 +159,34 @@ function configure!(mplot::MeshPlot)
     if ndim==2
         areacells = [ elem for elem in mesh.elems.active if elem.shape.family==BULKCELL ]
         linecells = [ cell for cell in mesh.elems.active if cell.shape.family==LINECELL]
+        outline_edges = mplot.outline ? get_outline_edges(surfcells) : Cell[]
 
-        elems = [ areacells; linecells ]
-        nodes = getnodes(elems)
+        elems    = [ areacells; linecells; outline_edges ]
+        elem_ids = [ c.id for c in [areacells; linecells] ]
+        nodes    = getnodes(elems)
     else
         # get surface cells and update
 
         volcells  = [ elem for elem in mesh.elems.active if elem.shape.family==BULKCELL && elem.shape.ndim==3 ]
         areacells = [ elem for elem in mesh.elems.active if elem.shape.family==BULKCELL && elem.shape.ndim==2 ]
         linecells = [ cell for cell in mesh.elems.active if cell.shape.family==LINECELL]
-        surfcells = get_surface(volcells)
+        surfcells = get_outer_facets(volcells)
         # outline_edges = outline ? copy.(get_outline_edges(surfcells)) : Cell[] # copies nodes
-        outline_edges = mplot.outline ? get_outline_edges(surfcells) : Cell[] # copies nodes
+        outline_edges = mplot.outline ? [ get_outline_edges(surfcells); get_outer_facets(areacells) ] : Cell[]
         # detach nodes
         for edge in outline_edges
             edge.nodes = copy.(edge.nodes)
         end
 
         tag!(outline_edges, "_outline")
-        elems = [ surfcells; areacells; linecells; outline_edges ]
-        nodes = getnodes(elems)
+        elems    = [ surfcells; areacells; linecells; outline_edges ]
+        elem_ids = [ [c.owner.id for c in surfcells]; [c.id for c in [areacells; linecells]] ]
+        nodes    = getnodes(elems) # todo: check for joined nodes in cracks
+    end
 
-        # observer and light vectors
-        # V = Vec3( cosd(elev)*cosd(azim), cosd(elev)*sind(azim), sind(elev) )
-
-        # lightvector===nothing && (lightvector=V) 
-        # if lightvector isa AbstractArray
-        #     L = lightvector
-        # else
-        #     error("mplot: lightvector must be a vector.")
-        # end
+    # redefine ids
+    for (i,elem) in enumerate(elems)
+        elem.id = i
     end
 
     node_data = mesh.node_data
@@ -202,6 +206,26 @@ function configure!(mplot::MeshPlot)
 
     # 3D -> 2D projection
     if mesh.env.ndim==3
+        # compute shades (before 2d projection)
+        V = Vec3( cosd(mplot.elevation)*cosd(mplot.azimut), cosd(mplot.elevation)*sind(mplot.azimut), sind(mplot.elevation) ) # observer vector
+        norm(mplot.lightvector)==0 && (mplot.lightvector = V)
+        L = mplot.lightvector
+        shades = zeros(length(elems))
+        for (i,elem) in enumerate(elems)
+            elem.shape.family==BULKCELL || continue
+            N = get_facet_normal(elem)
+            dot(N,L)<0 && (N = -N)
+            R = normalize(2*N*dot(L,N) - L)  # reflection vector
+            dot(V,R)<0 && (R = -R)
+
+            Ia = 0.75 # ambient
+            Id = 0.40 # diffuse
+            Is = 0.30 # specular
+            sh = 5.00  # shininess
+            shades[i] = Ia + Id*max(0,dot(L,N)) + Is*max(0,dot(V,R))^sh
+        end
+
+        # compute projection
         project_to_2d!(nodes, mplot.azimut, mplot.elevation, mplot.distance)
         zmin, zmax = extrema(node.coord[3] for node in nodes)
 
@@ -216,18 +240,8 @@ function configure!(mplot::MeshPlot)
         distances = [ 0.9*sum(node.coord[3] for node in elem.nodes)/length(elem.nodes) + 0.1*minimum(node.coord[3] for node in elem.nodes) for elem in elems ]
         perm = sortperm(distances, rev=true)
         elems = elems[perm]
-
-        # compute shades
-        V = Vec3( cosd(mplot.elevation)*cosd(mplot.azimut), cosd(mplot.elevation)*sind(mplot.azimut), sind(mplot.elevation) ) # observer vector
-        norm(mplot.lightvector)==0 && (mplot.lightvector = V)
-        L = mplot.lightvector
-        mplot.shades = zeros(length(elems))
-        for (i,elem) in enumerate(elems)
-            elem.shape.family==BULKCELL || continue
-            N = get_facet_normal(elem)
-            R = normalize(2*N*dot(L,N) - L)
-            mplot.shades[i] = 0.8 + 0.1*abs(dot(L,N)) + 0.1*(1+dot(V,R))/2
-        end
+        mplot.shades = shades[perm]
+        
     end
 
     # Field 
@@ -239,13 +253,13 @@ function configure!(mplot::MeshPlot)
         field = string(mplot.field)
         found = false
         if haskey(elem_data, field)
-            fvals = elem_data[field]
-            fmax = maximum(fvals[elem.id] for elem in elems)
-            fmin = minimum(fvals[elem.id] for elem in elems)
+            fvals = elem_data[field][elem_ids].*mplot.mult
+            fmax = maximum(fvals)
+            fmin = minimum(fvals)
             found = true
         end
         if haskey(node_data, field)
-            fvals = node_data[field]
+            fvals = node_data[field].*mplot.mult
             found = true
             fmax = maximum(fvals[node.id] for node in nodes)
             fmin = minimum(fvals[node.id] for node in nodes)
@@ -258,7 +272,9 @@ function configure!(mplot::MeshPlot)
 
         # Colormap
         mplot.values = fvals
-        mplot.limits = [fmin, fmax]
+        if mplot.limits==[0.0, 0.0]
+            mplot.limits = [fmin, fmax]
+        end
         mplot.colormap = resize(mplot.colormap, fmin, fmax, divergefromzero=mplot.args.divergefromzero)
 
     else
@@ -326,24 +342,47 @@ function draw!(mplot::MeshPlot, cc::CairoContext)
     dy = 0.5*((Ymax-Ymin)-ratio*(ymax-ymin))
     set_matrix(cc, CairoMatrix([ratio, 0, 0, -ratio, Xmin+dx-xmin*ratio, Ymax-dy+ymin*ratio]...))
 
+    # gray = sum(mplot.facecolor)/3*Vec3(0.5,0.5,0.5)
+
     # Draw elements
     for (i,elem) in enumerate(mplot.elems)
+        
+
         if elem.tag=="_outline"
+            gray = sum(mplot.facecolor)/3*Vec3(0.5,0.5,0.5)
+            if has_field 
+                if is_nodal_field
+                    id = elem.nodes[1].id
+                    color = mplot.colormap(mplot.values[id]).*0.45
+                else
+                    color = mplot.colormap(mplot.values[elem.owner.id]).*0.45
+                end
+                # color = Vec3(0.3,0.3,0.3) .+ mplot.colormap(mplot.values[id]).*0.3
+                # color = sum(mplot.colormap(mplot.values[id]))/3*Vec3(0.5,0.5,0.5)
+            else
+                color = mplot.facecolor.*0.45
+            end
             x, y = elem.nodes[1].coord
             move_to(cc, x, y)
-            color = Vec3(0.4, 0.4, 0.4)
+            # color = Vec3(0.4, 0.4, 0.4)
             pts = bezier_points(elem)
             curve_to(cc, pts[2]..., pts[3]..., pts[4]...)
             set_line_width(cc, 1.4*mplot.lw)
-            set_source_rgb(cc, color...) # gray
+            set_source_rgb(cc, color...) 
             stroke(cc)
             continue
         end
+
+
 
         if elem.shape.family==LINECELL
             x, y = elem.nodes[1].coord
             move_to(cc, x, y)
             color = Vec3(0.8, 0.2, 0.1)
+            if has_field && !is_nodal_field
+                color = mplot.colormap(mplot.values[elem.id])
+            end
+
             pts = bezier_points(elem)
             curve_to(cc, pts[2]..., pts[3]..., pts[4]...)
             set_line_width(cc, 2*mplot.lw)
@@ -352,66 +391,72 @@ function draw!(mplot::MeshPlot, cc::CairoContext)
             continue
         end
 
-        pattern = CairoPatternMesh()
-        mesh_pattern_begin_patch(pattern)
-
-        edges = getfaces(elem)
-        x, y = edges[1].nodes[1].coord
-        mesh_pattern_move_to(pattern, x, y)
-        nedges = length(edges)
-
-        # draw elements
-        color = mplot.facecolor
-        if has_field && !is_nodal_field
-            color = mplot.colormap(mplot.values[elem.id])
-        end
-
-        if length(edges)==3
-            for edge in edges[1:2]
-                x, y = edge.nodes[2].coord
-                mesh_pattern_line_to(pattern, x, y)
-            end
-        else
-            for edge in edges
-                pts = bezier_points(edge)
-                mesh_pattern_curve_to(pattern, pts[2]..., pts[3]..., pts[4]...)
-            end
-        end
-
-        # set nodal colors
-        shade = mplot.mesh.env.ndim==3 ? mplot.shades[i] : 1.0
-        for (i,node) in enumerate(elem.nodes[1:nedges])
-            id = node.id
-            if has_field && is_nodal_field
-                color = mplot.colormap(mplot.values[id])
-            end
-            scolor = color.*shade # apply shade
-            mesh_pattern_set_corner_color_rgb(pattern, i-1, scolor...)
-        end
-
-        mesh_pattern_end_patch(pattern)
-        set_source(cc, pattern)
-        paint(cc)
         
+
+        # draw cells face
+        edges = getedges(elem)
+        if !mplot.wireframe
+            pattern = CairoPatternMesh()
+            mesh_pattern_begin_patch(pattern)
+
+            x, y = edges[1].nodes[1].coord
+            mesh_pattern_move_to(pattern, x, y)
+            nedges = length(edges)
+
+            # draw elements
+            color = mplot.facecolor
+            if has_field && !is_nodal_field
+                color = mplot.colormap(mplot.values[elem.id])
+            end
+
+            if length(edges)==3
+                for edge in edges[1:2]
+                    x, y = edge.nodes[2].coord
+                    mesh_pattern_line_to(pattern, x, y)
+                end
+            else
+                for edge in edges
+                    pts = bezier_points(edge)
+                    mesh_pattern_curve_to(pattern, pts[2]..., pts[3]..., pts[4]...)
+                end
+            end
+
+            # set nodal colors
+            shade = mplot.mesh.env.ndim==3 ? mplot.shades[i] : 1.0
+            # @show shade
+            for (i,node) in enumerate(elem.nodes[1:nedges])
+                id = node.id
+                if has_field && is_nodal_field
+                    color = mplot.colormap(mplot.values[id])
+                end
+                scolor = color.*shade # apply shade
+                mesh_pattern_set_corner_color_rgb(pattern, i-1, scolor...)
+            end
+
+            mesh_pattern_end_patch(pattern)
+            set_source(cc, pattern)
+            paint(cc)
+        end
+            
         # draw edges
-        gray = sum(mplot.facecolor)/3*Vec3(0.5,0.5,0.5)
-        if has_field && !is_nodal_field
-            gray = sum(mplot.colormap(mplot.values[elem.id]))/3*Vec3(0.5,0.5,0.5)
-        end
-        
         x, y = edges[1].nodes[1].coord
         move_to(cc, x, y)
+        color = mplot.facecolor.*0.45
         for edge in edges
             pts = bezier_points(edge)
             x, y = edge.nodes[1].coord
             move_to(cc, x, y)
             curve_to(cc, pts[2]..., pts[3]..., pts[4]...)
             id = edge.nodes[1].id
-            if has_field && is_nodal_field
-                gray = sum(mplot.colormap(mplot.values[id]))/3*Vec3(0.5,0.5,0.5)
+            if has_field 
+                if is_nodal_field
+                    color = mplot.colormap(mplot.values[id]).*0.55
+                else
+                    color = mplot.colormap(mplot.values[elem.id]).*0.55
+                end
             end
             set_line_width(cc, mplot.lw)
-            set_source_rgb(cc, gray...) # gray
+            set_source_rgb(cc, color...)
             stroke(cc)
         end
     end
@@ -421,7 +466,7 @@ function draw!(mplot::MeshPlot, cc::CairoContext)
 end
 
 
-function save(mplot::MeshPlot, filename::String)
+function save(mplot::MeshPlot, filename::String, copypath::String="")
     width, height = mplot.figsize
     
     fmt = splitext(filename)[end]
@@ -453,6 +498,8 @@ function save(mplot::MeshPlot, filename::String)
     else
         finish(surf)
     end
+
+    copypath!="" && cp(filename, joinpath(dirname(copypath), basename(filename)), force=true)
     
     return nothing
 end

@@ -149,9 +149,9 @@ function configure!(chart::AbstractChart, ax::Axis)
 
     # configure size (axis dimensions do do not include tick lengths)
     ax.ticklength = 0.4*ax.fontsize
-    ax.innersep = 0.4*ax.fontsize
-
+    
     if ax.direction == :horizontal
+        ax.innersep = 0.4*ax.fontsize
         tk_lbs_height = maximum( getsize(lbl, ax.fontsize)[2] for lbl in ax.ticklabels )
         label_height = getsize(ax.label, ax.fontsize)[2]
         ax.height = label_height + ax.innersep + tk_lbs_height + ax.ticklength
@@ -293,16 +293,16 @@ function draw!(c::AbstractChart, cc::CairoContext, ax::Axis)
             
             move_to(cc, x1, y1); rel_line_to(cc, ticklength, 0); stroke(cc)
 
-            draw_text(cc, x1-ticklength, y1, label, halign=halign, valign="center")
+            draw_text(cc, x1-ticklength, y1+ax.fontsize/2, label, halign=halign, valign="bottom")
         end
         
         # draw label
         if ax.location==:left
             x = x0 + label_height/2
-            x = x0 + ax.width - ticklength - tk_lbs_width - ax.innersep - label_height/2
+            x = x0 + ax.width - ax.ticklength - tk_lbs_width - ax.innersep - label_height/2
             # x = x0 + ax.width - ticklength - tk_lbs_width - ticklength 
         else
-            x = x0 + tk_lbs_width + ax.ticklength + label_height/2
+            x = x0 + ax.ticklength + tk_lbs_width + ax.innersep + label_height/2
         end
         y = y0 + ax.height/2
 

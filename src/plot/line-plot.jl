@@ -43,6 +43,7 @@ mutable struct LinePlot<:DataSeriesPlot
         this.lw          = args.lw
         this.linecolor   = linecolor
         this.marker      = args.marker
+        this.markersize  = args.markersize
         this.markercolor = markercolor
         this.mscolor     = mscolor
         this.label       = args.label
@@ -103,8 +104,10 @@ function draw!(chart::Chart, cc::CairoContext, p::LinePlot)
     set_matrix(cc, CairoMatrix([1, 0, 0, 1, 0, 0]...)) 
     set_source_rgb(cc, p.linecolor...)
     set_line_width(cc, p.lw)
+    set_line_join(cc, Cairo.CAIRO_LINE_JOIN_ROUND)
 
     # Draw lines
+    new_path(cc)
     n = length(p.X)
     X = p.X*chart.xaxis.mult
     Y = p.Y*chart.yaxis.mult
@@ -113,22 +116,25 @@ function draw!(chart::Chart, cc::CairoContext, p::LinePlot)
         x1, y1 = data2user(chart, X[1], Y[1])
 
         if p.ls==:solid
+            move_to(cc, x1, y1)
             for i in 2:n
                 x, y = data2user(chart, X[i], Y[i])
-                move_to(cc, x1, y1); line_to(cc, x, y); stroke(cc)
-                x1, y1 = x, y
+                line_to(cc, x, y); 
             end
+            stroke(cc)
         else # dashed
             len = sum(p.dash)
             offset = 0.0
             set_dash(cc, p.dash, offset)
+            move_to(cc, x1, y1)
             for i in 2:n
                 x, y = data2user(chart, X[i], Y[i])
-                move_to(cc, x1, y1); line_to(cc, x, y); stroke(cc)
+                line_to(cc, x, y); 
                 offset = mod(offset + norm((x1-x,y1-y)), len)
                 set_dash(cc, p.dash, offset)
                 x1, y1 = x, y
             end
+            stroke(cc)
             set_dash(cc, Float64[])
         end
     end
@@ -163,19 +169,29 @@ function draw!(chart::Chart, cc::CairoContext, p::LinePlot)
         α = -atand(y2-y1, x2-x1) # tilt
 
         # pads
-        pad = chart.args.fontsize*0.25
+        pad = chart.args.fontsize*0.3
         dx = pad*cosd(α)
         dy = pad*sind(α)
 
         # Default location "top"
         if p.tagloc==:top
             va = "bottom"
-            ha = 0<α<= 90 || -180 <α<= -90 ? "right" : "left"
-            dx, dy = dy, -dx
+            if 0<α<= 90 || -180 <α<= -90 
+                ha = "right" 
+                dx, dy = -dy, -dx
+            else
+                ha = "left"
+                dx, dy = dy, dx
+            end
         else
             va = "top"
-            ha = 0<α<=90 || -180<α<=-90 ? "left" : "right"
-            dx, dy = 0*dy, 0*dx
+            if 0<α<=90 || -180<α<=-90
+                ha = "left"
+                dx, dy = dy, dx
+            else
+                ha = "right"
+                dx, dy = -dy, dx
+            end
         end
 
         if p.tagalong
@@ -250,6 +266,7 @@ end
 
 function draw_marker(cc::CairoContext, x, y, marker, size, color, strokecolor)
     radius = size/2
+    new_path(cc)
 
     if marker==:circle
         arc(cc, x, y, radius, 0, 2*pi)
