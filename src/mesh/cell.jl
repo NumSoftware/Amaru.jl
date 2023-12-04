@@ -89,6 +89,7 @@ const Facet=Cell
 ### Cell methods
 
 Base.hash(c::Cell) = sum(hash(p) for p in c.nodes)
+# Base.isequal(c1::Cell, c2::Cell) = hash(c1)==hash(c2)
 
 """
     $(TYPEDSIGNATURES)
@@ -242,7 +243,7 @@ function Base.getindex(
 
         if isa(filter, Expr) || isa(filter, Symbolic) 
             nodes = getnodes(cells)
-            pointmap = zeros(Int, maximum(node.id for node in nodes) ) # points and pointmap may have different sizes
+            pointmap = zeros(Int, maximum( [node.id for node in nodes], init=0) ) # points and pointmap may have different sizes
 
             T = Bool[]
             for (i,node) in enumerate(nodes)
@@ -418,12 +419,9 @@ end
 
 
 # gets all facets of a cell
-function getfaces(cell::AbstractCell)
-    # Return a cell with the same shape in case of a 2D cell in 3D space
-    cell.env.ndim==3 && cell.shape.ndim==2 && return [ Cell(cell.shape, cell.nodes, tag=cell.tag, owner=cell) ]
-
+function getfacets(cell::AbstractCell)
     faces  = Cell[]
-    all_faces_idxs = cell.shape.facet_idxs
+    all_facets_idxs = cell.shape.facet_idxs
     facet_shape    = cell.shape.facet_shape
 
     facet_shape==() && return faces
@@ -431,7 +429,7 @@ function getfaces(cell::AbstractCell)
     sameshape = typeof(facet_shape) == CellShape # check if all facets have the same shape
 
     # Iteration for each facet
-    for (i, face_idxs) in enumerate(all_faces_idxs)
+    for (i, face_idxs) in enumerate(all_facets_idxs)
         nodes = cell.nodes[face_idxs]
         shape  = sameshape ? facet_shape : facet_shape[i]
         face   = Cell(shape, nodes, tag=cell.tag, owner=cell)
@@ -442,11 +440,17 @@ function getfaces(cell::AbstractCell)
     return faces
 end
 
+# gets all faces of a cell
+function getfaces(cell::AbstractCell)
+    # Return a cell with the same shape in case of a 2D cell in 3D space
+    # cell.env.ndim==3 && 
+    cell.shape.ndim==2 && return [ Cell(cell.shape, cell.nodes, tag=cell.tag, owner=cell) ]
+    return getfacets(cell)
+end
+
 
 # gets all edges of a cell
 function getedges(cell::AbstractCell)
-    # cell.shape.ndim==2 && return getfaces(cell)
-
     edges  = Cell[]
     all_edge_idxs = cell.shape.edge_idxs
 
@@ -565,7 +569,7 @@ end
 # Returns the cell quality ratio as vol/reg_vol
 function cell_quality_2(c::AbstractCell)::Float64
     # get faces
-    faces = getfaces(c)
+    faces = getfacets(c)
     length(faces)==0 && return 1.0
 
     # cell surface
@@ -583,7 +587,7 @@ function cell_quality(c::AbstractCell)::Float64
     # get faces
     c.shape.family==JOINTCELL && return 1.0
 
-    faces = getfaces(c)
+    faces = getfacets(c)
     length(faces)==0 && return 1.0
 
     # cell surface

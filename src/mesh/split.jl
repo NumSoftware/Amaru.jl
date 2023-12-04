@@ -27,6 +27,8 @@ function generate_joints!(
     midnodestag       ::String=""
 )
 
+    
+
     quiet || printstyled("Mesh generation of joint elements:\n", bold=true, color=:cyan)
 
     layers in (2,3) || error("generate_joints!: wrong number of layers ($layers).")
@@ -54,7 +56,7 @@ function generate_joints!(
     if filter===nothing
         targetcells = mesh.elems.solids
         lockedcells = setdiff(mesh.elems, targetcells)
-        # remove previous joints at filtered region
+        # remove previous joints at locked region
         lockedcells = setdiff(lockedcells, lockedcells.joints)
     else
         targetcells = mesh.elems[filter].solids
@@ -67,40 +69,44 @@ function generate_joints!(
     end
 
     if !onlybetweenregions
-        # Splitting: generating new nodes
-        for c in targetcells
-            for (i,p) in enumerate(c.nodes)
-                newp = Node(p.coord, tag=p.tag)
-                newp.id = -1
-                c.nodes[i] = newp
-            end
-        end
-
-        # Get paired faces
-        facedict = Dict{UInt64, Cell}()
-        face_pairs = Tuple{Cell, Cell}[]
-        for cell in targetcells
-            for face in getfaces(cell)
-                hs = hash(face)
-                f  = get(facedict, hs, nothing)
-                if f===nothing
-                    facedict[hs] = face
-                else
-                    push!(face_pairs, (face, f))
-                    delete!(facedict, hs)
+            # Splitting
+            # generating new nodes at target cells
+            for c in targetcells
+                for (i,p) in enumerate(c.nodes)
+                    newp = Node(p.coord, tag=p.tag)
+                    newp.id = -1
+                    c.nodes[i] = newp
                 end
             end
-        end
 
-        # Add pairs using surface faces from locked cells
-        for face in get_surface(lockedcells)
-            hs = hash(face)
-            f  = get(facedict, hs, nothing)
-            f===nothing && continue
-            push!(face_pairs, (face, f))
-            delete!(facedict, hs)
-        end
-    else # generate joints between tagged regions only TODO:check
+            lockedouterfaces = get_outer_facets(lockedcells)
+
+            # Get faces pairs
+            facedict = Dict{UInt64, Cell}()
+            face_pairs = Tuple{Cell, Cell}[]
+            for cell in targetcells
+                for face in getfacets(cell)
+                    hs = hash(face)
+                    f  = get(facedict, hs, nothing)
+                    if f===nothing
+                        facedict[hs] = face
+                    else
+                        push!(face_pairs, (face, f))
+                        delete!(facedict, hs)
+                    end
+                end
+            end
+
+            # Add pairs using surface faces from locked cells
+            for face in lockedouterfaces
+                hs = hash(face)
+                f  = get(facedict, hs, nothing)
+                f===nothing && continue
+                push!(face_pairs, (face, f))
+                delete!(facedict, hs)
+            end
+
+    else # generate joints between tagged regions only 
         # Get tags
         tag_set = Set{String}()
         for cell in targetcells
@@ -108,12 +114,10 @@ function generate_joints!(
             push!(tag_set, cell.tag)
         end
 
-        # @show tag_set
-
         # Get joint faces
         trial_faces = Face[]
         for tag in tag_set
-            for face in get_surface(targetcells[tag])
+            for face in get_outer_facets(targetcells[tag])
                 push!(trial_faces, face)
             end
         end
@@ -170,10 +174,10 @@ function generate_joints!(
             end
         end
 
-        # Get joint faces (now with new nodes)
+        # Update joint faces (now with new nodes)
         trial_faces = Face[]
         for tag in tag_set
-            for face in get_surface(ocells[tag])
+            for face in get_outer_facets(ocells[tag])
                 push!(trial_faces, face)
             end
         end
@@ -270,15 +274,18 @@ function generate_joints!(
     # Nodes dict
     nodesdict = Dict{Int,Node}()
     idx = length(mesh.nodes)
+    # idx = 10000
+    # idx = maximum( n.id for n in mesh.nodes )
     for cell in mesh.elems
         for node in cell.nodes
-            if node.id==-1
+            if node.id<0
                 idx += 1
                 node.id = idx # new id
             end
             nodesdict[node.id] = node
         end
     end
+
 
     # All nodes
     mesh.nodes = collect(values(nodesdict))
@@ -319,7 +326,7 @@ function generate_joints_by_tag!(mesh::Mesh; layers::Int64=2, verbose::Bool=true
     # Get joint faces
     joint_faces = Face[]
     for tag in tag_set
-        for face in get_surface(mesh.cells[tag])
+        for face in get_outer_facets(mesh.cells[tag])
             push!(joint_faces, face)
         end
     end
@@ -347,7 +354,7 @@ function generate_joints_by_tag!(mesh::Mesh; layers::Int64=2, verbose::Bool=true
     # Get joint faces (now with new nodes)
     joint_faces = Face[]
     for tag in tag_set
-        for face in get_surface(ocells[tag])
+        for face in get_outer_facets(ocells[tag])
             push!(joint_faces, face)
         end
     end
@@ -391,7 +398,7 @@ function generate_joints_candidate!(mesh::Mesh, expr::Expr, tag::String="") # TO
     # Get paired faces
     for cell in solids
         faces_idxs = cell.shape.facet_idxs # vertex connectivities of all faces from cell
-        for (i,face) in enumerate(getfaces(cell))
+        for (i,face) in enumerate(getfacets(cell))
             hs = hash(face)
             fp = get(fp_dict, hs, nothing)
             if fp===nothing # fill first face in fp
@@ -511,7 +518,7 @@ function generate_joints_by_tag_2!(mesh::Mesh; layers::Int64=2, verbose::Bool=tr
 
     # Get paired faces
     for cell in solids
-        for face in getfaces(cell)
+        for face in getfacets(cell)
             hs = hash(face)
             f  = get(facedict, hs, nothing)
             if f===nothing
@@ -749,7 +756,7 @@ function cracksmesh(mesh::Mesh, opening::Real)
     facedict = Dict{UInt64, Cell}()
     face_pairs = Tuple{Cell, Cell}[]
     for cell in mesh.elems
-        for face in getfaces(cell)
+        for face in getfacets(cell)
             hs = hash(face)
             f  = get(facedict, hs, nothing)
             if f===nothing

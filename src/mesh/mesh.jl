@@ -69,7 +69,7 @@ function Base.copy(mesh::AbstractDomain)
         push!(newmesh.elems, newelem)
     end
 
-    mesh.faces = get_surface(mesh.elems)
+    mesh.faces = get_outer_facets(mesh.elems)
     ndim==2 && (mesh.edges=mesh.faces)
     ndim==3 && (mesh.edges=getedges(mesh.faces))
     
@@ -89,14 +89,12 @@ function Base.copy(mesh::AbstractDomain)
 end
 
 
-function get_surface(cells::Array{<:AbstractCell,1})
+function get_outer_facets(cells::Array{<:AbstractCell,1})
     surf_dict = OrderedDict{UInt64, Cell}()
 
     # Get only unique faces. If dup, original and dup are deleted
     for cell in cells
-        for face in getfaces(cell)
-            #conns = [ pt.id for pt in face.nodes ]
-            #hs = hash(conns)
+        for face in getfacets(cell)
             hs = hash(face)
             if haskey(surf_dict, hs)
                 delete!(surf_dict, hs)
@@ -115,13 +113,13 @@ function getedges(surf_cells::Array{<:AbstractCell,1})
 
     # Get only unique edges
     for cell in surf_cells
-        for edge in getfaces(cell)
+        for edge in getedges(cell)
             edge.owner = cell.owner
             edges_dict[hash(edge)] = edge
         end
     end
 
-    return [ edge for edge in values(edges_dict) ]
+    return collect(values(edges_dict))
 end
 
 # Return a list of neighbors for each cell
@@ -131,10 +129,10 @@ function get_neighbors(cells::Array{Cell,1})::Array{Cell,1}
 
     # Get cell faces. If dup, original and dup are deleted but neigh info saved
     for cell in cells
-        for face in getfaces(cell)
+        for face in getfacets(cell)
             hs = hash(face)
             other = get(faces_dict, hs, nothing)
-            if other == nothing
+            if other === nothing
                 faces_dict[hs] = face
             else
                 push!(neighbors[face.owner.id], other.owner)
@@ -303,12 +301,12 @@ function update_quality!(mesh::Mesh)
         c.quality = cell_quality(c)
         push!(Q, c.quality)
     end
-    mesh.elem_data["quality"]   = Q
+    mesh.elem_data["quality"] = Q
 end
 
 
 # Updates numbering, faces and edges in a Mesh object
-function fixup!(mesh::Mesh; quiet=true, genfacets=true, genedges=true, reorder=false, renumber=true)
+function fixup!(mesh::Mesh; quiet=true, genfacets=true, reorder=false, renumber=true)
 
     @assert mesh.env.ndim!=0
 
@@ -323,17 +321,17 @@ function fixup!(mesh::Mesh; quiet=true, genfacets=true, genedges=true, reorder=f
         elem.env = mesh.env
     end
 
-    # Facets
+    # Faces and edges
     if genfacets
         quiet || print("  finding facets...   \r")
-        mesh.faces = get_surface(mesh.elems)
-    end
-    mesh.env.ndim==2 && (mesh.edges=mesh.faces)
-
-    # Edges
-    if genedges && mesh.env.ndim==3
-        quiet || print("  finding edges...   \r")
-        mesh.edges = getedges(mesh.faces)
+        if mesh.env.ndim==2
+            mesh.edges = get_outer_facets(mesh.elems)
+            mesh.faces = mesh.edges
+        elseif mesh.env.ndim==3
+            solids = [ elem for elem in mesh.elems if elem.shape.ndim==3 ]
+            mesh.faces = [ get_outer_facets(solids); [ elem for elem in mesh.elems if elem.shape.ndim==2 ] ]
+            mesh.edges = getedges(mesh.faces)
+        end
     end
 
     # Quality
@@ -586,7 +584,6 @@ function Mesh(
     items     ::Union{Mesh, AbstractBlock, Array{<:Union{AbstractBlock, Array},1}}...;
     ndim      ::Int = 0,
     genfacets ::Bool = true,
-    genedges  ::Bool = true,
     reorder   ::Bool = true,
     quiet     ::Bool = false,
 )
@@ -640,7 +637,7 @@ function Mesh(
     end
 
     # Updates numbering, quality, facets and edges
-    fixup!(mesh, quiet=quiet, genfacets=genfacets, genedges=genedges, reorder=reorder)
+    fixup!(mesh, quiet=quiet, genfacets=genfacets, reorder=reorder)
 
     if !quiet
         npoints = length(mesh.nodes)
@@ -654,8 +651,6 @@ function Mesh(
         nedges  = length(mesh.edges)
         if genfacets
             @printf "  %5d faces\n" nfaces
-        end
-        if genedges
             @printf "  %5d surface edges\n" nedges
         end
         icount = 0
@@ -961,17 +956,18 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false, quiet=f
     end
     vol_idxs = [ vol.id for vol in geo.volumes ]
 
-    # generate mesh
     gmsh.model.geo.synchronize()
-    gmsh.option.setNumber("Mesh.Algorithm", 5) # Delaunay
-
+    
     for l in geo.lines
         # transfinite
         if l.n>0
-            # @show l.n+1
             gmsh.model.mesh.set_transfinite_curve(l.id, l.n+1)
         end
     end
+    
+    # generate mesh
+    gmsh.model.geo.synchronize()
+    gmsh.option.setNumber("Mesh.Algorithm", 5) # Delaunay
 
     for s in geo.surfaces
         s.recombine && gmsh.model.mesh.set_recombine(2, s.id)
@@ -1072,6 +1068,11 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false, quiet=f
         tag = get(ptagdict, node.coord, "")
         tag != "" || continue
         node.tag = tag
+    end
+
+    # discretize insets
+    for inset in geo.insets
+        bi = BlockInset(  )
     end
 
     fixup!(mesh, reorder=true)

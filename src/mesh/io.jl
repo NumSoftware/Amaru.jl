@@ -639,7 +639,7 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
             # generate dict of faces
             facedict = Dict{UInt64, Cell}()
             for cell in mesh.elems
-                for face in getfaces(cell)
+                for face in getfacets(cell)
                     hs = hash(face)
                     #f  = get(facedict, hs, nothing)
                     facedict[hs] = face
