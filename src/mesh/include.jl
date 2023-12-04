@@ -1,4 +1,8 @@
+include("geo-entities.jl")
 include("geo-model.jl")
+
+include("path.jl")
+
 
 include("vtk.jl")
 include("quadrature.jl")
@@ -15,12 +19,12 @@ export Node, Cell, hash, get_x, get_y, get_z
 include("cell.jl")
 include("collapse.jl")
 
-export get_coords, get_node, getnodes, getfaces, get_patches, cell_extent, cell_quality, cell_aspect_ratio
+export get_coords, get_node, getnodes, getfacets, getfaces, getedges, get_patches, cell_extent, cell_quality, cell_aspect_ratio
 include("partition.jl")
 
 include("mesh.jl")
 include("io.jl")
-export Mesh, fixup!, quality!, reorder!, save, get_surface, get_neighbors, threshold, datafields
+export Mesh, fixup!, quality!, reorder!, save, get_outer_facets, get_neighbors, threshold, datafields
 
 include("block.jl")
 export Block, BlockTruss, BlockCoords, BlockCylinder, BlockGrid

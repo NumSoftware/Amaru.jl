@@ -360,7 +360,7 @@ function mountA(mesh::Mesh, fixed::Bool, conds, facetol)
     # get border faces
     ndim = mesh.env.ndim
     nnodes = length(mesh.nodes)
-    surf_cells = get_surface(mesh.elems)
+    surf_cells = get_outer_facets(mesh.elems)
     surf_nodes, surf_patches = get_patches(surf_cells)
     border_nodes = [ sNode(node, patch, nothing) for (node,patch) in zip(surf_nodes,surf_patches)]
 
@@ -721,7 +721,7 @@ function fast_smooth2!(mesh::Mesh; quiet=true, alpha::Float64=1.0, target::Float
     nodes, patches = get_patches(mesh)  # key nodes and corresponding patches
 
     # get a list of surface nodes (sNodes) that include a list of faces per node
-    surf_cells = get_surface(mesh.elems)
+    surf_cells = get_outer_facets(mesh.elems)
     surf_nodes, surf_patches = get_patches(surf_cells)
     border_nodes = [ sNode(node, patch, nothing) for (node,patch) in zip(surf_nodes,surf_patches)]
 
@@ -902,7 +902,7 @@ function fast_smooth!(mesh::Mesh; quiet=true, alpha::Float64=1.0, target::Float6
     nodes, patches = get_patches(mesh)  # key nodes and corresponding patches
 
     # get a list of surface nodes (sNodes) that include a list of faces per node
-    surf_cells = get_surface(mesh.elems)
+    surf_cells = get_outer_facets(mesh.elems)
     surf_nodes, surf_patches = get_patches(surf_cells)
     border_nodes = [ sNode(node, patch, nothing) for (node,patch) in zip(surf_nodes,surf_patches)]
 
@@ -1264,7 +1264,7 @@ function laplacian_smooth!(mesh::Mesh; maxit::Int64=20, quiet=true, fixed=false,
     end
 
     # get a list of surface nodes (sNodes) that include a list of faces per node
-    surf_cells = get_surface(mesh.elems)
+    surf_cells = get_outer_facets(mesh.elems)
     surf_nodes, surf_patches = get_patches(surf_cells)
     border_nodes = [ sNode(node, patch, nothing) for (node,patch) in zip(surf_nodes,surf_patches)]
 
