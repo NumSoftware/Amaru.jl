@@ -40,7 +40,7 @@ function get_outline_edges(cells::Array{<:AbstractCell,1}; angle=150)
             continue
         end
 
-        for face in getfaces(cell)
+        for face in getedges(cell)
             hs = hash(face)
             if haskey(faces_dict, hs)
                 delete!(faces_dict, hs)
