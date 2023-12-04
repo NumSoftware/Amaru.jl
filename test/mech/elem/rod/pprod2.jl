@@ -8,8 +8,8 @@ blt = BlockTruss(coord, conn)
 msh = Mesh(blt, silent=false)
 
 mats = [
-        MaterialBind(:all, PPRod << (E=210e6, A=0.01, sig_y=500e3)),
-        #MaterialBind(:all, PPRod << (E=210e6, A=0.01, sig_y=500e3, H=1000)),
+        MaterialBind(:all, PPRod => (E=210e6, A=0.01, sig_y=500e3)),
+        #MaterialBind(:all, PPRod => (E=210e6, A=0.01, sig_y=500e3, H=1000)),
        ]
 
 ana = MechAnalysis()

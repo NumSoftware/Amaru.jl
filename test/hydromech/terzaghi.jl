@@ -28,8 +28,8 @@ lapses = diff(times)
 t1     = lapses[1]/10
 
 materials = [
-    # "solids" << HMSolid << LinearElasticSeep << (E=E, nu=nu, k=k)
-    "solids" << HMSolid << HMCombined{ConstPermeability,LinearElastic} << (E=E, nu=nu, k=k)
+    # "solids" => HMSolid => LinearElasticSeep => (E=E, nu=nu, k=k)
+    "solids" => HMSolid => HMCombined{ConstPermeability,LinearElastic} => (E=E, nu=nu, k=k)
 ]
 
 ana = HydromechAnalysis(gammaw=gw)
@@ -37,7 +37,7 @@ model = FEModel(msh, materials, ana)
 
 log1 = NodeGroupLogger()
 loggers = [
-    :(x==0 && y==0) << log1
+    :(x==0 && y==0) => log1
 ]
 setloggers!(model, loggers)
 
@@ -47,9 +47,9 @@ setloggers!(model, loggers)
 
 tlong = 10000*hd^2/cv
 bcs = [
-    :(z==0)  << NodeBC(ux=0, uy=0, uz=0),
-    :(x>=0)  << NodeBC(ux=0, uy=0),
-    :(z==10) << NodeBC(uw=0.),
+    :(z==0)  => NodeBC(ux=0, uy=0, uz=0),
+    :(x>=0)  => NodeBC(ux=0, uy=0),
+    :(z==10) => NodeBC(uw=0.),
 ]
 addstage!(model, bcs, tspan=tlong, nincs=2, nouts=1)
 solve!(model, tol=1e-2)
@@ -57,20 +57,20 @@ model.env.t = 0.0
 
 # Stage 2: loading
 bcs = [
-    :(z==0)  << NodeBC(ux=0, uy=0, uz=0),
-    :(x>=0)  << NodeBC(ux=0, uy=0),
-    :(z==10) << SurfaceBC(tz=-load),
-    :(z==10) << NodeBC(uw=0.),
+    :(z==0)  => NodeBC(ux=0, uy=0, uz=0),
+    :(x>=0)  => NodeBC(ux=0, uy=0),
+    :(z==10) => SurfaceBC(tz=-load),
+    :(z==10) => NodeBC(uw=0.),
 ]
 addstage!(model, bcs, tspan=t1, nincs=4, nouts=1)
 solve!(model, tol=1e-2)
 
 # Stage 3: draining
 bcs = [
-    :(z==0)  << NodeBC(ux=0, uy=0, uz=0),
-    :(x>=0)  << NodeBC(ux=0, uy=0),
-    :(z==10) << SurfaceBC(tz=-load),
-    :(z==10) << NodeBC(uw=0.),
+    :(z==0)  => NodeBC(ux=0, uy=0, uz=0),
+    :(x>=0)  => NodeBC(ux=0, uy=0),
+    :(z==10) => SurfaceBC(tz=-load),
+    :(z==10) => NodeBC(uw=0.),
 ]
 
 Uw_vals = [] # A list with porepressure vectors

@@ -13,17 +13,17 @@ k = 50.2  # thermal conductivity W/m/K
 rho = 7.8   # densidade ton/m3
 cv = 486e3  # specific heat (capacity) J/ton/K
 
-materials = ["solids" << ThermoSolid << ConstConductivity << (k = k, rho = rho, cv = cv)]
+materials = ["solids" => ThermoSolid => ConstConductivity => (k = k, rho = rho, cv = cv)]
 model = FEModel(msh, materials)
 
 log1 = NodeGroupLogger()
-loggers = [:(y == 1) << log1]
+loggers = [:(y == 1) => log1]
 setloggers!(model, loggers)
 
 
-bcs = [:(x == 0) << NodeBC(ut = 10.0),
+bcs = [:(x == 0) => NodeBC(ut = 10.0),
 
-        :(y == 2) << NodeBC(ut = 20.0)
+        :(y == 2) => NodeBC(ut = 20.0)
 
         ]
 

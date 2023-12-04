@@ -21,7 +21,7 @@ E = 200e6 # kN/m2
 nu = 0.3
 alpha = 5e-5 #  thermal expansion coefficient  1/K or 1/°C
 
-materials = ["solids" << LinearElasticThermo(
+materials = ["solids" => LinearElasticThermo(
     E = E,
     nu = nu,
     k = k,
@@ -33,16 +33,16 @@ materials = ["solids" << LinearElasticThermo(
 model = FEModel(msh, materials)
 
 log1 = NodeGroupLogger()
-loggers = [:(x == 0.25) << log1]
+loggers = [:(x == 0.25) => log1]
 setloggers!(model, loggers)
 
 
 bcs = [
-     :(x == 0) <<  NodeBC(k = 0),
-     :(x == 0.5) <<  NodeBC(k = 0),
-     :(y == 0) <<  NodeBC(k = 0),
-     :(y == 0) << NodeBC(ux = 0, uy =0),
-     :(y == 1) << SurfaceBC(ut = 100),
+     :(x == 0) =>  NodeBC(k = 0),
+     :(x == 0.5) =>  NodeBC(k = 0),
+     :(y == 0) =>  NodeBC(k = 0),
+     :(y == 0) => NodeBC(ux = 0, uy =0),
+     :(y == 1) => SurfaceBC(ut = 100),
 ]
 
 tm_solve!(

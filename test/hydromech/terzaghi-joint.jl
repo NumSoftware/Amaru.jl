@@ -39,14 +39,14 @@ S = (alpha - n)/Ks + n/Kw
 
 for i in 1:2
     materials = [
-        # "solids" << HMSolid << LinearElasticSeep << (E=E, nu=nu, k=k, alpha=alpha, S=S),
-        "solids" << HMSolid << HMCombined{ConstPermeability,LinearElastic} << (E=E, nu=nu, k=k, alpha=alpha, S=S),
+        # "solids" => HMSolid => LinearElasticSeep => (E=E, nu=nu, k=k, alpha=alpha, S=S),
+        "solids" => HMSolid => HMCombined{ConstPermeability,LinearElastic} => (E=E, nu=nu, k=k, alpha=alpha, S=S),
 
-        "joints" << HMJoint << ElasticJointSeep << (E=E, nu=nu, zeta=100, eta=eta, kt=1),
-        # "joints" << HMJoint << HMCombined{LeakoffJoint,ElasticJoint} << (E=E, nu=nu, zeta=100, eta=eta, kt=1),
+        "joints" => HMJoint => ElasticJointSeep => (E=E, nu=nu, zeta=100, eta=eta, kt=1),
+        # "joints" => HMJoint => HMCombined{LeakoffJoint,ElasticJoint} => (E=E, nu=nu, zeta=100, eta=eta, kt=1),
 
-        "joints" << HMJoint << MCJointSeep << (E=E, nu=nu, ft=2.4e3, mu=1.4, zeta=100, wc=1.7e-4, ws=1.85e-5, softcurve="hordijk", eta=eta, kt=1),
-        # "joints" << HMJoint << HMCombined{LeakoffJoint,MCJoint} << (E=E, nu=nu, ft=2.4e3, mu=1.4, zeta=100, wc=1.7e-4, ws=1.85e-5, eta=eta, kt=1),
+        "joints" => HMJoint => MCJointSeep => (E=E, nu=nu, ft=2.4e3, mu=1.4, zeta=100, wc=1.7e-4, ws=1.85e-5, softcurve="hordijk", eta=eta, kt=1),
+        # "joints" => HMJoint => HMCombined{LeakoffJoint,MCJoint} => (E=E, nu=nu, ft=2.4e3, mu=1.4, zeta=100, wc=1.7e-4, ws=1.85e-5, eta=eta, kt=1),
     ]
 
     if i==1
@@ -60,7 +60,7 @@ for i in 1:2
 
     log1 = NodeGroupLogger()
     loggers = [
-        :(x==0) << log1
+        :(x==0) => log1
     ]
     setloggers!(model, loggers)
 
@@ -70,9 +70,9 @@ for i in 1:2
 
     tlong = 10000*hd^2/cv
     bcs = [
-        :(y==0)  << NodeBC(ux=0, uy=0),
-        :(x>=0)  << NodeBC(ux=0),
-        :(y==10) << NodeBC(uw=0),
+        :(y==0)  => NodeBC(ux=0, uy=0),
+        :(x>=0)  => NodeBC(ux=0),
+        :(y==10) => NodeBC(uw=0),
     ]
     addstage!(model, bcs, tspan=tlong, nincs=2, nouts=1)
     solve!(model, tol=1e-2)
@@ -80,20 +80,20 @@ for i in 1:2
 
     # Stage 2: loading
     bcs = [
-        :(y==0)  << NodeBC(ux=0., uy=0.),
-        :(x>=0)  << NodeBC(ux=0.),
-        :(y==10) << SurfaceBC(ty=-load),
-        :(y==10) << NodeBC(uw=0.),
+        :(y==0)  => NodeBC(ux=0., uy=0.),
+        :(x>=0)  => NodeBC(ux=0.),
+        :(y==10) => SurfaceBC(ty=-load),
+        :(y==10) => NodeBC(uw=0.),
     ]
     addstage!(model, bcs, tspan=t1, nincs=4, nouts=1)
     solve!(model, tol=1e-2)
 
     # Stage 3: draining
     bcs = [
-        :(y==0)  << NodeBC(ux=0., uy=0.),
-        :(x>=0)  << NodeBC(ux=0.),
-        :(y==10) << SurfaceBC(ty=-load),
-        :(y==10) << NodeBC(uw=0.),
+        :(y==0)  => NodeBC(ux=0., uy=0.),
+        :(x>=0)  => NodeBC(ux=0.),
+        :(y==10) => SurfaceBC(ty=-load),
+        :(y==10) => NodeBC(uw=0.),
     ]
 
     Uw_vals = [] # A list with porepressure vectors

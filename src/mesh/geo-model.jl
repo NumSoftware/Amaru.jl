@@ -10,7 +10,7 @@ mutable struct GeoModel
     _id::Int
 
     function GeoModel()
-        return new( [], [], [], [], [], [], 0 )
+        return new( [], [], [], [], [], 0 )
     end
 end
 

@@ -26,16 +26,16 @@ tag!(msh.elems[BULKCELL, :(x>=0.075)].nodes, "right")
 E = 27.e6
 
 allmats = [
-    :bulks << MechSolid << LinearElastic << (E=E, nu=0.2),
-    # :joints << MCJoint << (E=E, nu=0.2, ft=2.4e3, mu=1.4, zeta=5.0, wc=1.7e-4, ws=1.85e-5, softcurve="hordijk" ),
-    # :joints << MCJoint << (E=E, nu=0.2, ft=2.4e3, mu=1.4, zeta=5.0, wc=1.7e-4, ws=1.85e-5, softcurve="soft" ),
+    :bulks => MechSolid => LinearElastic => (E=E, nu=0.2),
+    # :joints => MCJoint => (E=E, nu=0.2, ft=2.4e3, mu=1.4, zeta=5.0, wc=1.7e-4, ws=1.85e-5, softcurve="hordijk" ),
+    # :joints => MCJoint => (E=E, nu=0.2, ft=2.4e3, mu=1.4, zeta=5.0, wc=1.7e-4, ws=1.85e-5, softcurve="soft" ),
 
-    :joints << MechJoint << TCJoint << (E=E, nu=0.2, fc=-24e3, ft=2.4e3, zeta=5.0, wc=1.7e-4, alpha=1.5, gamma=0.1, theta=1.5, softcurve="hordijk" ),
-    # :joints << TCJoint << (E=E, nu=0.2, fc=-24e3, ft=2.4e3, zeta=5.0, wc=1.7e-4, alpha=1.5, gamma=0.1, theta=1.5, softcurve="soft" ),
+    :joints => MechJoint => TCJoint => (E=E, nu=0.2, fc=-24e3, ft=2.4e3, zeta=5.0, wc=1.7e-4, alpha=1.5, gamma=0.1, theta=1.5, softcurve="hordijk" ),
+    # :joints => TCJoint => (E=E, nu=0.2, fc=-24e3, ft=2.4e3, zeta=5.0, wc=1.7e-4, alpha=1.5, gamma=0.1, theta=1.5, softcurve="soft" ),
 
-    :joints << MechJoint << TCFJoint << (E=E, nu=0.2, fc=-24e3, ft=2.4e3, zeta=5.0, wc=1.7e-4, alpha=0.3, mu=0.1, softcurve="hordijk" ),
-    # :joints << TCFJoint << (E=E, nu=0.2, fc=-24e3, ft=2.4e3, zeta=5.0, wc=1.7e-4, alpha=0.3, mu=0.1, softcurve="soft" ),
-    # :joints << ElasticJoint << (E=E, nu=0.2, zeta=5.0)
+    :joints => MechJoint => TCFJoint => (E=E, nu=0.2, fc=-24e3, ft=2.4e3, zeta=5.0, wc=1.7e-4, alpha=0.3, mu=0.1, softcurve="hordijk" ),
+    # :joints => TCFJoint => (E=E, nu=0.2, fc=-24e3, ft=2.4e3, zeta=5.0, wc=1.7e-4, alpha=0.3, mu=0.1, softcurve="soft" ),
+    # :joints => ElasticJoint => (E=E, nu=0.2, zeta=5.0)
 ]
 
 for i in (2,3)
@@ -49,21 +49,21 @@ for i in (2,3)
     tag!(model.elems["joints"].ips, "jips")
     log1 = IpLogger()
     loggers = [
-               "jips" << log1
+               "jips" => log1
               ]
     setloggers!(model, loggers)
 
     # Boundary conditions
     bcs = [
-        "left" << NodeBC(ux=0, uy=0),
+        "left" => NodeBC(ux=0, uy=0),
         
-        # "right" << NodeBC(ux=-2e-5, uy=2e-4),
-        # "right" << NodeBC(ux=2e-5, uy=1e-5),
-        "right" << NodeBC(ux=1e-4, uy=3e-4),
+        # "right" => NodeBC(ux=-2e-5, uy=2e-4),
+        # "right" => NodeBC(ux=2e-5, uy=1e-5),
+        "right" => NodeBC(ux=1e-4, uy=3e-4),
 
-        # "right" << NodeBC(ux=2e-4),
-        # "right" << NodeBC(ux=-5e-5),
-        # "right" << NodeBC(uy=2e-4),
+        # "right" => NodeBC(ux=2e-4),
+        # "right" => NodeBC(ux=-5e-5),
+        # "right" => NodeBC(uy=2e-4),
     ]
     addstage!(model, bcs, nincs=10, nouts=20)
     # @test solve!(model, autoinc=true, maxits=3, tol=0.01, scheme="Ralston").success

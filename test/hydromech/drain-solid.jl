@@ -22,9 +22,9 @@ p = 2*pi*(A/pi)^0.5
 # FEM analysis
 
 mats = [
-    "solids" << SeepSolid << ConstPermeability << (k=k, S=0.0),
-    "joints" << SeepJoint1D << Joint1DConstPermeability << (k=kj, p=p),
-    "drains" << DrainPipe << LinDrainPipe << (k=kb, A=A),
+    "solids" => SeepSolid => ConstPermeability => (k=k, S=0.0),
+    "joints" => SeepJoint1D => Joint1DConstPermeability => (k=kj, p=p),
+    "drains" => DrainPipe => LinDrainPipe => (k=kb, A=A),
 ]
 
 ana = HydroAnalysis(gammaw=10)
@@ -32,7 +32,7 @@ model = FEModel(mesh, mats, ana)
 
 # Stage 1: pore-pressure stabilization
 bcs = [
-       :(z==3.0) << NodeBC(uw=0),
+       :(z==3.0) => NodeBC(uw=0),
       ]
 addstage!(model, bcs, tspan=100)
 solve!(model, tol=1e-2)
@@ -44,11 +44,11 @@ tag!(model.elems.lines.nodes[:(x==1.5 && y==1.5 && z==3.0)], "input")
 
 # Stage 2: volume application
 bcs = [
-       :(x==0.0 && y==1.5 && z==0.0) << NodeBC(uw=0),
-       :(x==3.0 && y==1.5 && z==0.0) << NodeBC(uw=0),
-       :(x==1.5 && y==0.0 && z==0.0) << NodeBC(uw=0),
-       :(x==1.5 && y==3.0 && z==0.0) << NodeBC(uw=0),
-       "input" << NodeBC(fw=Q),
+       :(x==0.0 && y==1.5 && z==0.0) => NodeBC(uw=0),
+       :(x==3.0 && y==1.5 && z==0.0) => NodeBC(uw=0),
+       :(x==1.5 && y==0.0 && z==0.0) => NodeBC(uw=0),
+       :(x==1.5 && y==3.0 && z==0.0) => NodeBC(uw=0),
+       "input" => NodeBC(fw=Q),
       ]
 addstage!(model, bcs, tspan=100)
 solve!(model, tol=1e-2)

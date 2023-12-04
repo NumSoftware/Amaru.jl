@@ -1070,11 +1070,6 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false, quiet=f
         node.tag = tag
     end
 
-    # discretize insets
-    for inset in geo.insets
-        bi = BlockInset(  )
-    end
-
     fixup!(mesh, reorder=true)
 
     if !quiet

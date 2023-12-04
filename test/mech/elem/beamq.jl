@@ -13,15 +13,15 @@ msh = Mesh(coord, conn, tag="beam")
 
 # Finite element model
 
-mats = [ "beam" << MechBeam(thickness=0.1) << ElasticBeam << (E=10, A=1, I=1) ]
+mats = [ "beam" => MechBeam(thickness=0.1) => ElasticBeam => (E=10, A=1, I=1) ]
 
 bcs =
     [
-     :(x==0 && y==0) << NodeBC(ux=0, uy=0),
-     :(x==2 && y==0) << NodeBC(ux=0, uy=0),
-     2 << NodeBC(mz=1.),
-     2 << NodeBC(fy=-1.),
-     2 << BodyC(ty=-12.),
+     :(x==0 && y==0) => NodeBC(ux=0, uy=0),
+     :(x==2 && y==0) => NodeBC(ux=0, uy=0),
+     2 => NodeBC(mz=1.),
+     2 => NodeBC(fy=-1.),
+     2 => BodyC(ty=-12.),
     ]
 
 #bc3 = BodyC( model.elems, gz=-25 )

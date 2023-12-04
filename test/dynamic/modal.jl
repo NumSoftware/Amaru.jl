@@ -17,14 +17,14 @@ mesh = Mesh(geo)
 # mplot(mesh, "mesh.pdf")
 
 
-mats = [ :bulks << MechSolid << LinearElastic << (E=2e6, nu=0.2, rho=15.0) ]
+mats = [ :bulks => MechSolid => LinearElastic => (E=2e6, nu=0.2, rho=15.0) ]
 
 ana = ModalAnalysis()
 
 model = Model(mesh, mats, ana)
 
 bcs = [
-    :(y==0.0) << NodeBC(ux=0, uy=0)
+    :(y==0.0) => NodeBC(ux=0, uy=0)
 ]
 
 addstage!(model, bcs)

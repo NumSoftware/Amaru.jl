@@ -13,20 +13,20 @@ mesh = Mesh(bls)
 # FEM analysis
 
 mats = [
-    "solids" << MechSolid << LinearElastic << (E=1.e4, nu=0.),
-    "joints" << MechRSJoint << ElasticRSJoint << (ks=1.e5, kn=1.e5, p=0.25), 
-    "bars"   << MechBar << LinearElastic << (E=1.e8, A=0.005),
+    "solids" => MechSolid => LinearElastic => (E=1.e4, nu=0.),
+    "joints" => MechRSJoint => ElasticRSJoint => (ks=1.e5, kn=1.e5, p=0.25), 
+    "bars"   => MechBar => LinearElastic => (E=1.e8, A=0.005),
 ]
 
 ana = MechAnalysis()
 model = FEModel(mesh, mats, ana)
 
 bcs = [
-       :(y==0 && z==0) << NodeBC(uy=0, uz=0),
-       :(y==6 && z==0) << NodeBC(uz=0),
-       :(z==1) << SurfaceBC(tz=-1000 ),
+       :(y==0 && z==0) => NodeBC(uy=0, uz=0),
+       :(y==6 && z==0) => NodeBC(uz=0),
+       :(z==1) => SurfaceBC(tz=-1000 ),
       ]
 
-addlogger!(model, :(x==0.5 && y==3.0 && z==0.5) << NodeLogger() )
+addlogger!(model, :(x==0.5 && y==3.0 && z==0.5) => NodeLogger() )
 addstage!(model, bcs, nincs=20)
 @test solve!(model).success

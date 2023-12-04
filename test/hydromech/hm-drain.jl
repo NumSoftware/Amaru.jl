@@ -21,9 +21,9 @@ Q  = 1       # volume em metro cubico
 # FEM analysis
 
 mats = [
-    "solids" << HMSolid << LinearElasticSeep << (E=E, nu=nu, k=k, alpha=1.0, S=0.0),
-    "joints" << SeepJoint1D << Joint1DConstPermeability << (k=kj, p=p),
-    "drains" << DrainPipe << LinDrainPipe << (k=kb, A=A),
+    "solids" => HMSolid => LinearElasticSeep => (E=E, nu=nu, k=k, alpha=1.0, S=0.0),
+    "joints" => SeepJoint1D => Joint1DConstPermeability => (k=kj, p=p),
+    "drains" => DrainPipe => LinDrainPipe => (k=kb, A=A),
 ]
 
 ana = HydromechAnalysis(gammaw=10)
@@ -33,8 +33,8 @@ changequadrature!(model.elems.lines, 3)
 
 # Stage 1: pore-pressure stabilization
 bcs = [
-       :(y==0.0) << NodeBC(ux=0,uy=0),
-       :(y==2.0) << NodeBC(uw=0),
+       :(y==0.0) => NodeBC(ux=0,uy=0),
+       :(y==2.0) => NodeBC(uw=0),
       ]
 addstage!(model, bcs, tspan=100, nincs=2, nouts=2)
 solve!(model, tol=1e-2)
@@ -43,9 +43,9 @@ model.env.t = 0.0
 
 # Stage 2: volume application
 bcs = [
-       :(y==0.0) << NodeBC(ux=0,uy=0),
-       :(x==0.0 && y==0.0) << NodeBC(uw=0),
-       :(x==1.5 && y==2.0) << NodeBC(fw=Q),
+       :(y==0.0) => NodeBC(ux=0,uy=0),
+       :(x==0.0 && y==0.0) => NodeBC(uw=0),
+       :(x==1.5 && y==2.0) => NodeBC(fw=Q),
       ]
 
 addstage!(model, bcs, tspan=600, nincs=2, nouts=2)

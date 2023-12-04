@@ -10,17 +10,17 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
     mesh = Mesh(bl)
 
     materials = [
-        "solids" << MechSolid << LinearElastic << (E=100.0, nu=0.2)
+        "solids" => MechSolid => LinearElastic => (E=100.0, nu=0.2)
     ]
 
     ana = MechAnalysis(stressmodel="axisymmetric")
     model = FEModel(mesh, materials, ana)
 
     bcs = [
-           :(x==0) << SurfaceBC(ux=0),
-           :(y==0) << SurfaceBC(uy=0),
-           :(y==1) << SurfaceBC(ty=-10),
-           #"solids" << SurfaceBC(ty=-10),
+           :(x==0) => SurfaceBC(ux=0),
+           :(y==0) => SurfaceBC(uy=0),
+           :(y==1) => SurfaceBC(ty=-10),
+           #"solids" => SurfaceBC(ty=-10),
     ]
 
     addstage!(model, bcs)
@@ -40,9 +40,9 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
     model = FEModel(mesh, materials, ana)
 
     bcs = [
-           :(x==0 && y==0) << NodeBC(ux=0, uy=0),
-           :(y==0) << SurfaceBC(uy=0),
-           :(y==1) << SurfaceBC(ty=-10),
+           :(x==0 && y==0) => NodeBC(ux=0, uy=0),
+           :(y==0) => SurfaceBC(uy=0),
+           :(y==1) => SurfaceBC(ty=-10),
     ]
 
     addstage!(model, bcs)

@@ -4,20 +4,20 @@ using Amaru
 bl  = Block( [0 0; 1 1], nx=4, ny=4, cellshape=QUAD9, tag="solids")
 msh = Mesh(bl)
 
-mats = [ "solids" << MechSolid << LinearElastic << (E=100.0, nu=0.2) ]
+mats = [ "solids" => MechSolid => LinearElastic => (E=100.0, nu=0.2) ]
 ana = MechAnalysis()
 model = FEModel(msh, mats, ana)
 
 loggers = [
-        :(x==1 && y==1) << NodeLogger("node.dat"),
-        :(y==1)         << NodeGroupLogger("nodes.dat"),
+        :(x==1 && y==1) => NodeLogger("node.dat"),
+        :(y==1)         => NodeGroupLogger("nodes.dat"),
        ]
 setloggers!(model, loggers)
 
 
 bcs = [
-        :(y==0) << NodeBC(ux=0, uy=0),
-        :(y==1) << SurfaceBC(ty=2),
+        :(y==0) => NodeBC(ux=0, uy=0),
+        :(y==1) => SurfaceBC(ty=2),
       ]
 
 addstage!(model, bcs, nincs=3)

@@ -22,7 +22,7 @@ tag!(mesh.elems.solids, "solids")
 
 # FEM analysis
 mats = [
-    "solids" << SeepSolid << ConstPermeability << (k=k, S=0.0),
+    "solids" => SeepSolid => ConstPermeability => (k=k, S=0.0),
 ]
 
 ana = HydroAnalysis(gammaw=gw)
@@ -31,8 +31,8 @@ model = FEModel(mesh, mats, ana)
 
 # Boundary conditions
 bcs = [
-       :(x<=$Lrock/2 && y==$Hrock) << SurfaceBC(uw=10*gw),
-       :(x>=$Lrock/2 && y==$Hrock) << SurfaceBC(uw=0),
+       :(x<=$Lrock/2 && y==$Hrock) => SurfaceBC(uw=10*gw),
+       :(x>=$Lrock/2 && y==$Hrock) => SurfaceBC(uw=0),
       ]
 addstage!(model, bcs, tspan=1, nincs=2, nouts=1)
 

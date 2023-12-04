@@ -29,9 +29,9 @@ th    = 0.1
 #     10  1.25e-5
 # ]
 
-# materials = ["shell"<< TMShell << ElasticShellThermo << (E=E, nu=nu, k=k, alpha=alpha, thickness=th, rho=rho, cv=cv) ]
-materials = ["shell"<< TMShell << TMCombined{ConstConductivity, LinearElastic} << (E=E, nu=nu, k=k, alpha=alpha, thickness=th, rho=rho, cv=cv) ]
-# materials = ["shell"<< TMShell << TMCombined{ConstConductivity, VonMises} << (E=E, nu=nu, k=k, alpha=alpha, thickness=th, rho=rho, cv=cv, H=0.0, fy=100000.0) ]
+# materials = ["shell"=> TMShell => ElasticShellThermo => (E=E, nu=nu, k=k, alpha=alpha, thickness=th, rho=rho, cv=cv) ]
+materials = ["shell"=> TMShell => TMCombined{ConstConductivity, LinearElastic} => (E=E, nu=nu, k=k, alpha=alpha, thickness=th, rho=rho, cv=cv) ]
+# materials = ["shell"=> TMShell => TMCombined{ConstConductivity, VonMises} => (E=E, nu=nu, k=k, alpha=alpha, thickness=th, rho=rho, cv=cv, H=0.0, fy=100000.0) ]
 
 ana = ThermomechAnalysis(T0=0.0)
 model = FEModel(mesh, materials, ana)

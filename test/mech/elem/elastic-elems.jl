@@ -11,7 +11,7 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8, QUAD9)
     tag!(mesh.faces[:(y==1)], "top") # top face
 
     materials = [
-        "solids" << MechSolid << LinearElastic << (E=100.0, nu=0.2)
+        "solids" => MechSolid => LinearElastic => (E=100.0, nu=0.2)
     ]
 
     ana = MechAnalysis()
@@ -19,8 +19,8 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8, QUAD9)
 
 
     bcs = [
-        "bottom" << SurfaceBC(ux=0, uy=0),
-        "top"    << SurfaceBC(ty=-10.)
+        "bottom" => SurfaceBC(ux=0, uy=0),
+        "top"    => SurfaceBC(ty=-10.)
     ]
     addstage!(model, bcs)
     solve!(model).success
@@ -44,15 +44,15 @@ for shape in (TET4, TET10, HEX8, HEX20, HEX27)
     tag!(mesh.faces[:(x==0 || x==1)], "sides") # lateral face
 
     materials = [
-        "solids" << MechSolid << LinearElastic << (E=100.0, nu=0.2)
+        "solids" => MechSolid => LinearElastic => (E=100.0, nu=0.2)
     ]
 
     ana = MechAnalysis()
     model = FEModel(mesh, materials, ana)
     bcs = [
-        "bottom" << SurfaceBC(ux=0, uy=0, uz=0),
-        "sides"  << SurfaceBC(ux=0),
-        "top"    << SurfaceBC(tz=-10.)
+        "bottom" => SurfaceBC(ux=0, uy=0, uz=0),
+        "sides"  => SurfaceBC(ux=0),
+        "top"    => SurfaceBC(tz=-10.)
     ]
     addstage!(model, bcs)
     solve!(model).success
