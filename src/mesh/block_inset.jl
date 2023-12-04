@@ -77,8 +77,8 @@ mutable struct BlockInset <: AbstractBlock
     end
 end
 
-const LineInset = BlockInset
-export LineInset
+const PathInset = BlockInset
+export PathInset
 
 
 function Base.copy(bl::BlockInset; dx=0.0, dy=0.0, dz=0.0)
