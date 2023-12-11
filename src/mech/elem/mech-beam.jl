@@ -360,7 +360,7 @@ function update_elem!(elem::MechBeam, U::Array{Float64,1}, dt::Float64)
         dx′dξ = norm(J1D)
         dNdX′ = dNdR*inv(dx′dξ)
         setB(elem, ip, L, N, dNdX′, Rθ, Bil, Bi, B)
-        Δε = collect(S*B*dU)
+        Δε = collect(B*dU)
         Δσ, status = update_state!(elem.mat, ip.state, Δε)
         failed(status) && return dF, map, status
         
@@ -370,7 +370,7 @@ function update_elem!(elem::MechBeam, U::Array{Float64,1}, dt::Float64)
             detJ′ = dx′dξ*thz/2*thy/2
         end
         coef = detJ′*ip.w
-        dF += coef*B'*Δσ
+        dF += coef*B'*S*Δσ
     end
 
     return dF, map, success()

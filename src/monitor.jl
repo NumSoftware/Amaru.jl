@@ -18,7 +18,7 @@ mutable struct IpMonitor<:AbstractMonitor
     expr     ::Union{Symbol,Expr}
     val      ::Number
     filename ::String
-    filter   ::Union{Int,Symbol,String,Expr}
+    filter   ::Union{Int,Symbol,String,Expr,Symbolic}
     table    ::DataTable
     ip       ::Ip
 
@@ -98,7 +98,7 @@ mutable struct NodeMonitor<:AbstractMonitor
     expr     ::Union{Symbol,Expr}
     vals     ::OrderedDict # stores current values
     filename ::String
-    filter   ::Union{Int,Symbol,String,Expr}
+    filter   ::Union{Int,Symbol,String,Expr,Symbolic}
     table    ::DataTable
     node     ::Node
 
@@ -199,7 +199,7 @@ mutable struct IpGroupMonitor<:AbstractMonitor
     expr    ::Expr
     vals    ::OrderedDict
     filename::String
-    filter  ::Union{Symbol,String,Expr}
+    filter  ::Union{Symbol,String,Expr,Symbolic}
     table   ::DataTable
     ips     ::Array{Ip,1}
 
@@ -269,7 +269,7 @@ mutable struct NodeSumMonitor<:AbstractMonitor
     expr     ::Union{Symbol,Expr}
     vals     ::OrderedDict # stores current values
     filename ::String
-    filter   ::Union{Symbol,String,Expr}
+    filter   ::Union{Symbol,String,Expr,Symbolic}
     table    ::DataTable
     nodes    ::Array{Node,1}
     stopexpr ::Expr

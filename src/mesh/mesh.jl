@@ -69,9 +69,7 @@ function Base.copy(mesh::AbstractDomain)
         push!(newmesh.elems, newelem)
     end
 
-    mesh.faces = get_outer_facets(mesh.elems)
-    ndim==2 && (mesh.edges=mesh.faces)
-    ndim==3 && (mesh.edges=getedges(mesh.faces))
+    compute_facets!(newmesh)
     
     newmesh._pointdict = Dict( hash(node) => node for node in newmesh.nodes )
     newmesh.node_data = copy(mesh.node_data)
@@ -306,8 +304,7 @@ end
 
 
 # Updates numbering, faces and edges in a Mesh object
-function fixup!(mesh::Mesh; quiet=true, genfacets=true, reorder=false, renumber=true)
-
+function fixup!(mesh::Mesh; genfacets=true, reorder=false)
     @assert mesh.env.ndim!=0
 
     # Numberig nodes
@@ -323,7 +320,6 @@ function fixup!(mesh::Mesh; quiet=true, genfacets=true, reorder=false, renumber=
 
     # Faces and edges
     if genfacets
-        quiet || print("  finding facets...   \r")
         if mesh.env.ndim==2
             mesh.edges = get_outer_facets(mesh.elems)
             mesh.faces = mesh.edges
@@ -361,6 +357,64 @@ function fixup!(mesh::Mesh; quiet=true, genfacets=true, reorder=false, renumber=
 
     return nothing
 end
+
+function compute_facets!(mesh::Mesh)
+    if mesh.env.ndim==2
+        mesh.edges = get_outer_facets(mesh.elems)
+        mesh.faces = mesh.edges
+    elseif mesh.env.ndim==3
+        solids = [ elem for elem in mesh.elems if elem.shape.ndim==3 ]
+        mesh.faces = [ get_outer_facets(solids); [ elem for elem in mesh.elems if elem.shape.ndim==2 ] ]
+        mesh.edges = getedges(mesh.faces)
+    end
+end
+
+function syncronize!(mesh::Mesh; reorder=false, cleandata=false)
+    @assert mesh.env.ndim!=0
+
+    # Numberig nodes
+    for (i,p) in enumerate(mesh.nodes) 
+        p.id = i 
+    end
+
+    # Numberig cells and setting env
+    for (i,elem) in enumerate(mesh.elems)
+        elem.id = i
+        elem.env = mesh.env
+    end
+
+    # Faces and edges
+    compute_facets!(mesh)
+
+    # Quality
+    Q = Float64[]
+    for c in mesh.elems
+        c.quality = cell_quality(c)
+        push!(Q, c.quality)
+    end
+
+    # Ordering
+    reorder && reorder!(mesh)
+
+    # update data
+    if cleandata
+        empty!(mesh.node_data)
+        empty!(mesh.elem_data)
+    end
+
+    # tag
+    tags = sort(unique([elem.tag for elem in mesh.elems]))
+    tag_dict = Dict( tag=>i-1 for (i,tag) in enumerate(tags) )
+    
+    T = [ tag_dict[elem.tag] for elem in mesh.elems ] 
+    mesh.node_data["node-id"]   = collect(1:length(mesh.nodes))
+    mesh.elem_data["quality"]   = Q
+    mesh.elem_data["elem-id"]   = collect(1:length(mesh.elems))
+    mesh.elem_data["cell-type"] = [ Int(cell.shape.vtk_type) for cell in mesh.elems ]
+    mesh.elem_data["tag"] = T
+end
+
+
 
 # Mesh quality
 function quality!(mesh::Mesh)
@@ -637,7 +691,7 @@ function Mesh(
     end
 
     # Updates numbering, quality, facets and edges
-    fixup!(mesh, quiet=quiet, genfacets=genfacets, reorder=reorder)
+    fixup!(mesh, genfacets=genfacets, reorder=reorder)
 
     if !quiet
         npoints = length(mesh.nodes)
@@ -874,7 +928,8 @@ function randmesh(n::Int...; cellshape=nothing)
 end
 
 
-function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false, quiet=false)
+function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false, quiet=false, algorithm::Symbol=:delaunay)
+
     if !quiet
         printstyled("Unstructured mesh generation:\n", bold=true, color=:cyan)
         nsurfs = length(geo.surfaces)
@@ -956,7 +1011,7 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false, quiet=f
     end
     vol_idxs = [ vol.id for vol in geo.volumes ]
 
-    gmsh.model.geo.synchronize()
+    gmsh.model.geo.synchronize() # only after geometry entities are defined
     
     for l in geo.lines
         # transfinite
@@ -966,8 +1021,13 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false, quiet=f
     end
     
     # generate mesh
-    gmsh.model.geo.synchronize()
-    gmsh.option.setNumber("Mesh.Algorithm", 5) # Delaunay
+    if algorithm==:delaunay
+        gmsh.option.setNumber("Mesh.Algorithm", 5)
+    elseif algorithm==:frontal
+        gmsh.option.setNumber("Mesh.Algorithm", 6)
+    else
+        error("Mesh: Wrong algorithm")
+    end
 
     for s in geo.surfaces
         s.recombine && gmsh.model.mesh.set_recombine(2, s.id)
@@ -1016,8 +1076,6 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false, quiet=f
 
     end
 
-    gmsh.model.geo.synchronize()
-    
     tempfile = "_temp.vtk"
     logfile = "_gmsh.log"
     try

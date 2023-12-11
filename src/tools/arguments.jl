@@ -110,31 +110,38 @@ end
 
 
 function checkargs(args, args_params::AbstractArray; aliens=true)
+    Infos = ArgInfo[ arg for arg in args_params if arg isa ArgInfo ]
+    Conds = ArgCond[ arg for arg in args_params if arg isa ArgCond ]
+    Opts  = ArgOpt[ arg for arg in args_params if arg isa ArgOpt ]
+
     # Get function caller
-    st = stacktrace(backtrace())
-    fname = :_
-    for frame in st
-        if !startswith(string(frame.func), "_") && !contains(string(frame.func), "checkargs")
-            fname = frame.func
-            break
+    
+    function funcname()
+        st = stacktrace(backtrace())
+        name = :_
+        for frame in st
+            str = string(frame.func)
+            if !startswith(str, "_") && !contains(str, "checkargs")
+                name = frame.func
+                break
+            end
         end
+        return name
     end
 
     # check for wrong arguments
     if !aliens
-        allkeys = []
-        for item in args_params 
-            if item isa ArgInfo
-                push!(allkeys, item.key)
-                append!(allkeys, item.aliases)
-            end
+        allkeys = Symbol[]
+        for item in Infos
+            push!(allkeys, item.key)
+            append!(allkeys, item.aliases)
         end
 
         argkeys = keys(args)
         for key in argkeys
             if !(key in allkeys)
                 msg = "Wrong argument $(key). The named arguments are:\n"*get_args_descriptions(args_params)
-                throw(AmaruException(msg))     
+                throw(AmaruException("$(funcname()): $msg"))     
             end
         end
     end
@@ -142,12 +149,9 @@ function checkargs(args, args_params::AbstractArray; aliens=true)
     # replace aliases (update args)
     pairs = []
     for (key, value) in args
-        hasalias = false
         newkey = key
-        for item in args_params
-            item isa ArgInfo || continue
+        for item in Infos
             if key in item.aliases
-                hasalias = true
                 newkey = item.key
                 break
             end
@@ -158,9 +162,8 @@ function checkargs(args, args_params::AbstractArray; aliens=true)
     argkeys = keys(args)
 
     # list of optional keys to skip
-    argopts  = [ item for item in args_params if item isa ArgOpt ]
-    skipkeys = []
-    for opt in argopts
+    skipkeys = Symbol[]
+    for opt in Opts
         # check for more than one optionals per set
         args1 = opt.args1 isa Symbol ? (opt.args1,) : opt.args1
         args2 = opt.args2 isa Symbol ? (opt.args2,) : opt.args2
@@ -168,7 +171,7 @@ function checkargs(args, args_params::AbstractArray; aliens=true)
         if issubset(args1, argkeys) && issubset(args2, argkeys)
             s1 = join(args1, ", ")
             s2 = join(args2, ", ")
-            throw(AmaruException("$fname: Invalid argument combination. Provide either argument(s) ($s1) or ($s2)"))
+            throw(AmaruException("$(funcname()): Invalid argument combination. Provide either argument(s) ($s1) or ($s2)"))
         end
 
         if all(key in argkeys for key in args1)
@@ -179,28 +182,28 @@ function checkargs(args, args_params::AbstractArray; aliens=true)
         end
     end
 
-    arginfos = [ item for item in args_params if item isa ArgInfo && !(item.key in skipkeys) ] # skip non used optional keys
+    Infos = [ item for item in Infos if !(item.key in skipkeys) ] # skip non used optional keys
 
     # check for missing keys (skip optional args)
-    mandatorykeys = [ item.key for item in arginfos if item.default===missing ]
+    mandatorykeys = Symbol[ item.key for item in Infos if item.default===missing ]
     missingkeys = setdiff(mandatorykeys, keys(args))
 
     if length(missingkeys)>0
         msg = "Missing arguments: $(join(missingkeys, ", ")). The named arguments are:\n"*get_args_descriptions(args_params)
-        for opt in argopts
+        for opt in Opts
             args1 = opt.args1 isa Symbol ? (opt.args1,) : opt.args1.args
             args2 = opt.args2 isa Symbol ? (opt.args2,) : opt.args2.args
             msg = msg*"\nArgument(s) $(join(args1, ", ", " and ")) can be used instead of $(join(args2, ", ", " and "))."
         end
-        throw(AmaruException("$fname: $msg"))
+        throw(AmaruException("$(funcname()): $msg"))
     end
 
     # update args with defaults
     pairs = []
-    allkeys = [ item.key for item in arginfos ]
-    defaults  = NamedTuple([ item.key => item.default for item in arginfos ])
+    allkeys = Symbol[ item.key for item in Infos ]
+    defaults  = NamedTuple([ item.key => item.default for item in Infos ])
     args_keys = keys(args)
-    for item in arginfos
+    for item in Infos
         key = item.key
         if key in args_keys
             value = args[key] # use given value
@@ -221,9 +224,10 @@ function checkargs(args, args_params::AbstractArray; aliens=true)
 
     args = NamedTuple(pairs)
 
-    # allkeys = [ item.key for item in arginfos ]
+
+    # allkeys = [ item.key for item in Infos ]
     # @show keys(args)
-    # for item in arginfos
+    # for item in Infos
     #     @show item.key
     #     @show item.default
     #     if item.default isa Symbol && item.default in allkeys
@@ -233,14 +237,14 @@ function checkargs(args, args_params::AbstractArray; aliens=true)
     #     end
     # end
 
-    # alldefaults  = NamedTuple([ item.key => item.default for item in arginfos ])
+    # alldefaults  = NamedTuple([ item.key => item.default for item in Infos ])
 
     # @show alldefaults
 
     # args = merge(alldefaults, args)
 
     # check argument condition
-    for arginfo in arginfos
+    for arginfo in Infos
         key = arginfo.key
         val = args[key]
 
@@ -249,14 +253,14 @@ function checkargs(args, args_params::AbstractArray; aliens=true)
             func = Expr(:(->), key, arginfo.cond)
             if !invokelatest(eval(func), val)
                 msg = "Invalid value for argument $key which must satisfy $(arginfo.cond).\nGot $key = $(repr(val))"
-                throw(AmaruException("$fname: $msg"))
+                throw(AmaruException("$(funcname()): $msg"))
             end
         end
 
         # check if in the give set
         if length(arginfo.values)>0 && !(val in arginfo.values)
             msg = "Invalid value for argument $key which must be one of $(arginfo.values).\nGot $key = $(repr(val))"
-            throw(AmaruException("$fname: $msg"))
+            throw(AmaruException("$(funcname()): $msg"))
         end
 
         # check length
@@ -265,14 +269,14 @@ function checkargs(args, args_params::AbstractArray; aliens=true)
             rightlength = haslength && length(val)==arginfo.length
             if !haslength || !rightlength
                 msg = "Invalid value for argument $key which must be of size $(arginfo.length).\nGot $key = $(repr(val))"
-                throw(AmaruException("$fname: $msg"))
+                throw(AmaruException("$(funcname()): $msg"))
             end
         end
 
         # check type
         if arginfo.type!=Nothing && !(val isa arginfo.type)
             msg = "Invalid value for argument $key which must be of type $(arginfo.type).\nGot $key = $(repr(val))"
-            throw(AmaruException("$fname: $msg"))
+            throw(AmaruException("$(funcname()): $msg"))
         end
     end
     
@@ -281,7 +285,7 @@ function checkargs(args, args_params::AbstractArray; aliens=true)
     for argcond in allconds
         if !eval_arith_expr(argcond.cond, args...) # todo: update with eval
             msg = "Given arguments do not satisfy condition $(argcond.cond)"
-            throw(AmaruException("$fname: $msg"))
+            throw(AmaruException("$(funcname()): $msg"))
         end
     end
 

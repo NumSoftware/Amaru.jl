@@ -378,7 +378,7 @@ function yield_func(mat::VonMises, state::VonMisesBeamState, σ::Vec3, εpa::Flo
     # σ is already in Mandel's notation
 
     # j2d = 1/3*σ[1]^2 + 1/2*σ[2]^2 + 1/2*σ[3]^2
-    j2d = 1/3*σ[1]^2 + (1/2*σ[2]^2 + 1/2*σ[3]^2)*1
+    j2d = 1/3*σ[1]^2 + 1/2*σ[2]^2 + 1/2*σ[3]^2
     return j2d - 1/3*(mat.σy + mat.H*εpa)^2
 end
 
@@ -396,7 +396,7 @@ function calcD(mat::VonMises, state::VonMisesBeamState)
     dfdεp = -2/3*mat.H*(mat.σy + mat.H*state.εpa)
 
     norm_s = √(2/3*σ[1]^2 + σ[2]^2 + σ[3]^2)
-
+    
     De_dfdσ          = Vec3( 2/3*E*σ[1], 2*G*σ[2], 2*G*σ[3] ) # De_s reduced vector
     De_dfdσ_dfdσ′_De = De_dfdσ*De_dfdσ'
     dfdσ′_De_dfdσ    = 4/9*E*σ[1]^2 + 2*G*σ[2]^2 + 2*G*σ[3]^2 # s'*De*s

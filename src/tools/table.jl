@@ -227,15 +227,13 @@ function Base.getindex(table::DataTable, keys::Array{<:KeyType,1})
 end
 
 
-function Base.getindex(table::DataTable, rowindex::Int)
+function Base.getindex(table::DataTable, rowidx::Int)
     columns = getcolumns(table)
-    cols = [ [ columns[i][rowindex] ] for i in 1:length(columns) ]
-
-    return DataTable(getheader(table), cols)
+    return [ col[rowidx] for col in columns ]
 end
 
 
-function Base.getindex(table::DataTable, idxs::Union{Colon,OrdinalRange{Int,Int},Array{Int,1},BitArray{1}})
+function Base.getindex(table::DataTable, idxs::Union{Colon,UnitRange{Int},Array{Int,1},BitArray{1}})
     columns = getcolumns(table)
     cols = [ columns[i][idxs] for i in 1:length(columns) ]
 
@@ -244,7 +242,7 @@ end
 
 
 function Base.getindex(table::DataTable, rows, col::KeyType)
-    return table[rows][col][1]
+    return table[rows][col]
 end
 
 
@@ -254,12 +252,14 @@ end
 
 
 function Base.Array(table::DataTable)
-    return hcat(getcolumns(table)...)    
+    return reduce(hcat, getcolumns(table))
 end
 
 
-function Base.getindex(table::DataTable, rowindex::Union{Int,Colon,OrdinalRange{Int,Int},Array{Int,1}}, colidx::Int)
-    return getcolumns(table)[colidx][rowindex]
+function Base.getindex(table::DataTable, rowidx::Union{Int,Colon,UnitRange{Int},Array{Int,1}}, colidx::Union{Int,Colon,UnitRange{Int},Array{Int,1}})
+    table_temp = table[rowidx]
+    columns = getcolumns(table_temp)[colidx]
+    return reduce(hcat, columns)
 end
 
 
@@ -430,7 +430,7 @@ function cut!(table::DataTable, field, value=0.0; after=false)
 end
 
 
-function clamp!(table::DataTable, field, lo, hi)
+function Base.clamp!(table::DataTable, field, lo, hi)
     clamp!(table[field], lo, hi)
     return table
 end
@@ -669,7 +669,7 @@ end
 
 
 function DataTable(filename::String, delim::Char='\t')
-    basename, format = splitext(filename)
+    _, format = splitext(filename)
     formats = (".dat", ".table")
     format in formats || error("DataTable: cannot read \"$format\". Suitable formats are $formats")
 

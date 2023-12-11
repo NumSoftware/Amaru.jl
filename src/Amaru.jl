@@ -17,6 +17,7 @@ module Amaru
     using StatsBase, Statistics, LinearAlgebra, StaticArrays, SparseArrays, Arpack, Gmsh
     using Printf, DelimitedFiles, DataStructures, Glob, DocStringExtensions, Dates
     using Cairo, LaTeXStrings, MathTeXEngine
+
     import FreeTypeAbstraction
     export @L_str # reexport LaTeXStrings
 

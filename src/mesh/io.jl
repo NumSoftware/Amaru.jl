@@ -486,6 +486,13 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
 
     # Mesh object
     ndim = getndim(nodes)
+
+    # check for exceptional 3d cases
+    if haskey(node_data, "rx") || haskey(node_data, "ry")
+        ndim = 3
+    end
+
+
     mesh = Mesh(ndim)
     mesh.nodes = nodes
 
@@ -502,15 +509,19 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
             shape = get_shape_from_vtk( vtk_shape, length(conn), ndim )
         end
         cell  = Cell(shape, conn)
+        cell.id = i
         push!(mesh.elems, cell)
     end
 
     # update mesh and get faces and edges
-    fixup!(mesh, reorder=false)
+    compute_facets!(mesh)
+    # fixup!(mesh, reorder=false)
 
     # Setting data
-    mesh.node_data = merge(mesh.node_data, node_data)
-    mesh.elem_data  = merge(mesh.elem_data, elem_data)
+    mesh.node_data = node_data
+    mesh.elem_data  = elem_data
+    # mesh.node_data = merge(mesh.node_data, node_data)
+    # mesh.elem_data  = merge(mesh.elem_data, elem_data)
 
     # Fix information for 1D joints
     if haskey(mesh.elem_data, "inset-data")
