@@ -11,6 +11,6 @@ include("geometry-canvas.jl")
 
 include("axis.jl")
 include("legend.jl")
-include("line-plot.jl")
+include("dataseries.jl")
 include("colorbar.jl")
 include("mesh-plot.jl")

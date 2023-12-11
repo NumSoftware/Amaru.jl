@@ -11,6 +11,37 @@ mutable struct Canvas<:ChartComponent
 end
 
 
+function configure!(c::Chart, canvas::Canvas)
+    xmin, xmax = c.xaxis.limits
+    ymin, ymax = c.yaxis.limits
+    # canvas.limits = [ xmin, ymin, xmax, ymax ]
+
+    if c.args.aspectratio==:equal
+        # compute extra limits
+        width = c.width - c.yaxis.width - c.outerpad - c.rightpad
+        height = c.height - c.xaxis.height - c.toppad - c.outerpad
+        r = min(width/(xmax-xmin), height/(ymax-ymin))
+        dx = 0.5*(width/r - (xmax-xmin))
+        dy = 0.5*(height/r - (ymax-ymin))
+        
+        # update limits
+        c.xaxis.limits = [ xmin-dx, xmax+dx ]
+        c.yaxis.limits = [ ymin-dy, ymax+dy ]
+
+        # reconfigure axes
+        configure!(c, c.xaxis, c.yaxis)
+        xmin, xmax = c.xaxis.limits
+        ymin, ymax = c.yaxis.limits
+
+        # udpa
+    end
+    
+    canvas.width = c.width - c.yaxis.width - c.outerpad - c.rightpad
+    canvas.height = c.height - c.xaxis.height - c.toppad - c.outerpad
+    canvas.box = [ c.outerpad + c.yaxis.width, c.toppad, c.width-c.rightpad, c.height - c.xaxis.height-c.outerpad ]
+    canvas.limits = [ xmin, ymin, xmax, ymax ]
+end
+
 function draw!(c::Chart, cc::CairoContext, canvas::Canvas)
     # draw grid
     set_source_rgb(cc, 0.9, 0.9, 0.9) # gray

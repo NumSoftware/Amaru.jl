@@ -7,6 +7,8 @@ const _marker_list = [:none, :circle, :square, :triangle, :utriangle, :cross, :x
 mutable struct LinePlot<:DataSeriesPlot
     X     ::Array
     Y     ::Array
+    x     ::Union{Float64,Nothing}
+    y     ::Union{Float64,Nothing}
     ls    ::Symbol
     lw    ::Float64
     linecolor::Union{Symbol,Tuple}
@@ -15,14 +17,14 @@ mutable struct LinePlot<:DataSeriesPlot
     markercolor::Union{Symbol,Tuple}
     mscolor::Union{Symbol,Tuple}
     label ::String
-    tag::String
+    tag::AbstractString
     tagpos::Float64
     tagloc::Symbol
     tagalong::Bool
     dash  ::Vector{Float64}
     order::Union{Int,Nothing}
 
-    function LinePlot( X::AbstractArray, Y::AbstractArray; args...)
+    function LinePlot(X::AbstractArray, Y::AbstractArray; args...)
 
         args = checkargs(args, func_params(LinePlot), aliens=false)
 
@@ -38,9 +40,25 @@ mutable struct LinePlot<:DataSeriesPlot
 
         n = min(length(X), length(Y))
 
+        lw = args.lw
+        ls = args.ls
+        dash = args.dash
+
+        if length(dash)==0
+            if ls==:dash
+                dash = [4.0, 2.4]*lw
+            elseif ls==:dashdot
+                dash = [2.0, 1.0, 2.0, 1.0]*lw
+            elseif ls==:dot
+                dash = [1.0, 1.0]*lw
+            end
+        else
+            ls = :dash
+        end
+
         this             = new(X[1:n], Y[1:n])
-        this.ls          = length(args.dash)>0 ? :dash : args.ls
-        this.lw          = args.lw
+        this.ls          = ls
+        this.lw          = lw
         this.linecolor   = linecolor
         this.marker      = args.marker
         this.markersize  = args.markersize
@@ -51,18 +69,25 @@ mutable struct LinePlot<:DataSeriesPlot
         this.tagloc      = args.tagloc
         this.tagpos      = args.tagpos
         this.tagalong    = args.tagalong
-        this.dash        = args.dash
+        this.dash        = dash
+        this.x           = args.x
+        this.y           = args.y
         this.order       = args.order
         return this
     end
 end
 
+
+function LinePlot(; args...)
+    return LinePlot(Float64[], Float64[]; args...)
+end
+
 func_params(::Type{LinePlot}) = [
-    FunInfo( :LinePlot, "Creates a customizable `LinePlot` instance.", (Array, Array)),
+    FunInfo( :LinePlot, "LinePlot(X, Y; args...)\nCreates a customizable `LinePlot` instance.", (Array, Array)),
     ArgInfo( (:ls, :linestyle), "Line style", :solid, values=_line_style_list ),
     ArgInfo( :dash, "Dash pattern", Float64[] ),
     ArgInfo( (:linecolor, :lc, :color), "Line linecolor", :default),
-    ArgInfo( (:lw, :lineweight), "Line weight", 0.5,  condition=:(lw>0) ),
+    ArgInfo( (:lw, :lineweight), "Line weight", 0.5, condition=:(lw>0) ),
     ArgInfo( :marker, "Marker shape", :none,  values=_marker_list ),
     ArgInfo( (:markersize, :ms), "Marker size", 2.5, condition=:(markersize>0) ),
     ArgInfo( (:markercolor, :mc), "Marker color", :white ),
@@ -72,6 +97,8 @@ func_params(::Type{LinePlot}) = [
     ArgInfo( :tagpos, "Tag position", 0.5),
     ArgInfo( :tagloc, "Tag location", :top, values=[:bottom, :top, :left, :right]),
     ArgInfo( (:tagalong, :tagalign), "Sets that the tag will be aligned with the data series", false),
+    ArgInfo( :x, "x coordinate for a vertical line", nothing),
+    ArgInfo( :y, "y coordinate for a horizontal line", nothing),
     ArgInfo( :order, "Order fo drawing", nothing),
 ]
 @doc make_doc(LinePlot) LinePlot()
@@ -85,15 +112,23 @@ function data2user(c::Chart, x, y)
 end
 
 function configure!(chart::Chart, p::LinePlot)
-    if length(p.dash)==0
-        if p.ls==:dash
-            p.dash = [4.0, 2.4]*p.lw
-        elseif p.ls==:dashdot
-            p.dash = [2.0, 1.0, 2.0, 1.0]*p.lw
-        elseif p.ls==:dot
-            p.dash = [1.0, 1.0]*p.lw
-        end
+    xmin, ymin, xmax, ymax = chart.canvas.limits
+    if p.x !== nothing
+        p.X = [ p.x, p.x ]
+        p.Y = [ ymin, ymax ]
+    elseif p.y !== nothing
+        p.X = [ xmin, xmax ]
+        p.Y = [ p.y, p.y ]
     end
+    # if length(p.dash)==0
+    #     if p.ls==:dash
+    #         p.dash = [4.0, 2.4]*p.lw
+    #     elseif p.ls==:dashdot
+    #         p.dash = [2.0, 1.0, 2.0, 1.0]*p.lw
+    #     elseif p.ls==:dot
+    #         p.dash = [1.0, 1.0]*p.lw
+    #     end
+    # end
 end
 
 function draw!(chart::Chart, cc::CairoContext, p::LinePlot)

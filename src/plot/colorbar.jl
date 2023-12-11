@@ -57,14 +57,14 @@ end
 
 function configure!(c::AbstractChart, cb::Colorbar)
     configure!(c, cb.axis)
-    cb.thickness = 0.05*minimum(c.figsize)
+    cb.thickness = 0.035*max(c.width, c.height)
     cb.innersep = cb.thickness
     if cb.location==:right
-        cb.height = cb.scale*(c.figsize[2] - 2*c.outerpad)
+        cb.height = cb.scale*(c.height - 2*c.outerpad)
         cb.axis.height = cb.height
         cb.width = cb.innersep + cb.thickness + cb.axis.ticklength + cb.axis.width 
     else
-        cb.width = cb.scale*(c.figsize[1] - 2*c.outerpad)
+        cb.width = cb.scale*(c.width - 2*c.outerpad)
         cb.axis.width = cb.width
         cb.height = cb.innersep + cb.thickness + cb.axis.ticklength + cb.axis.height
     end
@@ -80,14 +80,14 @@ function draw!(c::AbstractChart, cc::CairoContext, cb::Colorbar)
         x = c.canvas.box[3]+cb.innersep+cb.thickness+cb.axis.ticklength
         h = cb.height
 
-        y = c.figsize[2]/2 - h/2
+        y = c.height/2 - h/2
         move_to(cc, x, y)
         draw!(c, cc, cb.axis)
         
         # Colorbar
         x = c.canvas.box[3] + cb.innersep
         w = cb.thickness
-        y = c.figsize[2]/2 + h/2
+        y = c.height/2 + h/2
 
         pat = pattern_create_linear(0.0, y,  0.0, y-h)
         nstops = length(cb.colormap.stops)
@@ -104,13 +104,13 @@ function draw!(c::AbstractChart, cc::CairoContext, cb::Colorbar)
     else
         # Axis
         w = cb.width
-        x = c.figsize[1]/2 - w/2
+        x = c.width/2 - w/2
         y = c.canvas.box[4]+cb.innersep+cb.thickness+cb.axis.ticklength
         move_to(cc, x, y)
         draw!(c, cc, cb.axis)
         
         # Colorbar
-        x = c.figsize[1]/2 - w/2
+        x = c.width/2 - w/2
         y = c.canvas.box[4] + cb.innersep
         h = cb.thickness
 

@@ -89,25 +89,44 @@ function configure!(chart::AbstractChart, ax::Axis)
             for p in chart.dataseries
                 p isa DataSeriesPlot || continue
                 if ax.direction==:horizontal
-                    limits[1] = min(limits[1], minimum(p.X))
-                    limits[2] = max(limits[2], maximum(p.X))
+                    if p.x!==nothing
+                        limits[1] = min(limits[1], p.x)
+                        limits[2] = max(limits[2], p.x)
+                    end
+                    if length(p.X)>0
+                        limits[1] = min(limits[1], minimum(p.X))
+                        limits[2] = max(limits[2], maximum(p.X))
+                    end
                 else
-                    limits[1] = min(limits[1], minimum(p.Y))
-                    limits[2] = max(limits[2], maximum(p.Y))
+                    if p.y!==nothing
+                        limits[1] = min(limits[1], p.y)
+                        limits[2] = max(limits[2], p.y)
+                    end
+                    if length(p.Y)>0
+                        limits[1] = min(limits[1], minimum(p.Y))
+                        limits[2] = max(limits[2], maximum(p.Y))
+                    end
+                    
                 end
+            end
+            if limits==[Inf, -Inf]
+                limits = [-0.1, 0.1]
             end
         else
             limits = collect(extrema(chart.args.xticks))
         end
 
-        
         # extend limits
-        f = ax.direction == :horizontal ? 0.03 : 0.03*chart.figsize[1]/chart.figsize[2]
+        f = ax.direction == :horizontal ? 0.03 : 0.03*chart.width/chart.height
         dx = f*(limits[2]-limits[1])
         limits = [ limits[1]-dx, limits[2]+dx ]
         limits = [ limits[1]*ax.mult, limits[2]*ax.mult ]
         ax.limits = limits
     end
+
+    # if chart.aspectratio==:equal
+        # 
+    # end
 
     # configure ticks
     if length(ax.ticks)==0
@@ -170,7 +189,7 @@ function configure!(chart::AbstractChart, xax::Axis, yax::Axis)
     configure!(chart, yax)
 
     # set width and height of axes
-    width, height = chart.figsize
+    width, height = chart.width, chart.height
     xax.width  = width - yax.width - chart.outerpad - chart.rightpad
     yax.height = height - xax.height - chart.toppad - chart.outerpad
 

@@ -1,16 +1,21 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-const _default_colors = [ :c1, :c2, :c3, :c4, :c5, :c6, :c7, :c8, :c9, :c10, :c11, :c12, :c13, :c14, :c15, :c16, ]
+const _default_colors = [ :c1, :c2, :c3, :c4, :c5, :c6, :c7, :c8, :c9, :c10, :c11, :c12 ]
 
 _colors_dict = Dict(
     :c1          => (0.769, 0.306, 0.322), # red
-    :c2          => (0.333, 0.659, 0.408), # green
+    :c2          => (0.333, 0.659, 0.408).*0.85, # green
     :c3          => (0.298, 0.447, 0.690), # blue
     :c4          => (0.867, 0.522, 0.322), # orange
-    :c5          => (0.506, 0.447, 0.702), # purple
+    # :c5          => (0.506, 0.447, 0.702), # purple
+    :c5          => (0.749, 0.992, 0.188).*0.75, # green
     :c6          => (0.000, 0.667, 0.682).*0.9, # aquamarine
     :c7          => (0.576, 0.471, 0.376),
     :c8          => (0.647, 0.318, 0.580),
+    :c9          => (0.647, 0.318, 0.580),
+    :c10         => (0.647, 0.318, 0.580),
+    :c11         => (0.647, 0.318, 0.580),
+    :c12         => (0.647, 0.318, 0.580),
     # :C1          => (0.0,0.605,0.978),
     # :C2          => (0.888,0.435,0.278),
     # :C3          => (0.242,0.643,0.304),
@@ -87,8 +92,6 @@ struct Colormap
 
     function Colormap(stops, colors)
         @assert length(stops)==length(colors)
-        # @assert stops[1]==0.0
-        # @assert stops[end]==1.0
         return new(stops, colors)
     end
 end

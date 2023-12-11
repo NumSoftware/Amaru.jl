@@ -28,7 +28,8 @@ const _legend_positions=[
 ]
 
 mutable struct Chart<:AbstractChart
-    figsize::Union{Array, Tuple}
+    width::Float64
+    height::Float64
     xaxis::Union{ChartComponent, Nothing}
     yaxis::Union{ChartComponent, Nothing}
     canvas::Union{ChartComponent, Nothing}
@@ -47,7 +48,7 @@ mutable struct Chart<:AbstractChart
         args = checkargs(args, func_params(Chart), aliens=false)
             
         this = new()
-        this.figsize = args.figsize
+        this.width, this.height = args.size
         this.xaxis = nothing
         this.yaxis = nothing
         this.legend = nothing
@@ -64,11 +65,12 @@ end
 
 func_params(::Type{Chart}) = [
     FunInfo( :Chart, "Creates a customizable `Chart` instance.", ()),
-    ArgInfo( :figsize, "Chart drawing size in dpi", (220,150), length=2),
+    ArgInfo( (:size, :figsize), "Chart drawing size in dpi", (220,150), length=2),
     ArgInfo( :font, "Font name", "NewComputerModern", type=AbstractString),
     ArgInfo( :fontsize, "Font size", 7.0, condition=:(fontsize>0)),
     ArgInfo( :xlimits, "x-axis limit values", [0.0,0.0], length=2 ),
     ArgInfo( :ylimits, "y-axis limit values", [0.0,0.0], length=2 ),
+    ArgInfo( :aspectratio, "aspect ratio", :auto, values=(:auto, :equal) ),
     ArgInfo( :xmult, "x-axis values multiplier", 1.0 ),
     ArgInfo( :ymult, "y-axis values multiplier", 1.0 ),
     ArgInfo( :xbins, "Number of bins in the x axis", 7 ),
@@ -92,8 +94,8 @@ func_params(::Type{Chart}) = [
 
 function configure!(c::Chart)
 
-    width, height = c.figsize
-    c.outerpad = 0.01*minimum(c.figsize)
+    # width, height = c.figsize
+    c.outerpad = 0.01*min(c.width, c.height)
     c.toppad = c.outerpad
     c.rightpad = c.outerpad
 
@@ -126,15 +128,9 @@ function configure!(c::Chart)
 
     # set width and height of canvas
     c.canvas = Canvas()
-    c.canvas.width = width - c.yaxis.width - c.outerpad - c.rightpad
-    c.canvas.height = height - c.xaxis.height - c.toppad - c.outerpad
-    c.canvas.box = [ c.outerpad + c.yaxis.width, c.toppad, width-c.rightpad, height - c.xaxis.height-c.outerpad ]
 
-    # set width and height of axes
-    # c.xaxis.width  = width - c.yaxis.width - c.outerpad - c.rightpad
-    # c.yaxis.height = height - c.xaxis.height - c.toppad - c.outerpad
+    configure!(c, c.canvas)
 
-    c.canvas.limits = [ c.xaxis.limits[1], c.yaxis.limits[1], c.xaxis.limits[2], c.yaxis.limits[2] ]
 
     for p in c.dataseries
         configure!(c, p)
@@ -191,7 +187,7 @@ function addplot!(chart::Chart, P::DataSeriesPlot...)
     for p in P
         if p.linecolor===:default # update colors
             p.linecolor = _colors_dict[_default_colors[chart.icolor]]
-            chart.icolor += 1
+            chart.icolor = mod(chart.icolor, length(_default_colors)) + 1
         end
 
         if p.order===nothing
@@ -210,7 +206,7 @@ end
 
 
 function save(chart::Chart, filename::String, copypath::String="")
-    width, height = chart.figsize
+    width, height = chart.width, chart.height
 
     fmt = splitext(filename)[end]
     if fmt==".pdf"
