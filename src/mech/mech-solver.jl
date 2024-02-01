@@ -173,7 +173,7 @@ subjected to a set of boundary conditions `bcs`.
 
 `rtol     = 1e-2` : Tolerance for the maximum absolute error in forces vector
 
-`Tmin     = 1e-8` : Pseudo-time tolerance
+`ΔTmin     = 1e-8` : Pseudo-time tolerance
 
 `scheme  = "FE"` : Predictor-corrector scheme at each increment. Available schemes are "FE", "ME", "BE", "Ralston"
 
@@ -193,24 +193,38 @@ function solve!(model::Model, ana::MechAnalysis; args...)
 end
 
 
-function mech_stage_solver!(model::Model, stage::Stage; 
-    tol     :: Number  = 1e-2,
-    rtol    :: Number  = 1e-2,
-    Tmin    :: Number  = 1e-8,
-    rspan   :: Number  = 1e-2,
-    scheme  :: String  = "FE",
-    maxits  :: Int     = 5,
-    autoinc :: Bool    = false,
-    outdir  :: String  = ".",
-    outkey  :: String  = "out",
-    quiet   :: Bool    = false
-    )
+mech_stage_solver_params = [
+    FunInfo( :mech_stage_solver!, "Solves a load stage of a mechanical analysis.", "M::Model, S::Stage"),
+    ArgInfo( :tol, "Force tolerance", 0.01, condition=:(tol>0)),
+    ArgInfo( :rtol, "Relative tolerance in terms of displacements", 0.01, condition=:(rtol>0)),
+    ArgInfo( :dTmin, "Relative minimum increment size", 1e-7, condition=:(0<dTmin<1) ),
+    ArgInfo( :dTmax, "Relative maximum increment size", 0.1, condition=:(0<dTmax<1) ),
+    ArgInfo( :rspan, "Relative span to residue reapplication", 0.01, condition=:(0<rspan<1) ),
+    ArgInfo( :scheme, "Global solving scheme", :FE, values=(:FE, :ME, :BE, :Ralston) ),
+    ArgInfo( :maxits, "Maximum number of NR iterations", 5, condition=:(1<=maxits<=10)),
+    ArgInfo( :autoinc, "Flag to set auto-increments", false),
+    ArgInfo( :quiet, "Flat to set silent mode", false),
+]
+@doc make_doc(mech_stage_solver_params) mech_stage_solver!()
+
+function mech_stage_solver!(model::Model, stage::Stage; args...)
+    args = checkargs(args, mech_stage_solver_params)
+    
+    tol     = args.tol      
+    rtol    = args.rtol     
+    ΔTmin   = args.dTmin    
+    ΔTmax   = args.dTmax   
+    rspan   = args.rspan    
+    scheme  = args.scheme   
+    maxits  = args.maxits 
+    autoinc = args.autoinc  
+    quiet   = args.quiet    
 
     env = model.env
     println(env.log, "Mechanical FE analysis: Stage $(stage.id)")
 
     solstatus = success()
-    scheme in ("FE", "ME", "BE", "Ralston") || error("solve! : invalid scheme \"$(scheme)\"")
+    # scheme in ("FE", "ME", "BE", "Ralston") || error("solve! : invalid scheme \"$(scheme)\"")
 
     nincs     = stage.nincs
     nouts     = stage.nouts
@@ -286,19 +300,19 @@ function mech_stage_solver!(model::Model, stage::Stage;
         Fex .-= Fin # add negative forces to external forces vector
     end
 
-    if scheme=="FE"
+    if scheme==:FE
         p1=1.0; q11=1.0
-    elseif scheme=="ME"
+    elseif scheme==:ME
         p1=1.0; q11=1.0; a1=0.5; a2=0.5
-    elseif scheme=="BE"
+    elseif scheme==:BE
         p1=1.0; q11=1.0; a1=0.0; a2=1.0
-    elseif scheme=="Ralston"
+    elseif scheme==:Ralston
         p1=2/3; q11=2/3; a1=1/4; a2=3/4
     end
 
     local K::SparseMatrixCSC{Float64,Int64}
 
-    while T < 1.0-Tmin
+    while T < 1.0-ΔTmin
         env.ΔT = ΔT
 
         # Update counters
@@ -344,7 +358,7 @@ function mech_stage_solver!(model::Model, stage::Stage;
             failed(sysstatus) && (syserror=true; break)
 
             # Corrector step
-            if scheme=="FE"
+            if scheme==:FE
                 ΔUi = ΔUitr
             else
                 K2 = mount_K(active_elems, ndofs)
@@ -416,7 +430,7 @@ function mech_stage_solver!(model::Model, stage::Stage;
             env.T = T
 
             # Check for saving output file
-            checkpoint = T>Tcheck-Tmin 
+            checkpoint = T>Tcheck-ΔTmin
             # && saveouts
             if checkpoint
                 env.out += 1
@@ -424,7 +438,7 @@ function mech_stage_solver!(model::Model, stage::Stage;
                 Tcheck += ΔTcheck # find the next output time
             end
 
-            flush = time()-lastflush>flushinterval || T >= 1.0-Tmin
+            flush = time()-lastflush>flushinterval || T >= 1.0-ΔTmin
 
             rstatus = update_records!(model, checkpoint=checkpoint, flush=flush)
             if failed(rstatus)
@@ -452,12 +466,12 @@ function mech_stage_solver!(model::Model, stage::Stage;
                     q = max(q, 1.1)
 
                     if still_linear
-                        ΔTtr = min(q*ΔT, 0.1, 1-T)
+                        ΔTtr = min(q*ΔT, ΔTmax, 1-T)
                     else
-                        ΔTtr = min(q*ΔT, 1/nincs, 1-T)
+                        ΔTtr = min(q*ΔT, ΔTmax, 1-T)
                     end
 
-                    if T+ΔTtr>Tcheck-Tmin
+                    if T+ΔTtr>Tcheck-ΔTmin
                         ΔTbk = ΔT
                         ΔT = Tcheck-T
                         @assert ΔT>=0.0
@@ -488,7 +502,7 @@ function mech_stage_solver!(model::Model, stage::Stage;
                 syserror && (q=0.7)
                 ΔT = q*ΔT
                 ΔT = round(ΔT, sigdigits=3)  # round to 3 significant digits
-                if ΔT < Tmin
+                if ΔT < ΔTmin
                     solstatus = failure("Solver did not converge.")
                     break
                 end

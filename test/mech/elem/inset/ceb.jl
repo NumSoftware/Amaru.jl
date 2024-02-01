@@ -44,7 +44,7 @@ bcs = [
       ]
 
 tol = 0.01
-scheme = "Ralston"
+scheme = :Ralston
 nincs=20
 maxits=3
 color="red"

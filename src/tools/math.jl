@@ -26,6 +26,19 @@ function signedmaxabs(x, y)
     end
 end
 
+function interpolate(X, Y, x)
+    i = searchsortedfirst(X, x)
+    i==1 && return Y[1]
+    i>length(X) && return Y[end]
+    return Y[i-1] + (x-X[i-1]) * (Y[i]-Y[i-1])/(X[i]-X[i-1])
+end
+
+function derivative(X, Y, x)
+    i = searchsortedfirst(X, x)
+    1<i<=length(X) || return 0.0
+    return (Y[i]-Y[i-1])/(X[i]-X[i-1])
+end
+
 
 """
 Returns a vector with the real roots of the quadratic polynomial ax^2 + bx + c

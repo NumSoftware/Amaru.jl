@@ -64,7 +64,7 @@ end
 
 
 func_params(::Type{Chart}) = [
-    FunInfo( :Chart, "Creates a customizable `Chart` instance.", ()),
+    FunInfo( :Chart, "Creates a customizable `Chart` instance.", ""),
     ArgInfo( (:size, :figsize), "Chart drawing size in dpi", (220,150), length=2),
     ArgInfo( :font, "Font name", "NewComputerModern", type=AbstractString),
     ArgInfo( :fontsize, "Font size", 7.0, condition=:(fontsize>0)),
@@ -89,7 +89,7 @@ func_params(::Type{Chart}) = [
     ArgInfo( (:colorbarlimits, :cblimits), "Colorbar limits", Float64[0.0,0.0], length=2 ),
     ArgInfo( (:colorbarfontsize, :cbfontsize), "Colorbar font size", 7.0, condition=:(colorbarfontsize>0)),
 ]
-@doc make_doc(Chart) Chart()
+@doc make_doc(func_params(Chart)) Chart()
 
 
 function configure!(c::Chart)

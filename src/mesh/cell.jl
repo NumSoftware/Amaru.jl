@@ -13,27 +13,16 @@ A type that represents a mesh cell. It can be a 1D, 2D or 3D.
 $(FIELDS)
 """
 mutable struct Cell<:AbstractCell
-    "identification number"
     id     ::Integer
-    "geometric shape"
     shape  ::CellShape
-    "array of nodes"
     nodes  ::Array{Node,1}
-    "string tag used to group cells"
     tag    ::String
-    "defines if the element is active"
     active ::Bool
-    "cell quality in the range from 0 to 1"
     quality::Float64              # quality index: surf/(reg_surf)
-    "defines if it is an embedded cell"
     embedded::Bool                # flag for embedded cells
-    "defines if it is a crossed cell"
     crossed::Bool                 # flag if cell crossed by linear inclusion
-    "owner cell if the cell is a face or edge"
     owner  ::Union{AbstractCell,Nothing}  # owner cell if this cell is a face/edge
-    "array of coupled cells"
     linked_elems::Array{AbstractCell,1}   # neighbor cells in case of joint cell
-    "mesh environment"
     env::MeshEnv                 # mesh environment variables
 
     @doc """

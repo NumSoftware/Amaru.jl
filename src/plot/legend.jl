@@ -50,7 +50,8 @@ function draw!(c::Chart, cc::CairoContext, legend::Legend)
     outer_pad = legend.outer_pad
     
     # update the width
-    label_width = maximum( text_extents(cc, plot.label)[3] for plot in plots )
+    # label_width = maximum( text_extents(cc, plot.label)[3] for plot in plots )
+    label_width = maximum( getsize(cc, plot.label, legend.fontsize)[1] for plot in plots )
     legend.width = handle_length + 2*inner_pad + label_width + 2*inner_pad
 
     # set legend location

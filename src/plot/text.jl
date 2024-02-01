@@ -31,10 +31,20 @@ function getsize(str::LaTeXString, fontsize::Float64)
     return width*fontsize, height*fontsize
 end
 
+function getsize(cc::CairoContext, str::LaTeXString, fontsize::Float64)
+    return getsize(str, fontsize)
+end
+
 
 function getsize(str::AbstractString, fontsize::Float64)
     str = LaTeXString(str)
     return getsize(str, fontsize)
+end
+
+
+function getsize(cc::CairoContext, str::AbstractString, fontsize::Float64)
+    te = text_extents(cc, str)
+    return te[3], te[4]
 end
 
 

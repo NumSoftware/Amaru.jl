@@ -82,6 +82,7 @@ mutable struct Arc<:AbstractLine
 end
 
 
+
 # Curves with same endpoints are considered equal
 # thus, it is not possible to add two curves with the same endpoints
 function Base.:(==)(l1::AbstractLine, l2::AbstractLine) 

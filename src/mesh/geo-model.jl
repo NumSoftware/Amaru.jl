@@ -104,10 +104,10 @@ function Base.delete!(geo::GeoModel, surf::AbstractSurface)
         end
     end
 
-    # remove volumes that uses this surface
-    for v in geo.volumes
-        surf in v.surfaces && delete!(geo, v)
-    end
+    # remove volumes that uses this surface # todo
+    # for v in geo.volumes
+    #     surf in v.surfaces && delete!(geo, v)
+    # end
 end
 
 
@@ -434,6 +434,7 @@ function addline!(geo::GeoModel, p1::Point, p2::Point; n=0, tag="")
     
     # check if line intersects other lines
     for li in geo.lines
+        li isa Line || continue
         p = intersection(li, l)
         p === nothing && continue
         push!(points, p)
@@ -515,6 +516,17 @@ function addarc!(geo::GeoModel, p1::Point, p2::Point, p3::Point; n=0, tag="")
 
     return arc
 end
+
+
+export addpath!
+function addpath!(geo::GeoModel, path::Path)
+    for cmd in path.cmds
+        if cmd isa LineCmd
+            addline!(geo, cmd.p1, cmd.p2)
+        end
+    end
+end
+
 
 
 function getpoints(lo::AbstractLoop)
@@ -808,7 +820,13 @@ function addplanesurface!(geo::GeoModel, loop::PlaneLoop; tag="")
     for s in geo.surfaces
         s isa PlaneSurface || continue
         loop.id==s.loops[1].id && continue
-        inside(loop, s.loops[1]) && push!(s.loops, loop)
+        if inside(loop, s.loops[1]) 
+            push!(s.loops, loop)
+            for v in s.volumes
+                push!(v.surfaces, s1)
+                push!(s1.volumes, v)
+            end
+        end
     end
 
     # check if loop encloses other loops (set holes) # todo: improve for hole inside hole
@@ -960,7 +978,22 @@ end
 
 
 function extrude!(geo::GeoModel, surf::PlaneSurface; axis=[0.,0,1], length=1.0)
-    surfs = AbstractSurface[ surf ]
+
+    # check if surf is an inner surface
+    # innersurf = nothing
+    # for s in geo.surfaces
+    #     for lo in s.loops[2:end]
+    #         if lo==surf.loop
+    #             innersurf=s
+    #             break
+    #         end
+    #     end
+    # end
+
+
+
+
+    surfs = AbstractSurface[]
 
     # extrude lateral lines
     for lo in surf.loops
@@ -977,12 +1010,17 @@ function extrude!(geo::GeoModel, surf::PlaneSurface; axis=[0.,0,1], length=1.0)
         lines = AbstractLine[]
         for line in lo.lines
             points = Point[]
-            for p in line.points[[1,end]]
+            for p in line.points
                 pp = Point(p.coord .+ length.*axis)
                 pp = getpoint(geo, pp) # point should exists
                 push!(points, pp)
             end
-            l = getline(geo, points...) # todo: use copy instead
+
+            if Base.length(points)==2
+                l = getline(geo, Line(points...))
+            else
+                l = getline(geo, Arc(points...))
+            end
             push!(lines, l)
         end
         lo = PlaneLoop(lines...)
@@ -996,18 +1034,50 @@ function extrude!(geo::GeoModel, surf::PlaneSurface; axis=[0.,0,1], length=1.0)
         push!(geo.loops, lo)
     end
 
+    # add closing lid
     for lo in loops
         s = addplanesurface!(geo, lo, tag=surf.tag)
         push!(surfs, s)
     end
 
-    v = addvolume!(geo, surfs, tag=surf.tag)
-
-    for s in surfs
-        push!(s.volumes, v)
+    # check if surf is part of a volume
+    volume = nothing
+    for v in geo.volumes
+        if surf in v.surfaces
+            volume = v
+            break
+        end
     end
 
-    return v
+    if volume===nothing
+        push!(surfs, surf)
+        volume = addvolume!(geo, surfs, tag=surf.tag)
+    else
+        # remove surf from geo
+        filter!(!=(surf), geo.surfaces)
+        
+        # remove surf from volume
+        filter!(!=(surf), volume.surfaces)
+        
+        # remove unused surface loops from geo
+        for lo in surf.loops
+            # for each curve remove links to this surface
+            for l in lo.lines
+                filter!(!=(surf), l.surfaces)
+            end 
+        end
+
+        # add new surfaces to volume
+        for s in surfs
+            push!(volume.surfaces, s)
+        end
+    end
+
+    for s in surfs
+        push!(s.volumes, volume)
+    end
+
+    return volume
 end
 
 

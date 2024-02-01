@@ -16,7 +16,7 @@ mutable struct LinePlot<:DataSeriesPlot
     markersize::Float64
     markercolor::Union{Symbol,Tuple}
     mscolor::Union{Symbol,Tuple}
-    label ::String
+    label ::AbstractString
     tag::AbstractString
     tagpos::Float64
     tagloc::Symbol
@@ -83,7 +83,7 @@ function LinePlot(; args...)
 end
 
 func_params(::Type{LinePlot}) = [
-    FunInfo( :LinePlot, "LinePlot(X, Y; args...)\nCreates a customizable `LinePlot` instance.", (Array, Array)),
+    FunInfo( :LinePlot, "Creates a customizable `LinePlot` instance.", "X, Y"),
     ArgInfo( (:ls, :linestyle), "Line style", :solid, values=_line_style_list ),
     ArgInfo( :dash, "Dash pattern", Float64[] ),
     ArgInfo( (:linecolor, :lc, :color), "Line linecolor", :default),
@@ -101,7 +101,7 @@ func_params(::Type{LinePlot}) = [
     ArgInfo( :y, "y coordinate for a horizontal line", nothing),
     ArgInfo( :order, "Order fo drawing", nothing),
 ]
-@doc make_doc(LinePlot) LinePlot()
+@doc make_doc(func_params(LinePlot)) LinePlot()
 
 function data2user(c::Chart, x, y)
     Xmin, Ymin, Xmax, Ymax = c.canvas.box

@@ -1069,11 +1069,11 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false, quiet=f
     
         # search surfaces
         for s in geo.surfaces
+            s.loops[1] isa PlaneLoop || continue
             if inside(p, s.loops[1])
                 gmsh.model.mesh.embed(0,[p.id],2,s.id)
             end
         end
-
     end
 
     tempfile = "_temp.vtk"
@@ -1094,7 +1094,7 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false, quiet=f
     
     gmsh.finalize()
     mesh = Mesh(tempfile)
-    rm(tempfile, force=true)
+    # rm(tempfile, force=true)
     rm(logfile, force=true)
 
     # flip elements

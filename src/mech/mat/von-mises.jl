@@ -11,15 +11,10 @@ A type for linear elastic materials with Von Mises failure criterion.
 $(TYPEDFIELDS)
 """
 mutable struct VonMises<:Material
-    "Young modulus"
     E ::Float64
-    "Poisson ratio"
     ν ::Float64
-    "Yielding stress"
     σy::Float64
-    "Hardening parameter"
     H ::Float64
-    "Density"
     ρ::Float64
 
     function VonMises(prms::Dict{Symbol,Float64})

@@ -12,14 +12,6 @@ Abstract type for objects used to store material parameters and to define
 the behaviour of elements.
 """
 abstract type Material end
-# Base.:(<<)(a::Tuple, b::Material) = return (a..., b)
-# Base.:(<<)(a, b::Material) = return (a, b)
-# Base.:(=>)(a::Tuple, b::Material) = return (a.first, a.second, b)
-# Base.:(=>)(a, b::Material) = return (a, b)
-
-# Base.:(<<)(a::Tuple, b::Type{<:Material}) = return (a..., b)
-# Base.:(<<)(a, b::Type{<:Material}) = return (a, b)
-# Base.:(<<)(a::Type{<:Material}, b) = return (a, b)
 
 
 # function copy!(target::Material, source::Material)

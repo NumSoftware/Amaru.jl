@@ -40,7 +40,7 @@ mutable struct Axis<:ChartComponent
 end
 
 func_params(::Type{Axis}) = [
-    FunInfo( :Axis, "Creates an instance of an `Axis`.", ()),
+    FunInfo( :Axis, "Creates an instance of an `Axis`.", ""),
     ArgInfo( :direction, "Axis direction", :horizontal, values=(:horizontal, :vertical) ),
     ArgInfo( :location, "Axis location", :none, values=(:none, :left, :right, :top, :bottom) ),
     ArgInfo( :limits, "Axis limit values", [0.0,0.0], length=2 ),
@@ -54,7 +54,7 @@ func_params(::Type{Axis}) = [
     ArgInfo( :mult, "Axis values multiplier", 1.0 ),
     ArgInfo( :innersep, "Axis inner pad", 3 ),
 ]
-@doc make_doc(Axis) Axis()
+@doc make_doc(func_params(Axis)) Axis()
 
 
 function get_bin_length(vinf, vsup, n)

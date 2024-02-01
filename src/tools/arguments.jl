@@ -11,7 +11,7 @@ end
 mutable struct FunInfo<:ArgObj
     key::Symbol
     desc::String
-    signature::Tuple
+    signature::String
 end
 
 mutable struct ArgInfo<:ArgObj
@@ -21,7 +21,7 @@ mutable struct ArgInfo<:ArgObj
     cond::Expr
     values::Any
     length::Int
-    type::Union{DataType, UnionAll}
+    type::Union{DataType, Union, UnionAll}
     desc::String
 end
 
@@ -293,8 +293,7 @@ function checkargs(args, args_params::AbstractArray; aliens=true)
 end
 
 
-function make_doc(typ)
-    fparams = func_params(typ)
+function make_doc(fparams)
     
     # find description
     idx = findfirst(x->isa(x,FunInfo), fparams)
@@ -302,7 +301,7 @@ function make_doc(typ)
 
     # add function description
     desc = String[]
-    push!(desc, "`$(fdesc.key)$(string(fdesc.signature))`\n")
+    push!(desc, "`$(fdesc.key)($(fdesc.signature); kwargs...)`\n")
     push!(desc, "$(fdesc.desc)")
     push!(desc, "# Optional arguments:\n")
 

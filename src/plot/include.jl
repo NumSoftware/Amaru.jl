@@ -7,7 +7,7 @@ include("text.jl")
 
 include("chart.jl")
 include("series-canvas.jl")
-include("geometry-canvas.jl")
+include("mesh-canvas.jl")
 
 include("axis.jl")
 include("legend.jl")

@@ -11,9 +11,8 @@ mutable struct TCJointState<:IpState
     h  ::Float64          # characteristic length from bulk elements
     function TCJointState(env::ModelEnv)
         this = new(env)
-        ndim = env.ndim
-        this.σ   = zeros(ndim)
-        this.w   = zeros(ndim)
+        this.σ   = zeros(env.ndim)
+        this.w   = zeros(env.ndim)
         this.up  = 0.0
         this.Δλ  = 0.0
         this.h   = 0.0
@@ -28,62 +27,124 @@ mutable struct TCJoint<:Material
     fc::Float64       # compressive strength
     ζ ::Float64       # factor ζ controls the elastic relative displacements (formerly α)
     wc::Float64       # critical crack opening
-    ws::Float64       # openning at inflection (where the curve slope changes)
-    softcurve::String # softening curve model ("linear" or bilinear" or "hordijk" or "soft")
+    softmodel::Symbol # softening curve model (:linear or bilinear" or :hordijk or :soft)
+    softcurve::Array{Float64,2} # softening curve model (:linear or bilinear" or :hordijk or :soft)
     α::Float64        # curvature coefficient
     γ::Float64        # factor for βres
     θ::Float64        # fator for the surface reduction speed
     βini::Float64     # initial curvature size
 
-    function TCJoint(prms::Dict{Symbol,Float64})
-        return  TCJoint(;prms...)
-    end
+    function TCJoint(; args...)
+        args = checkargs(args, func_params(TCJoint))
 
-    function TCJoint(;E=NaN, nu=NaN, fc=NaN, ft=NaN, zeta=NaN, alpha=1.5, gamma=0.1, theta=1.5, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve="hordijk")
-        @check GF>0 || Gf>0 || wc>0
-        @check E>0.0    
-        @check 0<=nu<0.5
-        @check fc<0  
-        @check ft>=0  
-        @check zeta>0
-        @check softcurve in ("linear", "bilinear", "hordijk", "soft")
+        wc = args.wc
+        softmodel = args.softmodel
+        softcurve = args.softcurve
+
+        if length(softcurve)>0
+            if softcurve[end,2]==0
+                wc = softcurve[end,1]
+            else
+                wc = Inf
+            end
+            softmodel = :custom
+        end
         
-        if isnan(wc)
-            if softcurve == "linear"
+        if wc==0.0
+            if softmodel == :linear
                 wc = round(2*GF/ft, sigdigits=5)
-            elseif softcurve == "bilinear"
-                if isnan(Gf)
+            elseif softmodel == :bilinear
+                if Gf==0.0
                     wc = round(5*GF/ft, sigdigits=5)
-                    ws = round(wc*0.15, sigdigits=5)
                 else
                     wc = round((8*GF- 6*Gf)/ft, sigdigits=5)
-                    ws = round(1.5*Gf/ft, sigdigits=5)
                 end
-            elseif softcurve=="hordijk"
+            elseif softmodel==:hordijk
                 wc = round(GF/(0.1947019536*ft), sigdigits=5)  
-            elseif softcurve=="soft"
-                wc = round(GF/(0.1947019536*ft), sigdigits=5)  
+            elseif softmodel==:soft
+                wc = round(GF/(0.1947019536*ft), sigdigits=5)
                 # wc = round(6*GF/ft, sigdigits=5)  
                 # wc = round(5.14*GF/ft, sigdigits=5)  
             end    
         end
-        
-        @check isnan(ws) || ws>0
 
+        alpha = args.alpha
+        ft = args.ft
+        fc = args.fc
         a = (2*alpha*ft + alpha*fc - fc - √(alpha^2*fc^2 - 4*alpha^2*fc*ft + 4*alpha^2*ft^2 - 2*alpha*fc^2 + fc^2)) / (4*alpha-2)
         b = √(alpha*(2*a-fc)*(ft-a))
         βini = (b^2/ft^2)^alpha/(ft-a)
 
-        this = new(E, nu, ft, fc, zeta, wc, ws, softcurve, alpha, gamma, theta, βini)
+        this = new(args.E, args.nu, args.ft, args.fc, args.zeta, wc, softmodel, softcurve, args.alpha, args.gamma, args.theta, βini)
         return this
     end
+
+    # function TCJoint(;E=NaN, nu=NaN, fc=NaN, ft=NaN, zeta=NaN, alpha=1.5, gamma=0.1, theta=1.5, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve=:hordijk)
+    #     @check GF>0 || Gf>0 || wc>0
+    #     @check E>0.0
+    #     @check 0<=nu<0.5
+    #     @check fc<0  
+    #     @check ft>=0  
+    #     @check zeta>0
+    #     @check softcurve in (:linear, :bilinear, :hordijk, :soft)
+        
+    #     if isnan(wc)
+    #         if softcurve == :linear
+    #             wc = round(2*GF/ft, sigdigits=5)
+    #         elseif softcurve == :bilinear
+    #             if isnan(Gf)
+    #                 wc = round(5*GF/ft, sigdigits=5)
+    #                 ws = round(wc*0.15, sigdigits=5)
+    #             else
+    #                 wc = round((8*GF- 6*Gf)/ft, sigdigits=5)
+    #                 ws = round(1.5*Gf/ft, sigdigits=5)
+    #             end
+    #         elseif softcurve==:hordijk
+    #             wc = round(GF/(0.1947019536*ft), sigdigits=5)  
+    #         elseif softcurve==:soft
+    #             wc = round(GF/(0.1947019536*ft), sigdigits=5)  
+    #             # wc = round(6*GF/ft, sigdigits=5)  
+    #             # wc = round(5.14*GF/ft, sigdigits=5)  
+    #         end    
+    #     end
+        
+    #     @check isnan(ws) || ws>0
+
+    #     a = (2*alpha*ft + alpha*fc - fc - √(alpha^2*fc^2 - 4*alpha^2*fc*ft + 4*alpha^2*ft^2 - 2*alpha*fc^2 + fc^2)) / (4*alpha-2)
+    #     b = √(alpha*(2*a-fc)*(ft-a))
+    #     βini = (b^2/ft^2)^alpha/(ft-a)
+
+    #     this = new(E, nu, ft, fc, zeta, wc, ws, softcurve, alpha, gamma, theta, βini)
+    #     return this
+    # end
 end
+
+
+
+func_params(::Type{TCJoint}) = [
+    FunInfo( :TCJoint, "Creates a `TCJoint` material model.", ""),
+    ArgInfo( :E, "Young modulus", condition=:(E>0)),
+    ArgInfo( :nu, "Poisson ratio", condition=:(0<=nu<0.5)),
+    ArgInfo( :fc, "Compressive strength", condition=:(fc<0)),
+    ArgInfo( :ft, "Tensile strength", condition=:(ft>0)),
+    ArgInfo( :zeta, "Joint elastic stiffness factgor", condition=:(zeta>0)),
+    ArgInfo( :alpha, "Failure surface shape", 1.5, condition=:(alpha>0.5)),
+    ArgInfo( :gamma, "Failure surface minimum size", 0.1, condition=:(gamma>=0)),
+    ArgInfo( :theta, "Failure surface reduction speed", 1.5, condition=:(theta>=0)),
+    ArgInfo( :wc, "Critical crack opening", 0.0, condition=:(wc>=0)),
+    ArgInfo( :GF, "Fracture energy", 0.0, condition=:(GF>=0)),
+    ArgInfo( :Gf, "Fracture energy fraction for the bilinear softnening curve", 0.0, condition=:(Gf>=0)),
+    ArgInfo( :softmodel, "Softening model", :hordijk, values=(:linear, :bilinear, :hordijk, :soft, :custom), type=Symbol),
+    ArgInfo( :softcurve, "Softening curve", zeros(0,0), type=Array),
+]
+@doc make_doc(func_params(TCJoint)) TCJoint()
+
 
 
 function paramsdict(mat::TCJoint)
     mat = OrderedDict( string(field)=> getfield(mat, field) for field in fieldnames(typeof(mat)) )
 
-    mat.softcurve in ("hordijk", "soft") && ( mat["GF"] = 0.1943*mat.ft*mat.wc )
+    mat.softcurve in (:hordijk, :soft) && ( mat["GF"] = 0.1943*mat.ft*mat.wc )
     return mat
 end
 
@@ -161,7 +222,7 @@ end
 
 
 function calc_σmax(mat::TCJoint, state::TCJointState, up::Float64)
-    if mat.softcurve == "linear"
+    if mat.softmodel == :linear
         if up < mat.wc
             a = mat.ft 
             b = mat.ft /mat.wc
@@ -170,81 +231,76 @@ function calc_σmax(mat::TCJoint, state::TCJointState, up::Float64)
             b = 0.0
         end
         σmax = a - b*up
-    elseif mat.softcurve == "bilinear"
-        σs = 0.25*mat.ft 
-        if up < mat.ws
+    elseif mat.softmodel == :bilinear
+        σs = 0.25*mat.ft
+        ws = mat.wc*0.15
+        if up < ws
             a  = mat.ft  
-            b  = (mat.ft  - σs)/mat.ws
+            b  = (mat.ft  - σs)/ws
         elseif up < mat.wc
-            a  = mat.wc*σs/(mat.wc-mat.ws)
-            b  = σs/(mat.wc-mat.ws)
+            a  = mat.wc*σs/(mat.wc-ws)
+            b  = σs/(mat.wc-ws)
         else
             a = 0.0
             b = 0.0
         end
         σmax = a - b*up
-    elseif mat.softcurve == "hordijk"
+    elseif mat.softmodel == :hordijk
         if up < mat.wc
             z = (1 + 27*(up/mat.wc)^3)*exp(-6.93*up/mat.wc) - 28*(up/mat.wc)*exp(-6.93)
         else
             z = 0.0
         end
         σmax = z*mat.ft
-    elseif mat.softcurve == "soft"
-        # c = 1.5
-        # a = 1.19311
-        # c = 0.0
-        # a = 1.09913
-        # c = 2.0
-        # a = 1.24787
-        # a = 1.10366
-        # a = 1.07946
+    elseif mat.softmodel == :soft
         m = 0.55
         a = 1.30837
         if up == 0.0
             z = 1.0
         elseif 0.0 < up < mat.wc
             x = up/mat.wc
-            # z = (1.0 - x)^c*(1.0 - a^(1.0 - 1.0/x))
             z = 1.0 - a^(1.0 - 1.0/x^m)
         else
             z = 0.0
         end
         σmax = z*mat.ft
+    elseif mat.softmodel == :custom
+        σmax = interpolate(view(mat.softcurve, :, 1), view(mat.softcurve, :, 2), up)
     end
 
-    # @show mat.softcurve
+    # @show mat.softmodel
 
     return σmax
 end
 
 
 function deriv_σmax_upa(mat::TCJoint, state::TCJointState, up::Float64)
-    if mat.softcurve == "linear"
+    if mat.softmodel == :linear
         if up < mat.wc
             b = mat.ft /mat.wc
         else
             b = 0.0
         end
         dσmax = -b
-    elseif mat.softcurve == "bilinear"
+    elseif mat.softmodel == :bilinear
+        ws = mat.wc*0.15
         σs = 0.25*mat.ft 
-        if up < mat.ws
-            b  = (mat.ft  - σs)/mat.ws
+        if up < ws
+            b  = (mat.ft  - σs)/ws
         elseif up < mat.wc
-            b  = σs/(mat.wc-mat.ws)
+            b  = σs/(mat.wc-ws)
         else
             b = 0.0
         end
         dσmax = -b
-    elseif mat.softcurve == "hordijk"
+    elseif mat.softmodel == :hordijk
         if up < mat.wc
             dz = ((81*up^2*exp(-6.93*up/mat.wc)/mat.wc^3) - (6.93*(1 + 27*up^3/mat.wc^3)*exp(-6.93*up/mat.wc)/mat.wc) - 0.02738402432/mat.wc)
         else
             dz = 0.0
         end
         dσmax = dz*mat.ft 
-    elseif mat.softcurve == "soft"
+    elseif mat.softmodel == :soft
         m = 0.55
         a = 1.30837
 
@@ -258,8 +314,9 @@ function deriv_σmax_upa(mat::TCJoint, state::TCJointState, up::Float64)
             dz = 0.0
         end
         dσmax = dz*mat.ft 
+    elseif mat.softmodel == :custom
+        dσmax = derivative(view(mat.softcurve, :, 1), view(mat.softcurve, :, 2), up)
     end
-
 
     return dσmax
 end

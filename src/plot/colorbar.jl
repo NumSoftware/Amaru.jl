@@ -15,7 +15,7 @@ mutable struct Colorbar<:ChartComponent
     function Colorbar(; args...)
         args = checkargs(args, 
             [
-                ArgInfo( :location, "Colorbar location", :right, values=(:right, :bottom) ),
+                ArgInfo( :location, "Colorbar location", :right, values=(:none, :right, :bottom) ),
                 ArgInfo( :colormap, "Colormap", :coolwarm),
                 ArgInfo( :limits, "Colorbar limit values", [0.0,0.0], length=2 ),
                 ArgInfo( :label, "Colorbar label", "", type=AbstractString ),
@@ -34,19 +34,20 @@ mutable struct Colorbar<:ChartComponent
         colormap = args.colormap isa Symbol ? Colormap(args.colormap) : args.colormap
         this = new(args.location, colormap)
 
-        direction = args.location == :right ? :vertical : :horizontal
-
-        this.axis =  Axis(;
-            direction   = direction,
-            location    = args.location,
-            limits      = args.limits,
-            label       = args.label,
-            fontsize    = args.fontsize,
-            font        = args.font,
-            # ticks       = c.args.colorbarticks,
-            # ticklabels  = c.args.colorbarticklabels,
-            # mult        = c.args.colorbarmult,
-        )
+        if args.location != :none
+            direction = args.location == :right ? :vertical : :horizontal
+            this.axis =  Axis(;
+                direction   = direction,
+                location    = args.location,
+                limits      = args.limits,
+                label       = args.label,
+                fontsize    = args.fontsize,
+                font        = args.font,
+                # ticks       = c.args.colorbarticks,
+                # ticklabels  = c.args.colorbarticklabels,
+                # mult        = c.args.colorbarmult,
+            )
+        end
 
         this.scale = args.scale
         this.args = args
@@ -56,27 +57,29 @@ end
 
 
 function configure!(c::AbstractChart, cb::Colorbar)
-    configure!(c, cb.axis)
-    cb.thickness = 0.035*max(c.width, c.height)
-    cb.innersep = cb.thickness
-    if cb.location==:right
-        cb.height = cb.scale*(c.height - 2*c.outerpad)
-        cb.axis.height = cb.height
-        cb.width = cb.innersep + cb.thickness + cb.axis.ticklength + cb.axis.width 
-    else
-        cb.width = cb.scale*(c.width - 2*c.outerpad)
-        cb.axis.width = cb.width
-        cb.height = cb.innersep + cb.thickness + cb.axis.ticklength + cb.axis.height
+    if cb.location!==:none
+        configure!(c, cb.axis)
+        cb.thickness = 0.035*max(c.width, c.height)
+        cb.innersep = cb.thickness
+        if cb.location==:right
+            cb.height = cb.scale*(c.height - 2*c.outerpad)
+            cb.axis.height = cb.height
+            cb.width = cb.innersep + cb.thickness + cb.axis.ticklength + cb.axis.width 
+        elseif cb.location==:left
+            cb.width = cb.scale*(c.width - 2*c.outerpad)
+            cb.axis.width = cb.width
+            cb.height = cb.innersep + cb.thickness + cb.axis.ticklength + cb.axis.height
+        end
     end
 end
 
 
 function draw!(c::AbstractChart, cc::CairoContext, cb::Colorbar)
-    fmin, fmax = cb.axis.limits
     set_matrix(cc, CairoMatrix([1, 0, 0, 1, 0, 0]...))
 
     if cb.location==:right
         # Axis
+        fmin, fmax = cb.axis.limits
         x = c.canvas.box[3]+cb.innersep+cb.thickness+cb.axis.ticklength
         h = cb.height
 
@@ -101,8 +104,9 @@ function draw!(c::AbstractChart, cc::CairoContext, cb::Colorbar)
         set_source(cc, pat)
         rectangle(cc, x, y, w, -h)
         fill(cc)
-    else
+    elseif cb.location==:left
         # Axis
+        fmin, fmax = cb.axis.limits
         w = cb.width
         x = c.width/2 - w/2
         y = c.canvas.box[4]+cb.innersep+cb.thickness+cb.axis.ticklength

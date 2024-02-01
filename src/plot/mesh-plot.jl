@@ -10,9 +10,16 @@ mutable struct MeshPlot<:AbstractChart
     outerpad::Float64
     shades::Vector{Float64}
     args::NamedTuple
+    azimut::Float64
+    elevation::Float64
+    distance::Float64
+    
+    gradientmode::Symbol
+    lightvector::Vector{Float64}
 
     width::Float64
     height::Float64
+
     lw::Float64
     facecolor::Tuple
     field::String
@@ -24,13 +31,8 @@ mutable struct MeshPlot<:AbstractChart
     colorbarloc::Symbol
     colorbarscale::Float64
     colorbarfontsize::Float64
-    gradientmode::Symbol
-    azimut::Float64
-    elevation::Float64
-    distance::Float64
     outline::Bool
     wireframe::Bool
-    lightvector::Vector{Float64}
 
     function MeshPlot(mesh; args...)
         args = checkargs(args, func_params(MeshPlot), aliens=false)
@@ -73,7 +75,7 @@ mutable struct MeshPlot<:AbstractChart
 end
 
 func_params(::Type{MeshPlot}) = [
-    FunInfo( :MeshPlot, "Creates a customizable `MeshPlot` instance used to plot finite element meshes.", ()),
+    FunInfo( :MeshPlot, "Creates a customizable `MeshPlot` instance used to plot finite element meshes.", ""),
     ArgInfo( (:size, :figsize), "Mesh drawing size in dpi", (220,150), length=2),
     ArgInfo( :facecolor, "Surface color", :aliceblue),
     ArgInfo( :warp, "Warping scale", 0.0 ),
@@ -84,7 +86,7 @@ func_params(::Type{MeshPlot}) = [
     ArgInfo( :label, "Colorbar label", "", type=AbstractString ),
     ArgInfo( :colormap, "Colormap for field display", :coolwarm),
     # ArgInfo( :divergefromzero, "Sets if colormap will diverge from zero", false, type=Bool),
-    ArgInfo( (:colorbarloc,:colorbar), "Colorbar location", :right, values=(:right, :bottom) ),
+    ArgInfo( (:colorbarloc,:colorbar), "Colorbar location", :right, values=(:none, :right, :bottom) ),
     ArgInfo( (:colorbarscale, :cbscale), "Colorbar scale", 0.9, condition=:(colorbarscale>0) ),
     ArgInfo( (:label, :colorbarlabel, :cblabel, :colorbartitle), "Colorbar label", "" ),
     ArgInfo( (:fontsize, :colorbarfontsize, :cbfontsize), "Colorbar font size", 7.0, condition=:(fontsize>0)),
@@ -97,7 +99,7 @@ func_params(::Type{MeshPlot}) = [
     ArgInfo( :wireframe, "Flag to show a wireframe", false, type=Bool ),
     ArgInfo( (:lightvector, :lv), "Light direction vector", [0.0,0.0,0.0], length=3 )
 ]
-@doc make_doc(MeshPlot) MeshPlot()
+@doc make_doc(func_params(MeshPlot)) MeshPlot()
 
 
 function bezier_points(edge)
@@ -179,7 +181,7 @@ function configure!(mplot::MeshPlot)
         outline_edges = mplot.outline ? get_outline_edges(areacells) : Cell[]
 
         elems    = [ areacells; linecells; outline_edges ]
-        elem_ids = [ c.id for c in [areacells; linecells] ]
+        # elem_ids = [ c.id for c in [areacells; linecells] ]
         nodes    = getnodes(elems)
     else
         # get surface cells and update
@@ -190,20 +192,23 @@ function configure!(mplot::MeshPlot)
         surfcells = get_outer_facets(volcells)
         # outline_edges = outline ? copy.(get_outline_edges(surfcells)) : Cell[] # copies nodes
         outline_edges = mplot.outline ? [ get_outline_edges(surfcells); get_outer_facets(areacells) ] : Cell[]
+
+        for c in surfcells
+            c.id = c.owner.id
+            # @show c.id
+        end
+
         # detach nodes
         for edge in outline_edges
             edge.nodes = copy.(edge.nodes)
+            # edge.owner.id = edge.owner.owner.id
+            # @show edge.owner.id
         end
 
         tag!(outline_edges, "_outline")
         elems    = [ surfcells; areacells; linecells; outline_edges ]
-        elem_ids = [ [c.owner.id for c in surfcells]; [c.id for c in [areacells; linecells]] ]
+        # elem_ids = [ [c.owner.id for c in surfcells]; [c.id for c in [areacells; linecells]] ]
         nodes    = getnodes(elems) # todo: check for joined nodes in cracks
-    end
-
-    # redefine ids
-    for (i,elem) in enumerate(elems)
-        elem.id = i
     end
 
     node_data = mesh.node_data
@@ -227,7 +232,8 @@ function configure!(mplot::MeshPlot)
         V = Vec3( cosd(mplot.elevation)*cosd(mplot.azimut), cosd(mplot.elevation)*sind(mplot.azimut), sind(mplot.elevation) ) # observer vector
         norm(mplot.lightvector)==0 && (mplot.lightvector = V)
         L = mplot.lightvector
-        shades = zeros(length(elems))
+        # shades = zeros(length(elems))
+        shades = zeros(length(mesh.elems))
         for (i,elem) in enumerate(elems)
             elem.shape.family==BULKCELL || continue
             N = get_facet_normal(elem)
@@ -237,10 +243,12 @@ function configure!(mplot::MeshPlot)
 
             Ia = 0.75 # ambient
             Id = 0.40 # diffuse
-            Is = 0.30 # specular
-            sh = 5.00  # shininess
-            shades[i] = Ia + Id*max(0,dot(L,N)) + Is*max(0,dot(V,R))^sh
+            Is = 0.20 # specular
+            sh = 2.00 # shininess
+            shades[elem.id] = Ia + Id*max(0,dot(L,N)) + Is*max(0,dot(V,R))^sh
         end
+        mplot.shades = shades
+
 
         # compute projection
         project_to_2d!(nodes, mplot.azimut, mplot.elevation, mplot.distance)
@@ -257,12 +265,6 @@ function configure!(mplot::MeshPlot)
         distances = [ 0.9*sum(node.coord[3] for node in elem.nodes)/length(elem.nodes) + 0.1*minimum(node.coord[3] for node in elem.nodes) for elem in elems ]
         perm = sortperm(distances, rev=true)
         elems = elems[perm]
-        mplot.shades = shades[perm]
-
-        for (i,elem) in enumerate(elems)
-            elem.id = i
-        end
-        
     end
 
     # Field 
@@ -274,7 +276,8 @@ function configure!(mplot::MeshPlot)
         field = string(mplot.field)
         found = false
         if haskey(elem_data, field)
-            fvals = elem_data[field][elem_ids].*mplot.mult
+            # fvals = elem_data[field][elem_ids].*mplot.mult
+            fvals = elem_data[field].*mplot.mult
             fmax = maximum(fvals)
             fmin = minimum(fvals)
             found = true
@@ -308,7 +311,7 @@ function configure!(mplot::MeshPlot)
     mplot.elems = elems
 
     # Canvas 
-    mplot.canvas = GeometryCanvas()
+    mplot.canvas = MeshCanvas()
     width, height = mplot.width, mplot.height
     mplot.outerpad = 0.01*min(width, height)
 
@@ -331,7 +334,7 @@ function configure!(mplot::MeshPlot)
         if has_field
             if mplot.colorbar.location==:right
                 rpane = mplot.colorbar.width
-            else
+            elseif mplot.colorbar.location==:left
                 bpane = mplot.colorbar.height
             end
         end
@@ -368,7 +371,6 @@ function draw!(mplot::MeshPlot, cc::CairoContext)
 
     # Draw elements
     for (i,elem) in enumerate(mplot.elems)
-        
 
         if elem.tag=="_outline"
             gray = sum(mplot.facecolor)/3*Vec3(0.5,0.5,0.5)
@@ -395,8 +397,6 @@ function draw!(mplot::MeshPlot, cc::CairoContext)
             continue
         end
 
-
-
         if elem.shape.family==LINECELL
             x, y = elem.nodes[1].coord
             move_to(cc, x, y)
@@ -416,11 +416,10 @@ function draw!(mplot::MeshPlot, cc::CairoContext)
         draw_surface_cell!(cc, mplot, elem, has_field)
         
     end
-    
+
     # draw colorbar
     has_field && draw!(mplot, cc, mplot.colorbar)
 end
-
 
 
 function draw_surface_cell!(cc::CairoContext, mplot::MeshPlot, elem::AbstractCell, has_field::Bool)
@@ -429,6 +428,7 @@ function draw_surface_cell!(cc::CairoContext, mplot::MeshPlot, elem::AbstractCel
     # draw cells face
     edges = getedges(elem)
     if !mplot.wireframe
+        # @show elem.id
         shade = mplot.mesh.env.ndim==3 ? mplot.shades[elem.id] : 1.0
 
         if !has_field || !is_nodal_field || mplot.gradientmode==:constant
@@ -534,7 +534,6 @@ function draw_surface_cell!(cc::CairoContext, mplot::MeshPlot, elem::AbstractCel
         end
     end
 
-
     # draw edges
     x, y = edges[1].nodes[1].coord
     move_to(cc, x, y)
@@ -549,6 +548,7 @@ function draw_surface_cell!(cc::CairoContext, mplot::MeshPlot, elem::AbstractCel
             if is_nodal_field
                 color = mplot.colormap(mplot.values[id]).*0.55
             else
+                # color = mplot.facecolor
                 color = mplot.colormap(mplot.values[elem.id]).*0.55
             end
         end

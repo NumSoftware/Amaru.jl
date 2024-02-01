@@ -24,7 +24,7 @@ end
 
 
 func_params(::Type{MechBeamProps}) = [
-    FunInfo( :MechBeamProps, "Creates a `MechBeamProps` instance.", ()),
+    FunInfo( :MechBeamProps, "Creates a `MechBeamProps` instance.", ""),
     ArgInfo( :thy, "y' thickness", condition=:(thy>0) ),
     ArgInfo( :thz, "z' thickness", condition=:(thz>0.0) ),
     ArgInfo( :A, "Section area",  condition=:(A>0.0)  ),
