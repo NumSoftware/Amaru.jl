@@ -51,6 +51,8 @@ mutable struct TCJoint<:Material
         end
         
         if wc==0.0
+            GF = args.GF
+            ft = args.ft
             if softmodel == :linear
                 wc = round(2*GF/ft, sigdigits=5)
             elseif softmodel == :bilinear
@@ -65,7 +67,7 @@ mutable struct TCJoint<:Material
                 wc = round(GF/(0.1947019536*ft), sigdigits=5)
                 # wc = round(6*GF/ft, sigdigits=5)  
                 # wc = round(5.14*GF/ft, sigdigits=5)  
-            end    
+            end
         end
 
         alpha = args.alpha
@@ -78,45 +80,6 @@ mutable struct TCJoint<:Material
         this = new(args.E, args.nu, args.ft, args.fc, args.zeta, wc, softmodel, softcurve, args.alpha, args.gamma, args.theta, βini)
         return this
     end
-
-    # function TCJoint(;E=NaN, nu=NaN, fc=NaN, ft=NaN, zeta=NaN, alpha=1.5, gamma=0.1, theta=1.5, wc=NaN, ws=NaN, GF=NaN, Gf=NaN, softcurve=:hordijk)
-    #     @check GF>0 || Gf>0 || wc>0
-    #     @check E>0.0
-    #     @check 0<=nu<0.5
-    #     @check fc<0  
-    #     @check ft>=0  
-    #     @check zeta>0
-    #     @check softcurve in (:linear, :bilinear, :hordijk, :soft)
-        
-    #     if isnan(wc)
-    #         if softcurve == :linear
-    #             wc = round(2*GF/ft, sigdigits=5)
-    #         elseif softcurve == :bilinear
-    #             if isnan(Gf)
-    #                 wc = round(5*GF/ft, sigdigits=5)
-    #                 ws = round(wc*0.15, sigdigits=5)
-    #             else
-    #                 wc = round((8*GF- 6*Gf)/ft, sigdigits=5)
-    #                 ws = round(1.5*Gf/ft, sigdigits=5)
-    #             end
-    #         elseif softcurve==:hordijk
-    #             wc = round(GF/(0.1947019536*ft), sigdigits=5)  
-    #         elseif softcurve==:soft
-    #             wc = round(GF/(0.1947019536*ft), sigdigits=5)  
-    #             # wc = round(6*GF/ft, sigdigits=5)  
-    #             # wc = round(5.14*GF/ft, sigdigits=5)  
-    #         end    
-    #     end
-        
-    #     @check isnan(ws) || ws>0
-
-    #     a = (2*alpha*ft + alpha*fc - fc - √(alpha^2*fc^2 - 4*alpha^2*fc*ft + 4*alpha^2*ft^2 - 2*alpha*fc^2 + fc^2)) / (4*alpha-2)
-    #     b = √(alpha*(2*a-fc)*(ft-a))
-    #     βini = (b^2/ft^2)^alpha/(ft-a)
-
-    #     this = new(E, nu, ft, fc, zeta, wc, ws, softcurve, alpha, gamma, theta, βini)
-    #     return this
-    # end
 end
 
 
@@ -137,7 +100,7 @@ func_params(::Type{TCJoint}) = [
     ArgInfo( :softmodel, "Softening model", :hordijk, values=(:linear, :bilinear, :hordijk, :soft, :custom), type=Symbol),
     ArgInfo( :softcurve, "Softening curve", zeros(0,0), type=Array),
 ]
-@doc make_doc(func_params(TCJoint)) TCJoint()
+@doc make_doc(func_params(TCJoint)) TCJoint
 
 
 
