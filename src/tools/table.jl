@@ -670,10 +670,10 @@ end
 
 function DataTable(filename::String, delim::Char='\t')
     _, format = splitext(filename)
-    formats = (".dat", ".table")
+    formats = (".dat", ".table", ".csv")
     format in formats || error("DataTable: cannot read \"$format\". Suitable formats are $formats")
 
-    if format in (".dat", ".table")
+    if format in formats
         matrix, headstr = readdlm(filename, delim, header=true, use_mmap=false)
         header = vec(strip.(headstr))
         table = DataTable(header, matrix)
