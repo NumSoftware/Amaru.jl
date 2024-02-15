@@ -17,7 +17,7 @@ save(msh, "mesh.vtk")
 mats = [
         "solids" => MechSolid => LinearElastic => (E=24e3, nu=0.2),
         "bars"   => MechBar => LinearElastic => (E=200e6, A=0.00011),
-        "joints" => MechRSJoint => CebRSJoint => (taumax=12, taures=3, s1=0.001, s2=0.0011, s3=0.004, alpha=0.5, beta=0.5, ks=(12/0.001)*5, kn=5000, p=0.25),
+        "joints" => MechRSJoint => CebLSJoint => (taumax=12, taures=3, s1=0.001, s2=0.0011, s3=0.004, alpha=0.5, beta=0.5, ks=(12/0.001)*5, kn=5000, p=0.25),
         "tips"   => MechTipJoint => TipJoint => (k=1e8, fixed=false)
        ]
 
