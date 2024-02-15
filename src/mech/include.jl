@@ -21,7 +21,7 @@ include("elem/mech-rod.jl")
 include("elem/mech-embrod.jl")
 include("elem/mech-beam.jl")
 include("elem/mech-joint.jl")
-include("elem/mech-rsjoint.jl")
+include("elem/mech-lsjoint.jl")
 include("elem/mech-tipjoint.jl")
 include("elem/mech-plate-mzc-quad4.jl")
 include("elem/mech-plate-rm-quad4.jl")
@@ -69,9 +69,9 @@ include("mat/tc-joint.jl")
 include("mat/tcf-joint.jl")
 
 # Models for 1D joint elements
-include("mat/elastic-rsjoint.jl")
+include("mat/elastic-lsjoint.jl")
 include("mat/ceb-rsjoint.jl")
-include("mat/cyclic-rsjoint.jl")
+include("mat/cyclic-lsjoint.jl")
 include("mat/tipjoint.jl")
 include("mat/elastic-tipjoint.jl")
 
@@ -83,7 +83,7 @@ include("mech-solver.jl")
 include("dyn-solver.jl")
 include("modal-solver.jl")
 
-export mech_solve!, solve!
+export solve!
 
 # function reset_displacements(model::Model)
 #     for n in model.nodes
