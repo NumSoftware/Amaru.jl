@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export MechRSJoint
+export MechRSJoint, MechLSJoint
 
 struct MechRSJointProps<:ElemProperties
     p::Float64
@@ -47,6 +47,8 @@ mutable struct MechRSJoint<:Mech
         return new()
     end
 end
+
+const MechLSJoint = MechRSJoint
 
 compat_shape_family(::Type{MechRSJoint}) = LINEJOINTCELL
 compat_elem_props(::Type{MechRSJoint}) = MechRSJointProps
