@@ -1,15 +1,15 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export CebRSJoint
+export CebLSJoint
 
-mutable struct CebRSJointState<:IpState
+mutable struct CebLSJointState<:IpState
     env::ModelEnv
     σ  ::Array{Float64,1}
     u  ::Array{Float64,1}
     τy ::Float64      # max stress
     sy ::Float64      # accumulated relative displacement
     elastic::Bool
-    function CebRSJointState(env::ModelEnv)
+    function CebLSJointState(env::ModelEnv)
         this = new(env)
         ndim = env.ndim
         this.σ = zeros(ndim)
@@ -22,7 +22,7 @@ mutable struct CebRSJointState<:IpState
 end
 
 
-mutable struct CebRSJoint<:Material
+mutable struct CebLSJoint<:Material
     τmax:: Float64
     τres:: Float64
     s1  :: Float64
@@ -33,11 +33,11 @@ mutable struct CebRSJoint<:Material
     ks  :: Float64
     kn  :: Float64
 
-    function CebRSJoint(prms::Dict{Symbol,Float64})
-        return  CebRSJoint(;prms...)
+    function CebLSJoint(prms::Dict{Symbol,Float64})
+        return  CebLSJoint(;prms...)
     end
 
-    function CebRSJoint(; params...)
+    function CebLSJoint(; params...)
 
         names = (taumax = "Shear strength", taures = "Residual shear stress", s1 = "slip 1", s2 = "slip 2", s3 = "slip 3", alpha = "Ascending curvature parameter", beta = "Descending curvature parameter", kn = "Normal stiffness", ks = "Shear stiffness")
         required = keys(names)
@@ -74,21 +74,23 @@ mutable struct CebRSJoint<:Material
     end
 end
 
+const CebRSJoint = CebLSJoint
 
-compat_state_type(::Type{CebRSJoint}, ::Type{MechRSJoint}, env::ModelEnv) = CebRSJointState
+
+compat_state_type(::Type{CebLSJoint}, ::Type{MechRSJoint}, env::ModelEnv) = CebLSJointState
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{CebRSJoint}) = CebRSJointState
+compat_state_type(::Type{CebLSJoint}) = CebLSJointState
 
 # Element types that work with this material
-compat_elem_types(::Type{CebRSJoint}) = (MechRSJoint,)
+compat_elem_types(::Type{CebLSJoint}) = (MechRSJoint,)
 
-CEBJoint1D = CebRSJoint #! deprecated
+CEBJoint1D = CebLSJoint #! deprecated
 export CEBJoint1D
 
 
-function Tau(mat::CebRSJoint, sy::Float64)
+function Tau(mat::CebLSJoint, sy::Float64)
     if sy<mat.s1
         return mat.τmax*(sy/mat.s1)^mat.α
     elseif sy<mat.s2
@@ -101,7 +103,7 @@ function Tau(mat::CebRSJoint, sy::Float64)
 end
 
 
-function deriv(mat::CebRSJoint, state::CebRSJointState, sy::Float64)
+function deriv(mat::CebLSJoint, state::CebLSJointState, sy::Float64)
     if sy==0.0
         s1_factor = 0.01
         sy = s1_factor*mat.s1   # to avoid undefined derivative
@@ -121,7 +123,7 @@ function deriv(mat::CebRSJoint, state::CebRSJointState, sy::Float64)
 end
 
 
-function calcD(mat::CebRSJoint, state::CebRSJointState)
+function calcD(mat::CebLSJoint, state::CebLSJointState)
     ndim = state.env.ndim
     ks = mat.ks
 
@@ -144,12 +146,12 @@ function calcD(mat::CebRSJoint, state::CebRSJointState)
 end
 
 
-function yield_func(mat::CebRSJoint, state::CebRSJointState, τ::Float64)
+function yield_func(mat::CebLSJoint, state::CebLSJointState, τ::Float64)
     return abs(τ) - state.τy
 end
 
 
-function stress_update_n(mat::CebRSJoint, state::CebRSJointState, Δu::Vect)
+function stress_update_n(mat::CebLSJoint, state::CebLSJointState, Δu::Vect)
     ks = mat.ks
     kn = mat.kn
     Δs = Δu[1]      # relative displacement
@@ -242,7 +244,7 @@ function stress_update_n(mat::CebRSJoint, state::CebRSJointState, Δu::Vect)
 end
 
 
-function update_state!(mat::CebRSJoint, state::CebRSJointState, Δu::Vect)
+function update_state!(mat::CebLSJoint, state::CebLSJointState, Δu::Vect)
     ks = mat.ks
     kn = mat.kn
     Δs = Δu[1]      # relative displacement
@@ -281,7 +283,7 @@ function update_state!(mat::CebRSJoint, state::CebRSJointState, Δu::Vect)
 end
 
 
-function ip_state_vals(mat::CebRSJoint, state::CebRSJointState)
+function ip_state_vals(mat::CebLSJoint, state::CebLSJointState)
     return OrderedDict(
       :ur   => state.u[1] ,
       :tau  => state.σ[1] ,

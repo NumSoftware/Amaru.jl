@@ -1,9 +1,8 @@
 # This file ips part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 export CyclicRSJoint, CyclicLSJoint
-const CyclicLSJoint = CyclicRSJoint
 
-mutable struct CyclicRSJointState<:IpState
+mutable struct CyclicLSJointState<:IpState
     env    ::ModelEnv
     σ      ::Array{Float64,1}
     u      ::Array{Float64,1}
@@ -16,7 +15,7 @@ mutable struct CyclicRSJointState<:IpState
     sneg   ::Float64
     spos   ::Float64
     elastic::Bool
-    function CyclicRSJointState(env::ModelEnv)
+    function CyclicLSJointState(env::ModelEnv)
         this         = new(env)
         ndim         = env.ndim
         this.σ       = zeros(ndim)
@@ -34,7 +33,7 @@ mutable struct CyclicRSJointState<:IpState
     end
 end
 
-mutable struct CyclicRSJoint<:Material
+mutable struct CyclicLSJoint<:Material
     τmax:: Float64
     τres:: Float64
     speak:: Float64
@@ -46,11 +45,11 @@ mutable struct CyclicRSJoint<:Material
     kn  :: Float64
     p   :: Float64
 
-    function CyclicRSJoint(prms::Dict{Symbol,Float64})
-        return  CyclicRSJoint(;prms...)
+    function CyclicLSJoint(prms::Dict{Symbol,Float64})
+        return  CyclicLSJoint(;prms...)
     end
 
-    function CyclicRSJoint(;taumax=NaN, taures=NaN, speak=NaN, sres=NaN, alpha=NaN, beta=NaN, kn=NaN, ks=NaN, p=NaN, A=NaN, dm=NaN)
+    function CyclicLSJoint(;taumax=NaN, taures=NaN, speak=NaN, sres=NaN, alpha=NaN, beta=NaN, kn=NaN, ks=NaN, p=NaN, A=NaN, dm=NaN)
         
         @check speak>0
 
@@ -87,14 +86,17 @@ mutable struct CyclicRSJoint<:Material
     end
 end
 
+const CyclicRSJoint = CyclicLSJoint
+
+
 # Element types that work with this material
-# compat_elem_types(::Type{CyclicRSJoint}) = (MechRSJoint,)
+# compat_elem_types(::Type{CyclicLSJoint}) = (MechRSJoint,)
 
 # Type of corresponding state structure
-compat_state_type(::Type{CyclicRSJoint}, ::Type{MechRSJoint}, env::ModelEnv) = CyclicRSJointState
+compat_state_type(::Type{CyclicLSJoint}, ::Type{MechRSJoint}, env::ModelEnv) = CyclicLSJointState
 
 
-function tau(mat::CyclicRSJoint, ips::CyclicRSJointState, s::Float64)
+function tau(mat::CyclicLSJoint, ips::CyclicLSJointState, s::Float64)
     s = abs(s)
     s2 = ips.speak*1.1
     if s<ips.speak
@@ -109,7 +111,7 @@ function tau(mat::CyclicRSJoint, ips::CyclicRSJointState, s::Float64)
 end
 
 
-function tau_deriv(mat::CyclicRSJoint, ips::CyclicRSJointState, s::Float64)
+function tau_deriv(mat::CyclicLSJoint, ips::CyclicLSJointState, s::Float64)
     s = abs(s)
     s2 = ips.speak*1.1
 
@@ -132,7 +134,7 @@ function tau_deriv(mat::CyclicRSJoint, ips::CyclicRSJointState, s::Float64)
 end
 
 
-function calcD(mat::CyclicRSJoint, ips::CyclicRSJointState)
+function calcD(mat::CyclicLSJoint, ips::CyclicLSJointState)
     ndim = ips.env.ndim
     ks = mat.ks
     kn = mat.kn
@@ -168,7 +170,7 @@ function calcD(mat::CyclicRSJoint, ips::CyclicRSJointState)
 end
 
 
-function update_state!(mat::CyclicRSJoint, ips::CyclicRSJointState, Δu::Vect)
+function update_state!(mat::CyclicLSJoint, ips::CyclicLSJointState, Δu::Vect)
     ks = mat.ks
     kn = mat.kn
     s  = ips.u[1]   # relative displacement
@@ -231,7 +233,7 @@ function update_state!(mat::CyclicRSJoint, ips::CyclicRSJointState, Δu::Vect)
 end
 
 
-function stress_update2(mat::CyclicRSJoint, ips::CyclicRSJointState, Δu::Vect)
+function stress_update2(mat::CyclicLSJoint, ips::CyclicLSJointState, Δu::Vect)
     ks = mat.ks
     kn = mat.kn
     s  = ips.u[1]   # relative displacement
@@ -299,7 +301,7 @@ function stress_update2(mat::CyclicRSJoint, ips::CyclicRSJointState, Δu::Vect)
 end
 
 
-function ip_state_vals(mat::CyclicRSJoint, ips::CyclicRSJointState)
+function ip_state_vals(mat::CyclicLSJoint, ips::CyclicLSJointState)
     return OrderedDict(
       :ur   => ips.u[1] ,
       :tau  => ips.σ[1] ,
