@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export MechBar, MechRod
+export MechBar, MechRod, MechTruss
 
 struct MechBarProps<:ElemProperties
     ρ::Float64
@@ -47,6 +47,7 @@ mutable struct MechBar<:Mech
 end
 
 const MechRod = MechBar
+const MechTruss = MechBar
 
 compat_shape_family(::Type{MechBar}) = LINECELL
 # compat_elem_types(::Type{MechBarProps}) = MechBar
@@ -113,7 +114,7 @@ function elem_mass(elem::MechBar)
 
     ndim   = elem.env.ndim
     nnodes = length(elem.nodes)
-    ρ = elem.mat.ρ
+    ρ = elem.props.ρ
     A = elem.props.A
 
     C = getcoords(elem)
