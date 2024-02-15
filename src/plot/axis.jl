@@ -87,7 +87,7 @@ function configure!(chart::AbstractChart, ax::Axis)
         if length(ax.ticks)==0
             limits = [Inf, -Inf]
             for p in chart.dataseries
-                p isa DataSeriesPlot || continue
+                p isa DataSeries || continue
                 if ax.direction==:horizontal
                     if p.x!==nothing
                         limits[1] = min(limits[1], p.x)

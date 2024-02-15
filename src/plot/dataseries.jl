@@ -4,7 +4,7 @@ const _line_style_list = [:none, :solid, :dot, :dash, :dashdot]
 const _marker_list = [:none, :circle, :square, :triangle, :utriangle, :cross, :xcross, :diamond, :pentagon, :hexagon, :star]
 
 
-mutable struct LinePlot<:DataSeriesPlot
+mutable struct LineSeries<:DataSeries
     X     ::Array
     Y     ::Array
     x     ::Union{Float64,Nothing}
@@ -24,9 +24,9 @@ mutable struct LinePlot<:DataSeriesPlot
     dash  ::Vector{Float64}
     order::Union{Int,Nothing}
 
-    function LinePlot(X::AbstractArray, Y::AbstractArray; args...)
+    function LineSeries(X::AbstractArray, Y::AbstractArray; args...)
 
-        args = checkargs(args, func_params(LinePlot), aliens=false)
+        args = checkargs(args, func_params(LineSeries), aliens=false)
 
         if args.linecolor!==:default
             linecolor = get_color(args.linecolor)
@@ -78,12 +78,14 @@ mutable struct LinePlot<:DataSeriesPlot
 end
 
 
-function LinePlot(; args...)
-    return LinePlot(Float64[], Float64[]; args...)
+function LineSeries(; args...)
+    return LineSeries(Float64[], Float64[]; args...)
 end
 
-func_params(::Type{LinePlot}) = [
-    FunInfo( :LinePlot, "Creates a customizable `LinePlot` instance.", "X, Y"),
+const LinePlot = LineSeries
+
+func_params(::Type{LineSeries}) = [
+    FunInfo( :LineSeries, "Creates a customizable `LineSeries` instance.", "X, Y"),
     ArgInfo( (:ls, :linestyle), "Line style", :solid, values=_line_style_list ),
     ArgInfo( :dash, "Dash pattern", Float64[] ),
     ArgInfo( (:linecolor, :lc, :color), "Line linecolor", :default),
@@ -101,7 +103,7 @@ func_params(::Type{LinePlot}) = [
     ArgInfo( :y, "y coordinate for a horizontal line", nothing),
     ArgInfo( :order, "Order fo drawing", nothing),
 ]
-@doc make_doc(func_params(LinePlot)) LinePlot()
+@doc make_doc(func_params(LineSeries)) LineSeries()
 
 function data2user(c::Chart, x, y)
     Xmin, Ymin, Xmax, Ymax = c.canvas.box
@@ -111,7 +113,7 @@ function data2user(c::Chart, x, y)
     return xD, yD
 end
 
-function configure!(chart::Chart, p::LinePlot)
+function configure!(chart::Chart, p::LineSeries)
     xmin, ymin, xmax, ymax = chart.canvas.limits
     if p.x !== nothing
         p.X = [ p.x, p.x ]
@@ -131,7 +133,7 @@ function configure!(chart::Chart, p::LinePlot)
     # end
 end
 
-function draw!(chart::Chart, cc::CairoContext, p::LinePlot)
+function draw!(chart::Chart, cc::CairoContext, p::LineSeries)
 
     p.markercolor = get_color(p.markercolor, p.linecolor)
     p.mscolor = get_color(p.mscolor, p.linecolor)

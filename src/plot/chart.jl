@@ -2,9 +2,9 @@
 
 abstract type AbstractChart end
 abstract type ChartComponent end
-abstract type DataSeriesPlot end
+abstract type DataSeries end
 
-_available_formats=[
+const _available_formats = [
     ".pdf",
     ".png",
     ".svg",
@@ -182,7 +182,7 @@ function draw!(c::Chart, cc::CairoContext)
 end
 
 
-function addplot!(chart::Chart, P::DataSeriesPlot...)
+function addplot!(chart::Chart, P::DataSeries...)
     length(P)>0 || throw(AmaruException("No dataseries added"))
     for p in P
         if p.linecolor===:default # update colors
@@ -200,7 +200,7 @@ function addplot!(chart::Chart, P::DataSeriesPlot...)
 
 end
 
-function addplot!(c::Chart, plots::Array{<:DataSeriesPlot,1})
+function addplot!(c::Chart, plots::Array{<:DataSeries,1})
     addplot!(c, plots...)
 end
 
