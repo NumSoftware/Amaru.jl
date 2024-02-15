@@ -327,7 +327,6 @@ function dyn_stage_solver!(model::Model, stage::Stage;
         converged = false
 
         for it=1:maxits
-            @show it
             yield()
             if it>1; ΔUi .= 0.0 end # essential values are applied only at first iteration
             lastres = residue # residue from last iteration
@@ -338,9 +337,6 @@ function dyn_stage_solver!(model::Model, stage::Stage;
             C   = alpha*M + beta*K # Damping matrix
             Kp  = K + (4/(Δt^2))*M + (2/Δt)*C # pseudo-stiffness matrix
             ΔFp = Fex_Fin + M*(A + 4*V/Δt - 4*ΔUa/Δt^2) + C*(V - 2*ΔUa/Δt)
-            @show norm(ΔUa)
-            @show norm(V)
-            @show norm(A)
 
             # Solve
             solve_system!(Kp, ΔUi, ΔFp, nu)
