@@ -266,14 +266,14 @@ end
 Monitor type tha represent the resultant of a group of nodes.
 """
 mutable struct NodeSumMonitor<:AbstractMonitor
-    expr     ::Union{Symbol,Expr}
-    vals     ::OrderedDict # stores current values
+    expr     ::Union{Symbol,Expr} # watches
+    vals     ::OrderedDict # current values
     filename ::String
     filter   ::Union{Symbol,String,Expr,Symbolic}
     table    ::DataTable
     nodes    ::Array{Node,1}
     stopexpr ::Expr
-    _extra   ::Expr # extra symbols
+    # _extra   ::Expr # extra symbols :(fx_min, fx_max, stress=fx/10), etc
 
     @doc """
     $(TYPEDSIGNATURES)
@@ -296,28 +296,26 @@ mutable struct NodeSumMonitor<:AbstractMonitor
     ```
     """
     function NodeSumMonitor(expr::Union{Symbol,Expr}, filename::String=""; stop=Expr=:())
-        if expr isa Symbol || expr.head == :call
+        if expr isa Symbol || expr.head == :call || expr.head == :(=)
             expr = :($expr,)
         end
         if stop.head == :call
             stop = :($stop,)
         end
-        
-
         # add _min and _max extra values
-        extra = :()
-        for ex in [ expr.args; stop.args ]
-            for var in getvars(ex)
-                varstr = string(var)
-                length(varstr)>4 || continue
-                _, optstr = split(varstr, '_')
-                optstr in ("min","max") || continue
-                extra.args = union(extra.args, [var]) # add extra var such as fx_min
-                expr.args  = union(expr.args, [var])  # add extra var such as fx
-            end
-        end
+        # extra = :()
+        # for ex in [ expr.args; stop.args ]
+        #     for var in getvars(ex)
+        #         varstr = string(var)
+        #         length(varstr)>4 || continue
+        #         _, optstr = split(varstr, '_')
+        #         optstr in ("min","max") || continue
+        #         extra.args = union(extra.args, [var]) # add extra var such as fx_min
+        #         expr.args  = union(expr.args, [var])  # add extra var such as fx
+        #     end
+        # end
 
-        return new(expr, OrderedDict(), filename, :(), DataTable(), Node[], stop, extra)
+        return new(expr, OrderedDict(), filename, :(), DataTable(), Node[], stop)
     end
 end
 
@@ -346,26 +344,40 @@ function update_monitor!(monitor::NodeSumMonitor, model; flush=true)
     valsF = OrderedDict( Symbol(key) => sum(tableF[key])  for key in keys(tableF) ) # gets the sum for each component
     state = merge(valsU, valsF)
 
+    # update state with definitinos
+    for ex in monitor.expr.args
+        if ex isa Expr && ex.head == :(=)
+            var = ex.args[1]
+            state[var] = eval_arith_expr(ex.args[2]; state...)
+        end
+    end
+
     # update state with _max and _min
-    for var in monitor._extra.args
+    vars = union(getvars(monitor.expr), getvars(monitor.stopexpr))
+    extravals = OrderedDict()
+    for var in vars
+        contains(string(var), r"_max|_min") || continue
         keystr, optstr = split(string(var), '_')
         key = Symbol(keystr)
+
         if size(monitor.table)[1] == 0
             state[var] = state[key]
-            continue
-        end
-        if optstr=="min"
-            state[var] = min(state[key], monitor.table[var][end])
         else
-            state[var] = max(state[key], monitor.table[var][end])
+            fun = optstr=="min" ? min : max
+            state[var] = fun(state[key], monitor.table[var][end])
         end
+        extravals[var] = state[var]
     end
 
     # eval expressions
     for expr in monitor.expr.args
+        if expr isa Expr && expr.head == :(=)
+            expr = expr.args[1]
+        end
         monitor.vals[expr] = eval_arith_expr(expr; state...)
     end
 
+    merge!(monitor.vals, extravals)
     monitor.vals[:stage] = model.env.stage
     monitor.vals[:T]     = model.env.T
     model.env.transient && (monitor.vals[:t]=model.env.t)
@@ -378,9 +390,16 @@ function update_monitor!(monitor::NodeSumMonitor, model; flush=true)
 
     # eval stop expressions
     for expr in monitor.stopexpr.args
+
+        # @show expr
+        # @show eval_arith_expr(expr; state...)
+        # @show eval_arith_expr(:fx; state...)
+        # @show eval_arith_expr(:fx_max; state...)
         if eval_arith_expr(expr; state...)
-            return failure("Stop condition at NodeSumMonitor")
+            # @show "STOPPPPPPPP"
+            return failure("Stop condition at NodeSumMonitor ($expr)")
         end
+        # error()
     end
 
     return success()
