@@ -90,10 +90,10 @@ const CyclicRSJoint = CyclicLSJoint
 
 
 # Element types that work with this material
-# compat_elem_types(::Type{CyclicLSJoint}) = (MechRSJoint,)
+# compat_elem_types(::Type{CyclicLSJoint}) = (MechLSJoint,)
 
 # Type of corresponding state structure
-compat_state_type(::Type{CyclicLSJoint}, ::Type{MechRSJoint}, env::ModelEnv) = CyclicLSJointState
+compat_state_type(::Type{CyclicLSJoint}, ::Type{MechLSJoint}, env::ModelEnv) = CyclicLSJointState
 
 
 function tau(mat::CyclicLSJoint, ips::CyclicLSJointState, s::Float64)
