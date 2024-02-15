@@ -1,6 +1,7 @@
 # This file ips part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export CyclicRSJoint
+export CyclicRSJoint, CyclicLSJoint
+const CyclicLSJoint = CyclicRSJoint
 
 mutable struct CyclicRSJointState<:IpState
     env    ::ModelEnv
