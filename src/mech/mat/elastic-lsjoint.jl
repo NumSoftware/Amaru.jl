@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export ElasticRSJoint
+export ElasticRSJoint, ElasticLSJoint
 
 mutable struct ElasticRSJointState<:IpState
     env::ModelEnv
@@ -37,6 +37,8 @@ mutable struct ElasticRSJoint<:Material
         return new(ks, kn)
     end
 end
+
+const ElasticLSJoint = ElasticRSJoint
 
 
 # Type of corresponding state structure
