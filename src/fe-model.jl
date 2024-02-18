@@ -394,8 +394,8 @@ function update_records!(model::Model; checkpoint=true, flush=true, solverfailed
     end
 
     if checkpoint
-        rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
-        rm.(glob("*conflicted*.vtu", "$outdir/"), force=true)
+        rm.(glob("*conflicted*.log"), force=true)
+        rm.(glob("*conflicted*.*", "$outdir/"), force=true)
                 
         update_output_data!(model) # need to be before group loggers
 
