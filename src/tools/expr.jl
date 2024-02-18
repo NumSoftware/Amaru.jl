@@ -100,6 +100,8 @@ const op_dict = Dict{Symbol,Function}(
     :tan => (a,) -> tan(a),
     :exp => (a,) -> exp(a),
     :log => (a,) -> log(a),
+    :max => (a,b) -> max(a,b),
+    :min => (a,b) -> min(a,b),
    )
 
 
