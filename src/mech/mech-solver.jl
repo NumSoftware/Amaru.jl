@@ -270,7 +270,7 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
     # Incremental analysis
     T  = 0.0
     ΔT = 1.0/nincs       # initial ΔT value
-    autoinc && (ΔT=min(ΔT, 0.01))
+    autoinc && (ΔT=min(ΔT, ΔTmax))
 
     ΔTbk    = 0.0
     ΔTcheck = saveouts ? 1/nouts : 1.0
