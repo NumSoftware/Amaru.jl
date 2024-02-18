@@ -28,6 +28,10 @@ function configure!(c::Chart, canvas::Canvas)
         c.xaxis.limits = [ xmin-dx, xmax+dx ]
         c.yaxis.limits = [ ymin-dy, ymax+dy ]
 
+        # force recompute ticks
+        c.xaxis.ticks = []
+        c.yaxis.ticks = []
+
         # reconfigure axes
         configure!(c, c.xaxis, c.yaxis)
         xmin, xmax = c.xaxis.limits

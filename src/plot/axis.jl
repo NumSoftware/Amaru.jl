@@ -124,10 +124,6 @@ function configure!(chart::AbstractChart, ax::Axis)
         ax.limits = limits
     end
 
-    # if chart.aspectratio==:equal
-        # 
-    # end
-
     # configure ticks
     if length(ax.ticks)==0
         len  = diff(ax.limits)[1]
