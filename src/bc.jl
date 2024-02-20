@@ -130,8 +130,7 @@ function compute_bc_vals!(model::AbstractDomain, bc::Union{SurfaceBC,EdgeBC}, t:
                     end
                 end
             else
-                Fd, map = distributed_bc(facet, key, val, env, env.ana)
-                # Fd, map = distributed_bc(elem, facet, key, val)
+                Fd, map = distributed_bc(facet.owner, facet, key, val)
                 F[map] += Fd
             end
         end

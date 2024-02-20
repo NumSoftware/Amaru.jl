@@ -73,8 +73,9 @@ end
 
 
 # Distributed natural boundary conditions for faces and edges of bulk elements
-function distributed_bc(facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr}, env::ModelEnv, ana::Analysis)
-    ndim  = env.ndim
+function mech_solid_boundary_forces(elem::Mech, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
+    ndim  = elem.env.ndim
+    ana = elem.env.ana
     if ndim==2
         suitable_keys = (:qx, :qy, :qn, :tx, :ty, :tn)
     else
@@ -92,7 +93,7 @@ function distributed_bc(facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr}, 
     th     = isedgebc ? 1.0 : ana.thickness
     nodes  = facet.nodes
     nnodes = length(nodes)
-    t      = env.t
+    t      = elem.env.t
 
     # Calculate the facet coordinates 
     C = getcoords(nodes, ndim)

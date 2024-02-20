@@ -132,13 +132,15 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
 
         save_outs = stage.nouts > 0
         if save_outs
-            if nouts > nincs
-                nincs = nouts
-                quiet || info("nincs changed to $(nincs) to match nouts")
-            end
-            if nincs%nouts != 0 && !autoinc
-                stage.nincs = nincs - (nincs%nouts) + nouts
-                quiet || info("nincs changed to $nincs to be multiple of nouts")
+            if !autoinc
+                if nouts > nincs
+                    nincs = nouts
+                    quiet || info("nincs changed to $(nincs) to match nouts")
+                end
+                if nincs%nouts != 0
+                    stage.nincs = nincs - (nincs%nouts) + nouts
+                    quiet || info("nincs changed to $nincs to be multiple of nouts")
+                end
             end
             stage.nincs = nincs
             stage.nouts = nouts

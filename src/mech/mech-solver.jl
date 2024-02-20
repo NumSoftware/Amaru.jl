@@ -268,13 +268,13 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
     StateBk = copy.(State)
 
     # Incremental analysis
-    T  = 0.0
-    ΔT = 1.0/nincs       # initial ΔT value
-    autoinc && (ΔT=min(ΔT, ΔTmax))
-
     ΔTbk    = 0.0
     ΔTcheck = saveouts ? 1/nouts : 1.0
     Tcheck  = ΔTcheck
+
+    T  = 0.0
+    ΔT = 1.0/nincs       # initial ΔT value
+    autoinc && (ΔT=min(ΔT, ΔTmax, ΔTcheck))
 
     inc  = 0             # increment counter
     iout = env.out       # file output counter
