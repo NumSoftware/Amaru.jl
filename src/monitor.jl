@@ -68,7 +68,7 @@ function update_monitor!(monitor::IpMonitor, model; flush=true)
     isdefined(monitor, :ip) || return success()
 
     state       = ip_vals(monitor.ip)
-    monitor.val = eval_arith_expr(monitor.expr; state...)
+    monitor.val = evaluate(monitor.expr; state...)
 
     # data = OrderedDict(:val=>monitor.val)
     # data = OrderedDict(:stage=> model.env.stage, :T=>model.env.T)
@@ -174,7 +174,7 @@ function update_monitor!(monitor::NodeMonitor, model; flush=true)
 
     for expr in monitor.expr.args
         state = node_vals(monitor.node) 
-        monitor.vals[expr] = eval_arith_expr(expr; state...)
+        monitor.vals[expr] = evaluate(expr; state...)
     end
 
     monitor.vals[:stage] = model.env.stage
@@ -229,7 +229,7 @@ function update_monitor!(monitor::IpGroupMonitor, model; flush=true)
             state = ip_vals(ip) 
             # @s expr
             # @s state
-            val = eval_arith_expr(expr; state...)
+            val = evaluate(expr; state...)
             push!(vals, val)
         end
         if expr isa Symbol
@@ -348,7 +348,7 @@ function update_monitor!(monitor::NodeSumMonitor, model; flush=true)
     for ex in monitor.expr.args
         if ex isa Expr && ex.head == :(=)
             var = ex.args[1]
-            state[var] = eval_arith_expr(ex.args[2]; state...)
+            state[var] = evaluate(ex.args[2]; state...)
         end
     end
 
@@ -374,7 +374,7 @@ function update_monitor!(monitor::NodeSumMonitor, model; flush=true)
         if expr isa Expr && expr.head == :(=)
             expr = expr.args[1]
         end
-        monitor.vals[expr] = eval_arith_expr(expr; state...)
+        monitor.vals[expr] = evaluate(expr; state...)
     end
 
     merge!(monitor.vals, extravals)
@@ -392,10 +392,10 @@ function update_monitor!(monitor::NodeSumMonitor, model; flush=true)
     for expr in monitor.stopexpr.args
 
         # @show expr
-        # @show eval_arith_expr(expr; state...)
-        # @show eval_arith_expr(:fx; state...)
-        # @show eval_arith_expr(:fx_max; state...)
-        if eval_arith_expr(expr; state...)
+        # @show evaluate(expr; state...)
+        # @show evaluate(:fx; state...)
+        # @show evaluate(:fx_max; state...)
+        if evaluate(expr; state...)
             # @show "STOPPPPPPPP"
             return failure("Stop condition at NodeSumMonitor ($expr)")
         end

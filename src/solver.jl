@@ -277,8 +277,8 @@ function status_cycler(model::FEModel, sw::StopWatch)
 
         print("\e[$(nlines)A")
         stage.status != :solving && (last_loop=true)
-        sleep(0.1)
-        yield()
+        sleep(0.05)
+        # yield()
     end
 
     print("\e[?25h") # enable cursor

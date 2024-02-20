@@ -110,10 +110,10 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
             X = C'*N
             if ndim==2
                 x, y = X
-                vip = eval_arith_expr(val, t=t, x=x, y=y)
+                vip = evaluate(val, t=t, x=x, y=y)
             else
                 x, y, z = X
-                vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
+                vip = evaluate(val, t=t, x=x, y=y, z=z)
             end
             coef = vip*nJ*w
             F .+= N*coef # F is a vector
@@ -134,7 +134,7 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
         X = C'*N
         if ndim==2
             x, y = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y)
+            vip = evaluate(val, t=t, x=x, y=y)
             if key == :tx
                 Q = [vip, 0.0]
             elseif key == :ty
@@ -148,7 +148,7 @@ function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol,
             end
         else
             x, y, z = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
+            vip = evaluate(val, t=t, x=x, y=y, z=z)
             if key == :tx
                 Q = [vip, 0.0, 0.0]
             elseif key == :ty

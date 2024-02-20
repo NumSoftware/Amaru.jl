@@ -4,24 +4,21 @@ export Symbolic
 export symbols
 
 mutable struct Symbolic
+    basic::Symbol
     expr::Expr
 
     function Symbolic(symbol::Symbol)
-        return new(Expr(:quote, symbol))
+        return new(symbol, :())
     end
 
     function Symbolic(expr::Expr)
-        return new(expr)
+        return new(:_, expr)
     end
-end
-
-function symbols(syms::Symbol...)
-    return [ Symbolic(s) for s in syms ]
 end
 
 
 function getexpr(a::Symbolic)
-    return a.expr.head==:quote ? a.expr.args[1] : a.expr
+    return a.expr==:() ? a.basic : a.expr
 end
 
 getexpr(a) = a
@@ -50,20 +47,15 @@ end
 
 for (fun, op) in zip((:and, :or), (:&&, :||))
     @eval begin
-        $fun(x::Symbolic, y::Symbolic) = Symbolic(Expr($(QuoteNode(op)), getexpr(x), getexpr(y)))
-        $fun(x::Bool, y::Symbolic) = Symbolic(Expr($(QuoteNode(op)), x, getexpr(y)))
-        $fun(x::Symbolic, y::Bool) = Symbolic(Expr($(QuoteNode(op)), getexpr(x), y))
+        $fun(x, y) = Symbolic(Expr($(QuoteNode(op)), getexpr(x), getexpr(y)))
+        $fun(x, y, z) = $fun($fun(x,y), z)
         export $fun
     end
 end
 
-function Base.convert(::Type{Expr}, ex::Symbolic)
-    return ex.expr
-end
 
 macro symbols(syms...)
-    # @show syms
-    if syms[1].head==:tuple 
+    if syms[1] isa Expr && syms[1].head==:tuple 
         syms = syms[1].args
     end
     expr = Expr(:block)
@@ -73,6 +65,8 @@ macro symbols(syms...)
 
     return expr
 end
+
+
 @symbols x, y, z, t
 export @symbols, x, y, z, t
 
@@ -105,12 +99,12 @@ const op_dict = Dict{Symbol,Function}(
    )
 
 
-export eval_arith_expr
+export evaluate
 
-reduce_arith_expr!(arg; vars...) = arg
+reduce!(arg; vars...) = arg
 
 
-function reduce_arith_expr!(arg::Symbol; vars...)
+function reduce!(arg::Symbol; vars...)
     # should not be called on operators
     arg == :pi && return pi
     val = get(vars, arg, nothing)
@@ -119,7 +113,7 @@ function reduce_arith_expr!(arg::Symbol; vars...)
 end
 
 
-function reduce_arith_expr!(expr::Expr; vars...)
+function reduce!(expr::Expr; vars...)
 
     # get operation arguments
     if expr.head == :call
@@ -132,7 +126,7 @@ function reduce_arith_expr!(expr::Expr; vars...)
 
     # recursively reduce on arguments and replace variables
     for i in arg_idxs
-        expr.args[i] = reduce_arith_expr!(expr.args[i]; vars...)
+        expr.args[i] = reduce!(expr.args[i]; vars...)
     end
 
     # evaluate operations
@@ -157,16 +151,16 @@ function reduce_arith_expr!(expr::Expr; vars...)
     return expr
 end
 
-eval_arith_expr(expr::Real; vars...) = expr
-eval_arith_expr(expr::Symbol; vars...) = reduce_arith_expr!(expr; vars...)
-eval_arith_expr(expr::Expr; vars...) = reduce_arith_expr!(copy(expr); vars...)
-eval_arith_expr(expr::Symbolic; vars...) = reduce_arith_expr!(copy(expr.expr); vars...)
+evaluate(expr::Real; vars...) = expr
+evaluate(expr::Symbol; vars...) = reduce!(expr; vars...)
+evaluate(expr::Expr; vars...) = reduce!(copy(expr); vars...)
+evaluate(expr::Symbolic; vars...) = reduce!(copy(expr.expr); vars...)
 
 @doc """
-    eval_arith_expr(expr, vars...)
+    evaluate(expr, vars...)
 
 Returns the result of the arithmetic expression `expr` using values defined in `vars` if necessary.
-""" eval_arith_expr
+""" evaluate
 
 
 function getvars(sym::Symbol)
@@ -192,6 +186,7 @@ function getvars(expr::Expr)
 end
 
 
+# replace a symbol
 function Base.replace(expr::Expr, pair::Pair)
     src    = pair.first
     tgt    = pair.second
@@ -209,10 +204,3 @@ function Base.replace(expr::Expr, pair::Pair)
     end
     return expr
 end
-
-
-# const x = Symbolic(:x)
-# const y = Symbolic(:y)
-# const z = Symbolic(:z)
-# const t = Symbolic(:t)
-# export x, y, z, t

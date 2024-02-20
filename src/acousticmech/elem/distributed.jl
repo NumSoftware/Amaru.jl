@@ -9,21 +9,19 @@ function acoustic_mech_solid_bc(elem::AcousticMech, facet::Cell, key::Symbol, va
     # Check keys
     key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable in a AcousticFluid element")
 
-    target = facet!=nothing ? facet : elem
-    nodes  = target.nodes
+    nodes  = facet.nodes
     nnodes = length(nodes)
     t      = elem.env.t
 
     # Force boundary condition
     nnodes = length(nodes)
 
-    # Calculate the target coordinates matrix
+    # Calculate the facet coordinates matrix
     C = getcoords(nodes, ndim)
-    
 
     # Calculate the nodal values
     F     = zeros(nnodes)
-    shape = target.shape
+    shape = facet.shape
     ips   = get_ip_coords(shape)
 
     for i in 1:size(ips,1)
@@ -36,13 +34,13 @@ function acoustic_mech_solid_bc(elem::AcousticMech, facet::Cell, key::Symbol, va
         X = C'*N
         if ndim==2
             x, y = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y)
+            vip = evaluate(val, t=t, x=x, y=y)
             if elem.env.ana.stressmodel=="axisymmetric"
                 th = 2*pi*X[1]
             end
         else
             x, y, z = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
+            vip = evaluate(val, t=t, x=x, y=y, z=z)
         end
 
         if  ndim==2
@@ -57,7 +55,7 @@ function acoustic_mech_solid_bc(elem::AcousticMech, facet::Cell, key::Symbol, va
     end
 
     # generate a map
-    map  = [ node.dofdict[:up].eq_id for node in target.nodes ]
+    map  = [ node.dofdict[:up].eq_id for node in facet.nodes ]
 
     return F, map
 end

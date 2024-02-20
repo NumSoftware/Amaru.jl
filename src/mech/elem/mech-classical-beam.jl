@@ -126,7 +126,7 @@ function distributed_bc(elem::MechClassicalBeam, facet::Nothing, key::Symbol, va
 
         if ndim==2
             x, y = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y)
+            vip = evaluate(val, t=t, x=x, y=y)
 
             if key == :tx
                 tl = vip*l[1]

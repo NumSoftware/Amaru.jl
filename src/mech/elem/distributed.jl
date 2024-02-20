@@ -38,11 +38,11 @@ function mech_line_distributed_forces(elem::Element, key::Symbol, val::Union{Rea
 
         if ndim==2
             x, y = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y)
+            vip = evaluate(val, t=t, x=x, y=y)
             Q = zeros(2)
         else
             x, y, z = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
+            vip = evaluate(val, t=t, x=x, y=y, z=z)
             Q = zeros(3)
         end
 
@@ -116,12 +116,12 @@ function mech_solid_boundary_forces(elem::Mech, facet::Cell, key::Symbol, val::U
 
         if ndim==2
             x, y = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y)
+            vip = evaluate(val, t=t, x=x, y=y)
             Q = zeros(2)
             ana.stressmodel=="axisymmetric" && (th = 2*pi*X[1])
         else
             x, y, z = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
+            vip = evaluate(val, t=t, x=x, y=y, z=z)
             Q = zeros(3)
         end
 
@@ -191,12 +191,12 @@ end
 
 #         if ndim==2
 #             x, y = X
-#             vip = eval_arith_expr(val, t=t, x=x, y=y)
+#             vip = evaluate(val, t=t, x=x, y=y)
 #             Q = zeros(2)
 #             elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*X[1])
 #         else
 #             x, y, z = X
-#             vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
+#             vip = evaluate(val, t=t, x=x, y=y, z=z)
 #             Q = zeros(3)
 #         end
 
@@ -261,12 +261,12 @@ function mech_solid_body_forces(elem::Element, key::Symbol, val::Union{Real,Symb
 
         if ndim==2
             x, y = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y)
+            vip = evaluate(val, t=t, x=x, y=y)
             Q = zeros(2)
             elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*X[1])
         else
             x, y, z = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
+            vip = evaluate(val, t=t, x=x, y=y, z=z)
             Q = zeros(3)
         end
 
@@ -325,7 +325,7 @@ end
 #         X = C'*N
 
 #         x, y, z = X
-#         vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
+#         vip = evaluate(val, t=t, x=x, y=y, z=z)
 #         if key==:tn
 #             n = cross(J[:,1], J[:,2])
 #             Q = vip*normalize!(n)

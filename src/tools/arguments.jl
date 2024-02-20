@@ -283,7 +283,7 @@ function checkargs(args, args_params::AbstractArray; aliens=true)
     # check relational conditions between arguments
     allconds = [ item for item in args_params if item isa ArgCond ]
     for argcond in allconds
-        if !eval_arith_expr(argcond.cond, args...) # todo: update with eval
+        if !evaluate(argcond.cond, args...) # todo: update with eval
             msg = "Given arguments do not satisfy condition $(argcond.cond)"
             throw(AmaruException("$(funcname()): $msg"))
         end

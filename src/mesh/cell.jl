@@ -126,7 +126,7 @@ function (cells::Array{<:AbstractCell,1})(filter=nothing; tag=nothing, shape=not
         for (i,node) in enumerate(nodes)
             pointmap[node.id] = i
             x, y, z = node.coord.x, node.coord.y, node.coord.z
-            push!(T, eval_arith_expr(filter, x=x, y=y, z=z))
+            push!(T, evaluate(filter, x=x, y=y, z=z))
         end
  
         filtered = Int[ i for i in indexes if all( T[pointmap[node.id]] for node in cells[i].nodes ) ]
@@ -238,7 +238,7 @@ function Base.getindex(
             for (i,node) in enumerate(nodes)
                 pointmap[node.id] = i
                 x, y, z = node.coord.x, node.coord.y, node.coord.z
-                push!(T, eval_arith_expr(filter, x=x, y=y, z=z))
+                push!(T, evaluate(filter, x=x, y=y, z=z))
             end
     
             filtered = Int[ i for i in filtered if all( T[pointmap[node.id]] for node in cells[i].nodes ) ]

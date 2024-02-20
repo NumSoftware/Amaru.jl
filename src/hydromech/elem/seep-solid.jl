@@ -81,13 +81,13 @@ function distributed_bc(elem::SeepSolid, facet::Union{Facet,Nothing}, key::Symbo
         X = C'*N
         if ndim==2
             x, y = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y)
+            vip = evaluate(val, t=t, x=x, y=y)
             if elem.env.ana.stressmodel=="axisymmetric"
                 th = 2*pi*X[1]
             end
         else
             x, y, z = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
+            vip = evaluate(val, t=t, x=x, y=y, z=z)
         end
         coef = vip*norm(J)*w*th
         F .+= coef*N # F is a vector

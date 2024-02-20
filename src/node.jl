@@ -189,7 +189,7 @@ function Base.getindex(nodes::Array{Node,1}, filter::Union{Expr,Symbolic})
     R = Node[]
     for node in nodes
         x, y, z = node.coord
-        eval_arith_expr(filter, x=x, y=y, z=z) && push!(R, node)
+        evaluate(filter, x=x, y=y, z=z) && push!(R, node)
     end
 
     sort!(R, by=node->sum(node.coord))

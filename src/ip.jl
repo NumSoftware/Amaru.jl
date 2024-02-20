@@ -100,7 +100,7 @@ function Base.getindex(ips::Array{Ip,1}, filter::Union{Expr,Symbolic})
     R = Ip[]
     for ip in ips
         x, y, z = ip.coord
-        eval_arith_expr(filter, x=x, y=y, z=z) && push!(R, ip)
+        evaluate(filter, x=x, y=y, z=z) && push!(R, ip)
     end
     return R
 end

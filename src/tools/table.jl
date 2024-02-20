@@ -298,7 +298,7 @@ function Base.filter(table::DataTable, expr::Expr)
         for field in fields
             vars[field] = table[field][i]
         end
-        idxs[i] = eval_arith_expr(expr; vars...)
+        idxs[i] = evaluate(expr; vars...)
     end
     return table[idxs]
 end

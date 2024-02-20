@@ -48,9 +48,9 @@ function compute_bc_vals!(model::AbstractDomain, bc::NodeBC, t::Float64, U::Arra
             !haskey(node.dofdict, key) && continue
             dof = node.dofdict[key]
             if key==dof.name # essential bc (dof.prescribed should not be modified!)
-                U[dof.eq_id] = eval_arith_expr(cond, x=x, y=y, z=z, t=t)
+                U[dof.eq_id] = evaluate(cond, x=x, y=y, z=z, t=t)
             else # natural bc
-                F[dof.eq_id] += eval_arith_expr(cond, x=x, y=y, z=z, t=t)
+                F[dof.eq_id] += evaluate(cond, x=x, y=y, z=z, t=t)
             end
         end
     end
@@ -126,7 +126,7 @@ function compute_bc_vals!(model::AbstractDomain, bc::Union{SurfaceBC,EdgeBC}, t:
                     if haskey(node.dofdict, key)
                         dof = node.dofdict[key]
                         x, y, z = node.coord
-                        U[dof.eq_id] = eval_arith_expr(val, x=x, y=y, z=z, t=t)
+                        U[dof.eq_id] = evaluate(val, x=x, y=y, z=z, t=t)
                     end
                 end
             else
@@ -184,7 +184,7 @@ function compute_bc_vals!(model::AbstractDomain, bc::BodyC, t::Float64, U::Array
                     if haskey(node.dofdict, key)
                         dof = node.dofdict[key]
                         x, y, z = node.coord
-                        U[dof.eq_id] = eval_arith_expr(val, x=x, y=y, z=z, t=t)
+                        U[dof.eq_id] = evaluate(val, x=x, y=y, z=z, t=t)
                     end
                 end
             else

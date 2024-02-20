@@ -7,10 +7,11 @@ mutable struct GeoModel
     loops::Vector{AbstractLoop}
     surfaces::Vector{AbstractSurface}
     volumes::Vector{Volume}
+    size::Float64
     _id::Int
 
-    function GeoModel()
-        return new( [], [], [], [], [], 0 )
+    function GeoModel(; size=0.0)
+        return new( [], [], [], [], [], size, 0 )
     end
 end
 

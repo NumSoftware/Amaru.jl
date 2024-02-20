@@ -939,8 +939,12 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false, quiet=f
     end
 
     gmsh.initialize()
-    gmsh.option.setNumber("General.Terminal", 1)
+    gmsh.option.setNumber("General.Terminal", 0)
     gmsh.model.add("t1")
+    if geo.size>0
+        gmsh.option.setNumber("Mesh.CharacteristicLengthMin", geo.size)
+        gmsh.option.setNumber("Mesh.CharacteristicLengthMax", geo.size)
+    end
 
     isvolumemesh = length(geo.volumes)>0
 

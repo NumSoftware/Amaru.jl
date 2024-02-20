@@ -58,7 +58,7 @@ function distributed_bc(elem::ShellQUAD4, facet::Cell, key::Symbol, val::Union{R
         X = C'*N
         if ndim==2
             x, y = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y)
+            vip = evaluate(val, t=t, x=x, y=y)
             if key == :tx
                 Q = [vip, 0.0]
             elseif key == :ty
@@ -72,7 +72,7 @@ function distributed_bc(elem::ShellQUAD4, facet::Cell, key::Symbol, val::Union{R
             end
         else
             x, y, z = X
-            vip = eval_arith_expr(val, t=t, x=x, y=y, z=z)
+            vip = evaluate(val, t=t, x=x, y=y, z=z)
             if key == :tx
                 Q = [vip, 0.0, 0.0]
             elseif key == :ty
