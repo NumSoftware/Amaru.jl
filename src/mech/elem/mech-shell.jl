@@ -46,7 +46,7 @@ mutable struct MechShell<:Mech
     function MechShell()
         return new()
     end
-end
+end 
 
 
 compat_shape_family(::Type{MechShell}) = BULKCELL
@@ -187,9 +187,9 @@ function setB(elem::MechShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx,
     for i in 1:nnodes
         ζ = ip.R[3]
         Rrot[1:3,1:3] .= L
-        # Rrot[4:5,4:6] .= L[1:2,:]
         # Rrot[1:3,1:3] .= elem.Dlmn[i]
         Rrot[4:5,4:6] .= elem.Dlmn[i][1:2,:]
+
         dNdx = dNdX[i,1]
         dNdy = dNdX[i,2]
         Ni = N[i]
@@ -208,26 +208,34 @@ function setB(elem::MechShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx,
     end 
 end
 
+function setB_dr(elem::MechShell, N::Vect, L::Matx, dNdX::Matx, Rrot_dr::Matx, Bil_dr::Matx, Bi_dr::Matx, B_dr::Matx)
+    nnodes = size(dNdX,1)
+
+    ndof = 6
+    for i in 1:nnodes
+
+        Rrot_dr[1,4:6] .= elem.Dlmn[i][3,:]
+
+        Ni = N[i]
+
+        Bil_dr[1,1] = Ni                                                          
+      
+        c = (i-1)*ndof
+        @mul Bi_dr = Bil_dr*Rrot_dr
+        B_dr[:, c+1:c+6] .= Bi_dr
+    end 
+end
 
 function setNN(elem::MechShell, ip::Ip, N::Vect, NNil::Matx, NNi::Matx, L::Matx, Rrot::Matx, NN::Matx)
     nnodes = length(N)
     ndof = 6
     th = elem.props.th
     ζ = ip.R[3]
-    # R = zeros(3,5)
-    # NN_A  = zeros(3,5)
-    # NN_B  = zeros(3,5)
-    # NNi  = zeros(3,6)
-    # NNil = zeros(3,5)
 
     for i in 1:nnodes
         
         Rrot[1:3,1:3] .= L
         Rrot[4:5,4:6] .= L[1:2,:]
-        # Rrot[1:3,1:3] .= elem.Dlmn[i]
-        #Rrot[4:5,4:6] .= elem.Dlmn[i][1:2,:]
-
-        # R[1:3,4:5] .= elem.Dlmn[i][1:2,:]'
 
         NNil[1,1] = N[i]
         NNil[2,2] = N[i]
@@ -235,29 +243,11 @@ function setNN(elem::MechShell, ip::Ip, N::Vect, NNil::Matx, NNi::Matx, L::Matx,
         NNil[1,5] = th/2*ζ*N[i]
         NNil[2,4] = -th/2*ζ*N[i]
 
-        # NN_A[1,1] = N[i]
-        # NN_A[2,2] = N[i]
-        # NN_A[3,3] = N[i]
-
-        # NN_B = R*ζ*(th/2)*N[i]
-
         c = (i-1)*ndof
-        #@show size(NN_A+NN_B)
-       # error()
-
-        # @mul NNi = (NN_A+NN_B)*Rrot
-        #@show NNi
-        #error()
-
         @mul NNi = NNil*Rrot
 
         NN[:, c+1:c+6] .= NNi
-
-        #NN[:, c+1:c+5] = NN_A + NN_B
-       
     end 
-    #@show NN
-    #error()
 end
 
 
@@ -275,6 +265,11 @@ function elem_stiffness(elem::MechShell)
     Bi     = zeros(nstr,ndof)
     S      = calcS(elem, elem.props.αs)
 
+    B_dr      = zeros(1, ndof*nnodes)
+    Bil_dr    = zeros(1,1)
+    Bi_dr    = zeros(1,ndof)
+    Rrot_dr   = zeros(1,ndof)
+
     for ip in elem.ips
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
@@ -291,15 +286,28 @@ function elem_stiffness(elem::MechShell)
         @assert detJ′>0
         
         setB(elem, ip, N, L, dNdX′, Rrot, Bil, Bi, B)
-        coef = detJ′*ip.w
-        K += coef*B'*S*D*B
-    end
+        
+        setB_dr(elem, N, L, dNdX′, Rrot_dr, Bil_dr, Bi_dr, B_dr)       
 
+        E  = elem.mat.E
+        nu = elem.mat.ν
+        G = E/(2*(1+nu))
+
+        kappa = 1
+
+        th  = elem.props.th
+
+        coef = detJ′*ip.w
+
+        K += coef*B'*S*D*B + kappa*G*th*B_dr'*B_dr*coef #(intregal de área)
+
+    end
+#=
     δ = 1e-7
     for i in 1:ndof*nnodes
         K[i,i] += δ
     end
-
+=#
     map = elem_map(elem)
     return K, map, map
 end
