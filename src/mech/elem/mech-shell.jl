@@ -9,7 +9,6 @@ struct MechShellProps<:ElemProperties
     th::Float64
 
     function MechShellProps(; args...)
-
         args = checkargs(args, arg_rules(MechShellProps))
 
         return new(args.rho, args.gamma, args.alpha_s, args.thickness)
@@ -51,6 +50,7 @@ end
 
 compat_shape_family(::Type{MechShell}) = BULKCELL
 compat_elem_props(::Type{MechShell}) = MechShellProps
+
 
 function elem_init(elem::MechShell)
     # check element dimension

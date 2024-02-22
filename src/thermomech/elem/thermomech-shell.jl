@@ -1,6 +1,5 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-
 export TMShell
 
 struct TMShellProps<:ElemProperties
@@ -11,13 +10,7 @@ struct TMShellProps<:ElemProperties
 
     function TMShellProps(; args...)
         args = checkargs(args, arg_rules(TMShellProps))   
-        # if args.alpha isa Array
-        #     alpha = 0.0
-        #     alpha_table = args.alpha
-        # else
-        #     alpha = args.alpha
-        #     alpha_table = zeros(0,0)
-        # end
+
 
         return new(args.rho, args.gamma, args.alpha_s, args.thickness)
     end    
@@ -58,26 +51,9 @@ compat_shape_family(::Type{TMShell}) = BULKCELL
 compat_elem_props(::Type{TMShell}) = TMShellProps
 
 
-# function calc_α(elem::TMShell, ut::Float64) # thermal expansion coefficient  1/K or 1/°C
-#     length(elem.props.α_table)==0 && return elem.props.α
-
-#     T = elem.props.α_table[:,1]
-#     A = elem.props.α_table[:,2]
-
-#     i = searchsortedfirst(T, ut)
-#     if i==1
-#         α = A[1]
-#     elseif i>length(T)
-#         α = A[end]
-#     else
-#         α = A[i-1] + (ut-T[i-1]) * (A[i]-A[i-1])/(T[i]-T[i-1])
-#     end
-
-#     return α
-# end
-
-
 function elem_init(elem::TMShell)
+    # check element dimension
+    elem.shape.ndim==2 || throw(AmaruException("TMShell: Invalid element shape. Got $(elem.shape.name)"))
     # Compute nodal rotation matrices
     nnodes = length(elem.nodes)
     elem.Dlmn = Array{SMatrix{3,3,Float64}}(undef,nnodes)
@@ -133,6 +109,11 @@ function setquadrature!(elem::TMShell, n::Int=0)
         R = [ ip.R[1:2]; 0.0 ]
         N = shape.func(R)
         ip.coord = C'*N
+
+        dNdR = elem.shape.deriv(ip.R) # 3xn
+        J = C'*dNdR
+        No = normalize(cross(J[:,1], J[:,2]))
+        ip.coord += elem.props.th/2*ip.R[3]*No
     end
 
 end
