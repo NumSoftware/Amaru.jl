@@ -76,7 +76,7 @@ compat_elem_props(::Type{MechSolid}) = MechSolidProps
 
 
 function distributed_bc(elem::MechSolid, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
-    return mech_solid_boundary_forces(elem, facet, key, val)
+    return mech_boundary_forces(elem, facet, key, val)
 end
 
 

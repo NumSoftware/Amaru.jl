@@ -6,14 +6,13 @@ abstract type BC end
 @inline Base.:(=>)(a, b::BC) = return (a, b)
 
 # NodeBC
-
-
 mutable struct NodeBC<:BC
     conds::AbstractDict
     filter::Union{Array{Int,1},Symbol,String,Expr,Symbolic}
     nodes::Array{Node,1}
 
     function NodeBC(;conds...)
+        length(conds) == 0 && throw(ArgumentError("NodeBC must have at least one condition"))
         return new(conds, :(), [])
     end
 end
@@ -117,7 +116,6 @@ end
 function compute_bc_vals!(model::AbstractDomain, bc::Union{SurfaceBC,EdgeBC}, t::Float64, U::Array{Float64,1}, F::Array{Float64,1})
     facets = bc isa SurfaceBC ? bc.facets : bc.edges
     essential_keys = Set( dof.name for facet in facets for node in facet.nodes for dof in node.dofs )
-    env = model.env
 
     for facet in facets
         for (key,val) in bc.conds
@@ -130,7 +128,8 @@ function compute_bc_vals!(model::AbstractDomain, bc::Union{SurfaceBC,EdgeBC}, t:
                     end
                 end
             else
-                Fd, map = distributed_bc(facet.owner, facet, key, val)
+                owner = facet.owner===nothing ? facet : facet.owner # some facets can be shells
+                Fd, map = distributed_bc(owner, facet, key, val)
                 F[map] += Fd
             end
         end

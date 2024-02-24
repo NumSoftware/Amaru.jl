@@ -2,6 +2,24 @@
 
 export @check
 
+
+struct StopException <: Exception
+    message::String
+end
+
+function Base.showerror(io::IO, e::StopException, bt; backtrace=false)
+    printstyled(io, e.message, "\n", color=:red)
+    # showerror(io, e.message)
+    # Base.with_output_color(get(io, :color, false) ? :green : :nothing, io) do io
+    #     showerror(io, e.message)
+    # end
+end
+
+export stop
+stop(text="Stop") = throw(StopException(text))
+
+
+
 mutable struct AmaruException <: Exception
     message::String
 end

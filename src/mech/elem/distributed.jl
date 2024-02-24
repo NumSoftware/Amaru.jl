@@ -73,7 +73,7 @@ end
 
 
 # Distributed natural boundary conditions for faces and edges of bulk elements
-function mech_solid_boundary_forces(elem::Mech, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
+function mech_boundary_forces(elem::Mech, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     ana = elem.env.ana
     if ndim==2
@@ -153,17 +153,17 @@ end
 
 
 # # Distributed natural boundary conditions for faces and edges of bulk elements
-# function mech_solid_boundary_forces(elem::Element, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
+# function mech_boundary_forces(elem::Element, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
 #     ndim  = elem.env.ndim
 #     suitable_keys = (:qx, :qy, :qz, :qn, :tx, :ty, :tz, :tn)
 #     isedgebc = key in (:qx, :qy, :qz, :qn) 
     
 #     # Check keys
-#     key in suitable_keys || error("mech_solid_boundary_forces: boundary condition $key is not applicable as distributed bc at element of type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
-#     key in (:tz,:qz) && ndim==2 && error("mech_solid_boundary_forces: boundary condition $key is not applicable in a 2D analysis")
-#     isedgebc && elem.env.ana.stressmodel=="axisymmetric" && error("mech_solid_boundary_forces: boundary condition $key is not applicable in a axisymmetric analysis")
-#     isedgebc && facet.shape.ndim==2 && error("mech_solid_boundary_forces: boundary condition $key is not applicable on surfaces")
-#     !isedgebc && facet.shape.ndim==1 && ndim==3 && error("mech_solid_boundary_forces: boundary condition $key is not applicable on 3D edges")
+#     key in suitable_keys || error("mech_boundary_forces: boundary condition $key is not applicable as distributed bc at element of type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
+#     key in (:tz,:qz) && ndim==2 && error("mech_boundary_forces: boundary condition $key is not applicable in a 2D analysis")
+#     isedgebc && elem.env.ana.stressmodel=="axisymmetric" && error("mech_boundary_forces: boundary condition $key is not applicable in a axisymmetric analysis")
+#     isedgebc && facet.shape.ndim==2 && error("mech_boundary_forces: boundary condition $key is not applicable on surfaces")
+#     !isedgebc && facet.shape.ndim==1 && ndim==3 && error("mech_boundary_forces: boundary condition $key is not applicable on 3D edges")
 
 #     th     = isedgebc ? 1.0 : elem.env.ana.thickness
 #     nodes  = facet.nodes

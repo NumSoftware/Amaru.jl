@@ -325,7 +325,11 @@ function fixup!(mesh::Mesh; genfacets=true, reorder=false)
             mesh.faces = mesh.edges
         elseif mesh.env.ndim==3
             solids = [ elem for elem in mesh.elems if elem.shape.ndim==3 ]
-            mesh.faces = [ get_outer_facets(solids); [ elem for elem in mesh.elems if elem.shape.ndim==2 ] ]
+            planar_cells = [ elem for elem in mesh.elems if elem.shape.ndim==2 ]
+            for cell in planar_cells
+                cell.owner = cell # set itself as owner
+            end
+            mesh.faces = [ get_outer_facets(solids); planar_cells ]
             mesh.edges = getedges(mesh.faces)
         end
     end

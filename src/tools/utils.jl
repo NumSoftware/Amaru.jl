@@ -90,20 +90,6 @@ function sound_alert()
 end
 
 
-struct StopException{T} <: Exception
-    S::T
-end
-
-
-function Base.showerror(io::IO, ex::StopException, bt; backtrace=true)
-    Base.with_output_color(get(io, :color, false) ? :green : :nothing, io) do io
-        showerror(io, ex.S)
-    end
-end
-
-export stop
-stop(text="Stop point.") = throw(StopException(text))
-
 function align(arr::Array{<:AbstractString,1}, pat::AbstractString)
     isempty(arr) && return String[]
     idxs   = [ findnext(pat, str, 1).start for str in arr ]
