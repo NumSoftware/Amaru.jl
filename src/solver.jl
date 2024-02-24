@@ -181,18 +181,19 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
         if stage.status == :interrupted 
             throw(AmaruException("The analysis was interrupted"))
         elseif stage.status == :error
-            # trim not important frames; search for the frame that contains current function
-            idx = findfirst(contains("iterator"), string(frame) for frame in error_st)
+            # trim not important frames; try to find the frame that contains REPL/_iterator
+            # idx = findfirst(contains("_iterator"), string(frame) for frame in error_st)
+            idx = findfirst(contains("REPL"), string(frame) for frame in error_st)
             if idx!==nothing
                 error_st = error_st[1:idx-1]
             end
 
             alert("Amaru internal error", level=1)
             showerror(stdout, runerror, error_st)
+            # Base.show_backtrace(stdout, error_st) # shows only the stacktrace
             println()
-            # error()
-            # @show runerror.backtrace()
-            throw(runerror) 
+            stop()
+            throw(runerror)
         end
 
         getlapse(sw)>60 && sound_alert()
