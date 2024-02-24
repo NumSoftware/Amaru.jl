@@ -109,7 +109,6 @@ function tm_mount_global_matrices(model::Model,
     try
         G = sparse(R, C, V, ndofs, ndofs)
     catch err
-        @show ndofs
         @show err
     end
 
@@ -144,81 +143,48 @@ function complete_ut_T(model::Model)
 end
 
 
-"""
-    tm_solve!(D, bcs, options...) -> Bool
-
-Performs one stage finite element thermo-mechanical analysis of a `domain`
-subjected to a list of boundary conditions `bcs`.
-
-# Arguments
-
-`model` : A finite element domain
-
-`bcs` : Array of boundary conditions given as an array of pairs ( location => condition)
-
-# Keyword arguments
-
-`time_span = NaN` : Time lapse for the transient analysis in the current stage
-
-`end_time = NaN` : Final time for the transient analysis in the current stage
-
-`nincs   = 1` : Number of increments
-
-`maxits  = 5` : Maximum number of Newton-Rapson iterations per increment
-
-`autoinc = false` : Sets automatic increments size. The first increment size will be `1/nincs`
-
-`maxincs = 1000000` : Maximum number of increments
-
-`tol     = 1e-2` : Tolerance for the maximum absolute error in forces vector
-
-`Tmin     = 1e-9` : Pseudo-time tolerance
-
-`scheme  = :FE` : Predictor-corrector scheme at each increment. Available scheme is `:FE`
-
-`nouts   = 0` : Number of output files per analysis
-
-`outdir  = ""` : Output directory
-
-`filekey = ""` : File key for output files
-
-`verbose = true` : If true, provides information of the analysis steps
-
-`silent = false` : If true, no information is printed
-"""
 function solve!(model::Model, ana::ThermomechAnalysis; args...)
     name = "Solver for thermal and thermomechanical analyses"
     status = stage_iterator!(name, tm_stage_solver!, model; args...)
     return status
 end
 
+tm_stage_solver_params = [
+    FunInfo( :tm_stage_solver!, "Solves a load stage of a thremomechanical analysis.", "M::Model, S::Stage"),
+    ArgInfo( :tol, "Force tolerance", 0.01, condition=:(tol>0)),
+    ArgInfo( :dTmin, "Relative minimum increment size", 1e-7, condition=:(0<dTmin<1) ),
+    ArgInfo( :dTmax, "Relative maximum increment size", 0.1, condition=:(0<dTmax<1) ),
+    ArgInfo( :rspan, "Relative span to residue reapplication", 0.01, condition=:(0<rspan<1) ),
+    ArgInfo( :scheme, "Global solving scheme", :FE, values=(:FE, :ME, :BE, :Ralston) ),
+    ArgInfo( :maxits, "Maximum number of NR iterations", 5, condition=:(1<=maxits<=10)),
+    ArgInfo( :autoinc, "Flag to set auto-increments", false),
+    ArgInfo( :quiet, "Flat to set silent mode", false),
+]
+@doc make_doc(tm_stage_solver_params) tm_stage_solver!()
 
-function tm_stage_solver!(model::Model, stage::Stage; 
-    tol     :: Number  = 1e-2,
-    rtol    :: Number  = 1e-2,
-    Tmin    :: Number  = 1e-9,
-    rspan   :: Number  = 1e-2,
-    scheme  :: String  = "FE",
-    maxits  :: Int     = 5,
-    autoinc :: Bool    = false,
-    maxincs :: Int     = 1000000,
-    outdir  :: String  = ".",
-    outkey  :: String  = "out",
-    quiet   :: Bool    = false
-    )
+function tm_stage_solver!(model::Model, stage::Stage; args...)
+    args = checkargs(args, mech_stage_solver_params)
+    
+    tol     = args.tol      
+    ΔTmin   = args.dTmin    
+    ΔTmax   = args.dTmax   
+    rspan   = args.rspan    
+    scheme  = args.scheme   
+    maxits  = args.maxits 
+    autoinc = args.autoinc  
+    quiet   = args.quiet 
 
     env = model.env
-    println(env.log, "Hydromech FE analysis: Stage $(stage.id)")
+    println(env.log, "Thermomech FE analysis: Stage $(stage.id)")
 
     solstatus = success()
-    scheme in ("FE", "ME", "BE") || error("solve! : invalid scheme \"$(scheme)\"")
 
     nincs     = stage.nincs
     nouts     = stage.nouts
     bcs       = stage.bcs
     tspan     = stage.tspan
     env       = model.env
-    save_outs = stage.nouts > 0
+    saveouts = stage.nouts > 0
     T0        = env.ana.T0
     ftol      = tol
 
@@ -252,35 +218,26 @@ function tm_stage_solver!(model::Model, stage::Stage;
         end
 
         update_records!(model)
-
-        # Save initial file and loggers
-        # update_output_data!(model)
-        # update_single_loggers!(model)
-        # update_multiloggers!(model)
-        # update_monitors!(model)
         complete_ut_T(model)
-        # save_outs && save(model, "$outdir/$outkey-0.vtu", quiet=true)
     end
     lastflush = time()
-    flushinterval = 5
+    flushinterval = 5.0
 
     # Get the domain current state and backup
     State = [ ip.state for elem in active_elems for ip in elem.ips ]
     StateBk = copy.(State)
 
     # Incremental analysis
-    t    = env.t     # current time
+    t       = env.t     # current time
+    ΔTbk    = 0.0
+    ΔTcheck = saveouts ? 1/nouts : 1.0
+    Tcheck  = ΔTcheck
 
     T  = 0.0
     ΔT = 1.0/nincs       # initial ΔT value
-    autoinc && (ΔT=min(ΔT,0.01))
-
-    ΔTbk = 0.0
-    ΔTcheck = save_outs ? 1/nouts : 1.0
-    Tcheck  = ΔTcheck
+    autoinc && (ΔT=min(ΔT, ΔTmax, ΔTcheck))
 
     inc  = 0             # increment counter
-    iout = env.out       # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
@@ -291,7 +248,7 @@ function tm_stage_solver!(model::Model, stage::Stage;
     sysstatus = ReturnStatus()
 
     # Get boundary conditions
-    Uex, Fex = get_bc_vals(model, bcs, t) # get values at time t  #TODO pick internal forces and displacements instead!
+    Uex, Fex = get_bc_vals(model, bcs, t) # get values at time t  #TODO check for incremental or target values
 
     # Get unbalanced forces
     Fin = zeros(ndofs)
@@ -306,10 +263,20 @@ function tm_stage_solver!(model::Model, stage::Stage;
         F[i] = dof.vals[dof.natname]
     end
 
+    if scheme==:FE
+        p1=1.0; q11=1.0
+    elseif scheme==:ME
+        p1=1.0; q11=1.0; a1=0.5; a2=0.5
+    elseif scheme==:BE
+        p1=1.0; q11=1.0; a1=0.0; a2=1.0
+    elseif scheme==:Ralston
+        p1=2/3; q11=2/3; a1=1/4; a2=3/4
+    end
+
     local G::SparseMatrixCSC{Float64,Int64}
     local RHS::Array{Float64,1}
 
-    while T < 1.0-Tmin
+    while T < 1.0-ΔTmin
         env.ΔT = ΔT
 
         # Update counters
@@ -335,13 +302,12 @@ function tm_stage_solver!(model::Model, stage::Stage;
 
         R   .= ΔFex
         ΔUa .= 0.0
-        ΔUi .= ΔUex    # essential values at iteration i
+        ΔUi .= ΔUex  # essential values at iteration i
 
         # Newton Rapshon iterations
-        residue   = 0.0
         nits      = 0
-        err       = 0.0
         res       = 0.0
+        res1      = 0.0
         converged = false
         syserror  = false
 
@@ -350,70 +316,62 @@ function tm_stage_solver!(model::Model, stage::Stage;
 
             nits += 1
             it>1 && (ΔUi.=0.0) # essential values are applied only at first iteration
-            lastres = residue # residue from last iteration
+            lastres = res # residue from last iteration
 
-            # Predictor step for FE, ME and BE
-            if scheme in ("FE", "ME", "BE")
-                G, RHS = tm_mount_global_matrices(model, ndofs, Δt)
-                R .+= RHS
+            # Predictor step
+            G, RHS = tm_mount_global_matrices(model, ndofs, Δt)
+            ΔUitr = p1*ΔUi
+            Rtr   = q11*(R + RHS)
+            sysstatus = solve_system!(G, ΔUitr, Rtr, nu)   # Changes unknown positions in ΔUi and R
+            failed(sysstatus) && (syserror=true; break)
+            copyto!.(State, StateBk)
+            ΔUt = ΔUa + ΔUitr
+            ΔFin, sysstatus = update_state!(active_elems, ΔUt, Δt)
+            failed(sysstatus) && (syserror=true; break)
 
-                sysstatus = solve_system!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
-                failed(sysstatus) && (syserror=true; break)
-
-                copyto!.(State, StateBk)
-                ΔUt    = ΔUa + ΔUi
-                ΔFin, sysstatus = update_state!(model.elems, ΔUt, Δt)
-                failed(sysstatus) && (syserror=true; break)
-
-                res = maximum(abs, (ΔFex-ΔFin)[umap] )
-            end
-
-            # Corrector step for ME and BE
-            if res > ftol && scheme in ("ME", "BE")
+            # Corrector step
+            if scheme==:FE
+                ΔUi = ΔUitr
+            else
                 G2, RHS = tm_mount_global_matrices(model, ndofs, Δt)
-                if scheme=="ME"
-                    G = 0.5*(G + G2)
-                elseif scheme=="BE"
-                    G = G2
-                end
+                R .+= RHS
+                G = a1*G + a2*G2
+                R = R + RHS
                 sysstatus = solve_system!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
                 failed(sysstatus) && (syserror=true; break)
-
                 copyto!.(State, StateBk)
-                ΔUt    = ΔUa + ΔUi
-                ΔFin, sysstatus = update_state!(model.elems, ΔUt, Δt)
+                ΔUt   = ΔUa + ΔUi
+                ΔFin, sysstatus = update_state!(active_elems, ΔUt, Δt)
                 failed(sysstatus) && (syserror=true; break)
-
-                res = maximum(abs, (ΔFex-ΔFin)[umap])
             end
-            
-            # Update accumulated displacement
+
+            # Update accumulated essential values
             ΔUa .+= ΔUi
 
             # Residual vector for next iteration
             R .= ΔFex .- ΔFin
             R[pmap] .= 0.0  # zero at prescribed positions
-
-            err = norm(ΔUi, Inf)/norm(ΔUa, Inf)
+            res = norm(R, Inf)
 
             @printf(env.log, "    it %d  residue: %-10.4e\n", it, res)
 
-            res<ftol  && (converged=true; break)
-            err<rtol  && (converged=true; break)
+            it==1 && (res1=res)
+            res<ftol && (converged=true; break)
 
             isnan(res) && break
             it>maxits  && break
 
-            it>1 && err>lastres && break
+            it>1 && res>lastres && break
         end
 
+        env.residue = res
         q = 0.0 # increment size factor for autoinc
 
         if syserror
+            println(env.alerts, sysstatus.message)
             println(env.log, sysstatus.message)
             converged = false
         end
-        quiet || sysstatus.message!="" && println(env.alerts, sysstatus.message, Base.default_color_warn)
 
         if converged
             # Update nodal natural and essential values for the current stage
@@ -440,27 +398,17 @@ function tm_stage_solver!(model::Model, stage::Stage;
             T += ΔT
             env.t = t
             env.T = T
-            env.residue = res
 
             # Check for saving output file
-            # if T>Tcheck-Tmin && save_outs
-            checkpoint = T>Tcheck-Tmin 
+            checkpoint = T>Tcheck-ΔTmin 
             if checkpoint
 
 
                 env.out += 1
-                # iout = env.out
-                # rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
-                
-                # update_output_data!(model)
-                # update_multiloggers!(model)
-                # save(model, "$outdir/$outkey-$iout.vtu", quiet=true)
-                
-                # update_embedded_disps!(active_elems, model.node_data["U"])
                 Tcheck += ΔTcheck # find the next output time
             end
 
-            flush = time()-lastflush>flushinterval || T >= 1.0-Tmin
+            flush = time()-lastflush>flushinterval || T >= 1.0-ΔTmin
 
             rstatus = update_records!(model, checkpoint=checkpoint, flush=flush)
             if failed(rstatus)
@@ -469,10 +417,7 @@ function tm_stage_solver!(model::Model, stage::Stage;
             end
 
 
-            # update_single_loggers!(model, flush=flush)
-            # update_monitors!(model, flush=flush)
             if flush
-                # flush(env.log)
                 lastflush = time()
                 GC.gc()
             end
@@ -482,16 +427,11 @@ function tm_stage_solver!(model::Model, stage::Stage;
                     ΔT = min(ΔTbk, Tcheck-T)
                     ΔTbk = 0.0
                 else
-                    if nits==1
-                        # q = 1+tanh(log10(ftol/res))
-                        q = 1.333
-                    else
-                        q = 1+tanh(log10(rtol/err))
-                    end
+                    q = 1+tanh(log10(ftol/(res1+eps())))
                     q = max(q, 1.1)
 
-                    ΔTtr = min(q*ΔT, 1/nincs, 1-T)
-                    if T+ΔTtr>Tcheck-Tmin
+                    ΔTtr = min(q*ΔT, ΔTmax, 1-T)
+                    if T+ΔTtr>Tcheck-ΔTmin
                         ΔTbk = ΔT
                         ΔT = Tcheck-T
                         @assert ΔT>=0.0
@@ -510,17 +450,13 @@ function tm_stage_solver!(model::Model, stage::Stage;
 
             if autoinc
                 println(env.log, "      increment failed")
-                if nits==1
-                    # q = 1+tanh(log10(ftol/res))
-                    q = 0.666
-                else
-                    q = 1+tanh(log10(rtol/err))
-                end
+
+                q = 1+tanh(log10(ftol/(res1+eps())))
                 q = clamp(q, 0.2, 0.9)
                 syserror && (q=0.7)
                 ΔT = q*ΔT
                 ΔT = round(ΔT, sigdigits=3)  # round to 3 significant digits
-                if ΔT < Tmin
+                if ΔT < ΔTmin
                     solstatus = failure("Solver did not converge.")
                     break
                 end
@@ -532,12 +468,6 @@ function tm_stage_solver!(model::Model, stage::Stage;
     end
 
     failed(solstatus) && update_records!(model, solverfailed=true)
-    # if !save_outs
-    #     rstatus = update_records!(model, checkpoint=checkpoint, flush=false)
-
-    #     update_output_data!(model)
-    #     update_multiloggers!(model)
-    # end
 
     return solstatus
 
