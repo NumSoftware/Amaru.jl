@@ -35,7 +35,7 @@ end
 
 
 function distributed_bc(elem::AcousticFluid, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
-    return acoustic_mech_solid_bc(elem, facet, key, val)
+    return acoustic_mech_bc(elem, facet, key, val)
 end
 
 

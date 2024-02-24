@@ -1,7 +1,7 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 # Distributed natural boundary conditions for faces and edges of bulk elements
-function acoustic_mech_solid_bc(elem::AcousticMech, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
+function acoustic_mech_bc(elem::Element, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     th    = elem.env.ana.thickness
     suitable_keys = (:tq,) # tq: mass acceleration per area?, ax: x acceleration

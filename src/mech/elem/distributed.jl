@@ -73,7 +73,7 @@ end
 
 
 # Distributed natural boundary conditions for faces and edges of bulk elements
-function mech_boundary_forces(elem::Mech, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
+function mech_boundary_forces(elem::Element, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
     ana = elem.env.ana
     if ndim==2
