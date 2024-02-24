@@ -203,7 +203,7 @@ end
 function addplot!(c::Chart, plots::Array{<:DataSeries,1})
     addplot!(c, plots...)
 end
-
+const addseries! = addplot!
 
 function save(chart::Chart, filename::String, copypath::String="")
     width, height = chart.width, chart.height
