@@ -142,7 +142,6 @@ function output(monitor::AbstractMonitor)
         first || print(out, " "^length(head))
         first = false
 
-        # v = v isa Real ? round(v, sigdigits=5) : v
         if v isa Real && !(v isa Bool)
             v = round(v, sigdigits=5)
         end
@@ -273,7 +272,6 @@ mutable struct NodeSumMonitor<:AbstractMonitor
     table    ::DataTable
     nodes    ::Array{Node,1}
     stopexpr ::Expr
-    # _extra   ::Expr # extra symbols :(fx_min, fx_max, stress=fx/10), etc
 
     @doc """
     $(TYPEDSIGNATURES)
@@ -296,24 +294,15 @@ mutable struct NodeSumMonitor<:AbstractMonitor
     ```
     """
     function NodeSumMonitor(expr::Union{Symbol,Expr}, filename::String=""; stop=Expr=:())
+        if expr isa Expr
+            expr = round_floats!(expr)
+        end
         if expr isa Symbol || expr.head == :call || expr.head == :(=)
             expr = :($expr,)
         end
         if stop.head == :call
             stop = :($stop,)
         end
-        # add _min and _max extra values
-        # extra = :()
-        # for ex in [ expr.args; stop.args ]
-        #     for var in getvars(ex)
-        #         varstr = string(var)
-        #         length(varstr)>4 || continue
-        #         _, optstr = split(varstr, '_')
-        #         optstr in ("min","max") || continue
-        #         extra.args = union(extra.args, [var]) # add extra var such as fx_min
-        #         expr.args  = union(expr.args, [var])  # add extra var such as fx
-        #     end
-        # end
 
         return new(expr, OrderedDict(), filename, :(), DataTable(), Node[], stop)
     end
@@ -324,7 +313,19 @@ function setup_monitor!(model, filter, monitor::NodeSumMonitor)
     monitor.filter = filter
     monitor.nodes = model.nodes[filter]
     length(monitor.nodes) == 0 && warn("setup_monitor: No nodes found for filter expression: ", monitor.filter)
+
+    available_vars = OrderedSet()
+    for node in monitor.nodes
+        for dof in node.dofs
+            push!(available_vars, dof.name)
+            push!(available_vars, dof.natname)
+        end
+    end
+    hint("NodeSumMonitor: $(monitor.expr)  Available data: ", join(available_vars, ", "))
+    # printstyled("available data: ", join(available_vars, ", "), "\n", color=:light_black)
+
 end
+
 
 
 function update_monitor!(monitor::NodeSumMonitor, model; flush=true)
@@ -390,16 +391,9 @@ function update_monitor!(monitor::NodeSumMonitor, model; flush=true)
 
     # eval stop expressions
     for expr in monitor.stopexpr.args
-
-        # @show expr
-        # @show evaluate(expr; state...)
-        # @show evaluate(:fx; state...)
-        # @show evaluate(:fx_max; state...)
         if evaluate(expr; state...)
-            # @show "STOPPPPPPPP"
             return failure("Stop condition at NodeSumMonitor ($expr)")
         end
-        # error()
     end
 
     return success()

@@ -1,7 +1,7 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 export Symbolic
-export symbols
+export symbols, evaluate
 
 mutable struct Symbolic
     basic::Symbol
@@ -17,16 +17,21 @@ mutable struct Symbolic
 end
 
 
-function getexpr(a::Symbolic)
-    return a.expr==:() ? a.basic : a.expr
+# Gets current symbol or expression stored in a Symbolic object
+function getexpr(sym::Symbolic)
+    return sym.expr==:() ? sym.basic : sym.expr
 end
 
-getexpr(a) = a
+
+getexpr(sym) = sym
 
 
-function Base.show(io::IO, ex::Symbolic)
-    expr = getexpr(ex)
-    str = replace(string(expr), r" ([*\^]) " => s"\1")
+function Base.show(io::IO, sym::Symbolic)
+    if sym.expr==:() 
+        str = "Symbolic $(sym.basic)"
+    else
+        str = replace(string(sym.expr), r" ([*\^]) " => s"\1")
+    end
     print(io, str)
 end
  
@@ -54,22 +59,41 @@ for (fun, op) in zip((:and, :or), (:&&, :||))
 end
 
 
-macro symbols(syms...)
-    if syms[1] isa Expr && syms[1].head==:tuple 
-        syms = syms[1].args
-    end
+# macro symbols(syms...)
+#     if syms[1] isa Expr && syms[1].head==:tuple 
+#         syms = syms[1].args
+#     end
+#     expr = Expr(:block)
+#     for sym in syms
+#         push!(expr.args, :($(esc(sym)) = Symbolic($(QuoteNode(sym)))))
+#     end
+
+#     return expr
+# end
+
+macro define(syms...)
+
     expr = Expr(:block)
     for sym in syms
-        push!(expr.args, :($(esc(sym)) = Symbolic($(QuoteNode(sym)))))
+        if sym isa Symbol
+            push!(expr.args, :($(esc(sym)) = Symbolic($(QuoteNode(sym)))))
+        elseif sym isa Expr && sym.head == :(=) 
+            lhs = sym.args[1]
+            rhs = sym.args[2]
+            !(lhs isa Symbol) && error("@define: Invalid definition $sym")
+            push!(expr.args, :($(esc(lhs)) = $(esc(rhs))))
+            push!(expr.args, :($(esc(lhs)).basic = $(QuoteNode(lhs))))
+        else
+            error("@define: Invalid definition $sym")
+        end
     end
-
+    push!(expr.args, nothing)
     return expr
 end
 
 
-@symbols x, y, z, t
-export @symbols, x, y, z, t
-
+@define x y z t
+export @define, x, y, z, t
 
 const arith_tol=1e-6
 
@@ -96,10 +120,8 @@ const op_dict = Dict{Symbol,Function}(
     :log => (a,) -> log(a),
     :max => (a,b) -> max(a,b),
     :min => (a,b) -> min(a,b),
-   )
+)
 
-
-export evaluate
 
 reduce!(arg; vars...) = arg
 
@@ -203,4 +225,41 @@ function Base.replace(expr::Expr, pair::Pair)
         end
     end
     return expr
+end
+
+
+function fix_expr_maximum_minimum!(expr::Expr)
+    if expr.head == :call && expr.args[1] in (:maximum, :minimum) && expr.args[2] isa Symbol
+        symbol = expr.args[2]
+        suffix = string(expr.args[1])[1:3]
+        return Symbol("$(symbol)_$suffix")
+    end
+
+    start  = expr.head == :call ? 2 : 1
+    finish = length(expr.args)
+
+    for i in start:finish
+        arg = expr.args[i]
+        if isa(arg, Expr)
+            expr.args[i] = fix_expr_maximum_minimum!(arg)
+        end
+    end
+    return expr
+
+end
+
+function round_floats!(expr::Expr)
+    start  = expr.head == :call ? 2 : 1
+    finish = length(expr.args)
+
+    for i in start:finish
+        arg = expr.args[i]
+        if arg isa AbstractFloat
+            expr.args[i] = round(arg, digits=8)
+        elseif arg isa Expr
+            expr.args[i] = round_floats!(arg)
+        end
+    end
+    return expr
+
 end
