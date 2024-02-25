@@ -16,9 +16,9 @@ Monitor type for a single integration point.
 """
 mutable struct IpMonitor<:AbstractMonitor
     expr     ::Union{Symbol,Expr}
-    val      ::Number
+    vals     ::OrderedDict # stores current values
     filename ::String
-    filter   ::Union{Int,Symbol,String,Expr,Symbolic}
+    filter   ::Union{Int,Symbol,String,Expr,Symbolic,AbstractArray}
     table    ::DataTable
     ip       ::Ip
 
@@ -43,7 +43,13 @@ mutable struct IpMonitor<:AbstractMonitor
     ```
     """
     function IpMonitor(expr::Union{Symbol,Expr}, filename::String="")
-        return new(expr, NaN, filename, :(), DataTable())
+        if expr isa Expr
+            expr = round_floats!(expr)
+        end
+        if expr isa Symbol || expr.head == :call || expr.head == :(=)
+            expr = :($expr,)
+        end
+        return new(expr, OrderedDict(), filename, :(), DataTable())
     end
 end
 
@@ -51,6 +57,22 @@ end
 # IpMonitor
 function setup_monitor!(model, filter, monitor::IpMonitor)
     monitor.filter = filter
+
+    if filter isa AbstractArray
+        X = Vec3(filter)
+        x, y, z = X
+        ips = model.elems.ips[:(x==$x && y==$y && z==$z)]
+        n = length(ips)
+
+        if n==0
+            monitor.ip = nearest(model.elems.ips, X)
+            notify("setup_monitor: No ip found at $(monitor.filter). Picking the nearest at $(monitor.ip.coord)")
+        else
+            monitor.ip = ips[1]
+        end
+        return
+    end
+
     if filter isa Integer
         monitor.ip = model.elems.ips[filter]
         return
@@ -67,17 +89,15 @@ end
 function update_monitor!(monitor::IpMonitor, model; flush=true)
     isdefined(monitor, :ip) || return success()
 
-    state       = ip_vals(monitor.ip)
-    monitor.val = evaluate(monitor.expr; state...)
-
-    # data = OrderedDict(:val=>monitor.val)
-    # data = OrderedDict(:stage=> model.env.stage, :T=>model.env.T)
-    # model.env.transient && (vals[:t] = model.env.t)
+    for expr in monitor.expr.args
+        state = ip_vals(monitor.ip) 
+        monitor.vals[expr] = evaluate(expr; state...)
+    end
 
     monitor.vals[:stage] = model.env.stage
     monitor.vals[:T]     = model.env.T
     model.env.transient && (monitor.vals[:t]=model.env.t)
-    push!(monitor.table, data)
+    push!(monitor.table, monitor.vals)
 
     if monitor.filename!="" && flush
         filename = joinpath(model.env.outdir, monitor.filename)
@@ -98,7 +118,7 @@ mutable struct NodeMonitor<:AbstractMonitor
     expr     ::Union{Symbol,Expr}
     vals     ::OrderedDict # stores current values
     filename ::String
-    filter   ::Union{Int,Symbol,String,Expr,Symbolic}
+    filter   ::Union{Int,Symbol,String,Expr,Symbolic,AbstractArray}
     table    ::DataTable
     node     ::Node
 
@@ -122,6 +142,9 @@ mutable struct NodeMonitor<:AbstractMonitor
     ```
     """
     function NodeMonitor(expr::Union{Symbol,Expr}, filename::String="")
+        if expr isa Expr
+            expr = round_floats!(expr)
+        end
         if expr isa Symbol || expr.head == :call
             expr = :($expr,)
         end
@@ -138,7 +161,7 @@ function output(monitor::AbstractMonitor)
 
     first = true
     for (k,v) in monitor.vals
-        k in (:stage, :T) && continue
+        k in (:stage, :T, :t) && continue
         first || print(out, " "^length(head))
         first = false
 
@@ -155,6 +178,22 @@ end
 
 function setup_monitor!(model, filter, monitor::NodeMonitor)
     monitor.filter = filter
+
+    if filter isa AbstractArray
+        X = Vec3(filter)
+        x, y, z = X
+        nodes = model.nodes[:(x==$x && y==$y && z==$z)]
+        n = length(nodes)
+
+        if n==0
+            monitor.node = nearest(model.nodes, X)
+            notify("setup_monitor: No node found at $(monitor.filter). Picking the nearest at $(monitor.node.coord)")
+        else
+            monitor.node = nodes[1]
+        end
+        return
+    end
+
     if filter isa Integer
         monitor.node = model.elems.nodes[filter]
         return

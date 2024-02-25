@@ -41,61 +41,6 @@ function mount_K(elems::Array{<:Element,1}, ndofs::Int )
         end
     end
 
-    # nelems = length(elems)
-    # pool = Array{Any}(undef, nelems)
-
-    # Ri = Array{Array{Int,1}}(undef, nelems)
-    # Ci = Array{Array{Int,1}}(undef, nelems)
-    # Vi = Array{Array{Float64,1}}(undef, nelems)
-
-    # # Threads.nthreads()>1 && LinearAlgebra.BLAS.set_num_threads(1)
-
-
-    # @time begin
-    #     # ccall(:jl_enter_threaded_region, Cvoid, ())
-    #     @sync for elem in elems
-    #     # Threads.@threads for elem in elems
-
-
-    #         Threads.@spawn begin
-    #             Ke, rmap, cmap = elem_stiffness(elem)
-
-    #             I, J, V = findnz(sparse(Ke))
-    #             Ri[elem.id] = rmap[I]
-    #             Ci[elem.id] = cmap[J]
-    #             Vi[elem.id] = V
-
-    #         end
-
-            
-    #     end
-    #     # ccall(:jl_exit_threaded_region, Cvoid, ())
-
-    #     println("100")
-
-            
-    #     R = reduce(vcat, Ri)
-    #     C = reduce(vcat, Ci)
-    #     V = reduce(vcat, Vi)
-    #     # Threads.nthreads()==1 && LinearAlgebra.BLAS.set_num_threads(8)
-        
-    #     # R = reduce(vcat, p[1] for p in pool)
-    #     # println("200")
-    #     # C = reduce(vcat, p[2] for p in pool)
-    #     # println("200")
-    #     # V = reduce(vcat, p[3] for p in pool)
-    #     # R, C, V = Int64[], Int64[], Float64[]
-
-
-
-        
-    # end
-    
-    
-    # println("xxxxxxx")
-    
-    # error()
-    
     local K
     try
         K = sparse(R, C, V, ndofs, ndofs)
@@ -151,41 +96,6 @@ function update_embedded_disps!(active_elems::Array{<:Element,1}, U::Matx)
 end
 
 
-"""
-    solve!(model,options...) :: Bool
-
-Performs one stage static finite element analysis of a domain `model`
-subjected to a set of boundary conditions `bcs`.
-
-# Arguments
-
-`model` : A finite element domain
-
-`bcs` : Array of boundary conditions given as an array of pairs ( location => condition)
-
-# Keyword arguments
-
-`nincs   = 1` : Number of increments
-
-`maxits  = 5` : Maximum number of Newton-Rapson iterations per increment
-
-`autoinc = false` : Sets automatic increments size. The first increment size will be `1/nincs`
-
-`rtol     = 1e-2` : Tolerance for the maximum absolute error in forces vector
-
-`ΔTmin     = 1e-8` : Pseudo-time tolerance
-
-`scheme  = "FE"` : Predictor-corrector scheme at each increment. Available schemes are "FE", "ME", "BE", "Ralston"
-
-`nouts   = 0` : Number of output files per analysis
-
-`outdir  = ""` : Output directory
-
-`outkey = ""` : File key for output files
-
-`quiet = false` : verbosity level from 0 (silent) to 2 (verbose)
-
-"""
 function solve!(model::Model, ana::MechAnalysis; args...)
     name = "Solver for mechanical analyses"
     status = stage_iterator!(name, mech_stage_solver!, model; args...)
@@ -224,7 +134,6 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
     println(env.log, "Mechanical FE analysis: Stage $(stage.id)")
 
     solstatus = success()
-    # scheme in ("FE", "ME", "BE", "Ralston") || error("solve! : invalid scheme \"$(scheme)\"")
 
     nincs     = stage.nincs
     nouts     = stage.nouts
@@ -277,7 +186,6 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
     autoinc && (ΔT=min(ΔT, ΔTmax, ΔTcheck))
 
     inc  = 0             # increment counter
-    iout = env.out       # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
@@ -344,10 +252,11 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
 
             nits += 1
             it>1 && (ΔUi.=0.0) # essential values are applied only at first iteration
-            lastres = err # residue from last iteration
+            lastres = res # residue from last iteration
 
             # Predictor step
             K = mount_K(active_elems, ndofs)
+            
             ΔUitr = p1*ΔUi
             Rtr   = q11*R
             sysstatus = solve_system!(K, ΔUitr, Rtr, nu)   # Changes unknown positions in ΔUi and R
@@ -399,6 +308,7 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
 
         if syserror
             println(env.alerts, sysstatus.message)
+            println(env.log, sysstatus.message)
             converged = false
         end
 

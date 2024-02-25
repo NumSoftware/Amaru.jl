@@ -402,8 +402,6 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
             # Check for saving output file
             checkpoint = T>Tcheck-ΔTmin 
             if checkpoint
-
-
                 env.out += 1
                 Tcheck += ΔTcheck # find the next output time
             end
@@ -415,7 +413,6 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
                 println(env.alerts, rstatus.message)
                 return rstatus
             end
-
 
             if flush
                 lastflush = time()
