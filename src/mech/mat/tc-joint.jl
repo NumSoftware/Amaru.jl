@@ -83,7 +83,6 @@ mutable struct TCJoint<:Material
 end
 
 
-
 func_params(::Type{TCJoint}) = [
     FunInfo( :TCJoint, "Creates a `TCJoint` material model.", ""),
     ArgInfo( :E, "Young modulus", condition=:(E>0)),
@@ -101,7 +100,6 @@ func_params(::Type{TCJoint}) = [
     ArgInfo( :softcurve, "Softening curve", zeros(0,0), type=Array),
 ]
 @doc make_doc(func_params(TCJoint)) TCJoint
-
 
 
 function paramsdict(mat::TCJoint)
@@ -122,7 +120,7 @@ compat_state_type(::Type{TCJoint}, ::Type{MechJoint}, env::ModelEnv) = TCJointSt
 function beta(mat::TCJoint, σmax::Float64)
     βini = mat.βini
     βres = mat.γ*βini
-    return βres + (βini-βres)*(σmax/mat.ft)^mat.α
+    return βres + (βini-βres)*(σmax/mat.ft)^mat.θ
 end
 
 
