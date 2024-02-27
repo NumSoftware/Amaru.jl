@@ -66,7 +66,7 @@ include("mat/mc-joint.jl")
 include("mat/p-joint.jl")
 include("mat/mmc-joint.jl")
 include("mat/tc-joint.jl")
-include("mat/tcf-joint.jl")
+include("mat/tc2-joint.jl")
 
 # Models for 1D joint elements
 include("mat/elastic-lsjoint.jl")
