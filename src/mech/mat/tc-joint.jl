@@ -56,11 +56,11 @@ mutable struct TCJoint<:Material
             if softmodel == :linear
                 wc = round(2*GF/ft, sigdigits=5)
             elseif softmodel == :bilinear
-                if Gf==0.0
+                # if Gf==0.0
                     wc = round(5*GF/ft, sigdigits=5)
-                else
-                    wc = round((8*GF- 6*Gf)/ft, sigdigits=5)
-                end
+                # else
+                    # wc = round((8*GF- 6*Gf)/ft, sigdigits=5)
+                # end
             elseif softmodel==:hordijk
                 wc = round(GF/(0.1947019536*ft), sigdigits=5)  
             elseif softmodel==:soft
