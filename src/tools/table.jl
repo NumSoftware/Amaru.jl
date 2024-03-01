@@ -289,6 +289,11 @@ end
 sprintf(fmt, args...) = @eval @sprintf($fmt, $(args...))
 
 
+"""
+    filter(table::DataTable, expr::Expr)
+
+Filter rows of a DataTable object using a logical expression.
+"""
 function Base.filter(table::DataTable, expr::Expr)
     fields = getvars(expr)
     vars   = Dict{Symbol, Float64}()
@@ -326,9 +331,14 @@ function Base.sort!(table::DataTable, options::NamedTuple...)
 end
 
 
+"""
+    compress!(table::DataTable, n::Int)
+
+Compress a DataTable object to `n` rows. If the number of rows is less or equal to `n`, the same DataTable is returned.
+"""
 function compress!(table::DataTable, n::Int)
     columns = getcolumns(table)
-    nr, nc = size(table)
+    nr = size(table)[1]
 
     nr<=n && return table[:]
 
@@ -343,6 +353,11 @@ function compress!(table::DataTable, n::Int)
 end
 
 
+"""
+    resize(table::DataTable, n::Int=0; ratio=1.0)
+
+    Resize a DataTable object to `n` rows. If `n` is not provided, the number of rows is calculated using `ratio` parameter.
+"""
 function resize(table::DataTable, n::Int=0; ratio=1.0)
     header = getheader(table)
     nr     = nrows(table)
@@ -400,6 +415,11 @@ function resize(table::DataTable, n::Int=0; ratio=1.0)
 end
 
 
+"""
+    cut!(table::DataTable, field, value=0.0; after=false)
+
+Cut a DataTable object at a given value of a field. If `after` is true, the DataTable is cut after the given value.
+"""
 function cut!(table::DataTable, field, value=0.0; after=false)
     V   = table[field] .- value
     idx = 0
