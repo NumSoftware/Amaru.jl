@@ -8,6 +8,7 @@ include("show.jl")
 
 include("constants.jl")
 include("math.jl")
+include("signal.jl")
 
 include("linalg.jl")
 # include("vec3.jl")
