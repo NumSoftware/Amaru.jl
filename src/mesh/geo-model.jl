@@ -189,7 +189,7 @@ function addpoint!(geo::GeoModel, pt::Point)
         if insegment(pt.coord, p1.coord, p2.coord)
             newline = addsingleline!(geo, pt, p2, n=div(l.n,2), tag=l.tag) # create a new line
             l.points = [ p1, pt ] # updagte original line
-            pt.lines = [ l, newline ] # update pt links
+            pt.lines = GeoEntity[ l, newline ] # update pt links
             filter!(!=(l), p2.lines) # remove ref to l in p2
 
             # update existing loops that contained the original line
@@ -264,7 +264,7 @@ function addsinglearc!(geo::GeoModel, p1::Point, p2::Point, p3::Point; n=0, tag=
 
     push!(geo.lines, arc)
     push!(p1.lines, arc)
-    push!(p2.lines, arc)
+    push!(p3.lines, arc)
 
     return arc
 end
@@ -356,12 +356,10 @@ function findloops(line::AbstractLine; lines::Vector{<:AbstractLine}=AbstractLin
                 return PlaneLoop[]
             end
 
-            visited[1].points[1] in line.points && return [ PlaneLoop([visited; line]) ] # checking initial point
+            visited[1].points[1] in line.points[[1,end]] && return [ PlaneLoop([visited; line]) ] # checking initial point
         end
 
         visited = [visited; line] # make a new list
-
-        # @show [ l.id for l in visited ]
 
         if plane===nothing && length(visited)>1
             points = [visited[1].points; line.points]
@@ -439,6 +437,13 @@ function addline!(geo::GeoModel, p1::Point, p2::Point; n=0, tag="")
         p = intersection(li, l)
         p === nothing && continue
         push!(points, p)
+    end
+
+    # check if line lies over control points
+    for li in geo.lines
+        li isa Arc || continue
+        p = li.points[2]
+        insegment(p, p1, p2) && push!(points, p)
     end
 
     # sort points    
@@ -939,8 +944,8 @@ function extrude!(geo::GeoModel, line::Line; axis=[0.,0,1], length=1.0)
     dx = length*axis[1]
     dy = length*axis[2]
     dz = length*axis[3]
-    p4 = copy!(geo, p1, dx=dx, dy=dy, dz=dz)
     p3 = copy!(geo, p2, dx=dx, dy=dy, dz=dz)
+    p4 = copy!(geo, p1, dx=dx, dy=dy, dz=dz)
     l1 = addsingleline!(geo, p1, p2, tag=line.tag)
     l2 = addsingleline!(geo, p2, p3, tag=line.tag)
     l3 = addsingleline!(geo, p3, p4, tag=line.tag)
@@ -962,6 +967,7 @@ function extrude!(geo::GeoModel, arc::Arc; axis=[0,0,1], length=1.0)
     p4 = copy!(geo, p3, dx=dx, dy=dy, dz=dz)
     p5 = copy!(geo, p2, dx=dx, dy=dy, dz=dz)
     p6 = copy!(geo, p1, dx=dx, dy=dy, dz=dz)
+
     c1 = addsinglearc!(geo, p1, p2, p3, tag=arc.tag)
     c2 = addsingleline!(geo, p3, p4, tag=arc.tag)
     c3 = addsinglearc!(geo, p4, p5, p6, tag=arc.tag)
@@ -991,9 +997,6 @@ function extrude!(geo::GeoModel, surf::PlaneSurface; axis=[0.,0,1], length=1.0)
     #     end
     # end
 
-
-
-
     surfs = AbstractSurface[]
 
     # extrude lateral lines
@@ -1010,6 +1013,7 @@ function extrude!(geo::GeoModel, surf::PlaneSurface; axis=[0.,0,1], length=1.0)
     for lo in surf.loops
         lines = AbstractLine[]
         for line in lo.lines
+
             points = Point[]
             for p in line.points
                 pp = Point(p.coord .+ length.*axis)
