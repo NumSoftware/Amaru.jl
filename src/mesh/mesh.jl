@@ -976,12 +976,11 @@ function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false, quiet=f
 
     function get_loop_idxs(loop::AbstractLoop)
         l_idxs = [ l.id for l in loop.lines ]
-        l_conn = [ [ p.id for p in l.points] for l in loop.lines ]
+        l_conn = [ [ p.id for p in l.points[[1,end]]] for l in loop.lines ] # pick first and last points
 
         if !(l_conn[1][end] in l_conn[2])
             l_idxs[1] *= -1
         end
-
 
         for i in 2:length(l_conn)
             last_pidx = l_idxs[i-1]>0 ? l_conn[i-1][end] : l_conn[i-1][1]
