@@ -109,7 +109,7 @@ function configure!(chart::AbstractChart, ax::Axis)
                     
                 end
             end
-            if limits==[Inf, -Inf]
+            if limits[1]==limits[2]
                 limits = [-0.1, 0.1]
             end
         else
