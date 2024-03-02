@@ -13,6 +13,8 @@ nu = 0.3
 bl = Block( [0 0;L h], nx=50, ny=2, cellshape=QUAD8)
 msh= Mesh(bl, ndim=3)
 
+save(msh, "mesh.vtk")
+
 # fem domain
 mat = [ :bulks => MechShell => VonMises => (E=E, nu=nu, fy=fy, H=H, thickness=th) ]
 
@@ -25,12 +27,12 @@ addmonitor!(model, :(y==$h/2 && x==1) => NodeMonitor(:fy))
 
 # boundary conditions
 bcs = [
-    :(x==0) => NodeBC(ux=0),
-    :(x==0 && y==$h/2) => NodeBC(uy=0),
-    :(x==1.0 && y==$h/2) => NodeBC(uy = -0.08),
+    x==0 => NodeBC(ux=0, rx=0, ry=0, rz=0),
+    and(x==0, y==h/2) => NodeBC(uy=0),
+    and(x==1.0, y==h/2) => NodeBC(uy = -0.08),
 ]
 
-addstage!(model, bcs, nincs=30, nouts=1)
+addstage!(model, bcs, nincs=30, nouts=10)
 
 solve!(model, autoinc=true)
 
