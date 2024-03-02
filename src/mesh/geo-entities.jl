@@ -50,6 +50,13 @@ function Base.:(==)(p1::Point, p2::Point)
 end
 
 
+# Get node coordinates for a collection of nodes as a matrix
+function getcoords(points::Array{Point,1}, ndim=3)
+    npoints = length(points)
+    return [ points[i].coord[j] for i in 1:npoints, j=1:ndim]
+end
+
+
 abstract type AbstractLine<:GeoEntity
 end
 

@@ -60,13 +60,13 @@ function extrude(block::Block; axis=[0,0,1], length::Number=1.0, n::Int=1, quiet
         error("extrude: Block shape $(block.shape.name) is not supported")
     end
 
-    nodes = Node[]
-    for (node,li) in zip(block.nodes[nidx], ls[lidx])
-        coord = node.coord + li*axis
-        push!(nodes, Node(coord))
+    points = Point[]
+    for (point,li) in zip(block.points[nidx], ls[lidx])
+        coord = point.coord + li*axis
+        push!(points, Point(coord))
     end
 
-    return Block(getcoords(nodes), nx=block.nx, ny=block.ny, nz=n, cellshape=newshape)
+    return Block(points, nx=block.nx, ny=block.ny, nz=n, cellshape=newshape)
 
 end
 

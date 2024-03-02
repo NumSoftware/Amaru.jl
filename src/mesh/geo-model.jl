@@ -1,5 +1,5 @@
 export Point, Line, Loop, PlaneSurface, Surface, GeoModel
-export addpoint!, addline!, addarc!, addloop!, addplanesurface!, addvolume!
+export addpoint!, addline!, addarc!, addloop!, addplanesurface!, addvolume!, addblock!
 
 mutable struct GeoModel
     points::Vector{Point}
@@ -7,22 +7,24 @@ mutable struct GeoModel
     loops::Vector{AbstractLoop}
     surfaces::Vector{AbstractSurface}
     volumes::Vector{Volume}
+    blocks::Vector{Block}
     size::Float64
     _id::Int
 
     function GeoModel(; size=0.0)
-        return new( [], [], [], [], [], size, 0 )
+        return new( [], [], [], [], [], [], size, 0 )
     end
 end
 
 Base.show(io::IO, geo::GeoModel) = _show(io, geo, 3, "")
 
-function getpoint(geo::GeoModel, p::Point)
-    # tol = 1e-8
+function addblock!(geo::GeoModel, block::Block)
+    push!(geo.blocks, block)
+end
 
+function getpoint(geo::GeoModel, p::Point)
     for pp in geo.points
         p==pp && return pp
-        # norm(p.coord-pp.coord)<tol && return pp
     end
 
     return nothing

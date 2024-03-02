@@ -38,7 +38,7 @@ Block
 
 """
 function move!(block::AbstractBlock; dx=0.0, dy=0.0, dz=0.0)
-    for p in block.nodes
+    for p in block.points
         p.coord = round.( p.coord .+ (dx, dy, dz), digits=8)
     end
     return block
@@ -98,7 +98,7 @@ function scale!(block::AbstractBlock; factor=1.0, base=[0,0,0], axis=nothing)
 
     coords[abs.(coords) .< eps()] .= 0.0
 
-    for (i,p) in enumerate(block.nodes)
+    for (i,p) in enumerate(block.points)
         p.coord.x, p.coord.y, p.coord.z = coords[i,:]
     end
 
@@ -157,7 +157,7 @@ function mirror(block::AbstractBlock;  axis=[0.0, 0, 1], base=[0.0, 0, 0] )
     L = Vec3()
     X = Vec3()
 
-    for node in newblock.nodes
+    for node in newblock.points
         L .= node.coord .- base
         dist = dot(L, axis) # dist = n^.(xi - xp)
 
@@ -275,7 +275,7 @@ function LinearAlgebra.rotate!(bl::AbstractBlock; base=[0.0,0,0], axis=[0.0,0,1]
     digs = 8
 
     local X
-    for node in bl.nodes
+    for node in bl.points
         X = base + R*(node.coord-base)*conj(R)
         node.coord = round.(X, digits=digs) 
     end
@@ -323,12 +323,12 @@ function LinearAlgebra.rotate!(bl::AbstractBlock; base=[0.0,0,0], axis=[0.0,0,1]
     #     R = Ryi*Rz*Ry
     # end
 
-    # coords =getcoords(bl.nodes)
+    # coords =getcoords(bl.points)
 
     # # equation: p2 = base + R*(p-base)
     # coords = ( base .+ R*(coords' .- base) )'
 
-    # setcoords!(bl.nodes, coords)
+    # setcoords!(bl.points, coords)
 
     # return bl
 end
@@ -479,7 +479,7 @@ end
 function changeaxes!(bl::AbstractBlock, order::String)
     @assert length(order)==3
     idxs = [ char-'w' for char in order ]
-    for p in bl.nodes
+    for p in bl.points
         p.coord[1:3] = p.coord[idxs]
     end
 end

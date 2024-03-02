@@ -13,7 +13,7 @@ that represents the inset curve and can be:
 """
 mutable struct BlockInset <: AbstractBlock
     ndim     ::Int
-    nodes    ::Array{Node,1}
+    points   ::Array{Point,1}
     curvetype::Union{Int,AbstractString} # 0:polyline, 1:closed polyline, 2: lagrangian, 3:cubic Bezier with inner points
     closed   ::Bool
     embedded ::Bool
@@ -61,11 +61,11 @@ mutable struct BlockInset <: AbstractBlock
         end
 
         nrows  = size(coords,1)
-        nodes = [ Node(coords[i,:]) for i in 1:nrows ]
+        points = [ Point(coords[i,:]) for i in 1:nrows ]
 
         closed && (tipjoint=:none)
         embedded && (tipjoint=:none)
-        this = new(ndim, nodes, ctype, closed, embedded, LIN2, cellshape, tag, jointtag, tipjointtag, tipjoint, tol, toln, tolc, lam, id)
+        this = new(ndim, points, ctype, closed, embedded, LIN2, cellshape, tag, jointtag, tipjointtag, tipjoint, tol, toln, tolc, lam, id)
         this.icount = 0
         this.ε  = tol
         this.εn = toln
@@ -82,7 +82,7 @@ export PathInset
 
 
 function Base.copy(bl::BlockInset; dx=0.0, dy=0.0, dz=0.0)
-    BlockInset(getcoords(bl.nodes) .+ [dx dy dz], curvetype=bl.curvetype, closed=bl.closed,
+    BlockInset(getcoords(bl.points) .+ [dx dy dz], curvetype=bl.curvetype, closed=bl.closed,
                        embedded=bl.embedded, cellshape=bl.cellshape, tag=bl.tag,
                        jointtag=bl.jointtag, tipjointtag=bl.tipjointtag, tipjoint=bl.tipjoint)
 end
@@ -164,8 +164,8 @@ function interLagrange(s::Float64, coords::Array{Float64,2})
 end
 
 
-function split_block(bl::BlockInset, mesh::Mesh)
-    coords = getcoords(bl.nodes)
+function split_block!(mesh::Mesh, bl::BlockInset)
+    coords = getcoords(bl.points)
     n, ndim = size(coords)
 
     if n<2; error("At list two points are required in BlockInset") end
@@ -257,7 +257,7 @@ function split_curve(coords::Array{Float64,2}, bl::BlockInset, closed::Bool, msh
 
     # Initializing more variables
     ccell  = icell
-    # nodes = Array{Node}(undef, npoints)
+    # nodes = Array{Point}(undef, npoints)
 
     # Do not set _endpoint to nothing ( bl._endpoint = nothing ) to allow connectivity between segments!
 
