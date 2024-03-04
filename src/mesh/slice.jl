@@ -211,7 +211,7 @@ function slice(
     newmesh = Mesh()
     newmesh.nodes = getnodes(newcells)
     newmesh.elems = newcells
-    fixup!(newmesh)
+    syncronize!(newmesh)
 
     # interpolate node data
     nnodes = length(newmesh.nodes)

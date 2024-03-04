@@ -207,7 +207,7 @@ function mesh_unstructured(geo::GeoModel; args...)
         node.tag = tag
     end
 
-    fixup!(mesh, reorder=true)
+    syncronize!(mesh, reorder=true)
 
     if !quiet
         npoints = length(mesh.nodes)

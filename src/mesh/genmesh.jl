@@ -69,7 +69,7 @@ function Mesh(
     meshes = filter(b->b isa Mesh, fitems)
 
     # Find ndim
-    ndim = max(ndim, maximum((b.ndim for b in blocks), init=0), maximum((m.env.ndim for m in meshes), init=0) )
+    # ndim = max(ndim, maximum((b.ndim for b in blocks), init=0), maximum((m.env.ndim for m in meshes), init=0) )
     
     nmeshes = length(meshes)
     nblocks = length(blocks)
@@ -80,7 +80,8 @@ function Mesh(
     end
 
     # Join meshes
-    mesh = Mesh(ndim)
+    # mesh = Mesh(ndim)
+    mesh = Mesh()
     for m in meshes
         join_mesh!(mesh, m)
     end
@@ -92,7 +93,7 @@ function Mesh(
     end
 
     # Updates numbering, quality, facets and edges
-    fixup!(mesh)
+    syncronize!(mesh)
 
     if !quiet
         npoints = length(mesh.nodes)

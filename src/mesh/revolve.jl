@@ -198,12 +198,10 @@ function revolve(
     end
 
     # New mesh
-    ndim = sum(node.coord.z for node in nodes)==0 ? 2 : 3
-    ndim = max(ndim, mesh.env.ndim)
-    newmesh = Mesh(ndim)
+    newmesh = Mesh()
     newmesh.nodes = nodes
     newmesh.elems = cells
-    fixup!(newmesh, reorder=true)
+    syncronize!(newmesh, reorder=true)
 
     return newmesh
 end
@@ -273,11 +271,10 @@ function revolve(node::Node;
     nodes = collect(values(point_dict))
 
     # New mesh
-    ndim = sum(node.coord.z for node in nodes)==0 ? 2 : 3
-    newmesh = Mesh(ndim)
+    newmesh = Mesh()
     newmesh.nodes = nodes
     newmesh.elems = cells
-    fixup!(newmesh, reorder=true)
+    syncronize!(newmesh, reorder=true)
 
     return newmesh
 

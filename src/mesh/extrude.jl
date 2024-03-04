@@ -211,14 +211,11 @@ function extrude(mesh::Mesh; length::Real=1.0, n::Int=1, axis=nothing, quiet=tru
     end
     nodes = collect(values(node_dict))
 
-    # get ndim
-    ndim = sum(node.coord.z for node in nodes)==0 ? 2 : 3
-
     # new mesh
-    newmesh = Mesh(ndim)
+    newmesh = Mesh()
     newmesh.nodes = nodes
     newmesh.elems = cells
-    fixup!(newmesh, reorder=true)
+    syncronize!(newmesh, reorder=true)
 
     if !quiet
         @printf "  %5d points obtained\n" Base.length(newmesh.nodes)

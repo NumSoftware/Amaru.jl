@@ -353,7 +353,15 @@ function compute_facets!(mesh::Mesh)
 end
 
 function syncronize!(mesh::Mesh; reorder=false, cleandata=false)
-    @assert mesh.env.ndim!=0
+    sumz = sum( node.coord.z for node in mesh.nodes )
+    if sumz==0
+        sumy = sum( node.coord.y for node in mesh.nodes )
+        ndim = sumy==0 ? 1 : 2
+    else
+        ndim = 3
+    end
+
+    mesh.env.ndim = max(ndim, mesh.env.ndim)
 
     # Numberig nodes
     for (i,p) in enumerate(mesh.nodes) 
@@ -412,7 +420,7 @@ end
 
 function join_mesh!(mesh::Mesh, m2::Mesh)
 
-    mesh.env.ndim = max(mesh.env.ndim, m2.env.ndim)
+    # mesh.env.ndim = max(mesh.env.ndim, m2.env.ndim)
 
     pointdict = Dict{UInt, Node}()
     for m in (mesh, m2)
@@ -435,7 +443,7 @@ function join_mesh!(mesh::Mesh, m2::Mesh)
     mesh.elems = elems
     mesh._pointdict = pointdict
 
-    fixup!(mesh, reorder=false)
+    syncronize!(mesh, reorder=false)
 
     return nothing
 end
@@ -530,7 +538,7 @@ function Mesh(
     mesh = Mesh(ndim)
     mesh.nodes = nodes
     mesh.elems = cells
-    fixup!(mesh, reorder=false) # no node ordering
+    syncronize!(mesh, reorder=false) # no node ordering
 
     return mesh
 end
@@ -591,7 +599,7 @@ function Mesh(elems::Array{Cell,1})
         push!(newmesh.elems, newelem)
     end
 
-    fixup!(newmesh, reorder=false)
+    syncronize!(newmesh, reorder=false)
 
     return newmesh
 end
@@ -629,7 +637,7 @@ function Mesh(mesh::Mesh, filter::Union{String,Expr,Symbol})
         newmesh.node_data[k] = v[nodeids]
     end
 
-    fixup!(newmesh, reorder=false)
+    syncronize!(newmesh, reorder=false)
 
     return newmesh
 end
@@ -691,7 +699,7 @@ function threshold(mesh::Mesh, field::Union{Symbol,String}, minval::Float64, max
     end
 
     # update node numbering, facets and edges
-    fixup!(new_mesh, reorder=false)
+    syncronize!(new_mesh, reorder=false)
 
     return new_mesh
 

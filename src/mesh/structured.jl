@@ -23,11 +23,11 @@ function mesh_structured(mesh::Mesh, block_or_arr...; args...)
     blocks = flatten(block_or_arr)
 
     for b in blocks
-        b isa block || error("mesh_structured: expected Block or Array{Block}, got $(typeof(b))")
+        b isa Block || error("mesh_structured: expected Block or Array{Block}, got $(typeof(b))")
         split_block!(mesh, b)
     end
 
-    fixup!(mesh)
+    syncronize!(mesh)
 
     return mesh
 end
