@@ -50,12 +50,9 @@ function Mesh(geo::GeoModel; args...)
 end
 
 
-
-
 function Mesh(
     items     ::Union{Mesh, AbstractBlock, Array{<:Union{AbstractBlock, Array},1}}...;
     ndim      ::Int = 0,
-    reorder   ::Bool = true,
     quiet     ::Bool = false,
 )
 
@@ -80,8 +77,7 @@ function Mesh(
     end
 
     # Join meshes
-    # mesh = Mesh(ndim)
-    mesh = Mesh()
+    mesh = Mesh(ndim)
     for m in meshes
         join_mesh!(mesh, m)
     end
