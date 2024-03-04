@@ -8,7 +8,7 @@ using Test
 # Mesh generation
 
 block = Block( [0 0; 1 1], nx=1, ny=1, cellshape=QUAD4, tag="solid")
-mesh = Mesh(block, quiet=true, reorder=false)
+mesh = Mesh(block, quiet=true)
 
 # Model definition
 

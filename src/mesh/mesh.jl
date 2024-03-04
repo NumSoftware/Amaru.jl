@@ -300,9 +300,9 @@ end
 
 # Syncs the mesh data
 function syncronize!(mesh::Mesh; reorder=false, cleandata=false)
-    sumz = sum( node.coord.z for node in mesh.nodes )
+    sumz = map( node->abs(node.coord.z), mesh.nodes ) |> sum
     if sumz==0
-        sumy = sum( node.coord.y for node in mesh.nodes )
+        sumy = map( node->abs(node.coord.y), mesh.nodes ) |> sum
         ndim = sumy==0 ? 1 : 2
     else
         ndim = 3

@@ -492,7 +492,6 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
         ndim = 3
     end
 
-
     mesh = Mesh(ndim)
     mesh.nodes = nodes
 
@@ -515,7 +514,6 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
 
     # update mesh and get faces and edges
     compute_facets!(mesh)
-    # fixup!(mesh, reorder=false)
 
     # Setting data
     mesh.node_data = node_data

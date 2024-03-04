@@ -169,11 +169,13 @@ end
 Get the maximum dimension of of a `nodes` collection.
 """
 function getndim(nodes::Array{Node,1})
-    sumy = sum(node.coord.y for node in nodes)
-    sumz = sum(node.coord.z for node in nodes)
-    ndim = 3
-    sumz==0 && (ndim=2)
-    sumy+sumz==0 && (ndim=1)
+    sumz = map( node->abs(node.coord.z), nodes ) |> sum
+    if sumz==0
+        sumy = map( node->abs(node.coord.y), nodes ) |> sum
+        ndim = sumy==0 ? 1 : 2
+    else
+        ndim = 3
+    end
 
     return ndim
 end

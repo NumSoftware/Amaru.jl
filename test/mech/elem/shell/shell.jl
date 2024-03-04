@@ -6,7 +6,7 @@ nx = 20
 n  = 20
 
 bl1 = Block( [-R 0 0; -R L 0], nx=nx, cellshape=LIN3, tag="shell")
-mesh = Mesh(bl1, quiet=true, reorder=false)
+mesh = Mesh(bl1, quiet=true)
 mesh = revolve(mesh, angle=180, n=n, base=[0,0,0], axis=[0,1,0])
 
 # Finite element model

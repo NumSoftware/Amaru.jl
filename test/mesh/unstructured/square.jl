@@ -43,6 +43,7 @@ ana = MechAnalysis()
 
 results = []
 for mesh in [mesh1, mesh2]
+    @show mesh.env.ndim
     model = FEModel(mesh, mats, ana)
     
     log = NodeLogger()

@@ -35,7 +35,6 @@ delete!(geo, surf)
 mesh1 = Mesh(geo, quadratic=true)
 
 bl = Block([0 0; 0.25 0.25], nx=3, ny=3, cellshape=QUAD8)
-@show bl.nx
 bl_corners = array(bl, nx=2, ny=2, dx=0.75, dy=0.75)
 bl = Block([0.25 0; 0.75 0.25], nx=6, ny=3, cellshape=QUAD8)
 bl_bu = array(bl, nx=1, ny=2, dy=0.75)
