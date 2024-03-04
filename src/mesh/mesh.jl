@@ -282,76 +282,23 @@ function update_quality!(mesh::Mesh)
 end
 
 
-# Updates numbering, faces and edges in a Mesh object
-function fixup!(mesh::Mesh; genfacets=true, reorder=false)
-    @assert mesh.env.ndim!=0
-
-    # Numberig nodes
-    for (i,p) in enumerate(mesh.nodes) 
-        p.id = i 
-    end
-
-    # Numberig cells and setting env
-    for (i,elem) in enumerate(mesh.elems)
-        elem.id = i
-        elem.env = mesh.env
-    end
-
-    # Faces and edges
-    if genfacets
-        if mesh.env.ndim==2
-            mesh.edges = get_outer_facets(mesh.elems)
-            mesh.faces = mesh.edges
-        elseif mesh.env.ndim==3
-            solids = [ elem for elem in mesh.elems if elem.shape.ndim==3 ]
-            planar_cells = [ elem for elem in mesh.elems if elem.shape.ndim==2 ]
-            for cell in planar_cells
-                cell.owner = cell # set itself as owner
-            end
-            mesh.faces = [ get_outer_facets(solids); planar_cells ]
-            mesh.edges = getedges(mesh.faces)
-        end
-    end
-
-    # Quality
-    Q = Float64[]
-    for c in mesh.elems
-        c.quality = cell_quality(c)
-        push!(Q, c.quality)
-    end
-
-    # tag
-    tags = sort(unique([elem.tag for elem in mesh.elems]))
-    tag_dict = Dict( tag=>i-1 for (i,tag) in enumerate(tags) )
-    T = [ tag_dict[elem.tag] for elem in mesh.elems ] 
-
-    # Ordering
-    reorder && reorder!(mesh)
-
-    # Reset data
-    empty!(mesh.node_data)
-    empty!(mesh.elem_data)
-    mesh.node_data["node-id"]   = collect(1:length(mesh.nodes))
-    mesh.elem_data["quality"]   = Q
-    mesh.elem_data["elem-id"]   = collect(1:length(mesh.elems))
-    mesh.elem_data["cell-type"] = [ Int(cell.shape.vtk_type) for cell in mesh.elems ]
-    mesh.elem_data["tag"] = T
-
-
-    return nothing
-end
-
 function compute_facets!(mesh::Mesh)
     if mesh.env.ndim==2
         mesh.edges = get_outer_facets(mesh.elems)
         mesh.faces = mesh.edges
     elseif mesh.env.ndim==3
-        solids = [ elem for elem in mesh.elems if elem.shape.ndim==3 ]
-        mesh.faces = [ get_outer_facets(solids); [ elem for elem in mesh.elems if elem.shape.ndim==2 ] ]
+        solids = filter( elem->elem.shape.ndim==3, mesh.elems )
+        planars = filter( elem->elem.shape.ndim==2, mesh.elems )
+        for cell in planars
+            cell.owner = cell # set itself as owner
+        end
+        mesh.faces = [ get_outer_facets(solids); planars ]
         mesh.edges = getedges(mesh.faces)
     end
 end
 
+
+# Syncs the mesh data
 function syncronize!(mesh::Mesh; reorder=false, cleandata=false)
     sumz = sum( node.coord.z for node in mesh.nodes )
     if sumz==0

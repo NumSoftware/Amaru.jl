@@ -236,6 +236,8 @@ function FEModel(
         face = Face(cell.shape, model.nodes[conn], tag=cell.tag)
         if cell.owner!==nothing
             face.owner = model.elems[cell.owner.id]
+        else
+            error("FEModel: face $(i) has no owner element")
         end
         face.id = i
         push!(model.faces, face)

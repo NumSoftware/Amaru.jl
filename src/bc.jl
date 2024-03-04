@@ -128,8 +128,7 @@ function compute_bc_vals!(model::AbstractDomain, bc::Union{SurfaceBC,EdgeBC}, t:
                     end
                 end
             else
-                owner = facet.owner===nothing ? facet : facet.owner # some facets can be shells
-                Fd, map = distributed_bc(owner, facet, key, val)
+                Fd, map = distributed_bc(facet.owner, facet, key, val)
                 F[map] += Fd
             end
         end
