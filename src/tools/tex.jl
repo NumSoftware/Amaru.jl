@@ -65,8 +65,8 @@ export tex2xml
 
 
 function tex2xml(filename::String)
-    #xdoc = Xdoc()
-    root = Xnode("latex")
+    #xdoc = XmlDocument()
+    root = XmlElement("latex")
     text = read(filename, String)
     root = readtex(text, 1:latexindex(text))
     return root
@@ -94,7 +94,7 @@ function readtex(text::String, rng::UnitRange{Int})
                           ) \b
                   )"mx
 
-    children = Xnode[]
+    children = XmlElement[]
 
     len = length(text)
     pos = rng.start
@@ -133,7 +133,7 @@ function readtex(text::String, rng::UnitRange{Int})
             if match(r"^\s*$"m, line)!=nothing # blank line
                 #@show 200
                 if length(children)>0 && children[end].name!="blank"
-                    xnode = Xnode("blank")
+                    xnode = XmlElement("blank")
                     push!(children, xnode)
                 end
                 pos = rng.stop+1
@@ -143,7 +143,7 @@ function readtex(text::String, rng::UnitRange{Int})
                 if length(children)>0 && children[end].name=="comment"
                     children[end].content *= "\n"*line
                 else
-                    xnode = Xnode("comment", content=line)
+                    xnode = XmlElement("comment", content=line)
                     push!(children, xnode)
                 end
                 pos = rng.stop+1
@@ -174,7 +174,7 @@ function readtex(text::String, rng::UnitRange{Int})
                     push!(children, xtex)
                     pos = rng.stop+1
                 else
-                    cchildren = Xnode[]
+                    cchildren = XmlElement[]
                     while true
                         rng = findnext(r"\S", text, pos)
                         #@show rng
@@ -182,7 +182,7 @@ function readtex(text::String, rng::UnitRange{Int})
                         if text[rng] == "["
                             rng = findclosure("[", "]", text, rng.start)
                             rng===nothing && break
-                            push!(cchildren, Xnode("squarebraces", content=text[rng]))
+                            push!(cchildren, XmlElement("squarebraces", content=text[rng]))
                             pos = rng.stop+1
                         elseif text[rng] == "{"
                             #@show 1000
@@ -197,14 +197,14 @@ function readtex(text::String, rng::UnitRange{Int})
                             #rng = findnext(r"\$"m, text, pos)
                             #rng===nothing && error()
                             #xtex = readtex(text, pos:rng.stop-1)
-                            #xnode = Xnode("inline-equation", Dict(), xtex.cchildren)
+                            #xnode = XmlElement("inline-equation", Dict(), xtex.cchildren)
                         else
                             break
                             #rng = findnext(r"(\[|{|\\)", text, pos)
                         end
                         #pos = rng.stop
                     end
-                    xnode = Xnode("command", attributes=("name"=>name,), children=cchildren)
+                    xnode = XmlElement("command", attributes=("name"=>name,), children=cchildren)
                     push!(children, xnode)
 
                 end
@@ -218,14 +218,14 @@ function readtex(text::String, rng::UnitRange{Int})
             m = match(r"%(.*?)$"m, text, pos)
             pos += length(m.match)
             content = m.captures[1]
-            xnode = Xnode("inline-comment", content=content)
+            xnode = XmlElement("inline-comment", content=content)
             push!(children, xnode)
 
         elseif c=='{' 
             rng = findclosure("{", "}", text, pos)
             rng===nothing && break
             xtex = readtex(text, rng.start+1:rng.stop-1)
-            xnode = Xnode("curlybraces", Dict(), xtex.children)
+            xnode = XmlElement("curlybraces", Dict(), xtex.children)
             push!(children, xnode)
             pos = rng.stop+1
 
@@ -236,7 +236,7 @@ function readtex(text::String, rng::UnitRange{Int})
             rng = rng.start:min(rng.stop, lastpos)
             @show text[rng]
             rng===nothing && break
-            xtex = Xnode("paragraph", content=text[rng])
+            xtex = XmlElement("paragraph", content=text[rng])
             push!(children, xtex)
             pos = rng.stop+1
         else
@@ -247,14 +247,14 @@ function readtex(text::String, rng::UnitRange{Int})
 
     end
 
-    return Xnode("tex", Dict(), children)
+    return XmlElement("tex", Dict(), children)
 
 end
 
 
 function tex2xml2(filename::String)
-    #xdoc = Xdoc()
-    root = Xnode("latex")
+    #xdoc = XmlDocument()
+    root = XmlElement("latex")
     text = read(filename, String)
 
     # Preable
@@ -271,7 +271,7 @@ function tex2xml2(filename::String)
 
         if match(r"^\s*$"m, line)!=nothing # blank line
             if length(root.children)>0 && root.children[end].name!="blank"
-                xnode = Xnode("blank", Dict(), "")
+                xnode = XmlElement("blank", Dict(), "")
                 push!(root.children, xnode)
             end
             pos = rng.stop+1
@@ -279,13 +279,13 @@ function tex2xml2(filename::String)
             if length(root.children)>0 && root.children[end].name=="comment"
                 root.children[end].content *= "\n"*line
             else
-                xnode = Xnode("comment", Dict(), line)
+                xnode = XmlElement("comment", Dict(), line)
                 push!(root.children, xnode)
             end
             pos = rng.stop+1
         elseif (m=match(r"^\s*(\\[a-zA-Z]*\b)"m, line)) != nothing # command
             name = m.captures[1]
-            xnode = Xnode("command", Dict("name"=>name))
+            xnode = XmlElement("command", Dict("name"=>name))
             rng = findnext(r"^\s*\\[a-zA-Z]*\b"m, text, pos)
             pos = rng.stop+1
 
@@ -294,12 +294,12 @@ function tex2xml2(filename::String)
                 if text[rng] == "["
                     rng = findclosure("[", "]", text, rng.start)
                     rng===nothing && break
-                    push!(xnode.children, Xnode("arg", Dict(), text[rng]))
+                    push!(xnode.children, XmlElement("arg", Dict(), text[rng]))
                     pos = rng.stop+1
                 elseif text[rng] == "{"
                     rng = findclosure("{", "}", text, rng.start)
                     rng===nothing && break
-                    push!(xnode.children, Xnode("part", Dict(), text[rng]))
+                    push!(xnode.children, XmlElement("part", Dict(), text[rng]))
                     pos = rng.stop+1
                 else
                     rng = findnext(r"$"m, text, pos)
@@ -352,7 +352,7 @@ function tex2xml2(filename::String)
 
         if match(r"^\s*$"m, line)!=nothing # blank line
             if length(root.children)>0 && root.children[end].name!="blank"
-                xnode = Xnode("blank", Dict(), "")
+                xnode = XmlElement("blank", Dict(), "")
                 push!(root.children, xnode)
             end
             pos = rng.stop+1
@@ -360,13 +360,13 @@ function tex2xml2(filename::String)
             if length(root.children)>0 && root.children[end].name=="comment"
                 root.children[end].content *= "\n"*line
             else
-                xnode = Xnode("comment", Dict(), line)
+                xnode = XmlElement("comment", Dict(), line)
                 push!(root.children, xnode)
             end
             pos = rng.stop+1
         elseif (m=match(r"^\s*\\begin{([a-zA-Z]*?)}"m, line)) != nothing # environment
             name = m.captures[1]
-            xnode = Xnode("environment", Dict("name"=>name))
+            xnode = XmlElement("environment", Dict("name"=>name))
             rng = findnext(r"^\s*\\begin{([a-zA-Z]*?)}"m, text, pos)
             pos = rng.stop+1
         end

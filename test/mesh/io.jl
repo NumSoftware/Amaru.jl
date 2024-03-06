@@ -16,7 +16,7 @@ t = length(m1.nodes)==length(m2.nodes) &&
 TR = @test t
 println(TR)
 
-save(m1, "out.vtu")
+save(m1, "out.vtu", compress=false)
 sleep(0.1)
 m2 = Mesh("out.vtu")
 t = length(m1.nodes)==length(m2.nodes) && 

@@ -19,10 +19,10 @@ function save_xml(model::Model, filename::String)
     end
 
     # Model
-    root = Xnode("Model", attributes=attributes)
+    root = XmlElement("Model", attributes=attributes)
 
     # Materials
-    xmats = Xnode("Materials")
+    xmats = XmlElement("Materials")
     mat_dict = OrderedDict{UInt, Material}()
     for elem in model.elems
         hs = hash(elem.mat)
@@ -33,21 +33,21 @@ function save_xml(model::Model, filename::String)
     mat_idx_dict = OrderedDict{UInt, Int}()
     i = 0
     for (k,v) in mat_dict
-        push!(xmats.children, Xnode(v))
+        push!(xmats.children, XmlElement(v))
         i += 1
         mat_idx_dict[k] = i
     end
     push!(root.children, xmats)
 
     # Nodes
-    xnodes = Xnode("Nodes")
+    xnodes = XmlElement("Nodes")
     for node in model.nodes
         atts = OrderedDict(
                            "id"=>string(node.id),
                            "tag"=>string(node.tag),
                            "coord"=>"$(node.coord.x),$(node.coord.y),$(node.coord.z)",
                           )
-        xnode = Xnode("Node", attributes=atts)
+        xnode = XmlElement("Node", attributes=atts)
         for dof in node.dofs
             atts = OrderedDict(
                                "name"=>string(dof.name),
@@ -57,7 +57,7 @@ function save_xml(model::Model, filename::String)
                                "keys"=>join(keys(dof.vals), ","),
                                "vals"=>join(values(dof.vals), ","),
                               )
-            xdof = Xnode("Dof", attributes=atts)
+            xdof = XmlElement("Dof", attributes=atts)
             push!(xnode.children, xdof)
         end
         push!(xnodes.children, xnode)
@@ -65,7 +65,7 @@ function save_xml(model::Model, filename::String)
     push!(root.children, xnodes)
 
     # Elements
-    xelems = Xnode("Elements")
+    xelems = XmlElement("Elements")
     for elem in model.elems
         atts = OrderedDict(
                            "id"=>string(elem.id),
@@ -77,7 +77,7 @@ function save_xml(model::Model, filename::String)
                            "linked_elems"=>join((e.id for e in elem.linked_elems), ","),
                           )
         elemname = split(string(typeof(elem)), ".")[end]
-        xelem = Xnode(elemname, attributes=atts) 
+        xelem = XmlElement(elemname, attributes=atts) 
         for ip in elem.ips
             atts = OrderedDict(
                                "id"=>string(ip.id),
@@ -93,7 +93,7 @@ function save_xml(model::Model, filename::String)
             end
             atts["keys"] = join(keys, ",")
             atts["vals"] = join(vals, ",")
-            xip = Xnode("Ip", attributes=atts)
+            xip = XmlElement("Ip", attributes=atts)
             push!(xelem.children, xip)
         end
         push!(xelems.children, xelem)
@@ -101,13 +101,13 @@ function save_xml(model::Model, filename::String)
     push!(root.children, xelems)
 
     # NodeData
-    xnodedata = Xnode("NodeData")
+    xnodedata = XmlElement("NodeData")
     for (field,D) in model.node_data
         isempty(D) && continue
         isfloat = eltype(D)<:AbstractFloat
         dtype = isfloat ? "Float64" : "Int32"
         ncomps = size(D,2)
-        xdata = Xnode("DataArray", attributes=OrderedDict("name"=>string(field), "type"=>dtype, "ncomps"=>string(ncomps)))
+        xdata = XmlElement("DataArray", attributes=OrderedDict("name"=>string(field), "type"=>dtype, "ncomps"=>string(ncomps)))
         for i in 1:nnodes
             for j in 1:ncomps
                 if isfloat
@@ -123,13 +123,13 @@ function save_xml(model::Model, filename::String)
     push!(root.children, xnodedata)
 
     # ElemData
-    xelemdata = Xnode("ElemData")
+    xelemdata = XmlElement("ElemData")
     for (field,D) in model.elem_data
         isempty(D) && continue
         isfloat = eltype(D)<:AbstractFloat
         dtype = isfloat ? "Float64" : "Int32"
         ncomps = size(D,2)
-        xdata = Xnode("DataArray", attributes=OrderedDict("name"=>string(field), "type"=>dtype, "ncomps"=>string(ncomps)))
+        xdata = XmlElement("DataArray", attributes=OrderedDict("name"=>string(field), "type"=>dtype, "ncomps"=>string(ncomps)))
         for i in 1:nelems
             for j in 1:ncomps
                 if isfloat
@@ -145,7 +145,7 @@ function save_xml(model::Model, filename::String)
     push!(root.children, xelemdata)
 
     fileatts = OrderedDict("version"=>"1.0", "encoding"=>"utf-8")
-    doc = Xdoc(fileatts, root)
+    doc = XmlDocument(fileatts, root)
     save(doc, filename)
 
 end
@@ -221,7 +221,7 @@ function Model(filename::String; quiet=false)
     env = ModelEnv()
 
     quiet || printstyled("  loading xml file...\r", color=:cyan)
-    xdoc = Xdoc(filename)
+    xdoc = XmlDocument(filename)
     xdomain = xdoc.root
     setfields!(env, xdomain.attributes)
 
