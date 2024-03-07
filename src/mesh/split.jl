@@ -291,7 +291,7 @@ function generate_joints!(
     mesh.nodes = collect(values(nodesdict))
 
     # Update and reorder mesh
-    syncronize!(mesh, reorder=true)
+    syncronize!(mesh, reorder=true, cleandata=true)
 
 
     if !quiet

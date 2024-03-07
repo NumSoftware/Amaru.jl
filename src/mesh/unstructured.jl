@@ -155,6 +155,18 @@ function mesh_unstructured(geo::GeoModel; args...)
         end
     end
 
+    # embed lines
+    for l in geo.lines
+        l isa Line || continue
+        length(l.surfaces)==0 || continue
+        for s in geo.surfaces
+            s.loops[1] isa PlaneLoop || continue
+            if insidepolygon(l.points, getpoints(s.loops[1]))
+                gmsh.model.mesh.embed(1,[l.id],2,s.id)
+            end
+        end
+    end
+
     tempfile = "_temp.vtk"
     logfile = "_gmsh.log"
     try
@@ -164,7 +176,7 @@ function mesh_unstructured(geo::GeoModel; args...)
                 quadratic && gmsh.model.mesh.setOrder(2) # quadratic elements
                 recombine && gmsh.model.mesh.recombine()
                 gmsh.write(tempfile)
-                gmsh.write("file.geo_unrolled")
+                # gmsh.write("file.geo_unrolled")
             end
         end
     catch err

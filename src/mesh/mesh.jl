@@ -408,7 +408,7 @@ end
 
 Creates a `Mesh` from a nodal `coordinates` matrix,
 an array of `connectivities` and a list of `cellshapes`.
-If `cellshapes` are not provided, they are computed based on the geometry.
+If `cellshapes` are not provided, they are guessed based on the geometry.
 A `tag` string for all generated cells can be provided optionally.
 
 # Examples
