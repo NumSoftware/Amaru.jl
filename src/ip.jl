@@ -129,11 +129,13 @@ export nearest
 function nearest(ips::Array{Ip,1}, coord)
     n = length(ips)
     D = zeros(n)
-    X = vec(coord)
+    X = Vec3(coord)
 
     for (i,ip) in enumerate(ips)
         D[i] = norm(X- ip.coord)
     end
 
-    return ips[sortperm(D)[1]]
+    return ips[findmin(D)[2]]
+
+    # return ips[sortperm(D)[1]]
 end
