@@ -477,7 +477,9 @@ function addline!(geo::GeoModel, p1::Point, p2::Point; n=0, tag="")
             
             loops = findloops(l, lines=lines, inner=true)
 
-            if length(loops)==1
+            if length(loops)==0
+                continue
+            elseif length(loops)==1
                 addplanesurface!(geo, loops[1])
             elseif length(loops)==2
                 splitplanesurface!(geo, s, loops...)
