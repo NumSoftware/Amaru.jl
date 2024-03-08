@@ -163,7 +163,7 @@ tm_stage_solver_params = [
 @doc make_doc(tm_stage_solver_params) tm_stage_solver!()
 
 function tm_stage_solver!(model::Model, stage::Stage; args...)
-    args = checkargs(args, mech_stage_solver_params)
+    args = checkargs(args, tm_stage_solver_params)
     
     tol     = args.tol      
     ΔTmin   = args.dTmin    
@@ -188,7 +188,6 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
     T0        = env.ana.T0
     ftol      = tol
 
-
     # Get active elements
     for elem in stage.toactivate
         elem.active = true
@@ -197,9 +196,9 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
 
     # Get dofs organized according to boundary conditions
     dofs, nu = configure_dofs!(model, stage.bcs) # unknown dofs first
-    ndofs = length(dofs)
-    umap  = 1:nu         # map for unknown bcs
-    pmap  = nu+1:ndofs   # map for prescribed bcs
+    ndofs    = length(dofs)
+    umap     = 1:nu         # map for unknown bcs
+    pmap     = nu+1:ndofs   # map for prescribed bcs
     model.ndofs = length(dofs)
 
     println(env.info,"unknown dofs: $nu")
@@ -217,11 +216,9 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
             end
         end
 
-        update_records!(model)
+        update_records!(model, force=true)
         complete_ut_T(model)
     end
-    lastflush = time()
-    flushinterval = 5.0
 
     # Get the domain current state and backup
     State = [ ip.state for elem in active_elems for ip in elem.ips ]
@@ -400,23 +397,16 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
             env.T = T
 
             # Check for saving output file
-            checkpoint = T>Tcheck-ΔTmin 
+            checkpoint = T>Tcheck-ΔTmin
             if checkpoint
                 env.out += 1
                 Tcheck += ΔTcheck # find the next output time
             end
 
-            flush = time()-lastflush>flushinterval || T >= 1.0-ΔTmin
-
-            rstatus = update_records!(model, checkpoint=checkpoint, flush=flush)
+            rstatus = update_records!(model, checkpoint=checkpoint)
             if failed(rstatus)
                 println(env.alerts, rstatus.message)
                 return rstatus
-            end
-
-            if flush
-                lastflush = time()
-                GC.gc()
             end
 
             if autoinc
@@ -458,13 +448,14 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
                     break
                 end
             else
-                solstatus = failure("Solver did not converge. Try `autoinc=true`. ")
+                solstatus = failure("Residue is greater than the tolerance. Try `autoinc=true`. ")
                 break
             end
         end
     end
 
-    failed(solstatus) && update_records!(model, solverfailed=true)
+    complete_ut_T(model)
+    failed(solstatus) && update_records!(model, force=true)
 
     return solstatus
 
