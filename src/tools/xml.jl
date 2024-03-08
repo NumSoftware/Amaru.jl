@@ -10,10 +10,6 @@ mutable struct XmlElement<:XmlNode
     children::Vector{XmlNode}
     content::Union{AbstractString, Vector{UInt8}}
 
-    # function XmlElement(name::AbstractString, attributes::Union{AbstractDict, Tuple}, children, content::AbstractString="")
-        # return new(name, OrderedDict(attributes), children, content)
-    # end
-
     function XmlElement(name::AbstractString; attributes::Union{AbstractDict,Tuple}=Dict(), children=XmlElement[], content::AbstractString="")
         return new(name, OrderedDict(attributes), children, content)
     end
@@ -55,6 +51,21 @@ end
 # Get a list of all nodes with a given attribute
 function Base.getindex(doc::XmlDocument, p::Pair{String,String})
     return getindex(doc.root, p)
+end
+
+
+function getallchildren(node::XmlElement)
+    collected = XmlElement[]
+    function _collect!(node::XmlElement, collected::Vector{XmlElement})
+        for child in node.children
+            if isa(child, XmlElement)
+                push!(collected, child)
+                _collect!(child, collected)
+            end
+        end
+    end
+    _collect!(node, collected)
+    return collected
 end
 
 
@@ -190,8 +201,14 @@ end
 
 
 # read a xml file into a XmlDocument
-function XmlDocument(filename::String)
-    text = read(filename, String)
+function XmlDocument(input::String)
+    # check if input is XML or file
+    if startswith(input, "<")  
+        text = input
+    else
+        text = read(input, String)
+    end
+
     rng = findfirst(r"<\?xml.*?>", text)
     pos = rng.stop
 

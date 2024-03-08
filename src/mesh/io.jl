@@ -1,5 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
+using TranscodingStreams, CodecZlib
 
 function save_vtk(mesh::AbstractDomain, filename::String; desc::String="")
     # Saves a UnstructuredGrid
@@ -110,288 +111,129 @@ function save_vtk(mesh::AbstractDomain, filename::String; desc::String="")
 end
 
 
-function save_vtu(mesh::AbstractDomain, filename::String; desc::String="")
-    npoints = length(mesh.nodes)
-    ncells  = length(mesh.elems)
-    root = XmlElement("VTKFile", attributes=("type"=>"UnstructuredGrid", "version"=>"1.0", "byte_order"=>"LittleEndian"))
-    ugrid = XmlElement("UnstructuredGrid")
-    piece = XmlElement("Piece", attributes=("NumberOfPoints"=>"$npoints", "NumberOfCells"=>"$ncells"))
-    push!(ugrid.children, piece)
-    push!(root.children, ugrid)
+function get_array_node!(array::AbstractArray, name::String, compressed, buf)
+    dtype = string(eltype(array))
+    ncomps = size(array,2)
+    if compressed # appends compressed data to buf
+        xdata = XmlElement("DataArray", attributes=("type"=>dtype, "Name"=>name, "NumberOfComponents"=>"$ncomps", "format"=>"appended", "offset"=>"$(position(buf))"))
+        level = 4 # compression level
+        inipos = position(buf)
 
-    io = IOBuffer()
+        array = collect(transpose(array))
 
-    # Write coordinates
-    xpoints = XmlElement("Points")
-    xcoords  = XmlElement("DataArray", attributes=("type"=>"Float64", "NumberOfComponents"=>"3", "format"=>"ascii"))
-    for (i,node) in enumerate(mesh.nodes)
-        @printf io "%17.7e %17.7e %17.7e" node.coord.x node.coord.y node.coord.z
-        i<npoints && print(io, "\n")
-    end
-    xcoords.content = String(take!(io))
-    push!(xpoints.children, xcoords)
-    push!(piece.children, xpoints)
+        # temporary header
+        write(buf, UInt64(1), UInt64(0), UInt64(0), UInt64(0))
+        arr_size = length(array)*sizeof(eltype(array))
 
-    xcells = XmlElement("Cells")
-
-    # Write connectivities
-    xconn  = XmlElement("DataArray", attributes=("type"=>"Int32", "Name"=>"connectivity", "format"=>"ascii"))
-    for cell in mesh.elems
-        for node in cell.nodes
-            print(io, node.id-1, "  ")
-        end
-    end
-    xconn.content = String(take!(io))
-
-    # Write offset
-    xoffset = XmlElement("DataArray", attributes=("type"=>"Int32", "Name"=>"offsets", "format"=>"ascii"))
-    offset = 0
-    for cell in mesh.elems
-        offset += length(cell.nodes)
-        print(io, offset, "  ")
-    end
-    xoffset.content = String(take!(io))
-
-    # Write cell types
-    xtypes = XmlElement("DataArray", attributes=("type"=>"Int32", "Name"=>"types", "format"=>"ascii"))
-    for cell in mesh.elems
-        print(io, Int(cell.shape.vtk_type), "  ")
-    end
-    xtypes.content = String(take!(io))
-
-    push!(xcells.children, xconn)
-    push!(xcells.children, xoffset)
-    push!(xcells.children, xtypes)
-
-    push!(piece.children, xcells)
-
-    # Node and Cell data
-    has_node_data = !isempty(mesh.node_data)
-
-    # Write node data
-    if has_node_data
-        xpointdata = XmlElement("PointData")
-        for (field,D) in mesh.node_data
-            isempty(D) && continue
-            isfloat = eltype(D)<:AbstractFloat
-            dtype = isfloat ? "Float64" : "Int32"
-            ncomps = size(D,2)
-            xdata = XmlElement("DataArray", attributes=("type"=>dtype, "Name"=>"$field", "NumberOfComponents"=>"$ncomps", "format"=>"ascii"))
-            for i in 1:npoints
-                for j in 1:ncomps
-                    if isfloat
-                        @printf io "%17.7e" Float32(D[i,j])
-                    else
-                        print(io, D[i,j], "  ")
-                    end
+        # write compressed array
+        zbuf = ZlibCompressorStream(buf, level=level)
+        write(zbuf, array)
+        write(zbuf, TranscodingStreams.TOKEN_END)
+        flush(zbuf)
+        TranscodingStreams.finalize(zbuf.codec) # finalize codec
+        
+        # rewrite header
+        endpos = position(buf)
+        comp_arr_size = endpos - inipos - 4*sizeof(UInt64(0)) # considering header size
+        seek(buf, inipos)
+        write(buf, UInt64(1), UInt64(arr_size), UInt64(arr_size), UInt64(comp_arr_size))
+        seek(buf, endpos)
+    else
+        xdata = XmlElement("DataArray", attributes=("type"=>dtype, "Name"=>name, "NumberOfComponents"=>"$ncomps", "format"=>"ascii"))
+        isfloat = eltype(array)<:AbstractFloat
+        io = IOBuffer()
+        nrows = size(array,1)
+        for i in 1:nrows
+            for j in 1:ncomps
+                if isfloat
+                    @printf io "%20.10e" Float32(array[i,j])
+                else
+                    print(io, array[i,j], "  ")
                 end
             end
-            xdata.content = String(take!(io))
-            push!(xpointdata.children, xdata)
+            i<nrows && print(io, "\n")
         end
-        push!(piece.children, xpointdata)
+        xdata.content = String(take!(io))
     end
-
-    # Add field for joints
-    if any( c.shape.family==JOINTCELL for c in mesh.elems )
-        ncells = length(mesh.elems)
-        joint_data = zeros(Int, ncells, 3) # nlayers, first link, second link
-        for i in 1:ncells
-            cell = mesh.elems[i]
-            nlayers = cell.shape.name[1:2]=="J3" ? 3 : 2
-            if cell.shape.family==JOINTCELL
-                joint_data[i,1] = nlayers
-                joint_data[i,2] = cell.linked_elems[1].id
-                joint_data[i,3] = cell.linked_elems[2].id
-            end
-        end
-        mesh.elem_data["joint-data"] = joint_data
-    end
-
-    # Add field for embedded nodes
-    if any( c.shape.family==LINEJOINTCELL for c in mesh.elems )
-        ncells = length(mesh.elems)
-        inset_data = zeros(Int, ncells, 3) # npoints, first link id, second link id
-        for i in 1:ncells
-            cell = mesh.elems[i]
-            if cell.shape.family==LINEJOINTCELL
-                inset_data[i,1] = cell.shape.npoints
-                inset_data[i,2] = cell.linked_elems[1].id
-                inset_data[i,3] = cell.linked_elems[2].id
-            end
-        end
-        mesh.elem_data["inset-data"] = inset_data
-    end
-
-    # Add tag info
-    tags = sort(unique([elem.tag for elem in mesh.elems]))
-    if length(tags)>1
-        tag_dict = Dict( tag=>i for (i,tag) in enumerate(tags) )
-        T = [ tag_dict[elem.tag] for elem in mesh.elems ]
-        mesh.elem_data["tag"] = T
-    end
-
-    # Write cell data
-    has_elem_data  = !isempty(mesh.elem_data)
-
-    if has_elem_data
-        xcelldata = XmlElement("CellData")
-        for (field,D) in mesh.elem_data
-            isempty(D) && continue
-            isfloat = eltype(D)<:AbstractFloat
-            dtype = isfloat ? "Float64" : "Int32"
-            ncomps = size(D,2)
-            xdata = XmlElement("DataArray", attributes=("type"=>dtype, "Name"=>"$field", "NumberOfComponents"=>"$ncomps", "format"=>"ascii"))
-            for i in 1:ncells
-                for j in 1:ncomps
-                    if isfloat
-                        @printf io "%20.10e" Float32(D[i,j])
-                    else
-                        print(io, D[i,j], "  ")
-                    end
-                end
-            end
-            xdata.content = String(take!(io))
-            push!(xcelldata.children, xdata)
-        end
-        push!(piece.children, xcelldata)
-    end
-
-    fileatts = ("version"=>"1.0",)
-    doc = XmlDocument(fileatts)
-    addchild!(doc, XmlComment(desc))
-    addchild!(doc, root)
-    save(doc, filename)
-end
-
-using TranscodingStreams, CodecZlib
-
-
-function append_compressed_array!(buf::IOBuffer, arr::AbstractArray, level)
-    inipos = position(buf)
-
-    # temporary header
-    write(buf, UInt64(1), UInt64(0), UInt64(0), UInt64(0))
-
-    arr_size = length(arr)*sizeof(eltype(arr))
-
-    # write compressed array
-    zbuf = ZlibCompressorStream(buf, level=level)
-    write(zbuf, arr)
-    write(zbuf, TranscodingStreams.TOKEN_END)
-    flush(zbuf)
-    TranscodingStreams.finalize(zbuf.codec) # finalize codec
-    
-    # rewrite header
-    endpos = position(buf)
-    comp_arr_size = endpos - inipos - 4*sizeof(UInt64(0)) # considering header size
-    seek(buf, inipos)
-    write(buf, UInt64(1), UInt64(arr_size), UInt64(arr_size), UInt64(comp_arr_size))
-    seek(buf, endpos)
+    return xdata
 end
 
 
-function save_compressed_vtu(mesh::AbstractDomain, filename::String; desc::String="")
-    level = 4 # compression level
+function save_vtu(mesh::AbstractDomain, filename::String; desc::String="", compress=true)
     npoints = length(mesh.nodes)
     ncells  = length(mesh.elems)
     root = XmlElement("VTKFile", attributes=("type"=>"UnstructuredGrid", "version"=>"1.0",  "byte_order"=>"LittleEndian", "header_type"=>"UInt64", "compressor"=>"vtkZLibDataCompressor"))
     ugrid = XmlElement("UnstructuredGrid")
     piece = XmlElement("Piece", attributes=("NumberOfPoints"=>"$npoints", "NumberOfCells"=>"$ncells"))
-    push!(ugrid.children, piece)
-    push!(root.children, ugrid)
+    addchild!(ugrid, piece)
+    addchild!(root, ugrid)
 
-    buf = IOBuffer()
+    buf = IOBuffer() # only for compressed data
 
     # Write coordinates
     xpoints = XmlElement("Points")
-    xcoords  = XmlElement("DataArray", attributes=("type"=>"Float64", "Name"=>"Points", "NumberOfComponents"=>"3", "format"=>"appended", "offset"=>"0"))
-    coords = Float64[ c for node in mesh.nodes for c in node.coord ]
-    append_compressed_array!(buf, coords, level)
-    push!(xpoints.children, xcoords)
-    push!(piece.children, xpoints)
+    coords = Float64[ node.coord[i] for node in mesh.nodes, i in 1:3 ]
+
+    addchild!(xpoints, get_array_node!(coords, "Points", compress, buf))
+    addchild!(piece, xpoints)
 
     xcells = XmlElement("Cells")
 
     # Write connectivities
-    xconn  = XmlElement("DataArray", attributes=("type"=>"Int32", "Name"=>"connectivity", "format"=>"appended", "offset"=>"$(position(buf))"))
     conn = Int32[]
     for cell in mesh.elems
         for node in cell.nodes
             push!(conn, node.id-1)
         end
     end
-    append_compressed_array!(buf, conn, level)
+    addchild!(xcells, get_array_node!(conn, "connectivity", compress, buf))
 
     # Write offset
-    xoffset = XmlElement("DataArray", attributes=("type"=>"Int32", "Name"=>"offsets", "format"=>"appended", "offset"=>"$(position(buf))"))
     offsets = Int32[]
     offset = 0
     for cell in mesh.elems
         offset += length(cell.nodes)
         push!(offsets, offset)
     end
-    append_compressed_array!(buf, offsets, level)
+    # append_compressed_array!(buf, offsets, level)
+    addchild!(xcells, get_array_node!(offsets, "offsets", compress, buf))
 
     # Write cell types
-    xtypes = XmlElement("DataArray", attributes=("type"=>"Int32", "Name"=>"types", "format"=>"appended", "offset"=>"$(position(buf))"))
     types = Int32[]
     for cell in mesh.elems
         push!(types, Int32(cell.shape.vtk_type))
     end
-    append_compressed_array!(buf, types, level)
-
-    push!(xcells.children, xconn)
-    push!(xcells.children, xoffset)
-    push!(xcells.children, xtypes)
-
-    push!(piece.children, xcells)
-
-    # Node and Cell data
-    has_node_data = !isempty(mesh.node_data)
+    addchild!(xcells, get_array_node!(types, "types", compress, buf))
+    addchild!(piece, xcells)
 
     # Write node data
+    has_node_data = !isempty(mesh.node_data)
     if has_node_data
         xpointdata = XmlElement("PointData")
-        for (field,D) in mesh.node_data
+        for (field, D) in mesh.node_data
             isempty(D) && continue
-            isfloat = eltype(D)<:AbstractFloat
-            dtype = isfloat ? "Float64" : "Int32"
-            ncomps = size(D,2)
-            if ncomps>1
-                D = collect(transpose(D))
-            end
-            xdata = XmlElement("DataArray", attributes=("type"=>dtype, "Name"=>"$field", "NumberOfComponents"=>"$ncomps", "format"=>"appended", "offset"=>"$(position(buf))"))
-            push!(xpointdata.children, xdata)
-            append_compressed_array!(buf, D, level)
+            addchild!(xpointdata, get_array_node!(D, field, compress, buf))
         end
-        push!(piece.children, xpointdata)
+        addchild!(piece, xpointdata)
+        # push!(piece.children, xpointdata)
     end
 
     # Write cell data
-    has_elem_data  = !isempty(mesh.elem_data)
-
+    has_elem_data = !isempty(mesh.elem_data)
     if has_elem_data
         xcelldata = XmlElement("CellData")
-        for (field,D) in mesh.elem_data
+        for (field, D) in mesh.elem_data
             isempty(D) && continue
-            isfloat = eltype(D)<:AbstractFloat
-            dtype = isfloat ? "Float64" : "Int32"
-            ncomps = size(D,2)
-            if ncomps>1
-                D = collect(transpose(D))
-            end
-            xdata = XmlElement("DataArray", attributes=("type"=>dtype, "Name"=>"$field", "NumberOfComponents"=>"$ncomps", "format"=>"appended", "offset"=>"$(position(buf))"))
-            push!(xcelldata.children, xdata)
-            append_compressed_array!(buf, D, level)
+            addchild!(xcelldata, get_array_node!(D, field, compress, buf))
         end
-        push!(piece.children, xcelldata)
+        addchild!(piece, xcelldata)
     end
 
-    xappended = XmlElement("AppendedData", attributes=("encoding"=>"raw",))
-    # @show take!(buf) |> typeof
-    xappended.content = take!(buf)
-    push!(root.children, xappended)
+    if compress
+        xappended = XmlElement("AppendedData", attributes=("encoding"=>"raw",))
+        xappended.content = take!(buf)
+        addchild!(root, xappended)
+    end
 
     fileatts = ("version"=>"1.0",)
     doc = XmlDocument(fileatts)
@@ -451,11 +293,7 @@ function save(mesh::AbstractDomain, filename::String; compress=true, quiet=true)
     if format==".vtk"
         save_vtk(mesh, filename, desc=desc)
     elseif format==".vtu"
-        if compress
-            save_compressed_vtu(mesh, filename, desc=desc)
-        else
-            save_vtu(mesh, filename, desc=desc)
-        end
+        save_vtu(mesh, filename, desc=desc, compress=compress)
     end
     quiet || printstyled( "  file $filename saved \e[K \n", color=:cyan)
     return nothing
@@ -607,23 +445,41 @@ end
 
 
 function read_vtu(filename::String)
-    # Reading file
-    
-    TYPES = Dict("Float32"=>Float32, "Float64"=>Float64, "Int32"=>Int32, "Int64"=>Int64)
+    doc = XmlDocument(filename)
 
-    doc       = XmlDocument(filename)
-    getchild(doc.root, "AppendedData")!==nothing && error("read_vtu: this reader does not support compressed files")
+    # check if file is compressed
+    if getchild(doc.root, "AppendedData")!==nothing 
+        raw = Vector{UInt8}(strip(getchild(doc.root, "AppendedData").content[2:end])) # remove first character _
+        nodes = getallchildren(doc.root)
 
-    piece     = doc.root("UnstructuredGrid", "Piece")
-    npoints   = parse(Int, piece.attributes["NumberOfPoints"])
-    ncells    = parse(Int, piece.attributes["NumberOfCells"])
-    strcoords = piece("Points", "DataArray").content
-    coords    = transpose(reshape(parse.(Float64, split(strcoords)), 3, :))
+        # update content on nodes with offset att
+        for node in nodes
+            node isa XmlElement || continue
+            node.name == "DataArray" && haskey(node.attributes, "offset") || continue
+            offset = parse(Int, node.attributes["offset"])
 
-    xmlcells   = piece("Cells")
-    conn       = parse.(Int, split(xmlcells["Name"=>"connectivity"][1].content)) .+ 1
-    offsets    = parse.(Int, split(xmlcells["Name"=>"offsets"][1].content))
-    cell_types = parse.(Int, split(xmlcells["Name"=>"types"][1].content))
+            first  = offset + 1
+            last   = offset + 4*sizeof(UInt64(0))
+            
+            header = Int.(reinterpret(UInt64, raw[first:last]))
+            len    = header[4]
+
+            first = offset + 4*sizeof(UInt64(0)) + 1
+            last  = first + len - 1
+
+            node.content = transcode(ZlibDecompressor, raw[first:last]) # decompression
+        end
+    end
+
+    piece   = doc.root("UnstructuredGrid", "Piece")
+    npoints = parse(Int, piece.attributes["NumberOfPoints"])
+    ncells  = parse(Int, piece.attributes["NumberOfCells"])
+    coords  = get_array(piece("Points", "DataArray"))
+
+    xcells     = piece("Cells")
+    conn       = get_array(xcells["Name"=>"connectivity"][1]) .+ 1
+    offsets    = get_array(xcells["Name"=>"offsets"][1])
+    cell_types = get_array(xcells["Name"=>"types"][1])
 
     connects = Array{Int,1}[]
     pos = 1
@@ -636,30 +492,18 @@ function read_vtu(filename::String)
     elem_data = OrderedDict{String,Array}()
 
     xpointdata = piece("PointData")
-    if xpointdata!=nothing
-        for arr in xpointdata.children
-            ncomps = parse(Int, arr.attributes["NumberOfComponents"])
-            dtype = TYPES[arr.attributes["type"]]
-            label = arr.attributes["Name"]
-            if ncomps==1
-                node_data[label] = parse.(dtype, split(arr.content))
-            else
-                node_data[label] = transpose(reshape(parse.(dtype, split(arr.content)), ncomps, npoints))
-            end
+    if xpointdata!==nothing
+        for array_data in xpointdata.children
+            label = array_data.attributes["Name"]
+            node_data[label] = get_array(array_data)
         end
     end
 
     xcelldata = piece("CellData")
-    if xcelldata!=nothing
-        for arr in xcelldata.children
-            ncomps = parse(Int, arr.attributes["NumberOfComponents"])
-            dtype = TYPES[arr.attributes["type"]]
-            label = arr.attributes["Name"]
-            if ncomps==1
-                elem_data[label] = parse.(dtype, split(arr.content))
-            else
-                elem_data[label] = transpose(reshape(parse.(dtype, split(arr.content)), ncomps, ncells))
-            end
+    if xcelldata!==nothing
+        for array_data in xcelldata.children
+            label = array_data.attributes["Name"]
+            elem_data[label] = get_array(array_data)
         end
     end
 
@@ -667,9 +511,29 @@ function read_vtu(filename::String)
 end
 
 
+function get_array(data_array::XmlElement)
+    TYPES = Dict("Float32"=>Float32, "Float64"=>Float64, "Int32"=>Int32, "Int64"=>Int64)
+
+    ncomps = haskey(data_array.attributes, "NumberOfComponents") ? parse(Int, data_array.attributes["NumberOfComponents"]) : 1
+    dtype  = TYPES[data_array.attributes["type"]]
+    isbin  = data_array.content isa Vector{UInt8}
+    if isbin
+        if ncomps==1
+            return reinterpret(dtype, data_array.content)
+        else
+            return transpose(reshape(reinterpret(dtype, data_array.content), ncomps, :))
+        end
+    else # string
+        if ncomps==1
+            return parse.(dtype, split(data_array.content))
+        else
+            return transpose(reshape(parse.(dtype, split(data_array.content)), ncomps, :))
+        end
+    end
+end
+
+
 # Setting a Mesh object
-
-
 function Mesh(coords, connects, vtk_types, node_data, elem_data)
 
     npoints = size(coords,1)

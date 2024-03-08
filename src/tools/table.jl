@@ -220,6 +220,11 @@ function Base.getindex(table::DataTable, key::KeyType)
     return getcolumns(table)[idx]
 end
 
+function Base.haskey(table::DataTable, key::KeyType)
+    colidx = getcolidx(table)
+    return haskey(colidx, string(key))
+end
+
 
 function Base.getindex(table::DataTable, keys::Array{<:KeyType,1})
     columns = [ table[string(key)] for key in keys ]
