@@ -49,21 +49,25 @@ function setup_logger!(model, filter, logger::NodeLogger)
     n >  1 && notify("setup_logger: More than one node match filter expression: ", logger.filter)
     n >= 1 && (logger.node = nodes[1])
     logger.filter = filter
+
+    if !isabspath(logger.filename) && logger.filename!=""
+        logger.filename = joinpath(model.env.outdir, logger.filename)
+    end
     return nothing
 end
 
 
-function update_logger!(logger::NodeLogger, model; flush=true)
+function update_logger!(logger::NodeLogger, model)
     isdefined(logger, :node) || return
 
     vals = node_vals(logger.node)
     model.env.transient && (vals[:t] = model.env.t)
     push!(logger.table, vals)
 
-    if logger.filename!="" && flush
-        filename = joinpath(model.env.outdir, logger.filename)
-        save(logger, filename, quiet=true)
-    end
+    # if logger.filename!="" && flush
+    #     filename = joinpath(model.env.outdir, logger.filename)
+    #     save(logger, filename, quiet=true)
+    # end
 end
 
 
@@ -109,23 +113,29 @@ function setup_logger!(model, filter, logger::IpLogger)
     n == 0 && warn("setup_logger: No ips found for filter expression: $(logger.filter)")
     n >  1 && notify("setup_logger: More than one ip match filter expression: $(logger.filter)")
     n >= 1 && (logger.ip = ips[1])
+
+    if !isabspath(logger.filename) && logger.filename!=""
+        logger.filename = joinpath(model.env.outdir, logger.filename)
+    end
+
     return nothing
 end
 
 
-function update_logger!(logger::IpLogger, model; flush=true)
+function update_logger!(logger::IpLogger, model)
     isdefined(logger, :ip) || return
 
     vals = ip_vals(logger.ip)
     vals[:out] = model.env.out
+    vals[:T] = model.env.T
     model.env.transient && (vals[:t] = model.env.t)
 
     push!(logger.table, vals)
 
-    if logger.filename!="" && flush
-        filename = joinpath(model.env.outdir, logger.filename)
-        save(logger, filename, quiet=true)
-    end
+    # if logger.filename!="" && flush
+    #     filename = joinpath(model.env.outdir, logger.filename)
+    #     save(logger, filename, quiet=true)
+    # end
 end
 
 
@@ -177,6 +187,11 @@ function setup_logger!(model, filter, logger::FaceLogger)
     logger.faces = model.faces[logger.filter]
     length(logger.faces) == 0 && warn("setup_logger: No faces found for filter expression: ", logger.filter)
     logger.nodes = logger.faces.nodes
+
+    if !isabspath(logger.filename) && logger.filename!=""
+        logger.filename = joinpath(model.env.outdir, logger.filename)
+    end
+    return nothing
 end
 
 
@@ -185,10 +200,15 @@ function setup_logger!(model, filter, logger::EdgeLogger)
     logger.edges = model.edges[logger.filter]
     length(logger.edges) == 0 && warn("setup_logger: No edges found for filter expression: ", logger.filter)
     logger.nodes = logger.edges.nodes
+
+    if !isabspath(logger.filename) && logger.filename!=""
+        logger.filename = joinpath(model.env.outdir, logger.filename)
+    end
+    return nothing
 end
 
 
-function update_logger!(logger::FacetLogger, model; flush=true)
+function update_logger!(logger::FacetLogger, model)
     length(logger.nodes)==0 && return
 
     tableU = DataTable()
@@ -210,10 +230,10 @@ function update_logger!(logger::FacetLogger, model; flush=true)
 
     push!(logger.table, vals)
 
-    if logger.filename!="" && flush
-        filename = joinpath(model.env.outdir, logger.filename)
-        save(logger, filename, quiet=true)
-    end
+    # if logger.filename!="" && flush
+    #     filename = joinpath(model.env.outdir, logger.filename)
+    #     save(logger, filename, quiet=true)
+    # end
 end
 
 
@@ -239,10 +259,14 @@ function setup_logger!(model, filter, logger::NodeSumLogger)
     logger.filter = filter
     logger.nodes = model.nodes[filter]
     length(logger.nodes) == 0 && warn("setup_logger: No nodes found for filter expression: ", logger.filter)
+    if !isabspath(logger.filename) && logger.filename!=""
+        logger.filename = joinpath(model.env.outdir, logger.filename)
+    end
+    return nothing
 end
 
 
-function update_logger!(logger::NodeSumLogger, model; flush=true)
+function update_logger!(logger::NodeSumLogger, model)
     length(logger.nodes) == 0 && return
 
     tableU = DataTable()
@@ -264,10 +288,10 @@ function update_logger!(logger::NodeSumLogger, model; flush=true)
 
     push!(logger.table, vals)
 
-    if logger.filename!="" && flush
-        filename = joinpath(model.env.outdir, logger.filename)
-        save(logger, filename, quiet=true)
-    end
+    # if logger.filename!="" && flush
+    #     filename = joinpath(model.env.outdir, logger.filename)
+    #     save(logger, filename, quiet=true)
+    # end
 end
 
 
@@ -314,7 +338,7 @@ function setup_logger!(model, filter, logger::NodeGroupLogger)
 end
 
 
-function update_logger!(logger::NodeGroupLogger, model; flush=true)
+function update_logger!(logger::NodeGroupLogger, model)
     length(logger.nodes) == 0 && return
 
     table = DataTable()
@@ -335,10 +359,10 @@ function update_logger!(logger::NodeGroupLogger, model; flush=true)
     # end
     push!(logger.book, table)
 
-    if logger.filename!="" && flush
-        filename = joinpath(model.env.outdir, logger.filename)
-        save(logger, filename, quiet=true)
-    end
+    # if logger.filename!="" && flush
+    #     filename = joinpath(model.env.outdir, logger.filename)
+    #     save(logger, filename, quiet=true)
+    # end
 end
 
 
@@ -361,10 +385,15 @@ function setup_logger!(model, filter, logger::IpGroupLogger)
     logger.ips = model.elems.ips[logger.filter]
     length(logger.ips)==0 && warn("setup_logger: No ips found for filter expression: ", logger.filter)
     sort!(logger.ips, by=ip->sum(ip.coord))
+
+    if !isabspath(logger.filename) && logger.filename!=""
+        logger.filename = joinpath(model.env.outdir, logger.filename)
+    end
+    return nothing
 end
 
 
-function update_logger!(logger::IpGroupLogger, model; flush=true)
+function update_logger!(logger::IpGroupLogger, model)
     length(logger.ips) == 0 && return
 
     table = DataTable()
@@ -374,10 +403,10 @@ function update_logger!(logger::IpGroupLogger, model; flush=true)
 
     push!(logger.book, table)
 
-    if logger.filename!="" && flush
-        filename = joinpath(model.env.outdir, logger.filename)
-        save(logger, filename, quiet=true)
-    end
+    # if logger.filename!="" && flush
+    #     filename = joinpath(model.env.outdir, logger.filename)
+    #     save(logger, filename, quiet=true)
+    # end
 end
 
 
@@ -410,10 +439,15 @@ function setup_logger!(model, filter, logger::PointLogger)
     elem===nothing && error("setup_logger!: Cannot set PointLogger. Coordinate ($X) outside mesh.")
     logger.elem = elem
     logger.R = inverse_map(elem, X)
+
+    if !isabspath(logger.filename) && logger.filename!=""
+        logger.filename = joinpath(model.env.outdir, logger.filename)
+    end
+    return nothing
 end
 
 
-function update_logger!(logger::PointLogger, model; flush=true)
+function update_logger!(logger::PointLogger, model)
     data  = model.node_data
     X = logger.filter
     N = logger.elem.shape.func(logger.R)
@@ -427,10 +461,10 @@ function update_logger!(logger::PointLogger, model; flush=true)
     model.env.transient && (vals[:t] = model.env.t)
     push!(logger.table, vals)
 
-    if logger.filename!="" && flush
-        filename = joinpath(model.env.outdir, logger.filename)
-        save(logger, filename, quiet=true)
-    end
+    # if logger.filename!="" && flush
+    #     filename = joinpath(model.env.outdir, logger.filename)
+    #     save(logger, filename, quiet=true)
+    # end
 end
 
 
@@ -470,10 +504,15 @@ function setup_logger!(model, filter, logger::SegmentLogger)
         push!(logger.elems, elem)
         push!(logger.Rs, R)
     end
+
+    if !isabspath(logger.filename) && logger.filename!=""
+        logger.filename = joinpath(model.env.outdir, logger.filename)
+    end
+    return nothing
 end
 
 
-function update_logger!(logger::SegmentLogger, model; flush=true)
+function update_logger!(logger::SegmentLogger, model)
     ndim = model.env.ndim
     data  = model.node_data
     coord_labels = ["x", "y", "z"][1:ndim]
@@ -498,10 +537,10 @@ function update_logger!(logger::SegmentLogger, model; flush=true)
 
     push!(logger.book, table)
 
-    if logger.filename!="" && flush
-        filename = joinpath(model.env.outdir, logger.filename)
-        save(logger, filename, quiet=true)
-    end
+    # if logger.filename!="" && flush
+    #     filename = joinpath(model.env.outdir, logger.filename)
+    #     save(logger, filename, quiet=true)
+    # end
 end
 
 

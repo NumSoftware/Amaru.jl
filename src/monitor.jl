@@ -86,7 +86,7 @@ function setup_monitor!(model, filter, monitor::IpMonitor)
 end
 
 
-function update_monitor!(monitor::IpMonitor, model; flush=true)
+function update_monitor!(monitor::IpMonitor, model)
     isdefined(monitor, :ip) || return success()
 
     for expr in monitor.expr.args
@@ -99,11 +99,6 @@ function update_monitor!(monitor::IpMonitor, model; flush=true)
     model.env.transient && (monitor.vals[:t]=model.env.t)
     push!(monitor.table, monitor.vals)
 
-    if monitor.filename!="" && flush
-        filename = joinpath(model.env.outdir, monitor.filename)
-        save(monitor.table, filename, quiet=true)
-    end
-    
     return success()
 end
 
@@ -207,7 +202,7 @@ function setup_monitor!(model, filter, monitor::NodeMonitor)
 end
 
 
-function update_monitor!(monitor::NodeMonitor, model; flush=true)
+function update_monitor!(monitor::NodeMonitor, model)
     isdefined(monitor, :node) || return success()
 
     for expr in monitor.expr.args
@@ -220,11 +215,6 @@ function update_monitor!(monitor::NodeMonitor, model; flush=true)
     model.env.transient && (monitor.vals[:t]=model.env.t)
 
     push!(monitor.table, monitor.vals)
-
-    if monitor.filename!="" && flush
-        filename = joinpath(model.env.outdir, monitor.filename)
-        save(monitor.table, filename, quiet=true)
-    end
 
     return success()
 end
@@ -258,15 +248,13 @@ function setup_monitor!(model, filter, monitor::IpGroupMonitor)
 end
 
 
-function update_monitor!(monitor::IpGroupMonitor, model; flush=true)
+function update_monitor!(monitor::IpGroupMonitor, model)
     length(monitor.ips) == 0 && return success()
 
     for expr in monitor.expr.args
         vals = []
         for ip in monitor.ips
             state = ip_vals(ip) 
-            # @s expr
-            # @s state
             val = evaluate(expr; state...)
             push!(vals, val)
         end
@@ -285,11 +273,6 @@ function update_monitor!(monitor::IpGroupMonitor, model; flush=true)
     model.env.transient && (monitor.vals[:t]=model.env.t)
 
     push!(monitor.table, monitor.vals)
-
-    if monitor.filename!="" && flush
-        filename = joinpath(model.env.outdir, monitor.filename)
-        save(monitor.table, filename, quiet=true)
-    end
 
     return success()
 end
@@ -334,7 +317,7 @@ mutable struct NodeSumMonitor<:AbstractMonitor
     """
     function NodeSumMonitor(expr::Union{Symbol,Expr}, filename::String=""; stop=Expr=:())
         if expr isa Expr
-            expr = round_floats!(expr)
+            expr = fix_expr_maximum_minimum!(round_floats!(expr))
         end
         if expr isa Symbol || expr.head == :call || expr.head == :(=)
             expr = :($expr,)
@@ -367,7 +350,7 @@ end
 
 
 
-function update_monitor!(monitor::NodeSumMonitor, model; flush=true)
+function update_monitor!(monitor::NodeSumMonitor, model)
     length(monitor.nodes) == 0 && return success()
 
     tableU = DataTable()
@@ -422,11 +405,6 @@ function update_monitor!(monitor::NodeSumMonitor, model; flush=true)
     monitor.vals[:T]     = model.env.T
     model.env.transient && (monitor.vals[:t]=model.env.t)
     push!(monitor.table, monitor.vals)
-
-    if monitor.filename!="" && flush
-        filename = joinpath(model.env.outdir, monitor.filename)
-        save(monitor.table, filename, quiet=true)
-    end
 
     # eval stop expressions
     for expr in monitor.stopexpr.args

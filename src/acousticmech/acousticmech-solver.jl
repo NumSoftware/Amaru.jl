@@ -104,69 +104,40 @@ end
 # end
 
 
-"""
-    am_solve!(D, bcs, options...) -> Bool
-
-Performs one stage finite element thermo-mechanical analysis of a `domain`
-subjected to a list of boundary conditions `bcs`.
-
-# Arguments
-
-`model` : A finite element domain
-
-`bcs` : Array of boundary conditions given as an array of pairs ( location => condition)
-
-# Keyword arguments
-
-`time_span = NaN` : Time lapse for the transient analysis in the current stage
-
-`end_time = NaN` : Final time for the transient analysis in the current stage
-
-`nincs   = 1` : Number of increments
-
-`maxits  = 5` : Maximum number of Newton-Rapson iterations per increment
-
-`autoinc = false` : Sets automatic increments size. The first increment size will be `1/nincs`
-
-
-`tol     = 1e-2` : Tolerance for the maximum absolute error in forces vector
-
-`Tmin     = 1e-8` : Pseudo-time tolerance
-
-`scheme  = :FE` : Predictor-corrector scheme at each increment. Available scheme is `:FE`
-
-`nouts   = 0` : Number of output files per analysis
-
-`outdir  = ""` : Output directory
-
-`outkey = ""` : File key for output files
-
-`quiet = false` : verbosity level from 0 (silent) to 2 (verbose)
-
-"""
 function solve!(model::Model, ana::AcousticMechAnalysis; args...)
     name = "Solver for acoustic mechanical analyses"
     status = stage_iterator!(name, am_stage_solver!, model; args...)
     return status
 end
 
+am_stage_solver_params = [
+    FunInfo( :tm_stage_solver!, "Solves a load stage of a thremomechanical analysis.", "M::Model, S::Stage"),
+    ArgInfo( :tol, "Force tolerance", 0.01, condition=:(tol>0)),
+    ArgInfo( :dTmin, "Relative minimum increment size", 1e-7, condition=:(0<dTmin<1) ),
+    ArgInfo( :dTmax, "Relative maximum increment size", 0.1, condition=:(0<dTmax<1) ),
+    ArgInfo( :rspan, "Relative span to residue reapplication", 0.01, condition=:(0<rspan<1) ),
+    ArgInfo( :scheme, "Global solving scheme", :FE, values=(:FE, :ME, :BE, :Ralston) ),
+    ArgInfo( :maxits, "Maximum number of NR iterations", 5, condition=:(1<=maxits<=10)),
+    ArgInfo( :autoinc, "Flag to set auto-increments", false),
+    ArgInfo( :quiet, "Flat to set silent mode", false),
+]
+@doc make_doc(am_stage_solver_params) am_stage_solver!()
 
-function am_stage_solver!(model::Model, stage::Stage; 
-    tol     :: Number  = 1e-2,
-    rtol    :: Number  = 1e-2,
-    Tmin    :: Number  = 1e-9,
-    rspan   :: Number  = 1e-2,
-    maxits  :: Int     = 5,
-    autoinc :: Bool    = false,
-    outdir  :: String  = ".",
-    outkey  :: String  = "out",
-    quiet  :: Bool    = false
-    )
+function am_stage_solver!(model::Model, stage::Stage; args...)
+    args = checkargs(args, tm_stage_solver_params)
+    
+    tol     = args.tol      
+    ΔTmin   = args.dTmin    
+    ΔTmax   = args.dTmax   
+    rspan   = args.rspan    
+    scheme  = args.scheme   
+    maxits  = args.maxits 
+    autoinc = args.autoinc  
+    quiet   = args.quiet 
 
     env = model.env
 
     println(env.log, "Acoustic FE analysis: Stage $(stage.id)")
-    stage.status = :solving
 
     solstatus = success()
 
@@ -174,7 +145,8 @@ function am_stage_solver!(model::Model, stage::Stage;
     nouts     = stage.nouts
     bcs       = stage.bcs
     tspan     = stage.tspan
-    save_outs = stage.nouts > 0
+    env       = model.env
+    saveouts  = stage.nouts > 0
     ftol      = tol
 
     # Get active elements
@@ -185,13 +157,13 @@ function am_stage_solver!(model::Model, stage::Stage;
 
     # Get dofs organized according to boundary conditions
     dofs, nu = configure_dofs!(model, stage.bcs) # unknown dofs first
-
     ndofs    = length(dofs)
     umap     = 1:nu         # map for unknown bcs
     pmap     = nu+1:ndofs   # map for prescribed bcs
     model.ndofs = length(dofs)
+
+    println(env.info, "  unknown dofs: $nu")
     println(env.log, "unknown dofs: $nu")
-    # println(env.alerts, "  unknown dofs: $nu") # TODO
 
     # quiet || nu==ndofs && println(env.alerts, "solve_system!: No essential boundary conditions", Base.warn_color) #TODO
 
@@ -238,34 +210,24 @@ function am_stage_solver!(model::Model, stage::Stage;
         end
 
         # Save initial file and loggers
-        update_output_data!(model)
-        update_single_loggers!(model)
-        update_multiloggers!(model)
-        update_monitors!(model)
-        # complete_ut_T(model)
-        save_outs && save(model, "$outdir/$outkey-0.vtu", quiet=true)
+        update_records!(model, force=true)
     end
-    lastflush = time()
-    flushinterval = 5.0
 
     # Get the domain current state and backup
     State = [ ip.state for elem in active_elems for ip in elem.ips ]
     StateBk = copy.(State)
 
     # Incremental analysis
-    
-    T  = 0.0
-    ΔT = 1.0/nincs       # initial ΔT value
-    autoinc && (ΔT=min(ΔT, 0.01))
-
+    t       = env.t     # current time
     ΔTbk    = 0.0
-    ΔTcheck = save_outs ? 1/nouts : 1.0
+    ΔTcheck = saveouts ? 1/nouts : 1.0
     Tcheck  = ΔTcheck
 
-    t    = env.t     # current time
-    
+    T  = 0.0
+    ΔT = 1.0/nincs       # initial ΔT value
+    autoinc && (ΔT=min(ΔT, ΔTmax, ΔTcheck))
+
     inc  = 0             # increment counter
-    iout = env.out       # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
@@ -298,7 +260,7 @@ function am_stage_solver!(model::Model, stage::Stage;
     local RHS::Array{Float64,1}
     local At, Vt
 
-    while T < 1.0-Tmin
+    while T < 1.0-ΔTmin
         env.ΔT = ΔT
         Δt     = tspan*ΔT
         env.t  = t + Δt
@@ -410,22 +372,17 @@ function am_stage_solver!(model::Model, stage::Stage;
             env.residue = res
 
             # Check for saving output file
-            if T>Tcheck-Tmin && save_outs
+            checkpoint = T>Tcheck-ΔTmin
+            if checkpoint
                 env.out += 1
-                iout = env.out
-                rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
-                
-                update_output_data!(model)
-
-                update_multiloggers!(model)
-                save(model, "$outdir/$outkey-$iout.vtu", quiet=true)
-
                 Tcheck += ΔTcheck # find the next output time
             end
 
-            update_single_loggers!(model)
-            update_monitors!(model)
-            flush(env.log)
+            rstatus = update_records!(model, checkpoint=checkpoint)
+            if failed(rstatus)
+                println(env.alerts, rstatus.message)
+                return rstatus
+            end
 
             if autoinc
                 if ΔTbk>0.0
@@ -439,7 +396,7 @@ function am_stage_solver!(model::Model, stage::Stage;
                     end
 
                     ΔTtr = min(q*ΔT, 1/nincs, 1-T)
-                    if T+ΔTtr>Tcheck-Tmin
+                    if T+ΔTtr>Tcheck-ΔTmin
                         ΔTbk = ΔT
                         ΔT = Tcheck-T
                         @assert ΔT>=0.0
@@ -463,7 +420,7 @@ function am_stage_solver!(model::Model, stage::Stage;
                 syserror && (q=0.7)
                 ΔT = q*ΔT
                 ΔT = round(ΔT, sigdigits=3)  # round to 3 significant digits
-                if ΔT < Tmin
+                if ΔT < ΔTmin
                     solstatus = failure("solver did not converge")
                     break
                 end
@@ -474,11 +431,7 @@ function am_stage_solver!(model::Model, stage::Stage;
         end
     end
 
-    if !save_outs
-        update_output_data!(model)
-        complete_ut_T(model)
-        update_multiloggers!(model)
-    end
+    failed(solstatus) && update_records!(model, force=true)
 
     return solstatus
 

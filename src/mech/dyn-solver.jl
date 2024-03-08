@@ -152,39 +152,73 @@ function solve!(model::Model, ana::DynAnalysis; args...)
     return status
 end
 
+dyn_stage_solver_params = [
+    FunInfo( :dyn_stage_solver!, "Solves a load stage of a dynamic mechanical analysis.", "M::Model, S::Stage"),
+    ArgInfo( :tol, "Force tolerance", 0.01, condition=:(tol>0)),
+    # ArgInfo( :rtol, "Relative tolerance in terms of displacements", 0.01, condition=:(rtol>0)),
+    ArgInfo( :dTmin, "Relative minimum increment size", 1e-7, condition=:(0<dTmin<1) ),
+    ArgInfo( :dTmax, "Relative maximum increment size", 0.1, condition=:(0<dTmax<1) ),
+    ArgInfo( :rspan, "Relative span to residue reapplication", 0.01, condition=:(0<rspan<1) ),
+    ArgInfo( :scheme, "Global solving scheme", :FE, values=(:FE, :ME, :BE, :Ralston) ),
+    ArgInfo( :maxits, "Maximum number of NR iterations", 5, condition=:(1<=maxits<=10)),
+    ArgInfo( :autoinc, "Flag to set auto-increments", false),
+    ArgInfo( :quiet, "Flat to set silent mode", false),
+    ArgInfo( :alpha, "", 0.0),
+    ArgInfo( :beta, "", 0.0),
+    ArgInfo( :sism, "", false),
+    ArgInfo( :tss, "", 0.0),
+    ArgInfo( :tds, "", 0.0),
+    ArgInfo( :sism_file, "", ""),
+    ArgInfo( :sism_dir, "", "fx"),
+]
+@doc make_doc(dyn_stage_solver_params) dyn_stage_solver!()
 
-function dyn_stage_solver!(model::Model, stage::Stage; 
-    tol     :: Real = 1e-2,
-    alpha   :: Real = 0.0,
-    beta    :: Real = 0.0,
-    sism    :: Bool = false,
-    tss     :: Real = 0.0,
-    tds     :: Real = 0.0,
-    sism_file:: String = " ",
-    sism_dir :: String = "fx",
-    Ttol    :: Real  = 1e-9,
-    rspan   :: Real  = 1e-2,
-    maxits  :: Int     = 5,
-    autoinc :: Bool    = false,
-    maxincs :: Int     = 1000000,
-    outdir  :: String  = ".",
-    outkey  :: String  = "out",
-    quiet  :: Bool    = false
-    )
+function dyn_stage_solver!(model::Model, stage::Stage; args...)
+    # tol     :: Real = 1e-2,
+    # alpha   :: Real = 0.0,
+    # beta    :: Real = 0.0,
+    # sism    :: Bool = false,
+    # tss     :: Real = 0.0,
+    # tds     :: Real = 0.0,
+    # sism_file:: String = " ",
+    # sism_dir :: String = "fx",
+    # ΔTmin    :: Real  = 1e-9,
+    # rspan   :: Real  = 1e-2,
+    # maxits  :: Int     = 5,
+    # autoinc :: Bool    = false,
+    # maxincs :: Int     = 1000000,
+    # outdir  :: String  = ".",
+    # outkey  :: String  = "out",
+    # quiet  :: Bool    = false
+    # )
+    args = checkargs(args, dyn_stage_solver_params)
+    
+    tol     = args.tol      
+    # rtol    = args.rtol     
+    ΔTmin   = args.dTmin    
+    ΔTmax   = args.dTmax   
+    rspan   = args.rspan    
+    scheme  = args.scheme   
+    maxits  = args.maxits 
+    autoinc = args.autoinc  
+    quiet   = args.quiet
+    sism    = args.sism
+    alpha   = args.alpha
+    beta    = args.beta
 
     env = model.env
     println(env.log, "Dynamic FE analysis: Stage $(stage.id)")
-    stage.status = :solving
+    # stage.status = :solving
 
     solstatus = success()
     # scheme in ("FE", "ME", "BE", "Ralston") || error("solve! : invalid scheme \"$(scheme)\"")
 
-    nincs     = stage.nincs
-    nouts     = stage.nouts
-    bcs       = stage.bcs
-    tspan     = stage.tspan
-    env       = model.env
-    save_outs = stage.nouts > 0
+    nincs    = stage.nincs
+    nouts    = stage.nouts
+    bcs      = stage.bcs
+    tspan    = stage.tspan
+    env      = model.env
+    saveouts = stage.nouts > 0
 
     # Get active elements
     for elem in stage.toactivate
@@ -223,7 +257,7 @@ function dyn_stage_solver!(model::Model, stage::Stage;
         end
 
         #If the problem is sismic, read the sismic acelerations asking to user the file's name AS:SeismicAcelerations
-        if sism==true
+        if sism
             AS = readdlm(sism_file)
             AS= 9.81*AS
             keysis = Symbol(sism_dir)
@@ -251,11 +285,12 @@ function dyn_stage_solver!(model::Model, stage::Stage;
         end
 
         # Save initial file and loggers
-        update_output_data!(model)
-        update_single_loggers!(model)
-        update_multiloggers!(model)
-        update_monitors!(model)
-        save_outs && save(model, "$outdir/$outkey-0.vtu", quiet=true)
+        update_records!(model, force=true)
+        # update_output_data!(model)
+        # update_single_loggers!(model)
+        # update_multiloggers!(model)
+        # update_monitors!(model)
+        # saveouts && save(model, "$outdir/$outkey-0.vtu", quiet=true)
     end
 
     # Get the domain current state and backup
@@ -263,12 +298,13 @@ function dyn_stage_solver!(model::Model, stage::Stage;
     StateBk = copy.(State)
 
     # Incremental analysis
+    ΔTbk    = 0.0
+    ΔTcheck = saveouts ? 1/nouts : 1.0
+    Tcheck  = ΔTcheck
+
     T  = 0.0
     ΔT = 1.0/nincs       # initial ΔT value
-    autoinc && (ΔT=min(ΔT, 0.01))
-    ΔTbk    = 0.0
-    ΔTcheck = save_outs ? 1/nouts : 1.0
-    Tcheck  = ΔTcheck
+    autoinc && (ΔT=min(ΔT, ΔTmax, ΔTcheck))
 
     t  = env.t
  
@@ -289,7 +325,7 @@ function dyn_stage_solver!(model::Model, stage::Stage;
     sysstatus = ReturnStatus()
 
     # while t < tend - ttol
-    while T < 1.0-Ttol
+    while T < 1.0-ΔTmin 
         env.ΔT = ΔT
         Δt = tspan*ΔT
         env.t = t
@@ -299,11 +335,6 @@ function dyn_stage_solver!(model::Model, stage::Stage;
         env.inc = inc
 
         println(env.log, "  inc $inc")
-
-        if inc > maxincs
-            quiet || println(env.alerts, "solver maxincs = $maxincs reached (try maxincs=0)")
-            return failure("$maxincs reached")
-        end
 
         Uex, Fex = get_bc_vals(model, bcs, t+Δt) # get values at time t+Δt
 
@@ -328,7 +359,7 @@ function dyn_stage_solver!(model::Model, stage::Stage;
 
         for it=1:maxits
             yield()
-            if it>1; ΔUi .= 0.0 end # essential values are applied only at first iteration
+            it>1 && (ΔUi.=0.0) # essential values are applied only at first iteration
             lastres = residue # residue from last iteration
 
             # Try FE step
@@ -411,23 +442,38 @@ function dyn_stage_solver!(model::Model, stage::Stage;
             env.residue = residue
 
             # Check for saving output file
-            if T>Tcheck-Ttol && save_outs
+            checkpoint = T>Tcheck-ΔTmin
+            if checkpoint
                 env.out += 1
-                iout = env.out
-                rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
-                
-                update_output_data!(model)
                 update_embedded_disps!(active_elems, model.node_data["U"])
-
-                update_multiloggers!(model)
-                save(model, "$outdir/$outkey-$iout.vtu", quiet=true) #!
-
                 Tcheck += ΔTcheck # find the next output time
             end
 
-            update_single_loggers!(model)
-            update_monitors!(model)
-            flush(env.log)
+            # Check for saving output file
+            # if T>Tcheck-ΔTmin && saveouts
+            #     env.out += 1
+            #     iout = env.out
+
+            #     rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
+                
+            #     update_output_data!(model)
+            #     update_embedded_disps!(active_elems, model.node_data["U"])
+
+            #     update_multiloggers!(model)
+            #     save(model, "$outdir/$outkey-$iout.vtu", quiet=true) #!
+
+            #     Tcheck += ΔTcheck # find the next output time
+            # end
+
+            # update_single_loggers!(model)
+            # update_monitors!(model)
+            # flush(env.log)
+
+            rstatus = update_records!(model, checkpoint=checkpoint)
+            if failed(rstatus)
+                println(env.alerts, rstatus.message)
+                return rstatus
+            end
 
             if autoinc
                 if ΔTbk>0.0
@@ -441,7 +487,7 @@ function dyn_stage_solver!(model::Model, stage::Stage;
                     end
 
                     ΔTtr = min(q*ΔT, 1/nincs, 1-T)
-                    if T+ΔTtr>Tcheck-Ttol
+                    if T+ΔTtr>Tcheck-ΔTmin
                         ΔTbk = ΔT
                         ΔT = Tcheck-T
                         @assert ΔT>=0.0
@@ -464,7 +510,7 @@ function dyn_stage_solver!(model::Model, stage::Stage;
                 q = clamp(q, 0.2, 0.9)
                 ΔT = q*ΔT
                 ΔT = round(ΔT, sigdigits=3)  # round to 3 significant digits
-                if ΔT < Ttol
+                if ΔT < ΔTmin
                     solstatus = failure("solver did not converge")
                     break
                 end
@@ -475,13 +521,9 @@ function dyn_stage_solver!(model::Model, stage::Stage;
         end
     end
 
-    if !save_outs
-        update_output_data!(model)
-        update_multiloggers!(model)
-    end
+    failed(solstatus) && update_records!(model, force=true)
 
     return solstatus
-
 end
 
 
@@ -494,7 +536,7 @@ function dynsolvex!(
                    maxits    :: Int     = 5,
                    autoinc   :: Bool    = false,
                    tol       :: Number  = 1e-2,
-                   Ttol      :: Number  = 1e-9,
+                   ΔTmin      :: Number  = 1e-9,
                    nouts     :: Int     = 0,
                    sism      :: Bool    = false,
                    tds       :: Float64 = 0.0,
@@ -514,7 +556,7 @@ function dynsolvex!(
     quiet || verbose && (verbosity=2)
 
     tol>0 || error("solve! : tolerance should be greater than zero")
-    Ttol>0 || error("solve! : tolerance `Ttol `should be greater than zero")
+    ΔTmin>0 || error("solve! : tolerance `ΔTmin `should be greater than zero")
 
     env = model.env
     env.stage += 1
@@ -536,8 +578,8 @@ function dynsolvex!(
     tol>0 || error("solve! : tolerance should be greater than zero.")
     verbosity>0 || println("  model type: ", env.ana.stressmodel)
 
-    save_outs = nouts>0
-    if save_outs
+    saveouts = nouts>0
+    if saveouts
         if nouts>nincs
             nincs = nouts
             @info "  nincs changed to $nincs to match nouts"
@@ -620,7 +662,7 @@ function dynsolvex!(
     end
 
     # Save initial file
-    if env.stage==1 && save_outs
+    if env.stage==1 && saveouts
         update_output_data!(model)
         update_single_loggers!(model)
         update_multiloggers!(model)
@@ -767,7 +809,7 @@ function dynsolvex!(
             model.env.t = t
 
             # Check for saving output file
-            if abs(t - TT) < ttol && save_outs
+            if abs(t - TT) < ttol && saveouts
                 env.out += 1
                 iout = env.out
                 update_output_data!(model)

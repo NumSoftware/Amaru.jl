@@ -81,8 +81,6 @@ end
 
 function stage_iterator!(name::String, stage_solver!::Function, model::Model; args...)
     autoinc = get(args, :autoinc, false)
-    outdir  = get(args, :outdir, ".")
-    outkey  = get(args, :outkey, "out")
     quiet   = get(args, :quiet, false)
     env     = model.env
     
@@ -94,12 +92,9 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
     if !quiet && cstage==1 
         printstyled(name, "\n", bold=true, color=:cyan)
         println("  active threads: ", Threads.nthreads())
-        # println("  model type: ", env.ana.stressmodel)
     end
 
-    outdir = rstrip(outdir, ['/', '\\'])
-    env.outdir = outdir
-    env.outkey = outkey
+    outdir = model.env.outdir
 
     if !isdir(outdir)
         info("solve!: creating output directory ./$outdir")
@@ -125,9 +120,7 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
         env.T = 0.0
 
         if !quiet
-            # if stage.id>1 || length(model.stages)>1
-                printstyled("Stage $(stage.id)\n", bold=true, color=:cyan)
-            # end
+            printstyled("Stage $(stage.id)\n", bold=true, color=:cyan)
         end
 
         save_outs = stage.nouts > 0
@@ -147,7 +140,6 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
         end
 
         sw = StopWatch() # timing
-        # sline = StatusLine(model, stage, sw)
         if !quiet
             status_cycler_task = Threads.@spawn :interactive status_cycler(model, sw)
         end
@@ -248,7 +240,7 @@ function progress_bar(T::Float64)
         color        = :blue
         enable_color = get(Base.text_colors, color, Base.text_colors[:default])
         enable_bold  = get(Base.text_colors, :bold, Base.text_colors[:default])
-        normal_color  = get(Base.disable_text_style, :normal, Base.text_colors[:default])
+        normal_color = get(Base.disable_text_style, :normal, Base.text_colors[:default])
         disable_bold = get(Base.disable_text_style, :bold, Base.text_colors[:default])
         barls        = string(enable_color, enable_bold, barls, disable_bold, normal_color)
         enable_color = get(Base.text_colors, :light_black, Base.text_colors[:default])

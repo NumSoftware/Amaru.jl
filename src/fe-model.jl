@@ -9,31 +9,20 @@ A type that represents a finite element model.
 $(FIELDS)
 """
 mutable struct FEModel<:AbstractDomain
-    "array of nodes"
     nodes::Array{Node,1}
-    "array of cells"
     elems::Array{Element,1}
-    "array of faces"
     faces::Array{Face,1}
-    "array of edges"
     edges::Array{Edge,1}
-    "array of loggers"
     loggers ::Array{AbstractLogger,1}
-    "array of monitors"
     monitors::Array{AbstractMonitor,1}
-    "number of degrees of freedom"
     ndofs   ::Integer
-    "environment struct with global information"
     env     ::ModelEnv
 
     # Stages
-    "model stages"
     stages::Array{Stage,1}
     
     # Data
-    "nodal data dictionary"
     node_data::OrderedDict{String,Array}
-    "element data dictionary"
     elem_data::OrderedDict{String,Array}
 
     # Auxiliary data
@@ -86,6 +75,8 @@ function FEModel(
     matbinds:: Vector{<:Pair},
     anatype :: Analysis;
     quiet   :: Bool = false,
+    outdir  :: String=".",
+    outkey  :: String="out"
 )
 
     ndim = mesh.env.ndim
@@ -97,6 +88,8 @@ function FEModel(
     env.ndim = ndim
     env.t = 0.0
     env.ana = anatype
+    env.outdir = rstrip(outdir, ['/', '\\'])
+    env.outkey = outkey
 
     # Save a mesh reference
     #model.mesh = mesh
@@ -119,20 +112,9 @@ function FEModel(
         elem_type = matbind.second.first
         mat_type  = matbind.second.second.first
         args      = matbind.second.second.second
-        # filter    = matbind[1]
-        # elem_type = matbind[2]
-        # mat_type  = matbind[3]
-        # args      = matbind[4]
-        
         # Check if material is compatible with the element
-        # comp_elem_types = compat_elem_types(mat_type)
-        # state_type = compat_state_type(mat_type, elem_type, env)
-
-        # comp_elem_types = [ argtps[2].parameters[1] for argtps in typeofargs(compat_state_type) if length(argtps)>1 && typeof(argtps[1])!=UnionAll && argtps[1].parameters[1]==mat_type  ]
         comp_elem_types = [ argtps[2] for argtps in typeofargs(compat_state_type) if length(argtps)>1 && mat_type isa argtps[1] ]
-        # @show comp_elem_types
 
-        # if !(elem_type in comp_elem_types)
         if !any(isa.(elem_type, comp_elem_types))
             comp_mat_types  = [ argtps[1].parameters[1] for argtps in typeofargs(compat_state_type) if length(argtps)>1 && typeof(argtps[1])!=UnionAll && argtps[2].parameters[1]==elem_type ]
             # comp_mat_types  = [ argtps[1].parameters[1] for argtps in typeofargs(compat_state_type) if length(argtps)>1 && typeof(argtps[1])!=UnionAll && argtps[2].parameters[1]==elem_type ]
@@ -144,19 +126,6 @@ function FEModel(
             throw(AmaruException(message))
         end
 
-
-        # if !(elem_type in comp_elem_types)
-
-        #     # get list of material models
-        #     all_mat_types = [ fieldtypes(m.sig)[2].parameters[1] for m in  methods(Amaru.compat_elem_types, (Any,)) if hasproperty(fieldtypes(m.sig)[2], :parameters)]
-        #     comp_mat_types = [ mat_t for mat_t in all_mat_types if elem_type in compat_elem_types(mat_t) ]
-
-        #     message = "FEModel: Material model $(mat_type) is not compatible with Element $(elem_type) \n\
-        #                Compatible elements for material $(mat_type): $(join(comp_elem_types, ", ", " and ")) \n\
-        #                Compatible materials for element $(elem_type): $(join(comp_mat_types, ", ", " and "))"
-        #     message = replace(message, r"Amaru\." => "")
-        #     throw(AmaruException(message))
-        # end
 
         cells = mesh.elems[filter]
         if !(cells isa Array)
@@ -358,68 +327,50 @@ function addmonitors!(model::Model, monitors::Vector{<:Pair})
 end
 setmonitors! = addmonitors!
 
-# Functions for updating loggers
 
-
-function update_single_loggers!(model::Model; flush=true)
-    for logger in model.loggers
-        isa(logger, SingleLogger) && update_logger!(logger, model; flush)
-    end
-end
-
-
-function update_multiloggers!(model::Model)
-    for logger in model.loggers
-        isa(logger, MultiLogger) && update_logger!(logger, model)
-    end
-end
-
-
-function update_monitors!(model::Model; flush=true)
-    for monitor in model.monitors
-        rstatus = update_monitor!(monitor, model; flush)
-        failed(rstatus) && return rstatus
-    end
-    return success()
-end
-
-function update_records!(model::Model; checkpoint=true, flush=true, solverfailed=false)
-    # flush: flush files
-
+function update_records!(model::Model; checkpoint=true, force=false)
     outdir = model.env.outdir
-    outkey = model.env.outkey
-    count  = model.env.out
 
-    if solverfailed
-        checkpoint = true
-        flush = true
-    end
+    flushinterval = 5.0
+    flush = time()-model.env.flushtime>flushinterval || checkpoint || force || model.env.T >= 1-1e-8
+    flush && (model.env.flushtime = time())
 
     if checkpoint
         rm.(glob("*conflicted*.log"), force=true)
         rm.(glob("*conflicted*.*", "$outdir/"), force=true)
                 
         update_output_data!(model) # need to be before group loggers
+        save(model, "$outdir/$(model.env.outkey)-$(model.env.out).vtu", quiet=true)
 
         # update multiloggers
         for logger in model.loggers
-            isa(logger, MultiLogger) && update_logger!(logger, model; flush)
+            if isa(logger, MultiLogger)
+                update_logger!(logger, model)
+                logger.filename!="" && save(logger.book, logger.filename, quiet=true)
+            end
         end
 
-        !solverfailed && save(model, "$outdir/$outkey-$count.vtu", quiet=true)
     end
 
     flush && Base.flush(model.env.log)
 
     # update single loggers
+    update_single_loggers = model.env.T-model.env.Tupdate >= 0.00025 || model.env.T==0
+    update_single_loggers && (model.env.Tupdate = model.env.T)
+    
     for logger in model.loggers
-        isa(logger, SingleLogger) && update_logger!(logger, model; flush)
+        if isa(logger, SingleLogger) 
+            update_single_loggers && update_logger!(logger, model)
+            flush && logger.filename!="" && save(logger.table, logger.filename, quiet=true)
+        end
     end
+    
 
     # update monitors
     for monitor in model.monitors
-        rstatus = update_monitor!(monitor, model; flush)
+        rstatus = update_monitor!(monitor, model)
         failed(rstatus) && return rstatus
+        flush && monitor.filename!="" && save(monitor.table, monitor.filename, quiet=true)
     end
 
     return success()
@@ -868,6 +819,7 @@ function nodal_patch_recovery(model::Model)
 end
 
 
+
 function nodal_local_recovery(model::Model)
     # Recovers nodal values from non-solid elements as joints and joint1d elements
     # The element type should implement the elem_extrapolated_node_vals function
@@ -919,3 +871,6 @@ function nodal_local_recovery(model::Model)
 
     return V_vals, collect(all_fields_set)
 end
+
+
+  

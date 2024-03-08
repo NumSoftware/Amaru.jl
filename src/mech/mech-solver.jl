@@ -167,10 +167,11 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
             dof.vals[dof.natname] = 0.0
         end
 
-        update_records!(model)
+        update_records!(model, force=true)
     end
-    lastflush = time()
-    flushinterval = 5.0
+    # error()
+    # lastflush = time()
+    # flushinterval = 5.0
 
     # Get the domain current state and backup
     State = [ ip.state for elem in active_elems for ip in elem.ips ]
@@ -348,18 +349,18 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
                 Tcheck += ΔTcheck # find the next output time
             end
 
-            flush = time()-lastflush>flushinterval || T >= 1.0-ΔTmin
+            # flush = time()-lastflush>flushinterval || T >= 1.0-ΔTmin
 
-            rstatus = update_records!(model, checkpoint=checkpoint, flush=flush)
+            rstatus = update_records!(model, checkpoint=checkpoint)
             if failed(rstatus)
                 println(env.alerts, rstatus.message)
                 return rstatus
             end
             
-            if flush
-                lastflush = time()
-                GC.gc()
-            end
+            # if flush
+            #     lastflush = time()
+            #     GC.gc()
+            # end
 
             if autoinc
                 if ΔTbk>0.0
@@ -423,7 +424,7 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
         end
     end
 
-    failed(solstatus) && update_records!(model, solverfailed=true)
+    failed(solstatus) && update_records!(model, force=true)
 
     return solstatus
 

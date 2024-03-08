@@ -151,95 +151,48 @@ function complete_uw_h(model::Model)
 end
 
 
-# function update_state!(model::Model, ΔUt::Vect, ΔFin::Vect, Δt::Float64, verbosity::Int)
-#     # Update
-#     verbosity>1 && print("    updating... \r")
-
-#     # Get internal forces and update data at integration points (update ΔFin)
-#     ΔFin .= 0.0
-#     for elem in model.elems
-#         status = update_elem!(elem, ΔUt, ΔFin, Δt)
-#         failed(status) && return status
-#     end
-#     return success()
-# end
-
-
-"""
-    solve!(domain, bcs, options...) -> Bool
-
-Performs one stage finite element hydro-mechanical analysis of a `domain`
-subjected to a list of boundary conditions `bcs`.
-
-# Arguments
-
-`model` : A finite element domain
-
-`bcs` : Array of boundary conditions given as an array of pairs ( location => condition)
-
-# Keyword arguments
-
-`tspan = NaN` : Time lapse for the transient analysis in the current stage
-
-`end_time = NaN` : Final time for the transient analysis in the current stage
-
-`nincs   = 1` : Number of increments
-
-`maxits  = 5` : Maximum number of Newton-Rapson iterations per increment
-
-`autoinc = false` : Sets automatic increments size. The first increment size will be `1/nincs`
-
-`maxincs = 1000000` : Maximum number of increments
-
-`tol     = 1e-2` : Tolerance for the maximum absolute error in forces vector
-
-`Ttol     = 1e-9` : Pseudo-time tolerance
-
-`scheme  = :FE` : Predictor-corrector scheme at each increment. Available scheme is `:FE`
-
-`nouts   = 0` : Number of output files per analysis
-
-`outdir  = ""` : Output directory
-
-`filekey = ""` : File key for output files
-
-`verbose = true` : If true, provides information of the analysis steps
-
-`silent = false` : If true, no information is printed
-"""
-
 function solve!(model::Model, ana::HydromechAnalysis; args...)
     name = "Solver for seepage and hydromechanical analyses"
     status = stage_iterator!(name, hm_stage_solver!, model; args...)
     return status
 end
 
+hm_stage_solver_params = [
+    FunInfo( :mech_stage_solver!, "Solves a load stage of a hydromechanical analysis.", "M::Model, S::Stage"),
+    ArgInfo( :tol, "Force tolerance", 0.01, condition=:(tol>0)),
+    ArgInfo( :dTmin, "Relative minimum increment size", 1e-7, condition=:(0<dTmin<1) ),
+    ArgInfo( :dTmax, "Relative maximum increment size", 0.1, condition=:(0<dTmax<1) ),
+    ArgInfo( :rspan, "Relative span to residue reapplication", 0.01, condition=:(0<rspan<1) ),
+    ArgInfo( :scheme, "Global solving scheme", :FE, values=(:FE, :ME, :BE, :Ralston) ),
+    ArgInfo( :maxits, "Maximum number of NR iterations", 5, condition=:(1<=maxits<=10)),
+    ArgInfo( :autoinc, "Flag to set auto-increments", false),
+    ArgInfo( :quiet, "Flat to set silent mode", false),
+]
+@doc make_doc(hm_stage_solver_params) mech_stage_solver!()
 
-function hm_stage_solver!(model::Model, stage::Stage; 
-    tol     :: Number  = 1e-2,
-    Ttol    :: Number  = 1e-8,
-    rspan   :: Number  = 1e-2,
-    scheme  :: String  = "FE",
-    maxits  :: Int     = 5,
-    autoinc :: Bool    = false,
-    outdir  :: String  = ".",
-    outkey  :: String  = "out",
-    quiet  :: Bool    = false
-    )
+function hm_stage_solver!(model::Model, stage::Stage; args...)
+    args = checkargs(args, mech_stage_solver_params)
+    
+    tol     = args.tol      
+    ΔTmin   = args.dTmin    
+    ΔTmax   = args.dTmax   
+    rspan   = args.rspan    
+    scheme  = args.scheme   
+    maxits  = args.maxits 
+    autoinc = args.autoinc  
+    quiet   = args.quiet 
 
     env = model.env
     println(env.log, "Hydromech FE analysis: Stage $(stage.id)")
-    stage.status = :solving
 
     solstatus = success()
-    scheme in ("FE", "ME", "BE") || error("solve! : invalid scheme \"$(scheme)\"")
 
     nincs     = stage.nincs
     nouts     = stage.nouts
     bcs       = stage.bcs
     tspan     = stage.tspan
     env       = model.env
-    save_outs = stage.nouts > 0
+    saveouts = stage.nouts > 0
 
     # Get active elements
     for elem in stage.toactivate
@@ -253,8 +206,9 @@ function hm_stage_solver!(model::Model, stage::Stage;
     umap  = 1:nu         # map for unknown bcs
     pmap  = nu+1:ndofs   # map for prescribed bcs
     model.ndofs = length(dofs)
-    println(env.log, "unknown dofs: $nu")
+
     println(env.info, "unknown dofs: $nu")
+    println(env.log, "unknown dofs: $nu")
 
     quiet || nu==ndofs && println(env.alerts, "solve_system!: No essential boundary conditions")
 
@@ -269,12 +223,8 @@ function hm_stage_solver!(model::Model, stage::Stage;
         end
 
         # Save initial file and loggers
-        update_output_data!(model)
-        update_single_loggers!(model)
-        update_multiloggers!(model)
-        update_monitors!(model)
+        update_records!(model, force=true)
         complete_uw_h(model)
-        save_outs && save(model, "$outdir/$outkey-0.vtu", quiet=true)
     end
 
     # get elevation Z for all Dofs
@@ -296,17 +246,15 @@ function hm_stage_solver!(model::Model, stage::Stage;
 
     # Incremental analysis
     t    = env.t     # current time
+    ΔTbk = 0.0
+    ΔTcheck = saveouts ? 1/nouts : 1.0
+    Tcheck  = ΔTcheck
 
     T  = 0.0
     ΔT = 1.0/nincs       # initial ΔT value
     autoinc && (ΔT=min(ΔT,0.01))
 
-    ΔTbk = 0.0
-    ΔTcheck = save_outs ? 1/nouts : 1.0
-    Tcheck  = ΔTcheck
-
     inc  = 0             # increment counter
-    iout = env.out # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
@@ -335,7 +283,7 @@ function hm_stage_solver!(model::Model, stage::Stage;
     local G::SparseMatrixCSC{Float64,Int64}
     local RHS::Array{Float64,1}
 
-    while T < 1.0-Ttol
+    while T < 1.0-ΔTmin
         env.ΔT = ΔT
 
         # Update counters
@@ -370,7 +318,7 @@ function hm_stage_solver!(model::Model, stage::Stage;
         nits      = 0
         residue1  = 0.0
         converged = false
-        errored   = false
+        syserror  = false
 
         for it=1:maxits
             yield()
@@ -380,7 +328,7 @@ function hm_stage_solver!(model::Model, stage::Stage;
             lastres = residue # residue from last iteration
 
             # Predictor step for FE, ME and BE
-            if scheme in ("FE", "ME", "BE")
+            if scheme in (:FE, :ME, :BE)
                 G, RHS = hm_mount_global_matrices(model, ndofs, Δt)
                 R .+= RHS
 
@@ -389,18 +337,18 @@ function hm_stage_solver!(model::Model, stage::Stage;
                 println(env.log, status.message)
 
 
-                failed(status) && (errored=true; break)
+                failed(status) && (syserror=true; break)
 
                 copyto!.(State, StateBk)
                 ΔUt    = ΔUa + ΔUi
                 ΔFin, status = update_state!(model.elems, ΔUt, Δt)
-                failed(status) && (errored=true; break)
+                failed(status) && (syserror=true; break)
 
                 residue = maximum(abs, (ΔFex-ΔFin)[umap] )
             end
 
             # Corrector step for ME and BE
-            if residue > tol && scheme in ("ME", "BE")
+            if residue > tol && scheme in (:ME, :BE)
                 G2, RHS = hm_mount_global_matrices(model, ndofs, Δt)
                 if scheme=="ME"
                     G = 0.5*(G + G2)
@@ -408,12 +356,12 @@ function hm_stage_solver!(model::Model, stage::Stage;
                     G = G2
                 end
                 status = solve_system!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
-                failed(status) && (errored=true; break)
+                failed(status) && (syserror=true; break)
 
                 copyto!.(State, StateBk)
                 ΔUt    = ΔUa + ΔUi
                 ΔFin, status = update_state!(model.elems, ΔUt, Δt)
-                failed(status) && (errored=true; break)
+                failed(status) && (syserror=true; break)
 
                 residue = maximum(abs, (ΔFex-ΔFin)[umap])
             end
@@ -431,18 +379,19 @@ function hm_stage_solver!(model::Model, stage::Stage;
             residue < tol  && (converged=true; break)
             isnan(residue) && break
             it>maxits      && break
-            #it>1 && residue>lastres && break
-            residue>0.9*lastres && (nfails+=1)
-            nfails==maxfails    && break
+            it>1 && res>lastres && break
+
         end
 
+        env.residue = residue
         q = 0.0 # increment size factor for autoinc
 
-        if errored
+        if syserror
+            println(env.alerts, sysstatus.message)
             println(env.log, sysstatus.message)
             converged = false
         end
-        quiet || sysstatus.message!="" && println(env.alerts, sysstatus.message)
+        # quiet || sysstatus.message!="" && println(env.alerts, sysstatus.message)
 
         if converged
             # Update nodal natural and essential values for the current stage
@@ -469,40 +418,30 @@ function hm_stage_solver!(model::Model, stage::Stage;
             T += ΔT
             env.t = t
             env.T = T
-            env.residue = residue
 
             # Check for saving output file
-            if T>Tcheck-Ttol && save_outs
+            checkpoint = T>Tcheck-ΔTmin
+            if checkpoint
                 env.out += 1
-                iout = env.out
-                rm.(glob("*conflicted*.dat", "$outdir/"), force=true)
-                
-                update_output_data!(model)
-                # update_embedded_disps!(active_elems, model.node_data["U"])
-
-                update_multiloggers!(model)
-                save(model, "$outdir/$outkey-$iout.vtu", quiet=true)
-
                 Tcheck += ΔTcheck # find the next output time
             end
 
-            update_single_loggers!(model)
-            update_monitors!(model)
-            flush(env.log)
+            rstatus = update_records!(model, checkpoint=checkpoint)
+            if failed(rstatus)
+                println(env.alerts, rstatus.message)
+                return rstatus
+            end
 
             if autoinc
                 if ΔTbk>0.0
                     ΔT = min(ΔTbk, Tcheck-T)
                     ΔTbk = 0.0
                 else
-                    if nits==1
-                        q = (1+tanh(log10(tol/residue1)))^1
-                    else
-                        q = 1.0
-                    end
+                    q = 1+tanh(log10(ftol/(res1+eps())))
+                    q = max(q, 1.1)
 
-                    ΔTtr = min(q*ΔT, 1/nincs, 1-T)
-                    if T+ΔTtr>Tcheck-Ttol
+                    ΔTtr = min(q*ΔT, ΔTmax, 1-T)
+                    if T+ΔTtr>Tcheck-ΔTmin
                         ΔTbk = ΔT
                         ΔT = Tcheck-T
                         @assert ΔT>=0.0
@@ -521,27 +460,24 @@ function hm_stage_solver!(model::Model, stage::Stage;
 
             if autoinc
                 println(env.log, "      increment failed")
-                q = (1+tanh(log10(tol/residue1)))
+                q = (1+tanh(log10(tol/(residue1+eps()))))
                 q = clamp(q, 0.2, 0.9)
-                errored && (q=0.7)
+                syserror && (q=0.7)
                 ΔT = q*ΔT
                 ΔT = round(ΔT, sigdigits=3)  # round to 3 significant digits
-                if ΔT < Ttol
-                    solstatus = failure("solver did not converge")
+                if ΔT < ΔTmin
+                    solstatus = failure("Solver did not converge.")
                     break
                 end
             else
-                solstatus = failure("solver did not converge")
+                solstatus = failure("Residue is greater than the tolerance. Try `autoinc=true`. ")
                 break
             end
         end
     end
 
-    if !save_outs
-        update_output_data!(model)
-        complete_uw_h(model)
-        update_multiloggers!(model)
-    end
+    complete_uw_h(model)
+    failed(solstatus) && update_records!(model, force=true)
 
     return solstatus
 
