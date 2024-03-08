@@ -7,7 +7,6 @@ function mesh_unstructured(geo::GeoModel; args...)
     quiet     = args[:quiet]
 
     if !quiet
-        # printstyled("Unstructured mesh generation:\n", bold=true, color=:cyan)
         nsurfs = length(geo.surfaces)
         nvols  = length(geo.volumes)
         @printf "  %5d surfaces\n" nsurfs
@@ -29,7 +28,6 @@ function mesh_unstructured(geo::GeoModel; args...)
     for p in geo.points
         sz = p.size==0 ? size : p.size
         gmsh.model.geo.addPoint(p.coord.x, p.coord.y, p.coord.z, sz, p.id)
-        # p.coord.z != 0.0 && (ndim=3)
     end
 
     # add lines
@@ -220,19 +218,6 @@ function mesh_unstructured(geo::GeoModel; args...)
     end
 
     syncronize!(mesh, reorder=true)
-
-    if !quiet
-        npoints = length(mesh.nodes)
-        ncells  = length(mesh.elems)
-        @printf "  %4dd mesh                             \n" mesh.env.ndim
-        @printf "  %5d nodes\n" npoints
-        @printf "  %5d cells\n" ncells
-
-        nfaces  = length(mesh.faces)
-        nedges  = length(mesh.edges)
-        @printf "  %5d faces\n" nfaces
-        @printf "  %5d surface edges\n" nedges
-    end
 
     return mesh
 
