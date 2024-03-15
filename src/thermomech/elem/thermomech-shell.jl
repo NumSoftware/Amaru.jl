@@ -11,7 +11,6 @@ struct TMShellProps<:ElemProperties
     function TMShellProps(; args...)
         args = checkargs(args, arg_rules(TMShellProps))   
 
-
         return new(args.rho, args.gamma, args.alpha_s, args.thickness)
     end    
 end
@@ -21,7 +20,6 @@ arg_rules(::Type{TMShellProps}) =
 [
     @arginfo rho rho>0 "Density"
     @arginfo gamma=0 gamma>=0 "Specific weight"
-    # @arginfo alpha 1==1 "Thermal expansion coefficient"
     @arginfo thickness thickness>0 "Thickness"
     @arginfo alpha_s=5/6 alpha_s>0 "Shear correction coefficient"
 ]
@@ -253,62 +251,32 @@ function elem_stiffness(elem::TMShell)
     return K, map, map
 end
 
-#=
-# DUVIDA !!!!!!!!!!!!!!
-@inline function set_Bu1(elem::Element, ip::Ip, dNdX::Matx, B::Matx)
-    setB(elem, ip, dNdX, B) # using function setB from mechanical analysis
-end
-=#
 
 # matrix C
 function elem_coupling_matrix(elem::TMShell)
-    #ndim   = elem.env.ndim
-    #th     = elem.env.ana.thickness
-    #nnodes = length(elem.nodes)
-    #
-    #C   = getcoords(elem)
-    #Bu  = zeros(6, nnodes*ndim)
-    #Cut = zeros(nnodes*ndim, nbnodes) # u-t coupling matrix
-
-    #J    = Array{Float64}(undef, ndim, ndim)
-    #dNdX = Array{Float64}(undef, nnodes, ndim)
-    #m    = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
-    #β    = elem.mat.E*elem.props.α/(1-2*elem.mat.ν) # thermal stress modulus
-
     nnodes = length(elem.nodes)
-    # 
     ndim   = elem.env.ndim
 
     E = elem.mat.E
     ν = elem.mat.ν
 
-    th     = elem.props.th
-    ndof   = 6
-    nstr   = 6
-    C      = getcoords(elem)
-    #K      = zeros(ndof*nnodes, ndof*nnodes)
-    B      = zeros(nstr, ndof*nnodes)
-    L      = zeros(3,3)
-    Rrot   = zeros(5,ndof)
-    Bil    = zeros(nstr,5)
-    Bi     = zeros(nstr,ndof)
-
-    C   = getcoords(elem)
-    Cut = zeros(ndof*nnodes, nnodes) # u-t coupling matrix
+    th   = elem.props.th
+    ndof = 6
+    nstr = 6
+    C    = getcoords(elem)
+    B    = zeros(nstr, ndof*nnodes)
+    L    = zeros(3,3)
+    Rrot = zeros(5,ndof)
+    Bil  = zeros(nstr,5)
+    Bi   = zeros(nstr,ndof)
+    C    = getcoords(elem)
+    Cut  = zeros(ndof*nnodes, nnodes) # u-t coupling matrix
     m    = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
-    # m   = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]*(1-2*ν)/(1-ν)  #
+    m    = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]*(1-2*ν)/(1-ν)  #
 
 
     for ip in elem.ips
         #elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
-
-        # compute Bu matrix
-        #dNdR = elem.shape.deriv(ip.R)
-        #@mul J = C'*dNdR
-        #@mul dNdX = dNdR*inv(J)
-        #detJ = det(J)
-        #detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
-        
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
         J2D  = C'*dNdR
@@ -321,6 +289,7 @@ function elem_coupling_matrix(elem::TMShell)
 
         detJ′ = det(J′)
         @assert detJ′>0
+
         # compute Cut
         α    = calc_α(elem.mat, ip.state.ut)
         β = E*α/(1-ν)
@@ -333,12 +302,6 @@ function elem_coupling_matrix(elem::TMShell)
     # map
     map_u = elem_map_u(elem)
     map_t = elem_map_t(elem)
-
-    # keys = (:ux, :uy, :uz)[1:ndim]
-    # map_u = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-    # mat_t = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nnodes] ]
-
-    #@show Cut
 
     return Cut, map_u, map_t
 end
@@ -370,7 +333,6 @@ function elem_conductivity_matrix(elem::TMShell)
         @assert detJ′>0
         
         coef = detJ′*ip.w
-        #coef = detJ′*ip.w*th
         @mul KBt = K*Bt
         @mul H -= coef*Bt'*KBt
     end
@@ -415,63 +377,6 @@ function elem_mass_matrix(elem::TMShell)
     
 end
 
-#=
-function elem_internal_forces(elem::TMShell, F::Array{Float64,1}, DU::Array{Float64,1})
-    ndim   = elem.env.ndim
-    th     = thickness   # elem.env.ana.thickness
-    nnodes = length(elem.nodes)
-    
-    C   = getcoords(elem)
-    T0     = elem.env.T0 + 273.15
-    keys   = (:ux, :uy, :uz)[1:ndim]
-    map_u  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-    mat_t  = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nbnodes] ]
-    dF  = zeros(nnodes*ndim)
-    Bu  = zeros(6, nnodes*ndim)
-    dFt = zeros(nbnodes)
-    Bt  = zeros(ndim, nbnodes)
-    m = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  I2
-    J  = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, nnodes, ndim)
-    Jp  = Array{Float64}(undef, ndim, nbnodes)
-    dNtdX = Array{Float64}(undef, ndim, nbnodes)
-    dUt = DU[mat_t] # nodal temperature increments
-    for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
-        # compute Bu matrix and Bt
-        dNdR = elem.shape.deriv(ip.R)
-        @mul J = C'*dNdR
-        detJ = det(J)
-        detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
-        @mul dNdX = dNdR*inv(J)
-        set_Bu(elem, ip, dNdX, Bu)
-        dNtdR = elem.shape.deriv(ip.R)
-        Jp = dNtdR*Ct
-        @mul dNtdX = inv(Jp)*dNtdR
-        Bt = dNtdX
-        # compute N
-        # internal force
-        ut   = ip.state.ut + 273
-        β   = elem.mat.E*elem.props.α/(1-2*elem.mat.ν)
-        σ    = ip.state.σ - β*ut*m # get total stress
-        coef = detJ*ip.w*th
-        @mul dF += coef*Bu'*σ
-        # internal volumes dFt
-        ε    = ip.state.ε
-        εvol = dot(m, ε)
-        coef = β*detJ*ip.w*th
-        dFt  -= coef*N*εvol
-        coef = detJ*ip.w*elem.props.ρ*elem.props.cv*th/T0
-        dFt -= coef*N*ut
-        QQ   = ip.state.QQ
-        coef = detJ*ip.w*th/T0
-        @mul dFt += coef*Bt'*QQ
-    end
-    F[map_u] += dF
-    F[mat_t] += dFt
-end
-=#
-
 
 function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
@@ -493,7 +398,7 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes]
     Ut += dUt # nodal tempeture at step n+1
     m   = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  #
-    # m   = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]*(1-2*ν)/(1-ν)  #
+    m   = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]*(1-2*ν)/(1-ν)  #
 
     dF = zeros(length(dU))
     B = zeros(6, ndof*nnodes)
@@ -529,8 +434,6 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
         # compute Δut
         Δut = N'*dUt # interpolation to the integ. point
 
-        #@show size(Ut)
-        #@show size(Bt)
         # compute thermal gradient G
         Bt .= dNdX′'
         G  = Bt*Ut
