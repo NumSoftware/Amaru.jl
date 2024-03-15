@@ -263,11 +263,11 @@ function elem_conductivity_matrix(elem::TMSolid)
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C      = getcoords(elem)
-    H      = zeros(nnodes, nnodes)
-    dNtdX  = zeros(nnodes, ndim)
-    Bt     = zeros(ndim, nnodes)
-    KBt    = zeros(ndim, nnodes)
-    J    = Array{Float64}(undef, ndim, ndim)
+    H      = zeros(nbnodes, nbnodes)
+    dNtdX  = zeros(nbnodes, ndim)
+    Bt     = zeros(ndim, nbnodes)
+    KBt    = zeros(ndim, nbnodes)
+    J      = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
         elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
@@ -300,7 +300,7 @@ function elem_mass_matrix(elem::TMSolid)
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C      = getcoords(elem)
-    M      = zeros(nnodes, nnodes)
+    M      = zeros(nbnodes, nbnodes)
 
     J  = Array{Float64}(undef, ndim, ndim)
 
@@ -325,74 +325,6 @@ function elem_mass_matrix(elem::TMSolid)
     return M, map, map
 end
 
-#=
-function elem_internal_forces(elem::TMSolid, F::Array{Float64,1}, DU::Array{Float64,1})
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness # VERIFICAR ESPESSURA
-    nnodes = length(elem.nodes)
-    nbnodes = elem.shape.basic_shape.npoints
-    C   = getcoords(elem)
-    T0k     = elem.env.T0k + 273.15
-
-    keys   = (:ux, :uy, :uz)[1:ndim]
-    map_u  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-    map_t  = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nbnodes] ]
-
-    dF  = zeros(nnodes*ndim)
-    Bu  = zeros(6, nnodes*ndim)
-    dFt = zeros(nbnodes)
-    Bt  = zeros(ndim, nbnodes)
-
-    m = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  I2
-
-    J  = Array{Float64}(undef, ndim, ndim)
-    dNdX = Array{Float64}(undef, nnodes, ndim)
-    Jp  = Array{Float64}(undef, ndim, nbnodes)
-    dNtdX = Array{Float64}(undef, ndim, nbnodes)
-    dUt = DU[map_t] # nodal temperature increments
-    for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
-
-        # compute Bu matrix and Bt
-        dNdR = elem.shape.deriv(ip.R)
-        @mul J = C'*dNdR
-        detJ = det(J)
-        detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
-        @mul dNdX = dNdR*inv(J)
-        set_Bu(elem, ip, dNdX, Bu)
-
-        dNtdR = elem.shape.basic_shape.deriv(ip.R)
-        Jp = dNtdR*Ct
-        @mul dNtdX = inv(Jp)*dNtdR
-        Bt = dNtdX
-        # compute N
-
-        # internal force
-        ut   = ip.state.ut + 273
-        β   = elem.mat.E*elem.props.α/(1-2*elem.mat.ν)
-        σ    = ip.state.σ - β*ut*m # get total stress
-        coef = detJ*ip.w*th
-        @mul dF += coef*Bu'*σ
-
-        # internal volumes dFt
-        ε    = ip.state.ε
-        εvol = dot(m, ε)
-        coef = β*detJ*ip.w*th
-        dFt  -= coef*Nt*εvol
-
-        coef = detJ*ip.w*elem.props.ρ*elem.props.cv*th/T0k
-        dFt -= coef*Nt*ut
-
-        QQ   = ip.state.QQ
-        coef = detJ*ip.w*th/T0k
-        @mul dFt += coef*Bt'*QQ
-    end
-
-    F[map_u] += dF
-    F[map_t] += dFt
-end
-=#
-
 
 function update_elem!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
     ndim    = elem.env.ndim
@@ -415,14 +347,14 @@ function update_elem!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
 
     dU  = DU[map_u] # nodal displacement increments
     dUt = DU[map_t] # nodal temperature increments
-    Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes]
+    Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes[1:nbnodes]]
     Ut += dUt # nodal tempeture at step n+1
     m   = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
 
     dF  = zeros(nnodes*ndim)
     Bu  = zeros(6, nnodes*ndim)
-    dFt = zeros(nnodes)
-    Bt  = zeros(ndim, nnodes)
+    dFt = zeros(nbnodes)
+    Bt  = zeros(ndim, nbnodes)
 
     J     = Array{Float64}(undef, ndim, ndim)
     dNdX  = Array{Float64}(undef, nnodes, ndim)
@@ -459,11 +391,8 @@ function update_elem!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
 
         # internal force dF
         Δσ, q, status = update_state!(elem.mat, ip.state, Δε, Δut, G, Δt)
-        #@show Δσ
 
-        #@show "HIIIIIIIIIIIIIIIIIII"
         Δσ -= β*Δut*m # get total stress
-        #@show Δσ
 
         coef = detJ*ip.w*th
         @mul dF += coef*Bu'*Δσ
