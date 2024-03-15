@@ -68,6 +68,7 @@ function elem_init(elem::MechJoint)
         dNdR = fshape.deriv(ip.R)
         J    = C'*dNdR
         detJ = norm2(J)
+        detJ <= 0 && error("Invalid Jacobian norm for joint element")
         A += detJ*ip.w
     end
 
