@@ -135,7 +135,6 @@ function nearest(ips::Array{Ip,1}, coord)
         D[i] = norm(X- ip.coord)
     end
 
-    return ips[findmin(D)[2]]
-
-    # return ips[sortperm(D)[1]]
+    length(D) == 0 && return nothing
+    return ips[sortperm(D)[1]]
 end
