@@ -2,7 +2,7 @@
 
 export AcousticMechAnalysis
 
-mutable struct AcousticMechAnalysisProps<:Analysis
+mutable struct AcousticMechAnalysisProps<:TransientAnalysis
     stressmodel::String # plane stress, plane strain, etc.
     thickness::Float64  # thickness for 2d analyses
     g::Float64 # gravity acceleration

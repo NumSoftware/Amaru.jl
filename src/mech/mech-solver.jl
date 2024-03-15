@@ -2,7 +2,7 @@
 
 export MechAnalysis
 
-mutable struct MechAnalysisProps<:Analysis
+mutable struct MechAnalysisProps<:StaticAnalysis
     stressmodel::String # plane stress, plane strain, etc.
     thickness::Float64  # thickness for 2d analyses
     g::Float64 # gravity acceleration
@@ -351,10 +351,10 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
 
             # flush = time()-lastflush>flushinterval || T >= 1.0-ΔTmin
 
-            rstatus = update_records!(model, checkpoint=checkpoint)
-            if failed(rstatus)
-                println(env.alerts, rstatus.message)
-                return rstatus
+            solstatus = update_records!(model, checkpoint=checkpoint)
+            if failed(solstatus)
+                println(env.alerts, solstatus.message)
+                break
             end
             
             # if flush

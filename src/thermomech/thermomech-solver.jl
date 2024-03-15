@@ -2,7 +2,7 @@
 
 export ThermoAnalysis, ThermomechAnalysis
 
-mutable struct ThermomechAnalysisProps<:Analysis
+mutable struct ThermomechAnalysisProps<:TransientAnalysis
     stressmodel::String # plane stress, plane strain, etc.
     thickness::Float64  # thickness for 2d analyses
     g::Float64 # gravity acceleration
@@ -139,7 +139,7 @@ function complete_ut_T(model::Model)
         end
     end
 
-    model.node_data["T"] = Ut .+ T0
+    model.node_data["ut"] = Ut .+ T0
 end
 
 
@@ -219,6 +219,8 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
         update_records!(model, force=true)
         complete_ut_T(model)
     end
+
+    model.env.transient = true
 
     # Get the domain current state and backup
     State = [ ip.state for elem in active_elems for ip in elem.ips ]
@@ -403,6 +405,7 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
                 Tcheck += ΔTcheck # find the next output time
             end
 
+            complete_ut_T(model)
             rstatus = update_records!(model, checkpoint=checkpoint)
             if failed(rstatus)
                 println(env.alerts, rstatus.message)

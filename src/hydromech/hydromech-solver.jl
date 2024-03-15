@@ -2,7 +2,7 @@
 
 export HydroAnalysis, HydromechAnalysis
 
-mutable struct HydromechAnalysisProps<:Analysis
+mutable struct HydromechAnalysisProps<:TransientAnalysis
     stressmodel::String # plane stress, plane strain, etc.
     thickness::Float64  # thickness for 2d analyses
     g::Float64 # gravity acceleration
@@ -168,7 +168,7 @@ hm_stage_solver_params = [
     ArgInfo( :autoinc, "Flag to set auto-increments", false),
     ArgInfo( :quiet, "Flat to set silent mode", false),
 ]
-@doc make_doc(hm_stage_solver_params) mech_stage_solver!()
+@doc make_doc(hm_stage_solver_params) hm_stage_solver!()
 
 function hm_stage_solver!(model::Model, stage::Stage; args...)
     args = checkargs(args, mech_stage_solver_params)
@@ -226,6 +226,8 @@ function hm_stage_solver!(model::Model, stage::Stage; args...)
         update_records!(model, force=true)
         complete_uw_h(model)
     end
+
+    model.env.transient = true
 
     # get elevation Z for all Dofs
     Z = zeros(ndofs)
