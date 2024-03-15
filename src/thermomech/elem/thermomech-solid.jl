@@ -215,7 +215,7 @@ end
 function elem_coupling_matrix(elem::TMSolid)
     ndim   = elem.env.ndim
     th     = elem.env.ana.thickness
-    nnodes = length(elem.nodes)
+    nnodes = length(elem.nodes) 
     nbnodes = elem.shape.basic_shape.npoints
     E = elem.mat.E
     ν = elem.mat.ν

@@ -404,7 +404,7 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     Bt  = zeros(ndim, nnodes)
 
     L    = zeros(3,3)
-    Rrot = zeros(5,ndof)
+    Rrot = zeros(5,ndof) 
     Bil  = zeros(6,5)
     Bi   = zeros(6,ndof)
     Δε   = zeros(6)
