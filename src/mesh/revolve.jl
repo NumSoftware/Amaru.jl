@@ -24,8 +24,6 @@ function revolve(
     @check length(axis)==3
     @check n>0
 
-    # @check mesh.env.ndim>=2
-
     axis = Vec3(normalize(axis))
     base = Vec3(base)
 
@@ -202,6 +200,7 @@ function revolve(
     newmesh.nodes = nodes
     newmesh.elems = cells
     syncronize!(newmesh, reorder=true)
+    newmesh.env.ndim = max(mesh.env.ndim, newmesh.env.ndim)
 
     return newmesh
 end
