@@ -272,7 +272,7 @@ function elem_coupling_matrix(elem::TMShell)
     C    = getcoords(elem)
     Cut  = zeros(ndof*nnodes, nnodes) # u-t coupling matrix
     m    = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
-    m    = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]*(1-2*ν)/(1-ν)  #
+    m    = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]*(1-ν)/(1-2*ν)  #
 
 
     for ip in elem.ips
@@ -398,7 +398,7 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes]
     Ut += dUt # nodal tempeture at step n+1
     m   = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  #
-    m   = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]*(1-2*ν)/(1-ν)  #
+    m   = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]*(1-ν)/(1-2*ν)  #
 
     dF = zeros(length(dU))
     B = zeros(6, ndof*nnodes)
