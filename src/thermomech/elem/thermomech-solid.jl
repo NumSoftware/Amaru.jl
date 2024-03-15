@@ -34,7 +34,6 @@ end
 mutable struct TMSolid<:Thermomech
     id    ::Int
     shape ::CellShape
-
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
@@ -53,6 +52,8 @@ compat_shape_family(::Type{TMSolid}) = BULKCELL
 compat_elem_props(::Type{TMSolid}) = TMSolidProps
 
 
+function elem_init(elem::TMSolid)
+end
 
 function elem_config_dofs(elem::TMSolid)
     nbnodes = elem.shape.basic_shape.npoints
@@ -65,11 +66,6 @@ function elem_config_dofs(elem::TMSolid)
         end
     end
 end
-
-
-function elem_init(elem::TMSolid)
-end
-
 
 function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
     ndim  = elem.env.ndim
@@ -221,6 +217,10 @@ function elem_coupling_matrix(elem::TMSolid)
     th     = elem.env.ana.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
+    E = elem.mat.E
+    ν = elem.mat.ν
+    α = elem.props.α
+
     C   = getcoords(elem)
     Bu  = zeros(6, nnodes*ndim)
     Cut = zeros(nnodes*ndim, nbnodes) # u-t coupling matrix
@@ -228,7 +228,11 @@ function elem_coupling_matrix(elem::TMSolid)
     J    = Array{Float64}(undef, ndim, ndim)
     dNdX = Array{Float64}(undef, nnodes, ndim)
     m    = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
-    β    = elem.mat.E*elem.props.α/(1-2*elem.mat.ν) # thermal stress modulus
+    β    = E*α/(1-2*ν) # thermal stress modulus
+    if elem.env.ana.stressmodel=="plane-stress"
+        β = E*α/(1-ν)
+        m = [ 1.0, 1.0, 0.0, 0.0, 0.0, 0.0 ]
+    end
 
     for ip in elem.ips
         elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
@@ -337,9 +341,9 @@ function update_elem!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
     E = elem.mat.E
     α = elem.props.α
     ρ = elem.props.ρ
-    nu = elem.mat.ν
+    ν = elem.mat.ν
     cv = elem.props.cv
-    β = E*α/(1-2*nu)
+    β = E*α/(1-2*ν)
 
     keys   = (:ux, :uy, :uz)[1:ndim]
     map_u  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
@@ -350,6 +354,10 @@ function update_elem!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
     Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes[1:nbnodes]]
     Ut += dUt # nodal tempeture at step n+1
     m   = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
+    if elem.env.ana.stressmodel=="plane-stress"
+        β = E*α/(1-ν)
+        m = [ 1.0, 1.0, 0.0, 0.0, 0.0, 0.0 ]
+    end
 
     dF  = zeros(nnodes*ndim)
     Bu  = zeros(6, nnodes*ndim)
@@ -391,9 +399,10 @@ function update_elem!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
 
         # internal force dF
         Δσ, q, status = update_state!(elem.mat, ip.state, Δε, Δut, G, Δt)
+        failed(status) && return [dF; dFt], [map_u; map_t], status
+
 
         Δσ -= β*Δut*m # get total stress
-
         coef = detJ*ip.w*th
         @mul dF += coef*Bu'*Δσ
 

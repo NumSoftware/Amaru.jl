@@ -209,8 +209,8 @@ end
 
 
 function elem_stiffness(elem::TMShell)
-    nnodes = length(elem.nodes)
     th     = elem.props.th
+    nnodes = length(elem.nodes)
     ndof   = 6
     nstr   = 6
     C      = getcoords(elem)
@@ -232,14 +232,15 @@ function elem_stiffness(elem::TMShell)
         dNdR  = [ dNdR zeros(nnodes) ]
         dNdX′ = dNdR*invJ′
 
-        D = calcD(elem.mat, ip.state)
-
+        
         detJ′ = det(J′)
         @assert detJ′>0
         
         setB(elem, ip, N, L, dNdX′, Rrot, Bil, Bi, B)
-        coef = detJ′*ip.w
-        K += coef*B'*S*D*B
+        # compute K
+        coef  = detJ′*ip.w
+        D     = calcD(elem.mat, ip.state)
+        K    += coef*B'*S*D*B
     end
 
     δ = 1e-5
@@ -254,13 +255,13 @@ end
 
 # matrix C
 function elem_coupling_matrix(elem::TMShell)
-    nnodes = length(elem.nodes)
     ndim   = elem.env.ndim
+    th   = elem.props.th
+    nnodes = length(elem.nodes)
 
     E = elem.mat.E
     ν = elem.mat.ν
 
-    th   = elem.props.th
     ndof = 6
     nstr = 6
     C    = getcoords(elem)
@@ -272,7 +273,8 @@ function elem_coupling_matrix(elem::TMShell)
     C    = getcoords(elem)
     Cut  = zeros(ndof*nnodes, nnodes) # u-t coupling matrix
     m    = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
-    m    = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]*(1-2*ν)/(1-ν)  #
+    m    = [ 1.0, 1.0, 0.0, 0.0, 0.0, 0.0 ]
+
 
 
     for ip in elem.ips
@@ -291,12 +293,12 @@ function elem_coupling_matrix(elem::TMShell)
         @assert detJ′>0
 
         # compute Cut
-        α    = calc_α(elem.mat, ip.state.ut)
+        α = calc_α(elem.mat, ip.state.ut)
         β = E*α/(1-ν)
 
         coef  = β
         coef *= detJ′*ip.w
-        mN   = m*N'
+        mN    = m*N'
         @mul Cut -= coef*B'*mN
     end
     # map
@@ -338,7 +340,6 @@ function elem_conductivity_matrix(elem::TMShell)
     end
 
     map = elem_map_t(elem)
-    #@show H
     return H, map, map
 end
 
@@ -371,19 +372,16 @@ function elem_mass_matrix(elem::TMShell)
     # map
     map = elem_map_t(elem)
 
-    #@show "HIIIIIIIIIIIIIIIIIIIIIIIIIIIIII"
-    #@show M
     return M, map, map
-    
 end
 
 
 function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     th     = elem.props.th
-    T0k     = elem.env.ana.T0 + 273.15
+    T0k    = elem.env.ana.T0 + 273.15
     nnodes = length(elem.nodes)
-    ndof = 6
+    ndof   = 6
     C      = getcoords(elem)
 
     E = elem.mat.E
@@ -393,15 +391,15 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     map_u = elem_map_u(elem)
     map_t = elem_map_t(elem)
 
-    dU = DU[map_u]
+    dU  = DU[map_u]
     dUt = DU[map_t] # nodal temperature increments
     Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes]
     Ut += dUt # nodal tempeture at step n+1
     m   = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  #
-    m   = [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]*(1-2*ν)/(1-ν)  #
+    m   = [ 1.0, 1.0, 0.0, 0.0, 0.0, 0.0]
 
-    dF = zeros(length(dU))
-    B = zeros(6, ndof*nnodes)
+    dF  = zeros(length(dU))
+    B   = zeros(6, ndof*nnodes)
     dFt = zeros(nnodes)
     Bt  = zeros(ndim, nnodes)
 
@@ -425,6 +423,7 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
 
         dNdR = [ dNdR zeros(nnodes) ]
         dNdX′ = dNdR*invJ′
+        detJ′ = det(J′)
 
         setB(elem, ip, N, L, dNdX′, Rrot, Bil, Bi, B)
 
@@ -447,14 +446,11 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
 
         Δσ -= β*Δut*m # get total stress
     
-        detJ′ = det(J′)
-        #coef = detJ′*ip.w*th
         coef = detJ′*ip.w
         dF += coef*B'*S*Δσ
 
         # internal volumes dFt
         Δεvol = dot(m, Δε)
-        
         coef  = β*Δεvol*T0k
         coef *= detJ′*ip.w
         dFt  -= coef*N
@@ -469,5 +465,6 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
         dFt += coef*Bt'*q
 
     end
+
     return [dF; dFt], [map_u; map_t], success()
 end
