@@ -198,6 +198,19 @@ function Base.getindex(nodes::Array{Node,1}, filter::Union{Expr,Symbolic})
     return R
 end
 
+
+function getnodes(nodes::Array{Node,1}, P::AbstractArray{<:Real})
+    R = Node[]
+    X = Vec3(P)
+    for node in nodes
+        if norm(X-node.coord) < 1e-8
+            push!(R, node)
+        end
+    end
+    return R
+end
+
+
 # Get node coordinates for a collection of nodes as a matrix
 function getcoords(nodes::Array{Node,1}, ndim=3)
     nnodes = length(nodes)
@@ -238,7 +251,7 @@ end
 function nearest(nodes::Array{Node,1}, coord)
     n = length(nodes)
     D = zeros(n)
-    X = vec(coord)
+    X = Vec3(coord)
 
     for (i,node) in enumerate(nodes)
         D[i] = norm(X-node.coord)
