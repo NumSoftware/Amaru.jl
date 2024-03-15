@@ -335,6 +335,10 @@ function setup_logger!(model, filter, logger::NodeGroupLogger)
 
     # sort nodes
     sort!(logger.nodes, by=n->sum(n.coord))
+
+    if !isabspath(logger.filename) && logger.filename!=""
+        logger.filename = joinpath(model.env.outdir, logger.filename)
+    end    
 end
 
 

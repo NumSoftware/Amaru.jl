@@ -319,6 +319,7 @@ mutable struct NodeSumMonitor<:AbstractMonitor
         if expr isa Expr
             expr = fix_expr_maximum_minimum!(round_floats!(expr))
         end
+        stop = fix_expr_maximum_minimum!(stop)
         if expr isa Symbol || expr.head == :call || expr.head == :(=)
             expr = :($expr,)
         end
@@ -343,7 +344,7 @@ function setup_monitor!(model, filter, monitor::NodeSumMonitor)
             push!(available_vars, dof.natname)
         end
     end
-    hint("NodeSumMonitor: $(monitor.expr)  Available data: ", join(available_vars, ", "))
+    hint("NodeSumMonitor: ", replace(string(monitor.expr), " " => ""), " Available data: ", join(available_vars, ", "))
     # printstyled("available data: ", join(available_vars, ", "), "\n", color=:light_black)
 
 end
