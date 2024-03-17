@@ -9,7 +9,7 @@ Creates an object that represents a Degree of Freedom in a finite element analys
 mutable struct Dof
     name      ::Symbol # essential variable name
     natname   ::Symbol # natural value name
-    eq_id     ::Int64  # number of equation in global system
+    eq_id     ::Int64  # number of equation in the global system
     prescribed::Bool   # flag for prescribed dof
     vals      ::OrderedDict{Symbol,Float64}
     function Dof(name::Symbol, natname::Symbol)
