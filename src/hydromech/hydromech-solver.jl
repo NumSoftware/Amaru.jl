@@ -227,8 +227,6 @@ function hm_stage_solver!(model::Model, stage::Stage; args...)
         complete_uw_h(model)
     end
 
-    model.env.transient = true
-
     # get elevation Z for all Dofs
     Z = zeros(ndofs)
     for node in model.nodes

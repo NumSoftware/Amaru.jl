@@ -90,6 +90,7 @@ function FEModel(
     env.ana = anatype
     env.outdir = rstrip(outdir, ['/', '\\'])
     env.outkey = outkey
+    env.transient = anatype isa TransientAnalysis
 
     # Save a mesh reference
     #model.mesh = mesh
@@ -724,7 +725,7 @@ function nodal_patch_recovery(model::Model)
 
     nfields==0 && return zeros(Float64, nnodes, nfields), Symbol[]
 
-    @withthreads begin # it fails sometimes trying to append to a matrix
+    @withthreads begin
         # matrices for all nodal values and repetitions
         V_vals =  zeros(Float64, nnodes, nfields)
         V_reps =  zeros(Int64  , nnodes, nfields)
@@ -819,11 +820,10 @@ function nodal_patch_recovery(model::Model)
 end
 
 
-
 function nodal_local_recovery(model::Model)
     # Recovers nodal values from non-solid elements as joints and joint1d elements
     # The element type should implement the elem_extrapolated_node_vals function
-    # Note: nodal ids must be numbered starting from 1
+    # Note: nodal ids in the fe model must be numbered starting from 1
 
     nnodes = length(model.nodes)
 

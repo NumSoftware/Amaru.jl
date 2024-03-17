@@ -110,42 +110,6 @@ function sismic_force(model::Model, bcs, M::SparseMatrixCSC{Float64, Int}, F::Ve
 end
 
 
-"""
-    dynsolve!(model,options...) :: Bool
-
-Performs one stage finite element dynamic analysis of a mechanical domain `model`
-subjected to a set of boundary conditions `bcs` and a time span.
-
-
-# Arguments
-
-`model` : A finite element domain
-
-`bcs` : Array of boundary conditions given as an array of pairs ( location => condition)
-
-# Keyword arguments
-
-`tspan` = 0.0 : Simulated time span
-
-`nincs   = 1` : Number of increments
-
-`maxits  = 5` : Maximum number of Newton-Rapson iterations per increment
-
-`autoinc = false` : Sets automatic increments size. The first increment size will be `1/nincs`
-
-`maxincs = 1000000` : Maximum number of increments
-
-`tol     = 1e-2` : Tolerance for the maximum absolute error in forces vector
-
-`nouts   = 0` : Number of output files per analysis
-
-`outdir  = ""` : Output directory
-
-`filekey = ""` : File key for output files
-
-`verbose = true` : If true, provides information of the analysis steps
-
-"""
 function solve!(model::Model, ana::DynAnalysis; args...)
     name = "Solver for dynamic analyses"
     status = stage_iterator!(name, dyn_stage_solver!, model; args...)
@@ -174,27 +138,9 @@ dyn_stage_solver_params = [
 @doc make_doc(dyn_stage_solver_params) dyn_stage_solver!()
 
 function dyn_stage_solver!(model::Model, stage::Stage; args...)
-    # tol     :: Real = 1e-2,
-    # alpha   :: Real = 0.0,
-    # beta    :: Real = 0.0,
-    # sism    :: Bool = false,
-    # tss     :: Real = 0.0,
-    # tds     :: Real = 0.0,
-    # sism_file:: String = " ",
-    # sism_dir :: String = "fx",
-    # ΔTmin    :: Real  = 1e-9,
-    # rspan   :: Real  = 1e-2,
-    # maxits  :: Int     = 5,
-    # autoinc :: Bool    = false,
-    # maxincs :: Int     = 1000000,
-    # outdir  :: String  = ".",
-    # outkey  :: String  = "out",
-    # quiet  :: Bool    = false
-    # )
     args = checkargs(args, dyn_stage_solver_params)
     
     tol     = args.tol      
-    # rtol    = args.rtol     
     ΔTmin   = args.dTmin    
     ΔTmax   = args.dTmax   
     rspan   = args.rspan    
@@ -208,7 +154,6 @@ function dyn_stage_solver!(model::Model, stage::Stage; args...)
 
     env = model.env
     println(env.log, "Dynamic FE analysis: Stage $(stage.id)")
-    # stage.status = :solving
 
     solstatus = success()
     # scheme in ("FE", "ME", "BE", "Ralston") || error("solve! : invalid scheme \"$(scheme)\"")
@@ -242,9 +187,6 @@ function dyn_stage_solver!(model::Model, stage::Stage; args...)
                            :rx => (:rx, :mx, :vrx, :arx),
                            :ry => (:ry, :my, :vry, :ary),
                            :rz => (:rz, :mz, :vrz, :arz))
-
-    # Set model environment as transient
-    env.transient = true
 
     # Setup quantities at dofs
     if stage.id == 1
@@ -286,11 +228,6 @@ function dyn_stage_solver!(model::Model, stage::Stage; args...)
 
         # Save initial file and loggers
         update_records!(model, force=true)
-        # update_output_data!(model)
-        # update_single_loggers!(model)
-        # update_multiloggers!(model)
-        # update_monitors!(model)
-        # saveouts && save(model, "$outdir/$outkey-0.vtu", quiet=true)
     end
 
     # Get the domain current state and backup
@@ -601,9 +538,6 @@ function dynsolvex!(
                            :rx => (:rx, :mx, :vrx, :arx),
                            :ry => (:ry, :my, :vry, :ary),
                            :rz => (:rz, :mz, :vrz, :arz))
-
-    # Set model environment as transient
-    model.env.transient = true
 
     # Get dofs organized according to boundary conditions
     dofs, nu = configure_dofs!(model, bcs)

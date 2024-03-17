@@ -247,7 +247,6 @@ function solve!(
     env = model.env
     env.cstage += 1
     env.inc    = 0
-    env.transient = true
     sw = StopWatch() # timing
 
     if !isnan(end_time)

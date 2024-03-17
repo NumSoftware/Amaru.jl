@@ -147,7 +147,6 @@ function am_stage_solver!(model::Model, stage::Stage; args...)
     tspan     = stage.tspan
     env       = model.env
     saveouts  = stage.nouts > 0
-    ftol      = tol
 
     # Get active elements
     for elem in stage.toactivate
@@ -177,8 +176,6 @@ function am_stage_solver!(model::Model, stage::Stage; args...)
                             :ry => (:ry, :my, :vry, :ary),
                             :rz => (:rz, :mz, :vrz, :arz))
     
-    model.env.transient = true
-
     # Setup quantities at dofs
     if stage.id == 1
         for dof in dofs

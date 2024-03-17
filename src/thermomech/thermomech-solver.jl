@@ -220,8 +220,6 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
         complete_ut_T(model)
     end
 
-    model.env.transient = true
-
     # Get the domain current state and backup
     State = [ ip.state for elem in active_elems for ip in elem.ips ]
     StateBk = copy.(State)
