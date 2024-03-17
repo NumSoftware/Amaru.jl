@@ -117,6 +117,7 @@ mech_stage_solver_params = [
 ]
 @doc make_doc(mech_stage_solver_params) mech_stage_solver!()
 
+
 function mech_stage_solver!(model::Model, stage::Stage; args...)
     args = checkargs(args, mech_stage_solver_params)
     
@@ -349,19 +350,12 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
                 Tcheck += ΔTcheck # find the next output time
             end
 
-            # flush = time()-lastflush>flushinterval || T >= 1.0-ΔTmin
-
             solstatus = update_records!(model, checkpoint=checkpoint)
             if failed(solstatus)
                 println(env.alerts, solstatus.message)
                 break
             end
             
-            # if flush
-            #     lastflush = time()
-            #     GC.gc()
-            # end
-
             if autoinc
                 if ΔTbk>0.0
                     ΔT = min(ΔTbk, Tcheck-T)
