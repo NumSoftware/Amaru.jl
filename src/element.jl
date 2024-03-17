@@ -54,7 +54,6 @@ Sets up the dofs for all nodes in `elem` according with its type.
 This function can be specialized by concrete types.
 """
 function elem_config_dofs(elem::Element)
-    # No-op function but can be specialized by concrete types
     return nothing
 end
 
@@ -96,8 +95,19 @@ function elem_extrapolated_node_vals(elem::Element)
 end
 
 
-# Auxiliary functions for elements
+"""
+    post_process(elem)
 
+Computes secondary values at the end of each successful increment.
+Few special elements need to specialize this function.
+"""
+function post_process(elem::Element)
+    return nothing
+end
+
+
+# Auxiliary functions for elements
+# ================================
 
 # Get the element coordinates matrix
 function getcoords(elem::Element)
@@ -323,5 +333,4 @@ function elems_ip_vals(elem::Element)
 
     return table
 end
-
 
