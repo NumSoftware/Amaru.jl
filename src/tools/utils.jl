@@ -1,3 +1,16 @@
+# This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
+
+function getfullpath(dir, filename)
+    filename=="" && return ""
+    isabspath(filename) && return filename
+
+    fullpath = joinpath(dir, filename)
+    dir = dirname(fullpath)
+    dir!="" && !isdir(dir) && error("getfullpath: Directory $(dir) does not exist.")
+
+    return fullpath
+end
+
 
 function wrap(str::String; level=1)
     width = displaysize(stdout)[2]-2
