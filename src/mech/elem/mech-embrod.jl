@@ -158,3 +158,21 @@ function elem_vals(elem::MechEmbBar)
     vals[:fX] = elem.props.A*mean_sa
     return vals
 end
+
+
+function post_process(elem::MechEmbBar)
+    ndim    = elem.env.ndim
+    NN      = elem.cache_NN
+    
+    # update displacements
+    keys    = (:ux, :uy, :uz)[1:ndim]
+    Ubulk   = [ node.vals[key] for node in elem.linked_elems[1].nodes for key in keys ]
+    Uemb    = NN'*Ubulk
+    
+    for (i,node) in enumerate(elem.nodes)
+        for (j,key) in enumerate(keys)
+            node.vals[key] = Uemb[(i-1)*ndim+j]
+        end
+    end
+    
+end
