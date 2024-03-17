@@ -111,6 +111,18 @@ function Base.getindex(ips::Array{Ip,1}, s::String)
 end
 
 
+function getips(ips::Array{Ip,1}, P::AbstractArray{<:Real})
+    R = Ip[]
+    X = Vec3(P)
+    for ip in ips
+        if norm(X-ip.coord) < 1e-8
+            push!(R, ip)
+        end
+    end
+    return R
+end
+
+
 # Get the maximum value of a given coordinate for the whole collection of ips
 function maximum(ips::Array{Ip,1}, dir::Symbol)
     idx = findfirst(isequal(dir), (:x, :y, :z))
