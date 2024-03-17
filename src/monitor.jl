@@ -1,13 +1,13 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-# Log structs and functions
-
+# Monitor structs and functions
+# =============================
 
 abstract type AbstractMonitor end
 @inline Base.:(<<)(a, b::AbstractMonitor) = return a=>b
-# @inline Base.:(=>)(a, b::AbstractMonitor) = return (a, b)
 
 # Ip Monitor
+# ==========
 
 """
     $(TYPEDEF)
@@ -19,8 +19,9 @@ mutable struct IpMonitor<:AbstractMonitor
     vals     ::OrderedDict # stores current values
     filename ::String
     filter   ::Union{Int,Symbol,String,Expr,Symbolic,AbstractArray}
+    label    ::String
     table    ::DataTable
-    ip       ::Ip
+    ip       ::Union{Ip,Nothing}
 
     @doc """
     $(TYPEDSIGNATURES)
@@ -49,45 +50,72 @@ mutable struct IpMonitor<:AbstractMonitor
         if expr isa Symbol || expr.head == :call || expr.head == :(=)
             expr = :($expr,)
         end
-        return new(expr, OrderedDict(), filename, :(), DataTable())
+        return new(expr, OrderedDict(), filename, :(), "", DataTable())
     end
 end
 
 
-# IpMonitor
-function setup_monitor!(model, filter, monitor::IpMonitor)
-    monitor.filter = filter
+function setup_monitor!(model, allitems, filter, monitor::AbstractMonitor, field::Symbol; singleitem=false)
+    item_type = eltype(allitems)
+    item_name = lowercase(string(item_type))
 
     if filter isa AbstractArray
-        X = Vec3(filter)
-        x, y, z = X
-        ips = model.elems.ips[:(x==$x && y==$y && z==$z)]
-        n = length(ips)
+        items = getfromcoords(allitems, filter)
+        n = length(items)
 
         if n==0
-            monitor.ip = nearest(model.elems.ips, X)
-            notify("setup_monitor: No ip found at $(monitor.filter). Picking the nearest at $(monitor.ip.coord)")
-        else
-            monitor.ip = ips[1]
+            N = nearest(allitems, X)
+            if N===nothing
+                items = item_type[]
+            else
+                notify("setup_monitor: No ip found at $(monitor.filter). Picking the nearest at $(N.coord)")
+                items = [ N ]
+            end
         end
-        return
+    elseif filter isa Integer
+        if 1<=filter<=length(allitems)
+            items = [ allitems[filter] ]
+        else
+            items = item_type[]
+        end
+    else
+        items = allitems[filter]
     end
 
-    if filter isa Integer
-        monitor.ip = model.elems.ips[filter]
-        return
+    n = length(items)
+    if singleitem
+        if n==0
+            warn("setup_monitor!: No $(item_name)s found for filter expression: $(monitor.filter)")
+            setfield!(monitor, field, nothing)
+        else
+            n>1 && notify("setup_monitor!: More than one $item_name match filter expression: $(monitor.filter)")
+            setfield!(monitor, field, items[1])
+        end
+    else
+        setfield!(monitor, field, items)
     end
-    ips = model.elems.ips[filter]
-    n = length(ips)
-    n == 0 && warn("setup_monitor!: No ips found for filter expression: $(monitor.filter)")
-    n >  1 && notify("setup_monitor!: More than one ip match filter expression: $(monitor.filter)")
-    n >= 1 && (monitor.ip = ips[1])
+
+    if filter isa Expr || filter isa Symbolic
+        monitor.label = replace( string(round_floats!(getexpr(filter))), " " => "")
+    elseif filter isa Integer
+        monitor.label = "$item_name $filter"
+    else
+        monitor.label = string(filter)
+    end
+
+    monitor.filename = getfullpath(model.env.outdir, monitor.filename)
+
     return nothing
 end
 
 
+function setup_monitor!(model, filter, monitor::IpMonitor)
+    setup_monitor!(model, model.elems.ips, filter, monitor, :ip, singleitem=true)
+end
+
+
 function update_monitor!(monitor::IpMonitor, model)
-    isdefined(monitor, :ip) || return success()
+    monitor.ip === nothing && return success()
 
     for expr in monitor.expr.args
         state = ip_vals(monitor.ip) 
@@ -102,7 +130,30 @@ function update_monitor!(monitor::IpMonitor, model)
     return success()
 end
 
+
+function output(monitor::AbstractMonitor)
+    out = IOBuffer()
+    head = "  " * string(typeof(monitor)) * " " * monitor.label
+    print(out, head, "\e[K")
+
+    first = true
+    for (k,v) in monitor.vals
+        k in (:stage, :T, :t) && continue
+        first || print(out, " "^length(head))
+        first = false
+
+        if v isa Real && !(v isa Bool)
+            v = round(v, sigdigits=5)
+        end
+        println(out, "   ", replace(string(k), " " => ""), " : ", v, "\e[K")
+    end
+    str = String(take!(out))
+    return str
+end
+
+
 # Node Monitor
+# ============
 
 """
     $(TYPEDEF)
@@ -114,8 +165,9 @@ mutable struct NodeMonitor<:AbstractMonitor
     vals     ::OrderedDict # stores current values
     filename ::String
     filter   ::Union{Int,Symbol,String,Expr,Symbolic,AbstractArray}
+    label    ::String
     table    ::DataTable
-    node     ::Node
+    node     ::Union{Node,Nothing}
 
     @doc """
     $(TYPEDSIGNATURES)
@@ -137,73 +189,22 @@ mutable struct NodeMonitor<:AbstractMonitor
     ```
     """
     function NodeMonitor(expr::Union{Symbol,Expr}, filename::String="")
-        if expr isa Expr
-            expr = round_floats!(expr)
-        end
         if expr isa Symbol || expr.head == :call
             expr = :($expr,)
         end
 
-        return new(expr, OrderedDict(), filename, :(), DataTable())
+        return new(expr, OrderedDict(), filename, :(), "", DataTable())
     end
-end
-
-
-function output(monitor::AbstractMonitor)
-    out = IOBuffer()
-    head = "  " * string(typeof(monitor)) * " " * replace(string(monitor.filter), " " => "")
-    print(out, head, "\e[K")
-
-    first = true
-    for (k,v) in monitor.vals
-        k in (:stage, :T, :t) && continue
-        first || print(out, " "^length(head))
-        first = false
-
-        if v isa Real && !(v isa Bool)
-            v = round(v, sigdigits=5)
-        end
-        println(out, "   ", replace(string(k), " " => ""), " : ", v, "\e[K")
-    end
-    str = String(take!(out))
-    # return replace(str, "\n" =>)
-    return str
 end
 
 
 function setup_monitor!(model, filter, monitor::NodeMonitor)
-    monitor.filter = filter
-
-    if filter isa AbstractArray
-        X = Vec3(filter)
-        x, y, z = X
-        nodes = model.nodes[:(x==$x && y==$y && z==$z)]
-        n = length(nodes)
-
-        if n==0
-            monitor.node = nearest(model.nodes, X)
-            notify("setup_monitor: No node found at $(monitor.filter). Picking the nearest at $(monitor.node.coord)")
-        else
-            monitor.node = nodes[1]
-        end
-        return
-    end
-
-    if filter isa Integer
-        monitor.node = model.elems.nodes[filter]
-        return
-    end
-    nodes = model.elems.nodes[filter]
-    n = length(nodes)
-    n == 0 && warn("setup_monitor!: No nodes found for filter expression: $(monitor.filter)")
-    n >  1 && notify("setup_monitor!: More than one node match filter expression: $(monitor.filter)")
-    n >= 1 && (monitor.node = nodes[1])
-    return nothing
+    setup_monitor!(model, model.nodes, filter, monitor, :node, singleitem=true)
 end
 
 
 function update_monitor!(monitor::NodeMonitor, model)
-    isdefined(monitor, :node) || return success()
+    monitor.node === nothing && return success()
 
     for expr in monitor.expr.args
         state = node_vals(monitor.node) 
@@ -221,13 +222,14 @@ end
 
 
 # Monitor for a group of ips
-
+# ==========================
 
 mutable struct IpGroupMonitor<:AbstractMonitor
     expr    ::Expr
     vals    ::OrderedDict
     filename::String
     filter  ::Union{Symbol,String,Expr,Symbolic}
+    label   ::String
     table   ::DataTable
     ips     ::Array{Ip,1}
 
@@ -236,15 +238,13 @@ mutable struct IpGroupMonitor<:AbstractMonitor
             expr = :($expr,)
         end
 
-        return new(expr, OrderedDict(), filename, :(), DataTable(), [])
+        return new(expr, OrderedDict(), filename, :(), "", DataTable(), [])
     end
 end
 
 
 function setup_monitor!(model, filter, monitor::IpGroupMonitor)
-    monitor.filter = filter
-    monitor.ips = model.elems.ips[monitor.filter]
-    length(monitor.ips)==0 && warn("setup_monitor!: No ips found for filter expression: ", monitor.filter)
+    setup_monitor!(model, model.elems.ips, filter, monitor, :ip, singleitem=false)
 end
 
 
@@ -278,8 +278,8 @@ function update_monitor!(monitor::IpGroupMonitor, model)
 end
 
 
-# Logger for the sum of nodes
-
+# Monitor for the sum of nodes
+# ============================
 
 """
     $(TYPEDEF)
@@ -291,6 +291,7 @@ mutable struct NodeSumMonitor<:AbstractMonitor
     vals     ::OrderedDict # current values
     filename ::String
     filter   ::Union{Symbol,String,Expr,Symbolic}
+    label    ::String
     table    ::DataTable
     nodes    ::Array{Node,1}
     stopexpr ::Expr
@@ -327,28 +328,23 @@ mutable struct NodeSumMonitor<:AbstractMonitor
             stop = :($stop,)
         end
 
-        return new(expr, OrderedDict(), filename, :(), DataTable(), Node[], stop)
+        return new(expr, OrderedDict(), filename, :(), "", DataTable(), Node[], stop)
     end
 end
 
 
 function setup_monitor!(model, filter, monitor::NodeSumMonitor)
-    monitor.filter = filter
-    monitor.nodes = model.nodes[filter]
-    length(monitor.nodes) == 0 && warn("setup_monitor: No nodes found for filter expression: ", monitor.filter)
+    setup_monitor!(model, model.nodes, filter, monitor, :node, singleitem=false)
 
-    available_vars = OrderedSet()
-    for node in monitor.nodes
-        for dof in node.dofs
-            push!(available_vars, dof.name)
-            push!(available_vars, dof.natname)
-        end
-    end
-    hint("NodeSumMonitor: ", replace(string(monitor.expr), " " => ""), " Available data: ", join(available_vars, ", "))
-    # printstyled("available data: ", join(available_vars, ", "), "\n", color=:light_black)
-
+    # available_vars = OrderedSet()
+    # for node in monitor.nodes
+    #     for dof in node.dofs
+    #         push!(available_vars, dof.name)
+    #         push!(available_vars, dof.natname)
+    #     end
+    # end
+    # hint("NodeSumMonitor: ", replace(string(monitor.expr), " " => ""), " Available data: ", join(available_vars, ", "))
 end
-
 
 
 function update_monitor!(monitor::NodeSumMonitor, model)

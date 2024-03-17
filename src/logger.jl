@@ -1,7 +1,7 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 # Log structs and functions
-
+# =========================
 
 abstract type AbstractLogger end
 abstract type SingleLogger<:AbstractLogger end
@@ -11,7 +11,7 @@ abstract type MultiLogger<:AbstractLogger end
 @inline Base.:(=>)(a, b::AbstractLogger) = return (a, b)
 
 # Node logger
-
+# ===========
 
 mutable struct NodeLogger<:SingleLogger
     filename ::String
@@ -49,10 +49,8 @@ function setup_logger!(model, filter, logger::NodeLogger)
     n >  1 && notify("setup_logger: More than one node match filter expression: ", logger.filter)
     n >= 1 && (logger.node = nodes[1])
     logger.filter = filter
+    logger.filename = getfullpath(model.env.outdir, logger.filename)
 
-    if !isabspath(logger.filename) && logger.filename!=""
-        logger.filename = joinpath(model.env.outdir, logger.filename)
-    end
     return nothing
 end
 
@@ -63,16 +61,11 @@ function update_logger!(logger::NodeLogger, model)
     vals = node_vals(logger.node)
     model.env.transient && (vals[:t] = model.env.t)
     push!(logger.table, vals)
-
-    # if logger.filename!="" && flush
-    #     filename = joinpath(model.env.outdir, logger.filename)
-    #     save(logger, filename, quiet=true)
-    # end
 end
 
 
 # Ip logger
-
+# =========
 
 mutable struct IpLogger<:SingleLogger
     filename ::String
@@ -114,9 +107,7 @@ function setup_logger!(model, filter, logger::IpLogger)
     n >  1 && notify("setup_logger: More than one ip match filter expression: $(logger.filter)")
     n >= 1 && (logger.ip = ips[1])
 
-    if !isabspath(logger.filename) && logger.filename!=""
-        logger.filename = joinpath(model.env.outdir, logger.filename)
-    end
+    logger.filename = getfullpath(model.env.outdir, logger.filename)
 
     return nothing
 end
@@ -187,10 +178,8 @@ function setup_logger!(model, filter, logger::FaceLogger)
     logger.faces = model.faces[logger.filter]
     length(logger.faces) == 0 && warn("setup_logger: No faces found for filter expression: ", logger.filter)
     logger.nodes = logger.faces.nodes
+    logger.filename = getfullpath(model.env.outdir, logger.filename)
 
-    if !isabspath(logger.filename) && logger.filename!=""
-        logger.filename = joinpath(model.env.outdir, logger.filename)
-    end
     return nothing
 end
 
@@ -200,10 +189,8 @@ function setup_logger!(model, filter, logger::EdgeLogger)
     logger.edges = model.edges[logger.filter]
     length(logger.edges) == 0 && warn("setup_logger: No edges found for filter expression: ", logger.filter)
     logger.nodes = logger.edges.nodes
+    logger.filename = getfullpath(model.env.outdir, logger.filename)
 
-    if !isabspath(logger.filename) && logger.filename!=""
-        logger.filename = joinpath(model.env.outdir, logger.filename)
-    end
     return nothing
 end
 
@@ -229,11 +216,6 @@ function update_logger!(logger::FacetLogger, model)
     model.env.transient && (vals[:t] = model.env.t)
 
     push!(logger.table, vals)
-
-    # if logger.filename!="" && flush
-    #     filename = joinpath(model.env.outdir, logger.filename)
-    #     save(logger, filename, quiet=true)
-    # end
 end
 
 
@@ -259,9 +241,8 @@ function setup_logger!(model, filter, logger::NodeSumLogger)
     logger.filter = filter
     logger.nodes = model.nodes[filter]
     length(logger.nodes) == 0 && warn("setup_logger: No nodes found for filter expression: ", logger.filter)
-    if !isabspath(logger.filename) && logger.filename!=""
-        logger.filename = joinpath(model.env.outdir, logger.filename)
-    end
+    logger.filename = getfullpath(model.env.outdir, logger.filename)
+
     return nothing
 end
 
@@ -287,16 +268,10 @@ function update_logger!(logger::NodeSumLogger, model)
     model.env.transient && (vals[:t] = model.env.t)
 
     push!(logger.table, vals)
-
-    # if logger.filename!="" && flush
-    #     filename = joinpath(model.env.outdir, logger.filename)
-    #     save(logger, filename, quiet=true)
-    # end
 end
 
 
 # Logger for a group of nodes
-
 
 
 mutable struct NodeGroupLogger<:MultiLogger
@@ -335,10 +310,8 @@ function setup_logger!(model, filter, logger::NodeGroupLogger)
 
     # sort nodes
     sort!(logger.nodes, by=n->sum(n.coord))
-
-    if !isabspath(logger.filename) && logger.filename!=""
-        logger.filename = joinpath(model.env.outdir, logger.filename)
-    end    
+    
+    logger.filename = getfullpath(model.env.outdir, logger.filename)
 end
 
 
@@ -390,9 +363,7 @@ function setup_logger!(model, filter, logger::IpGroupLogger)
     length(logger.ips)==0 && warn("setup_logger: No ips found for filter expression: ", logger.filter)
     sort!(logger.ips, by=ip->sum(ip.coord))
 
-    if !isabspath(logger.filename) && logger.filename!=""
-        logger.filename = joinpath(model.env.outdir, logger.filename)
-    end
+    logger.filename = getfullpath(model.env.outdir, logger.filename)
     return nothing
 end
 
@@ -406,16 +377,11 @@ function update_logger!(logger::IpGroupLogger, model)
     end
 
     push!(logger.book, table)
-
-    # if logger.filename!="" && flush
-    #     filename = joinpath(model.env.outdir, logger.filename)
-    #     save(logger, filename, quiet=true)
-    # end
 end
 
 
 # Logger for a point
-
+# ==================
 
 
 mutable struct PointLogger<:SingleLogger
@@ -444,9 +410,8 @@ function setup_logger!(model, filter, logger::PointLogger)
     logger.elem = elem
     logger.R = inverse_map(elem, X)
 
-    if !isabspath(logger.filename) && logger.filename!=""
-        logger.filename = joinpath(model.env.outdir, logger.filename)
-    end
+    logger.filename = getfullpath(model.env.outdir, logger.filename)
+
     return nothing
 end
 
@@ -464,16 +429,11 @@ function update_logger!(logger::PointLogger, model)
     vals[:out] = model.env.out
     model.env.transient && (vals[:t] = model.env.t)
     push!(logger.table, vals)
-
-    # if logger.filename!="" && flush
-    #     filename = joinpath(model.env.outdir, logger.filename)
-    #     save(logger, filename, quiet=true)
-    # end
 end
 
 
 # Logger for a segment
-
+# ====================
 
 
 mutable struct SegmentLogger<:MultiLogger
@@ -509,9 +469,8 @@ function setup_logger!(model, filter, logger::SegmentLogger)
         push!(logger.Rs, R)
     end
 
-    if !isabspath(logger.filename) && logger.filename!=""
-        logger.filename = joinpath(model.env.outdir, logger.filename)
-    end
+    logger.filename = getfullpath(model.env.outdir, logger.filename)
+
     return nothing
 end
 
@@ -540,20 +499,14 @@ function update_logger!(logger::SegmentLogger, model)
     end
 
     push!(logger.book, table)
-
-    # if logger.filename!="" && flush
-    #     filename = joinpath(model.env.outdir, logger.filename)
-    #     save(logger, filename, quiet=true)
-    # end
 end
 
 
 # Functions to save loggers
 
-function save(logger::AbstractLogger, filename::String; quiet=false)
-    if isdefined(logger, :table)
-        save(logger.table, filename, quiet=quiet)
-    else
-        save(logger.book, filename, quiet=quiet)
-    end
+function save(logger::SingleLogger, filename::String; quiet=false)
+    save(logger.table, filename, quiet=quiet)
+end
+function save(logger::MultiLogger, filename::String; quiet=false)
+    save(logger.book, filename, quiet=quiet)
 end
