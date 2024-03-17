@@ -9,18 +9,13 @@ A type that represents a finite element node.
 $(TYPEDFIELDS)
 """
 mutable struct Node<:AbstractPoint
-    "identification number"
     id     ::Int
-    "coordinates vector"
     coord  ::Vec3
-    "string tag used to group nodes"
     tag    ::String
-    "array of degrees of freedom"
     dofs   ::Array{Dof,1}
-    "dictionary of degrees of freedom"
     dofdict::OrderedDict{Symbol,Dof}
-    # "elements that share the node"
-    # elems  ::Array{AbstractCell,1}
+    vals   ::OrderedDict{Symbol,Float64}
+    # elems  ::Array{AbstractCell,1} # "elements that share the node"
 
     @doc """
         $(TYPEDSIGNATURES)
@@ -33,6 +28,7 @@ mutable struct Node<:AbstractPoint
         this.coord   = Vec3()
         this.dofs    = Dof[]
         this.dofdict = OrderedDict{Symbol,Dof}()
+        this.vals    = OrderedDict{Symbol,Float64}()
         # this.elems   = []
         return this
     end
