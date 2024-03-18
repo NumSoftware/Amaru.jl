@@ -268,21 +268,21 @@ end
 
 export addstage!
 
-"""
-    $(TYPEDSIGNATURES)
+addstage!_params = [
+    FunInfo(:addstage!, "Add a stage to a FEModel instance"),
+    ArgInfo(:model, "A FEModel instance"),
+    ArgInfo(:bcs, "Array of boundary conditions"),
+    KwArgInfo(:nincs, "Number of increments", 1),
+    KwArgInfo(:nouts, "Number of output files", 0),
+    KwArgInfo(:tspan, "Time span", 0.0),
+    KwArgInfo(:toactivate, "Array of elements to activate", Element[]),
+    KwArgInfo(:todeactivate, "Array of elements to deactivate", Element[]),
+]
+@doc docstring(addstage!_params) addstage!
 
-Adds an stage to the current finite element `model` with the corresponding boundary conditions 
-`bcs`. The number of increments `nincs` and the number of output files `nouts` can be specified.
-`nouts` should be equal to or a multiple of `nincs`. In transient analyses `tspan` represents the simulated time span.
-"""
-function addstage!(model::Model, bcs::Array;
-    nincs   :: Int     = 1,
-    nouts   :: Int     = 0,
-    tspan   :: Number  = 0.0,
-    toactivate:: Array{<:Element,1}=Element[],
-    todeactivate:: Array{<:Element,1}=Element[])
-    
-    stage = Stage(bcs; nincs, nouts, tspan, toactivate, todeactivate)
+function addstage!(model::Model, bcs::Array; kwargs...)
+    A = checkargs([model, bcs], kwargs, addstage!_params)
+    stage = Stage(A.bcs; A.nincs, A.nouts, A.tspan, A.toactivate, A.todeactivate)
     stage.id = length(model.stages) + 1
     push!(model.stages, stage)
 end

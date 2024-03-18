@@ -1,18 +1,19 @@
+# This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-mesh_geo_args = [
-    FunInfo( :Mesh, "Creates a `Mesh` structure from a `GeoModel` object.", ""),
-    ArgInfo( :size, "Default cell size (gmsh)", 0.1),
-    ArgInfo( :quadratic, "Flag for quadratic cells (gmsh)", false),
-    ArgInfo( :algorithm, "Algorithm for triangulation (gmsh)", :delaunay),
-    ArgInfo( :recombine, "Flag for cell recombination (gmsh)", false),
-    ArgInfo( :quiet, "Flag for quiet run", false),
+Mesh_Geo_params = [
+    FunInfo(:Mesh, "Creates a `Mesh` structure from a `GeoModel` object."),
+    ArgInfo(:geo, "GeoModel object"),
+    KwArgInfo(:size, "Characteristic length for meshing", 0.1),
+    KwArgInfo(:quadratic, "Flag for quadratic cells (gmsh)", false),
+    KwArgInfo(:algorithm, "Algorithm for triangulation (gmsh)", :delaunay),
+    KwArgInfo(:recombine, "Flag for cell recombination (gmsh)", false),
+    KwArgInfo(:quiet, "Flag for quiet run", false),
 ]
-@doc make_doc(mesh_geo_args) Mesh
+@doc docstring(Mesh_Geo_params) Mesh(geo::GeoModel; kwargs...)
 
 
-# function Mesh(geo::GeoModel; recombine=false, size=0.1, quadratic=false, quiet=false, algorithm::Symbol=:delaunay)
-function Mesh(geo::GeoModel; args...)
-    args = checkargs(args, mesh_geo_args)
+function Mesh(geo::GeoModel; kwargs...)
+    args = checkargs([geo], kwargs, Mesh_Geo_params)
     quiet = args.quiet
 
     # check for blocks

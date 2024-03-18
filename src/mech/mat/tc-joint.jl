@@ -20,6 +20,24 @@ mutable struct TCJointState<:IpState
     end
 end
 
+
+TCJoint_params = [
+    FunInfo( :TCJoint, "Creates a `TCJoint` material model for cohesive elements."),
+    KwArgInfo( :E, "Young modulus", cond=:(E>0)),
+    KwArgInfo( :nu, "Poisson ratio", cond=:(0<=nu<0.5)),
+    KwArgInfo( :fc, "Compressive strength", cond=:(fc<0)),
+    KwArgInfo( :ft, "Tensile strength", cond=:(ft>0)),
+    KwArgInfo( :zeta, "Joint elastic stiffness factor", cond=:(zeta>0)),
+    KwArgInfo( :alpha, "Failure surface shape", 1.5, cond=:(alpha>0.5)),
+    KwArgInfo( :gamma, "Failure surface minimum size", 0.1, cond=:(gamma>=0)),
+    KwArgInfo( :theta, "Failure surface shrinking rate", 1.5, cond=:(theta>=0)),
+    KwArgInfo( :wc, "Critical crack opening", 0.0, cond=:(wc>=0)),
+    KwArgInfo( :GF, "Fracture energy", 0.0, cond=:(GF>=0)),
+    KwArgInfo( :softmodel, "Softening model", :hordijk, values=(:linear, :bilinear, :hordijk, :soft, :custom), type=Symbol),
+    KwArgInfo( :softcurve, "Softening curve", zeros(0,0), type=Array),
+]
+@doc docstring(TCJoint_params) TCJoint
+
 mutable struct TCJoint<:Material
     E ::Float64       # Young's modulus
     ν ::Float64       # Poisson ratio
@@ -35,7 +53,7 @@ mutable struct TCJoint<:Material
     βini::Float64     # initial curvature size
 
     function TCJoint(; args...)
-        args = checkargs(args, func_params(TCJoint))
+        args = checkargs([], args, TCJoint_params)
 
         wc = args.wc
         softmodel = args.softmodel
@@ -83,23 +101,6 @@ mutable struct TCJoint<:Material
 end
 
 
-func_params(::Type{TCJoint}) = [
-    FunInfo( :TCJoint, "Creates a `TCJoint` material model.", ""),
-    ArgInfo( :E, "Young modulus", condition=:(E>0)),
-    ArgInfo( :nu, "Poisson ratio", condition=:(0<=nu<0.5)),
-    ArgInfo( :fc, "Compressive strength", condition=:(fc<0)),
-    ArgInfo( :ft, "Tensile strength", condition=:(ft>0)),
-    ArgInfo( :zeta, "Joint elastic stiffness factgor", condition=:(zeta>0)),
-    ArgInfo( :alpha, "Failure surface shape", 1.5, condition=:(alpha>0.5)),
-    ArgInfo( :gamma, "Failure surface minimum size", 0.1, condition=:(gamma>=0)),
-    ArgInfo( :theta, "Failure surface reduction speed", 1.5, condition=:(theta>=0)),
-    ArgInfo( :wc, "Critical crack opening", 0.0, condition=:(wc>=0)),
-    ArgInfo( :GF, "Fracture energy", 0.0, condition=:(GF>=0)),
-    ArgInfo( :Gf, "Fracture energy fraction for the bilinear softnening curve", 0.0, condition=:(Gf>=0)),
-    ArgInfo( :softmodel, "Softening model", :hordijk, values=(:linear, :bilinear, :hordijk, :soft, :custom), type=Symbol),
-    ArgInfo( :softcurve, "Softening curve", zeros(0,0), type=Array),
-]
-@doc make_doc(func_params(TCJoint)) TCJoint
 
 
 function paramsdict(mat::TCJoint)

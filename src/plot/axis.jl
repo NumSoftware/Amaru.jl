@@ -40,21 +40,21 @@ mutable struct Axis<:ChartComponent
 end
 
 func_params(::Type{Axis}) = [
-    FunInfo( :Axis, "Creates an instance of an `Axis`.", ""),
-    ArgInfo( :direction, "Axis direction", :horizontal, values=(:horizontal, :vertical) ),
-    ArgInfo( :location, "Axis location", :none, values=(:none, :left, :right, :top, :bottom) ),
-    ArgInfo( :limits, "Axis limit values", [0.0,0.0], length=2 ),
-    ArgInfo( :label, "Axis label", "", type=AbstractString ),
-    ArgInfo( :font, "Font name", "NewComputerModern", type=AbstractString),
-    ArgInfo( :fontsize, "Font size", 7.0, condition=:(fontsize>0)),
-    ArgInfo( :ticks, "Axis tick values", Float64[], type=AbstractArray ),
-    ArgInfo( :ticklabels, "Axis tick labels", String[], type=AbstractArray ),
-    ArgInfo( :ticklength, "Axis tick length", 3 ),
-    ArgInfo( :bins, "Number of bins", 6 ),
-    ArgInfo( :mult, "Axis values multiplier", 1.0 ),
-    ArgInfo( :innersep, "Axis inner pad", 3 ),
+    FunInfo( :Axis, "Creates an instance of an `Axis`."),
+    KwArgInfo( :direction, "Axis direction", :horizontal, values=(:horizontal, :vertical) ),
+    KwArgInfo( :location, "Axis location", :none, values=(:none, :left, :right, :top, :bottom) ),
+    KwArgInfo( :limits, "Axis limit values", [0.0,0.0], length=2 ),
+    KwArgInfo( :label, "Axis label", "", type=AbstractString ),
+    KwArgInfo( :font, "Font name", "NewComputerModern", type=AbstractString),
+    KwArgInfo( :fontsize, "Font size", 7.0, cond=:(fontsize>0)),
+    KwArgInfo( :ticks, "Axis tick values", Float64[], type=AbstractArray ),
+    KwArgInfo( :ticklabels, "Axis tick labels", String[], type=AbstractArray ),
+    KwArgInfo( :ticklength, "Axis tick length", 3 ),
+    KwArgInfo( :bins, "Number of bins", 6 ),
+    KwArgInfo( :mult, "Axis values multiplier", 1.0 ),
+    KwArgInfo( :innersep, "Axis inner pad", 3 ),
 ]
-@doc make_doc(func_params(Axis)) Axis()
+@doc docstring(func_params(Axis)) Axis()
 
 
 function get_bin_length(vinf, vsup, n)

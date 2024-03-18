@@ -2,22 +2,24 @@
 
 export ThermoShell
 
+
+ThermoShell_params = [
+    FunInfo(:ThermoShell, "A shell finite element for thermal analyses"),
+    KwArgInfo(:rho, "Density", 0.0, cond=:(rho>=0.0)),
+    KwArgInfo(:thickness, "Thickness", cond=:(thickness>0.0))
+]
+@doc docstring(ThermoShell_params) ThermoShell
+
 struct ThermoShellProps<:ElemProperties
     ρ::Float64
     th::Float64
 
     function ThermoShellProps(; args...)
-        args = checkargs(args, arg_rules(ThermoShellProps))
+        args = checkargs(args, ThermoShell_params)
 
         return new(args.rho, args.thickness)
     end
 end
-
-arg_rules(::Type{ThermoShellProps}) = 
-[
-    @arginfo rho rho>=0.0 "Density"
-    @arginfo thickness thickness>0.0 "Thickness"
-]
 
 mutable struct ThermoShell<:Thermomech
     id    ::Int

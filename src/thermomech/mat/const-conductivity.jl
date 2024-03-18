@@ -2,11 +2,12 @@
 
 export ConstConductivity
 
+
 mutable struct ConstConductivityState<:IpState
     env::ModelEnv
     ut::Float64
     QQ::Array{Float64,1}
-    D::Array{Float64,1} #
+    D::Array{Float64,1}
     function ConstConductivityState(env::ModelEnv)
         this = new(env)
         this.ut = 0.0
@@ -17,29 +18,29 @@ mutable struct ConstConductivityState<:IpState
 end
 
 
+ConstConductivity_params = [
+    FunInfo(:ConstConductivity, "Constant thermal conductivity material model"),
+    KwArgInfo(:k, "Conductivity", cond=:(k>=0)),
+    KwArgInfo(:cv, "Specific heat", 0.0, cond=:(cv>=0))
+]
+@doc docstring(ConstConductivity_params) ConstConductivity(; kwargs...)
+
+
 mutable struct ConstConductivity<:Material
     k ::Float64 # thermal conductivity with/m/K
     cv::Float64
 
-    function ConstConductivity(; args...)
-        args = checkargs(args, arg_rules(NLConductivity))
+    function ConstConductivity(; kwargs...)
+        args = checkargs(kwargs, ConstConductivity_params)
         return new(args.k, args.cv)
     end
 end
-
-arg_rules(::Type{ConstConductivity}) =
-[
-    @arginfo k k>=0 "Conductivity"
-    @arginfo cv=0 cv>=0 "Specific heat"
-]
 
 
 # Type of corresponding state structure
 compat_state_type(::Type{ConstConductivity}, ::Type{ThermoSolid}, env::ModelEnv) = ConstConductivityState
 compat_state_type(::Type{ConstConductivity}, ::Type{ThermoShell}, env::ModelEnv) = ConstConductivityState
 
-# Element types that work with this material
-# compat_elem_types(::Type{ConstConductivity}) = (ThermoSolid,)
 
 function calc_cv(mat::ConstConductivity, ut::Float64) # Specific heat
     return mat.cv

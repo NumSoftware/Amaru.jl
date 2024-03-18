@@ -1,10 +1,12 @@
-function mesh_unstructured(geo::GeoModel; args...)
-    args      = checkargs(args, mesh_geo_args)
-    size      = args[:size]
-    quadratic = args[:quadratic]
-    recombine = args[:recombine]
-    algorithm = args[:algorithm]
-    quiet     = args[:quiet]
+# This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
+
+function mesh_unstructured(geo::GeoModel; kwargs...)
+    args      = checkargs([geo], kwargs, Mesh_Geo_params)
+    size      = args.size
+    quadratic = args.quadratic
+    recombine = args.recombine
+    algorithm = args.algorithm
+    quiet     = args.quiet
 
     if !quiet
         nsurfs = length(geo.surfaces)
@@ -16,15 +18,14 @@ function mesh_unstructured(geo::GeoModel; args...)
     gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", 0)
     gmsh.model.add("t1")
-    if geo.size>0
-        gmsh.option.setNumber("Mesh.CharacteristicLengthMin", geo.size)
-        gmsh.option.setNumber("Mesh.CharacteristicLengthMax", geo.size)
-    end
+    # if geo.size>0
+    #     gmsh.option.setNumber("Mesh.CharacteristicLengthMin", geo.size)
+    #     gmsh.option.setNumber("Mesh.CharacteristicLengthMax", geo.size)
+    # end
 
     isvolumemesh = length(geo.volumes)>0
 
     # add points
-    # ndim = 2
     for p in geo.points
         sz = p.size==0 ? size : p.size
         gmsh.model.geo.addPoint(p.coord.x, p.coord.y, p.coord.z, sz, p.id)

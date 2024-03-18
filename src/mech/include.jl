@@ -38,7 +38,7 @@ include("mat/drucker-prager.jl")
 include("mat/von-mises.jl")
 include("mat/mazars.jl")
 include("mat/smeared-crack.jl")
-include("mat/compressible.jl")
+# include("mat/compressible.jl")
 # include("mat/compressible-bulk-v2.jl")
 # include("mat/compressible-bulk-v4.jl")
 include("mat/damageconcrete-solid.jl")
@@ -62,6 +62,9 @@ include("mat/elastic-cook-shell.jl")
 
 # Models for joint elements
 include("mat/elastic-joint.jl")
+
+# Models for cohesive elements
+include("mat/linear-cohesive.jl")
 include("mat/mc-joint.jl")
 include("mat/p-joint.jl")
 include("mat/mmc-joint.jl")

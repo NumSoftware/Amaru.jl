@@ -1,5 +1,4 @@
 using Amaru
-makeplots = false
 
 @runfiles [
          # Static analysis: bulk elements

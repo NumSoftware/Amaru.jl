@@ -97,21 +97,21 @@ end
 
 
 func_params(::Type{TC2Joint}) = [
-    FunInfo( :TC2Joint, "Creates a `TC2Joint` material model.", ""),
-    ArgInfo( :E, "Young modulus", condition=:(E>0)),
-    ArgInfo( :nu, "Poisson ratio", condition=:(0<=nu<0.5)),
-    ArgInfo( :fc, "Compressive strength", condition=:(fc<0)),
-    ArgInfo( :ft, "Tensile strength", condition=:(ft>0)),
-    ArgInfo( :zeta, "Joint elastic stiffness factgor", condition=:(zeta>0)),
-    ArgInfo( :alpha, "Failure surface shape", 1.5, condition=:(alpha>0)),
-    ArgInfo( :gamma, "Failure surface minimum size", 0.1, condition=:(gamma>=0)),
-    ArgInfo( :theta, "Failure surface reduction speed", 1.5, condition=:(theta>=0)),
-    ArgInfo( :wc, "Critical crack opening", 0.0, condition=:(wc>=0)),
-    ArgInfo( :GF, "Fracture energy", 0.0, condition=:(GF>=0)),
-    ArgInfo( :softmodel, "Softening model", :hordijk, values=(:linear, :bilinear, :hordijk, :soft, :custom), type=Symbol),
-    ArgInfo( :softcurve, "Softening curve", zeros(0,0), type=Array),
+    FunInfo( :TC2Joint, "Creates a `TC2Joint` material model."),
+    KwArgInfo( :E, "Young modulus", cond=:(E>0)),
+    KwArgInfo( :nu, "Poisson ratio", cond=:(0<=nu<0.5)),
+    KwArgInfo( :fc, "Compressive strength", cond=:(fc<0)),
+    KwArgInfo( :ft, "Tensile strength", cond=:(ft>0)),
+    KwArgInfo( :zeta, "Joint elastic stiffness factgor", cond=:(zeta>0)),
+    KwArgInfo( :alpha, "Failure surface shape", 1.5, cond=:(alpha>0)),
+    KwArgInfo( :gamma, "Failure surface minimum size", 0.1, cond=:(gamma>=0)),
+    KwArgInfo( :theta, "Failure surface reduction speed", 1.5, cond=:(theta>=0)),
+    KwArgInfo( :wc, "Critical crack opening", 0.0, cond=:(wc>=0)),
+    KwArgInfo( :GF, "Fracture energy", 0.0, cond=:(GF>=0)),
+    KwArgInfo( :softmodel, "Softening model", :hordijk, values=(:linear, :bilinear, :hordijk, :soft, :custom), type=Symbol),
+    KwArgInfo( :softcurve, "Softening curve", zeros(0,0), type=Array),
 ]
-@doc make_doc(func_params(TC2Joint)) TC2Joint
+@doc docstring(func_params(TC2Joint)) TC2Joint
 
 
 function paramsdict(mat::TC2Joint)
@@ -359,7 +359,6 @@ function calcD(mat::TC2Joint, state::TC2JointState)
             Dep = [   kn - kn^2*r[1]*dfdσ[1]/den    -kn*ks*r[1]*dfdσ[2]/den      
                      -kn*ks*r[2]*dfdσ[1]/den         ks - ks^2*r[2]*dfdσ[2]/den  ]
         end
-
         return Dep
     end
 end
@@ -492,6 +491,7 @@ function update_state!(mat::TC2Joint, state::TC2JointState, Δw::Array{Float64,1
     if isnan(Δw[1]) || isnan(Δw[2])
         alert("TC2Joint: Invalid value for joint displacement: Δw = $Δw")
     end
+    
 
     # σ trial and F trial
     σtr  = state.σ + De*Δw
@@ -526,23 +526,26 @@ end
 
 function ip_state_vals(mat::TC2Joint, state::TC2JointState)
     ndim = state.env.ndim
+    σmax = calc_σmax(mat, state, state.up)
     if ndim == 3
        return Dict(
           :jw1 => state.w[1],
-          :jw2 => state.w[2],
-          :jw3 => state.w[3],
+        #   :jw2 => state.w[2],
+        #   :jw3 => state.w[3],
           :js1 => state.σ[1],
           :js2 => state.σ[2],
           :js3 => state.σ[3],
-          :jup => state.up
+          :jup => state.up,
+          :jsmax => σmax
           )
     else
         return Dict(
           :jw1 => state.w[1],
-          :jw2 => state.w[2],
+        #   :jw2 => state.w[2],
           :js1 => state.σ[1],
           :js2 => state.σ[2],
-          :jup => state.up
+          :jup => state.up,
+          :jsmax => σmax
           )
     end
 end

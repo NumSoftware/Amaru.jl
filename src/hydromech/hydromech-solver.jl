@@ -158,17 +158,19 @@ function solve!(model::Model, ana::HydromechAnalysis; args...)
 end
 
 hm_stage_solver_params = [
-    FunInfo( :mech_stage_solver!, "Solves a load stage of a hydromechanical analysis.", "M::Model, S::Stage"),
-    ArgInfo( :tol, "Force tolerance", 0.01, condition=:(tol>0)),
-    ArgInfo( :dTmin, "Relative minimum increment size", 1e-7, condition=:(0<dTmin<1) ),
-    ArgInfo( :dTmax, "Relative maximum increment size", 0.1, condition=:(0<dTmax<1) ),
-    ArgInfo( :rspan, "Relative span to residue reapplication", 0.01, condition=:(0<rspan<1) ),
-    ArgInfo( :scheme, "Global solving scheme", :FE, values=(:FE, :ME, :BE, :Ralston) ),
-    ArgInfo( :maxits, "Maximum number of NR iterations", 5, condition=:(1<=maxits<=10)),
-    ArgInfo( :autoinc, "Flag to set auto-increments", false),
-    ArgInfo( :quiet, "Flat to set silent mode", false),
+    FunInfo(:mech_stage_solver!, "Solves a load stage of a hydromechanical analysis."),
+    ArgInfo(:model, "Model object"),
+    ArgInfo(:stage, "Stage object"),
+    KwArgInfo(:tol, "Force tolerance", 0.01, cond=:(tol>0)),
+    KwArgInfo(:dTmin, "Relative minimum increment size", 1e-7, cond=:(0<dTmin<1) ),
+    KwArgInfo(:dTmax, "Relative maximum increment size", 0.1, cond=:(0<dTmax<1) ),
+    KwArgInfo(:rspan, "Relative span to residue reapplication", 0.01, cond=:(0<rspan<1) ),
+    KwArgInfo(:scheme, "Global solving scheme", :FE, values=(:FE, :ME, :BE, :Ralston) ),
+    KwArgInfo(:maxits, "Maximum number of NR iterations", 5, cond=:(1<=maxits<=10)),
+    KwArgInfo(:autoinc, "Flag to set auto-increments", false),
+    KwArgInfo(:quiet, "Flat to set silent mode", false),
 ]
-@doc make_doc(hm_stage_solver_params) hm_stage_solver!()
+@doc docstring(hm_stage_solver_params) hm_stage_solver!()
 
 function hm_stage_solver!(model::Model, stage::Stage; args...)
     args = checkargs(args, mech_stage_solver_params)

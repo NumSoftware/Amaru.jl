@@ -1,15 +1,15 @@
 export VonMises
 
 
-"""
-    VonMises
+VonMisses_params = [
+    FunInfo(:VonMises, "Von Mises material model for bulk, beam and truss elements"),
+    KwArgInfo(:E, "Young modulus", cond=:(E>0.0)),
+    KwArgInfo(:nu, "Poisson ratio", 0.0, cond=:(0.0<=nu<0.5)),
+    KwArgInfo(:fy, "Yield stress", cond=:(fy>=0.0)),
+    KwArgInfo(:H, "Hardening modulus", 0.0, cond=:(H>=0.0)),
+    KwArgInfo(:rho, "Density", 0.0, cond=:(rho>=0.0))
+]
 
-A type for linear elastic materials with Von Mises failure criterion.
-
-# Fields
-
-$(TYPEDFIELDS)
-"""
 mutable struct VonMises<:Material
     E ::Float64
     ν ::Float64
@@ -21,32 +21,12 @@ mutable struct VonMises<:Material
         return VonMises(;prms...)
     end
 
-    @doc """
-        $(SIGNATURES)
-
-    Creates an `VonMises` material type
-
-    # Arguments
-    - `E`: Young modulus
-    - `nu`: Poisson ratio
-    - `fy`: Yielding stress
-    - `H`: Hardening parameter
-    """
     function VonMises(; args...)
-        args = checkargs(args, arg_rules(VonMises))       
+        args = checkargs(args, VonMisses_params)
 
         return new(args.E, args.nu, args.fy, args.H, args.rho)
     end
 end
-
-arg_rules(::Type{VonMises}) = 
-[
-    @arginfo E E>0.0 "Young modulus"
-    @arginfo nu=0.0 0.0<=nu<0.5 "Poisson ratio"
-    @arginfo fy fy>=0.0 "Yield stress"
-    @arginfo H=0.0 H>=0.0 "Hardening modulus"
-    @arginfo rho=0.0 rho>=0.0 "Density"
-]
 
 
 mutable struct VonMisesState<:IpState

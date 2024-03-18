@@ -21,6 +21,16 @@ mutable struct ElasticShellThermoState<:IpState
 end
 
 
+ElasticShellThermo_params = [
+    FunInfo(:ElasticShellThermo, "A material model for elastic shells with thermal effects"),
+    KwArgInfo(:E, "Young modulus", cond=:(E>0.0)),
+    KwArgInfo(:nu, "Poisson ratio", 0.0, cond=:(0.0<=nu<0.5)),
+    KwArgInfo(:k, "Conductivity", cond=:(k>=0)),
+    KwArgInfo(:cv, "Specific heat", 0.0, cond=:(cv>=0)),
+    KwArgInfo(:alpha, "Thermal expansion coefficient", cond=:(alpha>=0))
+]
+@doc docstring(ElasticShellThermo_params) ElasticShellThermo
+
 mutable struct ElasticShellThermo<:Material
     E ::Float64 # Young's Modulus kN/m2
     ν::Float64 # Poisson coefficient
@@ -29,20 +39,11 @@ mutable struct ElasticShellThermo<:Material
     α ::Float64 # thermal expansion coefficient  1/K or 1/°C
 
     function ElasticShellThermo(; args...)
-        args = checkargs(args, arg_rules(ElasticShellThermo))
+        args = checkargs(args, ElasticShellThermo_params)
         
         return new(args.E, args.nu, args.k, args.cv, args.alpha)
     end
 end
-
-arg_rules(::Type{ElasticShellThermo}) =
-[
-    @arginfo E E>0.0 "Young modulus"
-    @arginfo nu=0.0 0.0<=nu<0.5 "Poisson ratio"
-    @arginfo k k>=0 "Conductivity"
-    @arginfo cv=0 cv>=0 "Specific heat"
-    @arginfo alpha alpha>=0 "Thermal expansion coefficient"
-]
 
 
 # Type of corresponding state structure

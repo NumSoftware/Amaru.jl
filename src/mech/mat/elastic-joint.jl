@@ -16,58 +16,23 @@ mutable struct JointState<:IpState
     end
 end
 
+ElasticJoint_params = [
+    FunInfo(:ElasticJoint, "Consitutive model for joints with linear elastic behavior."),
+    ArgInfo(:kn, "Normal stiffness per area", cond=:(kn>0)),
+    ArgInfo(:ks, "Shear stiffness per area", cond=:(ks>=0)),
+]
+@doc docstring(ElasticJoint_params) ElasticJoint(; kwargs...)
+
 mutable struct ElasticJoint<:Material
-    E::Float64 # Young modulus from bulk material
-    ν::Float64 # Poisson ratio from bulk material
     kn::Float64 # Normal stiffness (used only if E and ν are NaN)
     ks::Float64 # Shear stiffness (used only if E and ν are NaN)
-    ζ::Float64  # elastic displacement scale factor (formerly α)
 
-    function ElasticJoint(; params...)
-        names = (E="Young modulus", nu="Poisson ratio", kn="Normal stiffness per area", ks="shear stiffness per area", 
-        zeta="elastic displacement scale factor")
-        
-        required = (:zeta,)
-        @checkmissing params required names
-
-        default = (E=NaN, nu=NaN, kn=NaN, ks=NaN)
-        params  = merge(default, params)
-
-        E       = params.E
-        nu      = params.nu
-        kn      = params.kn
-        ks      = params.ks
-        zeta      = params.zeta
-
-        # kn and ks are used only if E and ν are NaN
-        if isnan(kn*ks)
-            @check E>0.0    
-            @check 0<=nu<0.5
-        else
-            @check kn>0.0    
-            @check ks>0.0    
-        end
-        @check zeta>0
-
-        this = new(E, nu, kn, ks, zeta)
+    function ElasticJoint(; kwargs...)
+        args = checkargs(kwargs, ElasticJoint_params)
+        this = new(args.E, args.nu, args.kn, args.ks, args.zeta)
         return this
     end
-
 end
-
-# mat_arguments(::Type{ElasticJoint})  = [ 
-            # @arg E=NaN E>0 "UM"
-            # @arg nu=NaN nu>0 "UM"
-            # @arg kn=NaN kn>0 "UM"
-            # @arg ks=NaN ks>0 "UM"
-            # @argcond ks*ks>0
-            # @argopt (E, nu) (kn, ks) 
-#             Arg(:E, "Young modulus", :(E>0), true),
-#             Arg(:nu, "Poisson ratio", :(nu>0), true),
-#             Arg(:kn, "Normal stiffness per area", :(kn>0), true),
-#             ArgOpt((:E,:nu), (:kn,:ks))
-#             ArgOpt(:kn,:E)
-#         ]
 
 
 # Type of corresponding state structure
@@ -76,14 +41,8 @@ compat_state_type(::Type{ElasticJoint}, ::Type{MechJoint}, env::ModelEnv) = Join
 
 function calcD(mat::ElasticJoint, state::JointState)
     ndim = state.env.ndim
-    if isnan(mat.kn*mat.ks)
-        G  = mat.E/(1.0+mat.ν)/2.0
-        kn = mat.E*mat.ζ/state.h
-        ks =     G*mat.ζ/state.h
-    else
-        kn = mat.kn
-        ks = mat.ks
-    end
+    kn   = mat.kn
+    ks   = mat.ks
 
     if ndim==2
         return [  kn  0.0

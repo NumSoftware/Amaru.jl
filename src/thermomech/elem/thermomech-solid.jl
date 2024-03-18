@@ -2,31 +2,25 @@
 
 export TMSolid
 
+TMSolid_params = [
+    FunInfo(:TMSolid, "Thermo-mechanical solid element."),
+    KwArgInfo(:rho, "Density", cond=:(rho>=0)),
+    KwArgInfo(:gamma, "Specific weight", 0.0, cond=:(gamma>=0)),
+    KwArgInfo(:cv, "Heat capacity", cond=:(cv>0)),
+    KwArgInfo(:alpha, "Thermal expansion coefficient", cond=:(0<=alpha<=1)),
+]
+@doc docstring(TMSolid_params) TMSolid(; kwargs...)
+
 struct TMSolidProps<:ElemProperties
     ρ::Float64
     γ::Float64
     cv::Float64
     α ::Float64 # thermal expansion coefficient  1/K or 1/°C
 
-    function TMSolidProps(; props...)
-        names = (rho="Density", gamma="Specific weight", cv="Heat capacity", alpha="Thermal expansion coefficient")
-        required = (:cv, :alpha)
-        @checkmissing props required names
-
-        default = (rho=0.0, gamma=0.0)
-        props  = merge(default, props)
-
-        cv  = props.cv
-        rho = props.rho
-        gamma = props.gamma
-        alpha = props.alpha
-
-        @check cv>0.0
-        @check rho>=0.0
-        @check gamma>=0.0
-        @check 0<=alpha<=1
-
-        return new(rho, gamma, cv, alpha)
+    function TMSolidProps(; kwargs...)
+        args = checkargs(kwargs, TMSolid_params)
+        this = new(args.rho, args.gamma, args.cv, args.alpha)
+        return this
     end    
 end
 
@@ -37,8 +31,8 @@ mutable struct TMSolid<:Thermomech
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    mat::Material
-    props::TMSolidProps
+    mat   ::Material
+    props ::TMSolidProps
     active::Bool
     linked_elems::Array{Element,1}
     env::ModelEnv
@@ -47,6 +41,7 @@ mutable struct TMSolid<:Thermomech
         return new()
     end
 end
+
 
 compat_shape_family(::Type{TMSolid}) = BULKCELL
 compat_elem_props(::Type{TMSolid}) = TMSolidProps
@@ -67,104 +62,26 @@ function elem_config_dofs(elem::TMSolid)
     end
 end
 
+
 function distributed_bc(elem::TMSolid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
-    ndim  = elem.env.ndim
-    th    = elem.env.ana.thickness
-    suitable_keys = (:tx, :ty, :tz, :tn, :tq)
+    return mech_boundary_forces(elem, facet, key, val)
+end
 
-    # Check keys
-    key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
-    (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
 
-    target = facet!=nothing ? facet : elem
-    nodes  = target.nodes
-    nnodes = length(nodes)
-    t      = elem.env.t
+function body_c(elem::TMSolid, key::Symbol, val::Union{Real,Symbol,Expr})
+    return mech_solid_body_forces(elem, key, val)
+end
 
-    # Force boundary condition
-    nnodes = length(nodes)
 
-    # Calculate the target coordinates matrix
-    C = getcoords(nodes, ndim)
+@inline function elem_map_u(elem::TMSolid)
+    keys =(:ux, :uy, :uz)[1:elem.env.ndim]
+    return [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
+end
 
-    # Vector with values to apply
-    Q = zeros(ndim)
 
-    # Calculate the nodal values
-    F     = zeros(nnodes, ndim)
-    shape = target.shape
-    ips   = get_ip_coords(shape)
-
-    if key == :tq # energy per area
-        for i in 1:size(ips,1)
-            R = ips[i].coord
-            w = ips[i].w
-            N = shape.func(R)
-            D = shape.deriv(R)
-            J = C'*D
-            nJ = norm2(J)
-            X = C'*N
-            if ndim==2
-                x, y = X
-                vip = evaluate(val, t=t, x=x, y=y)
-            else
-                x, y, z = X
-                vip = evaluate(val, t=t, x=x, y=y, z=z)
-            end
-            coef = vip*nJ*w
-            F .+= N*coef # F is a vector
-        end
-
-        # generate a map
-        map  = [ node.dofdict[:ut].eq_id for node in target.nodes ]
-
-        return F, map
-    end
-
-    for i in 1:size(ips,1)
-        R = ips[i].coord
-        w = ips[i].w
-        N = shape.func(R)
-        D = shape.deriv(R)
-        J = C'*D
-        X = C'*N
-        if ndim==2
-            x, y = X
-            vip = evaluate(val, t=t, x=x, y=y)
-            if key == :tx
-                Q = [vip, 0.0]
-            elseif key == :ty
-                Q = [0.0, vip]
-            elseif key == :tn
-                n = [J[1,2], -J[1,1]]
-                Q = vip*normalize(n)
-            end
-            if elem.env.ana.stressmodel=="axisymmetric"
-                th = 2*pi*X[1]
-            end
-        else
-            x, y, z = X
-            vip = evaluate(val, t=t, x=x, y=y, z=z)
-            if key == :tx
-                Q = [vip, 0.0, 0.0]
-            elseif key == :ty
-                Q = [0.0, vip, 0.0]
-            elseif key == :tz
-                Q = [0.0, 0.0, vip]
-            elseif key == :tn && ndim==3
-                n = cross(J[1,:], J[2,:])
-                Q = vip*normalize(n)
-            end
-        end
-        coef = norm2(J)*w*th
-        @mul F += coef*N*Q' # F is a matrix
-    end
-
-    # generate a map
-    keys = (:ux, :uy, :uz)[1:ndim]
-    map  = [ node.dofdict[key].eq_id for node in target.nodes for key in keys ]
-
-    return reshape(F', nnodes*ndim), map
+@inline function elem_map_t(elem::TMSolid)
+    nbnodes = elem.shape.basic_shape.npoints
+    return [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nbnodes] ]
 end
 
 
@@ -203,10 +120,7 @@ function elem_stiffness(elem::TMSolid)
         @mul K += coef*Bu'*DBu
     end
 
-    # map
-    keys = (:ux, :uy, :uz)[1:ndim]
-    map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-
+    map = elem_map_u(elem)
     return K, map, map
 end
 
@@ -220,7 +134,6 @@ function elem_coupling_matrix(elem::TMSolid)
     E = elem.mat.E
     ν = elem.mat.ν
     α = elem.props.α
-
     C   = getcoords(elem)
     Bu  = zeros(6, nnodes*ndim)
     Cut = zeros(nnodes*ndim, nbnodes) # u-t coupling matrix
@@ -252,10 +165,9 @@ function elem_coupling_matrix(elem::TMSolid)
         mNt   = m*Nt'
         @mul Cut -= coef*Bu'*mNt
     end
-    # map
-    keys = (:ux, :uy, :uz)[1:ndim]
-    map_u = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-    map_t = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nbnodes] ]
+    
+    map_u = elem_map_u(elem)
+    map_t = elem_map_t(elem)
 
     return Cut, map_u, map_t
 end
@@ -291,9 +203,7 @@ function elem_conductivity_matrix(elem::TMSolid)
         @mul H  -= coef*Bt'*KBt
     end
 
-    # map
-    map = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nbnodes] ]
-
+    map = elem_map_t(elem)
     return H, map, map
 end
 
@@ -323,8 +233,7 @@ function elem_mass_matrix(elem::TMSolid)
         M    -= coef*Nt*Nt'
     end
 
-    # map
-    map = [  node.dofdict[:ut].eq_id for node in elem.nodes[1:nbnodes]  ]
+    map = elem_map_t(elem)
 
     return M, map, map
 end
@@ -339,15 +248,14 @@ function update_elem!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
     C       = getcoords(elem)
 
     E = elem.mat.E
-    α = elem.props.α
-    ρ = elem.props.ρ
     ν = elem.mat.ν
+    ρ = elem.props.ρ
+    α = elem.props.α
     cv = elem.props.cv
     β = E*α/(1-2*ν)
 
-    keys   = (:ux, :uy, :uz)[1:ndim]
-    map_u  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-    map_t  = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nbnodes] ]
+    map_u = elem_map_u(elem)
+    map_t = elem_map_t(elem)
 
     dU  = DU[map_u] # nodal displacement increments
     dUt = DU[map_t] # nodal temperature increments
@@ -401,7 +309,6 @@ function update_elem!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
         Δσ, q, status = update_state!(elem.mat, ip.state, Δε, Δut, G, Δt)
         failed(status) && return [dF; dFt], [map_u; map_t], status
 
-
         Δσ -= β*Δut*m # get total stress
         coef = detJ*ip.w*th
         @mul dF += coef*Bu'*Δσ
@@ -422,4 +329,19 @@ function update_elem!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
     end
 
     return [dF; dFt], [map_u; map_t], success()
+end
+
+
+function post_process(elem::TMSolid)
+    # update temperature at non-corner nodes
+    elem.shape==elem.shape.basic_shape && return
+    npoints  = elem.shape.npoints
+    nbpoints = elem.shape.basic_shape.npoints
+    Ut = [ elem.nodes[i].vals[:ut] for i in 1:nbpoints ]
+    C = elem.shape.nat_coords
+    for i in nbpoints+1:npoints
+        R = C[i,:]
+        N = elem.shape.basic_shape.func(R)
+        elem.nodes[i].vals[:ut] = dot(N, Ut)
+    end
 end

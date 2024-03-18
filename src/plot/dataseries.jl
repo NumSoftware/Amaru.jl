@@ -4,6 +4,30 @@ const _line_style_list = [:none, :solid, :dot, :dash, :dashdot]
 const _marker_list = [:none, :circle, :square, :triangle, :utriangle, :cross, :xcross, :diamond, :pentagon, :hexagon, :star]
 
 
+LineSeries_params = [
+    FunInfo(:LineSeries, "Creates a customizable `LineSeries` instance to be used in a `Chart`"),
+    ArgInfo(:X, "Array of x-coordinates"),
+    ArgInfo(:Y, "Array of y-coordinates"),
+    KwArgInfo((:ls, :linestyle), "Line style", :solid, values=_line_style_list),
+    KwArgInfo(:dash, "Dash pattern", Float64[]),
+    KwArgInfo((:linecolor, :lc, :color), "Line linecolor", :default),
+    KwArgInfo((:lw, :lineweight), "Line weight", 0.5, cond=:(lw>0)),
+    KwArgInfo(:marker, "Marker shape", :none,  values=_marker_list),
+    KwArgInfo((:markersize, :ms), "Marker size", 2.5, cond=:(markersize>0)),
+    KwArgInfo((:markercolor, :mc), "Marker color", :white),
+    KwArgInfo((:mscolor, :markerstrokecolor, :msc), "Marker stroke color", :default),
+    KwArgInfo(:label, "Data series label in legend", ""),
+    KwArgInfo(:tag, "Data series tag over line", ""),
+    KwArgInfo(:tagpos, "Tag position", 0.5),
+    KwArgInfo(:tagloc, "Tag location", :top, values=[:bottom, :top, :left, :right]),
+    KwArgInfo((:tagalong, :tagalign), "Sets that the tag will be aligned with the data series", false),
+    KwArgInfo(:x, "x coordinate for a vertical line", nothing),
+    KwArgInfo(:y, "y coordinate for a horizontal line", nothing),
+    KwArgInfo(:order, "Order fo drawing", nothing),
+    ArgCond(:(length(X)==length(Y)), "Length of X and Y arrays must be equal"),
+]
+@doc docstring(LineSeries_params) LineSeries
+
 mutable struct LineSeries<:DataSeries
     X     ::Array
     Y     ::Array
@@ -26,7 +50,7 @@ mutable struct LineSeries<:DataSeries
 
     function LineSeries(X::AbstractArray, Y::AbstractArray; args...)
 
-        args = checkargs(args, func_params(LineSeries), aliens=false)
+        args = checkargs([X, Y], args, LineSeries_params, aliens=false)
 
         if args.linecolor!==:default
             linecolor = get_color(args.linecolor)
@@ -84,26 +108,6 @@ end
 
 const LinePlot = LineSeries
 
-func_params(::Type{LineSeries}) = [
-    FunInfo( :LineSeries, "Creates a customizable `LineSeries` instance.", "X, Y"),
-    ArgInfo( (:ls, :linestyle), "Line style", :solid, values=_line_style_list ),
-    ArgInfo( :dash, "Dash pattern", Float64[] ),
-    ArgInfo( (:linecolor, :lc, :color), "Line linecolor", :default),
-    ArgInfo( (:lw, :lineweight), "Line weight", 0.5, condition=:(lw>0) ),
-    ArgInfo( :marker, "Marker shape", :none,  values=_marker_list ),
-    ArgInfo( (:markersize, :ms), "Marker size", 2.5, condition=:(markersize>0) ),
-    ArgInfo( (:markercolor, :mc), "Marker color", :white ),
-    ArgInfo( (:mscolor, :markerstrokecolor, :msc), "Marker stroke color", :default ),
-    ArgInfo( :label, "Data series label in legend", ""),
-    ArgInfo( :tag, "Data series tag over line", ""),
-    ArgInfo( :tagpos, "Tag position", 0.5),
-    ArgInfo( :tagloc, "Tag location", :top, values=[:bottom, :top, :left, :right]),
-    ArgInfo( (:tagalong, :tagalign), "Sets that the tag will be aligned with the data series", false),
-    ArgInfo( :x, "x coordinate for a vertical line", nothing),
-    ArgInfo( :y, "y coordinate for a horizontal line", nothing),
-    ArgInfo( :order, "Order fo drawing", nothing),
-]
-@doc make_doc(func_params(LineSeries)) LineSeries()
 
 function data2user(c::Chart, x, y)
     Xmin, Ymin, Xmax, Ymax = c.canvas.box
@@ -122,15 +126,6 @@ function configure!(chart::Chart, p::LineSeries)
         p.X = [ xmin, xmax ]
         p.Y = [ p.y, p.y ]
     end
-    # if length(p.dash)==0
-    #     if p.ls==:dash
-    #         p.dash = [4.0, 2.4]*p.lw
-    #     elseif p.ls==:dashdot
-    #         p.dash = [2.0, 1.0, 2.0, 1.0]*p.lw
-    #     elseif p.ls==:dot
-    #         p.dash = [1.0, 1.0]*p.lw
-    #     end
-    # end
 end
 
 function draw!(chart::Chart, cc::CairoContext, p::LineSeries)

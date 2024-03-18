@@ -32,6 +32,7 @@ end
 
 Base.showerror(io::IO, e::PropertyException) = print(io, "PropertyException: ", e.message)
 
+
 macro check(expr, exception=ArgumentError, args...)
     exprs = replace(string(expr), " "=>"")
     vars = getvars(expr)

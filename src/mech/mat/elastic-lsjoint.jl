@@ -1,12 +1,12 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export ElasticRSJoint, ElasticLSJoint
+export ElasticLSJoint, ElasticRSJoint
 
-mutable struct ElasticRSJointState<:IpState
+mutable struct ElasticLSJointState<:IpState
     env::ModelEnv
     σ ::Array{Float64,1}
     u ::Array{Float64,1}
-    function ElasticRSJointState(env::ModelEnv)
+    function ElasticLSJointState(env::ModelEnv)
         this = new(env)
         this.σ = zeros(env.ndim)
         this.u = zeros(env.ndim)
@@ -14,41 +14,32 @@ mutable struct ElasticRSJointState<:IpState
     end
 end
 
-mutable struct ElasticRSJoint<:Material
+ElasticLSJoint_params = [
+    FunInfo(:ElasticLSJoint, "Elastic material for a rod-solid interface."),
+    KwArgInfo(:ks, "Shear stiffness", cond=:(ks>=0)),
+    KwArgInfo(:kn, "Normal stiffness", cond=:(kn>0)),
+]
+@doc docstring(ElasticLSJoint_params) ElasticLSJoint(; kwargs...)
+
+mutable struct ElasticLSJoint<:Material
     ks::Float64
     kn::Float64
 
-    function ElasticRSJoint(prms::Dict{Symbol,Float64})
-        return  ElasticRSJoint(;prms...)
-    end
-
-    function ElasticRSJoint(; params...)
-        names = (kn="Normal stiffness", ks="Shear stiffness")
-        required = keys(names)
-        @checkmissing params required names
-        
-        params = (; params...)
-        kn     = params.kn
-        ks     = params.ks
-
-        @check ks>=0
-        @check kn>=0
-
-        return new(ks, kn)
+    function ElasticLSJoint(; kwargs...)
+        args = checkargs(kwargs, ElasticLSJoint_params)
+        this = new(args.ks, args.kn)
+        return this
     end
 end
 
-const ElasticLSJoint = ElasticRSJoint
+const ElasticRSJoint = ElasticLSJoint
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{ElasticRSJoint}, ::Type{MechRSJoint}, env::ModelEnv) = ElasticRSJointState
-
-# Element types that work with this material
-# compat_elem_types(::Type{ElasticRSJoint}) = (MechRSJoint,)
+compat_state_type(::Type{ElasticLSJoint}, ::Type{MechRSJoint}, env::ModelEnv) = ElasticLSJointState
 
 
-function calcD(mat::ElasticRSJoint, state::ElasticRSJointState)
+function calcD(mat::ElasticLSJoint, state::ElasticLSJointState)
     ks = mat.ks
     kn = mat.kn
     if state.env.ndim==2
@@ -62,7 +53,7 @@ function calcD(mat::ElasticRSJoint, state::ElasticRSJointState)
 end
 
 
-function update_state!(mat::ElasticRSJoint, state::ElasticRSJointState, Δu)
+function update_state!(mat::ElasticLSJoint, state::ElasticLSJointState, Δu)
     D = calcD(mat, state)
     Δσ = D*Δu
 
@@ -72,7 +63,7 @@ function update_state!(mat::ElasticRSJoint, state::ElasticRSJointState, Δu)
 end
 
 
-function ip_state_vals(mat::ElasticRSJoint, state::ElasticRSJointState)
+function ip_state_vals(mat::ElasticLSJoint, state::ElasticLSJointState)
     return OrderedDict(
       :ur   => state.u[1] ,
       :tau  => state.σ[1] )

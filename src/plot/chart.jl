@@ -27,6 +27,35 @@ const _legend_positions=[
     :outerbottomleft
 ]
 
+
+Chart_params = [
+    FunInfo( :Chart, "Creates a customizable `Chart` instance."),
+    KwArgInfo( (:size, :figsize), "Chart drawing size in dpi", (220,150), length=2),
+    KwArgInfo( :font, "Name of the font", "NewComputerModern", type=AbstractString),
+    KwArgInfo( :fontsize, "Size of the font in dpi", 7.0, cond=:(fontsize>0)),
+    KwArgInfo( (:xlimits, :xlims), "Limits of the x-axis", [0.0,0.0], length=2 ),
+    KwArgInfo( (:ylimits, :ylims), "Limits of the y-axis", [0.0,0.0], length=2 ),
+    KwArgInfo( :aspectratio, "Ratio of y-unit to x-unit", :auto, values=(:auto, :equal) ),
+    KwArgInfo( :xmult, "Multiplier for x-axis values", 1.0 ),
+    KwArgInfo( :ymult, "Multiplier for y-axis values", 1.0 ),
+    KwArgInfo( :xbins, "Quantity of bins along the x-axis", 7 ),
+    KwArgInfo( :ybins, "Quantity of bins along the y-axis", 6 ),
+    KwArgInfo( :xlabel, "Text label for the x-axis", L"$x$", type=AbstractString ),
+    KwArgInfo( :ylabel, "Text label for the y-axis", L"$y$", type=AbstractString ),
+    KwArgInfo( :xticks, "Tick positions along the x-axis", Float64[], type=AbstractArray ),
+    KwArgInfo( :yticks, "Tick positions along the y-axis", Float64[], type=AbstractArray ),
+    KwArgInfo( :xticklabels, "Tick labels for each tick mark on the x-axis", String[], type=AbstractArray ),
+    KwArgInfo( :yticklabels, "Tick labels for each tick mark on the y-axis", String[], type=AbstractArray ),
+    KwArgInfo( (:legendloc, :legend), "Position of the legend on the chart", :topright, values=_legend_positions ),
+    KwArgInfo( :legendfontsize, "Font size for the legend", :fontsize, cond=:(legendfontsize>0)),
+    KwArgInfo( (:colorbarloc, :colorbar), "Placement of the colorbar", :right, values=(:right, :bottom) ),
+    KwArgInfo( (:colorbarscale, :cbscale), "Scaling factor for the colorbar", 0.9, cond=:(colorbarscale>0) ),
+    KwArgInfo( (:colorbarlabel, :cblabel), "Label for the colorbar", "" ),
+    KwArgInfo( (:colorbarlimits, :cblimits), "Range of values in the colorbar", Float64[0.0,0.0], length=2 ),
+    KwArgInfo( (:colorbarfontsize, :cbfontsize), "Font size for the colorbar labels", 7.0, cond=:(colorbarfontsize>0)),
+]
+@doc docstring(Chart_params) Chart
+
 mutable struct Chart<:AbstractChart
     width::Float64
     height::Float64
@@ -45,7 +74,7 @@ mutable struct Chart<:AbstractChart
     args::NamedTuple
 
     function Chart(; args...)
-        args = checkargs(args, func_params(Chart), aliens=false)
+        args = checkargs(args, Chart_params, aliens=false)
             
         this = new()
         this.width, this.height = args.size
@@ -61,35 +90,6 @@ mutable struct Chart<:AbstractChart
         return this
     end
 end
-
-
-func_params(::Type{Chart}) = [
-    FunInfo( :Chart, "Creates a customizable `Chart` instance.", ""),
-    ArgInfo( (:size, :figsize), "Chart drawing size in dpi", (220,150), length=2),
-    ArgInfo( :font, "Font name", "NewComputerModern", type=AbstractString),
-    ArgInfo( :fontsize, "Font size", 7.0, condition=:(fontsize>0)),
-    ArgInfo( :xlimits, "x-axis limit values", [0.0,0.0], length=2 ),
-    ArgInfo( :ylimits, "y-axis limit values", [0.0,0.0], length=2 ),
-    ArgInfo( :aspectratio, "aspect ratio", :auto, values=(:auto, :equal) ),
-    ArgInfo( :xmult, "x-axis values multiplier", 1.0 ),
-    ArgInfo( :ymult, "y-axis values multiplier", 1.0 ),
-    ArgInfo( :xbins, "Number of bins in the x axis", 7 ),
-    ArgInfo( :ybins, "Number of bins in the y axis", 6 ),
-    ArgInfo( :xlabel, "Label for the x axis", L"$x$", type=AbstractString ),
-    ArgInfo( :ylabel, "Label for the y axis", L"$y$", type=AbstractString ),
-    ArgInfo( :xticks, "x-axis tick values", Float64[], type=AbstractArray ),
-    ArgInfo( :yticks, "y-axis tick values", Float64[], type=AbstractArray ),
-    ArgInfo( :xticklabels, "x-axis tick labels", String[], type=AbstractArray ),
-    ArgInfo( :yticklabels, "y-axis tick labels", String[], type=AbstractArray ),
-    ArgInfo( (:legendloc, :legend), "Legend location", :topright, values=_legend_positions ),
-    ArgInfo( :legendfontsize, "Legend font size", :fontsize, condition=:(legendfontsize>0)),
-    ArgInfo( (:colorbarloc, :colorbar), "Colorbar location", :right, values=(:right, :bottom) ),
-    ArgInfo( (:colorbarscale, :cbscale), "Colorbar scale", 0.9, condition=:(colorbarscale>0) ),
-    ArgInfo( (:colorbarlabel, :cblabel, :colorbartitle), "Colorbar label", "" ),
-    ArgInfo( (:colorbarlimits, :cblimits), "Colorbar limits", Float64[0.0,0.0], length=2 ),
-    ArgInfo( (:colorbarfontsize, :cbfontsize), "Colorbar font size", 7.0, condition=:(colorbarfontsize>0)),
-]
-@doc make_doc(func_params(Chart)) Chart()
 
 
 function configure!(c::Chart)

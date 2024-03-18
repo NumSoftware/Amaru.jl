@@ -24,13 +24,13 @@ end
 
 
 func_params(::Type{MechBeamProps}) = [
-    FunInfo( :MechBeamProps, "Creates a `MechBeamProps` instance.", ""),
-    ArgInfo( :thy, "y' thickness", condition=:(thy>0) ),
-    ArgInfo( :thz, "z' thickness", condition=:(thz>0.0) ),
-    ArgInfo( :A, "Section area",  condition=:(A>0.0)  ),
-    ArgInfo( :gamma, "Specific weight", 0, condition=:(gamma>=0.0) ),
-    ArgInfo( :rho, "Density", 0, condition=:(rho>=0.0)  ),
-    ArgInfo( :alpha_s, "Shear correction coef.", 5/6, condition=:(alpha_s>0) ),
+    FunInfo( :MechBeamProps, "Creates a `MechBeamProps` instance."),
+    KwArgInfo( :thy, "y' thickness", cond=:(thy>0) ),
+    KwArgInfo( :thz, "z' thickness", cond=:(thz>0.0) ),
+    KwArgInfo( :A, "Section area",  cond=:(A>0.0)  ),
+    KwArgInfo( :gamma, "Specific weight", 0, cond=:(gamma>=0.0) ),
+    KwArgInfo( :rho, "Density", 0, cond=:(rho>=0.0)  ),
+    KwArgInfo( :alpha_s, "Shear correction coef.", 5/6, cond=:(alpha_s>0) ),
     ArgOpt( :A, (:thy, :thz) ),
 ]
 

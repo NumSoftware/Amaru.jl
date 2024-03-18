@@ -8,13 +8,30 @@ typeofargs(f) = [ ((t for t in fieldtypes(m.sig)[2:end])...,) for m in methods(f
 abstract type ArgObj
 end
 
+
 mutable struct FunInfo<:ArgObj
     key::Symbol
     desc::String
-    signature::String
 end
 
+
 mutable struct ArgInfo<:ArgObj
+    key::Symbol
+    default::Any
+    cond::Expr
+    values::Any
+    length::Int
+    type::Union{DataType, Union, UnionAll}
+    desc::String
+end
+
+
+function ArgInfo(key, desc, default=missing; cond=:(), values=(), length=0, type=Any)
+    return ArgInfo(key, default, cond, values, length, type, desc)
+end
+
+
+mutable struct KwArgInfo<:ArgObj
     key::Symbol
     aliases::Tuple
     default::Any
@@ -25,7 +42,7 @@ mutable struct ArgInfo<:ArgObj
     desc::String
 end
 
-function ArgInfo(key, desc, default=missing; condition=:(), values=(), length=0, type=Any)
+function KwArgInfo(key, desc, default=missing; cond=:(), values=(), length=0, type=Any)
     if key isa Tuple
         aliases = key[2:end]
         key = key[1]
@@ -33,11 +50,16 @@ function ArgInfo(key, desc, default=missing; condition=:(), values=(), length=0,
         aliases = ()
     end
 
-    return ArgInfo(key, aliases, default, condition, values, length, type, desc)
+    return KwArgInfo(key, aliases, default, cond, values, length, type, desc)
 end
 
 mutable struct ArgCond<:ArgObj
     cond::Expr
+    message::String
+
+    function ArgCond(cond, message="")
+        return new(cond, message)
+    end
 end
 
 mutable struct ArgOpt<:ArgObj
@@ -45,59 +67,11 @@ mutable struct ArgOpt<:ArgObj
     args2::Union{Symbol,Tuple}
 end
 
-# todo: to be deprecated 
-macro arginfo(args...)
-    arg1 = args[1]
-    if arg1 isa Symbol
-        key = args[1]
-        aliases = ()
-        default = missing
-    else # arg=value
-        key = args[1].args[1]
-        if key isa Tuple # has aliases
-            key = key[1]
-            aliases = key[2:end]
-        else
-            aliases = ()
-        end
 
-        default = args[1].args[2]
-    end
-
-    arg2 = args[2]
-    if arg2 isa Tuple # has possible values instead of condition
-        cond = :()
-        values = arg2
-    else
-        cond = arg2
-        values = ()
-    end
-
-    desc = args[end]
-
-    return quote
-        ArgInfo( $(Meta.quot(key)), $(Meta.quot(aliases)), $default, $(Meta.quot(cond)), $values, 0, Any, $desc ) 
-    end
-end
-
-# todo: to be deprecated 
-macro argcond(cond)
-    return quote
-        ArgCond( $(Meta.quot(cond)) ) 
-    end
-end
-
-# todo: to be deprecated 
-macro argopt(args1, args2)
-    return quote
-        ArgOpt( $(Meta.quot(args1)), $(Meta.quot(args2)) ) 
-    end
-end
-
-function get_args_descriptions(args_params::AbstractArray)
+function get_args_descriptions(fparams::AbstractArray)
     descs = String[]
-    for item in args_params
-        item isa ArgInfo || continue
+    for item in fparams
+        item isa KwArgInfo || continue
         desc = "$(item.key) "
         if length(item.aliases)>0
             desc = desc * "($(join(string.(item.aliases), ", "))) "
@@ -109,48 +83,67 @@ function get_args_descriptions(args_params::AbstractArray)
 end
 
 
-function checkargs(args, args_params::AbstractArray; aliens=true)
-    Infos = ArgInfo[ arg for arg in args_params if arg isa ArgInfo ]
-    Conds = ArgCond[ arg for arg in args_params if arg isa ArgCond ]
-    Opts  = ArgOpt[ arg for arg in args_params if arg isa ArgOpt ]
+# Checks positional and keyword arguments for a function
+function checkargs(args::AbstractArray, kwargs, fparams::AbstractArray; aliens=true, check_ps=true)
+    PsInfos = ArgInfo[ arg for arg in fparams if arg isa ArgInfo ]
+    KwInfos = KwArgInfo[ arg for arg in fparams if arg isa KwArgInfo ]
+    Conds = ArgCond[ arg for arg in fparams if arg isa ArgCond ]
+    Opts  = ArgOpt[ arg for arg in fparams if arg isa ArgOpt ]
 
     # Get function caller
-    
     function funcname()
         st = stacktrace(backtrace())
-        name = :_
         for frame in st
             str = string(frame.func)
-            if !startswith(str, "_") && !contains(str, "checkargs")
-                name = frame.func
-                break
+            if !contains(str, r"(^_|funcname|checkargs|macro)")
+                return match(r"#?(\w+)#?",  str)[1] # remove #s
             end
         end
-        return name
+        return "_"
     end
 
-    # check for wrong arguments
+    # number of positional arguments
+    n = length(args) # all args
+    ninfos = length(PsInfos)
+    check_ps = check_ps || ninfos==0
+    
+    if check_ps
+        # check number of positional arguments
+        if n != ninfos
+            msg = "Wrong number of positional arguments. Expected $n, got $ninfos."
+            throw(AmaruException("$(funcname()): $msg"))
+        end
+
+        # get a list of key=>val pairs of positional arguments
+        ps_pairs = []
+        for (i, item) in enumerate(PsInfos)
+            key = item.key
+            val = args[i]
+            push!(ps_pairs, key=>val)
+        end
+    end
+
+    # check for wrong arguments in kwargs
     if !aliens
         allkeys = Symbol[]
-        for item in Infos
+        for item in KwInfos
             push!(allkeys, item.key)
             append!(allkeys, item.aliases)
         end
 
-        argkeys = keys(args)
-        for key in argkeys
+        for key in keys(kwargs)
             if !(key in allkeys)
-                msg = "Wrong argument $(key). The named arguments are:\n"*get_args_descriptions(args_params)
+                msg = "Wrong argument $(key). The named arguments are:\n"*get_args_descriptions(fparams)
                 throw(AmaruException("$(funcname()): $msg"))     
             end
         end
     end
 
-    # replace aliases (update args)
+    # replace aliases (update kwargs)
     pairs = []
-    for (key, value) in args
+    for (key, value) in kwargs
         newkey = key
-        for item in Infos
+        for item in KwInfos
             if key in item.aliases
                 newkey = item.key
                 break
@@ -158,10 +151,10 @@ function checkargs(args, args_params::AbstractArray; aliens=true)
         end
         push!(pairs, newkey=>value)
     end
-    args = NamedTuple(pairs) # redefine args replacing aliases
-    argkeys = keys(args)
+    kwargs = NamedTuple(pairs) # redefine kwargs replacing aliases
+    argkeys = keys(kwargs)
 
-    # list of optional keys to skip
+    # list of optional keys to skip in kwargs
     skipkeys = Symbol[]
     for opt in Opts
         # check for more than one optionals per set
@@ -182,14 +175,14 @@ function checkargs(args, args_params::AbstractArray; aliens=true)
         end
     end
 
-    Infos = [ item for item in Infos if !(item.key in skipkeys) ] # skip non used optional keys
+    KwInfos = [ item for item in KwInfos if !(item.key in skipkeys) ] # skip non used optional keys
 
     # check for missing keys (skip optional args)
-    mandatorykeys = Symbol[ item.key for item in Infos if item.default===missing ]
-    missingkeys = setdiff(mandatorykeys, keys(args))
+    mandatorykeys = Symbol[ item.key for item in KwInfos if ismissing(item.default) ]
+    missingkeys = setdiff(mandatorykeys, keys(kwargs))
 
     if length(missingkeys)>0
-        msg = "Missing arguments: $(join(missingkeys, ", ")). The named arguments are:\n"*get_args_descriptions(args_params)
+        msg = "Missing arguments: $(join(missingkeys, ", ")). The named arguments are:\n"*get_args_descriptions(fparams)
         for opt in Opts
             args1 = opt.args1 isa Symbol ? (opt.args1,) : opt.args1.args
             args2 = opt.args2 isa Symbol ? (opt.args2,) : opt.args2.args
@@ -198,20 +191,20 @@ function checkargs(args, args_params::AbstractArray; aliens=true)
         throw(AmaruException("$(funcname()): $msg"))
     end
 
-    # update args with defaults
-    pairs = []
-    allkeys = Symbol[ item.key for item in Infos ]
-    defaults  = NamedTuple([ item.key => item.default for item in Infos ])
-    args_keys = keys(args)
-    for item in Infos
+    # update kwargs with defaults args
+    kw_pairs = []
+    allkeys = Symbol[ item.key for item in KwInfos ]
+    defaults  = NamedTuple([ item.key => item.default for item in KwInfos ])
+    args_keys = keys(kwargs)
+    for item in KwInfos
         key = item.key
         if key in args_keys
-            value = args[key] # use given value
+            value = kwargs[key] # use given value
         else
             default = item.default
             if default isa Symbol && default in allkeys # default value in terms of other values
                 if default in args_keys
-                    value = args[default]
+                    value = kwargs[default]
                 else
                     value = defaults[default]
                 end
@@ -219,32 +212,20 @@ function checkargs(args, args_params::AbstractArray; aliens=true)
                 value = default # use default value
             end
         end
-        push!(pairs, key=>value)
+        push!(kw_pairs, key=>value)
     end
 
-    args = NamedTuple(pairs)
+    # get all arguments
+    if check_ps
+        args = NamedTuple([ps_pairs; kw_pairs])
+        ArgInfos = [PsInfos; KwInfos]
+    else
+        args = NamedTuple(kw_pairs)
+        ArgInfos = KwInfos
+    end
 
-
-    # allkeys = [ item.key for item in Infos ]
-    # @show keys(args)
-    # for item in Infos
-    #     @show item.key
-    #     @show item.default
-    #     if item.default isa Symbol && item.default in allkeys
-    #         @show "xxxxxxxxxxxxxxxx"
-    #         @show item.key
-    #         item.default = getindex(args, item.default, nothing)
-    #     end
-    # end
-
-    # alldefaults  = NamedTuple([ item.key => item.default for item in Infos ])
-
-    # @show alldefaults
-
-    # args = merge(alldefaults, args)
-
-    # check argument condition
-    for arginfo in Infos
+    # check argument condition in both positional and keyword arguments
+    for arginfo in ArgInfos
         key = arginfo.key
         val = args[key]
 
@@ -280,11 +261,11 @@ function checkargs(args, args_params::AbstractArray; aliens=true)
         end
     end
     
-    # check relational conditions between arguments
-    allconds = [ item for item in args_params if item isa ArgCond ]
+    # check relational conditions between all arguments
+    allconds = [ item for item in fparams if item isa ArgCond ]
     for argcond in allconds
-        if !evaluate(argcond.cond, args...) # todo: update with eval
-            msg = "Given arguments do not satisfy condition $(argcond.cond)"
+        if !evaluate(argcond.cond; args...) # todo: update with eval
+            msg = argcond.message!="" ? argcond.message : "Given arguments do not satisfy condition $(argcond.cond)"
             throw(AmaruException("$(funcname()): $msg"))
         end
     end
@@ -293,7 +274,14 @@ function checkargs(args, args_params::AbstractArray; aliens=true)
 end
 
 
-function make_doc(fparams)
+function checkargs(kwargs, fparams::AbstractArray; aliens=true)
+    return checkargs([], kwargs, fparams::AbstractArray; aliens=aliens, check_ps=false)
+end
+
+
+function docstring(fparams)
+    PsInfos = ArgInfo[ arg for arg in fparams if arg isa ArgInfo ]
+    KwInfos = KwArgInfo[ arg for arg in fparams if arg isa KwArgInfo ]
     
     # find description
     idx = findfirst(x->isa(x,FunInfo), fparams)
@@ -301,28 +289,70 @@ function make_doc(fparams)
 
     # add function description
     desc = String[]
-    push!(desc, "`$(fdesc.key)($(fdesc.signature); kwargs...)`\n")
+    signature = "    $(fdesc.key)("
+    if length(PsInfos)>0
+        signature *= join([ "$(item.key)" for item in PsInfos ], ", ")
+    end
+    if length(KwInfos)>0
+        signature *= "; kwargs..."
+    end
+    signature *= ")\n"
+    push!(desc, signature)
+
+
     push!(desc, "$(fdesc.desc)")
-    push!(desc, "# Optional arguments:\n")
+    
+    # add positional arguments descriptions
+    if length(PsInfos)>0
+        push!(desc, "# Positional arguments:\n")
+        for item in PsInfos
+            str = "- `$(item.key)` "
+            str = str*": $(item.desc)"
+            
+            # condition
+            if item.cond != :()
+                str = str*" ($(item.cond))"
+            end
 
-    # add arguments description
-    for item in fparams
-        item isa ArgInfo || continue
-        str = "- `$(item.key)` "
-        
-        # aliases
-        if length(item.aliases)>0
-            str_aliases = [ "`"*string(alias)*"`" for alias in item.aliases ]
-            str = str*"("*join(str_aliases, ", ")*")"
+            # suitable values
+            if length(item.values)>0
+                str = str*", any of "*join(repr.(item.values), ", ", " and ")
+            end
+
+            push!(desc, str)
         end
-        str = str*": $(item.desc)"
+    end
+    
+    # add keyword arguments descriptions
+    if length(KwInfos)>0
+        push!(desc, "# Keyword arguments:\n")
+        for item in KwInfos
+            str = "- `$(item.key)` "
+            
+            # aliases
+            if length(item.aliases)>0
+                str_aliases = [ "`"*string(alias)*"`" for alias in item.aliases ]
+                str = str*"(or "*join(str_aliases, ", ")*")"
+            end
+            str = str*": $(item.desc)"
 
-        # suitable values
-        if length(item.values)>0
-            str = str*", any of: ("*join(repr.(item.values), ", ")*")"
+            # condition
+            if item.cond != :()
+                str = str*" ($(item.cond))"
+            end
+
+            # suitable values
+            if length(item.values)>0
+                str = str*", any of "*join(repr.(item.values), ", ", " and ")
+            end
+
+            # default
+            if !ismissing(item.default)
+                str = str*". Default is $(repr(item.default))"
+            end
+
+            push!(desc, str)
         end
-
-        push!(desc, str)
     end
 
     return join(desc, "\n")

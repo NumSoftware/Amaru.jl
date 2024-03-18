@@ -111,17 +111,19 @@ function solve!(model::Model, ana::AcousticMechAnalysis; args...)
 end
 
 am_stage_solver_params = [
-    FunInfo( :tm_stage_solver!, "Solves a load stage of a thremomechanical analysis.", "M::Model, S::Stage"),
-    ArgInfo( :tol, "Force tolerance", 0.01, condition=:(tol>0)),
-    ArgInfo( :dTmin, "Relative minimum increment size", 1e-7, condition=:(0<dTmin<1) ),
-    ArgInfo( :dTmax, "Relative maximum increment size", 0.1, condition=:(0<dTmax<1) ),
-    ArgInfo( :rspan, "Relative span to residue reapplication", 0.01, condition=:(0<rspan<1) ),
-    ArgInfo( :scheme, "Global solving scheme", :FE, values=(:FE, :ME, :BE, :Ralston) ),
-    ArgInfo( :maxits, "Maximum number of NR iterations", 5, condition=:(1<=maxits<=10)),
-    ArgInfo( :autoinc, "Flag to set auto-increments", false),
-    ArgInfo( :quiet, "Flat to set silent mode", false),
+    FunInfo(:tm_stage_solver!, "Solves a load stage of a thremomechanical analysis."),
+    ArgInfo(:model, "Model object"),
+    ArgInfo(:stage, "Stage object"),
+    KwArgInfo(:tol, "Force tolerance", 0.01, cond=:(tol>0)),
+    KwArgInfo(:dTmin, "Relative minimum increment size", 1e-7, cond=:(0<dTmin<1) ),
+    KwArgInfo(:dTmax, "Relative maximum increment size", 0.1, cond=:(0<dTmax<1) ),
+    KwArgInfo(:rspan, "Relative span to residue reapplication", 0.01, cond=:(0<rspan<1) ),
+    KwArgInfo(:scheme, "Global solving scheme", :FE, values=(:FE, :ME, :BE, :Ralston) ),
+    KwArgInfo(:maxits, "Maximum number of NR iterations", 5, cond=:(1<=maxits<=10)),
+    KwArgInfo(:autoinc, "Flag to set auto-increments", false),
+    KwArgInfo(:quiet, "Flat to set silent mode", false),
 ]
-@doc make_doc(am_stage_solver_params) am_stage_solver!()
+@doc docstring(am_stage_solver_params) am_stage_solver!()
 
 function am_stage_solver!(model::Model, stage::Stage; args...)
     args = checkargs(args, tm_stage_solver_params)

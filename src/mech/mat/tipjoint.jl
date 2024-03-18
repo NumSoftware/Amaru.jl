@@ -27,8 +27,8 @@ mutable struct TipJoint<:Material
 end
 
 func_params(::Type{TipJoint}) = [
-    ArgInfo( :k, "Elastic stiffness", 1.0, condition=:(k>=0) ),
-    ArgInfo( :fixed, "Flag to control if the tip is fixed", false, type=Bool),
+    KwArgInfo( :k, "Elastic stiffness", 1.0, cond=:(k>=0) ),
+    KwArgInfo( :fixed, "Flag to control if the tip is fixed", false, type=Bool),
 ]
 
 

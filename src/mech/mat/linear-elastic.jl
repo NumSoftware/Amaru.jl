@@ -2,32 +2,22 @@
 
 export LinearElastic
 
-"""
-    LinearElastic
+LinearElastic_params = [
+    FunInfo(:LinearElastic, "Linear-elastic material model"),
+    KwArgInfo(:E, "Young modulus", cond=:(E>0.0)),
+    KwArgInfo(:nu, "Poisson ratio", 0.0, cond=:(0.0<=nu<0.5))
+]
+@doc docstring(LinearElastic_params) LinearElastic
 
-A type for linear elastic materials.
-
-# Fields
-
-$(TYPEDFIELDS)
-"""
 mutable struct LinearElastic<:Material
-    "Young Modulus"
     E ::Float64
-    "Poisson ratio"
     ν::Float64
 
     function LinearElastic(; args...)
-        args = checkargs(args, arg_rules(LinearElastic))       
+        args = checkargs(args, LinearElastic_params)
         return new(args.E, args.nu)
     end
 end
-
-arg_rules(::Type{LinearElastic}) = 
-[
-    @arginfo E E>0.0 "Young modulus"
-    @arginfo nu=0.0 0.0<=nu<0.5 "Poisson ratio"
-]
 
 
 mutable struct ElasticSolidState<:IpState

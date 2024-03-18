@@ -75,31 +75,31 @@ mutable struct MeshPlot<:AbstractChart
 end
 
 func_params(::Type{MeshPlot}) = [
-    FunInfo( :MeshPlot, "Creates a customizable `MeshPlot` instance used to plot finite element meshes.", ""),
-    ArgInfo( (:size, :figsize), "Mesh drawing size in dpi", (220,150), length=2),
-    ArgInfo( :facecolor, "Surface color", :aliceblue),
-    ArgInfo( :warp, "Warping scale", 0.0 ),
-    ArgInfo( (:lw, :lineweight), "Line weight", 0.4,  condition=:(lw>0) ),
-    ArgInfo( :field, "Scalar field", "" ),
-    ArgInfo( :limits, "Limits for the scalar field", [0.0,0.0], length=2 ),
-    ArgInfo( :mult, "Field multiplier", 1.0),
-    ArgInfo( :label, "Colorbar label", "", type=AbstractString ),
-    ArgInfo( :colormap, "Colormap for field display", :coolwarm),
+    FunInfo( :MeshPlot, "Creates a customizable `MeshPlot` instance used to plot finite element meshes."),
+    KwArgInfo( (:size, :figsize), "Mesh drawing size in dpi", (220,150), length=2),
+    KwArgInfo( :facecolor, "Surface color", :aliceblue),
+    KwArgInfo( :warp, "Warping scale", 0.0 ),
+    KwArgInfo( (:lw, :lineweight), "Line weight", 0.4,  cond=:(lw>0) ),
+    KwArgInfo( :field, "Scalar field", "" ),
+    KwArgInfo( :limits, "Limits for the scalar field", [0.0,0.0], length=2 ),
+    KwArgInfo( :mult, "Field multiplier", 1.0),
+    KwArgInfo( :label, "Colorbar label", "", type=AbstractString ),
+    KwArgInfo( :colormap, "Colormap for field display", :coolwarm),
     # ArgInfo( :divergefromzero, "Sets if colormap will diverge from zero", false, type=Bool),
-    ArgInfo( (:colorbarloc,:colorbar), "Colorbar location", :right, values=(:none, :right, :bottom) ),
-    ArgInfo( (:colorbarscale, :cbscale), "Colorbar scale", 0.9, condition=:(colorbarscale>0) ),
-    ArgInfo( (:label, :colorbarlabel, :cblabel, :colorbartitle), "Colorbar label", "" ),
-    ArgInfo( (:fontsize, :colorbarfontsize, :cbfontsize), "Colorbar font size", 7.0, condition=:(fontsize>0)),
-    ArgInfo( :gradientmode, "Sets the gradient mode for surfaces", :nonlinear, values=(:constant,:linear,:nonlinear)),
-    ArgInfo( :font, "Font name", "NewComputerModern", type=AbstractString),
-    ArgInfo( :azimut, "Azimut angle for 3d in degrees", 30 ),
-    ArgInfo( :elevation, "Elevation angle for 3d in degrees", 30 ),
-    ArgInfo( :distance, "Distance from camera in 3d", 0.0, condition=:(distance>=0) ),
-    ArgInfo( :outline, "Flag to show the outline", true, type=Bool ),
-    ArgInfo( :wireframe, "Flag to show a wireframe", false, type=Bool ),
-    ArgInfo( (:lightvector, :lv), "Light direction vector", [0.0,0.0,0.0], length=3 )
+    KwArgInfo( (:colorbarloc,:colorbar), "Colorbar location", :right, values=(:none, :right, :bottom) ),
+    KwArgInfo( (:colorbarscale, :cbscale), "Colorbar scale", 0.9, cond=:(colorbarscale>0) ),
+    KwArgInfo( (:label, :colorbarlabel, :cblabel, :colorbartitle), "Colorbar label", "" ),
+    KwArgInfo( (:fontsize, :colorbarfontsize, :cbfontsize), "Colorbar font size", 7.0, cond=:(fontsize>0)),
+    KwArgInfo( :gradientmode, "Sets the gradient mode for surfaces", :nonlinear, values=(:constant,:linear,:nonlinear)),
+    KwArgInfo( :font, "Font name", "NewComputerModern", type=AbstractString),
+    KwArgInfo( :azimut, "Azimut angle for 3d in degrees", 30 ),
+    KwArgInfo( :elevation, "Elevation angle for 3d in degrees", 30 ),
+    KwArgInfo( :distance, "Distance from camera in 3d", 0.0, cond=:(distance>=0) ),
+    KwArgInfo( :outline, "Flag to show the outline", true, type=Bool ),
+    KwArgInfo( :wireframe, "Flag to show a wireframe", false, type=Bool ),
+    KwArgInfo( (:lightvector, :lv), "Light direction vector", [0.0,0.0,0.0], length=3 )
 ]
-@doc make_doc(func_params(MeshPlot)) MeshPlot()
+@doc docstring(func_params(MeshPlot)) MeshPlot()
 
 
 function bezier_points(edge)

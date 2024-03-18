@@ -2,6 +2,14 @@
 
 export TMShell
 
+TMShellparams = [
+    FunInfo(:TMShell, "A shell finite element for thermomechanical analyses"),
+    KwArgInfo(:rho, "Density", 0.0, cond=:(rho>0)),
+    KwArgInfo(:gamma, "Specific weight", 0.0, cond=:(gamma>=0)),
+    KwArgInfo(:thickness, "Thickness", cond=:(thickness>0)),
+    KwArgInfo(:alpha_s, "Shear correction coef.", 5/6, cond=:(alpha_s>0))
+]
+
 struct TMShellProps<:ElemProperties
     ρ::Float64
     γ::Float64
@@ -9,21 +17,11 @@ struct TMShellProps<:ElemProperties
     th::Float64
 
     function TMShellProps(; args...)
-        args = checkargs(args, arg_rules(TMShellProps))   
+        args = checkargs(args, TMShellparams)
 
         return new(args.rho, args.gamma, args.alpha_s, args.thickness)
     end    
 end
-
-
-arg_rules(::Type{TMShellProps}) = 
-[
-    @arginfo rho rho>0 "Density"
-    @arginfo gamma=0 gamma>=0 "Specific weight"
-    @arginfo thickness thickness>0 "Thickness"
-    @arginfo alpha_s=5/6 alpha_s>0 "Shear correction coefficient"
-]
-
 
 
 mutable struct TMShell<:Thermomech
@@ -117,16 +115,6 @@ function setquadrature!(elem::TMShell, n::Int=0)
 end
 
 
-function distributed_bc(elem::TMShell, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
-    return mech_boundary_forces(elem, facet, key, val)
-end
-
-
-function body_c(elem::TMShell, key::Symbol, val::Union{Real,Symbol,Expr})
-    return mech_shell_body_forces(elem, key, val)
-end
-
-
 function elem_config_dofs(elem::TMShell)
     ndim = elem.env.ndim
     ndim==3 || error("MechShell: Shell elements do not work in $(ndim)d analyses")
@@ -140,17 +128,6 @@ function elem_config_dofs(elem::TMShell)
         add_dof(node, :ut, :ft)
     end
 end
-
-
-@inline function elem_map_u(elem::TMShell)
-    keys =(:ux, :uy, :uz, :rx, :ry, :rz)
-    return [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-end
-
-@inline function elem_map_t(elem::TMShell)
-    return [ node.dofdict[:ut].eq_id for node in elem.nodes ]
-end
-
 
 # Rotation Matrix
 function set_rot_x_xp(elem::TMShell, J::Matx, R::Matx)
@@ -177,6 +154,27 @@ function calcS(elem::TMShell, αs::Float64)
         0.  0.  0.  αs  0.  0.
         0.  0.  0.  0.  αs  0.
         0.  0.  0.  0.  0.  1. ]
+end
+
+
+function distributed_bc(elem::TMShell, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
+    return mech_boundary_forces(elem, facet, key, val)
+end
+
+
+function body_c(elem::TMShell, key::Symbol, val::Union{Real,Symbol,Expr})
+    return mech_shell_body_forces(elem, key, val)
+end
+
+
+@inline function elem_map_u(elem::TMShell)
+    keys =(:ux, :uy, :uz, :rx, :ry, :rz)
+    return [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
+end
+
+
+@inline function elem_map_t(elem::TMShell)
+    return [ node.dofdict[:ut].eq_id for node in elem.nodes ]
 end
 
 
@@ -256,7 +254,7 @@ end
 # matrix C
 function elem_coupling_matrix(elem::TMShell)
     ndim   = elem.env.ndim
-    th   = elem.props.th
+    th     = elem.props.th
     nnodes = length(elem.nodes)
 
     E = elem.mat.E
@@ -272,7 +270,6 @@ function elem_coupling_matrix(elem::TMShell)
     Bi   = zeros(nstr,ndof)
     C    = getcoords(elem)
     Cut  = zeros(ndof*nnodes, nnodes) # u-t coupling matrix
-    m    = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
     m    = [ 1.0, 1.0, 0.0, 0.0, 0.0, 0.0 ]
 
 
@@ -301,7 +298,7 @@ function elem_coupling_matrix(elem::TMShell)
         mN    = m*N'
         @mul Cut -= coef*B'*mN
     end
-    # map
+    
     map_u = elem_map_u(elem)
     map_t = elem_map_t(elem)
 
@@ -369,7 +366,6 @@ function elem_mass_matrix(elem::TMShell)
         M    -= coef*N*N'
     end
 
-    # map
     map = elem_map_t(elem)
 
     return M, map, map
@@ -387,7 +383,7 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     E = elem.mat.E
     ν = elem.mat.ν
     ρ = elem.props.ρ
-    
+
     map_u = elem_map_u(elem)
     map_t = elem_map_t(elem)
 
@@ -395,7 +391,6 @@ function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     dUt = DU[map_t] # nodal temperature increments
     Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes]
     Ut += dUt # nodal tempeture at step n+1
-    m   = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]  #
     m   = [ 1.0, 1.0, 0.0, 0.0, 0.0, 0.0]
 
     dF  = zeros(length(dU))

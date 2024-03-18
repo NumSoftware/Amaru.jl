@@ -2,6 +2,16 @@
 
 export MechShell
 
+
+MechShell_params = [
+    FunInfo(:MechShell, "A finite element for mechanical shell analyses"),
+    KwArgInfo(:rho, "Density", 0.0, cond=:(rho>=0.0)),
+    KwArgInfo(:gamma, "Specific weight", 0.0, cond=:(gamma>=0.0)),
+    KwArgInfo(:thickness, "Thickness", cond=:(thickness>0.0)),
+    KwArgInfo(:alpha_s, "Shear correction coef.", 5/6, cond=:(alpha_s>0))
+]
+@doc docstring(MechShell_params) MechShell
+
 struct MechShellProps<:ElemProperties
     ρ::Float64
     γ::Float64
@@ -9,26 +19,13 @@ struct MechShellProps<:ElemProperties
     th::Float64
 
     function MechShellProps(; args...)
-        args = checkargs(args, arg_rules(MechShellProps))
+        args = checkargs(args, MechShell_params)
 
         return new(args.rho, args.gamma, args.alpha_s, args.thickness)
     end
 end
 
-arg_rules(::Type{MechShellProps}) = 
-[
-    @arginfo rho=0.0 rho>=0.0 "Density"
-    @arginfo gamma=0.0 gamma>=0.0 "Specific weight"
-    @arginfo thickness thickness>0.0 "Thickness"
-    @arginfo alpha_s=5/6 alpha_s>0 "Shear correction coef."
-]
 
-
-
-"""
-    MechShell
-A shell finite element for mechanical equilibrium analyses.
-"""
 mutable struct MechShell<:Mech
     env   ::ModelEnv
     id    ::Int

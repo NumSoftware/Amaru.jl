@@ -120,6 +120,7 @@ const op_dict = Dict{Symbol,Function}(
     :log => (a,) -> log(a),
     :max => (a,b) -> max(a,b),
     :min => (a,b) -> min(a,b),
+    :length => (a,) -> length(a),
 )
 
 
@@ -255,7 +256,7 @@ function round_floats!(expr::Expr)
     for i in start:finish
         arg = expr.args[i]
         if arg isa AbstractFloat
-            expr.args[i] = round(arg, digits=8)
+            expr.args[i] = round(arg, digits=5)
         elseif arg isa Expr
             expr.args[i] = round_floats!(arg)
         end

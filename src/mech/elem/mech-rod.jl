@@ -2,33 +2,27 @@
 
 export MechBar, MechRod, MechTruss
 
+MechBar_params = [
+    FunInfo(:MechBar, "A truss finite element for mechanical analyses."),
+    KwArgInfo(:rho, "Density", 0.0, cond=:(rho>=0)),
+    KwArgInfo(:gamma, "Specific weight", 0.0, cond=:(gamma>=0)),
+    KwArgInfo(:A, "Section area", cond=:(A>0)),
+]
+@doc docstring(MechBar_params) MechBar(; kwargs...)
+
 struct MechBarProps<:ElemProperties
     ρ::Float64
     γ::Float64
     A::Float64
 
-    function MechBarProps(; props...)
-        names = (rho="Density", gamma="Specific weight", A="Section area")
-        default = (rho=0.0, gamma=0.0)
-        props   = merge(default, props)
-        required = (:A,)
-        @checkmissing props required names
-
-        @check props.rho>=0
-        @check props.gamma>=0
-        @check props.A>0.0
-
-        return new(props.rho, props.gamma, props.A)
+    function MechBarProps(; kwargs...)
+        args = checkargs(kwargs, MechBar_params)
+        this = new(args.rho, args.gamma, args.A)
+        return this
     end    
 end
 
-# 
 
-"""
-    MechBar
-
-A line finite element for mechanical equilibrium analyses.
-"""
 mutable struct MechBar<:Mech
     id    ::Int
     shape ::CellShape
@@ -50,29 +44,9 @@ const MechRod = MechBar
 const MechTruss = MechBar
 
 compat_shape_family(::Type{MechBar}) = LINECELL
-# compat_elem_types(::Type{MechBarProps}) = MechBar
 compat_elem_props(::Type{MechBar}) = MechBarProps
 
 embedded_type(::Type{MechBar}) = MechEmbBar
-# embedded_type(::Type{MechEmbBar}) = MechEmbBar
-
-
-# function check_props(::Type{MechSolid}; props...)
-#     names = (rho="Density", gamma="Specific weight", A="Section area", diameter="diameter")
-#     required = (:A,)
-#     @checkmissing props required names
-
-#     default = (rho=0.0, gamma=0.0)
-#     props   = merge(default, props)
-#     rho     = props.rho
-#     gamma   = props.gamma
-
-#     @check rho>=0
-#     @check gamma>=0
-#     @check A>0
-
-#     return props
-# end
 
 
 function elem_stiffness(elem::MechBar)

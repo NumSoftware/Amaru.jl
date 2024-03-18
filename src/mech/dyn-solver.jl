@@ -117,25 +117,25 @@ function solve!(model::Model, ana::DynAnalysis; args...)
 end
 
 dyn_stage_solver_params = [
-    FunInfo( :dyn_stage_solver!, "Solves a load stage of a dynamic mechanical analysis.", "M::Model, S::Stage"),
-    ArgInfo( :tol, "Force tolerance", 0.01, condition=:(tol>0)),
-    # ArgInfo( :rtol, "Relative tolerance in terms of displacements", 0.01, condition=:(rtol>0)),
-    ArgInfo( :dTmin, "Relative minimum increment size", 1e-7, condition=:(0<dTmin<1) ),
-    ArgInfo( :dTmax, "Relative maximum increment size", 0.1, condition=:(0<dTmax<1) ),
-    ArgInfo( :rspan, "Relative span to residue reapplication", 0.01, condition=:(0<rspan<1) ),
-    ArgInfo( :scheme, "Global solving scheme", :FE, values=(:FE, :ME, :BE, :Ralston) ),
-    ArgInfo( :maxits, "Maximum number of NR iterations", 5, condition=:(1<=maxits<=10)),
-    ArgInfo( :autoinc, "Flag to set auto-increments", false),
-    ArgInfo( :quiet, "Flat to set silent mode", false),
-    ArgInfo( :alpha, "", 0.0),
-    ArgInfo( :beta, "", 0.0),
-    ArgInfo( :sism, "", false),
-    ArgInfo( :tss, "", 0.0),
-    ArgInfo( :tds, "", 0.0),
-    ArgInfo( :sism_file, "", ""),
-    ArgInfo( :sism_dir, "", "fx"),
+    FunInfo( :dyn_stage_solver!, "Solves a load stage of a dynamic mechanical analysis."),
+    KwArgInfo( :tol, "Force tolerance", 0.01, cond=:(tol>0)),
+    # ArgInfo( :rtol, "Relative tolerance in terms of displacements", 0.01, cond=:(rtol>0)),
+    KwArgInfo( :dTmin, "Relative minimum increment size", 1e-7, cond=:(0<dTmin<1) ),
+    KwArgInfo( :dTmax, "Relative maximum increment size", 0.1, cond=:(0<dTmax<1) ),
+    KwArgInfo( :rspan, "Relative span to residue reapplication", 0.01, cond=:(0<rspan<1) ),
+    KwArgInfo( :scheme, "Global solving scheme", :FE, values=(:FE, :ME, :BE, :Ralston) ),
+    KwArgInfo( :maxits, "Maximum number of NR iterations", 5, cond=:(1<=maxits<=10)),
+    KwArgInfo( :autoinc, "Flag to set auto-increments", false),
+    KwArgInfo( :quiet, "Flat to set silent mode", false),
+    KwArgInfo( :alpha, "", 0.0),
+    KwArgInfo( :beta, "", 0.0),
+    KwArgInfo( :sism, "", false),
+    KwArgInfo( :tss, "", 0.0),
+    KwArgInfo( :tds, "", 0.0),
+    KwArgInfo( :sism_file, "", ""),
+    KwArgInfo( :sism_dir, "", "fx"),
 ]
-@doc make_doc(dyn_stage_solver_params) dyn_stage_solver!()
+@doc docstring(dyn_stage_solver_params) dyn_stage_solver!()
 
 function dyn_stage_solver!(model::Model, stage::Stage; args...)
     args = checkargs(args, dyn_stage_solver_params)

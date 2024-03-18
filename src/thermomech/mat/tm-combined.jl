@@ -25,6 +25,12 @@ function Base.getproperty(state::TMCombinedState, s::Symbol)
 end
 
 
+TMCombined_params = [
+    FunInfo(:TMCombined, "A material model for combined thermal and mechanical effects"),
+    KwArgInfo(:alpha, "Thermal expansion coefficient", cond=:(alpha>=0))
+]
+@doc docstring(TMCombined_params) TMCombined
+
 mutable struct TMCombined{M1,M2}<:Material
     tmat::M1 # thermo
     mmat::M2 # mech
@@ -35,7 +41,7 @@ mutable struct TMCombined{M1,M2}<:Material
         tmat = M1(;args...)
         mmat = M2(;args...)
 
-        args = checkargs(args, arg_rules(TMCombined{M1,M2}))
+        args = checkargs(args, TMCombined_params)
 
         if args.alpha isa Array
             alpha = 0.0
@@ -49,11 +55,6 @@ mutable struct TMCombined{M1,M2}<:Material
     end
 end
 
-# Additional parameters for THCombined
-arg_rules(::Type{TMCombined{M1,M2}}) where {M1,M2} = 
-[
-    @arginfo alpha 1==1 "Thermal expansion coefficient"
-]
 
 function calc_α(mat::TMCombined{M1,M2}, ut::Float64) where {M1,M2} # thermal expansion coefficient  1/K or 1/°C
     length(mat.α_table)==0 && return mat.α

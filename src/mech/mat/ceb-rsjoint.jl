@@ -22,6 +22,23 @@ mutable struct CebLSJointState<:IpState
 end
 
 
+CebLSJoint_params = [
+    FunInfo(:CebLSJoint, "Consitutive model for a rod-solid interface according to CEB."),
+    KwArgInfo(:taumax, "Shear strength", cond=:(taumax>0)),
+    KwArgInfo(:taures, "Residual shear stress", cond=:(taures>=0)),
+    KwArgInfo(:s1, "Characteristic slip 1", cond=:(s1>0)),
+    KwArgInfo(:s2, "Characteristic slip 2", cond=:(s2>0)),
+    KwArgInfo(:s3, "Characteristic slip 3", cond=:(s3>0)),
+    KwArgInfo(:alpha, "Ascending curvature parameter", 0.4, cond=:(0.0<=alpha<=1.0)),
+    KwArgInfo(:beta, "Descending curvature parameter", 1.0, cond=:(0.0<=beta<=1.0)),
+    KwArgInfo(:kn, "Normal stiffness", cond=:(kn>0)),
+    KwArgInfo(:ks, "Shear stiffness", 0.0, cond=:(ks>=0)),
+    ArgCond(:(taumax>taures)),
+    ArgCond(:(ks>=taumax/s1)),
+]
+@doc docstring(CebLSJoint_params) CebLSJoint(; kwargs...)
+
+
 mutable struct CebLSJoint<:Material
     τmax:: Float64
     τres:: Float64
@@ -33,43 +50,10 @@ mutable struct CebLSJoint<:Material
     ks  :: Float64
     kn  :: Float64
 
-    function CebLSJoint(prms::Dict{Symbol,Float64})
-        return  CebLSJoint(;prms...)
-    end
+    function CebLSJoint(; kwargs...)
+        args = checkargs(kwargs, CebLSJoint_params)
 
-    function CebLSJoint(; params...)
-
-        names = (taumax = "Shear strength", taures = "Residual shear stress", s1 = "slip 1", s2 = "slip 2", s3 = "slip 3", alpha = "Ascending curvature parameter", beta = "Descending curvature parameter", kn = "Normal stiffness", ks = "Shear stiffness")
-        required = keys(names)
-        @checkmissing params required names
-
-        params = (; params...)
-        taumax = params.taumax
-        taures = params.taures
-
-        params  = (; params...)
-        
-        taumax = params.taumax
-        taures = params.taures
-        s1     = params.s1
-        s2     = params.s2
-        s3     = params.s3
-        alpha  = params.alpha
-        beta   = params.beta
-        kn     = params.kn
-        ks     = params.ks
-
-        @check s1>0
-        @check s2>s1
-        @check s3>s2
-        @check ks>0
-        @check taumax>=taures
-        @check ks>=taumax/s1
-        @check 0.0<=alpha<=1.0
-        @assert beta>=0.0 beta=1
-        @check kn>0
-
-        this = new(taumax, taures, s1, s2, s3, alpha, beta, ks, kn)
+        this = new(args.taumax, args.taures, args.s1, args.s2, args.s3, args.alpha, args.beta, args.ks, args.kn)
         return this
     end
 end
@@ -129,9 +113,7 @@ function calcD(mat::CebLSJoint, state::CebLSJointState)
 
     if !state.elastic
         dτydsy = deriv(mat, state, state.sy)
-        # ks = ks*dτydsy/(ks+dτydsy)
         ks = dτydsy
-        # @s ks
     end
 
     kn = mat.kn

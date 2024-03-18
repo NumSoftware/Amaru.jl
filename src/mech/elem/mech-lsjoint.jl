@@ -2,31 +2,24 @@
 
 export MechRSJoint, MechLSJoint
 
-struct MechRSJointProps<:ElemProperties
+MechLSJoint_params = [
+    FunInfo(:MechLSJoint, "Finite element for a rod-bulk interface."),
+    KwArgInfo(:p, "Perimeter", cond=:(p>0)),
+]
+@doc docstring(MechLSJoint_params) MechLSJoint(; kwargs...)
+
+struct MechLSJointProps<:ElemProperties
     p::Float64
 
-    function MechRSJointProps(; props...)
-        names = (p="perimeter",)
-        required = keys(names)
-        @checkmissing props required names
-        props = (; props...)
-
-        p     = props.p
-        @check p>0
-
-        return new(p)
+    function MechLSJointProps(; kwargs...)
+        args = checkargs(kwargs, MechLSJoint_params)
+        this = new(args.p)
+        return this
     end
 end
 
 
-
-"""
-    MechRodSolidJoint
-
-An interface element to link `MechRod` elements to bulk elements
-in mechanical equilibrium analyses.
-"""
-mutable struct MechRSJoint<:Mech
+mutable struct MechLSJoint<:Mech
     id    ::Int
     shape ::CellShape
 
@@ -34,7 +27,7 @@ mutable struct MechRSJoint<:Mech
     ips   ::Array{Ip,1}
     tag   ::String
     mat::Material
-    props ::MechRSJointProps
+    props ::MechLSJointProps
     active::Bool
     linked_elems::Array{Element,1}
     env::ModelEnv
@@ -43,15 +36,15 @@ mutable struct MechRSJoint<:Mech
     cache_B   ::Array{Array{Float64,2}}
     cache_detJ::Array{Float64}
 
-    function MechRSJoint()
+    function MechLSJoint()
         return new()
     end
 end
 
-const MechLSJoint = MechRSJoint
+const MechRSJoint = MechLSJoint
 
 compat_shape_family(::Type{MechRSJoint}) = LINEJOINTCELL
-compat_elem_props(::Type{MechRSJoint}) = MechRSJointProps
+compat_elem_props(::Type{MechRSJoint}) = MechLSJointProps
 
 
 

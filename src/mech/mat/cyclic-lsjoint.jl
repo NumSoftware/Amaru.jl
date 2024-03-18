@@ -33,6 +33,21 @@ mutable struct CyclicLSJointState<:IpState
     end
 end
 
+CyclicLSJoint_params = [
+    FunInfo(:CyclicLSJoint, "Consitutive model for a rod-solid interface."),
+    KwArgInfo(:taumax, "Shear strength", cond=:(taumax>0)),
+    KwArgInfo(:taures, "Residual shear stress", cond=:(taures>=0)),
+    KwArgInfo((:speak, :s1), "Peak slip", cond=:(speak>0)),
+    KwArgInfo((:sres, :s3), "Residual slip", cond=:(sres>=0)),
+    KwArgInfo(:alpha, "Ascending curvature parameter", 0.4, cond=:(0.0<=alpha<=1.0)),
+    KwArgInfo(:beta, "Descending curvature parameter", 1.0, cond=:(0.0<=beta<=1.0)),
+    KwArgInfo(:kn, "Normal stiffness", cond=:(kn>0)),
+    KwArgInfo(:ks, "Shear stiffness", 0.0, cond=:(ks>=0)),
+    KwArgInfo(:p, "Perimeter", cond=:(p>0)),
+    ArgCond(:(taumax>taures)),
+    ArgCond(:(ks>=taumax/s1)),
+]
+
 mutable struct CyclicLSJoint<:Material
     τmax:: Float64
     τres:: Float64
@@ -45,52 +60,16 @@ mutable struct CyclicLSJoint<:Material
     kn  :: Float64
     p   :: Float64
 
-    function CyclicLSJoint(prms::Dict{Symbol,Float64})
-        return  CyclicLSJoint(;prms...)
-    end
-
-    function CyclicLSJoint(;taumax=NaN, taures=NaN, speak=NaN, sres=NaN, alpha=NaN, beta=NaN, kn=NaN, ks=NaN, p=NaN, A=NaN, dm=NaN)
-        
-        @check speak>0
-
-        # Estimate the perimeter p
-        @check p>0 || A>0 || dm>0
-        if isnan(p)
-            if A>0
-                p = 2.0*√(A*pi)
-            else
-                p = pi*dm
-            end
-        end
-
-        # Estimate taumax if not provided
-        @check ks>0
-        isnan(taumax) && (taumax = ks*speak)
-        @check taumax>=taures
-        @check ks>=taumax/speak
-
-        # Define alpha if not provided
-        isnan(alpha) && (alpha = 1.0)
-        @check 0.0<=alpha<=1.0
-
-        # Define beta if not provided
-        isnan(beta) && (beta = 1.0)
-        @assert beta>=0.0 beta=1
-
-        # Estimate kn if not provided
-        isnan(kn) && (kn = ks)
-        @check kn>0
-
-        this = new(taumax, taures, speak, 1.1*speak, sres, alpha, beta, ks, kn, p)
+    function CyclicLSJoint(; kwargs...)
+        args = parse_args(kwargs, CyclicLSJoint_params)
+        this = new(args.taumax, args.taures, args.speak, 1.1*args.speak, args.sres, args.alpha, args.beta, args.ks, args.kn, args.p)
         return this
     end
+
 end
 
 const CyclicRSJoint = CyclicLSJoint
 
-
-# Element types that work with this material
-# compat_elem_types(::Type{CyclicLSJoint}) = (MechLSJoint,)
 
 # Type of corresponding state structure
 compat_state_type(::Type{CyclicLSJoint}, ::Type{MechLSJoint}, env::ModelEnv) = CyclicLSJointState
@@ -135,7 +114,6 @@ end
 
 
 function calcD(mat::CyclicLSJoint, ips::CyclicLSJointState)
-    ndim = ips.env.ndim
     ks = mat.ks
     kn = mat.kn
 

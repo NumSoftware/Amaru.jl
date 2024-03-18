@@ -3,25 +3,22 @@
 
 export ThermoSolid
 
+ThermoSolid_params = [
+    FunInfo(:ThermoSolid, "Finite element for thermal analyses"),
+    KwArgInfo(:rho, "Density", 0.0, cond=:(rho>=0)),
+    KwArgInfo(:cv, "Heat capacity", cond=:(cv>0)),
+]
+@doc docstring(ThermoSolid_params) ThermoSolid(; kwargs...)
+
 struct ThermoSolidProps<:ElemProperties
     ρ::Float64  # material specific weight Ton/m3
     cv::Float64 # Specific heat J/Ton/k
 
-    function ThermoSolidProps(; props...)
-        names = (rho="Density", cv="Heat capacity")
-        required = (:cv, )
-        @checkmissing props required names
+    function ThermoSolidProps(; kwargs...)
+        args = checkargs(kwargs, ThermoSolid_params)
+        this = new(args.rho, args.cv)
 
-        default = (rho=0.0,)
-        props  = merge(default, props)
-
-        cv  = props.cv
-        rho = props.rho
-
-        @check cv>0.0
-        @check rho>=0.0
-
-        return new(rho, cv)
+        return this
     end    
 end
 

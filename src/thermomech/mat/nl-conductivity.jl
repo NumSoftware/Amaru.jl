@@ -17,6 +17,13 @@ mutable struct NLConductivityState<:IpState
 end
 
 
+NLConductivity_params = [
+    FunInfo(:NLConductivity, "Nonlinear thermal conductivity material model"),
+    KwArgInfo(:k, "Conductivity", cond=:(k>=0)),
+    KwArgInfo(:cv, "Specific heat", 0.0, cond=:(cv>=0))
+]
+@doc docstring(NLConductivity_params) NLConductivity
+
 mutable struct NLConductivity<:Material
     #   T   C
     #   0   55
@@ -28,7 +35,7 @@ mutable struct NLConductivity<:Material
     cv_table::Array{Float64,2}
 
     function NLConductivity(; args...)
-        args = checkargs(args, arg_rules(NLConductivity))
+        args = checkargs(args, NLConductivity_params)
 
         if args.k isa Array
             k = 0.0
@@ -50,12 +57,6 @@ mutable struct NLConductivity<:Material
     end
 end
 
-
-arg_rules(::Type{NLConductivity}) =
-[
-    @arginfo k 1==1 "Conductivity"
-    @arginfo cv=0 1==1 "Specific heat"
-]
 
 # Type of corresponding state structure
 compat_state_type(::Type{NLConductivity}, ::Type{ThermoSolid}, env::ModelEnv) = NLConductivityState
