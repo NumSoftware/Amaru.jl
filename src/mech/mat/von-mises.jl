@@ -17,10 +17,6 @@ mutable struct VonMises<:Material
     H ::Float64
     ρ::Float64
 
-    function VonMises(prms::Dict{Symbol,Float64})
-        return VonMises(;prms...)
-    end
-
     function VonMises(; args...)
         args = checkargs(args, VonMisses_params)
 
@@ -77,13 +73,13 @@ mutable struct VonMisesBeamState<:IpState
     end
 end
 
-mutable struct VonMisesBarState<:IpState
+mutable struct VonMisesTrussState<:IpState
     env::ModelEnv
     σ::Float64
     ε::Float64
     εpa::Float64
     Δλ::Float64
-    function VonMisesBarState(env::ModelEnv)
+    function VonMisesTrussState(env::ModelEnv)
         this = new(env)
         this.σ   = 0.0
         this.ε   = 0.0
@@ -94,11 +90,11 @@ mutable struct VonMisesBarState<:IpState
 end
 
 
-compat_state_type(::Type{VonMises}, ::Type{MechSolid}, env::ModelEnv) = env.ana.stressmodel=="plane-stress" ? VonMisesPlaneStressState : VonMisesState
+compat_state_type(::Type{VonMises}, ::Type{MechSolid}, env::ModelEnv) = env.ana.stressmodel==:planestress ? VonMisesPlaneStressState : VonMisesState
 compat_state_type(::Type{VonMises}, ::Type{MechShell}, env::ModelEnv) = VonMisesPlaneStressState
 compat_state_type(::Type{VonMises}, ::Type{MechBeam}, env::ModelEnv) = VonMisesBeamState
-compat_state_type(::Type{VonMises}, ::Type{MechBar}, env::ModelEnv) = VonMisesBarState
-compat_state_type(::Type{VonMises}, ::Type{MechEmbBar}, env::ModelEnv) = VonMisesBarState
+compat_state_type(::Type{VonMises}, ::Type{MechTruss}, env::ModelEnv) = VonMisesTrussState
+compat_state_type(::Type{VonMises}, ::Type{MechEmbTruss}, env::ModelEnv) = VonMisesTrussState
 
 
 # VonMises model for 3D and 2D bulk elements (not including plane-stress state)
@@ -186,7 +182,7 @@ end
 
 
 function calcD(mat::VonMises, state::VonMisesPlaneStressState)
-    De  = calcDe(mat.E, mat.ν, "plane-stress")
+    De  = calcDe(mat.E, mat.ν, :planestress)
     state.Δλ==0.0 && return De
     σ = state.σ
 
@@ -201,7 +197,7 @@ end
 
 function update_state!(mat::VonMises, state::VonMisesPlaneStressState, Δε::Array{Float64,1})
     σini = state.σ
-    De   = calcDe(mat.E, mat.ν, "plane-stress")
+    De   = calcDe(mat.E, mat.ν, :planestress)
     σtr  = state.σ + De*Δε
     ftr  = yield_func(mat, state, σtr, state.εpa)
     tol = 1e-8
@@ -230,7 +226,7 @@ end
 
 function calc_σ_εpa_Δλ(mat::VonMises, state::VonMisesPlaneStressState, σtr::Vec6)
     # Δλ estimative
-    De   = calcDe(mat.E, mat.ν, "plane-stress")
+    De   = calcDe(mat.E, mat.ν, :planestress)
     # dfdσ = SVector( 2/3*σtr[1] - 1/3*σtr[2], 2/3*σtr[2] - 1/3*σtr[1], 0.0, σtr[4], σtr[5], σtr[6] )
     dfdσ = SVector( 2/3*σtr[1] - 1/3*σtr[2], 2/3*σtr[2] - 1/3*σtr[1], -1/3*σtr[1]-1/3*σtr[2], σtr[4], σtr[5], σtr[6] )
 
@@ -333,7 +329,7 @@ function ip_state_vals(mat::VonMises, state::VonMisesPlaneStressState)
     j1    = tr(σ)
     srj2d = √J2D(σ)
 
-    D = stress_strain_dict(σ, ε, "plane-stress")
+    D = stress_strain_dict(σ, ε, :planestress)
     D[:ep]   = state.εpa
     D[:j1]    = j1
     D[:srj2d] = srj2d
@@ -504,12 +500,12 @@ end
 # Von Mises for bar elements
 
 
-function yield_func(mat::VonMises, state::VonMisesBarState, σ::Float64, εpa::Float64)
+function yield_func(mat::VonMises, state::VonMisesTrussState, σ::Float64, εpa::Float64)
     return abs(σ) - (mat.σy + mat.H*εpa)
 end
 
 
-function calcD(mat::VonMises, state::VonMisesBarState)
+function calcD(mat::VonMises, state::VonMisesTrussState)
     if state.Δλ == 0.0
         return mat.E
     else
@@ -519,7 +515,7 @@ function calcD(mat::VonMises, state::VonMisesBarState)
 end
 
 
-function update_state!(mat::VonMises, state::VonMisesBarState, Δε::Float64)
+function update_state!(mat::VonMises, state::VonMisesTrussState, Δε::Float64)
     E, H    = mat.E, mat.H
     σini    = state.σ
     σtr     = σini + E*Δε
@@ -541,7 +537,7 @@ function update_state!(mat::VonMises, state::VonMisesBarState, Δε::Float64)
 end
 
 
-function ip_state_vals(mat::VonMises, state::VonMisesBarState)
+function ip_state_vals(mat::VonMises, state::VonMisesTrussState)
     return OrderedDict{Symbol,Float64}(
         :sX  => state.σ,
         :eX  => state.ε,

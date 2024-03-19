@@ -97,7 +97,7 @@ function setB(elem::Element, ip::Ip, dNdX::Matx, B::Matx)
             B[6,1+j*ndim] = dNdX[i,2]/SR2
             B[6,2+j*ndim] = dNdX[i,1]/SR2
         end
-        if elem.env.ana.stressmodel=="axisymmetric"
+        if elem.env.ana.stressmodel==:axisymmetric
             N = elem.shape.func(ip.R)
             for i in 1:nnodes
                 j = i-1
@@ -148,7 +148,7 @@ function elem_stiffness(elem::MechSolid)
 
 
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -185,7 +185,7 @@ function elem_mass(elem::MechSolid)
     J = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute N matrix
         Ni   = elem.shape.func(ip.R)
@@ -228,7 +228,7 @@ function elem_internal_forces(elem::MechSolid)
 
     C = getcoords(elem)
     for ip in elem.ips
-        if elem.env.ana.stressmodel=="axisymmetric"
+        if elem.env.ana.stressmodel==:axisymmetric
             th = 2*pi*ip.coord.x
         end
 
@@ -265,7 +265,7 @@ function update_elem!(elem::MechSolid, U::Array{Float64,1}, Δt::Float64)
 
     C = getcoords(elem)
     for ip in elem.ips
-        if elem.env.ana.stressmodel=="axisymmetric"
+        if elem.env.ana.stressmodel==:axisymmetric
             th = 2*pi*ip.coord.x
         end
 

@@ -22,7 +22,7 @@ mats = [
 # Loggers
 log_edge = EdgeLogger(10)
 
-#model = FEModel(msh, mats, stressmodel="plane-stress", thickness=1.0)
+#model = FEModel(msh, mats, stressmodel=:planestress, thickness=1.0)
 model = FEModel(msh, mats, log_edge)
 
 # Boundary conditions

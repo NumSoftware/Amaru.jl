@@ -275,7 +275,7 @@ function elem_coupling_matrix(elem::TMShell)
 
 
     for ip in elem.ips
-        #elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        #elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
         J2D  = C'*dNdR

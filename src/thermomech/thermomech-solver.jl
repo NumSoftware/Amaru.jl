@@ -2,18 +2,25 @@
 
 export ThermoAnalysis, ThermomechAnalysis
 
+ThermomechAnalysis_params = [
+    FunInfo(:ThermomechAnalysis, "Thermomechanical analysis properties."),
+    KwArgInfo(:stressmodel, "Stress model", :d3, values=(:planestress, :planestrain, :axisymmetric, :d3)),
+    KwArgInfo(:thickness, "Thickness for 2d analyses", 1.0, cond=:(thickness>0)),
+    KwArgInfo(:g, "Gravity acceleration", 0.0, cond=:(g>=0)),
+    KwArgInfo(:T0, "Reference temperature", 0.0, cond=:(T0>=-273.15)),
+]
+@doc docstring(ThermomechAnalysis_params) ThermomechAnalysis()
+
 mutable struct ThermomechAnalysisProps<:TransientAnalysis
-    stressmodel::String # plane stress, plane strain, etc.
+    stressmodel::Symbol # plane stress, plane strain, etc.
     thickness::Float64  # thickness for 2d analyses
     g::Float64 # gravity acceleration
     T0::Float64 # reference temperature
     
-    function ThermomechAnalysisProps(;stressmodel="3d", thickness=1.0, g=0.0, T0=0)
-        @check stressmodel in ("plane-stress", "plane-strain", "axisymmetric", "3d")
-        @check thickness>0
-        @check g>=0
-        @check T0>=-273.15
-        return new(stressmodel, thickness, g, T0)
+    function ThermomechAnalysisProps(; kwargs...)
+        args = checkargs(kwargs, ThermomechAnalysis_params)
+        this = new(args.stressmodel, args.thickness, args.g, args.T0)
+        return this
     end
 end
 
@@ -189,6 +196,9 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
     saveouts = stage.nouts > 0
     T0        = env.ana.T0
     ftol      = tol
+
+    env.ndim==3 && @check env.ana.stressmodel==:d3
+    
 
     # Get active elements
     for elem in stage.toactivate

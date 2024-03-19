@@ -15,7 +15,7 @@ msh= Mesh(bl)
 # fem domain
 mat = [ :bulks => MechSolid => VonMises => (E=E, nu=nu, fy=fy, H=H) ]
 
-ana = MechAnalysis(stressmodel="3d")
+ana = MechAnalysis(stressmodel=:d3)
 model = FEModel(msh, mat, ana)
 
 log = NodeLogger()

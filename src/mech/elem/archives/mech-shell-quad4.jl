@@ -67,7 +67,7 @@ function distributed_bc(elem::ShellQUAD4, facet::Cell, key::Symbol, val::Union{R
                 n = [J[1,2], -J[1,1]]
                 Q = vip*normalize(n)
             end
-            if elem.env.ana.stressmodel=="axisymmetric"
+            if elem.env.ana.stressmodel==:axisymmetric
                 th = 2*pi*X[1]
             end
         else

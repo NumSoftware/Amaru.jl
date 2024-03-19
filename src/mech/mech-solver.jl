@@ -2,20 +2,27 @@
 
 export MechAnalysis
 
+MechAnalysis_params = [
+    FunInfo(:MechAnalysis, "Mechanical analysis properties"),
+    KwArgInfo(:stressmodel, "Stress model", :d3, values=(:planestress, :planestrain, :axisymmetric, :d3)),
+    KwArgInfo(:thickness, "Thickness for 2d analyses", 1.0, cond=:(thickness>0)),
+    KwArgInfo(:g, "Gravity acceleration", 0.0, cond=:(g>=0))
+]
+@doc docstring(MechAnalysis_params) MechAnalysis
+
 mutable struct MechAnalysisProps<:StaticAnalysis
-    stressmodel::String # plane stress, plane strain, etc.
-    thickness::Float64  # thickness for 2d analyses
-    g::Float64 # gravity acceleration
+    stressmodel::Symbol
+    thickness::Float64
+    g::Float64
     
-    function MechAnalysisProps(;stressmodel="3d", thickness=1.0, g=0.0)
-        @check stressmodel in ("plane-stress", "plane-strain", "axisymmetric", "3d")
-        @check thickness>0
-        @check g>=0
-        return new(stressmodel, thickness, g)
+    function MechAnalysisProps(; kwargs...)
+        args = checkargs(kwargs, MechAnalysis_params)
+        this = new(args.stressmodel, args.thickness, args.g)
+        return this
     end
 end
 
-MechAnalysis = MechAnalysisProps
+const MechAnalysis = MechAnalysisProps
 
 
 # Assemble the global stiffness matrix
@@ -142,8 +149,10 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
     nouts     = stage.nouts
     bcs       = stage.bcs
     env       = model.env
-    saveouts = stage.nouts > 0
+    saveouts  = stage.nouts > 0
     ftol      = tol
+
+    env.ndim==3 && @check env.ana.stressmodel==:d3
 
     # Get active elements
     for elem in stage.toactivate
@@ -172,9 +181,6 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
 
         update_records!(model, force=true)
     end
-    # error()
-    # lastflush = time()
-    # flushinterval = 5.0
 
     # Get the domain current state and backup
     State = [ ip.state for elem in active_elems for ip in elem.ips ]

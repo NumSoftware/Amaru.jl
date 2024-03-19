@@ -2,18 +2,25 @@
 
 export HydroAnalysis, HydromechAnalysis
 
+HydromechAnalysis_params = [
+    FunInfo(:HydromechAnalysis, "Hydromechanical analysis properties."),
+    KwArgInfo(:stressmodel, "Stress model", :d3, values=(:planestress, :planestrain, :axisymmetric, :d3)),
+    KwArgInfo(:thickness, "Thickness for 2d analyses", 1.0, cond=:(thickness>0)),
+    KwArgInfo(:g, "Gravity acceleration", 0.0, cond=:(g>=0)),
+    KwArgInfo(:gammaw, "Water unit weight", 0.0, cond=:(gammaw>0)),
+]
+@doc docstring(HydromechAnalysis_params) HydromechAnalysis()
+
 mutable struct HydromechAnalysisProps<:TransientAnalysis
-    stressmodel::String # plane stress, plane strain, etc.
+    stressmodel::Symbol # plane stress, plane strain, etc.
     thickness::Float64  # thickness for 2d analyses
     g::Float64 # gravity acceleration
     γw::Float64 # water unit weight
     
-    function HydromechAnalysisProps(;stressmodel="3d", thickness=1.0, g=0.0, gammaw=0)
-        @check stressmodel in ("plane-stress", "plane-strain", "axisymmetric", "3d")
-        @check thickness>0
-        @check g>=0
-        @check gammaw>0
-        return new(stressmodel, thickness, g, gammaw)
+    function HydromechAnalysisProps(; kwargs...)
+        args = checkargs(kwargs, HydromechAnalysis_params)
+        this = new(args.stressmodel, args.thickness, args.g, args.gammaw)
+        return this
     end
 end
 
@@ -195,6 +202,8 @@ function hm_stage_solver!(model::Model, stage::Stage; args...)
     tspan     = stage.tspan
     env       = model.env
     saveouts = stage.nouts > 0
+
+    env.ndim==3 && @check env.ana.stressmodel==:d3
 
     # Get active elements
     for elem in stage.toactivate

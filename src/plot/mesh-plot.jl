@@ -1,6 +1,35 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-mutable struct MeshPlot<:AbstractChart
+
+MeshChart_params = [
+    FunInfo(:MeshChart, "Creates a customizable `MeshChart` instance used to plot finite element meshes."),
+    ArgInfo(:mesh, "Finite element mesh or model to plot"),
+    KwArgInfo((:size, :figsize), "Mesh drawing size in dpi", (220,150), length=2),
+    KwArgInfo(:facecolor, "Surface color", :aliceblue),
+    KwArgInfo(:warp, "Warping scale", 0.0 ),
+    KwArgInfo((:lw, :lineweight), "Line weight", 0.4,  cond=:(lw>0) ),
+    KwArgInfo(:field, "Scalar field", "" ),
+    KwArgInfo(:limits, "Limits for the scalar field", [0.0,0.0], length=2 ),
+    KwArgInfo(:mult, "Field multiplier", 1.0),
+    KwArgInfo(:label, "Colorbar label", "", type=AbstractString ),
+    KwArgInfo(:colormap, "Colormap for field display", :coolwarm),
+    KwArgInfo((:colorbarloc,:colorbar), "Colorbar location", :right, values=(:none, :right, :bottom) ),
+    KwArgInfo((:colorbarscale, :cbscale), "Colorbar scale", 0.9, cond=:(colorbarscale>0) ),
+    KwArgInfo((:label, :colorbarlabel, :cblabel, :colorbartitle), "Colorbar label", "" ),
+    KwArgInfo((:fontsize, :colorbarfontsize, :cbfontsize), "Colorbar font size", 7.0, cond=:(fontsize>0)),
+    KwArgInfo(:gradientmode, "Sets the gradient mode for surfaces", :nonlinear, values=(:constant,:linear,:nonlinear)),
+    KwArgInfo(:font, "Font name", "NewComputerModern", type=AbstractString),
+    KwArgInfo(:azimut, "Azimut angle for 3d in degrees", 30 ),
+    KwArgInfo(:elevation, "Elevation angle for 3d in degrees", 30 ),
+    KwArgInfo(:distance, "Distance from camera in 3d", 0.0, cond=:(distance>=0) ),
+    KwArgInfo(:outline, "Flag to show the outline", true, type=Bool ),
+    KwArgInfo(:wireframe, "Flag to show a wireframe", false, type=Bool ),
+    KwArgInfo((:lightvector, :lv), "Light direction vector", [0.0,0.0,0.0], length=3 )
+]
+@doc docstring(MeshChart_params) MeshChart(mesh; kwargs...)
+
+
+mutable struct MeshChart<:AbstractChart
     mesh::AbstractDomain
     canvas::Union{ChartComponent, Nothing}
     colorbar::Union{ChartComponent, Nothing}
@@ -34,8 +63,8 @@ mutable struct MeshPlot<:AbstractChart
     outline::Bool
     wireframe::Bool
 
-    function MeshPlot(mesh; args...)
-        args = checkargs(args, func_params(MeshPlot), aliens=false)
+    function MeshChart(mesh; args...)
+        args = checkargs(args, MeshChart_params, aliens=false)
 
         this = new()
         this.mesh = mesh
@@ -51,14 +80,14 @@ mutable struct MeshPlot<:AbstractChart
         this.height    = args.size[2]
         this.lw        = args.lw
         this.facecolor = _colors_dict[args.facecolor]
-        this.field     = args.field
+        this.field     = string(args.field)
         this.limits    = args.limits
         this.mult      = args.mult
         this.warp      = args.warp
         this.label     = args.label
 
-        colormap             = args.colormap isa Symbol ? Colormap(args.colormap) : args.colormap
-        this.colormap        = colormap
+        colormap          = args.colormap isa Symbol ? Colormap(args.colormap) : args.colormap
+        this.colormap     = colormap
         this.gradientmode = args.gradientmode
 
         this.azimut      = args.azimut
@@ -74,32 +103,7 @@ mutable struct MeshPlot<:AbstractChart
     end
 end
 
-func_params(::Type{MeshPlot}) = [
-    FunInfo( :MeshPlot, "Creates a customizable `MeshPlot` instance used to plot finite element meshes."),
-    KwArgInfo( (:size, :figsize), "Mesh drawing size in dpi", (220,150), length=2),
-    KwArgInfo( :facecolor, "Surface color", :aliceblue),
-    KwArgInfo( :warp, "Warping scale", 0.0 ),
-    KwArgInfo( (:lw, :lineweight), "Line weight", 0.4,  cond=:(lw>0) ),
-    KwArgInfo( :field, "Scalar field", "" ),
-    KwArgInfo( :limits, "Limits for the scalar field", [0.0,0.0], length=2 ),
-    KwArgInfo( :mult, "Field multiplier", 1.0),
-    KwArgInfo( :label, "Colorbar label", "", type=AbstractString ),
-    KwArgInfo( :colormap, "Colormap for field display", :coolwarm),
-    # ArgInfo( :divergefromzero, "Sets if colormap will diverge from zero", false, type=Bool),
-    KwArgInfo( (:colorbarloc,:colorbar), "Colorbar location", :right, values=(:none, :right, :bottom) ),
-    KwArgInfo( (:colorbarscale, :cbscale), "Colorbar scale", 0.9, cond=:(colorbarscale>0) ),
-    KwArgInfo( (:label, :colorbarlabel, :cblabel, :colorbartitle), "Colorbar label", "" ),
-    KwArgInfo( (:fontsize, :colorbarfontsize, :cbfontsize), "Colorbar font size", 7.0, cond=:(fontsize>0)),
-    KwArgInfo( :gradientmode, "Sets the gradient mode for surfaces", :nonlinear, values=(:constant,:linear,:nonlinear)),
-    KwArgInfo( :font, "Font name", "NewComputerModern", type=AbstractString),
-    KwArgInfo( :azimut, "Azimut angle for 3d in degrees", 30 ),
-    KwArgInfo( :elevation, "Elevation angle for 3d in degrees", 30 ),
-    KwArgInfo( :distance, "Distance from camera in 3d", 0.0, cond=:(distance>=0) ),
-    KwArgInfo( :outline, "Flag to show the outline", true, type=Bool ),
-    KwArgInfo( :wireframe, "Flag to show a wireframe", false, type=Bool ),
-    KwArgInfo( (:lightvector, :lv), "Light direction vector", [0.0,0.0,0.0], length=3 )
-]
-@doc docstring(func_params(MeshPlot)) MeshPlot()
+const MeshPlot = MeshChart
 
 
 function bezier_points(edge)
@@ -170,7 +174,7 @@ function project_to_2d!(nodes, azimut, elevation, distance)
 end
 
 
-function configure!(mplot::MeshPlot)
+function configure!(mplot::MeshChart)
     orig_mesh = mplot.mesh
     mesh = copy(mplot.mesh)
     ndim = mesh.env.ndim
@@ -222,7 +226,7 @@ function configure!(mplot::MeshPlot)
                 node.coord = node.coord + mplot.warp*U[node.id,:]  
             end
         else
-            alert("MeshPlot: Vector field U not found for warping.")
+            alert("MeshChart: Vector field U not found for warping.")
         end
     end
 
@@ -271,24 +275,23 @@ function configure!(mplot::MeshPlot)
     has_field = mplot.field != ""
 
     if has_field
-        mplot.label == ""  && (mplot.label = mplot.field)
-        
         field = string(mplot.field)
-        found = false
+        mplot.label == ""  && (mplot.label = field)
+
+        # available fields
+        fields = [ string(field) for field in Iterators.flatten([keys(node_data), keys(elem_data)]) ]
+        field in fields || error("mplot: field $field not found. Available fields are: $(join(fields, ", ", " and "))")
+        
         if haskey(elem_data, field)
-            # fvals = elem_data[field][elem_ids].*mplot.mult
             fvals = elem_data[field].*mplot.mult
             fmax = maximum(fvals)
             fmin = minimum(fvals)
-            found = true
         end
         if haskey(node_data, field)
             fvals = node_data[field].*mplot.mult
-            found = true
             fmax = maximum(fvals[node.id] for node in nodes)
             fmin = minimum(fvals[node.id] for node in nodes)
         end
-        found || error("mplot: field $field not found")
         if fmin==fmax
             fmin -= 1
             fmax += 1
@@ -352,7 +355,7 @@ function configure!(mplot::MeshPlot)
 end
 
 
-function draw!(mplot::MeshPlot, cc::CairoContext)
+function draw!(mplot::MeshChart, cc::CairoContext)
     set_line_join(cc, Cairo.CAIRO_LINE_JOIN_ROUND)
  
     xmin, xmax = extrema( node.coord[1] for node in mplot.nodes)
@@ -422,7 +425,7 @@ function draw!(mplot::MeshPlot, cc::CairoContext)
 end
 
 
-function draw_surface_cell!(cc::CairoContext, mplot::MeshPlot, elem::AbstractCell, has_field::Bool)
+function draw_surface_cell!(cc::CairoContext, mplot::MeshChart, elem::AbstractCell, has_field::Bool)
     is_nodal_field = has_field && haskey(mplot.mesh.node_data, mplot.field)
 
     # draw cells face
@@ -561,7 +564,7 @@ function draw_surface_cell!(cc::CairoContext, mplot::MeshPlot, elem::AbstractCel
 end
 
 
-function save(mplot::MeshPlot, filename::String, copypath::String="")
+function save(mplot::MeshChart, filename::String, copypath::String="")
     width, height = mplot.width, mplot.height
     
     fmt = splitext(filename)[end]

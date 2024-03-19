@@ -82,7 +82,7 @@ function distributed_bc(elem::SeepSolid, facet::Union{Facet,Nothing}, key::Symbo
         if ndim==2
             x, y = X
             vip = evaluate(val, t=t, x=x, y=y)
-            if elem.env.ana.stressmodel=="axisymmetric"
+            if elem.env.ana.stressmodel==:axisymmetric
                 th = 2*pi*X[1]
             end
         else
@@ -113,7 +113,7 @@ function elem_conductivity_matrix(elem::SeepSolid)
     J    = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         dNdR = elem.shape.deriv(ip.R)
         @mul J  = C'*dNdR
@@ -146,7 +146,7 @@ function elem_compressibility_matrix(elem::SeepSolid)
     J  = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
@@ -182,7 +182,7 @@ function elem_RHS_vector(elem::SeepSolid)
     Z[end] = 1.0
 
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         dNdR = elem.shape.deriv(ip.R)
         @mul J  = C'*dNdR
@@ -218,7 +218,7 @@ function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
     dNdX = Array{Float64}(undef, nnodes, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute Bw matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -262,7 +262,7 @@ function update_elem!(elem::SeepSolid, DU::Array{Float64,1}, Δt::Float64)
     dNdX = Array{Float64}(undef, nnodes, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix
         N    = elem.shape.func(ip.R)

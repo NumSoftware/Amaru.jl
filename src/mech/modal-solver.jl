@@ -1,16 +1,23 @@
 
 export ModalAnalysis
 
+ModalAnalysis_params = [
+    FunInfo(:ModalAnalysis, "Mechanical modal analysis"),
+    KwArgInfo(:stressmodel, "Stress model", :d3, values=(:planestress, :planestrain, :axisymmetric, :d3)),
+    KwArgInfo(:thickness, "Thickness for 2d analyses", 1.0, cond=:(thickness>0)),
+    KwArgInfo(:g, "Gravity acceleration", 0.0, cond=:(g>=0))
+]
+@doc docstring(ModalAnalysis_params) ModalAnalysis
+
 mutable struct ModalAnalysis<:Analysis
-    stressmodel::String # plane stress, plane strain, etc.
+    stressmodel::Symbol # plane stress, plane strain, etc.
     thickness::Float64  # thickness for 2d analyses
     g::Float64 # gravity acceleration
     
-    function ModalAnalysis(;stressmodel="3d", thickness=1.0, g=0.0)
-        @check stressmodel in ("plane-stress", "plane-strain", "axisymmetric", "3d")
-        @check thickness>0
-        @check g>=0
-        return new(stressmodel, thickness, g)
+    function ModalAnalysis(; kwargs...)
+        args = checkargs(kwargs, ModalAnalysis_params)
+        this = new(args.stressmodel, args.thickness, args.g)
+        return this
     end
 end
 
@@ -22,17 +29,27 @@ function solve!(model::Model, ana::ModalAnalysis; args...)
 end
 
 
-function dyn_modal_solver!(model::Model, stage::Stage; 
-    nmods::Int=5,
-    rayleigh=false, 
-    outdir::String  = ".",
-    outkey::String  = "mod",
-    quiet ::Bool    = false
-)
+dyn_modal_solver_params = [
+    FunInfo( :dyn_modal_solver!, "Solves a load stage of a mechanical analysis."),
+    ArgInfo( :model, "Model object"),
+    ArgInfo( :stage, "Stage object"),
+    KwArgInfo( :nmods, "Number of modes to be calculated", 5),
+    KwArgInfo( :rayleigh, "Flag to use Rayleigh-Ritz method for damping", false),
+    KwArgInfo( :quiet, "Flag to set silent mode", false),
+]
+@doc docstring(dyn_modal_solver_params) dyn_modal_solver!()
+
+function dyn_modal_solver!(model::Model, stage::Stage; kwargs...)
+    args = checkargs(kwargs, dyn_modal_solver_params)
+    nmods = args.nmods
+    rayleigh = args.rayleigh
+    quiet = args.quiet 
 
     env = model.env
     println(env.log, "Dynamic modal analysis")
-    stage.status = :solving
+
+    env.ndim==3 && @check env.ana.stressmodel==:d3
+
 
     # get only bulk elements
     model = Model(model.elems.bulks)
@@ -89,7 +106,7 @@ function dyn_modal_solver!(model::Model, stage::Stage;
     w = wi.^0.5
 
     update_output_data!(model)
-    save(model, joinpath(outdir, "$outkey-0.vtu"), quiet=true)
+    save(model, joinpath(env.outdir, "$(env.outkey)-0.vtu"), quiet=true)
 
     model.env.inc = 1
     model.env.ΔT  = 1.0
@@ -104,7 +121,7 @@ function dyn_modal_solver!(model::Model, stage::Stage;
         model.env.T = i/nmods
         model.env.out = i
         update_output_data!(model)
-        save(model, joinpath(outdir, "$outkey-$i.vtu"), quiet=true)
+        save(model, joinpath(env.outdir, "$(env.outkey)-$i.vtu"), quiet=true)
     end
 
     # reset displacement values

@@ -12,7 +12,7 @@ mesh = revolve(mesh, angle=180, n=n, base=[0,0,0], axis=[0,1,0])
 # Finite element model
 mats = [ "shell" => MechShell => LinearElastic => (E=3e4, nu=0.3, thickness=0.03) ]
 
-ana = MechAnalysis(stressmodel="3d")
+ana = MechAnalysis(stressmodel=:d3)
 
 model = FEModel(mesh, mats, ana)
 

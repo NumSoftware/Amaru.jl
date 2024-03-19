@@ -135,7 +135,7 @@ function distributed_bc(elem::ShellDegenerated, facet::Cell, key::Symbol, val::U
                 n = [J[1,2], -J[1,1]]
                 Q = vip*normalize(n)
             end
-            if elem.env.ana.stressmodel=="axisymmetric"
+            if elem.env.ana.stressmodel==:axisymmetric
                 th = 2*pi*X[1]
             end
         else
@@ -466,7 +466,7 @@ function update_elem!(elem::ShellDegenerated, U::Array{Float64,1}, Δt::Float64)
     Δε = zeros(6)
     C = getcoords(elem)
     for ip in elem.ips
-        if elem.env.ana.stressmodel=="axisymmetric"
+        if elem.env.ana.stressmodel==:axisymmetric
             th = 2*pi*ip.coord.x
         end
         # compute B matrix

@@ -16,19 +16,12 @@ include("elem/distributed.jl")
 
 # Elements
 include("elem/mech-solid.jl")
-#include("elem/in-mech-solid.jl")
-include("elem/mech-rod.jl")
-include("elem/mech-embrod.jl")
+include("elem/mech-truss.jl")
+include("elem/mech-embtruss.jl")
 include("elem/mech-beam.jl")
 include("elem/mech-joint.jl")
-include("elem/mech-lsjoint.jl")
-include("elem/mech-tipjoint.jl")
-include("elem/mech-plate-mzc-quad4.jl")
-include("elem/mech-plate-rm-quad4.jl")
-include("elem/mech-plate-rm-quad8.jl")
-include("elem/mech-shell-quad4.jl")
-include("elem/mech-shell-degenerated.jl")
-include("elem/mech-cook-shell.jl")
+include("elem/mech-lsinterface.jl")
+include("elem/mech-tipinterface.jl")
 include("elem/mech-shell.jl")
 
 
@@ -38,45 +31,41 @@ include("mat/drucker-prager.jl")
 include("mat/von-mises.jl")
 include("mat/mazars.jl")
 include("mat/smeared-crack.jl")
-# include("mat/compressible.jl")
-# include("mat/compressible-bulk-v2.jl")
-# include("mat/compressible-bulk-v4.jl")
 include("mat/damageconcrete-solid.jl")
 
 # Spring, dumper, lumped mass
 include("elem/mech-lumpedmass.jl")
 include("mat/lumpedmass.jl")
 include("elem/mech-spring.jl")
-include("mat/elastic-spring.jl")
+include("mat/linear-spring.jl")
 
 # Models for plates
-include("mat/elastic-plateMZC.jl")
-include("mat/elastic-plateRM.jl")
-include("mat/elastic-plateRM8node.jl")
+# include("mat/elastic-plateMZC.jl")
+# include("mat/elastic-plateRM.jl")
+# include("mat/elastic-plateRM8node.jl")
 
 # Models for shells
-include("mat/elastic-shell-quad4.jl")
-include("mat/elastic-shell-degenerated.jl")
-include("mat/elastic-cook-shell.jl")
-# include("mat/elastic-shell.jl")
+# include("mat/elastic-shell-quad4.jl")
+# include("mat/elastic-shell-degenerated.jl")
+# include("mat/elastic-cook-shell.jl")
 
 # Models for joint elements
-include("mat/elastic-joint.jl")
+include("mat/linear-joint.jl")
 
 # Models for cohesive elements
 include("mat/linear-cohesive.jl")
-include("mat/mc-joint.jl")
-include("mat/p-joint.jl")
-include("mat/mmc-joint.jl")
-include("mat/tc-joint.jl")
-include("mat/tc2-joint.jl")
+include("mat/mc-cohesive.jl")
+# include("mat/p-cohesive.jl")
+# include("mat/mmc-cohesive.jl")
+include("mat/tc-cohesive.jl")
+include("mat/tc2-cohesive.jl") 
 
 # Models for 1D joint elements
-include("mat/elastic-lsjoint.jl")
-include("mat/ceb-rsjoint.jl")
-include("mat/cyclic-lsjoint.jl")
-include("mat/tipjoint.jl")
-include("mat/elastic-tipjoint.jl")
+include("mat/linear-lsinterface.jl")
+include("mat/ceb-lsinterface.jl")
+include("mat/cyclic-lsinterface.jl")
+include("mat/linear-tipinterface.jl")
+include("mat/nl-tipinterface.jl")
 
 # Stress-update integrator
 include("mat/integrator.jl")

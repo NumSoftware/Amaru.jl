@@ -5,7 +5,7 @@ export LinearElastic
 LinearElastic_params = [
     FunInfo(:LinearElastic, "Linear-elastic material model"),
     KwArgInfo(:E, "Young modulus", cond=:(E>0.0)),
-    KwArgInfo(:nu, "Poisson ratio", 0.0, cond=:(0.0<=nu<0.5))
+    KwArgInfo(:nu, "Poisson ratio", 0.0, cond=:(0.0<=nu<0.5)) # default value to easy the use of truss elements
 ]
 @doc docstring(LinearElastic_params) LinearElastic
 
@@ -61,15 +61,15 @@ mutable struct ElasticBarState<:IpState
 end
 
 
-compat_state_type(::Type{LinearElastic}, ::Type{MechSolid}, env::ModelEnv)  = env.ana.stressmodel=="plane-stress" ? ElasticPlaneStressState : ElasticSolidState
+compat_state_type(::Type{LinearElastic}, ::Type{MechSolid}, env::ModelEnv)  = env.ana.stressmodel==:planestress ? ElasticPlaneStressState : ElasticSolidState
 compat_state_type(::Type{LinearElastic}, ::Type{MechShell}, env::ModelEnv)  = ElasticPlaneStressState
 compat_state_type(::Type{LinearElastic}, ::Type{MechBeam}, env::ModelEnv)   = ElasticBeamState
 compat_state_type(::Type{LinearElastic}, ::Type{MechBar}, env::ModelEnv)    = ElasticBarState
 compat_state_type(::Type{LinearElastic}, ::Type{MechEmbBar}, env::ModelEnv) = ElasticBarState
 
 
-function calcDe(E::Real, ν::Real, stressmodel::String="3d")
-    if stressmodel=="plane-stress"
+function calcDe(E::Real, ν::Real, stressmodel::Symbol=:d3)
+    if stressmodel==:planestress
         c = E/(1-ν^2)
         return @SArray [
             c     c*ν   0.0   0.0        0.0        0.0
@@ -119,12 +119,12 @@ end
 
 
 function calcD(mat::LinearElastic, state::ElasticPlaneStressState)
-    return calcDe(mat.E, mat.ν, "plane-stress")
+    return calcDe(mat.E, mat.ν, :planestress)
 end
 
 
 function update_state!(mat::LinearElastic, state::ElasticPlaneStressState, dε::AbstractArray)
-    De = calcDe(mat.E, mat.ν, "plane-stress")
+    De = calcDe(mat.E, mat.ν, :planestress)
     dσ = De*dε
     state.ε += dε
     state.σ += dσ
@@ -133,7 +133,7 @@ end
 
 
 function ip_state_vals(mat::LinearElastic, state::ElasticPlaneStressState)
-    return stress_strain_dict(state.σ, state.ε, "plane-stress")
+    return stress_strain_dict(state.σ, state.ε, :planestress)
 end
 
 

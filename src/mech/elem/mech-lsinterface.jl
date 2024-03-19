@@ -1,25 +1,25 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export MechRSJoint, MechLSJoint
+export MechRSJoint, MechLSJoint, MechLSInterface
 
-MechLSJoint_params = [
-    FunInfo(:MechLSJoint, "Finite element for a rod-bulk interface."),
+MechLSInterface_params = [
+    FunInfo(:MechLSInterface, "Finite element for a rod-bulk interface."),
     KwArgInfo(:p, "Perimeter", cond=:(p>0)),
 ]
-@doc docstring(MechLSJoint_params) MechLSJoint(; kwargs...)
+@doc docstring(MechLSInterface_params) MechLSInterface(; kwargs...)
 
-struct MechLSJointProps<:ElemProperties
+struct MechLSInterfaceProps<:ElemProperties
     p::Float64
 
-    function MechLSJointProps(; kwargs...)
-        args = checkargs(kwargs, MechLSJoint_params)
+    function MechLSInterfaceProps(; kwargs...)
+        args = checkargs(kwargs, MechLSInterface_params)
         this = new(args.p)
         return this
     end
 end
 
 
-mutable struct MechLSJoint<:Mech
+mutable struct MechLSInterface<:Mech
     id    ::Int
     shape ::CellShape
 
@@ -27,7 +27,7 @@ mutable struct MechLSJoint<:Mech
     ips   ::Array{Ip,1}
     tag   ::String
     mat::Material
-    props ::MechLSJointProps
+    props ::MechLSInterfaceProps
     active::Bool
     linked_elems::Array{Element,1}
     env::ModelEnv
@@ -36,15 +36,16 @@ mutable struct MechLSJoint<:Mech
     cache_B   ::Array{Array{Float64,2}}
     cache_detJ::Array{Float64}
 
-    function MechLSJoint()
+    function MechLSInterface()
         return new()
     end
 end
 
-const MechRSJoint = MechLSJoint
+const MechRSJoint = MechLSInterface
+const MechLSJoint = MechLSInterface
 
 compat_shape_family(::Type{MechRSJoint}) = LINEJOINTCELL
-compat_elem_props(::Type{MechRSJoint}) = MechLSJointProps
+compat_elem_props(::Type{MechRSJoint}) = MechLSInterfaceProps
 
 
 

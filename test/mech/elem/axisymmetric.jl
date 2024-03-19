@@ -13,7 +13,7 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
         "solids" => MechSolid => LinearElastic => (E=100.0, nu=0.2)
     ]
 
-    ana = MechAnalysis(stressmodel="axisymmetric")
+    ana = MechAnalysis(stressmodel=:axisymmetric)
     model = FEModel(mesh, materials, ana)
 
     bcs = [
@@ -36,7 +36,7 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
 
     mesh = revolve(mesh, base=[0,0,0], axis=[0,1,0], n=12)
     
-    ana = MechAnalysis(stressmodel="3d")
+    ana = MechAnalysis(stressmodel=:d3)
     model = FEModel(mesh, materials, ana)
 
     bcs = [

@@ -7,7 +7,7 @@ conn  = [[1, 2], [1, 5], [2, 3], [2, 6], [2, 5], [2, 4], [3, 6], [3, 5], [4, 5],
 msh = Mesh(coord, conn, tag="bars")
 
 mats = [
-        "bars" << MechRod << ElasticRod << (E=6.894757e7, A=0.043)
+        "bars" => MechTruss => LinearElastic => (E=6.894757e7, A=0.043)
        ]
 
 ana = MechAnalysis()
@@ -24,4 +24,9 @@ bcs = [
 addstage!(model, bcs)
 solve!(model)
 
-mplot(model, "truss.pdf", field="sa", colorbarlabel="axial stress", colormap="gist_rainbow",  warpscale=100)
+mchart = MeshChart(model, 
+    field = :sX,
+    colormap = :coolwarm,
+    label = L"\sigma_x",
+    warp = 100
+)

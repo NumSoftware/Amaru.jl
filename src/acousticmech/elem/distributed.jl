@@ -35,7 +35,7 @@ function acoustic_mech_bc(elem::Element, facet::Cell, key::Symbol, val::Union{Re
         if ndim==2
             x, y = X
             vip = evaluate(val, t=t, x=x, y=y)
-            if elem.env.ana.stressmodel=="axisymmetric"
+            if elem.env.ana.stressmodel==:axisymmetric
                 th = 2*pi*X[1]
             end
         else

@@ -119,7 +119,7 @@ function elem_stiffness(elem::MechJoint)
     # error()
 
     for ip in elem.ips
-    	if elem.env.ana.stressmodel=="axisymmetric"
+    	if elem.env.ana.stressmodel==:axisymmetric
             th = 2*pi*ip.coord.x
         end
         
@@ -174,7 +174,7 @@ function update_elem!(elem::MechJoint, U::Array{Float64,1}, Δt::Float64)
     Δω = zeros(ndim)
 
     for ip in elem.ips
-    	if elem.env.ana.stressmodel=="axisymmetric"
+    	if elem.env.ana.stressmodel==:axisymmetric
             th = 2*pi*ip.coord.x
         end
 

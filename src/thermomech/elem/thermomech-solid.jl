@@ -103,7 +103,7 @@ function elem_stiffness(elem::TMSolid)
     dNdX = Array{Float64}(undef, nnodes, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -142,13 +142,13 @@ function elem_coupling_matrix(elem::TMSolid)
     dNdX = Array{Float64}(undef, nnodes, ndim)
     m    = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
     β    = E*α/(1-2*ν) # thermal stress modulus
-    if elem.env.ana.stressmodel=="plane-stress"
+    if elem.env.ana.stressmodel==:planestress
         β = E*α/(1-ν)
         m = [ 1.0, 1.0, 0.0, 0.0, 0.0, 0.0 ]
     end
 
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -186,7 +186,7 @@ function elem_conductivity_matrix(elem::TMSolid)
     J      = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         dNdR  = elem.shape.deriv(ip.R)
         dNtdR = elem.shape.basic_shape.deriv(ip.R)
@@ -219,7 +219,7 @@ function elem_mass_matrix(elem::TMSolid)
     J  = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         Nt   = elem.shape.basic_shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
@@ -262,7 +262,7 @@ function update_elem!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
     Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes[1:nbnodes]]
     Ut += dUt # nodal tempeture at step n+1
     m   = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
-    if elem.env.ana.stressmodel=="plane-stress"
+    if elem.env.ana.stressmodel==:planestress
         β = E*α/(1-ν)
         m = [ 1.0, 1.0, 0.0, 0.0, 0.0, 0.0 ]
     end
@@ -278,7 +278,7 @@ function update_elem!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
     Δε = zeros(6)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute Bu and Bt matrices
         dNdR = elem.shape.deriv(ip.R)

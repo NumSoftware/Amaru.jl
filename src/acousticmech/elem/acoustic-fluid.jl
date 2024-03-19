@@ -50,7 +50,7 @@ function elem_acoustic_stiffness(elem::AcousticFluid)
     J      = Array{Float64}(undef, ndim, ndim) # Jacobian
 
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         dNdR = elem.shape.deriv(ip.R)
         @mul J  = C'*dNdR
@@ -81,7 +81,7 @@ function elem_acoustic_mass(elem::AcousticFluid)
     J      = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
@@ -132,7 +132,7 @@ function update_elem!(elem::AcousticFluid, DU::Array{Float64,1}, Δt::Float64)
     # dNdX = Array{Float64}(undef, nnodes, ndim)
 
     # for ip in elem.ips
-    #     elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+    #     elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
     #     # compute Bu matrix
     #     N    = elem.shape.func(ip.R)

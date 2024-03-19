@@ -51,7 +51,7 @@ for i in 2
 
     mats = allmats[[1,i]]
 
-    ana = MechAnalysis(stressmodel="plane-stress", thickness=1.0)
+    ana = MechAnalysis(stressmodel=:planestress, thickness=1.0)
     model = FEModel(msh, mats, ana)
 
     # Loggers

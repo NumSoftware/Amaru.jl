@@ -1,12 +1,12 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export ElasticLSJoint, ElasticRSJoint
+export LinearLSInterface, ElasticRSJoint, ElasticLSJoint
 
-mutable struct ElasticLSJointState<:IpState
+mutable struct LinearLSInterfaceState<:IpState
     env::ModelEnv
     σ ::Array{Float64,1}
     u ::Array{Float64,1}
-    function ElasticLSJointState(env::ModelEnv)
+    function LinearLSInterfaceState(env::ModelEnv)
         this = new(env)
         this.σ = zeros(env.ndim)
         this.u = zeros(env.ndim)
@@ -14,32 +14,33 @@ mutable struct ElasticLSJointState<:IpState
     end
 end
 
-ElasticLSJoint_params = [
-    FunInfo(:ElasticLSJoint, "Elastic material for a rod-solid interface."),
+LinearLSInterface_params = [
+    FunInfo(:LinearLSInterface, "Elastic material for a rod-solid interface."),
     KwArgInfo(:ks, "Shear stiffness", cond=:(ks>=0)),
     KwArgInfo(:kn, "Normal stiffness", cond=:(kn>0)),
 ]
-@doc docstring(ElasticLSJoint_params) ElasticLSJoint(; kwargs...)
+@doc docstring(LinearLSInterface_params) LinearLSInterface(; kwargs...)
 
-mutable struct ElasticLSJoint<:Material
+mutable struct LinearLSInterface<:Material
     ks::Float64
     kn::Float64
 
-    function ElasticLSJoint(; kwargs...)
-        args = checkargs(kwargs, ElasticLSJoint_params)
+    function LinearLSInterface(; kwargs...)
+        args = checkargs(kwargs, LinearLSInterface_params)
         this = new(args.ks, args.kn)
         return this
     end
 end
 
-const ElasticRSJoint = ElasticLSJoint
+const ElasticLSJoint = LinearLSInterface
+const ElasticRSJoint = LinearLSInterface
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{ElasticLSJoint}, ::Type{MechRSJoint}, env::ModelEnv) = ElasticLSJointState
+compat_state_type(::Type{LinearLSInterface}, ::Type{MechRSJoint}, env::ModelEnv) = LinearLSInterfaceState
 
 
-function calcD(mat::ElasticLSJoint, state::ElasticLSJointState)
+function calcD(mat::LinearLSInterface, state::LinearLSInterfaceState)
     ks = mat.ks
     kn = mat.kn
     if state.env.ndim==2
@@ -53,7 +54,7 @@ function calcD(mat::ElasticLSJoint, state::ElasticLSJointState)
 end
 
 
-function update_state!(mat::ElasticLSJoint, state::ElasticLSJointState, Δu)
+function update_state!(mat::LinearLSInterface, state::LinearLSInterfaceState, Δu)
     D = calcD(mat, state)
     Δσ = D*Δu
 
@@ -63,7 +64,7 @@ function update_state!(mat::ElasticLSJoint, state::ElasticLSJointState, Δu)
 end
 
 
-function ip_state_vals(mat::ElasticLSJoint, state::ElasticLSJointState)
+function ip_state_vals(mat::LinearLSInterface, state::LinearLSInterfaceState)
     return OrderedDict(
       :ur   => state.u[1] ,
       :tau  => state.σ[1] )

@@ -174,10 +174,10 @@ end
 Return a dictionary with conventional stress and stress values
 from stress and strain tensors defined in Mandel notation.
 """
-@inline function stress_strain_dict(σ::Vec6, ε::Vec6, stressmodel::String)
+@inline function stress_strain_dict(σ::Vec6, ε::Vec6, stressmodel::Symbol)
     svm = √(3*J2D(σ))
 
-    if stressmodel in ("plane-stress","plane-strain")
+    if stressmodel in (:planestress,:planestrain)
         s1, _, s3 = eigvals(σ)
         return OrderedDict{Symbol,Float64}(
             :sxx => σ[1],
@@ -194,7 +194,7 @@ from stress and strain tensors defined in Mandel notation.
             :ezz => ε[3],
             :exy => ε[6]/SR2,
         )
-    elseif stressmodel=="axisymmetric"
+    elseif stressmodel==:axisymmetric
         return OrderedDict{Symbol,Float64}(
             :srr => σ[1],
             :syy => σ[2],

@@ -69,7 +69,7 @@ module Amaru
 
     # Plotting
     include("plot/include.jl")
-    export Chart, LineSeries, LinePlot, Colormap, MeshPlot
+    export Chart, LineSeries, LinePlot, Colormap, MeshPlot, MeshChart
     export addplot!, addseries!
 
     # Boundary conditions
@@ -126,7 +126,7 @@ module Amaru
     Base.show(io::IO, obj::BC)             = _show(io, obj, 2, "")
     Base.show(io::IO, obj::Facet)          = _show(io, obj, 2, "")
     Base.show(io::IO, obj::AbstractLogger) = _show(io, obj, 2, "")
-    Base.show(io::IO, obj::Model)         = _show(io, obj, 2, "")
+    Base.show(io::IO, obj::FEModel)        = _show(io, obj, 2, "")
 
     # Chaining
     Base.:(<<)(a, b::Type{<:Element}) = return (a=>b)

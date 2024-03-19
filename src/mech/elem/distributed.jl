@@ -86,7 +86,7 @@ function mech_boundary_forces(elem::Element, facet::Cell, key::Symbol, val::Unio
     # Check keys
     key in suitable_keys || error("mech_boundary_forces: boundary condition $key is not applicable as distributed bc. Suitable keys are $(string.(suitable_keys))")
     key in (:tz,:qz) && ndim==2 && error("mech_boundary_forces: boundary condition $key is not applicable in a 2D analysis")
-    isedgebc && ana.stressmodel=="axisymmetric" && error("mech_boundary_forces: boundary condition $key is not applicable in a axisymmetric analysis")
+    isedgebc && ana.stressmodel==:axisymmetric && error("mech_boundary_forces: boundary condition $key is not applicable in a axisymmetric analysis")
     isedgebc && facet.shape.ndim==2 && error("mech_boundary_forces: boundary condition $key is not applicable on surfaces")
     !isedgebc && facet.shape.ndim==1 && ndim==3 && error("mech_boundary_forces: boundary condition $key is not applicable on 3D edges")
 
@@ -118,7 +118,7 @@ function mech_boundary_forces(elem::Element, facet::Cell, key::Symbol, val::Unio
             x, y = X
             vip = evaluate(val, t=t, x=x, y=y)
             Q = zeros(2)
-            ana.stressmodel=="axisymmetric" && (th = 2*pi*X[1])
+            ana.stressmodel==:axisymmetric && (th = 2*pi*X[1])
         else
             x, y, z = X
             vip = evaluate(val, t=t, x=x, y=y, z=z)
@@ -161,7 +161,7 @@ end
 #     # Check keys
 #     key in suitable_keys || error("mech_boundary_forces: boundary condition $key is not applicable as distributed bc at element of type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
 #     key in (:tz,:qz) && ndim==2 && error("mech_boundary_forces: boundary condition $key is not applicable in a 2D analysis")
-#     isedgebc && elem.env.ana.stressmodel=="axisymmetric" && error("mech_boundary_forces: boundary condition $key is not applicable in a axisymmetric analysis")
+#     isedgebc && elem.env.ana.stressmodel==:axisymmetric && error("mech_boundary_forces: boundary condition $key is not applicable in a axisymmetric analysis")
 #     isedgebc && facet.shape.ndim==2 && error("mech_boundary_forces: boundary condition $key is not applicable on surfaces")
 #     !isedgebc && facet.shape.ndim==1 && ndim==3 && error("mech_boundary_forces: boundary condition $key is not applicable on 3D edges")
 
@@ -193,7 +193,7 @@ end
 #             x, y = X
 #             vip = evaluate(val, t=t, x=x, y=y)
 #             Q = zeros(2)
-#             elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*X[1])
+#             elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*X[1])
 #         else
 #             x, y, z = X
 #             vip = evaluate(val, t=t, x=x, y=y, z=z)
@@ -263,7 +263,7 @@ function mech_solid_body_forces(elem::Element, key::Symbol, val::Union{Real,Symb
             x, y = X
             vip = evaluate(val, t=t, x=x, y=y)
             Q = zeros(2)
-            elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*X[1])
+            elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*X[1])
         else
             x, y, z = X
             vip = evaluate(val, t=t, x=x, y=y, z=z)

@@ -95,7 +95,7 @@ function distributed_bc(elem::ThermoShell, facet::Union{Facet,Nothing}, key::Sym
         if ndim==2
             x, y = X
             vip = evaluate(val, t=t, x=x, y=y)
-            if elem.env.ana.stressmodel=="axisymmetric"
+            if elem.env.ana.stressmodel==:axisymmetric
                 th = 2*pi*X[1]
             end
         else
@@ -220,7 +220,7 @@ function elem_internal_forces(elem::ThermoShell, F::Array{Float64,1})
     dNtdX = Array{Float64}(undef, ndim, nbnodes)
     dUt = DU[mat_t] # nodal temperature increments
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
         # compute Bu matrix and Bt
         dNdR = elem.shape.deriv(ip.R)
         @mul J = C'*dNdR
@@ -277,7 +277,7 @@ function update_elem!(elem::ThermoShell, DU::Array{Float64,1}, Δt::Float64)
     #Rrot = zeros(5,ndof)
 
     for ip in elem.ips
-        #elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        #elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute Bu and Bt matrices
         N = elem.shape.func(ip.R)

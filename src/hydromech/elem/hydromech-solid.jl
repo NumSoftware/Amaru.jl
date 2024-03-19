@@ -139,7 +139,7 @@ function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol,
                 n = [J[1,2], -J[1,1]]
                 Q = vip*normalize(n)
             end
-            if elem.env.ana.stressmodel=="axisymmetric"
+            if elem.env.ana.stressmodel==:axisymmetric
                 th = 2*pi*X[1]
             end
         else
@@ -186,7 +186,7 @@ function elem_stiffness(elem::HMSolid)
     dNdX = Array{Float64}(undef, nnodes, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -226,7 +226,7 @@ function elem_coupling_matrix(elem::HMSolid)
     m = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
 
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -265,7 +265,7 @@ function elem_conductivity_matrix(elem::HMSolid)
     dNwdX  = Array{Float64}(undef, nbnodes, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         dNdR  = elem.shape.deriv(ip.R)
         dNwdR = elem.shape.basic_shape.deriv(ip.R)
@@ -301,7 +301,7 @@ function elem_compressibility_matrix(elem::HMSolid)
     J  = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         Nw   = elem.shape.basic_shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
@@ -338,7 +338,7 @@ function elem_RHS_vector(elem::HMSolid)
     Z[end] = 1.0 # hydrostatic gradient
 
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         dNdR  = elem.shape.deriv(ip.R)
         dNwdR = elem.shape.basic_shape.deriv(ip.R)
@@ -386,7 +386,7 @@ function elem_internal_forces(elem::HMSolid, F::Array{Float64,1})
     dNwdX = Array{Float64}(undef, nbnodes, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix and Bw
         dNdR = elem.shape.deriv(ip.R)
@@ -456,7 +456,7 @@ function update_elem!(elem::HMSolid, DU::Array{Float64,1}, Δt::Float64)
     Δε = zeros(6)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel=="axisymmetric" && (th = 2*pi*ip.coord.x)
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix and Bw
         dNdR = elem.shape.deriv(ip.R)

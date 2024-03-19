@@ -59,7 +59,7 @@ function calc_α(mat::ElasticShellThermo, ut::Float64)
 end
 
 function calcD(mat::ElasticShellThermo, state::ElasticShellThermoState)
-    return calcDe(mat.E, mat.ν, "plane-stress")
+    return calcDe(mat.E, mat.ν, :planestress)
 end
 
 
@@ -73,7 +73,7 @@ end
 
 
 function update_state!(mat::ElasticShellThermo, state::ElasticShellThermoState, Δε::Array{Float64,1}, Δut::Float64, G::Array{Float64,1}, Δt::Float64)
-    De = calcDe(mat.E, mat.ν, "plane-stress")
+    De = calcDe(mat.E, mat.ν, :planestress)
     Δσ = De*Δε
     state.ε  += Δε
     state.σ  += Δσ

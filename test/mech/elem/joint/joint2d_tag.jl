@@ -20,7 +20,7 @@ mats = [
 ]
 
 
-model = FEModel(msh, mats, stressmodel="plane-stress", thickness=1.0)
+model = FEModel(msh, mats, stressmodel=:planestress, thickness=1.0)
 
 # Boundary conditions
 bcs = [

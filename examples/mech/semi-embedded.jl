@@ -1,42 +1,47 @@
 using Amaru
-using Test
 
 # Mesh generation
+bl  = Block( [0 0 0; 0.5 6.0 0.5], nx=1, ny=10, nz=3, tag="solids")
+bl1 = BlockInset( [0.05 0.05 0.05; 0.05 5.95 0.05], curvetype="polyline", tag="bars", jointtag="interface")
+bl2 = copy(bl1, dx=0.4)
+
+msh = Mesh(bl, bl1, bl2)
 
 
-bl  = Block( [0 0 0; 1.0 6.0 1.0], nx=1, ny=10, nz=3, tag="solids")
-bl1 = BlockInset( [0.2 0.2 0.2; 0.2 5.8 0.2], curvetype="polyline", tag="bars", jointtag="joint")
-bl2 = copy(bl1)
-move!(bl2, dx=0.6)
-bls = [ bl, bl1, bl2 ]
+h  = 0.1
+th = 0.05
+L  = 1.0
+E  = 210e6 # kPa
+fy = 240e3 # kPa
+H  = 0.0
+nu = 0.3
 
-msh = Mesh(bls)
+
 
 # FEM analysis
-
-
 mats = [
-        "solids" => LinearElastic(E=1.e4, nu=0.25),
-        "bars"  => PPRod(E=1.e8, A=0.005, sig_y=500e3),
-        "joint" => ElasticJoint1D(ks=1e8, kn=1e8, A=0.01),
+        "solids" => MechSolid => LinearElastic => (E=24e3, nu=0.25),
+        "bars"  => MechTruss => VonMises => (E=200e6, A=0.0001, fy=500e3),
+        "interface" => MechLSInterface => LinearLSInterface => (ks=1e9, kn=1e9, p=0.02),
        ]
-model = Model(msh, mats)
+
+ana = MechAnalysis()
+model = Model(msh, mats, ana)
 
 bcs = [
-       :(y==0 && z==0) => NodeBC(ux=0, uy=0, uz=0),
-       :(y==6 && z==0) => NodeBC(ux=0, uy=0, uz=0),
-       :(z==1) => SurfaceBC(tz=-1000),
+       and(y==0, z==0) => NodeBC(ux=0, uy=0, uz=0),
+       and(y==6, z==0) => NodeBC(ux=0, uz=0),
+       z==0.5 => SurfaceBC(tz=-0.001),
 ]
 addstage!(model, bcs, nincs=20)
 
-solve!(model)
-save(model, "domain.vtk")
+solve!(model, autoinc=true)
 
-mplot(model, "beam.pdf", 
-    field="sa", 
-    fieldmult=1e-3,
-    axis=false,
-    opacity=0.1,
-    dist=6,
-    colorbarlabel="axial stress in bars"
-)
+# mplot(model, "beam.pdf", 
+#     field="sa", 
+#     fieldmult=1e-3,
+#     axis=false,
+#     opacity=0.1,
+#     dist=6,
+#     colorbarlabel="axial stress in bars"
+# )
