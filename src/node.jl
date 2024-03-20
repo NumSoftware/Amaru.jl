@@ -207,6 +207,16 @@ function getnodes(nodes::Array{Node,1}, P::AbstractArray{<:Real})
 end
 
 
+function getfromcoords(nodes::Array{Node,1}, P::AbstractArray{<:Real})
+    R = Node[]
+    X = Vec3(P)
+    for node in nodes
+        norm(X-node.coord) < 1e-8 && push!(R, node)
+    end
+    return R
+end
+
+
 # Get node coordinates for a collection of nodes as a matrix
 function getcoords(nodes::Array{Node,1}, ndim=3)
     nnodes = length(nodes)
