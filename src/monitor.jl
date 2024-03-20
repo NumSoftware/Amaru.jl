@@ -64,7 +64,7 @@ function setup_monitor!(model, allitems, filter, monitor::AbstractMonitor, field
         n = length(items)
 
         if n==0
-            N = nearest(allitems, X)
+            N = nearest(allitems, filter)
             if N===nothing
                 items = item_type[]
             else
