@@ -58,8 +58,7 @@ function configure!(c::Chart, legend::Legend)
     nrows = ceil(Int, nlabels/legend.ncols)
 
     col_witdhs = zeros(ncols)
-    for (k, plot) in enumerate(plots)
-        i = ceil(Int, k/ncols)  # line
+    for k in 1:length(plots)
         j = k%ncols==0 ? ncols : k%ncols # column
         item_width = handle_length + 2*inner_pad + label_width
         col_witdhs[j] = max(col_witdhs[j], item_width)
@@ -67,8 +66,6 @@ function configure!(c::Chart, legend::Legend)
 
     legend.height = nrows*label_heigh + (nrows-1)*row_sep + 2*inner_pad
     legend.width = sum(col_witdhs) + (ncols-1)*col_sep + 2*inner_pad
-    # item_width = handle_length + 2*inner_pad + label_width
-    # legend.width = item_width*ncols + col_sep*(ncols-1) + 2*inner_pad
 
     if legend.location in (:outertopright, :outerright, :outerbottomright)
         c.rightpad += legend.width + c.outerpad
@@ -96,13 +93,10 @@ function draw!(c::Chart, cc::CairoContext, legend::Legend)
     outer_pad     = legend.outer_pad
     col_sep       = legend.col_sep
     ncols         = legend.ncols
-    nrows         = ceil(Int, length(plots)/legend.ncols)
     
     # update the width    
-
     col_witdhs = zeros(ncols)
     for (k, plot) in enumerate(plots)
-        i = ceil(Int, k/ncols)  # line
         j = k%ncols==0 ? ncols : k%ncols # column
         label_width = getsize(cc, plot.label, legend.fontsize)[1]
         item_width = handle_length + 2*inner_pad + label_width
@@ -112,11 +106,6 @@ function draw!(c::Chart, cc::CairoContext, legend::Legend)
     # legend.height = nrows*label_heigh + (nrows-1)*row_sep + 2*inner_pad
     legend.width = sum(col_witdhs) + (ncols-1)*col_sep + 2*inner_pad
     
-    
-    # label_width  = maximum( getsize(cc, plot.label, legend.fontsize)[1] for plot in plots )
-    # item_width   = handle_length + 2*inner_pad + label_width
-    # legend.width = item_width*ncols + col_sep*(ncols-1) + 2*inner_pad
-
     # set legend location
     if legend.location in (:topright, :right, :bottomright)
         x1 = c.canvas.box[3] - outer_pad - legend.width
@@ -169,15 +158,11 @@ function draw!(c::Chart, cc::CairoContext, legend::Legend)
 
     # draw labels
     label_heigh = maximum( getsize(plot.label, legend.fontsize)[2] for plot in plots )
-    @show col_witdhs
 
     for (k, plot) in enumerate(plots)
         i = ceil(Int, k/ncols)  # line
         j = k%ncols==0 ? ncols : k%ncols # column
-        # item_width = handle_length + 2*inner_pad + label_width
-        # item_width = col_witdhs[j]
         x2 = x1 + inner_pad + sum(col_witdhs[1:j-1]) + (j-1)*col_sep
-        # x2 = x1 + inner_pad + (j-1)*(item_width + col_sep)
 
         y2 = y1 + inner_pad + label_heigh/2 + (i-1)*(label_heigh+row_sep)
 
