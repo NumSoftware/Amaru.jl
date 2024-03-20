@@ -186,15 +186,15 @@ function configure!(chart::AbstractChart, xax::Axis, yax::Axis)
 
     # set width and height of axes
     width, height = chart.width, chart.height
-    xax.width  = width - yax.width - chart.outerpad - chart.rightpad
-    yax.height = height - xax.height - chart.toppad - chart.outerpad
+    xax.width  = width - yax.width - chart.leftpad - chart.rightpad
+    yax.height = height - xax.height - chart.toppad - chart.bottompad
 
     # update chart.rightpad if required
     label_width = getsize(xax.ticklabels[end], xax.fontsize)[1] 
     xdist = xax.width*(xax.limits[2]-xax.ticks[end])/(xax.limits[2]-xax.limits[1]) # distance of the right most tick to the right side of axis
     if xdist-label_width/2 < 0
         chart.rightpad += label_width/2 - xdist
-        xax.width   = width - yax.width - chart.outerpad - chart.rightpad
+        xax.width = width - yax.width - chart.leftpad - chart.rightpad
     end
 
     # update chart.toppad if required
@@ -202,7 +202,7 @@ function configure!(chart::AbstractChart, xax::Axis, yax::Axis)
     ydist = yax.height * (yax.limits[2] - yax.ticks[end])/(yax.limits[2]-yax.limits[1]) # distance of the upper most tick to the top side of axis
     if ydist-label_height/2 < 0
         chart.toppad += label_height/2 - ydist
-        yax.height = height - xax.height - chart.toppad - chart.outerpad
+        yax.height = height - xax.height - chart.toppad - chart.bottompad
     end
 
 end

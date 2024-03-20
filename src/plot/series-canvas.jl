@@ -18,8 +18,8 @@ function configure!(c::Chart, canvas::Canvas)
 
     if c.args.aspectratio==:equal
         # compute extra limits
-        width = c.width - c.yaxis.width - c.outerpad - c.rightpad
-        height = c.height - c.xaxis.height - c.toppad - c.outerpad
+        width = c.width - c.yaxis.width - c.leftpad - c.rightpad
+        height = c.height - c.xaxis.height - c.toppad - c.rightpad
         r = min(width/(xmax-xmin), height/(ymax-ymin))
         dx = 0.5*(width/r - (xmax-xmin))
         dy = 0.5*(height/r - (ymax-ymin))
@@ -40,9 +40,9 @@ function configure!(c::Chart, canvas::Canvas)
         # udpa
     end
     
-    canvas.width = c.width - c.yaxis.width - c.outerpad - c.rightpad
-    canvas.height = c.height - c.xaxis.height - c.toppad - c.outerpad
-    canvas.box = [ c.outerpad + c.yaxis.width, c.toppad, c.width-c.rightpad, c.height - c.xaxis.height-c.outerpad ]
+    canvas.width = c.width - c.yaxis.width - c.leftpad - c.rightpad
+    canvas.height = c.height - c.xaxis.height - c.toppad - c.bottompad
+    canvas.box = [ c.leftpad + c.yaxis.width, c.toppad, c.width-c.rightpad, c.height - c.xaxis.height-c.bottompad ]
     canvas.limits = [ xmin, ymin, xmax, ymax ]
 end
 

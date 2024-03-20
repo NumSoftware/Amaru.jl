@@ -21,8 +21,10 @@ const _legend_positions=[
     :bottomleft,
     :outerright,
     :outerleft,
-    :outertopright,
+    :outertop,
     :outertopleft,
+    :outertopright,
+    :outerbottom,
     :outerbottomright,
     :outerbottomleft
 ]
@@ -56,6 +58,7 @@ Chart_params = [
 ]
 @doc docstring(Chart_params) Chart
 
+
 mutable struct Chart<:AbstractChart
     width::Float64
     height::Float64
@@ -67,8 +70,10 @@ mutable struct Chart<:AbstractChart
     dataseries::Array
 
     outerpad::Float64
-    toppad::Float64
+    leftpad::Float64
     rightpad::Float64
+    toppad::Float64
+    bottompad::Float64
     icolor::Int
     iorder::Int
     args::NamedTuple
@@ -94,11 +99,31 @@ end
 
 function configure!(c::Chart)
 
-    # width, height = c.figsize
-    c.outerpad = 0.01*min(c.width, c.height)
-    c.toppad = c.outerpad
-    c.rightpad = c.outerpad
+    c.outerpad  = 0.01*min(c.width, c.height)
+    c.leftpad   = c.outerpad
+    c.rightpad  = c.outerpad
+    c.toppad    = c.outerpad
+    c.bottompad = c.outerpad
 
+    # configure legend
+    if c.legend===nothing
+        # make legend if any dataseries has a label
+        if any( ds.label!="" for ds in c.dataseries )
+            # fontsize = c.args.legendfontsize > c.args.fontsize ? c.args.fontsize || c.args.legendfontsize
+            c.legend = Legend(; 
+                location = c.args.legendloc,
+                font     = c.args.font,
+                fontsize = c.args.legendfontsize,
+                ncols    = 1
+            )
+            configure!(c, c.legend)
+        end
+    else
+        configure!(c, c.legend)
+    end
+
+    # configure axes
+    
     c.xaxis = Axis(; 
         direction  = :horizontal,
         limits     = c.args.xlimits,
@@ -131,21 +156,11 @@ function configure!(c::Chart)
 
     configure!(c, c.canvas)
 
-
     for p in c.dataseries
         configure!(c, p)
     end
 
-    has_legend = any( ds.label!="" for ds in c.dataseries )
-    if has_legend
-        # fontsize = c.args.legendfontsize > c.args.fontsize ? c.args.fontsize || c.args.legendfontsize
-        c.legend = Legend(; 
-            location = c.args.legendloc,
-            font     = c.args.font,
-            fontsize = c.args.legendfontsize
-        )
-        configure!(c, c.legend)
-    end
+
 end
 
 function draw!(c::Chart, cc::CairoContext)
@@ -153,12 +168,12 @@ function draw!(c::Chart, cc::CairoContext)
     draw!(c, cc, c.canvas)
 
     # draw axes
-    x = c.outerpad+c.yaxis.width
+    x = c.leftpad+c.yaxis.width
     y = c.toppad+c.yaxis.height
     move_to(cc, x, y)
     draw!(c, cc, c.xaxis)
     
-    x = c.outerpad
+    x = c.leftpad
     y = c.toppad
     move_to(cc, x, y)
     draw!(c, cc, c.yaxis)
