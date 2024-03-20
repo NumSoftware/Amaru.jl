@@ -67,7 +67,8 @@ mutable struct Chart<:AbstractChart
     canvas::Union{ChartComponent, Nothing}
     legend::Union{ChartComponent, Nothing}
     colorbar::Union{ChartComponent, Nothing}
-    dataseries::Array
+    dataseries::AbstractArray
+    annotations::AbstractArray
 
     outerpad::Float64
     leftpad::Float64
@@ -88,6 +89,7 @@ mutable struct Chart<:AbstractChart
         this.legend = nothing
         this.colorbar = nothing
         this.dataseries = []
+        this.annotations = []
         this.icolor = 1
         this.iorder = 1
         this.args = args
@@ -184,22 +186,28 @@ function draw!(c::Chart, cc::CairoContext)
     rectangle(cc, x, y, w, h)
     Cairo.clip(cc)
 
+    # draw dataseries
     sorted = sort(c.dataseries, by=x->x.order)
     for p in sorted
         draw!(c, cc, p)
     end
     reset_clip(cc)
 
-    has_legend = any( ds.label!="" for ds in c.dataseries )
-    if has_legend
+    # draw annotations
+    for a in c.annotations
+        draw!(c, cc, a)
+    end
+
+    # draw legend
+    if c.legend !== nothing
         draw!(c, cc, c.legend)
     end
 end
 
 
-function addplot!(chart::Chart, P::DataSeries...)
-    length(P)>0 || throw(AmaruException("No dataseries added"))
-    for p in P
+function addplot!(chart::Chart, series::DataSeries...)
+    length(series)>0 || throw(AmaruException("No dataseries added"))
+    for p in series
         if p.linecolor===:default # update colors
             p.linecolor = _colors_dict[_default_colors[chart.icolor]]
             chart.icolor = mod(chart.icolor, length(_default_colors)) + 1
