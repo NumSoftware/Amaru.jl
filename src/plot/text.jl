@@ -1,6 +1,11 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
+# cache is required to avoid multiple calls to findfont
+_font_cache = Dict{String, String}() # cache font -> family
+
 function get_font(str)
+    haskey(_font_cache, str) && return _font_cache[str]
+
     font = FreeTypeAbstraction.findfont(str)
     default_fonts = [
         "NewComputerModern Regular",
@@ -18,6 +23,8 @@ function get_font(str)
     end
 
     family = replace(font.family_name, "Math" => "")
+    _font_cache[str] = family # update cache
+
     return family
 end
 
