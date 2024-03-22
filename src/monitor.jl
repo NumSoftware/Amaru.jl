@@ -233,8 +233,11 @@ mutable struct IpGroupMonitor<:AbstractMonitor
     table   ::DataTable
     ips     ::Array{Ip,1}
 
-    function IpGroupMonitor(expr::Expr, filename::String="")
-        if expr.head == :call
+    function IpGroupMonitor(expr::Union{Symbol,Expr}, filename::String="")
+        if expr isa Expr
+            expr = round_floats!(expr)
+        end
+        if expr isa Symbol || expr.head == :call || expr.head == :(=)
             expr = :($expr,)
         end
 
