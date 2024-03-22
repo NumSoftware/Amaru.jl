@@ -209,8 +209,9 @@ end
 
 function make_ticklabels(ticks)
     # find mantissas and exponents
-    M = Float64[]
-    E = Int[]
+    M = Float64[]  # mantissas
+    E = Int[]      # exponents
+
     for x in ticks
         if abs(x)<1e-10
             x = 0.0
@@ -241,6 +242,7 @@ function make_ticklabels(ticks)
         end
         max_digits = max(max_digits, digits)
     end
+    max_digits = min(max_digits, 4)
 
     labels = []
     for (m, ex) in zip(M, E)
