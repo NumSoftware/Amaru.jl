@@ -9,6 +9,7 @@ TMShellparams = [
     KwArgInfo(:thickness, "Thickness", cond=:(thickness>0)),
     KwArgInfo(:alpha_s, "Shear correction coef.", 5/6, cond=:(alpha_s>0))
 ]
+@doc docstring(TMShellparams) TMShell
 
 struct TMShellProps<:ElemProperties
     ρ::Float64
@@ -20,11 +21,12 @@ struct TMShellProps<:ElemProperties
         args = checkargs(args, TMShellparams)
 
         return new(args.rho, args.gamma, args.alpha_s, args.thickness)
-    end    
+    end
 end
 
 
 mutable struct TMShell<:Thermomech
+    env   ::ModelEnv
     id    ::Int
     shape ::CellShape
     nodes ::Array{Node,1}
@@ -34,7 +36,6 @@ mutable struct TMShell<:Thermomech
     props ::TMShellProps
     active::Bool
     linked_elems::Array{Element,1}
-    env   ::ModelEnv
     Dlmn::Array{ SMatrix{3,3,Float64}, 1}
 
     function TMShell();
@@ -50,6 +51,7 @@ compat_elem_props(::Type{TMShell}) = TMShellProps
 function elem_init(elem::TMShell)
     # check element dimension
     elem.shape.ndim==2 || throw(AmaruException("TMShell: Invalid element shape. Got $(elem.shape.name)"))
+
     # Compute nodal rotation matrices
     nnodes = length(elem.nodes)
     elem.Dlmn = Array{SMatrix{3,3,Float64}}(undef,nnodes)
@@ -115,6 +117,16 @@ function setquadrature!(elem::TMShell, n::Int=0)
 end
 
 
+function distributed_bc(elem::TMShell, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
+    return mech_boundary_forces(elem, facet, key, val)
+end
+
+
+function body_c(elem::TMShell, key::Symbol, val::Union{Real,Symbol,Expr})
+    return mech_shell_body_forces(elem, key, val)
+end
+
+
 function elem_config_dofs(elem::TMShell)
     ndim = elem.env.ndim
     ndim==3 || error("MechShell: Shell elements do not work in $(ndim)d analyses")
@@ -128,6 +140,8 @@ function elem_config_dofs(elem::TMShell)
         add_dof(node, :ut, :ft)
     end
 end
+
+
 
 # Rotation Matrix
 function set_rot_x_xp(elem::TMShell, J::Matx, R::Matx)
@@ -157,23 +171,13 @@ function calcS(elem::TMShell, αs::Float64)
 end
 
 
-function distributed_bc(elem::TMShell, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
-    return mech_boundary_forces(elem, facet, key, val)
-end
-
-
-function body_c(elem::TMShell, key::Symbol, val::Union{Real,Symbol,Expr})
-    return mech_shell_body_forces(elem, key, val)
-end
-
-
-@inline function elem_map_u(elem::TMShell)
+function elem_map_u(elem::TMShell)
     keys =(:ux, :uy, :uz, :rx, :ry, :rz)
     return [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
 end
 
 
-@inline function elem_map_t(elem::TMShell)
+function elem_map_t(elem::TMShell)
     return [ node.dofdict[:ut].eq_id for node in elem.nodes ]
 end
 
@@ -191,7 +195,7 @@ function setB(elem::TMShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx, B
         dNdx = dNdX[i,1]
         dNdy = dNdX[i,2]
         Ni = N[i]
- 
+
         Bil[1,1] = dNdx;                                                                                Bil[1,5] = dNdx*ζ*th/2
                              Bil[2,2] = dNdy;                           Bil[2,4] = -dNdy*ζ*th/2
                                                   
@@ -230,18 +234,17 @@ function elem_stiffness(elem::TMShell)
         dNdR  = [ dNdR zeros(nnodes) ]
         dNdX′ = dNdR*invJ′
 
-        
         detJ′ = det(J′)
         @assert detJ′>0
         
         setB(elem, ip, N, L, dNdX′, Rrot, Bil, Bi, B)
-        # compute K
+
         coef  = detJ′*ip.w
         D     = calcD(elem.mat, ip.state)
         K    += coef*B'*S*D*B
     end
 
-    δ = 1e-5
+    δ = 1e-5 # todo: add drilling control
     for i in 1:ndof*nnodes
         K[i,i] += δ
     end
