@@ -96,6 +96,7 @@ struct Colormap
     end
 end
 
+
 function Colormap(name::Symbol; limits=Float64[], rev=false)
     name in _colormaps_list || throw(AmaruException("Colormap: colormap not found which must be one of $(_colormaps_list)"))
     colormap = _colormaps_dict[name]

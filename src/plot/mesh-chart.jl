@@ -337,7 +337,7 @@ function configure!(mplot::MeshChart)
         if has_field
             if mplot.colorbar.location==:right
                 rpane = mplot.colorbar.width
-            elseif mplot.colorbar.location==:left
+            elseif mplot.colorbar.location==:bottom
                 bpane = mplot.colorbar.height
             end
         end

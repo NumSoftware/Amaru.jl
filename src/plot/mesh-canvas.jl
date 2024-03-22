@@ -10,5 +10,5 @@ mutable struct MeshCanvas<:ChartComponent
     end
 end
 
-function configure!(chart::Chart, canvas::MeshCanvas)
+function configure!(chart, canvas::MeshCanvas)
 end

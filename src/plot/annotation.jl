@@ -8,7 +8,7 @@ Annotation_params = [
     KwArgInfo(:target, "Coordinates of the target point of the arrow relative to data", (0.0,0.0), length=2),
     KwArgInfo((:lw, :lineweight), "Line weight", 0.4, cond=:(lw>0)),
     KwArgInfo(:font, "Name of the font", "NewComputerModern", type=AbstractString),
-    KwArgInfo(:fontsize, "Size of the font in dpi", 7.0, cond=:(fontsize>0)),
+    KwArgInfo(:fontsize, "Size of the font in dpi", 6.0, cond=:(fontsize>0)),
     KwArgInfo(:color, "Color of the text", :default),
 ]
 
@@ -129,17 +129,28 @@ function draw!(c::Chart, cc::CairoContext, a::Annotation)
         dx = xa - x
         dy = ya - y
 
-        # Draw lines
-        for line in lines
-            move_to(cc, x, y)
-            if line=='|'
-                rel_line_to(cc, 0, dy)
-                y += dy
-            else
-                rel_line_to(cc, dx, 0)
-                x += dx
-            end
+        # Draw line 1
+        move_to(cc, x, y)
+        if lines[1]=='|'
+            rel_line_to(cc, 0, dy)
+            y += dy
+        else
+            rel_line_to(cc, dx, 0)
+            x += dx
         end
+
+        # Draw line 2
+        dx += sign(dx)*a.lw
+        move_to(cc, x, y)
+        if lines[2]=='|'
+            rel_line_to(cc, 0, dy)
+            y += dy
+        else
+            rel_line_to(cc, dx, 0)
+            x += dx
+        end
+
+
 
         stroke(cc)
     end

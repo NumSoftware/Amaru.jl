@@ -65,7 +65,7 @@ function configure!(c::AbstractChart, cb::Colorbar)
             cb.height = cb.scale*(c.height - 2*c.outerpad)
             cb.axis.height = cb.height
             cb.width = cb.innersep + cb.thickness + cb.axis.ticklength + cb.axis.width 
-        elseif cb.location==:left
+        elseif cb.location==:bottom
             cb.width = cb.scale*(c.width - 2*c.outerpad)
             cb.axis.width = cb.width
             cb.height = cb.innersep + cb.thickness + cb.axis.ticklength + cb.axis.height
@@ -104,7 +104,7 @@ function draw!(c::AbstractChart, cc::CairoContext, cb::Colorbar)
         set_source(cc, pat)
         rectangle(cc, x, y, w, -h)
         fill(cc)
-    elseif cb.location==:left
+    elseif cb.location==:bottom
         # Axis
         fmin, fmax = cb.axis.limits
         w = cb.width
