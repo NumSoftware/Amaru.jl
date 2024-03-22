@@ -142,11 +142,6 @@ function elem_config_dofs(elem::MechShell)
 end
 
 
-function elem_map(elem::MechShell)
-    keys =(:ux, :uy, :uz, :rx, :ry, :rz)
-    return [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
-end
-
 
 # Rotation Matrix
 function set_rot_x_xp(elem::MechShell, J::Matx, R::Matx)
@@ -164,6 +159,7 @@ function set_rot_x_xp(elem::MechShell, J::Matx, R::Matx)
     R[3,:] .= V3
 end
 
+
 function calcS(elem::MechShell, αs::Float64)
     return @SMatrix [ 
         1.  0.  0.  0.  0.  0.
@@ -172,6 +168,12 @@ function calcS(elem::MechShell, αs::Float64)
         0.  0.  0.  αs  0.  0.
         0.  0.  0.  0.  αs  0.
         0.  0.  0.  0.  0.  1. ]
+end
+
+
+function elem_map(elem::MechShell)
+    keys =(:ux, :uy, :uz, :rx, :ry, :rz)
+    return [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
 end
 
 
@@ -201,7 +203,6 @@ function setB(elem::MechShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx,
         c = (i-1)*ndof
         @mul Bi = Bil*Rrot
         B[:, c+1:c+6] .= Bi
-
     end 
 end
 
@@ -277,8 +278,6 @@ function elem_stiffness(elem::MechShell)
         dNdR  = [ dNdR zeros(nnodes) ]
         dNdX′ = dNdR*invJ′
 
-        D = calcD(elem.mat, ip.state)
-
         detJ′ = det(J′)
         @assert detJ′>0
         
@@ -290,13 +289,11 @@ function elem_stiffness(elem::MechShell)
         nu = elem.mat.ν
         G = E/(2*(1+nu))
 
-        kappa = 1
+        kappa = 1e-8 # for drilling
 
-        th  = elem.props.th
-
-        coef = detJ′*ip.w
-
-        K += coef*B'*S*D*B + kappa*G*th*B_dr'*B_dr*coef #(intregal de área)
+        coef  = detJ′*ip.w
+        D     = calcD(elem.mat, ip.state)
+        K    += coef*B'*S*D*B + kappa*G*th*B_dr'*B_dr*coef #(intregal de área)
 
     end
 #=
