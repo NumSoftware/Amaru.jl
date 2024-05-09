@@ -45,7 +45,7 @@ CyclicLSJoint_params = [
     KwArgInfo(:ks, "Shear stiffness", 0.0, cond=:(ks>=0)),
     KwArgInfo(:p, "Perimeter", cond=:(p>0)),
     ArgCond(:(taumax>taures)),
-    ArgCond(:(ks>=taumax/s1)),
+    ArgCond(:(ks>=taumax/speak)),
 ]
 
 mutable struct CyclicLSJoint<:Material
@@ -61,7 +61,7 @@ mutable struct CyclicLSJoint<:Material
     p   :: Float64
 
     function CyclicLSJoint(; kwargs...)
-        args = parse_args(kwargs, CyclicLSJoint_params)
+        args = checkargs(kwargs, CyclicLSJoint_params)
         this = new(args.taumax, args.taures, args.speak, 1.1*args.speak, args.sres, args.alpha, args.beta, args.ks, args.kn, args.p)
         return this
     end
