@@ -92,6 +92,9 @@ function FEModel(
     env.outkey = outkey
     env.transient = anatype isa TransientAnalysis
 
+    # check if outdir exists
+    isdir(env.outdir) || mkdir(env.outdir)
+
     # Save a mesh reference
     #model.mesh = mesh
 
@@ -280,7 +283,7 @@ addstage!_params = [
 ]
 @doc docstring(addstage!_params) addstage!
 
-function addstage!(model::Model, bcs::Array; kwargs...)
+function addstage!(model::Model, bcs::AbstractArray; kwargs...)
     A = checkargs([model, bcs], kwargs, addstage!_params)
     stage = Stage(A.bcs; A.nincs, A.nouts, A.tspan, A.toactivate, A.todeactivate)
     stage.id = length(model.stages) + 1
