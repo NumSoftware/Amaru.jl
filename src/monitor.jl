@@ -55,9 +55,10 @@ mutable struct IpMonitor<:AbstractMonitor
 end
 
 
-function setup_monitor!(model, allitems, filter, monitor::AbstractMonitor, field::Symbol; singleitem=false)
-    item_type = eltype(allitems)
-    item_name = lowercase(string(item_type))
+function setup_monitor!(model, allitems, filter, monitor::AbstractMonitor, field::Symbol)
+    item_type  = eltype(allitems)
+    item_name  = lowercase(string(item_type))
+    singleitem = string(field)[end] != 's' # if field ends with 's' it is a collection
 
     if filter isa AbstractArray
         items = getfromcoords(allitems, filter)
@@ -110,7 +111,7 @@ end
 
 
 function setup_monitor!(model, filter, monitor::IpMonitor)
-    setup_monitor!(model, model.elems.ips, filter, monitor, :ip, singleitem=true)
+    setup_monitor!(model, model.elems.ips, filter, monitor, :ip)
 end
 
 
@@ -199,7 +200,7 @@ end
 
 
 function setup_monitor!(model, filter, monitor::NodeMonitor)
-    setup_monitor!(model, model.nodes, filter, monitor, :node, singleitem=true)
+    setup_monitor!(model, model.nodes, filter, monitor, :node)
 end
 
 
@@ -247,7 +248,7 @@ end
 
 
 function setup_monitor!(model, filter, monitor::IpGroupMonitor)
-    setup_monitor!(model, model.elems.ips, filter, monitor, :ip, singleitem=false)
+    setup_monitor!(model, model.elems.ips, filter, monitor, :ip)
 end
 
 
@@ -337,7 +338,7 @@ end
 
 
 function setup_monitor!(model, filter, monitor::NodeSumMonitor)
-    setup_monitor!(model, model.nodes, filter, monitor, :node, singleitem=false)
+    setup_monitor!(model, model.nodes, filter, monitor, :nodes)
 
     # available_vars = OrderedSet()
     # for node in monitor.nodes
