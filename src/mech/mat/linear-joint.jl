@@ -18,14 +18,14 @@ end
 
 ElasticJoint_params = [
     FunInfo(:ElasticJoint, "Consitutive model for joints with linear elastic behavior."),
-    ArgInfo(:kn, "Normal stiffness per area", cond=:(kn>0)),
-    ArgInfo(:ks, "Shear stiffness per area", cond=:(ks>=0)),
+    KwArgInfo(:kn, "Normal stiffness per area", cond=:(kn>0)),
+    KwArgInfo(:ks, "Shear stiffness per area", cond=:(ks>=0)),
 ]
 @doc docstring(ElasticJoint_params) ElasticJoint(; kwargs...)
 
 mutable struct ElasticJoint<:Material
-    kn::Float64 # Normal stiffness (used only if E and ν are NaN)
-    ks::Float64 # Shear stiffness (used only if E and ν are NaN)
+    kn::Float64 # Normal stiffness
+    ks::Float64 # Shear stiffness
 
     function ElasticJoint(; kwargs...)
         args = checkargs(kwargs, ElasticJoint_params)
