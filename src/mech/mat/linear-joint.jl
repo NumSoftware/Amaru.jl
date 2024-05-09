@@ -29,7 +29,7 @@ mutable struct ElasticJoint<:Material
 
     function ElasticJoint(; kwargs...)
         args = checkargs(kwargs, ElasticJoint_params)
-        this = new(args.E, args.nu, args.kn, args.ks, args.zeta)
+        this = new(args.kn, args.ks)
         return this
     end
 end
