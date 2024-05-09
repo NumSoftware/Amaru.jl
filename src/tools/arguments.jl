@@ -8,7 +8,6 @@ typeofargs(f) = [ ((t for t in fieldtypes(m.sig)[2:end])...,) for m in methods(f
 abstract type ArgObj
 end
 
-
 mutable struct FunInfo<:ArgObj
     key::Symbol
     desc::String
@@ -23,11 +22,12 @@ mutable struct ArgInfo<:ArgObj
     length::Int
     type::Union{DataType, Union, UnionAll}
     desc::String
+    complement::String
 end
 
 
-function ArgInfo(key, desc, default=missing; cond=:(), values=(), length=0, type=Any)
-    return ArgInfo(key, default, cond, values, length, type, desc)
+function ArgInfo(key, desc, default=missing; cond=:(), values=(), length=0, type=Any, complement="")
+    return ArgInfo(key, default, cond, values, length, type, desc, complement)
 end
 
 
@@ -40,9 +40,10 @@ mutable struct KwArgInfo<:ArgObj
     length::Int
     type::Union{DataType, Union, UnionAll}
     desc::String
+    complement::String
 end
 
-function KwArgInfo(key, desc, default=missing; cond=:(), values=(), length=0, type=Any)
+function KwArgInfo(key, desc, default=missing; cond=:(), values=(), length=0, type=Any, complement="")
     if key isa Tuple
         aliases = key[2:end]
         key = key[1]
@@ -50,7 +51,7 @@ function KwArgInfo(key, desc, default=missing; cond=:(), values=(), length=0, ty
         aliases = ()
     end
 
-    return KwArgInfo(key, aliases, default, cond, values, length, type, desc)
+    return KwArgInfo(key, aliases, default, cond, values, length, type, desc, complement)
 end
 
 mutable struct ArgCond<:ArgObj
@@ -230,7 +231,7 @@ function checkargs(args::AbstractArray, kwargs, fparams::AbstractArray; aliens=t
         val = args[key]
 
         # check condition
-        if arginfo.cond != :()
+        if arginfo.cond != :() && !isnothing(val)
             func = Expr(:(->), key, arginfo.cond)
             if !invokelatest(eval(func), val)
                 msg = "Invalid value for argument $key which must satisfy $(arginfo.cond).\nGot $key = $(repr(val))"
@@ -238,7 +239,7 @@ function checkargs(args::AbstractArray, kwargs, fparams::AbstractArray; aliens=t
             end
         end
 
-        # check if in the give set
+        # check if in the given set
         if length(arginfo.values)>0 && !(val in arginfo.values)
             msg = "Invalid value for argument $key which must be one of $(arginfo.values).\nGot $key = $(repr(val))"
             throw(AmaruException("$(funcname()): $msg"))
@@ -255,7 +256,7 @@ function checkargs(args::AbstractArray, kwargs, fparams::AbstractArray; aliens=t
         end
 
         # check type
-        if arginfo.type!=Nothing && !(val isa arginfo.type)
+        if arginfo.type !== nothing && !(val isa arginfo.type)
             msg = "Invalid value for argument $key which must be of type $(arginfo.type).\nGot $key = $(repr(val))"
             throw(AmaruException("$(funcname()): $msg"))
         end
@@ -349,6 +350,11 @@ function docstring(fparams)
             # default
             if !ismissing(item.default)
                 str = str*". Default is $(repr(item.default))"
+            end
+
+            # complement
+            if item.complement != ""
+                str = str*". $(item.complement)"
             end
 
             push!(desc, str)
