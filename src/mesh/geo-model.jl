@@ -7,12 +7,13 @@ mutable struct GeoModel
     loops::Vector{AbstractLoop}
     surfaces::Vector{AbstractSurface}
     volumes::Vector{Volume}
+    supp_paths::Vector{SupPath}
     blocks::Vector{Block}
     size::Float64
     _id::Int
 
     function GeoModel(; size=0.0)
-        return new( [], [], [], [], [], [], size, 0 )
+        return new( [], [], [], [], [], [], [], size, 0 )
     end
 end
 
@@ -213,12 +214,12 @@ function addpoint!(geo::GeoModel, pt::Point)
 end
 
 
-function addpoint!(geo::GeoModel, x, y, z; size=0.0, tag="")
+function addpoint!(geo::GeoModel, x, y, z=0.0; size=0.0, tag="")
     return addpoint!(geo, Point(x,y,z; size=size, tag=tag))
 end
 
 
-function addpoint!(geo::GeoModel, X::Array; size=0.0, tag="")
+function addpoint!(geo::GeoModel, X::AbstractArray; size=0.0, tag="")
     X = Vec3(X)
     return addpoint!(geo, Point(X[1],X[2],X[3]; size=size, tag=tag))
 end
@@ -529,12 +530,26 @@ end
 
 
 export addpath!
+
 function addpath!(geo::GeoModel, path::Path)
     for cmd in path.cmds
         if cmd isa LineCmd
             addline!(geo, cmd.p1, cmd.p2)
         end
     end
+end
+
+addpath!(geo::GeoModel, args...; closed=false) = addpath!(geo, Path(args...; closed=closed))
+
+
+
+export addsuppath!
+function addsuppath!(geo::GeoModel, suppath::SupPath)
+    push!(geo.supp_paths, suppath)
+end
+
+function addsuppath!(geo::GeoModel, args...; kwargs...) 
+    addsuppath!(geo, SupPath(Path(args...); kwargs...))
 end
 
 

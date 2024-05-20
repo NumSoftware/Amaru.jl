@@ -50,7 +50,7 @@ end
 
 Moves each `Block` in the array `blocks` according to `dx`, `dy` and `dz`.
 """
-function move!(blocks::Array; dx=0.0, dy=0.0, dz=0.0)
+function move!(blocks::AbstractArray; dx=0.0, dy=0.0, dz=0.0)
     move!.(blocks, dx=dx, dy=dy, dz=dz)
     return blocks
 end
@@ -340,7 +340,7 @@ end
     that passes by a `base` point. The elements in `blocks` can be `Block`
     objects or even lists of `Block` objects.
 """
-function LinearAlgebra.rotate!(blocks::Array; base=[0.0,0,0], axis=[0.0,0,1], angle=90.0 )
+function LinearAlgebra.rotate!(blocks::AbstractArray; base=[0.0,0,0], axis=[0.0,0,1], angle=90.0 )
     rotate!.(blocks, base=base, axis=axis, angle=angle)
     return blocks
     # for bl in blocks
@@ -389,7 +389,7 @@ end
     The elements in `blocks` can be `Block` objects or even lists of 
     `Block` objects.
 """
-function polar(blocks::Array; base=[0.0,0,0], axis=[0.0,0,1], angle=360, n=2 )
+function polar(blocks::AbstractArray; base=[0.0,0,0], axis=[0.0,0,1], angle=360, n=2 )
     return polar.(blocks, base=base, axis=axis, angle=angle, n=n)
 end
 

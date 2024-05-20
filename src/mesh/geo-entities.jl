@@ -16,14 +16,10 @@ mutable struct Point<:GeoEntity
         z = round(z, digits=8)
         return new(id, Vec3(x,y,z), GeoEntity[], size, tag)
     end
-end
-
-
-function Point(X::AbstractArray{<:Real}; size=0, id=0, tag="")
-    if length(X)!=3
-        X = [X; [0.0, 0.0]][1:3]
+    function Point(coord::AbstractArray{<:Real}; size=0.0, id=0, tag="")
+        x, y, z = coord..., 0.0, 0.0
+        return new(id, Vec3(x,y,z), GeoEntity[], size, tag)
     end
-    return Point(X...; size=size, id=id, tag=tag)
 end
 
 
@@ -62,7 +58,7 @@ end
 
 mutable struct Line<:AbstractLine
     points::Array{Point,1}
-    surfaces::Array
+    surfaces::AbstractArray
     n::Int 
     id::Int
     tag::String
@@ -78,7 +74,7 @@ end
 
 mutable struct Arc<:AbstractLine
     points::Array{Point,1} # second point is center
-    surfaces::Array
+    surfaces::AbstractArray
     n::Int
     id::Int
     tag::String
@@ -214,7 +210,7 @@ mutable struct Loop<:AbstractLoop
         return new([lines...], id)
     end
 
-    function Loop(lines::Array; id=0)
+    function Loop(lines::AbstractArray; id=0)
         return new(lines, id)
     end
 end
@@ -240,7 +236,7 @@ mutable struct PlaneSurface<:AbstractSurface
     id::Int
     loops::Vector{PlaneLoop}
     plane::Plane
-    volumes::Array
+    volumes::AbstractArray
     tag::String
     transfinite::Bool
     recombine::Bool
@@ -253,7 +249,7 @@ end
 
 mutable struct Surface<:AbstractSurface
     loops::Array{Loop,1}
-    volumes::Array
+    volumes::AbstractArray
     id::Int
     tag::String
     transfinite::Bool

@@ -27,6 +27,7 @@ include("partition.jl")
 include("mesh.jl")
 include("structured.jl")
 include("unstructured.jl")
+include("gen_insets.jl")
 include("genmesh.jl")
 
 include("io.jl")

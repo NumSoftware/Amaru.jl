@@ -24,10 +24,10 @@ mutable struct CellShape
     npoints    ::Int
     basic_shape::CellShape
     vtk_type   ::VTKCellType
-    facet_idxs ::Array
-    edge_idxs  ::Array
+    facet_idxs ::AbstractArray
+    edge_idxs  ::AbstractArray
     facet_shape::Union{CellShape, Tuple}
-    nat_coords ::Array
+    nat_coords ::AbstractArray
     quadrature ::Dict{Int, Array}
     func       ::Function
     deriv      ::Function
@@ -238,7 +238,7 @@ function inverse_map(shape::CellShape, coords::Array{Float64,2}, X0::AbstractArr
 end
 
 
-function is_inside(shape::CellShape, C::Array{Float64,2}, X::Array{Float64,1}, tol = 1.e-7)
+function is_inside(shape::CellShape, C::Array{Float64,2}, X::AbstractArray{Float64,1}, tol = 1.e-7)
     if shape.family!=BULKCELL return false end
 
     # fix dimension

@@ -12,6 +12,7 @@ Mesh_Geo_params = [
 @doc docstring(Mesh_Geo_params) Mesh(geo::GeoModel; kwargs...)
 
 
+# Unstructured mesh generation
 function Mesh(geo::GeoModel; kwargs...)
     args = checkargs([geo], kwargs, Mesh_Geo_params)
     quiet = args.quiet
@@ -20,7 +21,7 @@ function Mesh(geo::GeoModel; kwargs...)
     blocks  = [ b for b in geo.blocks if b isa Block ]
     iblocks = [ b for b in geo.blocks if b isa BlockInset ]
 
-    if length(geo.surfaces)>0 || length(geo.volumes)>0
+    if length(geo.surfaces)>0
         !quiet && printstyled("Unstructured mesh generation:\n", bold=true, color=:cyan)
 
         length(blocks)>0 && warn("Mesh: Blocks are being ignored")
@@ -28,6 +29,11 @@ function Mesh(geo::GeoModel; kwargs...)
         if length(iblocks)>0
             mesh = Mesh(mesh, iblocks; args...)
         end
+        if length(geo.supp_paths)>0
+            gen_insets!(mesh, geo.supp_paths)
+            syncronize!(mesh)
+        end
+
     elseif length(blocks)>0
         !quiet && printstyled("Structured mesh generation:\n", bold=true, color=:cyan)
         mesh = mesh_structured(geo; args...)
@@ -51,6 +57,7 @@ function Mesh(geo::GeoModel; kwargs...)
 end
 
 
+# Old structured mesh generation, kept for compatibility
 function Mesh(
     items     ::Union{Mesh, AbstractBlock, Array{<:Union{AbstractBlock, Array},1}}...;
     ndim      ::Int = 0,
@@ -72,7 +79,7 @@ function Mesh(
     nmeshes = length(meshes)
     nblocks = length(blocks)
     if !quiet
-        printstyled("Mesh generation:\n", bold=true, color=:cyan)
+        printstyled("Structured mesh generation:\n", bold=true, color=:cyan)
         nmeshes>0 && @printf "  %5d meshes\n" nmeshes
         @printf "  %5d blocks\n" nblocks
     end
