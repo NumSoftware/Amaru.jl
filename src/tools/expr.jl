@@ -201,6 +201,7 @@ end
 
 function getvars(expr::Expr)
     symbols = Symbol[]
+    expr.head==:. && error("getvars: dot operator not allowed")
     start = expr.head==:call ? 2 : 1
     for arg in expr.args[start:end]
         append!(symbols, getvars(arg))

@@ -119,9 +119,10 @@ function slice(
     axis::AbstractArray{<:Real,1} = Float64[],
     )
 
+    ndim = mesh.ndim
+    @check ndim==3
     @check length(base)==3
     @check length(axis)==3
-    @check mesh.ndim==3
 
     axis = Vec3(axis)
     base = Vec3(base)

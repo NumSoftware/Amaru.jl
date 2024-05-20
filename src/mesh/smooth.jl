@@ -365,7 +365,7 @@ function mountA(mesh::Mesh, fixed::Bool, conds, facetol)
     border_nodes = [ sNode(node, patch, nothing) for (node,patch) in zip(surf_nodes,surf_patches)]
 
     local fconds=Function[]
-    if conds!= nothing
+    if conds !== nothing
         for c in conds
             ff = quote
                 (x,y,z) -> ($c)
@@ -377,7 +377,7 @@ function mountA(mesh::Mesh, fixed::Bool, conds, facetol)
     # find the number of bcs
     n = 0  # number of bcs
     for snode in border_nodes
-        if conds!= nothing
+        if conds !== nothing
             p = snode.node
             if any( Bool[ ff(p.coord.x, p.coord.y, p.coord.z) for ff in fconds ] )
                 snode.normals = Array{Float64,1}[]
