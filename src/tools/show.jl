@@ -6,7 +6,7 @@ macro showm(M)
         printstyled($(string(M)), " = \n", color=:light_magenta)
         #Base.showarray(STDOUT, $(esc(M)), false)
         Base.print_matrix(stdout, $(esc(M)))
-        #filename != nothing && printstyled(" : ", basename($filename), color=:blue)
+        #filename !== nothing && printstyled(" : ", basename($filename), color=:blue)
         println()
     end
 end

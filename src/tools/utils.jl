@@ -111,7 +111,7 @@ function align(arr::Array{<:AbstractString,1}, pat::AbstractString)
 end
 
 export latex
-function latex(M::Array; digits=3)
+function latex(M::AbstractArray; digits=3)
     l = IOBuffer()
 
     m = size(M, 1)

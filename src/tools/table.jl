@@ -13,7 +13,7 @@ mutable struct DataTable
     colidx ::OrderedDict{String,Int} # Data index
     header ::Array{String,1}
     name   ::String
-    function DataTable(header::Array, columns::Array{<:AbstractVector,1}=Array{Any,1}[]; name="")
+    function DataTable(header::AbstractArray, columns::Array{<:AbstractVector,1}=Array{Any,1}[]; name="")
         @assert length(header) == length(unique(header))
         if length(columns)==0
             columns = AbstractVector[ [] for i in 1:length(header) ]
@@ -44,7 +44,7 @@ function DataTable(; pairs...)
 end
 
 
-function DataTable(header::Array, matrix::Array{T,2} where T; name="")
+function DataTable(header::AbstractArray, matrix::Array{T,2} where T; name="")
     nkeys = length(header)
     ncols = size(matrix,2)
     nkeys != ncols && error("DataTable: header and number of data columns do not match")
@@ -566,7 +566,7 @@ end
 
 
 # TODO: Improve column width for string items
-function save(table::DataTable, filename::String; quiet=true, digits::Array=[])
+function save(table::DataTable, filename::String; quiet=true, digits::AbstractArray=[])
     suitable_formats = (".dat", ".table", ".tex")
 
     basename, format = splitext(filename)

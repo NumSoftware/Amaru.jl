@@ -8,7 +8,6 @@ struct MechJointProps<:ElemProperties
     end    
 end
 
-
 mutable struct MechJoint<:Mech
     id    ::Int
     env::ModelEnv
@@ -113,10 +112,6 @@ function elem_stiffness(elem::MechJoint)
     DB = zeros(ndim, nnodes*ndim)
     J  = zeros(ndim, ndim-1)
     NN = zeros(ndim, nnodes*ndim)
-
-    # @show elem.env.ana.stressmodel
-    # @show elem.ips
-    # error()
 
     for ip in elem.ips
     	if elem.env.ana.stressmodel==:axisymmetric

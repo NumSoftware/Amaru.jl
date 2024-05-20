@@ -66,7 +66,7 @@ function distributed_bc(elem::ThermoSolid, facet::Union{Facet,Nothing}, key::Sym
     # Check keys
     key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable in a ThermoSolid element")
 
-    target = facet!=nothing ? facet : elem
+    target = facet !== nothing ? facet : elem
     nodes  = target.nodes
     nnodes = length(nodes)
     t      = elem.env.t

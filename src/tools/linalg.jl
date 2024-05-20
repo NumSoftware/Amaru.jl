@@ -155,7 +155,7 @@ macro axpy(expr)
 end
 
 
-function Base.split(A::Array, knots::Array)
+function Base.split(A::AbstractArray, knots::AbstractArray)
     # @s A
     # @s knots
 
@@ -185,4 +185,18 @@ function Base.split(A::Array, knots::Array)
         push!(R[idx], i)
     end
     return R
+end
+
+# dumps the content of a sparse matrix to a file in coordinate format
+function dump_matrix(A::SparseMatrixCSC, filename::String)
+    n, m = size(A)
+    rows, cols, vals = findnz(A)
+    
+    open(filename, "w") do file
+        println(file, "%%MatrixMarket matrix coordinate real general")
+        println(file, "$n $m $(length(vals))")
+        for i in 1:length(vals)
+            @printf(file, "%4d %4d %f\n", rows[i], cols[i], vals[i])
+        end
+    end
 end

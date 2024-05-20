@@ -152,7 +152,8 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
     saveouts  = stage.nouts > 0
     ftol      = tol
 
-    env.ndim==3 && @check env.ana.stressmodel==:d3
+    stressmodel = env.ana.stressmodel
+    env.ndim==3 && @check stressmodel==:d3
 
     # Get active elements
     for elem in stage.toactivate
@@ -193,7 +194,7 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
 
     T  = 0.0
     ΔT = 1.0/nincs       # initial ΔT value
-    autoinc && (ΔT=min(ΔT, ΔTmax, ΔTcheck))
+    autoinc && (ΔT=min(ΔT, ΔTmax, ΔTcheck, 0.01))
 
     inc  = 0             # increment counter
     F    = zeros(ndofs)  # total internal force for current stage

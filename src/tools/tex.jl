@@ -130,7 +130,7 @@ function readtex(text::String, rng::UnitRange{Int})
                 continue
             end
 
-            if match(r"^\s*$"m, line)!=nothing # blank line
+            if match(r"^\s*$"m, line) !== nothing # blank line
                 #@show 200
                 if length(children)>0 && children[end].name!="blank"
                     xnode = XmlElement("blank")
@@ -139,7 +139,7 @@ function readtex(text::String, rng::UnitRange{Int})
                 pos = rng.stop+1
                 continue
             end
-            if match(r"^\s*%.*?$"m, line)!=nothing # comment
+            if match(r"^\s*%.*?$"m, line) !== nothing # comment
                 if length(children)>0 && children[end].name=="comment"
                     children[end].content *= "\n"*line
                 else
@@ -212,7 +212,7 @@ function readtex(text::String, rng::UnitRange{Int})
             end
             #rof = text[findnext(r".*?$", text, pos)]
             #m=match(r"(\\[a-zA-Z]*\b)"m, rof)
-            #if m!=nothing && m.match.offset==0
+            #if m !== nothing && m.match.offset==0
             #end
         elseif c=='%' # comment
             m = match(r"%(.*?)$"m, text, pos)
@@ -267,15 +267,15 @@ function tex2xml2(filename::String)
         rng===nothing && break
         line = text[rng]
 
-        match(r"^\s*\\begin{document}", line)!=nothing && break
+        match(r"^\s*\\begin{document}", line) !== nothing && break
 
-        if match(r"^\s*$"m, line)!=nothing # blank line
+        if match(r"^\s*$"m, line) !== nothing # blank line
             if length(root.children)>0 && root.children[end].name!="blank"
                 xnode = XmlElement("blank", Dict(), "")
                 push!(root.children, xnode)
             end
             pos = rng.stop+1
-        elseif match(r"^\s*%.*?$"m, line)!=nothing # comment
+        elseif match(r"^\s*%.*?$"m, line) !== nothing # comment
             if length(root.children)>0 && root.children[end].name=="comment"
                 root.children[end].content *= "\n"*line
             else
@@ -283,7 +283,7 @@ function tex2xml2(filename::String)
                 push!(root.children, xnode)
             end
             pos = rng.stop+1
-        elseif (m=match(r"^\s*(\\[a-zA-Z]*\b)"m, line)) != nothing # command
+        elseif (m=match(r"^\s*(\\[a-zA-Z]*\b)"m, line)) !== nothing # command
             name = m.captures[1]
             xnode = XmlElement("command", Dict("name"=>name))
             rng = findnext(r"^\s*\\[a-zA-Z]*\b"m, text, pos)
@@ -348,15 +348,15 @@ function tex2xml2(filename::String)
         rng = findnext(r"^.*?$"m, text, pos)
         rng===nothing && break
         line = text[rng]
-        #match(r"^\s*\\begin{end}", line)!=nothing && break
+        #match(r"^\s*\\begin{end}", line) !== nothing && break
 
-        if match(r"^\s*$"m, line)!=nothing # blank line
+        if match(r"^\s*$"m, line) !== nothing # blank line
             if length(root.children)>0 && root.children[end].name!="blank"
                 xnode = XmlElement("blank", Dict(), "")
                 push!(root.children, xnode)
             end
             pos = rng.stop+1
-        elseif match(r"^\s*%.*?$"m, line)!=nothing # comment
+        elseif match(r"^\s*%.*?$"m, line) !== nothing # comment
             if length(root.children)>0 && root.children[end].name=="comment"
                 root.children[end].content *= "\n"*line
             else
@@ -364,7 +364,7 @@ function tex2xml2(filename::String)
                 push!(root.children, xnode)
             end
             pos = rng.stop+1
-        elseif (m=match(r"^\s*\\begin{([a-zA-Z]*?)}"m, line)) != nothing # environment
+        elseif (m=match(r"^\s*\\begin{([a-zA-Z]*?)}"m, line)) !== nothing # environment
             name = m.captures[1]
             xnode = XmlElement("environment", Dict("name"=>name))
             rng = findnext(r"^\s*\\begin{([a-zA-Z]*?)}"m, text, pos)

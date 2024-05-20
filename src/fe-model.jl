@@ -258,7 +258,7 @@ function FEModel(
             @printf "  %5d edges\n" length(model.edges)
         end
         @printf "  %5d materials\n" length(matbinds)
-        @printf "  %5d loggers\n" length(model.loggers)
+        # @printf "  %5d loggers\n" length(model.loggers)
     end
 
     # Setting data

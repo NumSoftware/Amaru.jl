@@ -54,7 +54,7 @@ function distributed_bc(elem::SeepSolid, facet::Union{Facet,Nothing}, key::Symbo
     # Check keys
     key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable in a SeepSolid element")
 
-    target = facet!=nothing ? facet : elem
+    target = facet !== nothing ? facet : elem
     nodes  = target.nodes
     nnodes = length(nodes)
     t      = elem.env.t

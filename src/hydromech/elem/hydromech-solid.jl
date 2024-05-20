@@ -74,7 +74,7 @@ function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol,
     key in suitable_keys || error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
     (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
 
-    target = facet!=nothing ? facet : elem
+    target = facet !== nothing ? facet : elem
     nodes  = target.nodes
     nnodes = length(nodes)
     t      = elem.env.t

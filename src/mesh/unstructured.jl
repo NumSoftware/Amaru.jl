@@ -205,6 +205,8 @@ function mesh_unstructured(geo::GeoModel; kwargs...)
         end
     end
 
+    delete!(mesh.elem_data, "CellEntityIds")
+
     # set tag for nodes
     ptagdict = Dict()
     for p in geo.points

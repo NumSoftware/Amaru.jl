@@ -7,8 +7,8 @@ mutable struct Axis<:ChartComponent
     label::AbstractString
     font::String
     fontsize::Float64
-    ticks::Array
-    ticklabels::Array
+    ticks::AbstractArray
+    ticklabels::AbstractArray
     ticklength::Union{Float64,Nothing}
     nbins::Int
     mult::Float64

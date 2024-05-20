@@ -94,7 +94,7 @@ function distributed_bc(elem::MechClassicalBeam, facet::Nothing, key::Symbol, va
     (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
     !(key in (:tx, :ty, :tl, :tn)) && error("distributed_bc: boundary condition $key is not applicable as distributed bc at element with type $(typeof(elem))")
 
-    # target = facet!=nothing ? facet : elem
+    # target = facet !== nothing ? facet : elem
     nodes  = elem.nodes
     nnodes = length(nodes)
     t      = elem.env.t

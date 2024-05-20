@@ -48,8 +48,8 @@ function dyn_modal_solver!(model::Model, stage::Stage; kwargs...)
     env = model.env
     println(env.log, "Dynamic modal analysis")
 
-    env.ndim==3 && @check env.ana.stressmodel==:d3
-
+    stressmodel = env.ana.stressmodel
+    env.ndim==3 && @check stressmodel==:d3
 
     # get only bulk elements
     model = Model(model.elems.bulks)
@@ -173,7 +173,7 @@ function dyn_modal_solver!(model::Model, stage::Stage; kwargs...)
 end
 
 
-function modsolvex!(model::Model, bcs::Array; nmods::Int=5, rayleigh=false, save=true, quiet=false)
+function modsolvex!(model::Model, bcs::AbstractArray; nmods::Int=5, rayleigh=false, save=true, quiet=false)
 
     quiet || printstyled("FEM modal analysis:\n", bold=true, color=:cyan)
 

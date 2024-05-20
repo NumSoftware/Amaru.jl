@@ -197,7 +197,8 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
     T0        = env.ana.T0
     ftol      = tol
 
-    env.ndim==3 && @check env.ana.stressmodel==:d3
+    stressmodel = env.ana.stressmodel
+    env.ndim==3 && @check stressmodel==:d3
     
 
     # Get active elements

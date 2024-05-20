@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export CebLSJoint
+export CebLSJoint, CebLSInterface
 
 mutable struct CebLSJointState<:IpState
     env::ModelEnv
@@ -59,6 +59,7 @@ mutable struct CebLSJoint<:Material
 end
 
 const CebRSJoint = CebLSJoint
+const CebLSInterface = CebLSJoint
 
 
 compat_state_type(::Type{CebLSJoint}, ::Type{MechRSJoint}, env::ModelEnv) = CebLSJointState

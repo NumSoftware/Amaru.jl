@@ -29,8 +29,8 @@ LineSeries_params = [
 @doc docstring(LineSeries_params) LineSeries
 
 mutable struct LineSeries<:DataSeries
-    X     ::Array
-    Y     ::Array
+    X     ::AbstractArray
+    Y     ::AbstractArray
     x     ::Union{Float64,Nothing}
     y     ::Union{Float64,Nothing}
     ls    ::Symbol
@@ -202,27 +202,27 @@ function draw!(chart::Chart, cc::CairoContext, p::LineSeries)
 
         # pads
         pad = chart.args.fontsize*0.3
-        dx = pad*cosd(α)
-        dy = pad*sind(α)
+        
+        dx = pad*abs(sind(α))
+        dy = pad*abs(cosd(α))
 
         # Default location "top"
         if p.tagloc==:top
             va = "bottom"
             if 0<α<= 90 || -180 <α<= -90 
                 ha = "right" 
-                dx, dy = -dy, -dx
+                dx, dy = -dx, -dy
             else
                 ha = "left"
-                dx, dy = dy, dx
+                dy = -dy
             end
         else
             va = "top"
             if 0<α<=90 || -180<α<=-90
                 ha = "left"
-                dx, dy = dy, dx
             else
                 ha = "right"
-                dx, dy = -dy, dx
+                dx = -dx
             end
         end
 

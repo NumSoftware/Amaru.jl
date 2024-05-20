@@ -40,6 +40,8 @@ function setup_logger!(model, filter, logger::NodeLogger)
         else
             logger.node = nodes[1]
         end
+        logger.filename = getfullpath(model.env.outdir, logger.filename)
+
         return
     end
 
@@ -48,7 +50,6 @@ function setup_logger!(model, filter, logger::NodeLogger)
     n == 0 && warn("setup_logger: No nodes found for filter expression: ", logger.filter)
     n >  1 && notify("setup_logger: More than one node match filter expression: ", logger.filter)
     n >= 1 && (logger.node = nodes[1])
-    logger.filter = filter
     logger.filename = getfullpath(model.env.outdir, logger.filename)
 
     return nothing

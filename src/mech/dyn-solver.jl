@@ -172,7 +172,8 @@ function dyn_stage_solver!(model::Model, stage::Stage; args...)
     env      = model.env
     saveouts = stage.nouts > 0
 
-    env.ndim==3 && @check env.ana.stressmodel==:d3
+    stressmodel = env.ana.stressmodel
+    env.ndim==3 && @check stressmodel==:d3
 
     # Get active elements
     for elem in stage.toactivate
@@ -475,7 +476,7 @@ end
 
 function dynsolvex!(
                    model       :: Model,
-                   bcs       :: Array;
+                   bcs       :: AbstractArray;
                    tspan :: Real    = NaN,
                    end_time  :: Real    = NaN,
                    nincs     :: Int     = 1,

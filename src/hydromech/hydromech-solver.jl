@@ -203,7 +203,8 @@ function hm_stage_solver!(model::Model, stage::Stage; args...)
     env       = model.env
     saveouts = stage.nouts > 0
 
-    env.ndim==3 && @check env.ana.stressmodel==:d3
+    stressmodel = env.ana.stressmodel
+    env.ndim==3 && @check stressmodel==:d3
 
     # Get active elements
     for elem in stage.toactivate

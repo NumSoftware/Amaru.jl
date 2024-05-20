@@ -8,14 +8,12 @@ include("show.jl")
 
 include("constants.jl")
 include("math.jl")
-include("signal.jl")
-
 include("linalg.jl")
-# include("vec3.jl")
-# include("vec6.jl")
-# include("mat6x6.jl")
-include("quaternion.jl")
+include("path-function.jl")
 include("tensors.jl")
+
+include("signal.jl")
+include("quaternion.jl")
 
 include("expr.jl")
 include("arguments.jl")

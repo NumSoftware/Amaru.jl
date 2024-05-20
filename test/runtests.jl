@@ -11,7 +11,7 @@ let
     @testset begin
         @runfiles [
             "mesh/runtests.jl",
-            "model/logger.jl",
+            "model/runtests.jl",
             "plot/runtests.jl",
             "tools/runtests.jl",
             "mech/runtests.jl",

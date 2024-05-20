@@ -1,7 +1,7 @@
 mutable struct Stage
     id          ::Int
     "boundary conditions"
-    bcs         ::Array
+    bcs         ::AbstractArray
     nincs       ::Int
     nouts       ::Int
     tspan       ::Float64
@@ -9,7 +9,7 @@ mutable struct Stage
     todeactivate::Array{<:Element,1}
     status      ::Symbol # :pending, :solving, :done, :error
 
-    function Stage(bcs         ::Array;
+    function Stage(bcs         ::AbstractArray;
                    nincs       ::Int     = 1,
                    nouts       ::Int     = 0,
                    tspan       ::Number  = 0.0,

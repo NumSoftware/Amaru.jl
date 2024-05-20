@@ -71,7 +71,7 @@ function extrude(block::Block; axis=[0,0,1], length::Number=1.0, n::Int=1, quiet
 end
 
 
-function extrude(blocks::Array; axis=[0,0,1], length=1.0::Number, n=1::Int, quiet=true)
+function extrude(blocks::AbstractArray; axis=[0,0,1], length=1.0::Number, n=1::Int, quiet=true)
     return extrude.(blocks, axis=axis, length=length, n=n, quiet=quiet)
 end
 

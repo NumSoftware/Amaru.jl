@@ -195,7 +195,7 @@ end
 
 
 # Return a vector with all model dofs and the number of unknown dofs according to bcs
-function configure_dofs!(model::AbstractDomain, bcbinds::Array)
+function configure_dofs!(model::AbstractDomain, bcbinds::AbstractArray)
 
     # get active nodes
     ids = [ node.id for elem in model.elems.active for node in elem.nodes ]
@@ -233,7 +233,7 @@ end
 
 
 # Returns the values for essential and natural boundary conditions according to bcs
-function get_bc_vals(model::AbstractDomain, bcs::Array, t=0.0)
+function get_bc_vals(model::AbstractDomain, bcs::AbstractArray, t=0.0)
     # This function will be called for each time increment
 
     ndofs = model.ndofs
