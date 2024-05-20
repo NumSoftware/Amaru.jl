@@ -28,10 +28,12 @@ bcs = [
 addstage!(model, bcs)
 solve!(model, quiet=true)
 
+cmap = Colormap(:coolwarm, rev=true)
+
 # plotting
 plot = MeshPlot(model, 
     field = "uy",
-    colormap = :coolwarm,
+    colormap = cmap,
     warp = 20,
     label = L"u_z", 
     fontsize = 8,

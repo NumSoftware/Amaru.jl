@@ -19,9 +19,9 @@ series = [
 
 addseries!(chart, series)
 addlegend!(chart, Legend(ncols=3, loc=:outerbottom))
-addannotation!(chart, Annotation(L"Amaru $\frac{x}{y}$", 0.2, 0.2, target=(3.5,0), textalignment=:top))
+addannotation!(chart, Annotation(L"Amaru $\frac{x}{y}$", 0.5, 0.9, target=(1.5,1), textalignment=:top))
 addannotation!(chart, Annotation(L"Amaru $\frac{x}{y}$", 0.7, 0.2, target=(4,0), textalignment=:top))
-addannotation!(chart, Annotation(L"Amaru $\frac{x}{y}$", 0.2, 0.7, target=(3.5,0), textalignment=:top))
-addannotation!(chart, Annotation(L"Amaru $\frac{x}{y}$", 0.55, 0.9, target=(3.5,0), textalignment=:top))
+# addannotation!(chart, Annotation(L"Amaru $\frac{x}{y}$", 0.2, 0.7, target=(3.5,0), textalignment=:top))
+# addannotation!(chart, Annotation(L"Amaru $\frac{x}{y}$", 0.55, 0.9, target=(3.5,0), textalignment=:top))
 
 save(chart, "chart.pdf")
