@@ -33,10 +33,23 @@ function interpolate(X, Y, x)
     return Y[i-1] + (x-X[i-1]) * (Y[i]-Y[i-1])/(X[i]-X[i-1])
 end
 
-function derivative(X, Y, x)
+function derive(X, Y, x)
     i = searchsortedfirst(X, x)
     1<i<=length(X) || return 0.0
     return (Y[i]-Y[i-1])/(X[i]-X[i-1])
+end
+
+
+# computes the first derivative using central
+# differences formula and Richardson extrapolation
+function derive(f::Function, x::Float64; ref::Float64=1.0)
+    # h  = eps()^(1/2)*abs(ref)
+    h  = eps()^(1/2)
+
+    d1 = (f(x+h)-f(x-h))/(2*h)
+    h  = h/2
+    d2 = (f(x+h)-f(x-h))/(2*h)
+    return (4*d2-d1)/3
 end
 
 
@@ -106,6 +119,20 @@ function cubic_roots(a,b,c,d)
 end
 
 
+"""
+    findrootinterval(f::Function, x1, Δx)
+
+Find the interval [x1, x2] where the function `f` changes sign.
+
+# Arguments
+- `f`: The function to find the root interval for.
+- `x1`: The starting point of the interval.
+- `Δx`: The initial increment.
+
+# Returns
+The interval [x1, x2] where the function `f` changes sign.
+
+"""
 function findrootinterval(f::Function, x1, Δx)
     x2 = x1 + Δx
     f1 = f(x1)
@@ -123,13 +150,6 @@ function findrootinterval(f::Function, x1, Δx)
         end
     end
 
-    # if !(f1*f2<0)
-    #     println()
-        
-    #     @show f1
-    #     @show f2
-    # end
-
     return x1, x2, success()
 end
 
@@ -138,16 +158,14 @@ function findroot(f::Function, a, b; tol=(b-a)*0.001, ftol=Inf, method=:default)
         return findroot_default(f, a, b, tol, ftol)
     elseif method==:bisection
         return findroot_bisection(f, a, b, tol, ftol)
+    else
+        return error("findroot: method $method not implemented")
     end
 end
 
 function findroot_bisection(f::Function, a, b, tol, ftol)
     fa = f(a)
     fb = f(b)
-    # if fa*fb>0
-    #     @show a
-    #     @show b
-    # end
 
     fa*fb>0 && return 0.0, failure("findroot_bisection: function must have opposite sings at endpoints")
 
@@ -155,15 +173,17 @@ function findroot_bisection(f::Function, a, b, tol, ftol)
     x  = (a+b)/2
     for i in 1:maxits
         fx = f(x)
+
         if fa*fx<0.0
             b  = x
+            fb = fx
         else
             a  = x
             fa = fx
         end
         x  = (a+b)/2
 
-        (b-a)/2<tol && abs(fx-fa)<ftol && break
+        (b-a)/2<tol && abs(fx)<ftol && break
         i==maxits && return 0.0, failure("findroot_bisection: maxits reached")
     end
 
