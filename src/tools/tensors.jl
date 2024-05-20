@@ -21,32 +21,23 @@ dev(T::Vec6) = Psd*T # deviatoric tensor
 LinearAlgebra.tr(σ::Vec6) = σ[1]+σ[2]+σ[3]
 
 # Deviatoric tensor invariants (Mandel notation)
-function J2D(σ::Vec6)
-    return 1/6*( (σ[1]-σ[2])^2 + (σ[2]-σ[3])^2 + (σ[3]-σ[1])^2 ) + 0.5*( σ[4]^2 + σ[5]^2 + σ[6]^2)
+function J2(σ::Vec6)
+    t11, t22, t33, t23, t13, t12 = σ[1], σ[2], σ[3], σ[4]/SR2, σ[5]/SR2, σ[6]/SR2
+    return 1/6*( (t11-t22)^2 + (t22-t33)^2 + (t33-t11)^2 ) + t23^2 + t13^2 + t12^2
 end
 
 
-function J3D(T::Vec6)
-    return J3(Psd*T)
+# Third invariant of the deviatoric tensor
+function J3(σ::Vec6)
+    t11, t22, t33 = σ[1], σ[2], σ[3]
+    s23, s13, s12 = σ[4]/SR2, σ[5]/SR2, σ[6]/SR2
+    p = t11+t22+t33
+    s11 = t11 - 1/3*p
+    s22 = t22 - 1/3*p
+    s33 = t33 - 1/3*p
+    return s11*s22*s33 + 2*s12*s23*s13 - s11*s23^2 - s22*s13^2 - s33*s12^2
 end
 
-
-"""
-Computes the eigenvalues of a second order tensor written in Mandel notation.
-The eigenvalues are sorted from highest to lowest
-"""
-function eigvals(T::Vec6)
-    @assert length(T) == 6
-
-    # full notation
-    F = [ T[1]      T[6]/SR2  T[5]/SR2 ;
-          T[6]/SR2  T[2]      T[4]/SR2 ;
-          T[5]/SR2  T[4]/SR2  T[3]     ]
-    L, _ = eigen!(F, permute=false, scale=false)
-
-    # put biggest eigenvalue first
-    return sort!(L, rev=true)
-end
 
 """
 This function is not precise enouugh...
@@ -83,72 +74,65 @@ end
 
 
 """
+Computes the eigenvalues of a second order tensor written in Mandel notation.
+The eigenvalues are sorted from highest to lowest
+"""
+function eigvals(T::Vec6)
+    t11, t22, t33, t23, t13, t12 = T[1], T[2], T[3], T[4]/SR2, T[5]/SR2, T[6]/SR2
+    
+    # full notation
+    F = @SArray[ t11  t12  t13
+                 t12  t22  t23
+                 t13  t23  t33 ]
+
+    L, _ = eigen(F, permute=false, scale=false)
+
+    # put biggest eigenvalue first
+    return sort(L, rev=true)
+end
+
+
+"""
 Computes eigenvalues and eigenvectors of a second order tensor written in Mandel notation.
 The first eigenvalues corresponds to the highest.
 The eigenvectors are returned columnwise and disposed in a clockwise coordinate system.
 """
 function LinearAlgebra.eigen(T::Vec6)
-    @assert length(T) == 6
-
+    t11, t22, t33, t23, t13, t12 = T[1], T[2], T[3], T[4]/SR2, T[5]/SR2, T[6]/SR2
+    
     # full notation
-    T4oR2 = T[4]/SR2
-    T5oR2 = T[5]/SR2
-    T6oR2 = T[6]/SR2
-    F = [ T[1]   T6oR2  T5oR2
-          T6oR2  T[2]   T4oR2
-          T5oR2  T4oR2  T[3]     ]
-    L, V = eigen!(F, permute=false, scale=false)
+    F = @SArray[ t11  t12  t13
+                 t12  t22  t23
+                 t13  t23  t33 ]
+
+    L, V = eigen(F, permute=false, scale=false)
 
     # put biggest eigenvalue first
     p = sortperm(L, rev=true)
     L = L[p]
-    V = V[:,p]
-    V[:,3] .= normalize(cross(V[:,1], V[:,2]))
+    V = V[:, p]
+    V = [ V[:,1] V[:,2] normalize(cross(V[:,1], V[:,2])) ]
+    # V[:,3] = normalize(cross(V[:,1], V[:,2]))
 
     return L, V
 end
 
 
-# function tfull(T::Vec6)
-#     t1, t2, t3, t4, t5, t6 = T.*M2V
-#     return [
-#         t1 t6 t5
-#         t6 t2 t4
-#         t5 t4 t3 ]
-# end
+function LinearAlgebra.inv(T::Vec6)
+    t11, t22, t33, t23, t13, t12 = T[1], T[2], T[3], T[4]/SR2, T[5]/SR2, T[6]/SR2
+    
+    # full notation
+    F = @SArray[ t11  t12  t13
+                 t12  t22  t23
+                 t13  t23  t33 ]
+
+    G = inv(F)
+    return Vec6( G[1,1], G[2,2], G[3,3], SR2*G[2,3], SR2*G[1,3], SR2*G[1,2] )
+end
 
 
-# function matrix2Mandel(M::Array{Float64,2})
-#     t11 = M[1,1]
-#     t22 = M[2,2]
-#     t33 = M[3,3]
-#     t23 = M[2,3]*SR2
-#     t13 = M[1,3]*SR2
-#     t12 = M[1,2]*SR2
-#     return [t11, t22, t33, t23, t13, t12]
-# end
-
-
+# TODO: do we need this?
 LinearAlgebra.norm(T::Vec6) = √dot(T,T)
-
-
-
-# function set_tensor_rot!(V::Array{Float64,2}, R::Tensor4)
-#     # V : second order tensor with direction cosines (new system axes in old system coordinates)
-#     # R : fourth order tensor
-
-#     lx, ly, lz = V[1,:]
-#     mx, my, mz = V[2,:]
-#     nx, ny, nz = V[3,:]
-
-#     R[1,1] =     lx*lx;  R[1,2] =     ly*ly;  R[1,3] =     lz*lz;   R[1,4] =   SR2*ly*lz;  R[1,5] =   SR2*lz*lx;  R[1,6] =   SR2*lx*ly;
-#     R[2,1] =     mx*mx;  R[2,2] =     my*my;  R[2,3] =     mz*mz;   R[2,4] =   SR2*my*mz;  R[2,5] =   SR2*mz*mx;  R[2,6] =   SR2*mx*my;
-#     R[3,1] =     nx*nx;  R[3,2] =     ny*ny;  R[3,3] =     nz*nz;   R[3,4] =   SR2*ny*nz;  R[3,5] =   SR2*nz*nx;  R[3,6] =   SR2*nx*ny;
-#     R[4,1] = SR2*mx*nx;  R[4,2] = SR2*my*ny;  R[4,3] = SR2*mz*nz;   R[4,4] = my*nz+ny*mz;  R[4,5] = mx*nz+nx*mz;  R[4,6] = mx*ny+nx*my;
-#     R[5,1] = SR2*nx*lx;  R[5,2] = SR2*ny*ly;  R[5,3] = SR2*nz*lz;   R[5,4] = ny*lz+ly*nz;  R[5,5] = nx*lz+lx*nz;  R[5,6] = nx*ly+lx*ny;
-#     R[6,1] = SR2*lx*mx;  R[6,2] = SR2*ly*my;  R[6,3] = SR2*lz*mz;   R[6,4] = ly*mz+my*lz;  R[6,5] = lx*mz+mx*lz;  R[6,6] = lx*my+mx*ly;
-#     return R
-# end
 
 
 function rotation_tensor!(V::Array{Float64,2})
@@ -175,7 +159,7 @@ Return a dictionary with conventional stress and stress values
 from stress and strain tensors defined in Mandel notation.
 """
 @inline function stress_strain_dict(σ::Vec6, ε::Vec6, stressmodel::Symbol)
-    svm = √(3*J2D(σ))
+    svm = √(3*J2(σ))
 
     if stressmodel in (:planestress,:planestrain)
         s1, _, s3 = eigvals(σ)
