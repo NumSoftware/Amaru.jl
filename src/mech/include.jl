@@ -32,6 +32,8 @@ include("mat/von-mises.jl")
 include("mat/mazars.jl")
 include("mat/smeared-crack.jl")
 include("mat/damageconcrete-solid.jl")
+include("mat/willam-warnke.jl")
+include("mat/CSCP.jl")
 
 # Spring, dumper, lumped mass
 include("elem/mech-lumpedmass.jl")
