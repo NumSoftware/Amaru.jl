@@ -98,9 +98,10 @@ compat_state_type(::Type{VonMises}, ::Type{MechEmbTruss}, env::ModelEnv) = VonMi
 
 
 # VonMises model for 3D and 2D bulk elements (not including plane-stress state)
+# =============================================================================
 
 function yield_func(mat::VonMises, state::VonMisesState, σ::Vec6, εpa::Float64)
-    j2d = J2D(σ)
+    j2d = J2(σ)
     σy  = mat.σy
     H   = mat.H
     return √(3*j2d) - σy - H*εpa
@@ -111,7 +112,7 @@ function calcD(mat::VonMises, state::VonMisesState)
     De  = calcDe(mat.E, mat.ν)
     state.Δλ==0.0 && return De
 
-    j2d = J2D(state.σ)
+    j2d = J2(state.σ)
     @assert j2d>0
 
     s     = dev(state.σ)
@@ -138,7 +139,7 @@ function update_state!(mat::VonMises, state::VonMisesState, Δε::Array{Float64,
         # plastic
         E, ν  = mat.E, mat.ν
         G     = E/(2*(1+ν))
-        j2dtr = J2D(σtr)
+        j2dtr = J2(σtr)
 
         state.Δλ = ftr/(3*G + √1.5*mat.H)
         √j2dtr - state.Δλ*√3*G >= 0.0 || return state.σ, failure("VonMisses: Negative value for √J2D")
@@ -157,7 +158,7 @@ end
 function ip_state_vals(mat::VonMises, state::VonMisesState)
     σ, ε  = state.σ, state.ε
     j1    = tr(σ)
-    srj2d = √J2D(σ)
+    srj2d = √J2(σ)
 
     D = stress_strain_dict(σ, ε, state.env.ana.stressmodel)
     D[:ep]   = state.εpa
@@ -167,13 +168,14 @@ end
 
 
 # VonMises model for 2D bulk elements under plane-stress state including shell elements
+# =====================================================================================
 
 
 function yield_func(mat::VonMises, state::VonMisesPlaneStressState, σ::AbstractArray, εpa::Float64)
     # f = 1/2 σ*Psd*σ - 1/3 (fy + H εp)^2
     # f = J2D - 1/3 (fy + H εp)^2
 
-    j2d = J2D(σ)
+    j2d = J2(σ)
 
     σy  = mat.σy
     H   = mat.H
@@ -327,7 +329,7 @@ end
 function ip_state_vals(mat::VonMises, state::VonMisesPlaneStressState)
     σ, ε  = state.σ, state.ε
     j1    = tr(σ)
-    srj2d = √J2D(σ)
+    srj2d = √J2(σ)
 
     D = stress_strain_dict(σ, ε, :planestress)
     D[:ep]   = state.εpa
@@ -339,6 +341,7 @@ end
 
 
 # VonMises model for beam elements
+# ================================
 
 
 function yield_func(mat::VonMises, state::VonMisesBeamState, σ::Vec3, εpa::Float64)
@@ -497,7 +500,8 @@ function ip_state_vals(mat::VonMises, state::VonMisesBeamState)
 end
 
 
-# Von Mises for bar elements
+# Von Mises for truss elements
+# ============================
 
 
 function yield_func(mat::VonMises, state::VonMisesTrussState, σ::Float64, εpa::Float64)

@@ -1,15 +1,15 @@
  #This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export TCJoint
+export PowerYieldCrack, TCJoint
 
-mutable struct TCJointState<:IpState
+mutable struct PowerYieldCrackState<:IpState
     env::ModelEnv
     σ  ::Array{Float64,1} # stress
     w  ::Array{Float64,1} # relative displacements
     up ::Float64          # effective plastic relative displacement
     Δλ ::Float64          # plastic multiplier
     h  ::Float64          # characteristic length from bulk elements
-    function TCJointState(env::ModelEnv)
+    function PowerYieldCrackState(env::ModelEnv)
         this = new(env)
         this.σ   = zeros(env.ndim)
         this.w   = zeros(env.ndim)
@@ -21,70 +21,68 @@ mutable struct TCJointState<:IpState
 end
 
 
-TCJoint_params = [
-    FunInfo( :TCJoint, "Creates a `TCJoint` material model for cohesive elements."),
-    KwArgInfo( :E, "Young modulus", cond=:(E>0)),
-    KwArgInfo( :nu, "Poisson ratio", cond=:(0<=nu<0.5)),
-    KwArgInfo( :fc, "Compressive strength", cond=:(fc<0)),
-    KwArgInfo( :ft, "Tensile strength", cond=:(ft>0)),
-    KwArgInfo( :zeta, "Joint elastic stiffness factor", cond=:(zeta>0)),
-    KwArgInfo( :alpha, "Failure surface shape", 1.5, cond=:(alpha>0.5)),
-    KwArgInfo( :gamma, "Failure surface minimum size", 0.1, cond=:(gamma>=0)),
-    KwArgInfo( :theta, "Failure surface shrinking rate", 1.5, cond=:(theta>=0)),
-    KwArgInfo( :wc, "Critical crack opening", 0.0, cond=:(wc>=0)),
-    KwArgInfo( :GF, "Fracture energy", 0.0, cond=:(GF>=0)),
-    KwArgInfo( :softmodel, "Softening model", :hordijk, values=(:linear, :bilinear, :hordijk, :soft, :custom), type=Symbol),
-    KwArgInfo( :softcurve, "Softening curve", zeros(0,0), type=Array),
+PowerYieldCrack_params = [
+    FunInfo(:PowerYieldCrack, "Creates a `PowerYieldCrack` material model for cohesive elements."),
+    KwArgInfo(:E, "Young modulus", cond=:(E>0)),
+    KwArgInfo(:nu, "Poisson ratio", cond=:(0<=nu<0.5)),
+    KwArgInfo(:fc, "Compressive strength", cond=:(fc<0)),
+    KwArgInfo(:ft, "Tensile strength", cond=:(ft>0)),
+    KwArgInfo(:zeta, "Joint elastic stiffness factor", cond=:(zeta>0)),
+    KwArgInfo(:alpha, "Failure surface shape", 1.5, cond=:(alpha>0.5)),
+    KwArgInfo(:gamma, "Failure surface minimum size", 0.1, cond=:(gamma>=0)),
+    KwArgInfo(:theta, "Failure surface shrinking rate", 1.5, cond=:(theta>=0)),
+    KwArgInfo(:wc, "Critical crack opening", nothing, cond=:(wc>=0)),
+    KwArgInfo(:GF, "Fracture energy", nothing, cond=:(GF>=0)),
+    KwArgInfo(:softmodel, "Softening model", :hordijk, values=(:linear, :bilinear, :hordijk, :soft, :custom), type=Symbol),
+    KwArgInfo((:ft_fun,:soft_fun), "Softening curve", nothing),
 ]
-@doc docstring(TCJoint_params) TCJoint
+@doc docstring(PowerYieldCrack_params) PowerYieldCrack
 
-mutable struct TCJoint<:Material
-    E ::Float64       # Young's modulus
-    ν ::Float64       # Poisson ratio
-    ft::Float64       # tensile strength
-    fc::Float64       # compressive strength
-    ζ ::Float64       # factor ζ controls the elastic relative displacements (formerly α)
-    wc::Float64       # critical crack opening
-    softmodel::Symbol # softening curve model (:linear or bilinear" or :hordijk or :soft)
-    softcurve::Array{Float64,2} # softening curve model (:linear or bilinear" or :hordijk or :soft)
-    α::Float64        # curvature coefficient
-    γ::Float64        # factor for βres
-    θ::Float64        # fator for the surface reduction speed
-    βini::Float64     # initial curvature size
+mutable struct PowerYieldCrack<:Material
+    E ::Float64
+    ν ::Float64
+    ft::Float64
+    fc::Float64
+    ζ ::Float64
+    wc::Float64
+    softmodel::Symbol
+    ft_fun::Union{Nothing,PathFunction}
+    α::Float64
+    γ::Float64
+    θ::Float64
+    βini::Float64
 
-    function TCJoint(; args...)
-        args = checkargs([], args, TCJoint_params)
+    function PowerYieldCrack(; args...)
+        args = checkargs([], args, PowerYieldCrack_params)
 
         wc = args.wc
+        GF = args.GF
         softmodel = args.softmodel
-        softcurve = args.softcurve
+        ft_fun = args.ft_fun
+        ft = args.ft
+        fc = args.fc
 
-        if length(softcurve)>0
-            if softcurve[end,2]==0
-                wc = softcurve[end,1]
+        if ft_fun!==nothing
+            softmodel = :custom
+            ft = ft_fun(0.0)
+            if lastpoint(ft_fun)[2] == 0.0
+                wc = lastpoint(ft_fun)[1]
             else
                 wc = Inf
             end
-            softmodel = :custom
-        end
-        
-        if wc==0.0
-            GF = args.GF
-            ft = args.ft
-            if softmodel == :linear
-                wc = round(2*GF/ft, sigdigits=5)
-            elseif softmodel == :bilinear
-                # if Gf==0.0
+        else
+            if isnothing(wc)
+                isnothing(GF) && error("PowerYieldCrack: wc or GF must be defined when using a predefined softening model")
+                GF = args.GF
+                if softmodel == :linear
+                    wc = round(2*GF/ft, sigdigits=5)
+                elseif softmodel == :bilinear
                     wc = round(5*GF/ft, sigdigits=5)
-                # else
-                    # wc = round((8*GF- 6*Gf)/ft, sigdigits=5)
-                # end
-            elseif softmodel==:hordijk
-                wc = round(GF/(0.1947019536*ft), sigdigits=5)  
-            elseif softmodel==:soft
-                wc = round(GF/(0.1947019536*ft), sigdigits=5)
-                # wc = round(6*GF/ft, sigdigits=5)  
-                # wc = round(5.14*GF/ft, sigdigits=5)  
+                elseif softmodel==:hordijk
+                    wc = round(GF/(0.1947019536*ft), sigdigits=5)  
+                elseif softmodel==:soft
+                    wc = round(GF/(0.1947019536*ft), sigdigits=5)
+                end
             end
         end
 
@@ -95,37 +93,34 @@ mutable struct TCJoint<:Material
         b = √(alpha*(2*a-fc)*(ft-a))
         βini = (b^2/ft^2)^alpha/(ft-a)
 
-        this = new(args.E, args.nu, args.ft, args.fc, args.zeta, wc, softmodel, softcurve, args.alpha, args.gamma, args.theta, βini)
+        this = new(args.E, args.nu, ft, fc, args.zeta, wc, softmodel, ft_fun, args.alpha, args.gamma, args.theta, βini)
         return this
     end
 end
 
+const TCJoint = PowerYieldCrack
 
 
-
-function paramsdict(mat::TCJoint)
+function paramsdict(mat::PowerYieldCrack)
     mat = OrderedDict( string(field)=> getfield(mat, field) for field in fieldnames(typeof(mat)) )
 
-    mat.softcurve in (:hordijk, :soft) && ( mat["GF"] = 0.1943*mat.ft*mat.wc )
+    mat.softmodel in (:hordijk, :soft) && ( mat["GF"] = 0.1943*mat.ft*mat.wc )
     return mat
 end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{TCJoint}, ::Type{MechJoint}, env::ModelEnv) = TCJointState
-
-# Element types that work with this material
-# compat_elem_types(::Type{TCJoint}) = (MechJoint,)
+compat_state_type(::Type{PowerYieldCrack}, ::Type{MechJoint}, env::ModelEnv) = PowerYieldCrackState
 
 
-function beta(mat::TCJoint, σmax::Float64)
+function beta(mat::PowerYieldCrack, σmax::Float64)
     βini = mat.βini
     βres = mat.γ*βini
     return βres + (βini-βres)*(σmax/mat.ft)^mat.θ
 end
 
 
-function yield_func(mat::TCJoint, state::TCJointState, σ::Array{Float64,1}, σmax::Float64)
+function yield_func(mat::PowerYieldCrack, state::PowerYieldCrackState, σ::Array{Float64,1}, σmax::Float64)
     α  = mat.α
     β = beta(mat, σmax)
     ft = mat.ft
@@ -137,7 +132,7 @@ function yield_func(mat::TCJoint, state::TCJointState, σ::Array{Float64,1}, σm
 end
 
 
-function yield_derivs(mat::TCJoint, state::TCJointState, σ::Array{Float64,1}, σmax::Float64)
+function yield_derivs(mat::PowerYieldCrack, state::PowerYieldCrackState, σ::Array{Float64,1}, σmax::Float64)
     α = mat.α
     β = beta(mat, σmax)
     ft = mat.ft
@@ -154,7 +149,7 @@ function yield_derivs(mat::TCJoint, state::TCJointState, σ::Array{Float64,1}, �
 end
 
 
-function potential_derivs(mat::TCJoint, state::TCJointState, σ::Array{Float64,1})
+function potential_derivs(mat::PowerYieldCrack, state::PowerYieldCrackState, σ::Array{Float64,1})
     ndim = state.env.ndim
     if ndim == 3
         if σ[1] > 0.0 
@@ -183,7 +178,7 @@ function potential_derivs(mat::TCJoint, state::TCJointState, σ::Array{Float64,1
 end
 
 
-function calc_σmax(mat::TCJoint, state::TCJointState, up::Float64)
+function calc_σmax(mat::PowerYieldCrack, state::PowerYieldCrackState, up::Float64)
     if mat.softmodel == :linear
         if up < mat.wc
             a = mat.ft 
@@ -227,16 +222,14 @@ function calc_σmax(mat::TCJoint, state::TCJointState, up::Float64)
         end
         σmax = z*mat.ft
     elseif mat.softmodel == :custom
-        σmax = interpolate(view(mat.softcurve, :, 1), view(mat.softcurve, :, 2), up)
+        σmax = mat.ft_fun(up)
     end
-
-    # @show mat.softmodel
 
     return σmax
 end
 
 
-function deriv_σmax_upa(mat::TCJoint, state::TCJointState, up::Float64)
+function deriv_σmax_upa(mat::PowerYieldCrack, state::PowerYieldCrackState, up::Float64)
     if mat.softmodel == :linear
         if up < mat.wc
             b = mat.ft /mat.wc
@@ -271,20 +264,19 @@ function deriv_σmax_upa(mat::TCJoint, state::TCJointState, up::Float64)
         elseif up < mat.wc
             x = up/mat.wc
             dz =  -m*log(a)*a^(1-x^-m)*x^(-m-1)/mat.wc
-
         else
             dz = 0.0
         end
         dσmax = dz*mat.ft 
     elseif mat.softmodel == :custom
-        dσmax = derivative(view(mat.softcurve, :, 1), view(mat.softcurve, :, 2), up)
+        dσmax = derive(mat.ft_fun, up)
     end
 
     return dσmax
 end
 
 
-function calc_kn_ks(mat::TCJoint, state::TCJointState)
+function calc_kn_ks(mat::PowerYieldCrack, state::PowerYieldCrackState)
     kn = mat.E*mat.ζ/state.h
     G  = mat.E/(2*(1+mat.ν))
     ks = G*mat.ζ/state.h
@@ -293,7 +285,7 @@ function calc_kn_ks(mat::TCJoint, state::TCJointState)
 end
 
 
-function consistentD(mat::TCJoint, state::TCJointState)
+function consistentD(mat::PowerYieldCrack, state::PowerYieldCrackState)
     # numerical approximation
     # seems not to work under compressive loads
 
@@ -331,7 +323,7 @@ function consistentD(mat::TCJoint, state::TCJointState)
 end
 
 
-function calcD(mat::TCJoint, state::TCJointState)
+function calcD(mat::PowerYieldCrack, state::PowerYieldCrackState)
     # return consistentD(mat, state)
 
     ndim = state.env.ndim
@@ -380,7 +372,7 @@ function calcD(mat::TCJoint, state::TCJointState)
 end
 
 
-function calc_σ_up_Δλ(mat::TCJoint, state::TCJointState, σtr::Array{Float64,1})
+function calc_σ_up_Δλ(mat::PowerYieldCrack, state::PowerYieldCrackState, σtr::Array{Float64,1})
     ndim = state.env.ndim
     Δλ   = 0.0
     up   = 0.0
@@ -433,7 +425,7 @@ function calc_σ_up_Δλ(mat::TCJoint, state::TCJointState, σtr::Array{Float64,
         Δλ = Δλ - f/dfdΔλ
         
         if Δλ<=0 || isnan(Δλ) || i==maxits
-            # return 0.0, state.σ, 0.0, failure("TCJoint: failed to find Δλ")
+            # return 0.0, state.σ, 0.0, failure("PowerYieldCrack: failed to find Δλ")
             # switch to bissection method
             return calc_σ_up_Δλ_bis(mat, state, σtr)
         end
@@ -448,7 +440,7 @@ function calc_σ_up_Δλ(mat::TCJoint, state::TCJointState, σtr::Array{Float64,
 end
 
 
-function calc_σ_up(mat::TCJoint, state::TCJointState, σtr::Array{Float64,1}, Δλ::Float64)
+function calc_σ_up(mat::PowerYieldCrack, state::PowerYieldCrackState, σtr::Array{Float64,1}, Δλ::Float64)
     ndim = state.env.ndim
     kn, ks  = calc_kn_ks(mat, state)
 
@@ -471,7 +463,7 @@ function calc_σ_up(mat::TCJoint, state::TCJointState, σtr::Array{Float64,1}, �
     return σ, up
 end
 
-function calc_σ_up_Δλ_bis(mat::TCJoint, state::TCJointState, σtr::Array{Float64,1})
+function calc_σ_up_Δλ_bis(mat::PowerYieldCrack, state::PowerYieldCrackState, σtr::Array{Float64,1})
     ndim    = state.env.ndim
     kn, ks  = calc_kn_ks(mat, state)
     De      = diagm([kn, ks, ks][1:ndim])
@@ -504,7 +496,7 @@ function calc_σ_up_Δλ_bis(mat::TCJoint, state::TCJointState, σtr::Array{Floa
 end
 
 
-function yield_func_from_Δλ(mat::TCJoint, state::TCJointState, σtr::Array{Float64,1}, Δλ::Float64)
+function yield_func_from_Δλ(mat::PowerYieldCrack, state::PowerYieldCrackState, σtr::Array{Float64,1}, Δλ::Float64)
     ndim = state.env.ndim
     kn, ks = calc_kn_ks(mat, state)
 
@@ -534,71 +526,71 @@ function yield_func_from_Δλ(mat::TCJoint, state::TCJointState, σtr::Array{Flo
 end
 
 
-function calc_σ_up_Δλ_bisection(mat::TCJoint, state::TCJointState, σtr::Array{Float64,1})
-    ndim    = state.env.ndim
-    kn, ks  = calc_kn_ks(mat, state)
-    De      = diagm([kn, ks, ks][1:ndim])
-    r       = potential_derivs(mat, state, state.σ)
+# function calc_σ_up_Δλ_bisection(mat::PowerYieldCrack, state::PowerYieldCrackState, σtr::Array{Float64,1})
+#     ndim    = state.env.ndim
+#     kn, ks  = calc_kn_ks(mat, state)
+#     De      = diagm([kn, ks, ks][1:ndim])
+#     r       = potential_derivs(mat, state, state.σ)
 
-    # Δλ estimative
-    Δλ0 = norm(σtr-state.σ)/norm(De*r)
+#     # Δλ estimative
+#     Δλ0 = norm(σtr-state.σ)/norm(De*r)
     
-    # find initial interval
-    a  = 0.0
-    b  = Δλ0
-    fa = yield_func_from_Δλ(mat, state, σtr, a)
-    fb = yield_func_from_Δλ(mat, state, σtr, b)
+#     # find initial interval
+#     a  = 0.0
+#     b  = Δλ0
+#     fa = yield_func_from_Δλ(mat, state, σtr, a)
+#     fb = yield_func_from_Δλ(mat, state, σtr, b)
 
-    # search for a valid interval
-    if fa*fb>0
-        δ = Δλ0
-        maxits = 100
-        for i in 1:maxits
-            b += δ
-            fb = yield_func_from_Δλ(mat, state, σtr, b)
-            if fa*fb<0.0
-                break
-            end
-            δ *= 1.5
+#     # search for a valid interval
+#     if fa*fb>0
+#         δ = Δλ0
+#         maxits = 100
+#         for i in 1:maxits
+#             b += δ
+#             fb = yield_func_from_Δλ(mat, state, σtr, b)
+#             if fa*fb<0.0
+#                 break
+#             end
+#             δ *= 1.5
 
-            if i==maxits
-                return 0.0, state.σ, 0.0, failure("TCJoint: could not find iterval for Δλ")
-            end
-        end
-    end
+#             if i==maxits
+#                 return 0.0, state.σ, 0.0, failure("PowerYieldCrack: could not find iterval for Δλ")
+#             end
+#         end
+#     end
 
-    # bissection method
-    Δλ = 0.0
-    f  = 0.0
-    up = 0.0
-    σ0 = zeros(ndim) # previous value
-    σ  = zeros(ndim)
-    tol = 1e-5
-    maxits = 100
-    for i in 1:maxits
-        Δλ = (a+b)/2
+#     # bissection method
+#     Δλ = 0.0
+#     f  = 0.0
+#     up = 0.0
+#     σ0 = zeros(ndim) # previous value
+#     σ  = zeros(ndim)
+#     tol = 1e-5
+#     maxits = 100
+#     for i in 1:maxits
+#         Δλ = (a+b)/2
 
-        f = yield_func_from_Δλ(mat, state, σtr, Δλ)
-        if fa*f<0
-            b = Δλ
-        else
-            a  = Δλ
-            fa = f
-        end
+#         f = yield_func_from_Δλ(mat, state, σtr, Δλ)
+#         if fa*f<0
+#             b = Δλ
+#         else
+#             a  = Δλ
+#             fa = f
+#         end
 
-        if maximum(abs, σ-σ0) <= tol
-            break
-        end
-        σ0 .= σ
+#         if maximum(abs, σ-σ0) <= tol
+#             break
+#         end
+#         σ0 .= σ
 
-        i==maxits && return 0.0, state.σ, 0.0, failure("TCJoint: could not find Δλ with NR/bissection (maxits reached, f=$f)")
-    end
+#         i==maxits && return 0.0, state.σ, 0.0, failure("PowerYieldCrack: could not find Δλ with NR/bissection (maxits reached, f=$f)")
+#     end
 
-    return σ, up, Δλ, success()      
-end
+#     return σ, up, Δλ, success()      
+# end
 
 
-function update_state!(mat::TCJoint, state::TCJointState, Δw::Array{Float64,1})
+function update_state!(mat::PowerYieldCrack, state::PowerYieldCrackState, Δw::Array{Float64,1})
 
     ndim = state.env.ndim
     σini = copy(state.σ)
@@ -608,7 +600,7 @@ function update_state!(mat::TCJoint, state::TCJointState, Δw::Array{Float64,1})
     σmax = calc_σmax(mat, state, state.up)  
 
     if isnan(Δw[1]) || isnan(Δw[2])
-        alert("TCJoint: Invalid value for joint displacement: Δw = $Δw")
+        alert("PowerYieldCrack: Invalid value for joint displacement: Δw = $Δw")
     end
 
     # σ trial and F trial
@@ -658,7 +650,7 @@ function update_state!(mat::TCJoint, state::TCJointState, Δw::Array{Float64,1})
 end
 
 
-function ip_state_vals(mat::TCJoint, state::TCJointState)
+function ip_state_vals(mat::PowerYieldCrack, state::PowerYieldCrackState)
     ndim = state.env.ndim
     if ndim == 3
        return Dict(
@@ -682,6 +674,6 @@ function ip_state_vals(mat::TCJoint, state::TCJointState)
 end
 
 
-function output_keys(mat::TCJoint)
+function output_keys(mat::PowerYieldCrack)
     return Symbol[:jw1, :js1, :jup]
 end

@@ -102,7 +102,7 @@ end
 
 function yield_func(mat::DruckerPrager, state::DruckerPragerState, σ::AbstractArray)
     j1  = tr(σ)
-    j2d = J2D(σ)
+    j2d = J2(σ)
     α,κ = mat.α, mat.κ
     H   = mat.H
     εpa = state.εpa
@@ -119,7 +119,7 @@ function calcD(mat::DruckerPrager, state::DruckerPragerState)
         return De
     end
 
-    j2d = J2D(state.σ)
+    j2d = J2(state.σ)
     if j2d != 0.0
         s  = dev(state.σ)
         su = s/norm(s)
@@ -152,9 +152,9 @@ function update_state!(mat::DruckerPrager, state::DruckerPragerState, Δε::Arra
         α, H  = mat.α, mat.H
         n     = 1.0/√(3.0*α*α+0.5)
         j1tr  = tr(σtr)
-        j2dtr = J2D(σtr)
+        j2dtr = J2(σtr)
 
-        if √j2dtr - state.Δγ*n*G > 0.0 # conventional return
+        if √j2dtr - state.Δγ*n*G > 0.0 # conventional return # todo fix this
             state.Δγ = ftr/(9*α*α*n*K + n*G + H)
             j1     = j1tr - 9*state.Δγ*α*n*K
             m      = 1.0 - state.Δγ*n*G/√j2dtr
@@ -179,7 +179,7 @@ end
 function ip_state_vals(mat::DruckerPrager, state::DruckerPragerState)
     σ, ε  = state.σ, state.ε
     j1    = tr(σ)
-    srj2d = √J2D(σ)
+    srj2d = √J2(σ)
 
     D = stress_strain_dict(σ, ε, state.env.ana.stressmodel)
     D[:epa]   = state.εpa

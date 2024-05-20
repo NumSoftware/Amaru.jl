@@ -1,8 +1,8 @@
  #This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export TC2Joint
+export AsinhYieldCrack
 
-mutable struct TC2JointState<:IpState
+mutable struct AsinhYieldCrackState<:IpState
     env::ModelEnv
     σ  ::Array{Float64,1} # stress
     w  ::Array{Float64,1} # relative displacements
@@ -10,7 +10,7 @@ mutable struct TC2JointState<:IpState
     Δλ ::Float64          # plastic multiplier
     h  ::Float64          # characteristic length from bulk elements
     w_rate::Float64       # w rate wrt T
-    function TC2JointState(env::ModelEnv)
+    function AsinhYieldCrackState(env::ModelEnv)
         this = new(env)
         ndim = env.ndim
         this.σ   = zeros(ndim)
@@ -20,49 +20,50 @@ mutable struct TC2JointState<:IpState
         this.h   = 0.0
         return this
     end
-end 
+end
 
-mutable struct TC2Joint<:Material
-    E     ::Float64 # Young's modulus
-    ν     ::Float64 # Poisson ratio
-    ft    ::Float64 # tensile strength
-    fc    ::Float64 # compressive strength
-    ζ     ::Float64 # factor ζ controls the elastic relative displacements (formerly α)
-    wc    ::Float64 # critical crack opening
+mutable struct AsinhYieldCrack<:Material
+    E     ::Float64
+    ν     ::Float64
+    ft    ::Float64
+    fc    ::Float64
+    ζ     ::Float64   # factor ζ controls the elastic relative displacements (formerly α)
+    wc    ::Float64   # critical crack opening
     softmodel::Symbol # softening curve model (:linear or bilinear" or :hordijk or :soft)
-    softcurve::Array{Float64,2} # softening curve model (:linear or bilinear" or :hordijk or :soft)
+    ft_fun::Union{Nothing,PathFunction}
     α::Float64        # curvature coefficient
     γ::Float64        # factor for βres
     θ::Float64        # fator for the surface reduction speed
     β0::Float64       # initial shear stress for σn=0
 
-    function TC2Joint(; args...)
-        args = checkargs(args, func_params(TC2Joint))
+    function AsinhYieldCrack(; args...)
+        args = checkargs(args, func_params(AsinhYieldCrack))
 
         wc = args.wc
         softmodel = args.softmodel
-        softcurve = args.softcurve
+        ft_fun = args.ft_fun
 
-        if length(softcurve)>0
-            if softcurve[end,2]==0
-                wc = softcurve[end,1]
+        if ft_fun!==nothing
+            softmodel = :custom
+            ft = ft_fun(0.0)
+            if lastpoint(ft_fun)[2] == 0.0
+                wc = lastpoint(ft_fun)[1]
             else
                 wc = Inf
             end
-            softmodel = :custom
-        end
-        
-        if wc==0.0
-            GF = args.GF
-            ft = args.ft
-            if softmodel == :linear
-                wc = round(2*GF/ft, sigdigits=5)
-            elseif softmodel == :bilinear
-                wc = round(5*GF/ft, sigdigits=5)
-            elseif softmodel==:hordijk
-                wc = round(GF/(0.1947019536*ft), sigdigits=5)  
-            elseif softmodel==:soft
-                wc = round(GF/(0.1947019536*ft), sigdigits=5)
+        else
+            if isnothing(wc)
+                isnothing(GF) && error("AsinhYieldCrack: wc or GF must be defined when using a predefined softening model")
+                GF = args.GF
+                if softmodel == :linear
+                    wc = round(2*GF/ft, sigdigits=5)
+                elseif softmodel == :bilinear
+                    wc = round(5*GF/ft, sigdigits=5)
+                elseif softmodel==:hordijk
+                    wc = round(GF/(0.1947019536*ft), sigdigits=5)  
+                elseif softmodel==:soft
+                    wc = round(GF/(0.1947019536*ft), sigdigits=5)
+                end
             end
         end
 
@@ -89,15 +90,15 @@ mutable struct TC2Joint<:Material
         χ = (ft-a)/ft
         β0 = b/asinh(α*χ)
 
-        this = new(args.E, args.nu, args.ft, args.fc, args.zeta, wc, softmodel, softcurve, args.alpha, args.gamma, args.theta, β0)
+        this = new(args.E, args.nu, args.ft, args.fc, args.zeta, wc, softmodel, ft_fun, args.alpha, args.gamma, args.theta, β0)
         return this
     end
 end
 
 
 
-func_params(::Type{TC2Joint}) = [
-    FunInfo( :TC2Joint, "Creates a `TC2Joint` material model."),
+func_params(::Type{AsinhYieldCrack}) = [
+    FunInfo( :AsinhYieldCrack, "Creates a `AsinhYieldCrack` material model."),
     KwArgInfo( :E, "Young modulus", cond=:(E>0)),
     KwArgInfo( :nu, "Poisson ratio", cond=:(0<=nu<0.5)),
     KwArgInfo( :fc, "Compressive strength", cond=:(fc<0)),
@@ -109,12 +110,14 @@ func_params(::Type{TC2Joint}) = [
     KwArgInfo( :wc, "Critical crack opening", 0.0, cond=:(wc>=0)),
     KwArgInfo( :GF, "Fracture energy", 0.0, cond=:(GF>=0)),
     KwArgInfo( :softmodel, "Softening model", :hordijk, values=(:linear, :bilinear, :hordijk, :soft, :custom), type=Symbol),
-    KwArgInfo( :softcurve, "Softening curve", zeros(0,0), type=Array),
+    # KwArgInfo( :ft_fun, "Softening curve", zeros(0,0), type=Array),
+    KwArgInfo((:ft_fun,:soft_fun), "Softening curve", nothing),
+
 ]
-@doc docstring(func_params(TC2Joint)) TC2Joint
+@doc docstring(func_params(AsinhYieldCrack)) AsinhYieldCrack
 
 
-function paramsdict(mat::TC2Joint)
+function paramsdict(mat::AsinhYieldCrack)
     mat = OrderedDict( string(field) => getfield(mat, field) for field in fieldnames(typeof(mat)) )
 
     if mat.softmodel in (:hordijk, :soft)
@@ -131,10 +134,10 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{TC2Joint}, ::Type{MechJoint}, env::ModelEnv) = TC2JointState
+compat_state_type(::Type{AsinhYieldCrack}, ::Type{MechJoint}, env::ModelEnv) = AsinhYieldCrackState
 
 
-function yield_func(mat::TC2Joint, state::TC2JointState, σ::Array{Float64,1}, σmax::Float64)
+function yield_func(mat::AsinhYieldCrack, state::AsinhYieldCrackState, σ::Array{Float64,1}, σmax::Float64)
     β = calc_β(mat, σmax)
     χ = (σmax-σ[1])/mat.ft
 
@@ -144,22 +147,16 @@ function yield_func(mat::TC2Joint, state::TC2JointState, σ::Array{Float64,1}, �
         τnorm = abs(σ[2])
     end
 
-    # @show σmax
-    # @show β
-    # @show χ
-
-    # @show τnorm - β*χ*exp(-mat.α*χ)
-    # error()
     return τnorm - β*asinh(mat.α*χ)
 end
 
 
-function yield_derivs(mat::TC2Joint, state::TC2JointState, σ::Array{Float64,1}, σmax::Float64)
+function yield_derivs(mat::AsinhYieldCrack, state::AsinhYieldCrackState, σ::Array{Float64,1}, σmax::Float64)
     ft   = mat.ft
     α    = mat.α
     β    = calc_β(mat, σmax)
     βres = mat.γ*mat.β0
-    χ    = (σmax-σ[1])/mat.ft
+    χ    = (σmax-σ[1])/ft
     
     dfdσn  = α*β/(ft*√(α^2*χ^2 + 1))
     
@@ -171,22 +168,18 @@ function yield_derivs(mat::TC2Joint, state::TC2JointState, σ::Array{Float64,1},
     end
 
     if σmax>0
-        dβdσmax = (β-βres)*mat.θ/σmax
-    else
+        θ = mat.θ
+        dβdσmax = (β-βres)*θ/ft*(σmax/ft)^(θ-1)
+    else 
         dβdσmax = 0.0
     end
-    dfdσmax = -dβdσmax*χ*exp(-α*χ) - β*exp(-α*χ)/ft*(1-α*χ)
-
-    # @show dβdσmax
-    # @show -dβdσmax*χ*exp(-α*χ)
-    # @show β*exp(-α*χ)/ft*(1-α*χ)
-    # @show dfdσmax
+    dfdσmax = -dβdσmax*asinh(α*χ) - α*β/(ft*√(α^2*χ^2 + 1))
 
     return dfdσ, dfdσmax
 end
 
 
-function potential_derivs(mat::TC2Joint, state::TC2JointState, σ::Array{Float64,1})
+function potential_derivs(mat::AsinhYieldCrack, state::AsinhYieldCrackState, σ::Array{Float64,1})
     ndim = state.env.ndim
     if ndim == 3
         if σ[1] > 0.0 
@@ -215,7 +208,7 @@ function potential_derivs(mat::TC2Joint, state::TC2JointState, σ::Array{Float64
 end
 
 
-function calc_σmax(mat::TC2Joint, state::TC2JointState, up::Float64)
+function calc_σmax(mat::AsinhYieldCrack, state::AsinhYieldCrackState, up::Float64)
     if mat.softmodel == :linear
         if up < mat.wc
             a = mat.ft 
@@ -259,20 +252,20 @@ function calc_σmax(mat::TC2Joint, state::TC2JointState, up::Float64)
         end
         σmax = z*mat.ft
     elseif mat.softmodel == :custom
-        σmax = interpolate(view(mat.softcurve, :, 1), view(mat.softcurve, :, 2), up)
+        σmax = mat.ft_fun(up)
     end
 
     return σmax
 end
 
 
-function calc_β(mat::TC2Joint, σmax::Float64)
+function calc_β(mat::AsinhYieldCrack, σmax::Float64)
     βres  = mat.γ*mat.β0
     return βres + (mat.β0-βres)*(σmax/mat.ft)^mat.θ
 end
 
 
-function deriv_σmax_up(mat::TC2Joint, state::TC2JointState, up::Float64)
+function deriv_σmax_up(mat::AsinhYieldCrack, state::AsinhYieldCrackState, up::Float64)
     if mat.softmodel == :linear
         if up < mat.wc
             b = mat.ft /mat.wc
@@ -313,14 +306,14 @@ function deriv_σmax_up(mat::TC2Joint, state::TC2JointState, up::Float64)
         end
         dσmax = dz*mat.ft 
     elseif mat.softmodel == :custom
-        dσmax = derivative(view(mat.softcurve, :, 1), view(mat.softcurve, :, 2), up)
+        dσmax = derive(mat.ft_fun, up)
     end
 
     return dσmax
 end
 
 
-function calc_kn_ks(mat::TC2Joint, state::TC2JointState)
+function calc_kn_ks(mat::AsinhYieldCrack, state::AsinhYieldCrackState)
     kn = mat.E*mat.ζ/state.h
     G  = mat.E/(2.0*(1.0+mat.ν))
     ks = G*mat.ζ/state.h
@@ -328,7 +321,7 @@ function calc_kn_ks(mat::TC2Joint, state::TC2JointState)
 end
 
 
-function calcD(mat::TC2Joint, state::TC2JointState)
+function calcD(mat::AsinhYieldCrack, state::AsinhYieldCrackState)
 
     ndim = state.env.ndim
     kn, ks = calc_kn_ks(mat, state)
@@ -364,7 +357,7 @@ function calcD(mat::TC2Joint, state::TC2JointState)
 end
 
 
-function calc_σ_up_Δλ(mat::TC2Joint, state::TC2JointState, σtr::Array{Float64,1})
+function calc_σ_up_Δλ(mat::AsinhYieldCrack, state::AsinhYieldCrackState, σtr::Array{Float64,1})
     ndim = state.env.ndim
     Δλ   = 0.0
     up   = 0.0
@@ -414,9 +407,12 @@ function calc_σ_up_Δλ(mat::TC2Joint, state::TC2JointState, σtr::Array{Float6
         Δλ = Δλ - f/dfdΔλ
         
         if Δλ<=0 || isnan(Δλ) || i==maxits
-            # return 0.0, state.σ, 0.0, failure("TC2Joint: failed to find Δλ")
+            # @show i
+            # return 0.0, state.σ, 0.0, failure("AsinhYieldCrack: failed to find Δλ")
             # switch to bissection method
-            return calc_σ_up_Δλ_bis(mat, state, σtr)
+            # return calc_σ_up_Δλ_bis(mat, state, σtr)
+            σ, up, Δλ, status = calc_σ_up_Δλ_bis(mat, state, σtr)
+            failed(status) && return state.σ, 0.0, 0.0, failure("AsinhYieldCrack: failed to find Δλ")
         end
 
         if maximum(abs, σ-σ0) <= tol
@@ -429,7 +425,7 @@ function calc_σ_up_Δλ(mat::TC2Joint, state::TC2JointState, σtr::Array{Float6
 end
 
 
-function calc_σ_up(mat::TC2Joint, state::TC2JointState, σtr::Array{Float64,1}, Δλ::Float64)
+function calc_σ_up(mat::AsinhYieldCrack, state::AsinhYieldCrackState, σtr::Array{Float64,1}, Δλ::Float64)
     ndim = state.env.ndim
     kn, ks  = calc_kn_ks(mat, state)
 
@@ -452,7 +448,7 @@ function calc_σ_up(mat::TC2Joint, state::TC2JointState, σtr::Array{Float64,1},
     return σ, up
 end
 
-function calc_σ_up_Δλ_bis(mat::TC2Joint, state::TC2JointState, σtr::Array{Float64,1})
+function calc_σ_up_Δλ_bis(mat::AsinhYieldCrack, state::AsinhYieldCrackState, σtr::Array{Float64,1})
     ndim    = state.env.ndim
     kn, ks  = calc_kn_ks(mat, state)
     De      = diagm([kn, ks, ks][1:ndim])
@@ -479,7 +475,7 @@ function calc_σ_up_Δλ_bis(mat::TC2Joint, state::TC2JointState, σtr::Array{Fl
 end
 
 
-function update_state!(mat::TC2Joint, state::TC2JointState, Δw::Array{Float64,1})
+function update_state!(mat::AsinhYieldCrack, state::AsinhYieldCrackState, Δw::Array{Float64,1})
 
     ndim = state.env.ndim
     σini = copy(state.σ)
@@ -489,7 +485,7 @@ function update_state!(mat::TC2Joint, state::TC2JointState, Δw::Array{Float64,1
     σmax = calc_σmax(mat, state, state.up)  
 
     if isnan(Δw[1]) || isnan(Δw[2])
-        alert("TC2Joint: Invalid value for joint displacement: Δw = $Δw")
+        alert("AsinhYieldCrack: Invalid value for joint displacement: Δw = $Δw")
     end
     
 
@@ -524,7 +520,7 @@ function update_state!(mat::TC2Joint, state::TC2JointState, Δw::Array{Float64,1
 end
 
 
-function ip_state_vals(mat::TC2Joint, state::TC2JointState)
+function ip_state_vals(mat::AsinhYieldCrack, state::AsinhYieldCrackState)
     ndim = state.env.ndim
     σmax = calc_σmax(mat, state, state.up)
     if ndim == 3
@@ -551,6 +547,6 @@ function ip_state_vals(mat::TC2Joint, state::TC2JointState)
 end
 
 
-function output_keys(mat::TC2Joint)
+function output_keys(mat::AsinhYieldCrack)
     return Symbol[:jw1, :js1, :jup]
 end
