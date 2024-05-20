@@ -19,8 +19,8 @@ end
 
 NLConductivity_params = [
     FunInfo(:NLConductivity, "Nonlinear thermal conductivity material model"),
-    KwArgInfo(:k, "Conductivity", cond=:(k>=0)),
-    KwArgInfo(:cv, "Specific heat", 0.0, cond=:(cv>=0))
+    KwArgInfo(:k, "Conductivity"),
+    KwArgInfo(:cv, "Specific heat", 0.0)
 ]
 @doc docstring(NLConductivity_params) NLConductivity
 
@@ -31,29 +31,28 @@ mutable struct NLConductivity<:Material
     #   1200 28
     k::Float64
     cv::Float64
-    k_table::Array{Float64,2}
-    cv_table::Array{Float64,2}
+    k_fun::PathFunction
+    cv_fun::PathFunction
 
     function NLConductivity(; args...)
         args = checkargs(args, NLConductivity_params)
+        this = new()
 
-        if args.k isa Array
-            k = 0.0
-            k_table = args.k
+        if args.k isa PathFunction
+            this.k = 0.0
+            this.k_fun = args.k
         else
-            k = args.k
-            k_table = zeros(0,0)
+            this.k = args.k
         end
 
-        if args.cv isa Array
-            cv = 0.0
-            cv_table = args.cv
+        if args.cv isa PathFunction
+            this.cv = 0.0
+            this.cv_fun = args.cv
         else
-            cv = args.cv
-            cv_table = zeros(0,0)
+            this.cv = args.cv
         end
 
-        return new(k, cv, k_table, cv_table)
+        return this
     end
 end
 
@@ -62,45 +61,17 @@ end
 compat_state_type(::Type{NLConductivity}, ::Type{ThermoSolid}, env::ModelEnv) = NLConductivityState
 compat_state_type(::Type{NLConductivity}, ::Type{ThermoShell}, env::ModelEnv) = NLConductivityState
 
-# Element types that work with this material
-# compat_elem_types(::Type{NLConductivity}) = (ThermoSolid,)
-
 
 function calc_cv(mat::NLConductivity, ut::Float64) # Specific heat
-    length(mat.cv_table)==0 && return mat.cv
+    isdefined(mat, :cv_fun) || return mat.cv
 
-    T  = mat.cv_table[:,1]
-    Cv = mat.cv_table[:,2]
-
-    i = searchsortedfirst(T, ut)
-    if i==1
-        cv = Cv[1]
-    elseif i>length(T)
-        cv = Cv[end]
-    else
-        cv = Cv[i-1] + (ut-T[i-1]) * (Cv[i]-Cv[i-1])/(T[i]-T[i-1])
-    end
-
-    return cv
+    return mat.cv_fun(ut)
 end
 
-function calcK(mat::NLConductivity, state::NLConductivityState) # Thermal conductivity matrix
-    ut = state.ut
-    length(mat.k_table)==0 && return mat.k
+function calcK(mat::NLConductivity, state::NLConductivityState) # Thermal conductivity
+    isdefined(mat, :k_fun) || return mat.k
 
-    T  = mat.k_table[:,1]
-    C = mat.k_table[:,2]
-
-    i = searchsortedfirst(T, ut)
-    if i==1
-        k = C[1]
-    elseif i>length(T)
-        k = C[end]
-    else
-        k = C[i-1] + (ut-T[i-1]) * (C[i]-C[i-1])/(T[i]-T[i-1])
-    end
-
-    return k
+    return mat.k_fun(state.ut)
 end
 
 

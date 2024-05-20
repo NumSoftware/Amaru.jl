@@ -27,7 +27,7 @@ end
 
 TMCombined_params = [
     FunInfo(:TMCombined, "A material model for combined thermal and mechanical effects"),
-    KwArgInfo(:alpha, "Thermal expansion coefficient", cond=:(alpha>=0))
+    KwArgInfo(:alpha, "Thermal expansion coefficient")
 ]
 @doc docstring(TMCombined_params) TMCombined
 
@@ -35,7 +35,7 @@ mutable struct TMCombined{M1,M2}<:Material
     tmat::M1 # thermo
     mmat::M2 # mech
     α::Float64 # thermal expansion coefficient
-    α_table::Array{Float64,2}
+    α_fun::PathFunction
 
     function TMCombined{M1,M2}(; args...) where {M1,M2}
         tmat = M1(;args...)
@@ -43,35 +43,24 @@ mutable struct TMCombined{M1,M2}<:Material
 
         args = checkargs(args, TMCombined_params)
 
-        if args.alpha isa Array
-            alpha = 0.0
-            alpha_table = args.alpha
+        this = new{M1,M2}(tmat, mmat)
+
+        if args.alpha isa PathFunction
+            this.α = 0.0
+            this.alpha_fun = args.alpha
         else
-            alpha = args.alpha
-            alpha_table = zeros(0,0)
+            this.α = args.alpha
         end
 
-        return new{M1,M2}(tmat, mmat, alpha, alpha_table)
+        return this
     end
 end
 
 
 function calc_α(mat::TMCombined{M1,M2}, ut::Float64) where {M1,M2} # thermal expansion coefficient  1/K or 1/°C
-    length(mat.α_table)==0 && return mat.α
+    isdefined(mat, :α_fun) || return mat.α
 
-    T = elem.props.α_table[:,1]
-    A = elem.props.α_table[:,2]
-
-    i = searchsortedfirst(T, ut)
-    if i==1
-        α = A[1]
-    elseif i>length(T)
-        α = A[end]
-    else
-        α = A[i-1] + (ut-T[i-1]) * (A[i]-A[i-1])/(T[i]-T[i-1])
-    end
-
-    return α
+    return mat.α_fun(ut)
 end
 
 
