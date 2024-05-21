@@ -9,7 +9,7 @@ blocks = [
 ]
 
 msh = Mesh(blocks)
-generate_joints!(msh, layers=3, tag="joints")
+insert_cohesive_elements!(msh, layers=3, tag="joints")
 
 
 # Finite element analysis

@@ -307,8 +307,6 @@ function insert_cohesive_elements!(
 
 end
 
-@deprecate insert_cohesive_elements! insert_cohesive_elements!
-
 
 function generate_joints_by_tag!(mesh::Mesh; layers::Int64=2, verbose::Bool=true)
     # Get tags

@@ -59,7 +59,7 @@ include("smooth.jl")
 export smooth!, laplacian_smooth!, fast_smooth!
 
 include("split.jl")
-export generate_joints!, cracksmesh
+export insert_cohesive_elements!, cracksmesh
 
 include("embedded.jl")
 export generate_embedded_cells!

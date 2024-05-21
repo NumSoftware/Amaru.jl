@@ -13,7 +13,7 @@ bl2  = Block( [0.1 0; 0.2 0; 0.2 0.1; 0.1 0.1], nx=1, ny=1, cellshape=QUAD4)
 msh = Mesh(bl1, bl2)
 
 
-generate_joints!(msh, tag="joints")
+insert_cohesive_elements!(msh, tag="joints")
 
 # msh.nodes[5].coord[1] = 0.15
 # msh.nodes[6].coord[1] = 0.15

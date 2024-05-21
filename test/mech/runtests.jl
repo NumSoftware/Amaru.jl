@@ -36,6 +36,7 @@ using Amaru
          "mat/vm-beam-2d.jl",
          "mat/vm-beam-3d.jl",
          "mat/mazars.jl",
+         "mat/power-yield-crack.jl",
          #"mat/sc.jl",
 
         ]
