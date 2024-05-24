@@ -75,7 +75,7 @@ include("mat/integrator.jl")
 # Solvers
 include("mech-solver.jl")
 include("dyn-solver.jl")
-include("modal-solver.jl")
+include("mech-modal-solver.jl")
 
 export solve!
 
