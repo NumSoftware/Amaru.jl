@@ -14,10 +14,12 @@ mutable struct AcousticModalAnalysis<:Analysis
     stressmodel::Symbol # plane stress, plane strain, etc.
     thickness::Float64  # thickness for 2d analyses
     g::Float64 # gravity acceleration
+    freqs::Vector{Float64}
+    modes::Matrix{Float64}
     
     function AcousticModalAnalysis(; kwargs...)
         args = checkargs(kwargs, AcousticModalAnalysis_params)
-        this = new(args.stressmodel, args.thickness, args.g)
+        this = new(args.stressmodel, args.thickness, args.g, [], zeros(0,0))
         return this
     end
 end
@@ -42,16 +44,11 @@ acoustic_modal_solver_params = [
 
 function acoustic_modal_solver!(model::Model, stage::Stage; kwargs...)
     args     = checkargs(kwargs, acoustic_modal_solver_params)
-    nmods    = args.nmods
+    nmodes    = args.nmodes
     quiet    = args.quiet
 
     env = model.env
     quiet || println(env.log, "Modal analysis for acoustic systems")
-
-    # check density
-    for elem in model.elems
-        elem.props.ρ==0 && error("acoustic_modal_solver: density should not be zero")
-    end
 
     # get dofs organized according to boundary conditions
     dofs, nu    = configure_dofs!(model, stage.bcs)
@@ -69,8 +66,8 @@ function acoustic_modal_solver!(model::Model, stage::Stage; kwargs...)
         dof.vals[dof.natname] = 0.0
     end
 
-    K11 = mount_K(model.elems, ndofs)[1:nu, 1:nu]
-    M11 = mount_M(model.elems, ndofs)[1:nu, 1:nu]
+    K11 = am_mount_K(model.elems, ndofs)[1:nu, 1:nu]
+    M11 = am_mount_M(model.elems, ndofs)[1:nu, 1:nu]
 
     L = zeros(nu) # vector for the inverse of the lumped mass matrix
     for i in 1:size(M11,2)
@@ -84,11 +81,11 @@ function acoustic_modal_solver!(model::Model, stage::Stage; kwargs...)
     # P = invM*K11
 
     # eingenvalues and eingenvectors
-    λ, V = eigs(P, nev=nmods, which=:SR) # find λ with the smallest real parts / :SM for smallest magnitude
+    λ, V = eigs(P, nev=nmodes, which=:SR) # find λ with the smallest real parts / :SM for smallest magnitude
 
     # filter positive real eigenvals
     filter = [ i for i in eachindex(λ) if isreal(λ[i]) && real(λ[i])>0 ]
-    perm   = sortperm(real(λ[filter]))[1:nmods] # sorting from smalles to largest
+    perm   = sortperm(real(λ[filter]))[1:nmodes] # sorting from smalles to largest
     filter = filter[perm]
 
     λ = λ[filter]
@@ -103,13 +100,13 @@ function acoustic_modal_solver!(model::Model, stage::Stage; kwargs...)
     model.env.ΔT  = 1.0
     
     # save modes
-    for i in 1:nmods
+    for i in 1:nmodes
         U = V[:,i] # modal displacements
         
         for (k,dof) in enumerate(dofs[1:nu])
             dof.vals[dof.name] = U[k]
         end
-        model.env.T = i/nmods
+        model.env.T = i/nmodes
         model.env.out = i
         update_output_data!(model)
         save(model, joinpath(env.outdir, "$(env.outkey)-$i.vtu"), quiet=true)
@@ -120,7 +117,10 @@ function acoustic_modal_solver!(model::Model, stage::Stage; kwargs...)
         dof.vals[dof.name] = 0.0
     end
 
-    return ω, V, success()
+    model.env.ana.freqs = ω
+    model.env.ana.modes = V
+
+    return success()
 
 end
 

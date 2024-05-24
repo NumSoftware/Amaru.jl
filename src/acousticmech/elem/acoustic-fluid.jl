@@ -2,6 +2,23 @@
 
 export AcousticFluid
 
+AcousticFluid_params = [
+    FunInfo(:AcousticFluid, "A finite element for wave analyses"),
+    KwArgInfo(:c, "Speed of sound", 0.0, cond=:(c>0.0)),
+]
+@doc docstring(AcousticFluid_params) AcousticFluid
+
+
+struct AcousticFluidProps<:ElemProperties
+    c::Float64
+
+    function AcousticFluidProps(; kwargs...)
+        args = checkargs(kwargs, AcousticFluid_params)
+        return new(args.c)
+    end    
+end
+
+
 mutable struct AcousticFluid<:AcousticMech
     id    ::Int
     shape ::CellShape
@@ -9,17 +26,19 @@ mutable struct AcousticFluid<:AcousticMech
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
     tag   ::String
-    mat::Material
+    mat   ::Material
+    props ::AcousticFluidProps
     active::Bool
     linked_elems::Array{Element,1}
     env   ::ModelEnv
 
-    function AcousticFluid();
+    function AcousticFluid()
         return new()
     end
 end
 
 compat_shape_family(::Type{AcousticFluid}) = BULKCELL
+compat_elem_props(::Type{AcousticFluid}) = AcousticFluidProps
 
 
 function elem_config_dofs(elem::AcousticFluid)
@@ -79,6 +98,7 @@ function elem_acoustic_mass(elem::AcousticFluid)
     C      = getcoords(elem)
     M      = zeros(nnodes, nnodes)
     J      = Array{Float64}(undef, ndim, ndim)
+    c      = elem.props.c # sound speed
 
     for ip in elem.ips
         elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
@@ -88,8 +108,6 @@ function elem_acoustic_mass(elem::AcousticFluid)
         @mul J = C'*dNdR
         detJ = det(J)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(elem.id)")
-
-        c = elem.mat.c # sound speed
 
         # compute M
         coef = detJ*ip.w*th/c^2
