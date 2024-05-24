@@ -7,5 +7,6 @@ include("elem/distributed.jl")
 include("elem/acoustic-fluid.jl")
 include("mat/linear-acoustic.jl")
 include("acousticmech-solver.jl")
+include("acoustic-modal-solver.jl")
 
 # export am_solve!

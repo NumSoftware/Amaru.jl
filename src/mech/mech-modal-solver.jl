@@ -1,52 +1,53 @@
 
-export ModalAnalysis
+export MechModalAnalysis
 
-ModalAnalysis_params = [
-    FunInfo(:ModalAnalysis, "Mechanical modal analysis"),
+MechModalAnalysis_params = [
+    FunInfo(:MechModalAnalysis, "Mechanical modal analysis"),
     KwArgInfo(:stressmodel, "Stress model", :d3, values=(:planestress, :planestrain, :axisymmetric, :d3)),
     KwArgInfo(:thickness, "Thickness for 2d analyses", 1.0, cond=:(thickness>0)),
     KwArgInfo(:g, "Gravity acceleration", 0.0, cond=:(g>=0))
 ]
-@doc docstring(ModalAnalysis_params) ModalAnalysis
+@doc docstring(MechModalAnalysis_params) MechModalAnalysis
 
-mutable struct ModalAnalysis<:Analysis
+mutable struct MechModalAnalysis<:Analysis
     stressmodel::Symbol # plane stress, plane strain, etc.
     thickness::Float64  # thickness for 2d analyses
     g::Float64 # gravity acceleration
     
-    function ModalAnalysis(; kwargs...)
-        args = checkargs(kwargs, ModalAnalysis_params)
+    function MechModalAnalysis(; kwargs...)
+        args = checkargs(kwargs, MechModalAnalysis_params)
         this = new(args.stressmodel, args.thickness, args.g)
         return this
     end
 end
 
 
-function solve!(model::Model, ana::ModalAnalysis; args...)
+function solve!(model::Model, ana::MechModalAnalysis; args...)
     name = "Solver for dynamic modal analyses"
-    status = stage_iterator!(name, dyn_modal_solver!, model; args...)
+    status = stage_iterator!(name, mech_modal_solver!, model; args...)
     return status
 end
 
 
-dyn_modal_solver_params = [
-    FunInfo( :dyn_modal_solver!, "Solves a load stage of a mechanical analysis."),
+mech_modal_solver_params = [
+    FunInfo( :mech_modal_solver!, "Finds the frequencies and vibration modes of a mechanical system."),
     ArgInfo( :model, "Model object"),
     ArgInfo( :stage, "Stage object"),
-    KwArgInfo( :nmods, "Number of modes to be calculated", 5),
+    KwArgInfo( :nmodes, "Number of modes to be calculated", 5),
     KwArgInfo( :rayleigh, "Flag to use Rayleigh-Ritz method for damping", false),
     KwArgInfo( :quiet, "Flag to set silent mode", false),
 ]
-@doc docstring(dyn_modal_solver_params) dyn_modal_solver!()
+@doc docstring(mech_modal_solver_params) mech_modal_solver!()
 
-function dyn_modal_solver!(model::Model, stage::Stage; kwargs...)
-    args = checkargs(kwargs, dyn_modal_solver_params)
+
+function mech_modal_solver!(model::Model, stage::Stage; kwargs...)
+    args = checkargs(kwargs, mech_modal_solver_params)
     nmods = args.nmods
     rayleigh = args.rayleigh
     quiet = args.quiet 
 
     env = model.env
-    println(env.log, "Dynamic modal analysis")
+    println(env.log, "Modal analysis for mechanical systems")
 
     stressmodel = env.ana.stressmodel
     env.ndim==3 && @check stressmodel==:d3
@@ -56,7 +57,7 @@ function dyn_modal_solver!(model::Model, stage::Stage; kwargs...)
 
     # check density
     for elem in model.elems
-        elem.props.ρ==0 && error("dyn_modal_solver: density should not be zero")
+        elem.props.ρ==0 && error("mech_modal_solver: density should not be zero")
     end
 
     # get dofs organized according to boundary conditions
@@ -89,21 +90,21 @@ function dyn_modal_solver!(model::Model, stage::Stage; kwargs...)
     # P = m11*K11
 
     # eingenvalues and eingenvectors
-    Eig = eigs(P, nev=nmods, which=:SR) # only real
+    Eig = eigs(P, nev=nmods, which=:SR) # with the smallest real parts
     # Eig = eigs(P, nev=20, which=:SM)
     w0  = Eig[1] # frequencies
     wi  = copy(w0)
 
     # select possible vals
     filter = [ i for i in eachindex(wi) if isreal(wi[i]) && real(wi[i])>0 ]
-    filter = filter[ unique(i -> wi[i], filter) ]
+    filter = filter[ unique(i -> wi[i], filter) ]  # todo: do not remove eingenvalues
     perm   = sortperm(real(wi[filter]))[1:nmods]
     filter = filter[perm]
 
-    wi     = wi[filter] # sorted
-    v      = Eig[2][:, filter]
+    wi = wi[filter] # sorted
+    v  = Eig[2][:, filter]
 
-    w = wi.^0.5
+    w = wi.^0.5  # true frequencies
 
     update_output_data!(model)
     save(model, joinpath(env.outdir, "$(env.outkey)-0.vtu"), quiet=true)
