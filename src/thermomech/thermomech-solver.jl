@@ -265,6 +265,7 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
     for elem in model.elems
         elem_internal_forces(elem, Fin)
     end
+
     Fex .-= Fin # add negative forces to external forces vector
 
     # Get global vectors from values at dofs

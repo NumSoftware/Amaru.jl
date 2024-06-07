@@ -21,7 +21,7 @@ struct TMSolidProps<:ElemProperties
         args = checkargs(kwargs, TMSolid_params)
         this = new(args.rho, args.gamma, args.cv, args.alpha)
         return this
-    end    
+    end
 end
 
 
@@ -35,7 +35,7 @@ mutable struct TMSolid<:Thermomech
     props ::TMSolidProps
     active::Bool
     linked_elems::Array{Element,1}
-    env::ModelEnv
+    env   ::ModelEnv
 
     function TMSolid()
         return new()
@@ -171,6 +171,7 @@ function elem_coupling_matrix(elem::TMSolid)
 
     return Cut, map_u, map_t
 end
+
 
 # thermal conductivity
 function elem_conductivity_matrix(elem::TMSolid)
@@ -312,10 +313,9 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1})
         coef *= detJ*ip.w*th
         dFt .-= coef*Nt*ut
 
-        coef  = Δt
-        coef *= detJ*ip.w*th
-        q = ip.state.q
-        @mul dFt += coef*Bt'*q
+        coef  = detJ*ip.w*th
+        Q = ip.state.Q
+        @mul dFt += coef*Bt'*Q
     end
 
     F[map_u] = dF

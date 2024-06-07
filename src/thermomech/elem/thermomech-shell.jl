@@ -375,6 +375,90 @@ function elem_mass_matrix(elem::TMShell)
 end
 
 
+function elem_internal_forces(elem::TMShell, F::Array{Float64,1})
+    ndim   = elem.env.ndim
+    th     = elem.props.th
+    T0k    = elem.env.ana.T0 + 273.15
+    nnodes = length(elem.nodes)
+    ndof   = 6
+    C      = getcoords(elem)
+
+    E = elem.mat.E
+    ν = elem.mat.ν
+    ρ = elem.props.ρ
+
+    map_u = elem_map_u(elem)
+    map_t = elem_map_t(elem)
+
+    m   = [ 1.0, 1.0, 0.0, 0.0, 0.0, 0.0]
+
+    dF  = zeros(ndof*nnodes)
+    B   = zeros(6, ndof*nnodes)
+    dFt = zeros(nnodes)
+    Bt  = zeros(ndim, nnodes)
+
+    L    = zeros(3,3)
+    Rrot = zeros(5,ndof) 
+    Bil  = zeros(6,5)
+    Bi   = zeros(6,ndof)
+    S    = calcS(elem, elem.props.αs)
+
+
+    for ip in elem.ips
+        # compute Bu and Bt matrices
+        N = elem.shape.func(ip.R)
+        dNdR = elem.shape.deriv(ip.R) # 3xn
+        
+        J2D = C'*dNdR
+        set_rot_x_xp(elem, J2D, L)
+        J′ = [ L*J2D [ 0,0,th/2]  ]
+        invJ′ = inv(J′)
+
+        dNdR = [ dNdR zeros(nnodes) ]
+        dNdX′ = dNdR*invJ′
+        detJ′ = det(J′)
+
+        setB(elem, ip, N, L, dNdX′, Rrot, Bil, Bi, B)
+
+        Bt .= dNdX′'
+
+        # internal force dF
+        σ  = ip.state.σ
+        ut = ip.state.ut
+
+        α = calc_α(elem.mat, ip.state.ut)
+        β = E*α/(1-ν)
+
+        σ -= β*ut*m # get total stress
+    
+        coef = detJ′*ip.w
+        dF += coef*B'*S*σ
+
+        # internal volumes dFt
+        ε = ip.state.ε
+        εvol = dot(m, ε)
+        coef  = β*εvol*T0k
+        coef *= detJ′*ip.w
+        dFt  -= coef*N
+
+        cv = calc_cv(elem.mat, ip.state.ut)
+        coef  = ρ*cv
+        coef *= detJ′*ip.w
+        dFt  -= coef*N*ut
+
+        Q  = ip.state.Q
+        coef *= detJ′*ip.w
+        dFt += coef*Bt'*Q
+
+    end
+
+    F[map_u] = dF
+    F[map_t] = dFt
+
+end
+
+
+
 function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
     ndim   = elem.env.ndim
     th     = elem.props.th
