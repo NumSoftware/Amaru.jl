@@ -6,12 +6,10 @@ export ConstConductivity
 mutable struct ConstConductivityState<:IpState
     env::ModelEnv
     ut::Float64
-    # q::Array{Float64,1}
     Q::Array{Float64,1}
     function ConstConductivityState(env::ModelEnv)
         this = new(env)
         this.ut = 0.0
-        # this.q  = zeros(env.ndim)
         this.Q  = zeros(env.ndim)
         return this
     end
