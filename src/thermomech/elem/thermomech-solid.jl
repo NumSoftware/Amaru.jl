@@ -239,6 +239,91 @@ function elem_mass_matrix(elem::TMSolid)
 end
 
 
+function elem_internal_forces(elem::TMSolid, F::Array{Float64,1})
+    ndim    = elem.env.ndim
+    th      = elem.env.ana.thickness
+    T0k     = elem.env.ana.T0 + 273.15
+    nnodes  = length(elem.nodes)
+    nbnodes = elem.shape.basic_shape.npoints
+    C       = getcoords(elem)
+
+    E = elem.mat.E
+    ν = elem.mat.ν
+    ρ = elem.props.ρ
+    α = elem.props.α
+    cv = elem.props.cv
+    β = E*α/(1-2*ν)
+
+    map_u = elem_map_u(elem)
+    map_t = elem_map_t(elem)
+
+    m   = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
+    if elem.env.ana.stressmodel==:planestress
+        β = E*α/(1-ν)
+        m = [ 1.0, 1.0, 0.0, 0.0, 0.0, 0.0 ]
+    end
+
+    dF  = zeros(nnodes*ndim)
+    Bu  = zeros(6, nnodes*ndim)
+    dFt = zeros(nbnodes)
+    Bt  = zeros(ndim, nbnodes)
+
+    J     = Array{Float64}(undef, ndim, ndim)
+    dNdX  = Array{Float64}(undef, nnodes, ndim)
+    dNtdX = Array{Float64}(undef, nbnodes, ndim)
+
+    for ip in elem.ips
+        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+
+        # compute Bu and Bt matrices
+        dNdR = elem.shape.deriv(ip.R)
+        @mul J = C'*dNdR
+        detJ = det(J)
+        detJ > 0.0 || error("Negative Jacobian determinant in element $(elem.id)")
+        invJ = inv(J)
+        @mul dNdX = dNdR*invJ
+        set_Bu(elem, ip, dNdX, Bu)
+
+        dNtdR = elem.shape.basic_shape.deriv(ip.R)
+        @mul dNtdX = dNtdR*invJ
+
+        # compute Nt
+        Nt = elem.shape.basic_shape.func(ip.R)
+
+        # compute thermal gradient G
+        Bt .= dNtdX'
+
+        # internal force dF
+        σ  = ip.state.σ
+        ut = ip.state.ut
+
+        σ -= β*ut*m # get total stress
+        coef = detJ*ip.w*th
+        @mul dF += coef*Bu'*σ
+
+        # internal volumes dFt
+        ε     = ip.state.ε
+        εvol  = dot(m, ε)
+        coef  = β*εvol*T0k
+        coef *= detJ*ip.w*th
+        dFt .-= coef*Nt
+
+        coef  = ρ*cv
+        coef *= detJ*ip.w*th
+        dFt .-= coef*Nt*ut
+
+        coef  = Δt
+        coef *= detJ*ip.w*th
+        q = ip.state.q
+        @mul dFt += coef*Bt'*q
+    end
+
+    F[map_u] = dF
+    F[map_t] = dFt
+
+end
+
+
 function update_elem!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
     ndim    = elem.env.ndim
     th      = elem.env.ana.thickness
@@ -284,7 +369,7 @@ function update_elem!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
         dNdR = elem.shape.deriv(ip.R)
         @mul J = C'*dNdR
         detJ = det(J)
-        detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
+        detJ > 0.0 || error("Negative Jacobian determinant in element $(elem.id)")
         invJ = inv(J)
         @mul dNdX = dNdR*invJ
         set_Bu(elem, ip, dNdX, Bu)
