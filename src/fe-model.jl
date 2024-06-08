@@ -359,16 +359,16 @@ function update_records!(model::Model; checkpoint=true, force=false)
     flush && Base.flush(model.env.log)
 
     # update single loggers
+    model.env.Tupdate > model.env.T && (model.env.Tupdate=0.0) # for subsequent stages
     update_single_loggers = model.env.T-model.env.Tupdate >= 0.00025 || model.env.T==0
     update_single_loggers && (model.env.Tupdate = model.env.T)
     
     for logger in model.loggers
-        if isa(logger, SingleLogger) 
+        if isa(logger, SingleLogger)
             update_single_loggers && update_logger!(logger, model)
             flush && logger.filename!="" && save(logger.table, logger.filename, quiet=true)
         end
     end
-    
 
     # update monitors
     for monitor in model.monitors
