@@ -8,7 +8,8 @@ MechShell_params = [
     KwArgInfo(:rho, "Density", 0.0, cond=:(rho>=0.0)),
     KwArgInfo(:gamma, "Specific weight", 0.0, cond=:(gamma>=0.0)),
     KwArgInfo(:thickness, "Thickness", cond=:(thickness>0.0)),
-    KwArgInfo(:alpha_s, "Shear correction coef.", 5/6, cond=:(alpha_s>0))
+    KwArgInfo(:alpha_s, "Shear correction coef.", 5/6, cond=:(alpha_s>0)),
+    KwArgInfo(:kappa, "Drilling penalty.", 1e-8)
 ]
 @doc docstring(MechShell_params) MechShell
 
@@ -17,11 +18,12 @@ struct MechShellProps<:ElemProperties
     γ::Float64
     αs::Float64
     th::Float64
+    kappa::Float64
 
     function MechShellProps(; args...)
         args = checkargs(args, MechShell_params)
 
-        return new(args.rho, args.gamma, args.alpha_s, args.thickness)
+        return new(args.rho, args.gamma, args.alpha_s, args.thickness, args.kappa)
     end
 end
 
@@ -252,6 +254,7 @@ end
 function elem_stiffness(elem::MechShell)
     nnodes = length(elem.nodes)
     th     = elem.props.th
+    kappa  = elem.props.kappa
     ndof   = 6
     nstr   = 6
     C      = getcoords(elem)
@@ -289,7 +292,8 @@ function elem_stiffness(elem::MechShell)
         nu = elem.mat.ν
         G = E/(2*(1+nu))
 
-        kappa = 1e-8 # for drilling
+        #kappa = 1e-8 # for drilling
+        #error()
 
         coef  = detJ′*ip.w
         D     = calcD(elem.mat, ip.state)
