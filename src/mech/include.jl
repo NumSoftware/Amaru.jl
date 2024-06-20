@@ -10,12 +10,12 @@ export set_state
     THREEDIMENSIONAL = 3,
 )
 
-
 include("elem/mech.jl")
 include("elem/distributed.jl")
 
 # Elements
 include("elem/mech-solid.jl")
+include("elem/mech-fluid.jl")
 include("elem/mech-truss.jl")
 include("elem/mech-embtruss.jl")
 include("elem/mech-beam.jl")
@@ -27,6 +27,7 @@ include("elem/mech-shell.jl")
 
 # Models for bulk elements
 include("mat/linear-elastic.jl")
+include("mat/linear-elastic-fluid.jl")
 include("mat/drucker-prager.jl")
 include("mat/von-mises.jl")
 include("mat/mazars.jl")
