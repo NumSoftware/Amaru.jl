@@ -214,14 +214,25 @@ function setB_dr(elem::MechShell, N::Vect, L::Matx, dNdX::Matx, Rrot_dr::Matx, B
     ndof = 6
     for i in 1:nnodes
 
-        Rrot_dr[1,4:6] .= elem.Dlmn[i][3,:]
-
+        Rrot_dr[1:2,1:3] .= L[1:2,1:3]
+        Rrot_dr[3,4:6] .= elem.Dlmn[i][3,:]
+        #@show Rrot_dr
+        #error()
+        
+        dNdx = dNdX[i,1]
+        dNdy = dNdX[i,2]
         Ni = N[i]
+        
 
-        Bil_dr[1,1] = Ni                                                          
+        Bil_dr[1,1] = 1/2*dNdy
+        Bil_dr[1,2] = -1/2*dNdx
+        Bil_dr[1,3] = Ni                                                          
       
         c = (i-1)*ndof
         @mul Bi_dr = Bil_dr*Rrot_dr
+        #@show Bi_dr
+        #error()
+        
         B_dr[:, c+1:c+6] .= Bi_dr
     end 
 end
@@ -267,9 +278,9 @@ function elem_stiffness(elem::MechShell)
     S      = calcS(elem, elem.props.αs)
 
     B_dr      = zeros(1, ndof*nnodes)
-    Bil_dr    = zeros(1,1)
+    Bil_dr    = zeros(1,3)
     Bi_dr    = zeros(1,ndof)
-    Rrot_dr   = zeros(1,ndof)
+    Rrot_dr   = zeros(3,ndof)
 
     for ip in elem.ips
         N    = elem.shape.func(ip.R)
@@ -392,5 +403,5 @@ function update_elem!(elem::MechShell, U::Array{Float64,1}, dt::Float64)
 
     end
 
-     return dF, map, success()
+     return dF, map, success()
 end
