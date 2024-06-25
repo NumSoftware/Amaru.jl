@@ -9,7 +9,7 @@ MechShell_params = [
     KwArgInfo(:gamma, "Specific weight", 0.0, cond=:(gamma>=0.0)),
     KwArgInfo(:thickness, "Thickness", cond=:(thickness>0.0)),
     KwArgInfo(:alpha_s, "Shear correction coef.", 5/6, cond=:(alpha_s>0)),
-    KwArgInfo(:kappa, "Drilling penalty.", 1e-8)
+    KwArgInfo(:kappa, "Drilling penalty coef.", 1e-8)
 ]
 @doc docstring(MechShell_params) MechShell
 
@@ -179,7 +179,7 @@ function elem_map(elem::MechShell)
 end
 
 
-function setB(elem::MechShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx, Bil::Matx, Bi::Matx, B::Matx)
+function setB(elem::MechShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rθ::Matx, Bil::Matx, Bi::Matx, B::Matx)
     nnodes = size(dNdX,1)
     th = elem.props.th
     # Note that matrix B is designed to work with tensors in Mandel's notation
@@ -187,9 +187,9 @@ function setB(elem::MechShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx,
     ndof = 6
     for i in 1:nnodes
         ζ = ip.R[3]
-        Rrot[1:3,1:3] .= L
-        # Rrot[1:3,1:3] .= elem.Dlmn[i]
-        Rrot[4:5,4:6] .= elem.Dlmn[i][1:2,:]
+        Rθ[1:3,1:3] .= L
+        # Rθ[1:3,1:3] .= elem.Dlmn[i]
+        Rθ[4:5,4:6] .= elem.Dlmn[i][1:2,:]
 
         dNdx = dNdX[i,1]
         dNdy = dNdX[i,2]
@@ -203,41 +203,37 @@ function setB(elem::MechShell, ip::Ip, N::Vect, L::Matx, dNdX::Matx, Rrot::Matx,
         Bil[6,1] = dNdy/SR2; Bil[6,2] = dNdx/SR2;                       Bil[6,4] = -1/SR2*dNdx*ζ*th/2;  Bil[6,5] = 1/SR2*dNdy*ζ*th/2
 
         c = (i-1)*ndof
-        @mul Bi = Bil*Rrot
+        @mul Bi = Bil*Rθ
         B[:, c+1:c+6] .= Bi
     end 
 end
 
-function setB_dr(elem::MechShell, N::Vect, L::Matx, dNdX::Matx, Rrot_dr::Matx, Bil_dr::Matx, Bi_dr::Matx, B_dr::Matx)
+function setB_dr(elem::MechShell, N::Vect, L::Matx, dNdX::Matx, Rθ_dr::Matx, Bil_dr::Matx, Bi_dr::Matx, B_dr::Matx)
     nnodes = size(dNdX,1)
 
     ndof = 6
     for i in 1:nnodes
 
-        Rrot_dr[1:2,1:3] .= L[1:2,1:3]
-        Rrot_dr[3,4:6] .= elem.Dlmn[i][3,:]
-        #@show Rrot_dr
-        #error()
+        Rθ_dr[1:2,1:3] .= L[1:2,1:3]
+        Rθ_dr[3,4:6] .= elem.Dlmn[i][3,:]
         
         dNdx = dNdX[i,1]
         dNdy = dNdX[i,2]
-        Ni = N[i]
+        Ni   = N[i]
         
 
-        Bil_dr[1,1] = 1/2*dNdy
-        Bil_dr[1,2] = -1/2*dNdx
+        Bil_dr[1,1] = +0.5*dNdy
+        Bil_dr[1,2] = -0.5*dNdx
         Bil_dr[1,3] = Ni                                                          
       
         c = (i-1)*ndof
-        @mul Bi_dr = Bil_dr*Rrot_dr
-        #@show Bi_dr
-        #error()
+        @mul Bi_dr = Bil_dr*Rθ_dr
         
         B_dr[:, c+1:c+6] .= Bi_dr
     end 
 end
 
-function setNN(elem::MechShell, ip::Ip, N::Vect, NNil::Matx, NNi::Matx, L::Matx, Rrot::Matx, NN::Matx)
+function setNN(elem::MechShell, ip::Ip, N::Vect, NNil::Matx, NNi::Matx, L::Matx, Rθ::Matx, NN::Matx)
     nnodes = length(N)
     ndof = 6
     th = elem.props.th
@@ -245,8 +241,8 @@ function setNN(elem::MechShell, ip::Ip, N::Vect, NNil::Matx, NNi::Matx, L::Matx,
 
     for i in 1:nnodes
         
-        Rrot[1:3,1:3] .= L
-        Rrot[4:5,4:6] .= L[1:2,:]
+        Rθ[1:3,1:3] .= L
+        Rθ[4:5,4:6] .= L[1:2,:]
 
         NNil[1,1] = N[i]
         NNil[2,2] = N[i]
@@ -255,7 +251,7 @@ function setNN(elem::MechShell, ip::Ip, N::Vect, NNil::Matx, NNi::Matx, L::Matx,
         NNil[2,4] = -th/2*ζ*N[i]
 
         c = (i-1)*ndof
-        @mul NNi = NNil*Rrot
+        @mul NNi = NNil*Rθ
 
         NN[:, c+1:c+6] .= NNi
     end 
@@ -272,17 +268,18 @@ function elem_stiffness(elem::MechShell)
     K      = zeros(ndof*nnodes, ndof*nnodes)
     B      = zeros(nstr, ndof*nnodes)
     L      = zeros(3,3)
-    Rrot   = zeros(5,ndof)
+    Rθ     = zeros(5,ndof)
     Bil    = zeros(nstr,5)
     Bi     = zeros(nstr,ndof)
     S      = calcS(elem, elem.props.αs)
 
-    B_dr      = zeros(1, ndof*nnodes)
-    Bil_dr    = zeros(1,3)
-    Bi_dr    = zeros(1,ndof)
-    Rrot_dr   = zeros(3,ndof)
+    B_dr   = zeros(1, ndof*nnodes)
+    Bil_dr = zeros(1,3)
+    Bi_dr  = zeros(1,ndof)
+    Rθ_dr  = zeros(3,ndof)
+    m      = div(length(elem.ips), 2) # half the number of integration points
 
-    for ip in elem.ips
+    for (i,ip) in enumerate(elem.ips)
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
         J2D  = C'*dNdR
@@ -295,22 +292,24 @@ function elem_stiffness(elem::MechShell)
         detJ′ = det(J′)
         @assert detJ′>0
         
-        setB(elem, ip, N, L, dNdX′, Rrot, Bil, Bi, B)
-        
-        setB_dr(elem, N, L, dNdX′, Rrot_dr, Bil_dr, Bi_dr, B_dr)       
+        setB(elem, ip, N, L, dNdX′, Rθ, Bil, Bi, B)
 
         E  = elem.mat.E
         nu = elem.mat.ν
-        G = E/(2*(1+nu))
-
-        #kappa = 1e-8 # for drilling
-        #error()
+        G  = E/(2*(1+nu))
 
         coef  = detJ′*ip.w
         D     = calcD(elem.mat, ip.state)
-        K    += coef*B'*S*D*B + kappa*G*th*B_dr'*B_dr*coef #(intregal de área)
+        K    += coef*B'*S*D*B
+        
+        if i<=m # drilling stiffness (area integration)
+            setB_dr(elem, N, L, dNdX′, Rθ_dr, Bil_dr, Bi_dr, B_dr)       
+            coef = kappa*G*norm(J2D)*th*ip.w
+            @mul K += coef*B_dr'*B_dr
+        end
 
     end
+
 #=
     δ = 1e-7
     for i in 1:ndof*nnodes
@@ -330,7 +329,7 @@ function elem_mass(elem::MechShell)
         C      = getcoords(elem)
         M      = zeros(nnodes*ndof, nnodes*ndof)
         L      = zeros(3,3)
-        Rrot   = zeros(5,ndof)
+        Rθ   = zeros(5,ndof)
         
         NN     = zeros(3, nnodes*ndof)
         NNil    = zeros(3,5)
@@ -347,7 +346,7 @@ function elem_mass(elem::MechShell)
             detJ′ = det(J′)
             @assert detJ′>0
 
-            setNN(elem, ip, N, NNil, NNi, L, Rrot, NN)
+            setNN(elem, ip, N, NNil, NNi, L, Rθ, NN)
 
             # compute M
             coef = ρ*detJ′*ip.w
@@ -373,7 +372,7 @@ function update_elem!(elem::MechShell, U::Array{Float64,1}, dt::Float64)
     B = zeros(6, ndof*nnodes)
 
     L    = zeros(3,3)
-    Rrot = zeros(5,ndof)
+    Rθ = zeros(5,ndof)
     Bil  = zeros(6,5)
     Bi   = zeros(6,ndof)
     Δε   = zeros(6)
@@ -392,7 +391,7 @@ function update_elem!(elem::MechShell, U::Array{Float64,1}, dt::Float64)
         dNdR = [ dNdR zeros(nnodes) ]
         dNdX′ = dNdR*invJ′
 
-        setB(elem, ip, N, L, dNdX′, Rrot, Bil, Bi, B)
+        setB(elem, ip, N, L, dNdX′, Rθ, Bil, Bi, B)
         Δε = B*dU
         Δσ, status = update_state!(elem.mat, ip.state, Δε)
         failed(status) && return dF, map, failure("MechShell: Error at integration point $(ip.id)")
