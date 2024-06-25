@@ -304,7 +304,7 @@ function elem_stiffness(elem::MechShell)
         
         if i<=m # drilling stiffness (area integration)
             setB_dr(elem, N, L, dNdX′, Rθ_dr, Bil_dr, Bi_dr, B_dr)       
-            coef = kappa*G*norm(J2D)*th*ip.w
+            coef = kappa*G*norm2(J2D)*th*ip.w
             @mul K += coef*B_dr'*B_dr
         end
 
