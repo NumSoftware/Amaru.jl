@@ -43,7 +43,7 @@ mutable struct MCJoint<:Material
     wc ::Float64      # critical crack opening
     softmodel::String    # softening curve model ("linear" or bilinear" or "hordijk")
 
-    function MCJoint(; args...)
+    function MCJoint(; kwargs...)
         args = checkargs(kwargs, MCJoint_params)
 
         wc = args.wc
