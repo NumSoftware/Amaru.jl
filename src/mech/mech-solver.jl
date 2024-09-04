@@ -117,6 +117,7 @@ mech_stage_solver_params = [
     KwArgInfo( :tol, "Force tolerance", 0.01, cond=:(tol>0)),
     KwArgInfo( :rspan, "Relative span to residue reapplication", 0.01, cond=:(0<rspan<1) ),
     KwArgInfo( :rtol, "Relative tolerance in terms of displacements", 0.01, cond=:(rtol>0)),
+    KwArgInfo( :dT0, "Initial relative increment size when autoinc=true", 0.01, cond=:(0<dT0<=1) ),
     KwArgInfo( :dTmin, "Relative minimum increment size", 1e-7, cond=:(0<dTmin<1) ),
     KwArgInfo( :dTmax, "Relative maximum increment size", 0.1, cond=:(0<dTmax<1) ),
     KwArgInfo( :scheme, "Predictor-corrector solving scheme", :FE, values=(:FE, :ME, :BE, :Ralston) ),
@@ -130,15 +131,16 @@ mech_stage_solver_params = [
 function mech_stage_solver!(model::Model, stage::Stage; args...)
     args = checkargs(args, mech_stage_solver_params)
     
-    tol     = args.tol      
-    rtol    = args.rtol     
-    ΔTmin   = args.dTmin    
-    ΔTmax   = args.dTmax   
-    rspan   = args.rspan    
-    scheme  = args.scheme   
-    maxits  = args.maxits 
-    autoinc = args.autoinc  
-    quiet   = args.quiet    
+    tol     = args.tol
+    rtol    = args.rtol
+    ΔT0     = args.dT0
+    ΔTmin   = args.dTmin
+    ΔTmax   = args.dTmax
+    rspan   = args.rspan
+    scheme  = args.scheme
+    maxits  = args.maxits
+    autoinc = args.autoinc
+    quiet   = args.quiet
 
     env = model.env
     println(env.log, "Mechanical FE analysis: Stage $(stage.id)")
@@ -194,7 +196,7 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
 
     T  = 0.0
     ΔT = 1.0/nincs       # initial ΔT value
-    autoinc && (ΔT=min(ΔT, ΔTmax, ΔTcheck, 0.01))
+    autoinc && (ΔT=min(ΔT, ΔTmax, ΔTcheck, ΔT0))
 
     inc  = 0             # increment counter
     F    = zeros(ndofs)  # total internal force for current stage
