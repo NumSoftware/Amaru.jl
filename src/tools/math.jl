@@ -26,6 +26,15 @@ function signedmaxabs(x, y)
     end
 end
 
+# Signed power function
+function spow(x, p)
+    if x>0
+        return x^p
+    else
+        return -(-x)^p
+    end
+end
+
 function interpolate(X, Y, x)
     i = searchsortedfirst(X, x)
     i==1 && return Y[1]
