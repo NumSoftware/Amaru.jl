@@ -77,7 +77,7 @@ end
 Computes the eigenvalues of a second order tensor written in Mandel notation.
 The eigenvalues are sorted from highest to lowest
 """
-function eigvals(T::Vec6)
+function eigvals(T::Vec6; sort=true)
     t11, t22, t33, t23, t13, t12 = T[1], T[2], T[3], T[4]/SR2, T[5]/SR2, T[6]/SR2
     
     # full notation
@@ -88,7 +88,8 @@ function eigvals(T::Vec6)
     L, _ = eigen(F, permute=false, scale=false)
 
     # put biggest eigenvalue first
-    return sort(L, rev=true)
+    sort && return Base.sort(L, rev=true)
+    return L
 end
 
 
