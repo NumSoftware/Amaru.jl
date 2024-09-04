@@ -33,7 +33,7 @@ mech_modal_solver_params = [
     FunInfo( :mech_modal_solver!, "Finds the frequencies and vibration modes of a mechanical system."),
     ArgInfo( :model, "Model object"),
     ArgInfo( :stage, "Stage object"),
-    KwArgInfo( :nmodes, "Number of modes to be calculated", 5),
+    KwArgInfo( (:nmodes, :nmods), "Number of modes to be calculated", 5),
     KwArgInfo( :rayleigh, "Flag to use Rayleigh-Ritz method for damping", false),
     KwArgInfo( :quiet, "Flag to set silent mode", false),
 ]
@@ -42,7 +42,7 @@ mech_modal_solver_params = [
 
 function mech_modal_solver!(model::Model, stage::Stage; kwargs...)
     args = checkargs(kwargs, mech_modal_solver_params)
-    nmods = args.nmods
+    nmodes = args.nmodes
     rayleigh = args.rayleigh
     quiet = args.quiet 
 
@@ -67,7 +67,7 @@ function mech_modal_solver!(model::Model, stage::Stage; kwargs...)
     model.ndofs = length(dofs)
     println(env.log, "unknown dofs: $nu")
     println(env.info, "unknown dofs: $nu")
-    # quiet || println("  unknown dofs: $nu\n")
+    quiet || println("  unknown dofs: $nu\n")
 
     # setup quantities at dofs
     for dof in dofs
@@ -90,7 +90,7 @@ function mech_modal_solver!(model::Model, stage::Stage; kwargs...)
     # P = m11*K11
 
     # eingenvalues and eingenvectors
-    Eig = eigs(P, nev=nmods, which=:SR) # with the smallest real parts
+    Eig = eigs(P, nev=nmodes, which=:SR) # with the smallest real parts
     # Eig = eigs(P, nev=20, which=:SM)
     w0  = Eig[1] # frequencies
     wi  = copy(w0)
@@ -98,7 +98,7 @@ function mech_modal_solver!(model::Model, stage::Stage; kwargs...)
     # select possible vals
     filter = [ i for i in eachindex(wi) if isreal(wi[i]) && real(wi[i])>0 ]
     filter = filter[ unique(i -> wi[i], filter) ]  # todo: do not remove eingenvalues
-    perm   = sortperm(real(wi[filter]))[1:nmods]
+    perm   = sortperm(real(wi[filter]))[1:nmodes]
     filter = filter[perm]
 
     wi = wi[filter] # sorted
@@ -113,13 +113,13 @@ function mech_modal_solver!(model::Model, stage::Stage; kwargs...)
     model.env.ΔT  = 1.0
     
     # save modes
-    for i in 1:nmods
+    for i in 1:nmodes
         U = v[:,i] # modal displacements
         
         for (k,dof) in enumerate(dofs[1:nu])
             dof.vals[dof.name] = U[k]
         end
-        model.env.T = i/nmods
+        model.env.T = i/nmodes
         model.env.out = i
         update_output_data!(model)
         save(model, joinpath(env.outdir, "$(env.outkey)-$i.vtu"), quiet=true)
@@ -130,15 +130,13 @@ function mech_modal_solver!(model::Model, stage::Stage; kwargs...)
         dof.vals[dof.name] = 0.0
     end
 
-    # # show modal frequencies
-    # if !quiet
-    #     message("modal frequencies:")
-    #     for i in 1:nmods
-    #         # @show i
-    #         # println("ω$i = ", abs(w[i]))
-    #         info("ω$i = ", abs(w[i]))
-    #     end
-    # end
+    # show modal frequencies
+    if !quiet
+        message("modal frequencies:")
+        for i in 1:nmodes
+            info("ω$i = ", abs(w[i]))
+        end
+    end
 
     # show("Modal Frequencies rad/s")
     # @show w
@@ -174,7 +172,7 @@ function mech_modal_solver!(model::Model, stage::Stage; kwargs...)
 end
 
 
-function modsolvex!(model::Model, bcs::AbstractArray; nmods::Int=5, rayleigh=false, save=true, quiet=false)
+function modsolvex!(model::Model, bcs::AbstractArray; nmodes::Int=5, rayleigh=false, save=true, quiet=false)
 
     quiet || printstyled("FEM modal analysis:\n", bold=true, color=:cyan)
 
@@ -248,13 +246,13 @@ function modsolvex!(model::Model, bcs::AbstractArray; nmods::Int=5, rayleigh=fal
 
     w = Array{Float64,1}()
 
-    for i in 1:nmods
+    for i in 1:nmodes
         push!(w,wi[i])
     end
 
-    v = Array{Float64,2}(undef,size(P,2),nmods)
+    v = Array{Float64,2}(undef,size(P,2),nmodes)
 
-    for i in 1:nmods
+    for i in 1:nmodes
         col = findfirst(isequal(w[i]),w0)
         col = col[1]
         #v[:,i] = eigvecs(P)[:,col]
@@ -281,7 +279,7 @@ function modsolvex!(model::Model, bcs::AbstractArray; nmods::Int=5, rayleigh=fal
         nidss = length(idss)
         idefmod = 1
 
-        for j in 1:nmods
+        for j in 1:nmodes
 
             Umod = zeros(ndofs)
 
