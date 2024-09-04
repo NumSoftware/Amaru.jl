@@ -12,36 +12,13 @@ A type for linear elastic materials with Drucker Prager failure criterion.
 $(TYPEDFIELDS)
 """
 mutable struct DruckerPrager<:Material
-    "Young Modulus"
     E::Float64
-    "Poisson ratio"
     ν::Float64
-    "Drucker Prager alpha paramter"
     α::Float64
-    "Drucker Prager kappa paramter"
     κ::Float64
-    "Hardening parameter"
     H::Float64
-    "Density"
     ρ::Float64
 
-    function DruckerPrager(prms::Dict{Symbol,Float64})
-        return DruckerPrager(;prms...)
-    end
-
-    @doc """
-        $(SIGNATURES)
-
-    Creates an `DruckerPrager` material type
-
-    # Arguments
-    - `E`: Young modulus
-    - `nu`: Poisson ratio
-    - `alpha`: Drucker Prager alpha parameter
-    - `kappa`: Drucker Prager kappa parameter
-    - `H`: Hardening parameter
-    - `rho`: Density
-    """
     function DruckerPrager(;E=NaN, nu=0.0, alpha=0.0, kappa=0.0, H=0.0, rho=0.0)
         @assert E>0.0
         @assert 0.0<=nu<0.5
@@ -66,15 +43,10 @@ A type for the state data of a `DruckerPrager` type.
 $(TYPEDFIELDS)
 """
 mutable struct DruckerPragerState<:IpState
-    "Environment information"
     env::ModelEnv
-    "Stress tensor"
     σ::Vec6
-    "Strain tensor"
     ε::Vec6
-    "Accumulated plastic strain"
     εpa::Float64
-    "Plastic multiplier"
     Δγ::Float64
     function DruckerPragerState(env::ModelEnv)
         this = new(env)
