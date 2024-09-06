@@ -61,7 +61,7 @@ include("mat/mc-cohesive.jl")
 # include("mat/p-cohesive.jl")
 # include("mat/mmc-cohesive.jl")
 include("mat/tc-cohesive.jl")
-include("mat/tc2-cohesive.jl") 
+include("mat/asinh-yield-crack.jl")
 
 # Models for 1D joint elements
 include("mat/linear-lsinterface.jl")
