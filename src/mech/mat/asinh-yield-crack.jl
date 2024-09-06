@@ -23,12 +23,12 @@ mutable struct AsinhYieldCrackState<:IpState
 end
 
 mutable struct AsinhYieldCrack<:Material
-    E     ::Float64
-    ν     ::Float64
-    ft    ::Float64
-    fc    ::Float64
-    ζ     ::Float64   # factor ζ controls the elastic relative displacements (formerly α)
-    wc    ::Float64   # critical crack opening
+    E ::Float64
+    ν ::Float64
+    ft::Float64
+    fc::Float64
+    ζ ::Float64   # factor ζ controls the elastic relative displacements (formerly α)
+    wc::Float64   # critical crack opening
     softmodel::Symbol # softening curve model (:linear or bilinear" or :hordijk or :soft)
     ft_fun::Union{Nothing,PathFunction}
     α::Float64        # curvature coefficient
