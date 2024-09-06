@@ -17,7 +17,8 @@ let
             "mech/runtests.jl",
             "dynamic/runtests.jl",
             "hydromech/runtests.jl",
-            "thermomech/runtests.jl"
+            "thermomech/runtests.jl",
+            "acoustic-mech/runtests.jl"
         ]
     end
 end
