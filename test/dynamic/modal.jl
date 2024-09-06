@@ -19,7 +19,7 @@ mesh = Mesh(geo)
 
 mats = [ :bulks => MechSolid => LinearElastic => (E=2e6, nu=0.2, rho=15.0) ]
 
-ana = ModalAnalysis()
+ana = MechModalAnalysis()
 
 model = Model(mesh, mats, ana)
 
