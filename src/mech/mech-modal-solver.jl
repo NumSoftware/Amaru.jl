@@ -67,7 +67,6 @@ function mech_modal_solver!(model::Model, stage::Stage; kwargs...)
     model.ndofs = length(dofs)
     println(env.log, "unknown dofs: $nu")
     println(env.info, "unknown dofs: $nu")
-    quiet || println("  unknown dofs: $nu\n")
 
     # setup quantities at dofs
     for dof in dofs
@@ -132,9 +131,9 @@ function mech_modal_solver!(model::Model, stage::Stage; kwargs...)
 
     # show modal frequencies
     if !quiet
-        message("modal frequencies:")
+        println(env.log, "modal frequencies:")
         for i in 1:nmodes
-            info("ω$i = ", abs(w[i]))
+            println(env.log, "ω$i = ", abs(w[i]))
         end
     end
 
