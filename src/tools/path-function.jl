@@ -180,7 +180,12 @@ end
 # =============
 
 struct PathFunction
+    points::Vector{Vec2}
     cmds::Vector{PathFunCmd}
+
+    function PathFunction()
+        return new(Vector{Vec2}(), Vector{PathFunCmd}())
+    end
 end
 
 lastpoint(path::PathFunction) = lastpoint(path.cmds[end])
@@ -188,42 +193,63 @@ lastpoint(path::PathFunction) = lastpoint(path.cmds[end])
 
 # function to create a path from a list of commands
 function PathFunction(list::Union{Symbol, Real}...)
-    cmds = Vector{PathFunCmd}()
-    n = length(list)
+    f = PathFunction()
+    append!(f, list...)
+    return f
+end
+
+
+function Base.append!(f::PathFunction, list::Union{Symbol, Real}...)
+    n   = length(list)
     idx = 1
-    local last_p
-    while idx<=n
+
+    while idx<=n 
         item = list[idx]
         if item==:M
+            n>=idx+2 || error("PathFunction: M command requires at least two numbers")
             p1 = Vec2(list[idx+1], list[idx+2])
-            push!(cmds, MovePFCmd(p1))
-            last_p = p1
+            push!(f.points, p1)
+            push!(f.cmds, MovePFCmd(p1))
             idx += 3
         elseif item==:L
-            p1 = last_p
+            n>=idx+2 || error("PathFunction: L command requires at least two numbers")
+            p1 = f.points[end]
             p2 = Vec2(list[idx+1], list[idx+2])
-            push!(cmds, LinePFCmd(p1, p2))
-            last_p = p2
+            push!(f.points, p2)
+            push!(f.cmds, LinePFCmd(p1, p2))
             idx += 3
         elseif item==:Q
-            p1 = last_p
+            n>=idx+4 || error("PathFunction: Q command requires at least four numbers")
+            p1 = f.points[end]
             p2 = Vec2(list[idx+1], list[idx+2])
             p3 = Vec2(list[idx+3], list[idx+4])
-            push!(cmds, QuadraticPFCmd(p1, p2, p3))
-            last_p = p3
+            push!(f.points, p3)
+            push!(f.cmds, QuadraticPFCmd(p1, p2, p3))
             idx += 5
         elseif item==:C
-            p1 = last_p
+            n>=idx+6 || error("PathFunction: C command requires at least six numbers")
+            p1 = f.points[end]
             p2 = Vec2(list[idx+1], list[idx+2])
             p3 = Vec2(list[idx+3], list[idx+4])
             p4 = Vec2(list[idx+5], list[idx+6])
-            push!(cmds, BezierPFCmd(p1, p2, p3, p4))
-            last_p = p4
+            push!(f.points, p4)
+            push!(f.cmds, BezierPFCmd(p1, p2, p3, p4))
             idx += 7
+        else
+            error("PathFunction: Invalid command $item")
         end
     end
 
-    return PathFunction(cmds)
+    return f
+end
+
+
+function Base.extrema(pathf::PathFunction)
+    x0 = pathf.points[1][1]
+    xend = pathf.points[end][1]
+    X = range(x0, xend, length=100)
+    Y = pathf.(X)
+    return extrema(Y)
 end
 
 
