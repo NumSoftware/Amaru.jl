@@ -46,33 +46,24 @@ compat_shape_family(::Type{MechSolid}) = BULKCELL
 compat_elem_props(::Type{MechSolid}) = MechSolidProps
 
 
+function elem_init(elem::MechSolid)
+    state_ty = typeof(elem.ips[1].state)
+    if :h in fieldnames(state_ty)
+        # Volume
+        V = cell_extent(elem)*elem.env.ana.thickness
 
-# function elem_init(elem::MechSolid)
-#     ipdata_ty = typeof(elem.ips[1].state)
-#     if :h in fieldnames(ipdata_ty)
-#         # Element volume/area
-#         V = 0.0
-#         C = getcoords(elem)
-#         for ip in elem.ips
-#             dNdR = elem.shape.deriv(ip.R)
-#             J    = dNdR*C
-#             detJ = det(J)
-#             @assert detJ>0
-#             V   += detJ*ip.w
-#         end
+        # Representative length size for the element
+        nips = length(elem.ips)
+        ndim = elem.env.ndim
+        h = V^(1/ndim)
 
-#         # Representative length size for the element
-#         nips = length(elem.ips)
-#         ndim = elem.env.ndim
-#         h = V^(1/ndim)
+        for ip in elem.ips
+            ip.state.h = h
+        end
+    end
 
-#         for ip in elem.ips
-#             ip.state.h = h
-#         end
-#     end
-
-#     return nothing
-# end
+    return nothing
+end
 
 
 function distributed_bc(elem::MechSolid, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
@@ -144,8 +135,6 @@ function elem_stiffness(elem::MechSolid)
     DB = zeros(pool, 6, nnodes*ndim)
     J  = zeros(pool, ndim, ndim)
     dNdX = zeros(pool, nnodes, ndim)
-
-
 
     for ip in elem.ips
         elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
