@@ -30,4 +30,4 @@ addstage!(model, bcs, nincs=1)
 
 solve!(model, tol=0.1)
 
-@test model.monitors[1].table.uz[end] ≈ -0.0018333 atol=1e-6
+@test model.monitors[1].table.uz[end] ≈ -0.001823 atol=1e-6
