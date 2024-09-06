@@ -159,7 +159,7 @@ function get_array_node!(array::AbstractArray, name::String, compressed, buf)
 end
 
 
-function save_vtu(mesh::AbstractDomain, filename::String; desc::String="", compress=true)
+function save_vtu(mesh::AbstractDomain, filename::String; desc::String="", compress=false)
     npoints = length(mesh.nodes)
     ncells  = length(mesh.elems)
     root = XmlElement("VTKFile", attributes=("type"=>"UnstructuredGrid", "version"=>"1.0",  "byte_order"=>"LittleEndian", "header_type"=>"UInt64", "compressor"=>"vtkZLibDataCompressor"))
@@ -282,7 +282,7 @@ end
 
 Saves a mesh object into a file. Available formats are vtu and vtk.
 """
-function save(mesh::AbstractDomain, filename::String; compress=true, quiet=true)
+function save(mesh::AbstractDomain, filename::String; compress=false, quiet=true)
     formats = (".vtk", ".vtu") 
     _, format = splitext(filename)
     format in formats || error("save: Cannot save $(typeof(mesh)) to $filename. Available formats are $formats.")
