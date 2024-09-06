@@ -434,7 +434,7 @@ function elem_internal_forces(elem::TMShell, F::Array{Float64,1})
         coef = detJ′*ip.w
         dF += coef*B'*S*σ
 
-        # internal volumes dFt
+        # internal energy dFt
         ε = ip.state.ε
         εvol = dot(m, ε)
         coef  = β*εvol*T0k
@@ -456,7 +456,6 @@ function elem_internal_forces(elem::TMShell, F::Array{Float64,1})
     F[map_t] = dFt
 
 end
-
 
 
 function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
