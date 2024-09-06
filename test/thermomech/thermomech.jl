@@ -22,7 +22,7 @@ materials = ["solids" => TMSolid => TMCombined{ConstConductivity,LinearElastic} 
 ana = ThermomechAnalysis(T0=0.0)
 model = FEModel(msh, materials, ana)
 
-loggers = [:(y == 1) => NodeGroupLogger("book3.dat")]
+loggers = [y==1 => NodeGroupLogger("book3.dat")]
 setloggers!(model, loggers)
 
 bcs = [

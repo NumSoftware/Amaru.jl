@@ -22,3 +22,6 @@ bcs = [
 addstage!(model, bcs)
 
 solve!(model, nmodes=10, quiet=false)
+
+ana.modes
+ana.freqs

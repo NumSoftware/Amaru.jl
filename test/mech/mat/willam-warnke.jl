@@ -16,7 +16,7 @@ ana = MechAnalysis()
 model = FEModel(msh, mats, ana)
  
 loggers = [
-           [0, 0, 0.1] => IpLogger()
+           [0, 0, 0.1] => IpLogger("cscp.table")
           ]
 setloggers!(model, loggers)
 
