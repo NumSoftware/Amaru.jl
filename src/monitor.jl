@@ -22,6 +22,8 @@ mutable struct IpMonitor<:AbstractMonitor
     label    ::String
     table    ::DataTable
     ip       ::Union{Ip,Nothing}
+    stopexpr ::Expr
+
 
     @doc """
     $(TYPEDSIGNATURES)
@@ -43,14 +45,20 @@ mutable struct IpMonitor<:AbstractMonitor
     julia> addmonitors!(model, monitors)
     ```
     """
-    function IpMonitor(expr::Union{Symbol,Expr}, filename::String="")
+    function IpMonitor(expr::Union{Symbol,Expr}, filename::String=""; stop=Expr=:())
         if expr isa Expr
             expr = round_floats!(expr)
         end
         if expr isa Symbol || expr.head == :call || expr.head == :(=)
             expr = :($expr,)
         end
-        return new(expr, OrderedDict(), filename, :(), "", DataTable())
+
+        stop = fix_expr_maximum_minimum!(stop)
+        if stop.head == :call
+            stop = :($stop,)
+        end
+
+        return new(expr, OrderedDict(), filename, :(), "", DataTable(), nothing, stop)
     end
 end
 
@@ -69,7 +77,8 @@ function setup_monitor!(model, allitems, filter, monitor::AbstractMonitor, field
             if N===nothing
                 items = item_type[]
             else
-                notify("setup_monitor: No ip found at $(monitor.filter). Picking the nearest at $(N.coord)")
+                X = round.(N.coord, sigdigits=5)
+                notify("setup_monitor: No ip found at $(filter). Picking the nearest at $X")
                 items = [ N ]
             end
         end
@@ -118,15 +127,41 @@ end
 function update_monitor!(monitor::IpMonitor, model)
     monitor.ip === nothing && return success()
 
+    state = ip_vals(monitor.ip) 
+
+    # update state with _max and _min
+    vars = union(getvars(monitor.expr), getvars(monitor.stopexpr))
+    extravals = OrderedDict()
+    for var in vars
+        contains(string(var), r"_max|_min") || continue
+        keystr, optstr = split(string(var), '_')
+        key = Symbol(keystr)
+
+        if size(monitor.table)[1] == 0
+            state[var] = state[key]
+        else
+            fun = optstr=="min" ? min : max
+            state[var] = fun(state[key], monitor.table[var][end])
+        end
+        extravals[var] = state[var]
+    end
+
     for expr in monitor.expr.args
-        state = ip_vals(monitor.ip) 
         monitor.vals[expr] = evaluate(expr; state...)
     end
 
+    merge!(monitor.vals, extravals)
     monitor.vals[:stage] = model.env.stage
     monitor.vals[:T]     = model.env.T
     model.env.transient && (monitor.vals[:t]=model.env.t)
     push!(monitor.table, monitor.vals)
+
+    # eval stop expressions
+    for expr in monitor.stopexpr.args
+        if evaluate(expr; state...)
+            return failure("Stop condition at IpMonitor ($expr)")
+        end
+    end
 
     return success()
 end
