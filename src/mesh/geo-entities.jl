@@ -105,7 +105,6 @@ function Base.:(==)(l1::AbstractLine, l2::AbstractLine)
 end
 
 
-
 struct Plane
     normal::Vec3
     distance::Float64
@@ -265,6 +264,26 @@ function Base.:(==)(s1::AbstractSurface, s2::AbstractSurface)
     return s1.loops[1]==s2.loops[1]
 end
 
+function getlines(s::AbstractSurface)
+    lines = AbstractLine[]
+    for loop in s.loops
+        for line in loop.lines
+            push!(lines, line)
+        end
+    end
+    return lines
+end
+
+function getpoints(s::AbstractSurface)
+    points = Set{Point}()
+    for line in getlines(s)
+        for point in line.points
+            push!(points, point)
+        end
+    end
+    return collect(points)
+end
+
 
 mutable struct Volume<:GeoEntity # related to SurfaceLoop
     surfaces::Array{AbstractSurface,1}
@@ -284,6 +303,21 @@ function Base.:(==)(v1::Volume, v2::Volume)
     common = intersect(ids1, ids2)
     return length(common)==length(ids1)
 end
+
+
+mutable struct SurfaceLoop<:GeoEntity
+    id::Int
+    surfaces::Array{AbstractSurface,1}
+
+    function SurfaceLoop(surfaces::AbstractSurface...; id=0)
+        return new(id, [surfaces...])
+    end
+        
+    function SurfaceLoop(surfaces::Vector{<:AbstractSurface}; id=0)
+        return SurfaceLoop(surfaces..., id=id)
+    end
+end
+
 
 
 # Show functions
