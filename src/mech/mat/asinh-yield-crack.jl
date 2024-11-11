@@ -52,9 +52,10 @@ mutable struct AsinhYieldCrack<:Material
                 wc = Inf
             end
         else
-            if isnothing(wc)
-                isnothing(GF) && error("AsinhYieldCrack: wc or GF must be defined when using a predefined softening model")
+            if wc==0.0
                 GF = args.GF
+                ft = args.ft
+                GF==0.0 && error("AsinhYieldCrack: wc or GF must be defined when using a predefined softening model")
                 if softmodel == :linear
                     wc = round(2*GF/ft, sigdigits=5)
                 elseif softmodel == :bilinear
@@ -66,6 +67,7 @@ mutable struct AsinhYieldCrack<:Material
                 end
             end
         end
+        @assert wc>0.0 "AsinhYieldCrack: wc must be greater than zero"
 
         α = args.alpha
         ft = args.ft
