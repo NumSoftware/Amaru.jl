@@ -1,21 +1,21 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-function gen_insets!(mesh::Mesh, suppaths::Vector{SupPath})
-    for suppath in suppaths
-        gen_insets!(mesh, suppath)
+function gen_insets!(mesh::Mesh, subpaths::Vector{SubPath})
+    for subpath in subpaths
+        gen_insets!(mesh, subpath)
     end
 end
 
 
-function gen_insets!(mesh::Mesh, suppath::SupPath)
-    cmds        = suppath.path.cmds
-    closed      = suppath.closed
-    tag         = suppath.tag
-    jointtag    = suppath.jointtag
-    tipjointtag = suppath.tipjointtag
-    tipjoint    = suppath.tipjoint
-    embedded    = suppath.embedded
-    shape       = suppath.shape
+function gen_insets!(mesh::Mesh, subpath::SubPath)
+    cmds        = subpath.path.cmds
+    closed      = subpath.closed
+    tag         = subpath.tag
+    jointtag    = subpath.jointtag
+    tipjointtag = subpath.tipjointtag
+    tipjoint    = subpath.tipjoint
+    embedded    = subpath.embedded
+    shape       = subpath.shape
 
     # TODO: add option: merge_points
     # TODO: check closed when hole 
@@ -26,8 +26,8 @@ function gen_insets!(mesh::Mesh, suppath::SupPath)
     εc = 1e-9  # for checking if point is inside a cell
     λ  = 1.0   # step for checking multiple intersections in one cell (0 < λ < 1)
 
-    npoints = suppath.shape==LIN2 ? 2 : 3
-    jntshape = suppath.shape==LIN2 ? JLINK2 : JLINK3
+    npoints = subpath.shape==LIN2 ? 2 : 3
+    jntshape = subpath.shape==LIN2 ? JLINK2 : JLINK3
 
     # Initial conditions
     len = 1.0

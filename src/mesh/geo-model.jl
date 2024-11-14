@@ -7,7 +7,7 @@ mutable struct GeoModel
     loops::Vector{AbstractLoop}
     surfaces::Vector{AbstractSurface}
     volumes::Vector{Volume}
-    supp_paths::Vector{SupPath}
+    supp_paths::Vector{SubPath}
     blocks::Vector{Block}
     size::Float64
     _id::Int
@@ -690,13 +690,13 @@ addpath!(geo::GeoModel, args...; closed=false) = addpath!(geo, Path(args...; clo
 
 
 
-export addsuppath!
-function addsuppath!(geo::GeoModel, suppath::SupPath)
-    push!(geo.supp_paths, suppath)
+export addsubpath!
+function addsubpath!(geo::GeoModel, subpath::SubPath)
+    push!(geo.supp_paths, subpath)
 end
 
-function addsuppath!(geo::GeoModel, args...; kwargs...) 
-    addsuppath!(geo, SupPath(Path(args...); kwargs...))
+function addsubpath!(geo::GeoModel, args...; kwargs...) 
+    addsubpath!(geo, SubPath(Path(args...); kwargs...))
 end
 
 

@@ -15,7 +15,7 @@ pb2 = Point(0.5, 0.5)
 pb3 = Point(0.6, 0.5)
 pb4 = Point(0.9, 0.5)
 pb5 = Point(1.2, 0.5)
-addsuppath!(geo, :M, pb1, :C, pb2, pb3, pb4, :L, pb5)
+addsubpath!(geo, :M, pb1, :C, pb2, pb3, pb4, :L, pb5)
 
 mesh = Mesh(geo)
 

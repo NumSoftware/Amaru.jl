@@ -225,7 +225,7 @@ function (path::Path)(t::Float64)
 end
 
 
-mutable struct SupPath<:GeoEntity
+mutable struct SubPath<:GeoEntity
     id::Int
     path::Path
     closed ::Bool
@@ -236,7 +236,7 @@ mutable struct SupPath<:GeoEntity
     tipjointtag::String
     tipjoint::Symbol
 
-    function SupPath(
+    function SubPath(
         path::Path;
         closed::Bool  = false,
         embedded::Bool  = false,
