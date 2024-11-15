@@ -112,7 +112,6 @@ function path_from_numbers(tokens...; closed=false)
         else
             data = tokens[nidx:kidx-1]
         end
-        @show data
 
         if key==:M
             p = Point(data...)

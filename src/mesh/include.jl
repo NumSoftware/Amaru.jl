@@ -1,18 +1,7 @@
-include("vtk.jl")
-include("quadrature.jl")
 
-include("shape.jl")
-export CellShape, ALL_ISO_SHAPES, CellFamily
-export get_ip_coords, get_shape_from_vtk
-export inverse_map, extrapolator
-
-include("geo-entities.jl")
-include("path.jl")
 
 include("block.jl")
 export Block, BlockTruss, BlockCoords, BlockCylinder, BlockGrid
-
-include("geo-model.jl")
 
 include("mesh-env.jl")
 
@@ -32,8 +21,6 @@ include("genmesh.jl")
 
 include("io.jl")
 export Mesh, fixup!, quality!, reorder!, save, get_outer_facets, get_neighbors, threshold, datafields
-
-
 
 include("block_inset.jl")
 export BlockInset

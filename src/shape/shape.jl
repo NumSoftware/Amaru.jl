@@ -37,10 +37,10 @@ mutable struct CellShape
     end
 end
 
-include("shapes/lines.jl")
-include("shapes/solids2d.jl")
-include("shapes/solids3d.jl")
-include("shapes/joints.jl")
+include("lines.jl")
+include("solids2d.jl")
+include("solids3d.jl")
+include("joints.jl")
 
 # Shape for unknown polyvertex
 function MakePOLYVERTEX()

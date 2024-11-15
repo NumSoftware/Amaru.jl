@@ -8,7 +8,7 @@ mutable struct GeoModel
     surfaces::Vector{AbstractSurface}
     volumes::Vector{Volume}
     supp_paths::Vector{SubPath}
-    blocks::Vector{Block}
+    blocks::Vector{AbstractBlock}
     size::Float64
     _id::Int
 
@@ -19,7 +19,7 @@ end
 
 Base.show(io::IO, geo::GeoModel) = _show(io, geo, 3, "")
 
-function addblock!(geo::GeoModel, block::Block)
+function addblock!(geo::GeoModel, block::AbstractBlock)
     push!(geo.blocks, block)
 end
 

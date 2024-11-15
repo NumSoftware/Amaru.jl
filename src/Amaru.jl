@@ -43,6 +43,12 @@ module Amaru
     include("node.jl")
     export Node, get_data, setvalue!
 
+    # Shapes
+    include("shape/include.jl")
+
+    # Geometry
+    include("geo/include.jl")
+
     # Mesh
     include("mesh/include.jl")
     export getcoords
