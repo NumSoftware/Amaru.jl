@@ -25,7 +25,7 @@ struct TMSolidProps<:ElemProperties
 end
 
 
-mutable struct TMSolid<:Thermomech
+mutable struct TMSolid<:ThermoMech
     id    ::Int
     shape ::CellShape
     nodes ::Array{Node,1}
@@ -35,7 +35,7 @@ mutable struct TMSolid<:Thermomech
     props ::TMSolidProps
     active::Bool
     linked_elems::Array{Element,1}
-    env   ::ModelEnv
+    ctx::Context
 
     function TMSolid()
         return new()
@@ -55,7 +55,7 @@ function elem_config_dofs(elem::TMSolid)
     for (i, node) in enumerate(elem.nodes)
             add_dof(node, :ux, :fx)
             add_dof(node, :uy, :fy)
-            elem.env.ndim==3 && add_dof(node, :uz, :fz)
+            elem.ctx.ndim==3 && add_dof(node, :uz, :fz)
         if  i<=(nbnodes)
             add_dof(node, :ut, :ft)
         end
@@ -74,7 +74,7 @@ end
 
 
 @inline function elem_map_u(elem::TMSolid)
-    keys =(:ux, :uy, :uz)[1:elem.env.ndim]
+    keys =(:ux, :uy, :uz)[1:elem.ctx.ndim]
     return [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
 end
 
@@ -91,8 +91,8 @@ end
 
 
 function elem_stiffness(elem::TMSolid)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     C  = getcoords(elem)
     K  = zeros(nnodes*ndim, nnodes*ndim)
@@ -103,7 +103,7 @@ function elem_stiffness(elem::TMSolid)
     dNdX = Array{Float64}(undef, nnodes, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -127,8 +127,8 @@ end
 
 # matrix C
 function elem_coupling_matrix(elem::TMSolid)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes) 
     nbnodes = elem.shape.basic_shape.npoints
     E = elem.mat.E
@@ -142,13 +142,13 @@ function elem_coupling_matrix(elem::TMSolid)
     dNdX = Array{Float64}(undef, nnodes, ndim)
     m    = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
     β    = E*α/(1-2*ν) # thermal stress modulus
-    if elem.env.ana.stressmodel==:planestress
+    if elem.ctx.stressmodel==:planestress
         β = E*α/(1-ν)
         m = [ 1.0, 1.0, 0.0, 0.0, 0.0, 0.0 ]
     end
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -175,8 +175,8 @@ end
 
 # thermal conductivity
 function elem_conductivity_matrix(elem::TMSolid)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C      = getcoords(elem)
@@ -187,7 +187,7 @@ function elem_conductivity_matrix(elem::TMSolid)
     J      = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         dNdR  = elem.shape.deriv(ip.R)
         dNtdR = elem.shape.basic_shape.deriv(ip.R)
@@ -210,8 +210,8 @@ end
 
 
 function elem_mass_matrix(elem::TMSolid)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C      = getcoords(elem)
@@ -220,7 +220,7 @@ function elem_mass_matrix(elem::TMSolid)
     J  = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         Nt   = elem.shape.basic_shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
@@ -241,9 +241,9 @@ end
 
 
 function elem_internal_forces(elem::TMSolid, F::Array{Float64,1})
-    ndim    = elem.env.ndim
-    th      = elem.env.ana.thickness
-    T0k     = elem.env.ana.T0 + 273.15
+    ndim    = elem.ctx.ndim
+    th      = elem.ctx.thickness
+    T0k     = elem.ctx.T0 + 273.15
     nnodes  = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C       = getcoords(elem)
@@ -259,7 +259,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1})
     map_t = elem_map_t(elem)
 
     m   = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
-    if elem.env.ana.stressmodel==:planestress
+    if elem.ctx.stressmodel==:planestress
         β = E*α/(1-ν)
         m = [ 1.0, 1.0, 0.0, 0.0, 0.0, 0.0 ]
     end
@@ -274,7 +274,7 @@ function elem_internal_forces(elem::TMSolid, F::Array{Float64,1})
     dNtdX = Array{Float64}(undef, nbnodes, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute Bu and Bt matrices
         dNdR = elem.shape.deriv(ip.R)
@@ -325,9 +325,9 @@ end
 
 
 function update_elem!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
-    ndim    = elem.env.ndim
-    th      = elem.env.ana.thickness
-    T0k     = elem.env.ana.T0 + 273.15
+    ndim    = elem.ctx.ndim
+    th      = elem.ctx.thickness
+    T0k     = elem.ctx.T0 + 273.15
     nnodes  = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C       = getcoords(elem)
@@ -347,7 +347,7 @@ function update_elem!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
     Ut  = [ node.dofdict[:ut].vals[:ut] for node in elem.nodes[1:nbnodes]]
     Ut += dUt # nodal tempeture at step n+1
     m   = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
-    if elem.env.ana.stressmodel==:planestress
+    if elem.ctx.stressmodel==:planestress
         β = E*α/(1-ν)
         m = [ 1.0, 1.0, 0.0, 0.0, 0.0, 0.0 ]
     end
@@ -363,7 +363,7 @@ function update_elem!(elem::TMSolid, DU::Array{Float64,1}, Δt::Float64)
     Δε = zeros(6)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute Bu and Bt matrices
         dNdR = elem.shape.deriv(ip.R)

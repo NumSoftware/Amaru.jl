@@ -7,7 +7,7 @@ mutable struct GeoModel
     loops::Vector{AbstractLoop}
     surfaces::Vector{AbstractSurface}
     volumes::Vector{Volume}
-    supp_paths::Vector{SubPath}
+    subpaths::Vector{SubPath}
     blocks::Vector{AbstractBlock}
     size::Float64
     _id::Int
@@ -680,8 +680,10 @@ export addpath!
 
 function addpath!(geo::GeoModel, path::Path)
     for cmd in path.cmds
-        if cmd isa LineCmd
-            addline!(geo, cmd.p1, cmd.p2)
+        # if cmd isa LineCmd
+        if cmd.key == :L
+            addline!(geo, cmd.points...)
+            # addline!(geo, cmd.p1, cmd.p2)
         end
     end
 end
@@ -692,11 +694,14 @@ addpath!(geo::GeoModel, args...; closed=false) = addpath!(geo, Path(args...; clo
 
 export addsubpath!
 function addsubpath!(geo::GeoModel, subpath::SubPath)
-    push!(geo.supp_paths, subpath)
+    geo._id +=1
+    subpath.id = geo._id
+    push!(geo.subpaths, subpath)
+    return subpath
 end
 
 function addsubpath!(geo::GeoModel, args...; kwargs...) 
-    addsubpath!(geo, SubPath(Path(args...); kwargs...))
+    return addsubpath!(geo, SubPath(Path(args...); kwargs...))
 end
 
 

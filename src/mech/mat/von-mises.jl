@@ -1,14 +1,15 @@
 export VonMises
 
 
-VonMisses_params = [
-    FunInfo(:VonMises, "Von Mises material model for bulk, beam and truss elements"),
+VonMises_params = [
+    FunInfo(:VonMises, "Linear-elastic model with Von-Mises yield criterion and linear hardening. Supported by bulk, shell, beam and bar elements."),
     KwArgInfo(:E, "Young modulus", cond=:(E>0.0)),
     KwArgInfo(:nu, "Poisson ratio", 0.0, cond=:(0.0<=nu<0.5)),
     KwArgInfo(:fy, "Yield stress", cond=:(fy>=0.0)),
     KwArgInfo(:H, "Hardening modulus", 0.0, cond=:(H>=0.0)),
     KwArgInfo(:rho, "Density", 0.0, cond=:(rho>=0.0))
 ]
+@doc docstring(VonMises_params) VonMises
 
 mutable struct VonMises<:Material
     E ::Float64
@@ -18,7 +19,7 @@ mutable struct VonMises<:Material
     ρ::Float64
 
     function VonMises(; args...)
-        args = checkargs(args, VonMisses_params)
+        args = checkargs(args, VonMises_params)
 
         return new(args.E, args.nu, args.fy, args.H, args.rho)
     end
@@ -26,13 +27,13 @@ end
 
 
 mutable struct VonMisesState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ::Vec6
     ε::Vec6
     εpa::Float64
     Δλ::Float64
-    function VonMisesState(env::ModelEnv)
-        this = new(env)
+    function VonMisesState(ctx::Context)
+        this = new(ctx)
         this.σ   = zeros(Vec6)
         this.ε   = zeros(Vec6)
         this.εpa = 0.0
@@ -42,13 +43,13 @@ mutable struct VonMisesState<:IpState
 end
 
 mutable struct VonMisesPlaneStressState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ::Vec6
     ε::Vec6
     εpa::Float64
     Δλ::Float64
-    function VonMisesPlaneStressState(env::ModelEnv)
-        this = new(env)
+    function VonMisesPlaneStressState(ctx::Context)
+        this = new(ctx)
         this.σ   = zeros(Vec6)
         this.ε   = zeros(Vec6)
         this.εpa = 0.0
@@ -58,13 +59,13 @@ mutable struct VonMisesPlaneStressState<:IpState
 end
 
 mutable struct VonMisesBeamState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ::Vec3
     ε::Vec3
     εpa::Float64
     Δλ::Float64
-    function VonMisesBeamState(env::ModelEnv)
-        this = new(env)
+    function VonMisesBeamState(ctx::Context)
+        this = new(ctx)
         this.σ   = zeros(Vec3)
         this.ε   = zeros(Vec3)
         this.εpa = 0.0
@@ -74,13 +75,13 @@ mutable struct VonMisesBeamState<:IpState
 end
 
 mutable struct VonMisesTrussState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ::Float64
     ε::Float64
     εpa::Float64
     Δλ::Float64
-    function VonMisesTrussState(env::ModelEnv)
-        this = new(env)
+    function VonMisesTrussState(ctx::Context)
+        this = new(ctx)
         this.σ   = 0.0
         this.ε   = 0.0
         this.εpa = 0.0
@@ -90,11 +91,11 @@ mutable struct VonMisesTrussState<:IpState
 end
 
 
-compat_state_type(::Type{VonMises}, ::Type{MechSolid}, env::ModelEnv) = env.ana.stressmodel==:planestress ? VonMisesPlaneStressState : VonMisesState
-compat_state_type(::Type{VonMises}, ::Type{MechShell}, env::ModelEnv) = VonMisesPlaneStressState
-compat_state_type(::Type{VonMises}, ::Type{MechBeam}, env::ModelEnv) = VonMisesBeamState
-compat_state_type(::Type{VonMises}, ::Type{MechTruss}, env::ModelEnv) = VonMisesTrussState
-compat_state_type(::Type{VonMises}, ::Type{MechEmbTruss}, env::ModelEnv) = VonMisesTrussState
+compat_state_type(::Type{VonMises}, ::Type{MechSolid}, ctx::Context) = ctx.stressmodel==:planestress ? VonMisesPlaneStressState : VonMisesState
+compat_state_type(::Type{VonMises}, ::Type{MechShell}, ctx::Context) = VonMisesPlaneStressState
+compat_state_type(::Type{VonMises}, ::Type{MechBeam}, ctx::Context) = VonMisesBeamState
+compat_state_type(::Type{VonMises}, ::Type{MechTruss}, ctx::Context) = VonMisesTrussState
+compat_state_type(::Type{VonMises}, ::Type{MechEmbBar}, ctx::Context) = VonMisesTrussState
 
 
 # VonMises model for 3D and 2D bulk elements (not including plane-stress state)
@@ -160,7 +161,7 @@ function ip_state_vals(mat::VonMises, state::VonMisesState)
     j1    = tr(σ)
     srj2d = √J2(σ)
 
-    D = stress_strain_dict(σ, ε, state.env.ana.stressmodel)
+    D = stress_strain_dict(σ, ε, state.ctx.stressmodel)
     D[:ep]   = state.εpa
 
     return D

@@ -2,8 +2,8 @@
 
 # Distributed natural boundary conditions for faces and edges of bulk elements
 function acoustic_mech_bc(elem::Element, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
-    ndim  = elem.env.ndim
-    th    = elem.env.ana.thickness
+    ndim  = elem.ctx.ndim
+    th    = elem.ctx.thickness
     suitable_keys = (:tq,) # tq: mass acceleration per area?, ax: x acceleration
 
     # Check keys
@@ -11,7 +11,7 @@ function acoustic_mech_bc(elem::Element, facet::Cell, key::Symbol, val::Union{Re
 
     nodes  = facet.nodes
     nnodes = length(nodes)
-    t      = elem.env.t
+    t      = elem.ctx.t
 
     # Force boundary condition
     nnodes = length(nodes)
@@ -35,7 +35,7 @@ function acoustic_mech_bc(elem::Element, facet::Cell, key::Symbol, val::Union{Re
         if ndim==2
             x, y = X
             vip = evaluate(val, t=t, x=x, y=y)
-            if elem.env.ana.stressmodel==:axisymmetric
+            if elem.ctx.stressmodel==:axisymmetric
                 th = 2*pi*X[1]
             end
         else

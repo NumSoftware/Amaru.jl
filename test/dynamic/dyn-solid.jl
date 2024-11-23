@@ -14,8 +14,9 @@ materials = [
     "solids" => MechSolid => LinearElastic => (E=30e6, nu=0.2, rho=24.0)
 ]
 
-ana = DynAnalysis()
-model = FEModel(mesh, materials, ana)
+ctx = MechContext()
+model = FEModel(mesh, materials, ctx)
+ana = DynAnalysis(model)
 
 # Finite element modeling
 bcs = [
@@ -24,6 +25,6 @@ bcs = [
     :(y==1 && z==0.2) => NodeBC(fz=-10),
 ]
 
-addstage!(model, bcs, tspan=0.1, nincs=1, nouts=1)
+addstage!(ana, bcs, tspan=0.1, nincs=1, nouts=1)
 
-solve!(model, alpha=4.2038, beta=174.2803e-6, quiet=true)
+solve!(ana, alpha=4.2038, beta=174.2803e-6, quiet=true)

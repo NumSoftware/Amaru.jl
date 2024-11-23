@@ -3,15 +3,15 @@
 export MMCJoint
 
 mutable struct MMCJointState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ  ::Array{Float64,1} # stress
     w  ::Array{Float64,1} # relative displacements
     up::Float64          # effective plastic relative displacement
     Δλ ::Float64          # plastic multiplier
     h  ::Float64          # characteristic length from bulk elements
-    function MMCJointState(env::ModelEnv)
-        this = new(env)
-        ndim = env.ndim
+    function MMCJointState(ctx::Context)
+        this = new(ctx)
+        ndim = ctx.ndim
         this.σ = zeros(ndim)
         this.w = zeros(ndim)
         this.up = 0.0
@@ -86,7 +86,7 @@ compat_elem_types(::Type{MMCJoint}) = (MechJoint,)
 function yield_func(mat::MMCJoint, state::MMCJointState, σ::Array{Float64,1}, σmax::Float64)
     ft, α, β = mat.ft, mat.α, mat.β
 
-    if state.env.ndim == 3
+    if state.ctx.ndim == 3
         return σ[1] - σmax + β*((σ[2]^2 + σ[3]^2)/ft^2)^α
     else
         return σ[1] - σmax + β*(σ[2]^2/ft^2)^α
@@ -97,7 +97,7 @@ end
 function yield_derivs(mat::MMCJoint, state::MMCJointState, σ::Array{Float64,1})
     ft, α, β = mat.ft, mat.α, mat.β
 
-    if state.env.ndim == 3
+    if state.ctx.ndim == 3
         tmp = 2*α*β/ft^2*((σ[2]^2+σ[3]^2)/ft^2)^(α-1)
         return [ 1 , σ[2]*tmp, σ[3]*tmp ]
     else
@@ -108,7 +108,7 @@ end
 
 
 function potential_derivs(mat::MMCJoint, state::MMCJointState, σ::Array{Float64,1})
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     if ndim == 3
         if σ[1] > 0.0 
             # G1:
@@ -212,7 +212,7 @@ end
 
 
 function calc_Δλ(mat::MMCJoint, state::MMCJointState, σtr::Array{Float64,1})
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     maxits = 20
     Δλ     = 0.0
     f      = 0.0
@@ -278,7 +278,7 @@ end
 
 
 function calc_σ_upa(mat::MMCJoint, state::MMCJointState, σtr::Array{Float64,1})
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     kn, ks = calc_kn_ks(mat, state)
 
     if ndim == 3
@@ -301,7 +301,7 @@ end
 
 
 function calcD(mat::MMCJoint, state::MMCJointState)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     kn, ks = calc_kn_ks(mat, state)
     σmax = calc_σmax(mat, state, state.up)
 
@@ -367,7 +367,7 @@ end
 
 function update_state!(mat::MMCJoint, state::MMCJointState, Δw::Array{Float64,1})
 
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     σini = copy(state.σ)
 
     kn, ks = calc_kn_ks(mat, state)
@@ -438,7 +438,7 @@ end
 
 
 function ip_state_vals(mat::MMCJoint, state::MMCJointState)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     if ndim == 3
        return Dict(
           :jw1  => state.w[1] ,

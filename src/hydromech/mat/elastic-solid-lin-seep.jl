@@ -3,18 +3,18 @@
 export LinearElasticSeep
 
 mutable struct LinearElasticSeepState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ::Vec6 # stress
     ε::Vec6 # strain
     V::Array{Float64,1} # fluid velocity
     D::Array{Float64,1} # distance traveled by the fluid
     uw::Float64         # pore pressure
-    function LinearElasticSeepState(env::ModelEnv)
-        this = new(env)
+    function LinearElasticSeepState(ctx::Context)
+        this = new(ctx)
         this.σ = zeros(Vec6)
         this.ε = zeros(Vec6)
-        this.V = zeros(env.ndim)
-        this.D = zeros(env.ndim)
+        this.V = zeros(ctx.ndim)
+        this.D = zeros(ctx.ndim)
         this.uw = 0.0
         return this
     end
@@ -51,19 +51,19 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{LinearElasticSeep}, ::Type{HMSolid}, env::ModelEnv) = LinearElasticSeepState
+compat_state_type(::Type{LinearElasticSeep}, ::Type{HMSolid}, ctx::Context) = LinearElasticSeepState
 
 # Element types that work with this material
 # compat_elem_types(::Type{LinearElasticSeep}) = (HMSolid,)
 
 
 function calcD(mat::LinearElasticSeep, state::LinearElasticSeepState)
-    return calcDe(mat.E, mat.ν, state.env.ana.stressmodel) # function calcDe defined at elastic-solid.jl
+    return calcDe(mat.E, mat.ν, state.ctx.stressmodel) # function calcDe defined at elastic-solid.jl
 end
 
 
 function calcK(mat::LinearElasticSeep, state::LinearElasticSeepState) # Hydraulic conductivity matrix
-    if state.env.ndim==2
+    if state.ctx.ndim==2
         return mat.k*eye(2)
     else
         return mat.k*eye(3)
@@ -85,11 +85,11 @@ end
 
 
 function ip_state_vals(mat::LinearElasticSeep, state::LinearElasticSeepState)
-    D = stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
+    D = stress_strain_dict(state.σ, state.ε, state.ctx.stressmodel)
 
     D[:vx] = state.V[1]
     D[:vy] = state.V[2]
-    if state.env.ndim==3
+    if state.ctx.ndim==3
         D[:vz] = state.V[3]
     end
 

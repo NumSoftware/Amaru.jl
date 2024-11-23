@@ -4,14 +4,14 @@ export ElasticCookShell
 
 mutable struct ElasticCookShellState<:IpState
     "Environment information"
-    env::ModelEnv
+    ctx::Context
     "Stress tensor"
     σ::Array{Float64,1}
     "Strain tensor"
     ε::Array{Float64,1}
 
-    function ElasticCookShellState(env::ModelEnv)
-        this = new(env)
+    function ElasticCookShellState(ctx::Context)
+        this = new(ctx)
         this.σ = zeros(6)
         this.ε = zeros(6)
         return this
@@ -69,5 +69,5 @@ end
 
 
 function ip_state_vals(mat::ElasticCookShell, state::ElasticCookShellState)
-    return stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
+    return stress_strain_dict(state.σ, state.ε, state.ctx.stressmodel)
 end

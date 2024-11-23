@@ -4,14 +4,14 @@ export LinearElastic
 
 mutable struct ElasticShellState<:IpState
     "Environment information"
-    env::ModelEnv
+    ctx::Context
     "Stress tensor"
     σ::Array{Float64,1} # in the local system
     "Strain tensor"
     ε::Array{Float64,1} # in the local system
 
-    function ElasticShellState(env::ModelEnv)
-        this = new(env)
+    function ElasticShellState(ctx::Context)
+        this = new(ctx)
         this.σ = zeros(6)
         this.ε = zeros(6)
         return this
@@ -72,5 +72,5 @@ end
 
 
 function ip_state_vals(mat::LinearElastic, state::ElasticShellState)
-    return stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
+    return stress_strain_dict(state.σ, state.ε, state.ctx.stressmodel)
 end

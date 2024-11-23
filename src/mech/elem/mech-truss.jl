@@ -33,7 +33,7 @@ mutable struct MechBar<:Mech
     props ::MechBarProps
     active::Bool
     linked_elems::Array{Element,1}
-    env::ModelEnv
+    ctx::Context
 
     function MechBar()
         return new()
@@ -52,7 +52,7 @@ embedded_type(::Type{MechBar}) = MechEmbBar
 function elem_stiffness(elem::MechBar)
     local E::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
 
-    ndim   = elem.env.ndim
+    ndim   = elem.ctx.ndim
     nnodes = length(elem.nodes)
 
     A = elem.props.A
@@ -86,7 +86,7 @@ end
 
 function elem_mass(elem::MechBar)
 
-    ndim   = elem.env.ndim
+    ndim   = elem.ctx.ndim
     nnodes = length(elem.nodes)
     ρ = elem.props.ρ
     A = elem.props.A
@@ -145,18 +145,18 @@ function setNt(ndim::Int,Ni::Vect, N::Matx)
 end
 
 
-function distributed_bc(elem::MechBar, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
-    return mech_line_distributed_forces(elem, key, val)
+function distributed_bc(elem::MechBar, facet::Cell, t::Float64, key::Symbol, val::Union{Real,Symbol,Expr})
+    return mech_line_distributed_forces(elem, t, key, val)
 end
 
 
 function body_c(elem::MechBar, key::Symbol, val::Union{Real,Symbol,Expr})
-    return mech_line_distributed_forces(elem, key, val)
+    return mech_line_distributed_forces(elem, 0.0, key, val)
 end
 
 
 function elem_internal_forces(elem::MechBar, F::Array{Float64,1})
-    ndim   = elem.env.ndim
+    ndim   = elem.ctx.ndim
     nnodes = length(elem.nodes)
     A      = elem.props.A
     keys   = [:ux, :uy, :uz][1:ndim]
@@ -196,7 +196,7 @@ end
 
 function update_elem!(elem::MechBar, U::Array{Float64,1}, Δt::Float64)
 
-    ndim   = elem.env.ndim 
+    ndim   = elem.ctx.ndim 
     nnodes = length(elem.nodes)
     A      = elem.props.A
     keys   = [:ux, :uy, :uz][1:ndim]

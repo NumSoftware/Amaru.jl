@@ -139,9 +139,9 @@ end
 
 
 # Index operator for node to get a dof
-function Base.getindex(node::Node, s::Symbol)
-    return node.dofdict[s]
-end
+# function Base.getindex(node::Node, s::Symbol)
+#     return node.dofdict[s]
+# end
 
 # General node sorting
 function Base.sort!(nodes::Array{Node,1})
@@ -176,22 +176,49 @@ function getndim(nodes::Array{Node,1})
     return ndim
 end
 
-# Index operator for an collection of nodes
-function Base.getindex(nodes::Array{Node,1}, s::String)
-    R = [ node for node in nodes if node.tag==s ]
-    sort!(R, by=node->sum(node.coord))
+
+function Base.getindex(nodes::Array{<:Node,1}, filters::NTuple; kwargs...)
+    return getindex(nodes, filters...; kwargs...)
 end
 
+
 # Index operator for an collection of nodes
-function Base.getindex(nodes::Array{Node,1}, filter::Union{Expr,Symbolic})
-    R = Node[]
-    for node in nodes
-        x, y, z = node.coord
-        evaluate(filter, x=x, y=y, z=z) && push!(R, node)
+function Base.getindex(
+    nodes::Array{Node,1}, 
+    filters::Union{Expr,Symbolic,String, Array{Float64}}...;
+    invert = false
+    )
+    
+    filtered = collect(1:length(nodes))
+
+    for filter in filters
+        if typeof(filter) in (Expr, Symbolic)
+            fnodes = nodes[filtered]
+
+            T = Bool[]
+            for node in fnodes
+                x, y, z = node.coord.x, node.coord.y, node.coord.z
+                push!(T, evaluate(filter, x=x, y=y, z=z))
+            end
+    
+            filtered = filtered[T]
+        elseif filter isa String
+            filtered = [ i for i in filtered if nodes[i].tag==filter ]
+        elseif filter isa Array{Float64}
+            X = Vec3(filter)
+            T = Bool[]
+            for i in filtered
+                push!(T, norm(nodes[i].coord-X) < 1e-8)
+            end
+            filtered = filtered[T]
+        end
     end
 
-    sort!(R, by=node->sum(node.coord))
-    return R
+    if invert
+        filtered = setdiff(1:length(nodes), filtered)
+    end
+
+    return nodes[filtered]
 end
 
 

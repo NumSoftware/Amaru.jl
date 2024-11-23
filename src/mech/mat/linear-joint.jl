@@ -3,12 +3,12 @@
 export ElasticJoint
 
 mutable struct JointState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ   ::Array{Float64,1}
     w   ::Array{Float64,1}
     h   ::Float64
-    function JointState(env::ModelEnv)
-        this = new(env)
+    function JointState(ctx::Context)
+        this = new(ctx)
         this.σ   = zeros(3)
         this.w = zeros(3)
         this.h = 0.0
@@ -36,11 +36,11 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{ElasticJoint}, ::Type{MechJoint}, env::ModelEnv) = JointState
+compat_state_type(::Type{ElasticJoint}, ::Type{MechJoint}, ctx::Context) = JointState
 
 
 function calcD(mat::ElasticJoint, state::JointState)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     kn   = mat.kn
     ks   = mat.ks
 
@@ -56,7 +56,7 @@ end
 
 
 function update_state!(mat::ElasticJoint, state::JointState, Δu)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     D  = calcD(mat, state)
     Δσ = D*Δu
 
@@ -67,7 +67,7 @@ end
 
 
 function ip_state_vals(mat::ElasticJoint, state::JointState)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     if ndim == 3
        return Dict(
           :jw1  => state.w[1],

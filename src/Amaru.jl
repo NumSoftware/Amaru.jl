@@ -48,15 +48,15 @@ module Amaru
 
     # Geometry
     include("geo/include.jl")
-
+    
     # Mesh
     include("mesh/include.jl")
     export getcoords
 
-    include("analysis.jl")
+    include("context.jl")
+    export Context
 
-    include("model-env.jl")
-    export ModelEnv
+    # include("model-env.jl")
 
     include("properties.jl")
 
@@ -77,6 +77,8 @@ module Amaru
     include("plot/include.jl")
     export Chart, LineSeries, LinePlot, Legend, Colormap, MeshPlot, MeshChart, Annotation
     export addplot!, addseries!, addlegend!, addannotation!
+
+    include("analysis.jl")
 
     # Boundary conditions
     include("bc.jl")
@@ -104,6 +106,9 @@ module Amaru
     export addlogger!, addmonitor!, addloggers!, addmonitors!
     export setloggers!, setmonitors!
 
+    include("solver-context.jl")
+
+
     include("solver.jl")
 
     include("io.jl")
@@ -114,7 +119,7 @@ module Amaru
     # Hydromech module
     include("hydromech/include.jl")
 
-    # Thermomech module
+    # ThermoMech module
     include("thermomech/include.jl")
 
     # Acoustic module

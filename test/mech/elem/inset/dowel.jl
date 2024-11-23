@@ -15,7 +15,8 @@ pb2 = Point(0.5, 0.5)
 pb3 = Point(0.6, 0.5)
 pb4 = Point(0.9, 0.5)
 pb5 = Point(1.2, 0.5)
-addsubpath!(geo, :M, pb1, :C, pb2, pb3, pb4, :L, pb5)
+bar = addsubpath!(geo, :M, pb1, :C, pb2, pb3, pb4, :L, pb5)
+array!(geo, bar, ny=2, dy=0.2)
 
 mesh = Mesh(geo)
 
@@ -32,16 +33,34 @@ mats = [
         # :linejoints => MechLSJoint => CebLSInterface => (taumax=12, taures=3, s1=0.001, s2=0.0011, s3=0.004, alpha=0.5, beta=0.5, ks=(12/0.001)*5, kn=5000, p=0.25)
        ]
 
-ana = MechAnalysis()
-model = FEModel(mesh, mats, ana)
-
+ctx = MechContext(stressmodel=:planestress)
+model = FEModel(mesh, mats, ctx, thickness=0.1)
 tag!(model.elems.lines.nodes[x>=1], "outside")
 
+ana = MechAnalysis(model)
 bcs = [
     y==0 => NodeBC(ux=0, uy=0),
     # "outside" => NodeBC(uy=0, ux=0.01),
-    and(x==1.2, y==0.5) => NodeBC(ux=0.01, uy=-0.01),
+    (x==1.2, y==0.5) => NodeBC(ux=0.01, uy=-0.01),
 ]
 
-addstage!(model, bcs, nincs=10)
-solve!(model, tol=0.01, maxits=3, autoincr=true)
+addstage!(ana, bcs, nincs=10, nouts=2)
+solve!(ana, tol=0.01, maxits=3, autoincr=true)
+
+save(model, "dowel.vtu")
+
+# ana = MechAnalysis()
+# model = FEModel(mesh, mats, ana)
+
+# tag!(model.elems.lines.nodes[x>=1], "outside")
+
+# bcs = [
+#     y==0 => NodeBC(ux=0, uy=0),
+#     # "outside" => NodeBC(uy=0, ux=0.01),
+#     and(x==1.2, y==0.5) => NodeBC(ux=0.01, uy=-0.01),
+# ]
+
+# addstage!(model, bcs, nincs=10, nouts=2)
+# solve!(model, tol=0.01, maxits=3, autoincr=true)
+
+# save(model, "dowel.vtu")

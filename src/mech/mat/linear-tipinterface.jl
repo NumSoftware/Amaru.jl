@@ -1,13 +1,13 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export ElasticTipJoint
+export LinearTipContact
 
-mutable struct ElasticTipJointState<:IpState
-    env::ModelEnv
+mutable struct LinearTipContactState<:IpState
+    ctx::Context
     f ::Float64
     w ::Float64
-    function ElasticTipJointState(env::ModelEnv)
-        this = new(env)
+    function LinearTipContactState(ctx::Context)
+        this = new(ctx)
         this.f = 0.0
         this.w = 0.0
         return this
@@ -15,14 +15,14 @@ mutable struct ElasticTipJointState<:IpState
 end
 
 
-mutable struct ElasticTipJoint<:Material
+mutable struct LinearTipContact<:Material
     k::Float64
 
-    function ElasticTipJoint(prms::Dict{Symbol,Float64})
-        return  ElasticTipJoint(;prms...)
+    function LinearTipContact(prms::Dict{Symbol,Float64})
+        return  LinearTipContact(;prms...)
     end
 
-    function ElasticTipJoint(;k=NaN)
+    function LinearTipContact(;k=NaN)
         @check k>=0
         this = new(k)
         return this
@@ -31,18 +31,18 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{ElasticTipJoint}) = ElasticTipJointState
+compat_state_type(::Type{LinearTipContact}) = LinearTipContactState
 
 # Element types that work with this material
-compat_elem_types(::Type{ElasticTipJoint}) = (MechTipJoint,)
+compat_elem_types(::Type{LinearTipContact}) = (MechTipJoint,)
 
 
-function calcD(mat::ElasticTipJoint, state::ElasticTipJointState)
+function calcD(mat::LinearTipContact, state::LinearTipContactState)
     return mat.k
 end
 
 
-function update_state!(mat::ElasticTipJoint, state::ElasticTipJointState, Δw)
+function update_state!(mat::LinearTipContact, state::LinearTipContactState, Δw)
     Δf = mat.k*Δw
     state.f += Δf
     state.w += Δw
@@ -50,7 +50,7 @@ function update_state!(mat::ElasticTipJoint, state::ElasticTipJointState, Δw)
 end
 
 
-function ip_state_vals(mat::ElasticTipJoint, state::ElasticTipJointState)
+function ip_state_vals(mat::LinearTipContact, state::LinearTipContactState)
     return OrderedDict(
       :ur   => state.w ,
       :tau  => state.f )

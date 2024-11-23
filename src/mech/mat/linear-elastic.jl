@@ -3,7 +3,7 @@
 export LinearElastic
 
 LinearElastic_params = [
-    FunInfo(:LinearElastic, "Linear-elastic material model"),
+    FunInfo(:LinearElastic, "Linear-elastic material model for bulk, shell, beam and bar elements"),
     KwArgInfo(:E, "Young modulus", cond=:(E>0.0)),
     KwArgInfo(:nu, "Poisson ratio", 0.0, cond=:(0.0<=nu<0.5)) # default value to easy the use of truss elements
 ]
@@ -21,12 +21,12 @@ end
 
 
 mutable struct ElasticSolidState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ::Vec6
     ε::Vec6
 
-    function ElasticSolidState(env::ModelEnv)
-        this = new(env)
+    function ElasticSolidState(ctx::Context)
+        this = new(ctx)
         this.σ = zeros(Vec6)
         this.ε = zeros(Vec6)
         return this
@@ -35,12 +35,12 @@ end
 
 
 mutable struct ElasticPlaneStressState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ::Vec6
     ε::Vec6
 
-    function ElasticPlaneStressState(env::ModelEnv)
-        this = new(env)
+    function ElasticPlaneStressState(ctx::Context)
+        this = new(ctx)
         this.σ = zeros(Vec6)
         this.ε = zeros(Vec6)
         return this
@@ -49,11 +49,11 @@ end
 
 
 mutable struct ElasticBarState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ::Float64
     ε::Float64
-    function ElasticBarState(env::ModelEnv)
-        this = new(env)
+    function ElasticBarState(ctx::Context)
+        this = new(ctx)
         this.σ = 0.0
         this.ε = 0.0
         return this
@@ -61,11 +61,11 @@ mutable struct ElasticBarState<:IpState
 end
 
 
-compat_state_type(::Type{LinearElastic}, ::Type{MechSolid}, env::ModelEnv)  = env.ana.stressmodel==:planestress ? ElasticPlaneStressState : ElasticSolidState
-compat_state_type(::Type{LinearElastic}, ::Type{MechShell}, env::ModelEnv)  = ElasticPlaneStressState
-compat_state_type(::Type{LinearElastic}, ::Type{MechBeam}, env::ModelEnv)   = ElasticBeamState
-compat_state_type(::Type{LinearElastic}, ::Type{MechBar}, env::ModelEnv)    = ElasticBarState
-compat_state_type(::Type{LinearElastic}, ::Type{MechEmbBar}, env::ModelEnv) = ElasticBarState
+compat_state_type(::Type{LinearElastic}, ::Type{MechSolid}, ctx::Context)  = ctx.stressmodel==:planestress ? ElasticPlaneStressState : ElasticSolidState
+compat_state_type(::Type{LinearElastic}, ::Type{MechShell}, ctx::Context)  = ElasticPlaneStressState
+compat_state_type(::Type{LinearElastic}, ::Type{MechBeam}, ctx::Context)   = ElasticBeamState
+compat_state_type(::Type{LinearElastic}, ::Type{MechBar}, ctx::Context)    = ElasticBarState
+compat_state_type(::Type{LinearElastic}, ::Type{MechEmbBar}, ctx::Context) = ElasticBarState
 
 
 function calcDe(E::Real, ν::Real, stressmodel::Symbol=:d3)
@@ -111,7 +111,7 @@ end
 
 
 function ip_state_vals(mat::LinearElastic, state::ElasticSolidState)
-    return stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
+    return stress_strain_dict(state.σ, state.ε, state.ctx.stressmodel)
 end
 
 
@@ -140,12 +140,12 @@ end
 # LinearElastic for beam elements
 
 mutable struct ElasticBeamState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ::Vec3
     ε::Vec3
 
-    function ElasticBeamState(env::ModelEnv)
-        this = new(env)
+    function ElasticBeamState(ctx::Context)
+        this = new(ctx)
         this.σ = zeros(Vec3)
         this.ε = zeros(Vec3)
         return this
@@ -179,7 +179,7 @@ function ip_state_vals(mat::LinearElastic, state::ElasticBeamState)
       :eX  => state.ε[1],
       :sXY => state.σ[2]/SR2
     )
-    if state.env.ndim==3
+    if state.ctx.ndim==3
         vals[:sXZ] = state.σ[2]/SR2
         vals[:sXY] = state.σ[3]/SR2
     end

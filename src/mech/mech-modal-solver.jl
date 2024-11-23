@@ -1,59 +1,116 @@
 
 export MechModalAnalysis
 
+# MechModalAnalysis_params = [
+#     FunInfo(:MechModalAnalysis, "Mechanical modal analysis"),
+#     KwArgInfo(:stressmodel, "Stress model", :d3, values=(:planestress, :planestrain, :axisymmetric, :d3)),
+#     KwArgInfo(:thickness, "Thickness for 2d analyses", 1.0, cond=:(thickness>0)),
+#     KwArgInfo(:g, "Gravity acceleration", 0.0, cond=:(g>=0))
+# ]
+# @doc docstring(MechModalAnalysis_params) MechModalAnalysis
+
+
+
 MechModalAnalysis_params = [
-    FunInfo(:MechModalAnalysis, "Mechanical modal analysis"),
-    KwArgInfo(:stressmodel, "Stress model", :d3, values=(:planestress, :planestrain, :axisymmetric, :d3)),
-    KwArgInfo(:thickness, "Thickness for 2d analyses", 1.0, cond=:(thickness>0)),
-    KwArgInfo(:g, "Gravity acceleration", 0.0, cond=:(g>=0))
+    FunInfo(:DynAnalysis, "Dynamic analysis"),
+    ArgInfo(:model, "Finite element model"),
 ]
 @doc docstring(MechModalAnalysis_params) MechModalAnalysis
 
-mutable struct MechModalAnalysis<:Analysis
-    stressmodel::Symbol # plane stress, plane strain, etc.
-    thickness::Float64  # thickness for 2d analyses
-    g::Float64 # gravity acceleration
-    
-    function MechModalAnalysis(; kwargs...)
-        args = checkargs(kwargs, MechModalAnalysis_params)
-        this = new(args.stressmodel, args.thickness, args.g)
+
+mutable struct MechModalAnalysis<:StaticAnalysis
+    model ::FEModel
+    ctx   ::MechContext
+    sctx  ::SolverContext
+
+    stages  ::Array{Stage}
+    loggers ::Array{AbstractLogger,1}
+    monitors::Array{AbstractMonitor,1}
+
+    function MechModalAnalysis(model::FEModel; outdir=".", outkey="out")
+        this = new(model, model.ctx)
+        this.stages = []
+        this.loggers = []
+        this.monitors = []  
+        this.sctx = SolverContext()
+        this.sctx.outdir = outdir
+        this.sctx.outkey = outkey
+
+        model.ctx.thickness = model.thickness
+        if model.ctx.stressmodel==:none
+            if model.ctx.ndim==2
+                model.ctx.stressmodel = :planestrain
+            else
+                model.ctx.stressmodel = :d3
+            end
+        end
+
         return this
     end
 end
 
 
-function solve!(model::Model, ana::MechModalAnalysis; args...)
-    name = "Solver for dynamic modal analyses"
-    status = stage_iterator!(name, mech_modal_solver!, model; args...)
-    return status
-end
+
+# mutable struct MechModalAnalysis<:Analysis
+#     stressmodel::Symbol # plane stress, plane strain, etc.
+#     thickness::Float64  # thickness for 2d analyses
+#     g::Float64 # gravity acceleration
+    
+#     function MechModalAnalysis(; kwargs...)
+#         args = checkargs(kwargs, MechModalAnalysis_params)
+#         this = new(args.stressmodel, args.thickness, args.g)
+#         return this
+#     end
+# end
+
+
+# function solve!(model::FEModel, ana::MechModalAnalysis; args...)
+#     name = "Solver for dynamic modal analyses"
+#     status = stage_iterator!(name, mech_modal_solver!, model; args...)
+#     return status
+# end
 
 
 mech_modal_solver_params = [
     FunInfo( :mech_modal_solver!, "Finds the frequencies and vibration modes of a mechanical system."),
-    ArgInfo( :model, "Model object"),
+    ArgInfo( :model, "FEModel object"),
     ArgInfo( :stage, "Stage object"),
     KwArgInfo( (:nmodes, :nmods), "Number of modes to be calculated", 5),
     KwArgInfo( :rayleigh, "Flag to use Rayleigh-Ritz method for damping", false),
     KwArgInfo( :quiet, "Flag to set silent mode", false),
 ]
-@doc docstring(mech_modal_solver_params) mech_modal_solver!()
+@doc docstring(mech_modal_solver_params) solve!(::MechModalAnalysis; args...)
+
+function solve!(ana::MechModalAnalysis; args...)
+    args = checkargs(args, mech_modal_solver_params)
+    if !args.quiet
+        printstyled("Solver for mechanical modal analyses", "\n", bold=true, color=:cyan)
+        println("  stress model: ", ana.ctx.stressmodel)
+    end
+
+    status = stage_iterator!(mech_modal_solver!, ana; args...)
+    return status
+end
 
 
-function mech_modal_solver!(model::Model, stage::Stage; kwargs...)
-    args = checkargs(kwargs, mech_modal_solver_params)
+function mech_modal_solver!(ana::MechModalAnalysis, stage::Stage; kwargs...)
+    args = NamedTuple(kwargs)
+    # args = checkargs(kwargs, mech_modal_solver_params)
     nmodes = args.nmodes
     rayleigh = args.rayleigh
     quiet = args.quiet 
 
-    env = model.env
-    println(env.log, "Modal analysis for mechanical systems")
+    model = ana.model
+    ctx = model.ctx
+    sctx = ana.sctx
 
-    stressmodel = env.ana.stressmodel
-    env.ndim==3 && @check stressmodel==:d3
+    println(sctx.log, "Modal analysis for mechanical systems")
+
+    stressmodel = ctx.stressmodel
+    ctx.ndim==3 && @check stressmodel==:d3
 
     # get only bulk elements
-    model = Model(model.elems.bulks)
+    model = FEModel(model.elems.bulks)
 
     # check density
     for elem in model.elems
@@ -65,8 +122,8 @@ function mech_modal_solver!(model::Model, stage::Stage; kwargs...)
 
     ndofs       = length(dofs)
     model.ndofs = length(dofs)
-    println(env.log, "unknown dofs: $nu")
-    println(env.info, "unknown dofs: $nu")
+    println(sctx.log, "unknown dofs: $nu")
+    println(sctx.info, "unknown dofs: $nu")
 
     # setup quantities at dofs
     for dof in dofs
@@ -106,10 +163,10 @@ function mech_modal_solver!(model::Model, stage::Stage; kwargs...)
     w = wi.^0.5  # true frequencies
 
     update_output_data!(model)
-    save(model, joinpath(env.outdir, "$(env.outkey)-0.vtu"), quiet=true)
+    save(model, joinpath(sctx.outdir, "$(sctx.outkey)-0.vtu"), quiet=true)
 
-    model.env.inc = 1
-    model.env.ΔT  = 1.0
+    sctx.inc = 1
+    sctx.ΔT  = 1.0
     
     # save modes
     for i in 1:nmodes
@@ -118,10 +175,10 @@ function mech_modal_solver!(model::Model, stage::Stage; kwargs...)
         for (k,dof) in enumerate(dofs[1:nu])
             dof.vals[dof.name] = U[k]
         end
-        model.env.T = i/nmodes
-        model.env.out = i
+        sctx.T = i/nmodes
+        sctx.out = i
         update_output_data!(model)
-        save(model, joinpath(env.outdir, "$(env.outkey)-$i.vtu"), quiet=true)
+        save(model, joinpath(sctx.outdir, "$(sctx.outkey)-$i.vtu"), quiet=true)
     end
 
     # reset displacement values
@@ -131,9 +188,9 @@ function mech_modal_solver!(model::Model, stage::Stage; kwargs...)
 
     # show modal frequencies
     if !quiet
-        println(env.log, "modal frequencies:")
+        println(sctx.log, "modal frequencies:")
         for i in 1:nmodes
-            println(env.log, "ω$i = ", abs(w[i]))
+            println(sctx.log, "ω$i = ", abs(w[i]))
         end
     end
 
@@ -171,7 +228,7 @@ function mech_modal_solver!(model::Model, stage::Stage; kwargs...)
 end
 
 
-function modsolvex!(model::Model, bcs::AbstractArray; nmodes::Int=5, rayleigh=false, save=true, quiet=false)
+function modsolvex!(model::FEModel, bcs::AbstractArray; nmodes::Int=5, rayleigh=false, save=true, quiet=false)
 
     quiet || printstyled("FEM modal analysis:\n", bold=true, color=:cyan)
 

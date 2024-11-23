@@ -39,7 +39,7 @@ export _show
 
 _show(x; maxdepth=2) = _show(stdout, x, maxdepth, "", "    ")
 
-const not_unrolling_typenames_in_show = [ "CellShape", "ModelEnv"  ]
+const not_unrolling_typenames_in_show = [ "CellShape", "Context"  ]
 
 function _show(io::IO, x, maxdepth::Int, indent::String="", tab::String="    ")
     T = typeof(x)

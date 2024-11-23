@@ -30,7 +30,7 @@ mutable struct MechLSInterface<:Mech
     props ::MechLSInterfaceProps
     active::Bool
     linked_elems::Array{Element,1}
-    env::ModelEnv
+    ctx::Context
 
     # specific fields
     cache_B   ::Array{Array{Float64,2}}
@@ -119,7 +119,7 @@ function mountB(elem::MechRSJoint, R, Ch, Ct)
     # I is a ndim x ndim identity matrix
 
 
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     hook = elem.linked_elems[1]
     bar  = elem.linked_elems[2]
     # nnodes  = length(elem.nodes)
@@ -152,7 +152,7 @@ end
 
 
 function elem_stiffness(elem::MechRSJoint)
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     nnodes = length(elem.nodes)
     p = elem.props.p
 
@@ -175,7 +175,7 @@ end
 
 
 function update_elem!(elem::MechRSJoint, U::Array{Float64,1}, Δt::Float64)
-    ndim   = elem.env.ndim
+    ndim   = elem.ctx.ndim
     nnodes = length(elem.nodes)
     p = elem.props.p
 

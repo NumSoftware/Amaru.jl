@@ -3,12 +3,12 @@
 export LinDrainPipe
 
 mutable struct LinDrainPipeState<:IpState
-    env::ModelEnv
+    ctx::Context
     V::Float64       # fluid velocity
     D::Float64       # distance traveled by the fluid
     uw::Float64      # pore pressure
-    function LinDrainPipeState(env::ModelEnv)
-        this = new(env)
+    function LinDrainPipeState(ctx::Context)
+        this = new(ctx)
         this.V  = 0.0
         this.D  = 0.0
         this.uw = 0.0
@@ -34,7 +34,7 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{LinDrainPipe}, ::Type{DrainPipe}, env::ModelEnv) = LinDrainPipeState
+compat_state_type(::Type{LinDrainPipe}, ::Type{DrainPipe}, ctx::Context) = LinDrainPipeState
 
 # Element types that work with this material
 # compat_elem_types(::Type{LinDrainPipe}) = (DrainPipe,)

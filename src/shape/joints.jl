@@ -114,7 +114,7 @@ const JLINK3 = MakeJLINK3()
 export JLINK3
 
 
-# TIPJOINT shape
+# TipContact shape
 
 
 function shape_func_TIPJOINT(R::AbstractArray{<:Float64,1})
@@ -129,7 +129,7 @@ end
 # constructor
 function MakeTIPJOINT()
     shape             = CellShape()
-    shape.name        = "TIPJOINT"
+    shape.name        = "TipContact"
     shape.family      = TIPJOINTCELL
     shape.ndim        = 0
     shape.npoints     = 1

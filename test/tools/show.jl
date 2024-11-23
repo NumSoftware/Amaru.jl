@@ -5,14 +5,15 @@ bl  = Block( [0 0; 1 1], nx=4, ny=4, cellshape=QUAD9, tag="solids")
 msh = Mesh(bl)
 
 mats = [ "solids" => MechSolid => LinearElastic => (E=100.0, nu=0.2) ]
-ana = MechAnalysis()
-model = FEModel(msh, mats, ana)
+ctx = MechContext()
+model = FEModel(msh, mats, ctx)
+ana = MechAnalysis(model)
 
 loggers = [
         :(x==1 && y==1) => NodeLogger("node.dat"),
         :(y==1)         => NodeGroupLogger("nodes.dat"),
        ]
-setloggers!(model, loggers)
+setloggers!(ana, loggers)
 
 
 bcs = [
@@ -20,8 +21,8 @@ bcs = [
         :(y==1) => SurfaceBC(ty=2),
       ]
 
-addstage!(model, bcs, nincs=3)
-solve!(model)
+addstage!(ana, bcs, nincs=3)
+solve!(ana)
 
 table = DataTable("node.dat")
 book  = DataBook("nodes.dat")

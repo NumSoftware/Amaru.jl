@@ -18,23 +18,24 @@ save(msh, "mesh.vtk")
 # fem domain
 mat = [ :bulks => MechShell => VonMises => (E=E, nu=nu, fy=fy, H=H, thickness=th) ]
 
-ana = MechAnalysis()
-model = FEModel(msh, mat, ana)
+ctx = MechContext()
+model = FEModel(msh, mat, ctx)
+ana = MechAnalysis(model)
 
 log = NodeLogger()
-addlogger!(model, :(y==$h/2 && x==1) => log)
-addmonitor!(model, :(y==$h/2 && x==1) => NodeMonitor(:fy))
+addlogger!(ana, :(y==$h/2 && x==1) => log)
+addmonitor!(ana, :(y==$h/2 && x==1) => NodeMonitor(:fy))
 
 # boundary conditions
 bcs = [
     x==0 => NodeBC(ux=0, rx=0, ry=0, rz=0),
-    and(x==0, y==h/2) => NodeBC(uy=0),
-    and(x==1.0, y==h/2) => NodeBC(uy = -0.08),
+    (x==0, y==h/2) => NodeBC(uy=0),
+    (x==1.0, y==h/2) => NodeBC(uy = -0.08),
 ]
 
-addstage!(model, bcs, nincs=30, nouts=10)
+addstage!(ana, bcs, nincs=30, nouts=10)
 
-solve!(model, autoinc=true)
+solve!(ana, autoinc=true)
 
 println(@test log.table.fy[end]≈-30 atol=0.4)
 

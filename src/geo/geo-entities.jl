@@ -23,8 +23,12 @@ mutable struct Point<:GeoEntity
 end
 
 
-function Point(p::Point)
-    Point(p.coord, p.size, id=p.id)
+# function Point(p::Point)
+#     Point(p.coord, p.size, id=p.id)
+# end
+
+function Base.copy(p::Point)
+    Point(p.coord, size=p.size, id=p.id)
 end
 
 

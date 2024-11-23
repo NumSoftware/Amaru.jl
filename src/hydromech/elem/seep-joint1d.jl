@@ -31,7 +31,7 @@ mutable struct SeepJoint1D<:Hydromech
     props ::SeepJoint1DProps
     active::Bool
     linked_elems::Array{Element,1}
-    env::ModelEnv
+    ctx::Context
 
     # specific fields
     uw_dofs   ::Array{Dof,1} # list of pore-pressure dofs
@@ -119,7 +119,7 @@ function elem_conductivity_matrix(elem::SeepJoint1D)
         Bp   = elem.cache_B[i]
         detJ = elem.cache_detJ[i]
 
-        coef = detJ*ip.w*(elem.mat.k/elem.env.ana.γw)*p
+        coef = detJ*ip.w*(elem.mat.k/elem.ctx.γw)*p
         H -= coef*Bp'*Bp
     end
 
@@ -166,7 +166,7 @@ function update_elem!(elem::SeepJoint1D, DU::Array{Float64,1}, Δt::Float64)
         detJ = elem.cache_detJ[i]
 
         # poropression difference between solid and drain
-        ΔFw = dot(Bp,Uw)/elem.env.ana.γw
+        ΔFw = dot(Bp,Uw)/elem.ctx.γw
         V = update_state!(elem.mat, ip.state, ΔFw, Δt)
 
         coef = Δt*detJ*ip.w*p

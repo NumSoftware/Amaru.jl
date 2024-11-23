@@ -3,16 +3,16 @@
 export LeakoffJoint
 
 mutable struct LeakoffJointState<:IpState
-    env  ::ModelEnv
+    ctx::Context
     V    ::Array{Float64,1} # fluid velocity
     #D    ::Array{Float64,1} # distance traveled by the fluid
     L    ::Array{Float64,1}
     #S    ::Array{Float64,1}
     uw   ::Array{Float64,1} # interface pore pressure
     h    ::Float64          # characteristic length from bulk elements
-    function LeakoffJointState(env::ModelEnv)
-        this     = new(env)
-        ndim     = env.ndim
+    function LeakoffJointState(ctx::Context)
+        this     = new(ctx)
+        ndim     = ctx.ndim
         this.V   = zeros(2)
         #this.D   = zeros(2)
         this.L   = zeros(ndim-1)
@@ -59,7 +59,7 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{LeakoffJoint}, ::Type{HydroJoint}, env::ModelEnv) = LeakoffJointState
+compat_state_type(::Type{LeakoffJoint}, ::Type{HydroJoint}, ctx::Context) = LeakoffJointState
 
 # Element types that work with this material
 # compat_elem_types(::Type{LeakoffJoint}) = (HydroJoint,)

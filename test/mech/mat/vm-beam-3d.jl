@@ -17,12 +17,13 @@ msh = Mesh(bl, ndim=3)
 # fem domain
 mat = [ :lines => MechBeam => VonMises => (E=E, nu=nu, fy=fy, H=H, thy=th, thz=h) ]
 
-ana = MechAnalysis()
-model = FEModel(msh, mat, ana)
+ctx = MechContext()
+model = FEModel(msh, mat, ctx)
+ana = MechAnalysis(model)
 
 log = NodeLogger()
-addlogger!(model, :(x==$L) => log)
-addmonitor!(model, :(x==$L) => NodeMonitor(:fz))
+addlogger!(ana, :(x==$L) => log)
+addmonitor!(ana, :(x==$L) => NodeMonitor(:fz))
 
 # boundary conditions
 bcs = [
@@ -30,9 +31,9 @@ bcs = [
     :(x==$L) => NodeBC(uz = -0.08),
 ]
 
-addstage!(model, bcs, nincs=30, nouts=1)
+addstage!(ana, bcs, nincs=30, nouts=1)
 
-solve!(model, autoinc=true)
+solve!(ana, autoinc=true)
 
 println(@test log.table.fz[end]≈-30 atol=5.0)
 

@@ -12,8 +12,8 @@ This function can be specialized by concrete types.
 function elem_config_dofs(elem::Mech)
     for node in elem.nodes
         add_dof(node, :ux, :fx)
-        elem.env.ndim>=2 && add_dof(node, :uy, :fy)
-        elem.env.ndim==3 && add_dof(node, :uz, :fz)
+        elem.ctx.ndim>=2 && add_dof(node, :uy, :fy)
+        elem.ctx.ndim==3 && add_dof(node, :uz, :fz)
     end
 end
 
@@ -35,7 +35,7 @@ Returns the mass matrix for `elem`.
 This function must be defined by each concrete type.
 """
 function elem_mass(elem::Mech)
-   ndim=elem.env.ndim
+   ndim=elem.ctx.ndim
    ndofs = length(elem.nodes)*ndim
    M = zeros(ndofs, ndofs)
    keys = (:ux, :uy, :uz)[1:ndim]

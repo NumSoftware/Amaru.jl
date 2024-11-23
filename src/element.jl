@@ -21,7 +21,7 @@ abstract type Element<:AbstractCell
     #mat   ::Properties
     #active::Bool
     #linked_elems::Array{Element,1}
-    #env ::ModelEnv
+    #ctx::Context
 end
 
 # @inline Base.:(<<)(a, b::Type{<:Element}) = return (a, b)
@@ -30,7 +30,7 @@ end
 # Function to create new concrete types filled with relevant information
 
 
-function new_element(etype::Type{<:Element}, shape::CellShape, nodes::Array{Node,1}, tag::String, env::ModelEnv)
+function new_element(etype::Type{<:Element}, shape::CellShape, nodes::Array{Node,1}, tag::String, ctx::Context)
     elem = etype()
     elem.id     = 0
     elem.shape  = shape
@@ -39,7 +39,7 @@ function new_element(etype::Type{<:Element}, shape::CellShape, nodes::Array{Node
     elem.tag    = tag
     elem.active = true
     elem.linked_elems = []
-    elem.env  = env
+    elem.ctx  = ctx
     return elem
 end
 
@@ -112,7 +112,7 @@ end
 # Get the element coordinates matrix
 function getcoords(elem::Element)
     nnodes = length(elem.nodes)
-    ndim   = elem.env.ndim
+    ndim   = elem.ctx.ndim
     return [ elem.nodes[i].coord[j] for i in 1:nnodes, j=1:ndim]
 end
 
@@ -133,7 +133,7 @@ function setquadrature!(elem::Element, n::Int=0)
         w = ipc[i].w
         elem.ips[i] = Ip(R, w)
         elem.ips[i].id = i
-        elem.ips[i].state = compat_state_type(typeof(elem.mat), typeof(elem), elem.env)(elem.env)
+        elem.ips[i].state = compat_state_type(typeof(elem.mat), typeof(elem), elem.ctx)(elem.ctx)
         elem.ips[i].owner = elem
     end
 

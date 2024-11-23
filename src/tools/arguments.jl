@@ -308,16 +308,16 @@ function docstring(fparams)
         push!(desc, "# Positional arguments:\n")
         for item in PsInfos
             str = "- `$(item.key)` "
-            str = str*": $(item.desc)"
+            str = str*": $(item.desc)."
             
             # condition
             if item.cond != :()
-                str = str*" ($(item.cond))"
+                str = str*" Requires $(item.cond)."
             end
 
             # suitable values
             if length(item.values)>0
-                str = str*", any of "*join(repr.(item.values), ", ", " and ")
+                str = str*" Any of "*join(repr.(item.values), ", ", " and ")*"."
             end
 
             push!(desc, str)
@@ -333,28 +333,28 @@ function docstring(fparams)
             # aliases
             if length(item.aliases)>0
                 str_aliases = [ "`"*string(alias)*"`" for alias in item.aliases ]
-                str = str*"(or "*join(str_aliases, ", ")*")"
+                str = str*"(or "*join(str_aliases, ", ")*")."
             end
-            str = str*": $(item.desc)"
+            str = str*": $(item.desc)."
 
             # condition
             if item.cond != :()
-                str = str*" ($(item.cond))"
+                str = str*" Requires $(item.cond)."
             end
 
             # suitable values
             if length(item.values)>0
-                str = str*", any of "*join(repr.(item.values), ", ", " and ")
+                str = str*" Any of "*join(repr.(item.values), ", ", " and ")*"."
             end
 
             # default
             if !ismissing(item.default)
-                str = str*". Default is $(repr(item.default))"
+                str = str*" Default is $(repr(item.default))."
             end
 
             # complement
             if item.complement != ""
-                str = str*". $(item.complement)"
+                str = str*" $(item.complement)."
             end
 
             push!(desc, str)

@@ -12,8 +12,8 @@ function gen_insets!(mesh::Mesh, subpath::SubPath)
     closed      = subpath.closed
     tag         = subpath.tag
     jointtag    = subpath.jointtag
-    tipjointtag = subpath.tipjointtag
-    tipjoint    = subpath.tipjoint
+    tiptag = subpath.tiptag
+    tips    = subpath.tips
     embedded    = subpath.embedded
     shape       = subpath.shape
 
@@ -32,12 +32,10 @@ function gen_insets!(mesh::Mesh, subpath::SubPath)
     # Initial conditions
     len = 1.0
 
-    firstnode = Node(startpoint(cmds[1]).coord)
+    firstnode = Node(cmds[1].points[1].coord)
     lastnode = nothing
     for cmd in cmds
-        if cmd isa MoveCmd
-            continue
-        end
+        cmd.key==:M && continue
 
         # find the initial element
         X0    = cmd(εn) # a little bit ahead from 0.0
@@ -149,17 +147,17 @@ function gen_insets!(mesh::Mesh, subpath::SubPath)
                     jntcell.linked_elems = [ccell, lcell]
 
                     # generate tip joints
-                    if first_segment && tipjoint in (:front, :both)
+                    if first_segment && tips in (:front, :both)
                         tip = P1
                         tipjointnodes = vcat(ccell.nodes, tip)
-                        tipjointcell = Cell(TIPJOINT, tipjointnodes, tag=tipjointtag)
+                        tipjointcell = Cell(tips, tipjointnodes, tag=tiptag)
                         tipjointcell.linked_elems = jntcell.linked_elems
                         push!(mesh.elems, tipjointcell)
                     end
-                    if last_segment && tipjoint in (:end, :both)
+                    if last_segment && tips in (:end, :both)
                         tip = P2
                         tipjointnodes = vcat(ccell.nodes, tip)
-                        tipjointcell = Cell(TIPJOINT, tipjointnodes, tag=tipjointtag)
+                        tipjointcell = Cell(tips, tipjointnodes, tag=tiptag)
                         tipjointcell.linked_elems = jntcell.linked_elems
                         push!(mesh.elems, tipjointcell)
                     end

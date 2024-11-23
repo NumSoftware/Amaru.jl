@@ -164,9 +164,9 @@ function readtex(text::String, rng::UnitRange{Int})
                 if name=="begin"
                     m = match(r"{\\[a-zA-Z]*\b}"m, text, pos)
                     pos += length(m.match)
-                    env = m.captures[1]
-                    opening = "\\begin{$env}"
-                    closing = "\\end{$env}"
+                    ctx = m.captures[1]
+                    opening = "\\begin{$ctx}"
+                    closing = "\\end{$ctx}"
                     rng = findclosure(opening, closing, text, pos)
                     xtex = readtex(text, rng.start+length(opening):rng.stop-length(closing))
                     xtex.name = "environment"

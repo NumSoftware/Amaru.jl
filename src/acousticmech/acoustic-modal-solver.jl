@@ -25,7 +25,7 @@ mutable struct AcousticModalAnalysis<:Analysis
 end
 
 
-function solve!(model::Model, ana::AcousticModalAnalysis; args...)
+function solve!(model::FEModel, ana::AcousticModalAnalysis; args...)
     name = "Solver for dynamic modal analyses"
     status = stage_iterator!(name, acoustic_modal_solver!, model; args...)
     return status
@@ -34,7 +34,7 @@ end
 
 acoustic_modal_solver_params = [
     FunInfo( :acoustic_modal_solver!, "Finds the frequencies and vibration modes of an acoustic system."),
-    ArgInfo( :model, "Model object"),
+    ArgInfo( :model, "FEModel object"),
     ArgInfo( :stage, "Stage object"),
     KwArgInfo( :nmodes, "Number of modes to be computed", 5),
     KwArgInfo( :quiet, "Flag to set silent mode", false),
@@ -42,13 +42,13 @@ acoustic_modal_solver_params = [
 @doc docstring(acoustic_modal_solver_params) acoustic_modal_solver!()
 
 
-function acoustic_modal_solver!(model::Model, stage::Stage; kwargs...)
+function acoustic_modal_solver!(model::FEModel, stage::Stage; kwargs...)
     args     = checkargs(kwargs, acoustic_modal_solver_params)
     nmodes    = args.nmodes
     quiet    = args.quiet
 
-    env = model.env
-    quiet || println(env.log, "Modal analysis for acoustic systems")
+    ctx = model.ctx
+    quiet || println(ctx.log, "Modal analysis for acoustic systems")
 
     # get dofs organized according to boundary conditions
     dofs, nu    = configure_dofs!(model, stage.bcs)
@@ -56,8 +56,8 @@ function acoustic_modal_solver!(model::Model, stage::Stage; kwargs...)
     ndofs       = length(dofs)
     model.ndofs = length(dofs)
     if !quiet
-        println(env.log, "unknown dofs: $nu")
-        println(env.info, "unknown dofs: $nu")
+        println(ctx.log, "unknown dofs: $nu")
+        println(ctx.info, "unknown dofs: $nu")
     end
 
     # setup quantities at dofs
@@ -94,10 +94,10 @@ function acoustic_modal_solver!(model::Model, stage::Stage; kwargs...)
     ω = λ.^0.5  # true frequencies
 
     update_output_data!(model)
-    save(model, joinpath(env.outdir, "$(env.outkey)-0.vtu"), quiet=true)
+    save(model, joinpath(ctx.outdir, "$(ctx.outkey)-0.vtu"), quiet=true)
 
-    model.env.inc = 1
-    model.env.ΔT  = 1.0
+    model.ctx.inc = 1
+    model.ctx.ΔT  = 1.0
     
     # save modes
     for i in 1:nmodes
@@ -106,10 +106,10 @@ function acoustic_modal_solver!(model::Model, stage::Stage; kwargs...)
         for (k,dof) in enumerate(dofs[1:nu])
             dof.vals[dof.name] = U[k]
         end
-        model.env.T = i/nmodes
-        model.env.out = i
+        model.ctx.T = i/nmodes
+        model.ctx.out = i
         update_output_data!(model)
-        save(model, joinpath(env.outdir, "$(env.outkey)-$i.vtu"), quiet=true)
+        save(model, joinpath(ctx.outdir, "$(ctx.outkey)-$i.vtu"), quiet=true)
     end
 
     # reset displacement values
@@ -117,8 +117,8 @@ function acoustic_modal_solver!(model::Model, stage::Stage; kwargs...)
         dof.vals[dof.name] = 0.0
     end
 
-    model.env.ana.freqs = ω
-    model.env.ana.modes = V
+    model.ctx.freqs = ω
+    model.ctx.modes = V
 
     return success()
 

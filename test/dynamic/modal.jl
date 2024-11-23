@@ -19,15 +19,15 @@ mesh = Mesh(geo)
 
 mats = [ :bulks => MechSolid => LinearElastic => (E=2e6, nu=0.2, rho=15.0) ]
 
-ana = MechModalAnalysis()
-
-model = Model(mesh, mats, ana)
+ctx = MechContext()
+model = FEModel(mesh, mats, ctx)
+ana = MechModalAnalysis(model)
 
 bcs = [
     :(y==0.0) => NodeBC(ux=0, uy=0)
 ]
 
-addstage!(model, bcs)
+addstage!(ana, bcs)
 
-solve!(model, quiet=false, nmods=5)
+solve!(ana, quiet=false, nmods=5)
 

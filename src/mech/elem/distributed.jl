@@ -1,8 +1,8 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 # Distributed natural boundary conditions for line elements
-function mech_line_distributed_forces(elem::Element, key::Symbol, val::Union{Real,Symbol,Expr})
-    ndim = elem.env.ndim
+function mech_line_distributed_forces(elem::Element, t::Float64, key::Symbol, val::Union{Real,Symbol,Expr})
+    ndim = elem.ctx.ndim
     suitable_keys = (:qx, :qy, :qz, :qn, :wx, :wy, :wz)
     isedgebc = key in (:qx, :qy, :qz, :qn) 
     
@@ -13,7 +13,7 @@ function mech_line_distributed_forces(elem::Element, key::Symbol, val::Union{Rea
 
     nodes  = elem.nodes
     nnodes = length(nodes)
-    t      = elem.env.t
+    # t      = elem.ctx.t
     A      = isedgebc ? 1.0 : elem.props.A
 
     # Calculate the elem coordinates matrix
@@ -73,9 +73,9 @@ end
 
 
 # Distributed natural boundary conditions for faces and edges of bulk elements
-function mech_boundary_forces(elem::Element, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
-    ndim  = elem.env.ndim
-    ana = elem.env.ana
+function mech_boundary_forces(elem::Element, facet::Cell, t::Float64, key::Symbol, val::Union{Real,Symbol,Expr})
+    ctx = elem.ctx
+    ndim  = ctx.ndim
     if ndim==2
         suitable_keys = (:qx, :qy, :qn, :tx, :ty, :tn)
     else
@@ -86,14 +86,14 @@ function mech_boundary_forces(elem::Element, facet::Cell, key::Symbol, val::Unio
     # Check keys
     key in suitable_keys || error("mech_boundary_forces: boundary condition $key is not applicable as distributed bc. Suitable keys are $(string.(suitable_keys))")
     key in (:tz,:qz) && ndim==2 && error("mech_boundary_forces: boundary condition $key is not applicable in a 2D analysis")
-    isedgebc && ana.stressmodel==:axisymmetric && error("mech_boundary_forces: boundary condition $key is not applicable in a axisymmetric analysis")
+    isedgebc && ctx.stressmodel==:axisymmetric && error("mech_boundary_forces: boundary condition $key is not applicable in a axisymmetric analysis")
     isedgebc && facet.shape.ndim==2 && error("mech_boundary_forces: boundary condition $key is not applicable on surfaces")
     !isedgebc && facet.shape.ndim==1 && ndim==3 && error("mech_boundary_forces: boundary condition $key is not applicable on 3D edges")
 
-    th     = isedgebc ? 1.0 : ana.thickness
+    th     = isedgebc ? 1.0 : ctx.thickness
     nodes  = facet.nodes
     nnodes = length(nodes)
-    t      = elem.env.t
+    # t      = elem.ctx.t
 
     # Calculate the facet coordinates 
     C = getcoords(nodes, ndim)
@@ -118,7 +118,7 @@ function mech_boundary_forces(elem::Element, facet::Cell, key::Symbol, val::Unio
             x, y = X
             vip = evaluate(val, t=t, x=x, y=y)
             Q = zeros(2)
-            ana.stressmodel==:axisymmetric && (th = 2*pi*X[1])
+            ctx.stressmodel==:axisymmetric && (th = 2*pi*X[1])
         else
             x, y, z = X
             vip = evaluate(val, t=t, x=x, y=y, z=z)
@@ -155,8 +155,8 @@ end
 
 # Body forces for bulk elements
 function mech_solid_body_forces(elem::Element, key::Symbol, val::Union{Real,Symbol,Expr})
-    ndim  = elem.env.ndim
-    th    = elem.env.ana.thickness
+    ndim  = elem.ctx.ndim
+    th    = elem.ctx.thickness
     suitable_keys = (:wx, :wy, :wz)
 
     # Check keys
@@ -165,7 +165,7 @@ function mech_solid_body_forces(elem::Element, key::Symbol, val::Union{Real,Symb
 
     nodes  = elem.nodes
     nnodes = length(nodes)
-    t      = elem.env.t
+    # t      = elem.ctx.t
 
     # Calculate the elem coordinates matrix
     C = getcoords(nodes, ndim)
@@ -188,12 +188,12 @@ function mech_solid_body_forces(elem::Element, key::Symbol, val::Union{Real,Symb
 
         if ndim==2
             x, y = X
-            vip = evaluate(val, t=t, x=x, y=y)
+            vip = evaluate(val, x=x, y=y)
             Q = zeros(2)
-            elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*X[1])
+            elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*X[1])
         else
             x, y, z = X
-            vip = evaluate(val, t=t, x=x, y=y, z=z)
+            vip = evaluate(val, x=x, y=y, z=z)
             Q = zeros(3)
         end
 
@@ -228,5 +228,5 @@ function mech_shell_body_forces(elem::Element, key::Symbol, val::Union{Real,Symb
     val    = val/elem.mat.th
 
     # return mech_shell_boundary_forces(elem, elem.faces[1], newkey, val)
-    return distributed_bc(elem.faces[1], newkey, val, elem.env, elem.env.ana)
+    return distributed_bc(elem.faces[1], newkey, val, elem.ctx, elem.ctx)
 end

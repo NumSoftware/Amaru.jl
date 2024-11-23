@@ -12,7 +12,7 @@ function elem_config_dofs(elem::Hydromech)
         add_dof(node, :uw, :fw)
         add_dof(node, :ux, :fx)
         add_dof(node, :uy, :fy)
-        elem.env.ndim==3 && add_dof(node, :uz, :fz)
+        elem.ctx.ndim==3 && add_dof(node, :uz, :fz)
     end
 end
 

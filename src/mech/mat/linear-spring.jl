@@ -3,9 +3,9 @@
 export ElasticSpring
 
 mutable struct ElasticSpringState<:IpState
-    env::ModelEnv
-    function ElasticSpringState(env::ModelEnv)
-        return new(env)
+    ctx::Context
+    function ElasticSpringState(ctx::Context)
+        return new(ctx)
     end
 end
 

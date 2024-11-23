@@ -1,4 +1,4 @@
-# Model and data plotting
+<!-- # Model and data plotting
 
 ### mplot
 
@@ -10,4 +10,4 @@ mplot
 
 ```@docs
 cplot
-```
+``` -->

@@ -38,8 +38,10 @@ msh   = Mesh(bl, ndim=3)
 
 mats  = [ "beam" => MechBeam => LinearElastic => (E=1e4, nu=0, thy=0.1, thz=0.1) ]
 # mats  = [ "beam" => MechBeam => ElasticBeam => (E=1e4, nu=0, A=0.01) ]
-ana = MechAnalysis()
-model = FEModel(msh, mats, ana)
+
+ctx = MechContext()
+model = FEModel(msh, mats, ctx)
+ana = MechAnalysis(model)
 
 # changequadrature!(model.elems, 3)
 
@@ -49,12 +51,12 @@ monitors = [
     :(x==0) => NodeMonitor(:(fz))
     :(x==1) => NodeMonitor(:(uz))
 ]
-setmonitors!(model, monitors)
+setmonitors!(ana, monitors)
 
 bcs =
 [
    :(x==0) => NodeBC(rx=0, ry=0, rz=0, ux=0, uy=0, uz=0),
    :(x==1) => NodeBC(fx=1, fz=2),
 ]
-addstage!(model, bcs)
-solve!(model, quiet=false)
+addstage!(ana, bcs)
+solve!(ana, quiet=false)

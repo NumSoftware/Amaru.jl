@@ -3,96 +3,188 @@
 export CSCP
 
 CSCP_params = [
-    FunInfo(:CSCP, "Closed surface concrete plasticity model"),
+    FunInfo(:CSCP, "Closed surface concrete plasticity"),
     KwArgInfo(:E, "Young's modulus", cond=:(E>0)),
     KwArgInfo(:nu, "Poisson's ratio", cond=:(nu>=0)),
-    KwArgInfo(:ft, "Tensile strength", cond=:(ft>0)),
-    KwArgInfo(:fc, "Compressive strength", cond=:(fc<0)),
-    KwArgInfo(:fb, "Biaxial compressive strength", cond=:(fb<0)),
-    KwArgInfo(:ft_fun, "Plastic function for ft", nothing),
-    KwArgInfo(:fc_fun, "Plastic function for fc", nothing),
-    KwArgInfo(:fic_fun, "Plastic function for fic", nothing),
+    # KwArgInfo(:e, "Excentricity", nothing, cond=:(1>=e>0.50)),
+    KwArgInfo(:alpha, "Curvature coefficient", 1.5, cond=:(1.0<alpha<=2.5)),
+    KwArgInfo(:beta, "Factor to get fb from fc_max", 1.15, cond=:(1<=beta<=1.5)),
+    KwArgInfo(:fc, "Compressive strength OR plastic curve for fc as a function of εpc", nothing),
+    KwArgInfo(:ft, "Tensile strength OR plastic curve for ft as a function of w", nothing),
+    KwArgInfo(:pmin, "Elastic limit for p under compression OR plastic curve for p as a function of εv", nothing),
+    KwArgInfo(:GF, "Tensile fracture energy (only used if ft is a number)", nothing, cond=:(GF>0)),
 ]
+
 
 mutable struct CSCP<:Material
     E::Float64
     ν::Float64
-    e::Float64  # eccentricity of the yield surface
+    e::Float64
+    α::Float64
     ft_fun::Union{Nothing,PathFunction}
     fc_fun::Union{Nothing,PathFunction}
-    fic_fun::Union{Nothing,PathFunction}
+    p_fun::Union{Nothing,PathFunction}
+    f̄c::Float64
+    fb::Float64
 
     function CSCP(; kwargs...)
         args = checkargs(kwargs, CSCP_params)
-        
-        fc_fun, ft_fun, fic_fun = args.fc_fun, args.ft_fun, args.fic_fun
 
-        fc, fb, ft = abs(args.fc), abs(args.fb), args.ft
-        e  = (fc*fb - fc*ft + 3*fb*ft)/(2*fc*fb + ft*fc)
-        @assert 0<e<=1
+        ft_fun = args.ft isa PathFunction ? args.ft : PathFunction(:M, 0.0, args.ft)
+        fc_fun = args.fc isa PathFunction ? args.fc : PathFunction(:M, 0.0, args.fc)
+        p_fun  = args.pmin isa PathFunction ? args.pmin : PathFunction(:M, 0.0, args.pmin)
 
-        this = new(args.E, args.nu, e, ft_fun, fc_fun, fic_fun)
+        GF = args.GF
+        ft = args.ft
+        if !isnothing(GF) && ft isa Number
+            ft_fun = PathFunction(:M, 0.0, ft)
+            wc = GF/(0.1947*ft)
+            W  = range(wc/10, wc, 10)
+            for w in W
+                z = (1 + 27*(w/wc)^3)*exp(-6.93*w/wc) - 28*(w/wc)*exp(-6.93)           
+                append!(ft_fun, :L, w, ft*max(z,0.0))
+            end
+            # @show ft_fun
+            # error()
+        end
+
+        # fc peak
+        εpc_vals = range(0, fc_fun.points[end][1], 100)
+        fc_vals  = fc_fun.(εpc_vals)
+        fc_peak, _ = findmin(fc_vals) # index at peak value
+
+        α = args.alpha
+        β = args.beta
+
+        # value of e to match fb
+        e = β/(2*β)^(1/α)
+
+        @show e
+
+        f̄c = abs(fc_peak)
+        fb = args.beta*fc_peak
+
+        @show f̄c
+
+        this = new(args.E, args.nu, e, α, ft_fun, fc_fun, p_fun, f̄c, fb)
         return this
     end
 end
 
 
 mutable struct CSCPState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ::Vec6
     ε::Vec6
-    εp::Float64
+    εpc::Float64
+    εpt::Float64
     Δλ::Float64
-    function CSCPState(env::ModelEnv)
-        this = new(env)
+    h::Float64
+    function CSCPState(ctx::Context)
+        this     = new(ctx)
         this.σ   = zeros(Vec6)
         this.ε   = zeros(Vec6)
-        this.εp = 0.0
-        this.Δλ  = 0.0
+        this.εpc = 0.0
+        this.εpt = 0.0
+        this.Δλ = 0.0
+        this.h  = 0.0
         this
     end
 end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{CSCP}, ::Type{MechSolid}, env::ModelEnv) = env.ana.stressmodel!=:planestress ? CSCPState : error("CSCP: This model is not compatible with planestress")
+compat_state_type(::Type{CSCP}, ::Type{MechSolid}, ctx::Context) = ctx.stressmodel!=:planestress ? CSCPState : error("CSCP: This model is not compatible with planestress")
 
 
-function calc_r(mat::CSCP, σ::Vec6)
-    e = mat.e
-    j2, j3 = J2(σ), J3(σ)
-
-    norm_s = √(2*j2)
-    det_s  = j3
-    θ      = 1/3*acos( clamp(3*√6*det_s/norm_s^3, -1.0, 1.0) )
-    rnum   = 2*(1-e^2)*cos(θ) + (2*e-1)*√(4*(1-e^2)*cos(θ)^2 + 5*e^2 - 4*e)
-    rden   = 4*(1-e^2)*cos(θ)^2 + (2*e-1)^2
-    r      = rnum/rden
-    return r
+function calc_θ(::CSCP, σ::Vec6)
+    j2 = J2(σ)
+    if j2==0.0
+        θ = 0.0
+    else
+        norm_s = √(2*j2)
+        det_s  = J3(σ)
+        θ      = 1/3*acos( clamp(3*√6*det_s/norm_s^3, -1.0, 1.0) )
+    end
+    return θ
 end
 
 
-function yield_func(mat::CSCP, σ::AbstractArray, εp::Float64)
+function calc_rθ(mat::CSCP, σ::Vec6)
     e = mat.e
+    θ = calc_θ(mat, σ)
+
+    rnum   = 2*(1-e^2)*cos(θ) + (2*e-1)*√(4*(1-e^2)*cos(θ)^2 + 5*e^2 - 4*e)
+    rden   = 4*(1-e^2)*cos(θ)^2 + (2*e-1)^2
+    r      = rnum/rden
+
+    return r
+end
+
+function calc_rξ(mat::CSCP, ξb::Float64, ξ::Float64)
+    α  = mat.α
+    f̄c = mat.f̄c
+
+    return spow((ξb-ξ)/f̄c, 1/α)
+end
+
+function calc_rc(mat::CSCP, ξa::Float64, ξ::Float64)
+    ξi = 2*mat.fb/√3
+    ξ>=ξi && return 1.0
+    ξ<ξa  && return 0.0
+    return √(1 - ((ξi-ξ)/(ξi-ξa))^2)
+end
+
+
+function calc_ξa_ξb_κ(mat::CSCP, state::CSCPState, εpc::Float64, εpt::Float64)
+    α  = mat.α
+    e  = mat.e
+    f̄c = mat.f̄c
+
+    w = εpt*state.h
+    ft = mat.ft_fun(w)
+    fc = mat.fc_fun(εpc)
+
+    ξa = √3*mat.p_fun(√3*εpc)    # ξ = √3p ;  εv = √3*εpc in isotropic compression
+    @assert ξa<0
+    @assert ξa<fc/√3
+
+    Ω  = (-ft/(fc*e))^α
+    ξb = 1/√3*(fc*Ω - ft)/(Ω-1)
+    @assert ξb>=0
+
+    κ  = -√(2/3)*fc*((ξb-fc/√3)/f̄c)^(-1/α)
+    @assert κ>0
+
+    return return ξa, ξb, κ
+end
+
+
+function yield_func(mat::CSCP, state::CSCPState, σ::AbstractArray, εpc::Float64, εpt::Float64)
+    # f(σ) = ρ - rθ⋅rc⋅rξ⋅κ
+
+    α = mat.α
+    f̄c = mat.f̄c
+
     i1, j2 = tr(σ), J2(σ)
 
     ξ = i1/√3
     ρ = √(2*j2)
-    r = calc_r(mat, σ)
 
-    fc = mat.fc_fun(εp)
-    ft = mat.ft_fun(εp)
-    ξa = √3*mat.fic_fun(εp)
-    Ω  = √((ft-√3*ξa)/(fc-√3*ξa))
-    ξb = fc*ft/√3 * (1+e*Ω)/(ft+fc*e*Ω)
-    c  = (fc/√3-ξa)*(fc/√3-ξb)^2/(2/3*fc^2)
+    ξa, ξb, κ = calc_ξa_ξb_κ(mat, state, εpc, εpt)
+    rθ = calc_rθ(mat, σ)
+    rc = calc_rc(mat, ξa, ξ)
+    rξ = calc_rξ(mat, ξb, ξ)
 
-    return ρ^2 - r/c*(ξ-ξa)*(ξ-ξb)^2
+    return ρ - rθ*rc*rξ*κ
 end
 
 
-function yield_derivs(mat::CSCP, σ::AbstractArray, εp::Float64)
+function yield_derivs(mat::CSCP, state::CSCPState, σ::AbstractArray, εpc::Float64, εpt::Float64)
     e = mat.e
+    α = mat.α
+    f̄c = mat.f̄c
+
     i1, j2 = tr(σ), J2(σ)
 
     ρ = √(2*j2)
@@ -105,13 +197,13 @@ function yield_derivs(mat::CSCP, σ::AbstractArray, εp::Float64)
     norm_s = ρ
 
     # θ and derivatives
-    θ       = 1/3*acos( clamp(3*√6*det_s/norm_s^3, -1.0, 1.0) )
-    rnum    = 2*(1-e^2)*cos(θ) + (2*e-1)*√(4*(1-e^2)*cos(θ)^2 + 5*e^2 - 4*e)
-    rden    = 4*(1-e^2)*cos(θ)^2 + (2*e-1)^2
-    r       = rnum/rden
-    drnumdθ = (2*sin(2*θ)*(2*e-1)*(e^2-1))/√(4*(1-e^2)*cos(θ)^2 + 5*e^2 - 4*e) - 2*(1 - e^2)*sin(θ)
-    drdendθ = 4*sin(2*θ)*(e^2-1)
-    drdθ    = (drnumdθ*rden - rnum*drdendθ)/rden^2
+    θ        = 1/3*acos( clamp(3*√6*det_s/norm_s^3, -1.0, 1.0) )
+    rnum     = 2*(1-e^2)*cos(θ) + (2*e-1)*√(4*(1-e^2)*cos(θ)^2 + 5*e^2 - 4*e)
+    rden     = 4*(1-e^2)*cos(θ)^2 + (2*e-1)^2
+    rθ       = rnum/rden
+    drθnumdθ = (2*sin(2*θ)*(2*e-1)*(e^2-1))/√(4*(1-e^2)*cos(θ)^2 + 5*e^2 - 4*e) - 2*(1 - e^2)*sin(θ)
+    drθdendθ = 4*sin(2*θ)*(e^2-1)
+    drθdθ    = (drθnumdθ*rden - rnum*drθdendθ)/rden^2
 
     if 1-abs(cos(3*θ)) > 1e-6 # condition to avoid division by zero
         dθds = -√6*(adj_s/ρ^3 - 3*s*det_s/ρ^5)/√abs(1 - 54*det_s^2/ρ^6)
@@ -119,244 +211,183 @@ function yield_derivs(mat::CSCP, σ::AbstractArray, εp::Float64)
         dθds = 0.0*I2
     end
 
-    # @show εp
+    ξa, ξb, κ = calc_ξa_ξb_κ(mat, state, εpc, εpt)
+    # ξ = ξb
 
-    fc = mat.fc_fun(εp)
-    ft = mat.ft_fun(εp)
-    ξa = √3*mat.fic_fun(εp)
-    Ω  = √((ft-√3*ξa)/(fc-√3*ξa))
-    ξb = fc*ft/√3 * (1+e*Ω)/(ft+fc*e*Ω)
-    c  = (fc/√3-ξa)*(fc/√3-ξb)^2/(2/3*fc^2)
-    
+    ξi = 2*mat.fb/√3
+    rc = calc_rc(mat, ξa, ξ)
+    rξ = calc_rξ(mat, ξb, ξ)
+
     # f derivative w.r.t. σ:
-
-    dfdρ = 2*ρ
-    dfdξ = -r/c*((ξ-ξb)^2 + 2*(ξ-ξa)*(ξ-ξb))
-    dfdr = -1/c*(ξ-ξa)*(ξ-ξb)^2
-    dfdθ = dfdr*drdθ
+    dfdρ  = 1
+    dfdrc = -rθ*rξ*κ
+    dfdrξ = -rθ*rc*κ
+    drcdξ = ξa<ξ<ξi ? (ξi-ξ)/(ξi-ξa)^2/√(1-((ξi-ξ)/(ξi-ξa))^2) : 0.0
+    drξdξ = ξb-ξ!=0.0 ? -1/(α*f̄c)*abs((ξb-ξ)/f̄c)^(1/α-1) : 0.0
+    # drξdξ = -1/(α*f̄c)*abs((ξb-ξ)/f̄c)^(1/α-1) 
+    dfdξ  = dfdrc*drcdξ + dfdrξ*drξdξ
+    dfdrθ = -rc*rξ*κ
+    dfdθ  = dfdrθ*drθdθ
 
     dρdσ = s/norm(s)
     dξdσ = √3/3*I2
     dsdσ = Psd
     dθdσ = dsdσ*dθds
+
+    if ρ==0 # apex
+        dfdσ = √3/3*I2
+    else
+        dfdσ = dfdρ*dρdσ + dfdξ*dξdσ + dfdθ*dθdσ
+    end
     
-    dfdσ = dfdρ*dρdσ + dfdξ*dξdσ + dfdθ*dθdσ
-
-    # f derivative w.r.t. ξa and ξb:
-    # f = ρ^2 - r*h/c
+    f_εpc  = εpc -> yield_func(mat, state, σ, εpc, εpt)
+    dfdεpc = derive(f_εpc, εpc)
     
-    # h = -r*(ξ-ξa)*(ξ-ξb)^2
-    
-    # dhdξa = r*(ξ-ξb)^2
-    # dcdξa = -(fc/√3-ξb)^2/(2/3*fc^2)
-    # dfdξa = (dhdξa*c - h*dcdξa)/c^2
-    
-    # dhdξb = 2*r*(ξ-ξa)*(ξ-ξb)
-    # dcdξb = -2*(fc/√3-ξa)*(fc/√3-ξb)/(2/3*fc^2)
-    # dfdξb = (dhdξb*c - h*dcdξb)/c^2
+    f_εpt  = εpt -> yield_func(mat, state, σ, εpc, εpt)
+    dfdεpt = derive(f_εpt, εpt)
 
-    # f_ξa = ξa -> begin
-    #     c = (fc/√3-ξa)*(fc/√3-ξb)^2/(2/3*fc^2)
-    #     return ρ^2 - r/c*(ξ-ξa)*(ξ-ξb)^2
-    # end
-    # f_ξb = ξb -> begin 
-    #     c = (fc/√3-ξa)*(fc/√3-ξb)^2/(2/3*fc^2)
-    #     ρ^2 - r/c*(ξ-ξa)*(ξ-ξb)^2
-    # end
-    # dfdξa = derive(f_ξa, ξa)
-    # dfdξb = derive(f_ξb, ξb)
-
-    # dξadεp = √3*derive(mat.fic_fun, εp)
-
-    # ξb_εp = εp -> begin
-    #     fc = mat.fc_fun(εp)
-    #     ft = mat.ft_fun(εp)
-        
-    #     Ω  = √((ft-√3*ξa)/(fc-√3*ξa))
-        
-    #     ξb = fc*ft/√3 * (1-e*Ω)/(ft-fc*e*Ω)
-    #     return ξb
-    # end
-    # dξbdεp = derive(ξb_εp, εp)
-
-
-    f_εp = εp -> yield_func(mat, σ, εp)
-
-    dfdεp = derive(f_εp, εp)
-
-    # dfdεp = dfdξa*dξadεp + dfdξb*dξbdεp
-
-    # @show dfdξa
-    # @show dξadεp
-    # @show dfdξb
-    # @show dξbdεp
-    # @show εp
-
-    # @show dfdεp
-
-    return dfdσ, dfdεp
+    return dfdσ, dfdεpc, dfdεpt
 end
 
 
-function potential_derivs(mat::CSCP, σ::AbstractArray, εp::Float64)
-    # g(σ) = ρ^2 - 1/c*(ξ-ξa)*(ξ-ξb)^2
+function potential_derivs(mat::CSCP, state::CSCPState, σ::AbstractArray, εpc::Float64, εpt::Float64)
+    # f(σ) = ρ - e⋅rc⋅rξ⋅κ
 
-    e = mat.e
-    i1= tr(σ)
-    ξ = i1/√3
+    e  = mat.e
+    α  = mat.α
+    f̄c = mat.f̄c
 
+    i1 = tr(σ)
+    ξ  = i1/√3
     s  = dev(σ)
-    fc = mat.fc_fun(εp)
-    ft = mat.ft_fun(εp)
 
-    ξa = √3*mat.fic_fun(εp)
-    Ω  = √((ft-√3*ξa)/(fc-√3*ξa))
-    ξb = fc*ft/√3 * (1+e*Ω)/(ft+fc*e*Ω)
+    ξa, ξb, κ = calc_ξa_ξb_κ(mat, state, εpc, εpt)
 
-    c  = (fc/√3-ξa)*(fc/√3-ξb)^2/(2/3*fc^2)
+    ξi = 2*mat.fb/√3
+    rc = calc_rc(mat, ξa, ξ)
+    rξ = calc_rξ(mat, ξb, ξ)
+    
+    dgdrc = -e*rξ*κ
+    dgdrξ = -e*rc*κ
+    drcdξ = ξa<ξ<ξi ? (ξi-ξ)/(ξi-ξa)^2/√(1-((ξi-ξ)/(ξi-ξa))^2) : 0.0
+    drξdξ = ξb-ξ!=0.0 ? -1/(α*f̄c)*abs((ξb-ξ)/f̄c)^(1/α-1) : 0.0
+    dgdξ  = dgdrc*drcdξ + dgdrξ*drξdξ
+    
+    dξdσ = √3/3*I2
+    ρ    = norm(s)
+    dgdρ = 1.0
 
-    dgdσ = s - 1/c*((ξ-ξb)^2 + 2(ξ-ξa)*(ξ-ξb))*√3/3*I2
+    # if ξ>ξb && (ξ-ξb)*dgdξ > ρ*dgdρ  # apex
+    #     # @show "hi"
+    #     dgdσ = ξb*I2 - σ
+
+    # else
+    #     dgdσ = s/ρ + dgdξ*dξdσ
+    # end
+    dgdσ = s/ρ + dgdξ*dξdσ
     return dgdσ
 
 end
 
 
 function calcD(mat::CSCP, state::CSCPState)
-    De  = calcDe(mat.E, mat.ν, state.env.ana.stressmodel)
+    De  = calcDe(mat.E, mat.ν, state.ctx.stressmodel)
 
     state.Δλ==0.0 && return De
 
-    j2 = J2(state.σ)
+    dfdσ, dfdεpc, dfdεpt = yield_derivs(mat, state, state.σ, state.εpc, state.εpt)
+    dgdσ = potential_derivs(mat, state, state.σ, state.εpc, state.εpt)
 
-    if j2 != 0.0
-        dfdσ, dfdεp = yield_derivs(mat, state.σ, state.εp)
-        dgdσ = potential_derivs(mat, state.σ, state.εp)
-    else # apex
-        dfdσ = √3/3*I2
-        dgdσ = dfdσ
-    end
-
-    Dep = De - De*dgdσ*dfdσ'*De / (dfdσ'*De*dgdσ - dfdεp*norm(dgdσ))
+    Λ = eigvals(dgdσ, sort=false)
+    # Dep = De - De*dgdσ*dfdσ'*De / (dfdσ'*De*dgdσ - dfdεpc*norm(min.(0.0, Λ)) - dfdεpt*norm(max.(0.0, Λ)))
+    Dep = De - De*dgdσ*dfdσ'*De / (dfdσ'*De*dgdσ - dfdεpc*norm(min.(0.0, Λ)) - dfdεpt*maximum(max.(0.0, Λ)))
     return Dep
-
 end
 
 
 function calc_σ_εp_Δλ(mat::CSCP, state::CSCPState, σtr::Vec6)
 
-    maxits = 10
-    tol    = 1e-3
-    dgdσ   = potential_derivs(mat, state.σ, state.εp)
-    De     = calcDe(mat.E, mat.ν, state.env.ana.stressmodel)
-    Δλ     = norm(σtr-state.σ)/norm(De*dgdσ)
+    maxits = 40
+    maxits = 60
+    tol    = 1.0
+    dgdσ   = potential_derivs(mat, state, state.σ, state.εpc, state.εpt)
+    De     = calcDe(mat.E, mat.ν, state.ctx.stressmodel)
+    # Δλ     = norm(σtr-state.σ)/norm(De*dgdσ)/10
+    Δλ     = eps()
 
-    @show σtr
+    σ  = σtr - Δλ*(De*dgdσ)
 
-
+    εpc = state.εpc
+    εpt = state.εpt
+    f   = yield_func(mat, state, state.σ, state.εpc, state.εpt)
+    η   = 1.0 # initial damping
+    
     # iterative process
     for i in 1:maxits
-        println()
-        @show i
-        σ    = σtr
-        dgdσ = I2
-        εp   = state.εp
+        dfdσ, _ = yield_derivs(mat, state, σ, εpc, εpt)
+        dgdσ    = potential_derivs(mat, state, σ, εpc, εpt)
 
-        f_Δλ = Δλ -> begin
-            @show Δλ
-            for j in 1:8
-                @show j
-                dgdσ = potential_derivs(mat, σ, εp)
-                σ = σtr - Δλ*(De*dgdσ)
-                @show dgdσ
-                @show Δλ*(De*dgdσ)
-                @show σ
-            end
-            println()
-            @show εp
-            @show Δλ
-            @show σ
-            εp = state.εp + Δλ*norm(dgdσ)
-            yield_func(mat, σ, εp)
+        dfdΔλ = -dfdσ'*De*dgdσ
+
+        Δλ = Δλ - η*f/dfdΔλ
+        if Δλ<0
+            # Δλ = abs(Δλ)
+            # @show Δλ
         end
 
+        isnan(Δλ) && return state.σ, 0.0, 0.0, 0.0, failure("CSCP: Δλ is NaN")
 
-        Δλ = Δλ - f_Δλ(Δλ)/derive(f_Δλ, Δλ)
-        @show Δλ
+        σ  = σtr - Δλ*(De*dgdσ)
+        # εp = state.εp + Δλ*norm(dgdσ)
 
-        error()
+        Λ   = eigvals(dgdσ, sort=false)
+        εpc = state.εpc + Δλ*norm(min.(0.0, Λ))
+        # εpt = state.εpt + Δλ*norm(max.(0.0, Λ))
+        εpt = state.εpt + Δλ*maximum(max.(0.0, Λ))
+        f   = yield_func(mat, state, σ, εpc, εpt)
 
-
-        if f_Δλ(Δλ) < tol
-            @assert Δλ >= 0.0
-            return σ, εp, Δλ, success()
+        if i>18
+            # @show i, Δλ, f
         end
+
+        if abs(f) < tol
+            Δλ < 0.0 && return σ, 0.0, 0.0, 0.0, failure("CSCP: negative Δλ")
+            return σ, εpc, εpt, Δλ, success()
+        end
+
+        # dumping
+        i>10 && (η = 0.6)
+        i>15 && (η = 0.3)
+        # i>20 && (η = 0.15)
     end
 
-    return state.σ, 0.0, 0.0, failure("CSCP: maximum iterations reached")
 
+    return state.σ, 0.0, 0.0, 0.0, failure("CSCP: maximum iterations reached")
 end
 
 
 function update_state!(mat::CSCP, state::CSCPState, Δε::AbstractArray)
     σini = state.σ
-    De   = calcDe(mat.E, mat.ν, state.env.ana.stressmodel)
-    σtr  = state.σ + De*Δε
-    ftr  = yield_func(mat, σtr, state.εp)
-    Δλ = 0.0
+    De   = calcDe(mat.E, mat.ν, state.ctx.stressmodel)
+    Δσtr = De*Δε
+    σtr  = state.σ + Δσtr
+    ftr  = yield_func(mat, state, σtr, state.εpc, state.εpt)
 
-    if ftr < 1e-8
+    Δλ  = 0.0
+    tol = 1.0
+    # @show Δε
+    # @show ftr
+    # @show ftr
+    # @show ftr
+    # error()
+
+    if ftr < tol
         # elastic
         state.Δλ = 0.0
         state.σ  = σtr
     else
-        # plastic
-        # σ, εp, Δλ, status = calc_σ_εp_Δλ(mat, state, σtr)
-        # failed(status) && return state.σ, status
-        
-        # state.σ, state.εp, state.Δλ = σ, εp, Δλ
-
-        nsteps = 10
-        ΔΔε = Δε/nsteps
-        for i in 1:nsteps
-            j2 = J2(state.σ)
-            
-            # Derivatives
-            if j2 != 0.0
-                dfdσ, dfdεp = yield_derivs(mat, state.σ, state.εp)
-                dgdσ = potential_derivs(mat, state.σ, state.εp)
-            else # apex
-                dfdσ = √3/3*I2
-                dgdσ = dfdσ
-            end
-
-            ΔΔσtr = De*ΔΔε
-            ftr = yield_func(mat, state.σ + ΔΔσtr, state.εp)
-
-            if ftr < 1e-8
-                ΔΔσ = ΔΔσtr
-                ΔΔεp = 0.0
-            else
-                Dep = De - De*dgdσ*dfdσ'*De / (dfdσ'*De*dgdσ - dfdεp*norm(dgdσ))
-                ΔΔσ = Dep*ΔΔε
-                if dfdεp!=0.0
-                    # ΔΔεp = -dot(dfdσ, ΔΔσ)/dfdεp
-                    Δλ = dot(dfdσ, ΔΔσ)/(-dfdεp*norm(dgdσ))
-                    # @show Δλ
-                    @assert Δλ >= 0.0
-                else
-                    Δλ = norm(ΔΔσtr-ΔΔσ)/norm(De*dgdσ)
-                    # @show Δλ
-                end
-                ΔΔεp = Δλ*norm(dgdσ)
-
-            end
-
-            state.σ += ΔΔσ
-            state.εp += ΔΔεp
-
-        end
-
-        state.Δλ = Δλ
+        state.σ, state.εpc, state.εpt, state.Δλ, status = calc_σ_εp_Δλ(mat, state, σtr)
+        failed(status) && return state.σ, status
     end
 
     state.ε += Δε
@@ -367,13 +398,35 @@ end
 
 function ip_state_vals(mat::CSCP, state::CSCPState)
     σ, ε  = state.σ, state.ε
-    ρ = √(2*J2(σ))
-    ξ = tr(σ)/√3
+    ρ  = √(2*J2(σ))
+    ξ  = tr(σ)/√3
+    θ  = calc_θ(mat, σ)
+    r  = calc_rθ(mat, σ)
+    
+    fc = mat.fc_fun(state.εpc)
+    ft = mat.ft_fun(state.εpt)
+    
+    ξa, ξb, κ = calc_ξa_ξb_κ(mat, state, state.εpc, state.εpt)
+    rc = calc_rc(mat, ξa, ξ)
+    rξ = calc_rξ(mat, ξb, ξ)
 
-    D       = stress_strain_dict(σ, ε, state.env.ana.stressmodel)
-    D[:ep]  = state.εp
-    D[:xi]  = ξ
-    D[:rho] = ρ
+    D = stress_strain_dict(σ, ε, state.ctx.stressmodel)
+
+    D[:epc]   = state.εpc
+    D[:ept]   = state.εpt
+    D[:xi]    = ξ
+    D[:rho]   = ρ
+    D[:theta] = θ
+    D[:fc]    = fc
+    D[:ft]    = ft
+    D[:xi_a]  = ξa
+    D[:xi_b]  = ξb
+    D[:kappa] = κ
+    D[:r]     = r
+    D[:rxi]   = rξ
+    D[:rc]    = rc
+    D[:xi_i]  =  2*mat.fb/√3
+    D[:fcb]   =  mat.f̄c
 
     return D
 end

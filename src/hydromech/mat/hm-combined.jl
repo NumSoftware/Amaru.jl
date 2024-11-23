@@ -2,11 +2,11 @@
 export HMCombined
 
 mutable struct HMCombinedState{S1,S2}<:IpState
-    env::ModelEnv
+    ctx::Context
     hstate::S1 # hydro
     mstate::S2 # mech
-    function HMCombinedState{S1,S2}(env=ModelEnv()) where {S1,S2}
-        return new{S1,S2}(env, S1(env), S2(env))
+    function HMCombinedState{S1,S2}(ctx=Context()) where {S1,S2}
+        return new{S1,S2}(ctx, S1(ctx), S2(ctx))
     end
 end
 
@@ -16,7 +16,7 @@ function Base.getproperty(state::HMCombinedState, s::Symbol)
     mstate = getfield(state, :mstate)
     s==:hstate && return hstate
     s==:mstate && return mstate
-    s==:env && return getfield(state, :env)
+    s==:ctx && return getfield(state, :ctx)
     fields1 = propertynames(hstate)
     fields2 = propertynames(mstate)
     s in fields1 && return getfield(hstate, s)
@@ -50,8 +50,8 @@ mutable struct HMCombined{M1,M2}<:Material
 end
 
 # Type of corresponding state structure
-compat_state_type(::Type{HMCombined{M1,M2}}, ::Type{HMSolid}, env::ModelEnv) where {M1,M2} = HMCombinedState{compat_state_type(M1,SeepSolid,env), compat_state_type(M2,MechSolid,env)} 
-compat_state_type(::Type{HMCombined{M1,M2}}, ::Type{HMJoint}, env::ModelEnv) where {M1,M2} = HMCombinedState{compat_state_type(M1,HydroJoint,env), compat_state_type(M2,MechJoint,env)} 
+compat_state_type(::Type{HMCombined{M1,M2}}, ::Type{HMSolid}, ctx::Context) where {M1,M2} = HMCombinedState{compat_state_type(M1,SeepSolid,ctx), compat_state_type(M2,MechSolid,ctx)} 
+compat_state_type(::Type{HMCombined{M1,M2}}, ::Type{HMJoint}, ctx::Context) where {M1,M2} = HMCombinedState{compat_state_type(M1,HydroJoint,ctx), compat_state_type(M2,MechJoint,ctx)} 
 
 # compat_elem_types(::Type{HMCombined{M1,M2}}) where {M1,M2} = (HMSolid, HMJoint)
 

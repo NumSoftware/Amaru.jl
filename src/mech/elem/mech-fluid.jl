@@ -35,7 +35,7 @@ mutable struct MechFluid<:Mech
     props ::MechFluidProps
     active::Bool
     linked_elems::Array{Element,1}
-    env   ::ModelEnv
+    ctx::Context
 
     function MechFluid()
         return new()
@@ -79,8 +79,8 @@ end
 
 
 function elem_stiffness(elem::MechFluid)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
 
     C = getcoords(elem)
@@ -115,8 +115,8 @@ end
 
 
 function elem_mass(elem::MechFluid)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     ρ = elem.props.ρ
     C = getcoords(elem)
@@ -125,7 +125,7 @@ function elem_mass(elem::MechFluid)
     J = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute N matrix
         Ni   = elem.shape.func(ip.R)
@@ -154,8 +154,8 @@ end
 
 
 function elem_internal_forces(elem::MechFluid)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     keys   = (:ux, :uy, :uz)[1:ndim]
     map    = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
@@ -168,7 +168,7 @@ function elem_internal_forces(elem::MechFluid)
 
     C = getcoords(elem)
     for ip in elem.ips
-        if elem.env.ana.stressmodel==:axisymmetric
+        if elem.ctx.stressmodel==:axisymmetric
             th = 2*pi*ip.coord.x
         end
 
@@ -189,8 +189,8 @@ end
 
 
 function update_elem!(elem::MechFluid, U::Array{Float64,1}, Δt::Float64)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     keys   = (:ux, :uy, :uz)[1:ndim]
     map    = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]

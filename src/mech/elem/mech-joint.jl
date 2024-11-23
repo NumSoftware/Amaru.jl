@@ -2,6 +2,12 @@
 
 export MechJoint
 
+MechJoint_params = [
+    FunInfo(:MechJoint, "An isoparametric joint/cohesive element"),
+    KwArgInfo(:rho, "Density", 0.0, cond=:(rho>=0.0)),
+    KwArgInfo(:gamma, "Specific weight", 0.0, cond=:(gamma>=0.0)),
+]
+@doc docstring(MechJoint_params) MechJoint
 struct MechJointProps<:ElemProperties
     function MechJointProps(; props...)
         return new()
@@ -10,7 +16,7 @@ end
 
 mutable struct MechJoint<:Mech
     id    ::Int
-    env::ModelEnv
+    ctx::Context
     shape ::CellShape
     nodes ::Array{Node,1}
     ips   ::Array{Ip,1}
@@ -99,8 +105,8 @@ end
 
 
 function elem_stiffness(elem::MechJoint)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     hnodes = div(nnodes, 2) # half the number of total nodes
     fshape = elem.shape.facet_shape
@@ -114,7 +120,7 @@ function elem_stiffness(elem::MechJoint)
     NN = zeros(ndim, nnodes*ndim)
 
     for ip in elem.ips
-    	if elem.env.ana.stressmodel==:axisymmetric
+    	if elem.ctx.stressmodel==:axisymmetric
             th = 2*pi*ip.coord.x
         end
         
@@ -151,8 +157,8 @@ end
 
 
 function update_elem!(elem::MechJoint, U::Array{Float64,1}, Δt::Float64)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     hnodes = div(nnodes, 2) # half the number of total nodes
     fshape = elem.shape.facet_shape
@@ -169,7 +175,7 @@ function update_elem!(elem::MechJoint, U::Array{Float64,1}, Δt::Float64)
     Δω = zeros(ndim)
 
     for ip in elem.ips
-    	if elem.env.ana.stressmodel==:axisymmetric
+    	if elem.ctx.stressmodel==:axisymmetric
             th = 2*pi*ip.coord.x
         end
 

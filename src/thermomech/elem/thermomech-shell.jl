@@ -25,8 +25,8 @@ struct TMShellProps<:ElemProperties
 end
 
 
-mutable struct TMShell<:Thermomech
-    env   ::ModelEnv
+mutable struct TMShell<:ThermoMech
+    ctx::Context
     id    ::Int
     shape ::CellShape
     nodes ::Array{Node,1}
@@ -94,7 +94,7 @@ function setquadrature!(elem::TMShell, n::Int=0)
             j = (k-1)*n + i
             elem.ips[j] = Ip(R, w)
             elem.ips[j].id = j
-            elem.ips[j].state = compat_state_type(typeof(elem.mat), typeof(elem), elem.env)(elem.env)
+            elem.ips[j].state = compat_state_type(typeof(elem.mat), typeof(elem), elem.ctx)(elem.ctx)
             elem.ips[j].owner = elem
         end
     end
@@ -128,7 +128,7 @@ end
 
 
 function elem_config_dofs(elem::TMShell)
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     ndim==3 || error("MechShell: Shell elements do not work in $(ndim)d analyses")
     for node in elem.nodes
         add_dof(node, :ux, :fx)
@@ -256,7 +256,7 @@ end
 
 # matrix C
 function elem_coupling_matrix(elem::TMShell)
-    ndim   = elem.env.ndim
+    ndim   = elem.ctx.ndim
     th     = elem.props.th
     nnodes = length(elem.nodes)
 
@@ -278,7 +278,7 @@ function elem_coupling_matrix(elem::TMShell)
 
 
     for ip in elem.ips
-        #elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        #elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
         J2D  = C'*dNdR
@@ -310,8 +310,8 @@ end
 
 # thermal conductivity
 function elem_conductivity_matrix(elem::TMShell)
-    ndim   = elem.env.ndim
-    th     = elem.props.th   # elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.props.th   # elem.ctx.thickness
     nnodes = length(elem.nodes)
     C      = getcoords(elem)
     H      = zeros(nnodes, nnodes)
@@ -376,9 +376,9 @@ end
 
 
 function elem_internal_forces(elem::TMShell, F::Array{Float64,1})
-    ndim   = elem.env.ndim
+    ndim   = elem.ctx.ndim
     th     = elem.props.th
-    T0k    = elem.env.ana.T0 + 273.15
+    T0k    = elem.ctx.T0 + 273.15
     nnodes = length(elem.nodes)
     ndof   = 6
     C      = getcoords(elem)
@@ -459,9 +459,9 @@ end
 
 
 function update_elem!(elem::TMShell, DU::Array{Float64,1}, Δt::Float64)
-    ndim   = elem.env.ndim
+    ndim   = elem.ctx.ndim
     th     = elem.props.th
-    T0k    = elem.env.ana.T0 + 273.15
+    T0k    = elem.ctx.T0 + 273.15
     nnodes = length(elem.nodes)
     ndof   = 6
     C      = getcoords(elem)

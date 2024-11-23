@@ -18,7 +18,7 @@ mutable struct IpMonitor<:AbstractMonitor
     expr     ::Union{Symbol,Expr}
     vals     ::OrderedDict # stores current values
     filename ::String
-    filter   ::Union{Int,Symbol,String,Expr,Symbolic,AbstractArray}
+    filter   ::Any
     label    ::String
     table    ::DataTable
     ip       ::Union{Ip,Nothing}
@@ -35,14 +35,14 @@ mutable struct IpMonitor<:AbstractMonitor
 
     # Example
     ```julia-repl
-    julia> model = randmodel(2,2)
+    julia> ana.model = randmodel(2,2)
 
     julia> monitors = [
         :(x==0.5 && y==1.0) => IpMonitor(:sxx, "sxx.dat")
         :(x==0.5 && y==0.0) => IpMonitor(:eyy, "eyy.dat")
     ]
 
-    julia> addmonitors!(model, monitors)
+    julia> addmonitors!(ana, monitors)
     ```
     """
     function IpMonitor(expr::Union{Symbol,Expr}, filename::String=""; stop=Expr=:())
@@ -63,7 +63,7 @@ mutable struct IpMonitor<:AbstractMonitor
 end
 
 
-function setup_monitor!(model, allitems, filter, monitor::AbstractMonitor, field::Symbol)
+function setup_monitor!(ana, allitems, filter, monitor::AbstractMonitor, field::Symbol)
     item_type  = eltype(allitems)
     item_name  = lowercase(string(item_type))
     singleitem = string(field)[end] != 's' # if field ends with 's' it is a collection
@@ -113,18 +113,18 @@ function setup_monitor!(model, allitems, filter, monitor::AbstractMonitor, field
         monitor.label = string(filter)
     end
 
-    monitor.filename = getfullpath(model.env.outdir, monitor.filename)
+    monitor.filename = getfullpath(ana.sctx.outdir, monitor.filename)
 
     return nothing
 end
 
 
-function setup_monitor!(model, filter, monitor::IpMonitor)
-    setup_monitor!(model, model.elems.ips, filter, monitor, :ip)
+function setup_monitor!(ana, filter, monitor::IpMonitor)
+    setup_monitor!(ana, ana.model.elems.ips, filter, monitor, :ip)
 end
 
 
-function update_monitor!(monitor::IpMonitor, model)
+function update_monitor!(monitor::IpMonitor, ana::Analysis)
     monitor.ip === nothing && return success()
 
     state = ip_vals(monitor.ip) 
@@ -151,9 +151,9 @@ function update_monitor!(monitor::IpMonitor, model)
     end
 
     merge!(monitor.vals, extravals)
-    monitor.vals[:stage] = model.env.stage
-    monitor.vals[:T]     = model.env.T
-    model.env.transient && (monitor.vals[:t]=model.env.t)
+    monitor.vals[:stage] = ana.sctx.stage
+    monitor.vals[:T]     = ana.sctx.T
+    ana.sctx.transient && (monitor.vals[:t]=ana.sctx.t)
     push!(monitor.table, monitor.vals)
 
     # eval stop expressions
@@ -200,7 +200,7 @@ mutable struct NodeMonitor<:AbstractMonitor
     expr     ::Union{Symbol,Expr}
     vals     ::OrderedDict # stores current values
     filename ::String
-    filter   ::Union{Int,Symbol,String,Expr,Symbolic,AbstractArray}
+    filter   ::Any
     label    ::String
     table    ::DataTable
     node     ::Union{Node,Nothing}
@@ -214,14 +214,14 @@ mutable struct NodeMonitor<:AbstractMonitor
         
     # Example
     ```julia-repl
-    julia> model = randmodel(2,2)
+    julia> ana.model = randmodel(2,2)
 
     julia> monitors = [
         :(x==0.5 && y==1.0) => NodeMonitor(:fx, "fx.dat")
         :(x==0.5 && y==0.0) => NodeMonitor(:uy, "uy.dat")
     ]
 
-    julia> addmonitors!(model, monitors)
+    julia> addmonitors!(ana, monitors)
     ```
     """
     function NodeMonitor(expr::Union{Symbol,Expr}, filename::String="")
@@ -234,12 +234,12 @@ mutable struct NodeMonitor<:AbstractMonitor
 end
 
 
-function setup_monitor!(model, filter, monitor::NodeMonitor)
-    setup_monitor!(model, model.nodes, filter, monitor, :node)
+function setup_monitor!(ana, filter, monitor::NodeMonitor)
+    setup_monitor!(ana, ana.model.nodes, filter, monitor, :node)
 end
 
 
-function update_monitor!(monitor::NodeMonitor, model)
+function update_monitor!(monitor::NodeMonitor, ana::Analysis)
     monitor.node === nothing && return success()
 
     for expr in monitor.expr.args
@@ -247,9 +247,9 @@ function update_monitor!(monitor::NodeMonitor, model)
         monitor.vals[expr] = evaluate(expr; state...)
     end
 
-    monitor.vals[:stage] = model.env.stage
-    monitor.vals[:T]     = model.env.T
-    model.env.transient && (monitor.vals[:t]=model.env.t)
+    monitor.vals[:stage] = ana.sctx.stage
+    monitor.vals[:T]     = ana.sctx.T
+    ana.sctx.transient && (monitor.vals[:t]=ana.sctx.t)
 
     push!(monitor.table, monitor.vals)
 
@@ -264,7 +264,7 @@ mutable struct IpGroupMonitor<:AbstractMonitor
     expr    ::Expr
     vals    ::OrderedDict
     filename::String
-    filter  ::Union{Symbol,String,Expr,Symbolic}
+    filter  ::Any
     label   ::String
     table   ::DataTable
     ips     ::Array{Ip,1}
@@ -282,12 +282,12 @@ mutable struct IpGroupMonitor<:AbstractMonitor
 end
 
 
-function setup_monitor!(model, filter, monitor::IpGroupMonitor)
-    setup_monitor!(model, model.elems.ips, filter, monitor, :ip)
+function setup_monitor!(ana, filter, monitor::IpGroupMonitor)
+    setup_monitor!(ana, ana.model.elems.ips, filter, monitor, :ip)
 end
 
 
-function update_monitor!(monitor::IpGroupMonitor, model)
+function update_monitor!(monitor::IpGroupMonitor, ana::Analysis)
     length(monitor.ips) == 0 && return success()
 
     for expr in monitor.expr.args
@@ -307,9 +307,9 @@ function update_monitor!(monitor::IpGroupMonitor, model)
         end
     end
 
-    monitor.vals[:stage] = model.env.stage
-    monitor.vals[:T]     = model.env.T
-    model.env.transient && (monitor.vals[:t]=model.env.t)
+    monitor.vals[:stage] = ana.sctx.stage
+    monitor.vals[:T]     = ana.sctx.T
+    ana.sctx.transient && (monitor.vals[:t]=ana.sctx.t)
 
     push!(monitor.table, monitor.vals)
 
@@ -329,7 +329,7 @@ mutable struct NodeSumMonitor<:AbstractMonitor
     expr     ::Union{Symbol,Expr} # watches
     vals     ::OrderedDict # current values
     filename ::String
-    filter   ::Union{Symbol,String,Expr,Symbolic}
+    filter   ::Any
     label    ::String
     table    ::DataTable
     nodes    ::Array{Node,1}
@@ -345,14 +345,14 @@ mutable struct NodeSumMonitor<:AbstractMonitor
 
     # Example
     ```julia-repl
-    julia> model = randmodel(2,2)
+    julia> ana.model = randmodel(2,2)
 
     julia> monitors = [
         :(y==1.0) => NodeSumMonitor(:fx, "fx.dat")
         :(y==0.0) => NodeSumMonitor(:fy, "fy.dat"; stop = :(uy>0.01))
     ]
 
-    julia> addmonitors!(model, monitors)
+    julia> addmonitors!(ana, monitors)
     ```
     """
     function NodeSumMonitor(expr::Union{Symbol,Expr}, filename::String=""; stop=Expr=:())
@@ -372,8 +372,8 @@ mutable struct NodeSumMonitor<:AbstractMonitor
 end
 
 
-function setup_monitor!(model, filter, monitor::NodeSumMonitor)
-    setup_monitor!(model, model.nodes, filter, monitor, :nodes)
+function setup_monitor!(ana, filter, monitor::NodeSumMonitor)
+    setup_monitor!(ana, ana.model.nodes, filter, monitor, :nodes)
 
     # available_vars = OrderedSet()
     # for node in monitor.nodes
@@ -386,7 +386,7 @@ function setup_monitor!(model, filter, monitor::NodeSumMonitor)
 end
 
 
-function update_monitor!(monitor::NodeSumMonitor, model)
+function update_monitor!(monitor::NodeSumMonitor, ana::Analysis)
     length(monitor.nodes) == 0 && return success()
 
     tableU = DataTable()
@@ -437,9 +437,9 @@ function update_monitor!(monitor::NodeSumMonitor, model)
     end
 
     merge!(monitor.vals, extravals)
-    monitor.vals[:stage] = model.env.stage
-    monitor.vals[:T]     = model.env.T
-    model.env.transient && (monitor.vals[:t]=model.env.t)
+    monitor.vals[:stage] = ana.sctx.stage
+    monitor.vals[:T]     = ana.sctx.T
+    ana.sctx.transient && (monitor.vals[:t]=ana.sctx.t)
     push!(monitor.table, monitor.vals)
 
     # eval stop expressions

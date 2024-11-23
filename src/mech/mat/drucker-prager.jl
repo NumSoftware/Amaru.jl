@@ -2,15 +2,16 @@
 
 export DruckerPrager
 
-"""
-    DruckerPrager
-
-A type for linear elastic materials with Drucker Prager failure criterion.
-
-# Fields
-
-$(TYPEDFIELDS)
-"""
+DruckerPrager_params = [
+    FunInfo(:DruckerPrager, "Linear-elastic model with Drucker-Prager yield criterion and linear hardening"),
+    KwArgInfo(:E, "Young modulus", cond=:(E>0.0)),
+    KwArgInfo(:nu, "Poisson ratio", 0.0, cond=:(0.0<=nu<0.5)),
+    KwArgInfo(:alpha, "alpha parameter", cond=:(alpha>=0.0)),
+    KwArgInfo(:kappa, "kappa parameter", cond=:(kappa>=0.0)),
+    KwArgInfo(:H, "Hardening modulus", 0.0, cond=:(H>=0.0)),
+    KwArgInfo(:rho, "Density", 0.0, cond=:(rho>=0.0))
+]
+@doc docstring(DruckerPrager_params) DruckerPrager
 mutable struct DruckerPrager<:Material
     E::Float64
     ν::Float64
@@ -43,13 +44,13 @@ A type for the state data of a `DruckerPrager` type.
 $(TYPEDFIELDS)
 """
 mutable struct DruckerPragerState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ::Vec6
     ε::Vec6
     εpa::Float64
     Δγ::Float64
-    function DruckerPragerState(env::ModelEnv)
-        this = new(env)
+    function DruckerPragerState(ctx::Context)
+        this = new(ctx)
         this.σ   = zeros(Vec6)
         this.ε   = zeros(Vec6)
         this.εpa = 0.0
@@ -60,7 +61,7 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{DruckerPrager}, ::Type{MechSolid}, env::ModelEnv) = DruckerPragerState
+compat_state_type(::Type{DruckerPrager}, ::Type{MechSolid}, ctx::Context) = DruckerPragerState
 
 # Element types that work with this material
 # compat_elem_types(::Type{DruckerPrager}) = (MechSolid,)
@@ -85,7 +86,7 @@ end
 function calcD(mat::DruckerPrager, state::DruckerPragerState)
     α   = mat.α
     H   = mat.H
-    De  = calcDe(mat.E, mat.ν, state.env.ana.stressmodel)
+    De  = calcDe(mat.E, mat.ν, state.ctx.stressmodel)
 
     if state.Δγ==0.0
         return De
@@ -110,7 +111,7 @@ end
 
 function update_state!(mat::DruckerPrager, state::DruckerPragerState, Δε::Array{Float64,1})
     σini = state.σ
-    De   = calcDe(mat.E, mat.ν, state.env.ana.stressmodel)
+    De   = calcDe(mat.E, mat.ν, state.ctx.stressmodel)
     σtr  = state.σ + De*Δε
     ftr  = yield_func(mat, state, σtr)
 
@@ -153,7 +154,7 @@ function ip_state_vals(mat::DruckerPrager, state::DruckerPragerState)
     j1    = tr(σ)
     srj2d = √J2(σ)
 
-    D = stress_strain_dict(σ, ε, state.env.ana.stressmodel)
+    D = stress_strain_dict(σ, ε, state.ctx.stressmodel)
     D[:epa]   = state.εpa
     D[:j1]    = j1
     D[:srj2d] = srj2d

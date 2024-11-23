@@ -3,15 +3,15 @@
 export Mazars
 
 mutable struct MazarsState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ::Vec6
     ε::Vec6
     φt::Float64
     φc::Float64
     φ::Float64  # damage
     ε̅max::Float64
-    function MazarsState(env::ModelEnv)
-        this = new(env)
+    function MazarsState(ctx::Context)
+        this = new(ctx)
         this.σ = zeros(6)
         this.ε = zeros(6)
         this.φ = 0.0
@@ -57,7 +57,7 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{Mazars}, ::Type{MechSolid}, env::ModelEnv) = MazarsState
+compat_state_type(::Type{Mazars}, ::Type{MechSolid}, ctx::Context) = MazarsState
 
 
 # Element types that work with this material
@@ -176,10 +176,10 @@ end
 
 
 function ip_state_vals(mat::Mazars, state::MazarsState)
-    ndim  = state.env.ndim
+    ndim  = state.ctx.ndim
     σ, ε  = state.σ, state.ε
 
-    D = stress_strain_dict(σ, ε, state.env.ana.stressmodel)
+    D = stress_strain_dict(σ, ε, state.ctx.stressmodel)
     D[:dam]  = state.φ
     D[:damt] = state.φt
     D[:damc] = state.φc

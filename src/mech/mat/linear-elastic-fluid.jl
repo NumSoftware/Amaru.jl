@@ -19,12 +19,12 @@ end
 
 
 mutable struct ElasticFluidState<:IpState
-    env::ModelEnv
+    ctx::Context
     p::Float64   # hydrostatic pressure
     εv::Float64  # volumetric strain
 
-    function ElasticFluidState(env::ModelEnv)
-        this = new(env)
+    function ElasticFluidState(ctx::Context)
+        this = new(ctx)
         this.p = 0.0
         this.εv = 0.0
         return this
@@ -32,7 +32,7 @@ mutable struct ElasticFluidState<:IpState
 end
 
 
-compat_state_type(::Type{LinearElasticFluid}, ::Type{MechFluid}, env::ModelEnv)  = ElasticFluidState
+compat_state_type(::Type{LinearElasticFluid}, ::Type{MechFluid}, ctx::Context)  = ElasticFluidState
 
 
 function update_state!(mat::LinearElasticFluid, state::ElasticFluidState, dεv::Float64)

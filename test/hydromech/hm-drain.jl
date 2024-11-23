@@ -39,7 +39,7 @@ bcs = [
 addstage!(model, bcs, tspan=100, nincs=2, nouts=2)
 solve!(model, tol=1e-2)
 
-model.env.t = 0.0
+model.ctx.t = 0.0
 
 # Stage 2: volume application
 bcs = [

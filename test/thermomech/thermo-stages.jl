@@ -79,11 +79,11 @@ mats = ["shell1" << TMShell << TMCombined{ConstConductivity,LinearElastic} <<  (
 #addmonitor!(model, [L/2, 0, 0] => IpMonitor(:svm))
 #addmonitor!(model, [L, 0, 0] => IpMonitor(:svm))
 
-  ana = ThermomechAnalysis(T0=0.0)
+  ana = ThermoMechAnalysis(T0=0.0)
   model = FEModel(mesh, mats, ana, outdir="shell/temp-100")
 
-addlogger!(model, and(y==a/2, x==0, z==L-0.1)=> NodeLogger("column-data.dat"))
-addmonitor!(model, and(y==a/2, x==0, z==L-0.1) => NodeMonitor(:uz))
+addlogger!(model, (y==a/2, x==0, z==L-0.1)=> NodeLogger("column-data.dat"))
+addmonitor!(model, (y==a/2, x==0, z==L-0.1) => NodeMonitor(:uz))
 
 ut1 =:20*t/1000
 fz = -110000*t/10
@@ -100,7 +100,7 @@ bcs2 =
 [
     z==0 => EdgeBC(uy=0, uz=0, ux=0),
     #z==L => EdgeBC(uz=0),
-    and(z==L, x==0, y==0) => NodeBC(fz=fz),
+    (z==L, x==0, y==0) => NodeBC(fz=fz),
     z>=0 => EdgeBC(ut=20),
 ]
 addstage!(model, bcs2, nouts=1, tspan=10)
@@ -111,9 +111,9 @@ bcs3 =
 [
     z==0 => EdgeBC(uy=0, uz=0, ux=0),
     #z==L => EdgeBC(uz=0),
-    and(z==L, x==0, y==0) => NodeBC(fz=-110000),
+    (z==L, x==0, y==0) => NodeBC(fz=-110000),
     #z>=0 => EdgeBC(ut=20),
-    and(z>=L/4, z<=3*L/4) => EdgeBC(ut=ut2),
+    (z>=L/4, z<=3*L/4) => EdgeBC(ut=ut2),
     #x==0 => EdgeBC(ut=ut),
 ]
 addstage!(model, bcs3, nouts=1, tspan=7*60)

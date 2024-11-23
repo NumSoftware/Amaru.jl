@@ -6,7 +6,7 @@ using Test
 bls = [
        Block( [0 0 0; 1.0 6.0 1.0], nx=1, ny=10, nz=1, tag="solids"),
        BlockInset( [0.5 3 0.2; 0.5 6.0 0.2], curvetype="polyline", tag="bars", jointtag="joints"),
-       BlockInset( [0.5 3 0.8; 0.5 6.0 0.8], curvetype="polyline", tag="bars", jointtag="joints", tipjoint=:both, tipjointtag="tips"),
+       BlockInset( [0.5 3 0.8; 0.5 6.0 0.8], curvetype="polyline", tag="bars", jointtag="joints", tips=:both, tiptag="tips"),
       ]
 
 msh = Mesh(bls)
@@ -18,11 +18,12 @@ mats = [
         "solids" => MechSolid => LinearElastic => (E=24e3, nu=0.2),
         "bars"   => MechBar => LinearElastic => (E=200e6, A=0.00011),
         "joints" => MechRSJoint => CebLSJoint => (taumax=12, taures=3, s1=0.001, s2=0.0011, s3=0.004, alpha=0.5, beta=0.5, ks=(12/0.001)*5, kn=5000, p=0.25),
-        "tips"   => MechTipJoint => TipJoint => (k=1e8, fixed=false)
+        "tips"   => MechTipJoint => TipContact => (k=1e8, fixed=false)
        ]
 
-ana = MechAnalysis()
-model = FEModel(msh, mats, ana)
+ctx = MechContext()
+model = FEModel(msh, mats, ctx)
+ana = MechAnalysis(model)
 
 bcs = [
         :(y==0 && z==0) => NodeBC(ux=0, uy=0, uz=0),
@@ -35,6 +36,6 @@ scheme = :Ralston
 nincs=20
 maxits=3
 
-addstage!(model, bcs, nincs=nincs)
+addstage!(ana, bcs, nincs=nincs)
 
-@test solve!(model, autoinc=true, scheme=scheme, tol=tol, maxits=maxits).success
+@test solve!(ana, autoinc=true, scheme=scheme, tol=tol, maxits=maxits).success

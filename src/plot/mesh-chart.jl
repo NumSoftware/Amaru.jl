@@ -177,7 +177,7 @@ end
 function configure!(mplot::MeshChart)
     orig_mesh = mplot.mesh
     mesh = copy(mplot.mesh)
-    ndim = mesh.env.ndim
+    ndim = mesh.ctx.ndim
 
     if ndim==2
         areacells = [ elem for elem in mesh.elems.active if elem.shape.family==BULKCELL ]
@@ -231,7 +231,7 @@ function configure!(mplot::MeshChart)
     end
 
     # 3D -> 2D projection
-    if mesh.env.ndim==3
+    if mesh.ctx.ndim==3
         # compute shades (before 2d projection)
         V = Vec3( cosd(mplot.elevation)*cosd(mplot.azimut), cosd(mplot.elevation)*sind(mplot.azimut), sind(mplot.elevation) ) # observer vector
         norm(mplot.lightvector)==0 && (mplot.lightvector = V)
@@ -432,7 +432,7 @@ function draw_surface_cell!(cc::CairoContext, mplot::MeshChart, elem::AbstractCe
     edges = getedges(elem)
     if !mplot.wireframe
         # @show elem.id
-        shade = mplot.mesh.env.ndim==3 ? mplot.shades[elem.id] : 1.0
+        shade = mplot.mesh.ctx.ndim==3 ? mplot.shades[elem.id] : 1.0
 
         if !has_field || !is_nodal_field || mplot.gradientmode==:constant
             if has_field

@@ -3,18 +3,18 @@
 export ElasticShellThermo
 
 mutable struct ElasticShellThermoState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ::Vec6 # stress
     ε::Vec6 # strain
     QQ::Array{Float64,1} # heat flux
     D::Array{Float64,1}
     ut::Float64
-    function ElasticShellThermoState(env::ModelEnv)
-        this = new(env)
+    function ElasticShellThermoState(ctx::Context)
+        this = new(ctx)
         this.σ = zeros(Vec6)
         this.ε = zeros(Vec6)
-        this.QQ = zeros(env.ndim)
-        this.D = zeros(env.ndim)
+        this.QQ = zeros(ctx.ndim)
+        this.D = zeros(ctx.ndim)
         this.ut = 0.0
         return this
     end
@@ -47,7 +47,7 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{ElasticShellThermo}, ::Type{TMShell}, env::ModelEnv) = ElasticShellThermoState
+compat_state_type(::Type{ElasticShellThermo}, ::Type{TMShell}, ctx::Context) = ElasticShellThermoState
 
 
 function calc_cv(mat::ElasticShellThermo, ut::Float64) # Specific heat
@@ -64,7 +64,7 @@ end
 
 
 function calcK(mat::ElasticShellThermo, state::ElasticShellThermoState) # Thermal conductivity matrix
-    if state.env.ndim==2
+    if state.ctx.ndim==2
         return mat.k*eye(2)
     else
         return mat.k*eye(3)
@@ -87,6 +87,6 @@ end
 
 
 function ip_state_vals(mat::ElasticShellThermo, state::ElasticShellThermoState)
-    D = stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
+    D = stress_strain_dict(state.σ, state.ε, state.ctx.stressmodel)
     return D
 end

@@ -3,13 +3,13 @@
 export LinearAcousticFluid
 
 mutable struct LinearAcousticFluidState<:IpState
-    env::ModelEnv
+    ctx::Context
     up ::Float64          # pressure
     # V  ::Array{Float64,1} # fluid velocity?
     
-    function LinearAcousticFluidState(env::ModelEnv)
-        this = new(env)
-        # this.V  = zeros(env.ndim)
+    function LinearAcousticFluidState(ctx::Context)
+        this = new(ctx)
+        # this.V  = zeros(ctx.ndim)
         this.up = 0.0
         return this
     end
@@ -26,7 +26,7 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{LinearAcousticFluid}, ::Type{AcousticFluid}, env::ModelEnv) = LinearAcousticFluidState
+compat_state_type(::Type{LinearAcousticFluid}, ::Type{AcousticFluid}, ctx::Context) = LinearAcousticFluidState
 
 
 function update_state!(mat::LinearAcousticFluid, state::LinearAcousticFluidState, Δup::Float64, G::Array{Float64,1}, Δt::Float64)

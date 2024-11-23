@@ -1,40 +1,94 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export ThermoAnalysis, ThermomechAnalysis
+export ThermoAnalysis, ThermoMechAnalysis, ThermoContext, ThermoMechContext
+
+
+ThermoMechAnalysisContext_params = [
+    FunInfo(:ThermoMechContext, "Thermomechanical analysis context properties."),
+    KwArgInfo(:ndim, "Analysis dimension", 0),
+    KwArgInfo(:stressmodel, "Stress model", :d3, values=(:planestress, :planestrain, :axisymmetric, :d3, :none)),
+    KwArgInfo(:g, "Gravity acceleration", 0.0, cond=:(g>=0)),
+    KwArgInfo(:T0, "Reference temperature", 0.0, cond=:(T0>=-273.15)),
+]
+@doc docstring(ThermoMechAnalysisContext_params) ThermoMechContext()
+
+mutable struct ThermoMechContext<:Context
+    stressmodel::Symbol # plane stress, plane strain, etc.
+    g::Float64 # gravity acceleration
+    T0::Float64 # reference temperature
+    
+    ndim     ::Int       # Analysis dimension
+    thickness::Float64 # to be set after FEModel creation
+
+    function ThermoMechContext(; kwargs...)
+        args = checkargs(kwargs, ThermoMechAnalysisContext_params)
+        this = new()
+        
+        # Analysis related
+        this.ndim = args.ndim
+        this.stressmodel = args.stressmodel
+        this.g         = args.g
+        # this.transient = true
+
+        return this
+
+    end
+end
+
+ThermoContext = ThermoMechContext
+
 
 ThermomechAnalysis_params = [
-    FunInfo(:ThermomechAnalysis, "Thermomechanical analysis properties."),
+    FunInfo(:ThermoMechAnalysis, "Thermomechanical analysis properties."),
     KwArgInfo(:stressmodel, "Stress model", :d3, values=(:planestress, :planestrain, :axisymmetric, :d3)),
     KwArgInfo(:thickness, "Thickness for 2d analyses", 1.0, cond=:(thickness>0)),
     KwArgInfo(:g, "Gravity acceleration", 0.0, cond=:(g>=0)),
     KwArgInfo(:T0, "Reference temperature", 0.0, cond=:(T0>=-273.15)),
 ]
-@doc docstring(ThermomechAnalysis_params) ThermomechAnalysis()
+@doc docstring(ThermomechAnalysis_params) ThermoMechAnalysis()
 
-mutable struct ThermomechAnalysisProps<:TransientAnalysis
-    stressmodel::Symbol # plane stress, plane strain, etc.
-    thickness::Float64  # thickness for 2d analyses
-    g::Float64 # gravity acceleration
-    T0::Float64 # reference temperature
-    
-    function ThermomechAnalysisProps(; kwargs...)
-        args = checkargs(kwargs, ThermomechAnalysis_params)
-        this = new(args.stressmodel, args.thickness, args.g, args.T0)
+mutable struct ThermoMechAnalysis<:TransientAnalysis
+    model ::FEModel
+    ctx   ::ThermoMechContext
+    sctx  ::SolverContext
+
+    stages  ::Array{Stage}
+    loggers ::Array{AbstractLogger,1}
+    monitors::Array{AbstractMonitor,1}
+
+    function ThermoMechAnalysis(model::FEModel; outdir=".", outkey="out")
+        this = new(model, model.ctx)
+        this.stages = []
+        this.loggers = []
+        this.monitors = []  
+        this.sctx = SolverContext()
+        this.sctx.outdir = outdir
+        this.sctx.outkey = outkey
+        model.ctx.thickness = model.thickness
+        if model.ctx.stressmodel==:none
+            if model.ctx.ndim==2
+                model.ctx.stressmodel = :planestrain
+            else
+                model.ctx.stressmodel = :d3
+            end
+        end
+
         return this
     end
+    
 end
 
-ThermoAnalysis = ThermomechAnalysis = ThermomechAnalysisProps
+ThermoAnalysis = ThermoMechAnalysis
 
 # Assemble the global stiffness matrix
-function tm_mount_global_matrices(model::Model,
+function tm_mount_global_matrices(model::FEModel,
                                   ndofs::Int,
                                   Δt::Float64,
                                  )
     # Assembling matrix G
 
     α = 1.0 # time integration factor
-    T0k = model.env.ana.T0 + 273.15
+    T0k = model.ctx.T0 + 273.15
 
     @withthreads begin
         R, C, V = Int64[], Int64[], Float64[]
@@ -125,10 +179,10 @@ function tm_mount_global_matrices(model::Model,
 end
 
 
-function complete_ut_T(model::Model)
+function complete_ut_T(model::FEModel)
     haskey(model.node_data, "ut") || return
     Ut = model.node_data["ut"]
-    T0 = model.env.ana.T0
+    T0 = model.ctx.T0
 
     for elem in model.elems
         elem.shape.family==BULKCELL || continue
@@ -150,16 +204,9 @@ function complete_ut_T(model::Model)
 end
 
 
-function solve!(model::Model, ana::ThermomechAnalysis; args...)
-    name = "Solver for thermal and thermomechanical analyses"
-    status = stage_iterator!(name, tm_stage_solver!, model; args...)
-    return status
-end
-
-tm_stage_solver_params = [
-    FunInfo(:tm_stage_solver!, "Solves a load stage of a thremomechanical analysis."),
-    ArgInfo(:model, "Model object"),
-    ArgInfo(:stage, "Stage object"),
+tm_solver_params = [
+    FunInfo(:tm_stage_solver!, "Solves a finite element thremomechanical analysis."),
+    ArgInfo(:model, "FEModel object"),
     KwArgInfo(:tol, "Force tolerance", 0.01, cond=:(tol>0)),
     KwArgInfo(:dTmin, "Relative minimum increment size", 1e-7, cond=:(0<dTmin<1) ),
     KwArgInfo(:dTmax, "Relative maximum increment size", 0.1, cond=:(0<dTmax<1) ),
@@ -169,10 +216,23 @@ tm_stage_solver_params = [
     KwArgInfo(:autoinc, "Flag to set auto-increments", false),
     KwArgInfo(:quiet, "Flat to set silent mode", false),
 ]
-@doc docstring(tm_stage_solver_params) tm_stage_solver!()
+@doc docstring(tm_solver_params) solve!(::ThermoMechAnalysis; args...)
 
-function tm_stage_solver!(model::Model, stage::Stage; args...)
-    args = checkargs(args, tm_stage_solver_params)
+
+function solve!(ana::ThermoMechAnalysis; args...)
+    args = checkargs(args, tm_solver_params)
+    if !args.quiet
+        printstyled("Solver for thermo-mechanical analyses", "\n", bold=true, color=:cyan)
+        println("  stress model: ", ana.ctx.stressmodel)
+    end
+
+    status = stage_iterator!(tm_stage_solver!, ana; args...)
+    return status
+end
+
+
+function tm_stage_solver!(ana::ThermoMechAnalysis, stage::Stage; args...)
+    args = NamedTuple(args)
     
     tol     = args.tol      
     ΔTmin   = args.dTmin    
@@ -183,8 +243,10 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
     autoinc = args.autoinc  
     quiet   = args.quiet 
 
-    env = model.env
-    println(env.log, "Thermomech FE analysis: Stage $(stage.id)")
+    model = ana.model
+    ctx = model.ctx
+    sctx = ana.sctx
+    println(sctx.log, "ThermoMech FE analysis: Stage $(stage.id)")
 
     solstatus = success()
 
@@ -192,13 +254,12 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
     nouts     = stage.nouts
     bcs       = stage.bcs
     tspan     = stage.tspan
-    env       = model.env
     saveouts = stage.nouts > 0
-    T0        = env.ana.T0
+    T0        = ctx.T0
     ftol      = tol
 
-    stressmodel = env.ana.stressmodel
-    env.ndim==3 && @check stressmodel==:d3
+    stressmodel = ctx.stressmodel
+    ctx.ndim==3 && @check stressmodel==:d3
     
 
     # Get active elements
@@ -214,10 +275,10 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
     pmap     = nu+1:ndofs   # map for prescribed bcs
     model.ndofs = length(dofs)
 
-    println(env.info,"unknown dofs: $nu")
-    println(env.log, "unknown dofs: $nu")
+    println(sctx.info,"unknown dofs: $nu")
+    println(sctx.log, "unknown dofs: $nu")
 
-    quiet || nu==ndofs && println(env.alerts, "No essential boundary conditions")
+    quiet || nu==ndofs && println(sctx.alerts, "No essential boundary conditions")
 
     if stage.id == 1
         # Setup quantities at dofs
@@ -229,7 +290,7 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
             end
         end
 
-        update_records!(model, force=true)
+        update_records!(ana, force=true)
         complete_ut_T(model)
     end
 
@@ -238,7 +299,7 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
     StateBk = copy.(State)
 
     # Incremental analysis
-    t       = env.t     # current time
+    t       = sctx.t     # current time
     ΔTbk    = 0.0
     ΔTcheck = saveouts ? 1/nouts : 1.0
     Tcheck  = ΔTcheck
@@ -288,17 +349,17 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
     local RHS::Array{Float64,1}
 
     while T < 1.0-ΔTmin
-        env.ΔT = ΔT
+        sctx.ΔT = ΔT
 
         # Update counters
         inc += 1
-        env.inc = inc
+        sctx.inc = inc
 
-        println(env.log, "  inc $inc")
+        println(sctx.log, "  inc $inc")
 
         # Get forces and displacements from boundary conditions
         Δt = tspan*ΔT
-        env.t = t + Δt
+        sctx.t = t + Δt
         UexN, FexN = get_bc_vals(model, bcs, t+Δt) # get values at time t+Δt
 
         ΔUex = UexN - U
@@ -364,7 +425,7 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
             R[pmap] .= 0.0  # zero at prescribed positions
             res = norm(R, Inf)
 
-            @printf(env.log, "    it %d  residue: %-10.4e\n", it, res)
+            @printf(sctx.log, "    it %d  residue: %-10.4e\n", it, res)
 
             it==1 && (res1=res)
             res<ftol && (converged=true; break)
@@ -375,12 +436,12 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
             it>1 && res>lastres && break
         end
 
-        env.residue = res
+        sctx.residue = res
         q = 0.0 # increment size factor for autoinc
 
         if syserror
-            println(env.alerts, sysstatus.message)
-            println(env.log, sysstatus.message)
+            println(sctx.alerts, sysstatus.message)
+            println(sctx.log, sysstatus.message)
             converged = false
         end
 
@@ -407,20 +468,20 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
             # Update time
             t += Δt
             T += ΔT
-            env.t = t
-            env.T = T
+            sctx.t = t
+            sctx.T = T
 
             # Check for saving output file
             checkpoint = T>Tcheck-ΔTmin
             if checkpoint
-                env.out += 1
+                sctx.out += 1
                 Tcheck += ΔTcheck # find the next output time
             end
 
             complete_ut_T(model)
-            rstatus = update_records!(model, checkpoint=checkpoint)
+            rstatus = update_records!(ana, checkpoint=checkpoint)
             if failed(rstatus)
-                println(env.alerts, rstatus.message)
+                println(sctx.alerts, rstatus.message)
                 return rstatus
             end
 
@@ -446,12 +507,12 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
         else
             # Restore counters
             inc -= 1
-            env.inc -= 1
+            sctx.inc -= 1
 
             copyto!.(State, StateBk)
 
             if autoinc
-                println(env.log, "      increment failed")
+                println(sctx.log, "      increment failed")
 
                 q = 1+tanh(log10(ftol/(res1+eps())))
                 q = clamp(q, 0.2, 0.9)
@@ -470,7 +531,7 @@ function tm_stage_solver!(model::Model, stage::Stage; args...)
     end
 
     complete_ut_T(model)
-    failed(solstatus) && update_records!(model, force=true)
+    failed(solstatus) && update_records!(ana, force=true)
 
     return solstatus
 

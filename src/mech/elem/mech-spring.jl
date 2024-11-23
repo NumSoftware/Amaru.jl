@@ -10,7 +10,7 @@ mutable struct MechSpring<:Mech
     mat::Material
     active::Bool
     linked_elems::Array{Element,1}
-    env::ModelEnv
+    ctx::Context
 
     function MechSpring()
         return new()
@@ -21,7 +21,7 @@ compat_shape_family(::Type{MechSpring}) = LINECELL
 
 
 function elem_stiffness(elem::MechSpring)
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     mat  = elem.mat
 
     if ndim==1
@@ -52,7 +52,7 @@ end
 
 
 function elem_damping(elem::MechSpring)
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     mat  = elem.mat
 
     if ndim==1

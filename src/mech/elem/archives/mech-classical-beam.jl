@@ -12,7 +12,7 @@ mutable struct MechClassicalBeam<:Mech
     mat::Material
     active::Bool
     linked_elems::Array{Element,1}
-    env::ModelEnv
+    ctx::Context
 
     function MechClassicalBeam()
         return new()
@@ -46,7 +46,7 @@ end
 
 
 function elem_config_dofs(elem::MechClassicalBeam)
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     ndim == 1 && error("MechClassicalBeam: Beam elements do not work in 1d analyses")
     if ndim==2
         for node in elem.nodes
@@ -68,7 +68,7 @@ end
 
 
 function elem_map(elem::MechClassicalBeam)::Array{Int,1}
-    if elem.env.ndim==2
+    if elem.ctx.ndim==2
         dof_keys = (:ux, :uy, :rz)
     else
         dof_keys = (:ux, :uy, :uz, :rx, :ry, :rz)
@@ -88,7 +88,7 @@ end
 
 
 function distributed_bc(elem::MechClassicalBeam, facet::Nothing, key::Symbol, val::Union{Real,Symbol,Expr})
-    ndim  = elem.env.ndim
+    ndim  = elem.ctx.ndim
 
     # Check bcs
     (key == :tz && ndim==2) && error("distributed_bc: boundary condition $key is not applicable in a 2D analysis")
@@ -97,7 +97,7 @@ function distributed_bc(elem::MechClassicalBeam, facet::Nothing, key::Symbol, va
     # target = facet !== nothing ? facet : elem
     nodes  = elem.nodes
     nnodes = length(nodes)
-    t      = elem.env.t
+    t      = elem.ctx.t
     A      = elem.mat.A
     
 

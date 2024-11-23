@@ -16,16 +16,17 @@ mats = [
     "solid" => MechSolid => LinearElastic => (E=1.0, nu=0.25),
 ]
 
-ana = MechAnalysis()
-model = FEModel(mesh, mats, ana)
+ctx = MechContext(stressmodel=:planestrain)
+model = FEModel(mesh, mats, ctx)
+ana = MechAnalysis(model)
 
 bcs = [
     :(x==0.) => SurfaceBC(ux=0.),
     :(y==0.) => SurfaceBC(uy=0),
     :(y==1.) => SurfaceBC(ty=-1.),
 ]
-addstage!(model, bcs, nincs=1)
-solve!(model)
+addstage!(ana, bcs, nincs=1)
+solve!(ana)
 
 
 dis = 

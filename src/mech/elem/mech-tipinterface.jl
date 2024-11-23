@@ -3,7 +3,7 @@
 export MechTipJoint
 
 mutable struct MechTipJoint<:Mech
-    env   ::ModelEnv
+    ctx::Context
     id    ::Int
     shape ::CellShape
     nodes ::Array{Node,1}
@@ -34,7 +34,7 @@ function mountB(elem::MechTipJoint, Ch, Ct)
     # I is a ndim x ndim identity matrix
 
 
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     tip = elem.nodes[end]
     bulk = elem.linked_elems[1]
     rod  = elem.linked_elems[2]
@@ -68,7 +68,7 @@ end
 
 
 function elem_stiffness(elem::MechTipJoint)
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     bulk = elem.linked_elems[1]
     rod  = elem.linked_elems[2]
     Ch = getcoords(bulk)
@@ -86,7 +86,7 @@ end
 
 
 function update_elem!(elem::MechTipJoint, U::Array{Float64,1}, Δt::Float64)
-    ndim   = elem.env.ndim
+    ndim   = elem.ctx.ndim
     bulk = elem.linked_elems[1]
     rod  = elem.linked_elems[2]
     Ch = getcoords(bulk)

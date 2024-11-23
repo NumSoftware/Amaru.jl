@@ -3,9 +3,9 @@
 export LumpedMass
 
 mutable struct LumpedMassState<:IpState
-    env::ModelEnv
-    function LumpedMassState(env::ModelEnv)
-        return new(env)
+    ctx::Context
+    function LumpedMassState(ctx::Context)
+        return new(ctx)
     end
 end
 

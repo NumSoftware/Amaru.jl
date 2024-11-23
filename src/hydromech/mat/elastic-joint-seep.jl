@@ -3,7 +3,7 @@
 export ElasticJointSeep
 
 mutable struct ElasticJointSeepState<:IpState
-    env  ::ModelEnv
+    ctx::Context
     σ    ::Array{Float64,1} # stress
     w    ::Array{Float64,1} # relative displacements
     Vt   ::Array{Float64,1} # transverse fluid velocity
@@ -13,9 +13,9 @@ mutable struct ElasticJointSeepState<:IpState
     uw   ::Array{Float64,1} # interface pore pressure
     up  ::Float64          # effective plastic relative displacement
     h    ::Float64          # characteristic length from bulk elements
-    function ElasticJointSeepState(env::ModelEnv)
-        this     = new(env)
-        ndim     = env.ndim
+    function ElasticJointSeepState(ctx::Context)
+        this     = new(ctx)
+        ndim     = ctx.ndim
         this.σ   = zeros(3)
         this.w   = zeros(3)
         this.Vt  = zeros(2)
@@ -54,14 +54,14 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{ElasticJointSeep}, ::Type{HMJoint}, env::ModelEnv) = ElasticJointSeepState
+compat_state_type(::Type{ElasticJointSeep}, ::Type{HMJoint}, ctx::Context) = ElasticJointSeepState
 
 # Element types that work with this material
 # compat_elem_types(::Type{ElasticJointSeep}) = (HMJoint,)
 
 
 function calcD(mat::ElasticJointSeep, state::ElasticJointSeepState)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     G  = mat.E/(1.0+mat.ν)/2.0
     kn = mat.E*mat.ζ/state.h
     ks =     G*mat.ζ/state.h
@@ -77,7 +77,7 @@ end
 
 
 function update_state!(mat::ElasticJointSeep, state::ElasticJointSeepState, Δu::Array{Float64,1}, Δuw::Array{Float64,1}, G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     D  = calcD(mat, state)
     Δσ = D*Δu
 
@@ -107,7 +107,7 @@ end
 
 
 function ip_state_vals(mat::ElasticJointSeep, state::ElasticJointSeepState)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     if ndim == 2
         return OrderedDict(
           :w1  => state.w[1]  ,

@@ -29,14 +29,14 @@ end
 
 
 mutable struct CompressiveConcreteState<:IpState
-    env        ::ModelEnv
+    ctx::Context
     σ          ::Array{Float64,1}  # current stress
     ε          ::Array{Float64,1}  # current strain
     ε̅c         ::Float64
     ε̅min       ::Float64
 
     function CompressiveConcreteState()
-        this      = new(env)
+        this      = new(ctx)
         this.σ    = zeros(6)
         this.ε    = zeros(6)
         this.ε̅c   = 0.0
@@ -100,7 +100,7 @@ function calcD(mat::CompressiveConcrete, state::CompressiveConcreteState)
         abs(E)<Emin && (E=Emin)
     end
 
-    D  = calcDe(E, mat.ν, state.env.ana.stressmodel)
+    D  = calcDe(E, mat.ν, state.ctx.stressmodel)
     return D
 end
 
@@ -120,7 +120,7 @@ function update_state!(mat::CompressiveConcrete, state::CompressiveConcreteState
         E = uniaxial_E(mat, state, state.ε̅c)
     end
 
-    D  = calcDe(E, mat.ν, state.env.ana.stressmodel)
+    D  = calcDe(E, mat.ν, state.ctx.stressmodel)
     Δσ = D*Δε
     state.σ .+= Δσ
 
@@ -129,7 +129,7 @@ end
 
 
 function ip_state_vals(mat::CompressiveConcrete, state::CompressiveConcreteState)
-    dict = stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
+    dict = stress_strain_dict(state.σ, state.ε, state.ctx.stressmodel)
     dict[:Ec] = uniaxial_E(mat, state, state.ε̅c)
     return dict
 end

@@ -2,7 +2,7 @@ using Amaru
 #using Test
 
 # Mesh generation
-blocks = [Block([0 0; 1 2], nx = 20, ny = 40, tag = "solids")]
+blocks = [Block([0 0; 1 2], nx=10, ny=10, tag="solids")]
 
 msh = Mesh(blocks)
 
@@ -19,11 +19,12 @@ alpha = 1.2e-5 # thermal expansion coefficient  1/K or 1/°C
 # materials = ["solids" => TMSolid => LinearElasticThermo => (E=E, nu=nu, k=k, alpha = alpha, rho=rho, cv=cv) ]
 materials = ["solids" => TMSolid => TMCombined{ConstConductivity,LinearElastic} => (E=E, nu=nu, k=k, alpha=alpha, rho=rho, cv=cv) ]
 
-ana = ThermomechAnalysis(T0=0.0)
-model = FEModel(msh, materials, ana)
+ctx = ThermoMechContext(T0=0.0, stressmodel=:planestrain)
+model = FEModel(msh, materials, ctx)
+ana = ThermoMechAnalysis(model)
 
 loggers = [y==1 => NodeGroupLogger("book3.dat")]
-setloggers!(model, loggers)
+setloggers!(ana, loggers)
 
 bcs = [
     :(x == 0) => NodeBC(ut = 10.0),
@@ -31,6 +32,6 @@ bcs = [
     :(y == 0) => NodeBC(ux = 0, uy = 0),
     :(x == 1) => NodeBC(fx = 100.0),
 ]
-addstage!(model, bcs, tspan=3000000, nincs=10, nouts=2)
+addstage!(ana, bcs, tspan=3000000, nincs=10, nouts=2)
 
-solve!(model, tol=0.1)
+solve!(ana, tol=0.1)

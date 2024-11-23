@@ -3,12 +3,12 @@
 export LinearCohesive
 
 mutable struct LinearCohesiveState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ   ::Array{Float64,1}
     w   ::Array{Float64,1}
     h   ::Float64
-    function LinearCohesiveState(env::ModelEnv)
-        this = new(env)
+    function LinearCohesiveState(ctx::Context)
+        this = new(ctx)
         this.σ = zeros(3)
         this.w = zeros(3)
         this.h = 0.0
@@ -40,11 +40,11 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{LinearCohesive}, ::Type{MechJoint}, env::ModelEnv) = LinearCohesiveState
+compat_state_type(::Type{LinearCohesive}, ::Type{MechJoint}, ctx::Context) = LinearCohesiveState
 
 
 function calcD(mat::LinearCohesive, state::LinearCohesiveState)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     G    = mat.E/(1.0+mat.ν)/2.0
     kn   = mat.E*mat.ζ/state.h
     ks   = G*mat.ζ/state.h
@@ -61,7 +61,7 @@ end
 
 
 function update_state!(mat::LinearCohesive, state::LinearCohesiveState, Δu)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     D  = calcD(mat, state)
     Δσ = D*Δu
 
@@ -72,7 +72,7 @@ end
 
 
 function ip_state_vals(mat::LinearCohesive, state::LinearCohesiveState)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     if ndim == 3
        return Dict(
           :jw1  => state.w[1],

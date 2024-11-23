@@ -13,7 +13,7 @@ mutable struct ShellDegenerated<:Mech
     mat::Material
     active::Bool
     linked_elems::Array{Element,1}
-    env   ::ModelEnv
+    ctx::Context
     Dlmn::Array{ Array{Float64,2}, 1}
 
     function ShellDegenerated();
@@ -72,7 +72,7 @@ function setquadrature!(elem::ShellDegenerated, n::Int=0)
             j = (k-1)*n + i
             elem.ips[j] = Ip(R, w)
             elem.ips[j].id = j
-            elem.ips[j].state = compat_state_type(elem.mat)(elem.env)
+            elem.ips[j].state = compat_state_type(elem.mat)(elem.ctx)
             elem.ips[j].owner = elem
         end
     end
@@ -90,8 +90,8 @@ end
 
 
 function distributed_bc(elem::ShellDegenerated, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
-    ndim  = elem.env.ndim
-    th    = elem.env.t
+    ndim  = elem.ctx.ndim
+    th    = elem.ctx.t
     suitable_keys = (:tx, :ty, :tz, :tn)
 
     # Check keys
@@ -101,7 +101,7 @@ function distributed_bc(elem::ShellDegenerated, facet::Cell, key::Symbol, val::U
     target = facet !== nothing ? facet : elem
     nodes  = target.nodes
     nnodes = length(nodes)
-    t      = elem.env.t
+    t      = elem.ctx.t
 
     # Force boundary condition
     nnodes = length(nodes)
@@ -135,7 +135,7 @@ function distributed_bc(elem::ShellDegenerated, facet::Cell, key::Symbol, val::U
                 n = [J[1,2], -J[1,1]]
                 Q = vip*normalize(n)
             end
-            if elem.env.ana.stressmodel==:axisymmetric
+            if elem.ctx.stressmodel==:axisymmetric
                 th = 2*pi*X[1]
             end
         else
@@ -333,7 +333,7 @@ end
 
 
 function elem_config_dofs(elem::ShellDegenerated)
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     ndim in (1,2) && error("ShellDegenerated: Shell elements do not work in $(ndim)d analyses")
     for node in elem.nodes
         add_dof(node, :ux, :fx)
@@ -357,7 +357,7 @@ end
 
 
 function elem_stiffness(elem::ShellDegenerated)
-    ndim   = elem.env.ndim
+    ndim   = elem.ctx.ndim
     nnodes = length(elem.nodes)
     K = zeros(5*nnodes, 5*nnodes)
     B = zeros(6, 5*nnodes)
@@ -452,8 +452,8 @@ end
 
 #=
 function update_elem!(elem::ShellDegenerated, U::Array{Float64,1}, Δt::Float64)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     keys   = (:ux, :uy, :uz)[1:ndim]
     map    = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
@@ -466,7 +466,7 @@ function update_elem!(elem::ShellDegenerated, U::Array{Float64,1}, Δt::Float64)
     Δε = zeros(6)
     C = getcoords(elem)
     for ip in elem.ips
-        if elem.env.ana.stressmodel==:axisymmetric
+        if elem.ctx.stressmodel==:axisymmetric
             th = 2*pi*ip.coord.x
         end
         # compute B matrix

@@ -3,8 +3,11 @@ push!(LOAD_PATH,"../src/")
 using Amaru, Documenter
 
 makedocs(
-    sitename = "Amaru",
+    remotes = nothing,
     modules  = [Amaru],
+    sitename = "Amaru",
+    pagesonly = true,    # only listed pages are included
+    checkdocs = :none,   # :missing, :all
     format = Documenter.HTML(
         prettyurls = get(ENV, "CI", nothing) == "true",
         # assets = ["assets/luxor-docs.css"],
@@ -12,13 +15,16 @@ makedocs(
     ),
     pages = [
         "Introduction" => "index.md",
-        "Tutorial" => "tutorial/tutorial.md",
-        "Mesh" =>  "meshing/meshing.md",
-        "Model model" =>  "modelling/modelling.md",
+        # "Tutorial" => "tutorial/tutorial.md",
+        # "Mesh" =>  "meshing/meshing.md",
+        # "Model model" =>  "modelling/modelling.md",
         "Mechanical analysis" =>  "modelling/mech/mech.md",
-        "Plotting" =>  "plotting/plotting.md",
+        # "Plotting" =>  "plotting/plotting.md",
     ],
-    doctest = false
+    doctest = false,
+    # repo = "https://github.com/NumSoftware/Amaru.jl",
+    # repo = "github.com/JuliaGraphics/LuxorManual.git"
+    # https://github.com/NumSoftware/Amaru.jl
 )
         
 # ENV["GITHUB_REPOSITORY"] = "NumSoftware/Amaru.jl"

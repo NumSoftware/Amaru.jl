@@ -3,7 +3,7 @@
 export MCJointSeep2
 
 mutable struct MCJointSeepState2<:IpState
-    env::ModelEnv
+    ctx::Context
     σ   ::Array{Float64,1}  # stress
     w   ::Array{Float64,1}  # relative displacements
     Vt  ::Array{Float64,1}  # transverse fluid velocity
@@ -14,9 +14,9 @@ mutable struct MCJointSeepState2<:IpState
     up ::Float64           # effective plastic relative displacement
     Δλ  ::Float64           # plastic multiplier
     h   ::Float64           # characteristic length from bulk elements
-    function MCJointSeepState2(env::ModelEnv=ModelEnv())
-        this = new(env)
-        ndim = env.ndim
+    function MCJointSeepState2(ctx::Context=Context())
+        this = new(ctx)
+        ndim = ctx.ndim
         this.σ   = zeros(ndim)
         this.w   = zeros(ndim)
         this.Vt  = zeros(2)
@@ -99,7 +99,7 @@ compat_elem_types(::Type{MCJointSeep2}) = (HMJoint2,)
 
 
 function yield_func(mat::MCJointSeep2, state::MCJointSeepState2, σ::Array{Float64,1})
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     σmax = calc_σmax(mat, state, state.up)
     if ndim == 3
         return sqrt(σ[2]^2 + σ[3]^2) + (σ[1]-σmax)*mat.μ
@@ -110,7 +110,7 @@ end
 
 
 function yield_deriv(mat::MCJointSeep2, state::MCJointSeepState2)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     if ndim == 3
         return [ mat.μ, state.σ[2]/sqrt(state.σ[2]^2 + state.σ[3]^2), state.σ[3]/sqrt(state.σ[2]^2 + state.σ[3]^2)]
     else
@@ -120,7 +120,7 @@ end
 
 
 function potential_derivs(mat::MCJointSeep2, state::MCJointSeepState2, σ::Array{Float64,1})
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     if ndim == 3
             if σ[1] >= 0.0
                 # G1:
@@ -211,7 +211,7 @@ end
 
 
 function calc_kn_ks_De(mat::MCJointSeep2, state::MCJointSeepState2)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     kn = mat.E*mat.ζ/state.h
     G  = mat.E/(2.0*(1.0+mat.ν))
     ks = G*mat.ζ/state.h
@@ -230,7 +230,7 @@ end
 
 
 function calc_Δλ(mat::MCJointSeep2, state::MCJointSeepState2, σtr::Array{Float64,1})
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     maxits = 100
     Δλ     = 0.0
     f      = 0.0
@@ -301,7 +301,7 @@ end
 
 
 function calc_σ_upa(mat::MCJointSeep2, state::MCJointSeepState2, σtr::Array{Float64,1})
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     μ = mat.μ
     kn, ks, De = calc_kn_ks_De(mat, state)
 
@@ -327,7 +327,7 @@ end
 
 function calcD(mat::MCJointSeep2, state::MCJointSeepState2)
 
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     kn, ks, De = calc_kn_ks_De(mat, state)
     σmax = calc_σmax(mat, state, state.up)
 
@@ -363,7 +363,7 @@ end
 
 
 function update_state!(mat::MCJointSeep2, state::MCJointSeepState2, Δw::Array{Float64,1}, Δuw::Array{Float64,1},  G::Array{Float64,1}, BfUw::Array{Float64,1}, Δt::Float64)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     σini = copy(state.σ)
 
     kn, ks, De = calc_kn_ks_De(mat, state)
@@ -439,7 +439,7 @@ end
 
 
 function ip_state_vals(mat::MCJointSeep2, state::MCJointSeepState2)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     if ndim == 3
        return OrderedDict(
           :w1   => state.w[1] ,

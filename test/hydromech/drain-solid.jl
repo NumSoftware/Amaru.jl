@@ -38,7 +38,7 @@ addstage!(model, bcs, tspan=100)
 solve!(model, tol=1e-2)
 
 
-model.env.t = 0.0
+model.ctx.t = 0.0
 
 tag!(model.elems.lines.nodes[:(x==1.5 && y==1.5 && z==3.0)], "input")
 

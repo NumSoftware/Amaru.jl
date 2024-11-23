@@ -3,11 +3,11 @@
 export ElasticShellDegenerated
 
 mutable struct ElasticShellDegeneratedState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ::Array{Float64,1}
-    function ElasticShellDegeneratedState(env::ModelEnv)
+    function ElasticShellDegeneratedState(ctx::Context)
         σ = zeros(5)
-        return new(env, σ)
+        return new(ctx, σ)
     end
 end
 

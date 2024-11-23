@@ -6,26 +6,27 @@ mesh = Mesh(bl)
 
 mats = [ "solids" => MechSolid => LinearElastic => (E=100.0, nu=0.2) ]
 
-ana = MechAnalysis()
-model = FEModel(mesh, mats, ana)
+ctx = MechContext()
+model = FEModel(mesh, mats, ctx)
+ana = MechAnalysis(model)
 
 # Monitors
 monitors = [
-    and(x==1, y==1, z==1) => NodeMonitor(:uy, "node.table")
-    and(x==1, y==0) => NodeMonitor(:uy)
+    (x==1, y==1, z==1) => NodeMonitor(:uy, "node.table")
+    (x==1, y==0) => NodeMonitor(:uy)
     y==1 => NodeSumMonitor(:uy, "nodessum.book")
 
-    and(x>0.5, y>0.5, z>0.5) => IpMonitor(:syy, "ip.table")
-    and(x>0.5, y>0.5) => IpGroupMonitor(:syy, "ips.book")
+    (x>0.5, y>0.5, z>0.5) => IpMonitor(:syy, "ip.table")
+    (x>0.5, y>0.5) => IpGroupMonitor(:syy, "ips.book")
     [0.5,0.5,0.0] => IpMonitor(:syy)
 ]
 
-setloggers!(model, loggers)
+setloggers!(ana, loggers)
 
 bcs = [
        :(z==0) => NodeBC(ux=0, uy=0, uz=0 ),
        :(z==1) => SurfaceBC(tz=-10.0),
       ]
-addstage!(model, bcs, nincs=4, nouts=4)
+addstage!(ana, bcs, nincs=4, nouts=4)
 
-@test solve!(model).success
+@test solve!(ana).success

@@ -14,8 +14,9 @@ mats = [
         "bars" => MechBar => LinearElastic => (E=6.894757e7, A=0.043)
        ]
 
-ana = MechAnalysis()
-model = FEModel(msh, mats, ana)
+ctx = MechContext()
+model = FEModel(msh, mats, ctx)
+ana = MechAnalysis(model)
 
 bcs = [
        :(x==0 && y==0) => NodeBC(ux=0, uy=0),
@@ -24,8 +25,8 @@ bcs = [
        :(x==18&& y==0) => NodeBC(fy=-450.),
        :(x>=0)         => BodyC(wy=-10.0)
       ]
-addstage!(model, bcs)
-@test solve!(model).success
+addstage!(ana, bcs)
+@test solve!(ana).success
 
 
 # 3D Truss plus self weight
@@ -36,8 +37,9 @@ conn  = [[1, 3], [1, 2], [2, 3]]  # matriz de conectividades
 msh = Mesh(coord, conn)
 tag!(msh.elems, "bars")
 
-ana = MechAnalysis()
-model = FEModel(msh, mats, ana)
+ctx = MechContext()
+model = FEModel(msh, mats, ctx)
+ana = MechAnalysis(model)
 
 bcs = [
        :(x==0 && y==0 && z==0) => NodeBC(ux=0),
@@ -46,8 +48,8 @@ bcs = [
        :(x==0 && y==0) => NodeBC(fz=-50.),
        :(x>=0) => BodyC(wz=-10.0)
       ]
-addstage!(model, bcs)
-@test solve!(model).success
+addstage!(ana, bcs)
+@test solve!(ana).success
 
 save(model, "model.vtk")
 

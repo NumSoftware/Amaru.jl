@@ -1,7 +1,7 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 """
-    Model
+    FEModel
 
 A type that represents a finite element model.
 
@@ -13,14 +13,10 @@ mutable struct FEModel<:AbstractDomain
     elems::Array{Element,1}
     faces::Array{Face,1}
     edges::Array{Edge,1}
-    loggers ::Array{AbstractLogger,1}
-    monitors::Array{AbstractMonitor,1}
+    thickness::Float64
     ndofs   ::Integer
-    env     ::ModelEnv
+    ctx     ::Context
 
-    # Stages
-    stages::Array{Stage,1}
-    
     # Data
     node_data::OrderedDict{String,Array}
     elem_data::OrderedDict{String,Array}
@@ -35,12 +31,9 @@ mutable struct FEModel<:AbstractDomain
         this.elems = []
         this.faces = []
         this.edges = []
-
-        this.loggers = []
-        this.monitors = []
-        this.stages = []
+        
+        this.thickness = 1.0
         this.ndofs   = 0
-        this.env = ModelEnv()
 
         this._elempartition = ElemPartition()
         this.node_data      = OrderedDict()
@@ -49,7 +42,7 @@ mutable struct FEModel<:AbstractDomain
     end
 end
 
-const Model = FEModel
+# const FEModel = FEModel
 
 
 """
@@ -73,30 +66,27 @@ Uses a mesh and a list of meterial especifications to construct a finite element
 function FEModel(
     mesh    :: Mesh,
     matbinds:: Vector{<:Pair},
-    anatype :: Analysis;
+    ctx :: Context;
+    thickness :: Real = 1.0,
     quiet   :: Bool = false,
-    outdir  :: String=".",
-    outkey  :: String="out"
+    # outdir  :: String=".",
+    # outkey  :: String="out"
 )
 
-    ndim = mesh.env.ndim
+    ndim = mesh.ctx.ndim
     @assert ndim>0
 
     # FEModel and environment data
     model  = FEModel()
-    env = model.env
-    env.ndim = ndim
-    env.t = 0.0
-    env.ana = anatype
-    env.outdir = rstrip(outdir, ['/', '\\'])
-    env.outkey = outkey
-    env.transient = anatype isa TransientAnalysis
+    model.thickness = thickness
+    model.ctx = ctx
+    ctx.ndim = ndim
+    # ctx.t = 0.0
+    # ctx.outdir = rstrip(outdir, ['/', '\\'])
+    # ctx.outkey = outkey
 
     # check if outdir exists
-    isdir(env.outdir) || mkdir(env.outdir)
-
-    # Save a mesh reference
-    #model.mesh = mesh
+    # isdir(ctx.outdir) || mkdir(ctx.outdir)
 
     quiet || printstyled("FE model setup\n", bold=true, color=:cyan)
 
@@ -108,9 +98,6 @@ function FEModel(
     model.elems = Array{Element,1}(undef, ncells)
     for matbind in matbinds
         matbind isa Pair{<:Any, <:Pair{DataType, <:Pair{DataType, <:NamedTuple}}} || throw(AmaruException("FEModel: Assigments of element and material models should be specified as: filter => Element => Material => properties"))
-        # if length(matbind)!=4
-            # throw(AmaruException("FEModel: Assigments of element and material models should be specified as: filter << Element << Material << properties"))
-        # end
         
         filter    = matbind.first
         elem_type = matbind.second.first
@@ -121,7 +108,6 @@ function FEModel(
 
         if !any(isa.(elem_type, comp_elem_types))
             comp_mat_types  = [ argtps[1].parameters[1] for argtps in typeofargs(compat_state_type) if length(argtps)>1 && typeof(argtps[1])!=UnionAll && argtps[2].parameters[1]==elem_type ]
-            # comp_mat_types  = [ argtps[1].parameters[1] for argtps in typeofargs(compat_state_type) if length(argtps)>1 && typeof(argtps[1])!=UnionAll && argtps[2].parameters[1]==elem_type ]
 
             message = "FEModel: Material model $(mat_type) is not compatible with Element $(elem_type) \n\
             Compatible elements for material $(mat_type): $(join(comp_elem_types, ", ", " and ")) \n\
@@ -148,7 +134,6 @@ function FEModel(
 
         for cell in cells
             if cell.embedded
-                # elem_t = compat_elem_type_if_embedded(mat_type)
                 elem_t = embedded_type(elem_type)
             else
                 elem_t = elem_type
@@ -163,7 +148,7 @@ function FEModel(
             conn = [ p.id for p in cell.nodes ]
 
             elem.id     = cell.id
-            elem.env    = env
+            elem.ctx    = ctx
             elem.shape  = cell.shape
             elem.tag    = cell.tag
             elem.nodes  = model.nodes[conn]
@@ -251,7 +236,7 @@ function FEModel(
     end
 
     if !quiet
-        if model.env.ndim==2
+        if model.ctx.ndim==2
             @printf "  %5d edges\n" length(model.faces)
         else
             @printf "  %5d faces\n" length(model.faces)
@@ -269,128 +254,12 @@ function FEModel(
     return model
 end
 
-export addstage!
-
-addstage!_params = [
-    FunInfo(:addstage!, "Add a stage to a FEModel instance"),
-    ArgInfo(:model, "A FEModel instance"),
-    ArgInfo(:bcs, "Array of boundary conditions"),
-    KwArgInfo(:nincs, "Number of increments", 1),
-    KwArgInfo(:nouts, "Number of output files", 0),
-    KwArgInfo(:tspan, "Time span", 0.0),
-    KwArgInfo(:toactivate, "Array of elements to activate", Element[]),
-    KwArgInfo(:todeactivate, "Array of elements to deactivate", Element[]),
-]
-@doc docstring(addstage!_params) addstage!
-
-function addstage!(model::Model, bcs::AbstractArray; kwargs...)
-    A = checkargs([model, bcs], kwargs, addstage!_params)
-    stage = Stage(A.bcs; A.nincs, A.nouts, A.tspan, A.toactivate, A.todeactivate)
-    stage.id = length(model.stages) + 1
-    push!(model.stages, stage)
-end
-
-
-function addlogger!(model::Model, logpair::Tuple)
-    push!(model.loggers, logpair[2])
-    setup_logger!(model, logpair[1], logpair[2])
-end
-
-"""
-    $(TYPEDSIGNATURES)
-
-Register the loggers from the array `loggers` into `model`.
-
-"""
-function addloggers!(model::Model, loggers::Array{<:Tuple,1})
-    model.loggers = []
-    for (filter,logger) in loggers
-        push!(model.loggers, logger)
-        setup_logger!(model, filter, logger)
-    end
-end
-setloggers! = addloggers!
-
-function addmonitor!(model::Model, monpair::Pair)
-    push!(model.monitors, monpair.second)
-    setup_monitor!(model, monpair.first, monpair.second)
-end
-
-"""
-    addmonitors!(model, loggers)
-
-Register monitors from the array `loggers` into `model`.
-
-"""
-function addmonitors!(model::Model, monitors::Vector{<:Pair})
-    model.monitors = []
-    for (filter,monitor) in monitors
-        push!(model.monitors, monitor)
-        setup_monitor!(model, filter, monitor)
-    end
-end
-setmonitors! = addmonitors!
-
-
-function update_records!(model::Model; checkpoint=true, force=false)
-    outdir = model.env.outdir
-
-    flushinterval = 5.0
-    flush = time()-model.env.flushtime>flushinterval || checkpoint || force || model.env.T >= 1-1e-8
-    flush && (model.env.flushtime = time())
-
-    if checkpoint
-        rm.(glob("*conflicted*.log"), force=true)
-        rm.(glob("*conflicted*.*", "$outdir/"), force=true)
-                
-        update_output_data!(model) # need to be before group loggers
-        save(model, "$outdir/$(model.env.outkey)-$(model.env.out).vtu", quiet=true)
-
-        # update multiloggers
-        for logger in model.loggers
-            if isa(logger, MultiLogger)
-                update_logger!(logger, model)
-                logger.filename!="" && save(logger.book, logger.filename, quiet=true)
-            end
-        end
-
-    end
-
-    flush && Base.flush(model.env.log)
-
-    # update single loggers
-    model.env.Tupdate > model.env.T && (model.env.Tupdate=0.0) # for subsequent stages
-    update_single_loggers = model.env.T-model.env.Tupdate >= 0.00025 || model.env.T==0
-    update_single_loggers && (model.env.Tupdate = model.env.T)
-    
-    for logger in model.loggers
-        if isa(logger, SingleLogger)
-            update_single_loggers && update_logger!(logger, model)
-            flush && logger.filename!="" && save(logger.table, logger.filename, quiet=true)
-        end
-    end
-
-    # update monitors
-    for monitor in model.monitors
-        rstatus = update_monitor!(monitor, model)
-        failed(rstatus) && return rstatus
-        flush && monitor.filename!="" && save(monitor.table, monitor.filename, quiet=true)
-    end
-
-    return success()
-end
-
 
 function FEModel(elems::Array{<:Element,1})
     model            = FEModel()
-    env              = elems[1].env
-    model.env        = env
-    model.env.ndim   = env.ndim
-    model.env.outdir = env.outdir
-    model.env.ana    = env.ana
-
-    # @show env.ana 
-    # @show newenv.ana
+    ctx              = elems[1].ctx
+    model.ctx        = ctx
+    model.ctx.ndim   = ctx.ndim
 
     # Copying nodes
     nodesset = OrderedSet(node for elem in elems for node in elem.nodes)
@@ -416,13 +285,13 @@ function FEModel(elems::Array{<:Element,1})
         node.coord.y != 0.0 && (ndim=2)
         node.coord.z != 0.0 && (ndim=3; break)
     end
-    model.env.ndim = ndim
+    model.ctx.ndim = ndim
 
     # Setting elements
     for (i,elem) in enumerate(elems)
         nodeidxs = [ nodemap[node.id] for node in elem.nodes]
         elemnodes = nodes[nodeidxs]
-        newelem = new_element(typeof(elem), elem.shape, elemnodes, elem.tag, model.env)
+        newelem = new_element(typeof(elem), elem.shape, elemnodes, elem.tag, model.ctx)
         newelem.id = i
         newelem.mat = elem.mat
         newelem.props = elem.props
@@ -470,7 +339,7 @@ function FEModel(elems::Array{<:Element,1})
 end
 
 
-function update_output_data!(model::Model)
+function update_output_data!(model::FEModel)
     # Updates data arrays in the model
     model.node_data = OrderedDict()
     model.elem_data = OrderedDict()
@@ -562,7 +431,7 @@ function update_output_data!(model::Model)
 end
 
 
-function get_node_and_elem_vals(model::Model)
+function get_node_and_elem_vals(model::FEModel)
     # Return symbols and values for nodes and elements
     # Note: nodal ids must be numbered starting from 1
 
@@ -634,10 +503,10 @@ function reg_terms(x::Float64, y::Float64, z::Float64, nterms::Int64)
 end
 
 
-function nodal_patch_recovery(model::Model)
+function nodal_patch_recovery(model::FEModel)
     # Note: nodal ids must be numbered starting from 1
 
-    ndim = model.env.ndim
+    ndim = model.ctx.ndim
     nnodes = length(model.nodes)
     length(model.faces)==0 && return zeros(nnodes,0), Symbol[]
 
@@ -823,8 +692,8 @@ function nodal_patch_recovery(model::Model)
 end
 
 
-function nodal_local_recovery(model::Model)
-    # Recovers nodal values from non-solid elements as joints and joint1d elements
+function nodal_local_recovery(model::FEModel)
+    # Recovers nodal values from non-solid elements such as joints and joint1d elements
     # The element type should implement the elem_extrapolated_node_vals function
     # Note: nodal ids in the fe model must be numbered starting from 1
 

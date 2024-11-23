@@ -50,7 +50,7 @@ bcs4 = [
     :(x>=0)                 => BodyC(wz=-1),
 ]
 
-ana_list = ["Nodal load", "Edge load", "Triangular face load", "Volume load"]
+lc_list = ["Nodal load", "Edge load", "Triangular face load", "Volume load"]
 bcs_list = [bcs1, bcs2, bcs3, bcs4]
 dis_list = [
             [ 0.0, 0.0, 0.0, 0.0, 4.0    ,    4.0,     4.0,      4.0 ],
@@ -58,14 +58,15 @@ dis_list = [
             [ 0.0, 0.0, 0.0, 0.0, 1.51044,-2.4501,  1.4499, -2.31023 ],
             [ 0.0, 0.0, 0.0, 0.0, -0.5   ,   -0.5,    -0.5,     -0.5 ] ]
 
-for (ana, bcs, dis) in zip(ana_list, bcs_list, dis_list)
+for (lc, bcs, dis) in zip(lc_list, bcs_list, dis_list)
 
-    println("\nLoad case: $ana \n")
+    println("\nLoad case: $lc \n")
 
-    ana = MechAnalysis()
-    model = FEModel(mesh, materials, ana)
-    addstage!(model, bcs, nouts=1)
-    solve!(model)
+    ctx = MechContext()
+    model = FEModel(mesh, materials, ctx)
+    ana = MechAnalysis(model)
+    addstage!(ana, bcs, nouts=1)
+    solve!(ana)
 
     println("Displacements:")
     D = get_data(model.nodes)[[:ux, :uy, :uz]]

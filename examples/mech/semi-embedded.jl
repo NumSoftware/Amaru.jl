@@ -23,19 +23,20 @@ mats = [
         "solids" => MechSolid => LinearElastic => (E=24e3, nu=0.25),
         "bars"  => MechTruss => VonMises => (E=200e6, A=0.0001, fy=500e3),
         "interface" => MechLSInterface => LinearLSInterface => (ks=1e9, kn=1e9, p=0.02),
-       ]
+]
 
-ana = MechAnalysis()
-model = Model(msh, mats, ana)
+ctx = MechContext()
+model = FEModel(msh, mats, ctx)
+ana = MechAnalysis(model)
 
 bcs = [
-       and(y==0, z==0) => NodeBC(ux=0, uy=0, uz=0),
-       and(y==6, z==0) => NodeBC(ux=0, uz=0),
+       (y==0, z==0) => NodeBC(ux=0, uy=0, uz=0),
+       (y==6, z==0) => NodeBC(ux=0, uz=0),
        z==0.5 => SurfaceBC(tz=-0.001),
 ]
-addstage!(model, bcs, nincs=20)
+addstage!(ana, bcs, nincs=20)
 
-solve!(model, autoinc=true)
+solve!(ana, autoinc=true)
 
 # mplot(model, "beam.pdf", 
 #     field="sa", 

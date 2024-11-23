@@ -7,8 +7,8 @@ mutable struct MechIntegrator
     table::DataTable
     function MechIntegrator(mat::Material)
         this = new()
-        env = ModelEnv()
-        this.state = compat_state_type(mat)(env)
+        ctx = Context()
+        this.state = compat_state_type(mat)(ctx)
         this.mat = mat
         this.table = DataTable()
         return this

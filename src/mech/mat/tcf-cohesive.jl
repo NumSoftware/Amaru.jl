@@ -3,16 +3,16 @@
 export TCFJoint
 
 mutable struct TCFJointState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ  ::Array{Float64,1} # stress
     w  ::Array{Float64,1} # relative displacements
     up ::Float64          # effective plastic relative displacement
     Δλ ::Float64          # plastic multiplier
     h  ::Float64          # characteristic length from bulk elements
     w_rate::Float64       # w rate wrt T
-    function TCFJointState(env::ModelEnv)
-        this = new(env)
-        ndim = env.ndim
+    function TCFJointState(ctx::Context)
+        this = new(ctx)
+        ndim = ctx.ndim
         this.σ   = zeros(ndim)
         this.w   = zeros(ndim)
         this.up  = 0.0
@@ -71,7 +71,7 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{TCFJoint}, ::Type{MechJoint}, env::ModelEnv) = TCFJointState
+compat_state_type(::Type{TCFJoint}, ::Type{MechJoint}, ctx::Context) = TCFJointState
 
 # Element types that work with this material
 # compat_elem_types(::Type{TCFJoint}) = (MechJoint,)
@@ -88,7 +88,7 @@ function yield_func(mat::TCFJoint, state::TCFJointState, σ::Array{Float64,1}, u
     μ    = calc_μ(mat, state, up)
     tmp  = (σmax-σ[1])/mat.ft
 
-    if state.env.ndim == 3
+    if state.ctx.ndim == 3
         τnorm = sqrt(σ[2]^2 + σ[3]^2)
     else
         τnorm = abs(σ[2])
@@ -122,7 +122,7 @@ function yield_derivs(mat::TCFJoint, state::TCFJointState, σ::Array{Float64,1},
     
     dfdμ = -(σmax-σ[1])
 
-    if state.env.ndim == 3
+    if state.ctx.ndim == 3
         τnorm = sqrt(σ[2]^2 + σ[3]^2)
         dfdσ = [ dfdσn, σ[2]/τnorm, σ[3]/τnorm]
     else
@@ -134,7 +134,7 @@ end
 
 
 function potential_derivs(mat::TCFJoint, state::TCFJointState, σ::Array{Float64,1})
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     if ndim == 3
         if σ[1] > 0.0 
             # G1:
@@ -327,7 +327,7 @@ end
 
 function calcD(mat::TCFJoint, state::TCFJointState)
 
-    ndim   = state.env.ndim
+    ndim   = state.ctx.ndim
     kn, ks = calc_kn_ks(mat, state)
     σmax   = calc_σmax(mat, state, state.up)
 
@@ -368,7 +368,7 @@ end
 
 function calc_σ_up_Δλ(mat::TCFJoint, state::TCFJointState, σtr::Array{Float64,1})
 
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     Δλ   = 0.0
     up   = 0.0
     σ    = zeros(ndim)
@@ -438,7 +438,7 @@ end
 
 
 function yield_func_from_Δλ(mat::TCFJoint, state::TCFJointState, σtr::Array{Float64,1}, Δλ::Float64)
-    ndim    = state.env.ndim
+    ndim    = state.ctx.ndim
     kn, ks  = calc_kn_ks(mat, state)
 
     # quantities at n+1
@@ -465,7 +465,7 @@ end
 
 
 function calc_σ_up_Δλ_bissection(mat::TCFJoint, state::TCFJointState, σtr::Array{Float64,1})
-    ndim    = state.env.ndim
+    ndim    = state.ctx.ndim
     kn, ks  = calc_kn_ks(mat, state)
     De      = diagm([kn, ks, ks][1:ndim])
     r       = potential_derivs(mat, state, state.σ)
@@ -561,7 +561,7 @@ end
 
 
 function find_σ_up_Δλ(mat::TCFJoint, state::TCFJointState, σtr::Array{Float64,1})
-    ndim    = state.env.ndim
+    ndim    = state.ctx.ndim
     kn, ks  = calc_kn_ks(mat, state)
     De      = diagm([kn, ks, ks][1:ndim])
     r       = potential_derivs(mat, state, state.σ)
@@ -618,7 +618,7 @@ end
 
 
 function update_state!(mat::TCFJoint, state::TCFJointState, Δw::Array{Float64,1})
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     σini = copy(state.σ)
 
     kn, ks = calc_kn_ks(mat, state)
@@ -661,7 +661,7 @@ end
 
 
 function ip_state_vals(mat::TCFJoint, state::TCFJointState)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     if ndim == 3
        return Dict(
           :jw1 => state.w[1],

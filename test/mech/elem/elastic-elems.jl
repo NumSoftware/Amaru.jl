@@ -14,16 +14,16 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8, QUAD9)
         "solids" => MechSolid => LinearElastic => (E=100.0, nu=0.2)
     ]
 
-    ana = MechAnalysis()
-    model = FEModel(mesh, materials, ana)
+    ctx = MechContext()
+    model = FEModel(mesh, materials, ctx)
 
-
+    ana = MechAnalysis(model)
     bcs = [
         "bottom" => SurfaceBC(ux=0, uy=0),
         "top"    => SurfaceBC(ty=-10.)
     ]
-    addstage!(model, bcs)
-    solve!(model).success
+    addstage!(ana, bcs)
+    solve!(ana).success
 
     top_node = model.nodes[:(y==1)][1]
     ux = top_node.dofs[:ux].vals[:ux]
@@ -47,15 +47,16 @@ for shape in (TET4, TET10, HEX8, HEX20, HEX27)
         "solids" => MechSolid => LinearElastic => (E=100.0, nu=0.2)
     ]
 
-    ana = MechAnalysis()
-    model = FEModel(mesh, materials, ana)
+    ctx = MechContext()
+    model = FEModel(mesh, materials, ctx)
+    ana = MechAnalysis(model)
     bcs = [
         "bottom" => SurfaceBC(ux=0, uy=0, uz=0),
         "sides"  => SurfaceBC(ux=0),
         "top"    => SurfaceBC(tz=-10.)
     ]
-    addstage!(model, bcs)
-    solve!(model).success
+    addstage!(ana, bcs)
+    solve!(ana).success
 
     top_node = model.nodes[:(z==1)][1]
     uy = top_node.dofs[:uy].vals[:uy]

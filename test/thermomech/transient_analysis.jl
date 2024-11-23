@@ -16,7 +16,7 @@ cv = 486    # specific heat (capacity) kJ/ton/K
 
 materials = ["solids" => ConstConductivity(k=k, rho=rho, cv=cv)]
 model = FEModel(msh, materials)
-#model.env.T0 = 0
+#model.ctx.T0 = 0
 
 
 log1 = NodeGroupLogger()

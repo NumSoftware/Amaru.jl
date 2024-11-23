@@ -4,7 +4,7 @@ include("elem/thermomech.jl")
 export elem_config_dofs, elem_init, elem_stiffness, update_elem!, elem_vals
 export set_state
 
-# Thermomech Elements
+# ThermoMech Elements
 include("elem/thermomech-solid.jl")
 include("elem/thermo-solid.jl")
 include("elem/thermo-shell.jl")

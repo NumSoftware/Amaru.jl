@@ -30,7 +30,7 @@ mutable struct AcousticFluid<:AcousticMech
     props ::AcousticFluidProps
     active::Bool
     linked_elems::Array{Element,1}
-    env   ::ModelEnv
+    ctx::Context
 
     function AcousticFluid()
         return new()
@@ -60,8 +60,8 @@ end
 
 # acoustic fluid stiffness
 function elem_acoustic_stiffness(elem::AcousticFluid)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     C      = getcoords(elem)
     K      = zeros(nnodes, nnodes)
@@ -69,7 +69,7 @@ function elem_acoustic_stiffness(elem::AcousticFluid)
     J      = Array{Float64}(undef, ndim, ndim) # Jacobian
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         dNdR = elem.shape.deriv(ip.R)
         @mul J  = C'*dNdR
@@ -92,8 +92,8 @@ end
 
 
 function elem_acoustic_mass(elem::AcousticFluid)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     C      = getcoords(elem)
     M      = zeros(nnodes, nnodes)
@@ -101,7 +101,7 @@ function elem_acoustic_mass(elem::AcousticFluid)
     c      = elem.props.c # sound speed
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
@@ -123,9 +123,9 @@ end
 
 # TODO
 function update_elem!(elem::AcousticFluid, DU::Array{Float64,1}, Δt::Float64)
-    ndim   = elem.env.ndim
+    ndim   = elem.ctx.ndim
     nnodes = length(elem.nodes)
-    th     = elem.env.ana.thickness
+    th     = elem.ctx.thickness
 
     map_p  = [ node.dofdict[:up].eq_id for node in elem.nodes ]
 
@@ -150,7 +150,7 @@ function update_elem!(elem::AcousticFluid, DU::Array{Float64,1}, Δt::Float64)
     # dNdX = Array{Float64}(undef, nnodes, ndim)
 
     # for ip in elem.ips
-    #     elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+    #     elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
     #     # compute Bu matrix
     #     N    = elem.shape.func(ip.R)

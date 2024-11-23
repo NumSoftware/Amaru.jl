@@ -4,7 +4,7 @@ export MechShell
 
 
 MechShell_params = [
-    FunInfo(:MechShell, "A finite element for mechanical shell analyses"),
+    FunInfo(:MechShell, "A Reissner-Mindlin curved shell element with drilling control"),
     KwArgInfo(:rho, "Density", 0.0, cond=:(rho>=0.0)),
     KwArgInfo(:gamma, "Specific weight", 0.0, cond=:(gamma>=0.0)),
     KwArgInfo(:thickness, "Thickness", cond=:(thickness>0.0)),
@@ -29,7 +29,7 @@ end
 
 
 mutable struct MechShell<:Mech
-    env   ::ModelEnv
+    ctx::Context
     id    ::Int
     shape ::CellShape
     nodes ::Array{Node,1}
@@ -97,7 +97,7 @@ function setquadrature!(elem::MechShell, n::Int=0)
             j = (k-1)*n + i
             elem.ips[j] = Ip(R, w)
             elem.ips[j].id = j
-            elem.ips[j].state = compat_state_type(typeof(elem.mat), typeof(elem), elem.env)(elem.env)
+            elem.ips[j].state = compat_state_type(typeof(elem.mat), typeof(elem), elem.ctx)(elem.ctx)
             elem.ips[j].owner = elem
         end
     end
@@ -120,18 +120,18 @@ function setquadrature!(elem::MechShell, n::Int=0)
 end
 
 
-function distributed_bc(elem::MechShell, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
-    return mech_boundary_forces(elem, facet, key, val)
+function distributed_bc(elem::MechShell, facet::Cell, t::Float64, key::Symbol, val::Union{Real,Symbol,Expr})
+    return mech_boundary_forces(elem, facet, t, key, val)
 end
 
 
 function body_c(elem::MechShell, key::Symbol, val::Union{Real,Symbol,Expr})
-    return mech_shell_body_forces(elem, key, val)
+    return mech_shell_body_forces(elem, 0.0, key, val)
 end
 
 
 function elem_config_dofs(elem::MechShell)
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     ndim==3 || error("MechShell: Shell elements do not work in $(ndim)d analyses")
     for node in elem.nodes
         add_dof(node, :ux, :fx)
@@ -359,7 +359,7 @@ end
 
 
 function update_elem!(elem::MechShell, U::Array{Float64,1}, dt::Float64)
-    ndim   = elem.env.ndim
+    ndim   = elem.ctx.ndim
     nnodes = length(elem.nodes)
     th   = elem.props.th
     ndof = 6

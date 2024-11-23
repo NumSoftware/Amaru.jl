@@ -34,14 +34,14 @@ arg_rules(::Type{Compressible}) =
 
 
 mutable struct CompressibleState<:IpState
-    env ::ModelEnv
+    ctx::Context
     σ   ::Vec6  # current stress
     ε   ::Vec6  # current strain
     εvp ::Float64  # current plastic volumetric strain
     Δλ  ::Float64  # plastic multiplier
 
-    function CompressibleState(env::ModelEnv)
-        this      = new(env)
+    function CompressibleState(ctx::Context)
+        this      = new(ctx)
         this.σ    = zeros(Vec6)
         this.ε    = zeros(Vec6)
         this.εvp  = 0.0
@@ -52,7 +52,7 @@ mutable struct CompressibleState<:IpState
 end
 
 
-compat_state_type(::Type{Compressible}, ::Type{MechSolid}, env::ModelEnv) = CompressibleState
+compat_state_type(::Type{Compressible}, ::Type{MechSolid}, ctx::Context) = CompressibleState
 
 
 @inline function yield_func(mat::Compressible, state::CompressibleState, σ::Vec6,  εvp::Float64)
@@ -61,7 +61,7 @@ end
 
 
 function calcD(mat::Compressible, state::CompressibleState)
-    De  = calcDe(mat.E, mat.ν, state.env.ana.stressmodel)
+    De  = calcDe(mat.E, mat.ν, state.ctx.stressmodel)
 
     state.Δλ==0.0 && return De
 
@@ -77,7 +77,7 @@ end
 function update_state!(mat::Compressible, state::CompressibleState, Δε::Array{Float64,1})
     σini = state.σ
 
-    De  = calcDe(mat.E, mat.ν, state.env.ana.stressmodel)
+    De  = calcDe(mat.E, mat.ν, state.ctx.stressmodel)
     σtr = state.σ + De*Δε
     ftr = yield_func(mat, state, σtr, state.εvp)
     
@@ -115,7 +115,7 @@ end
 
 
 function ip_state_vals(mat::Compressible, state::CompressibleState)
-    dict = stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
+    dict = stress_strain_dict(state.σ, state.ε, state.ctx.stressmodel)
     dict[:evp] = state.εvp
     return dict
 end

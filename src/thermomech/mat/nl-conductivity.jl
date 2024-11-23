@@ -3,15 +3,15 @@
 export NLConductivity
 
 mutable struct NLConductivityState<:IpState
-    env::ModelEnv
+    ctx::Context
     ut::Float64
     Q::Array{Float64,1} # thermal flow
     D::Array{Float64,1}
-    function NLConductivityState(env::ModelEnv)
-        this = new(env)
+    function NLConductivityState(ctx::Context)
+        this = new(ctx)
         this.ut = 0.0
-        this.Q  = zeros(env.ndim)
-        this.D  = zeros(env.ndim)
+        this.Q  = zeros(ctx.ndim)
+        this.D  = zeros(ctx.ndim)
         return this
     end
 end
@@ -58,8 +58,8 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{NLConductivity}, ::Type{ThermoSolid}, env::ModelEnv) = NLConductivityState
-compat_state_type(::Type{NLConductivity}, ::Type{ThermoShell}, env::ModelEnv) = NLConductivityState
+compat_state_type(::Type{NLConductivity}, ::Type{ThermoSolid}, ctx::Context) = NLConductivityState
+compat_state_type(::Type{NLConductivity}, ::Type{ThermoShell}, ctx::Context) = NLConductivityState
 
 
 function calc_cv(mat::NLConductivity, ut::Float64) # Specific heat
@@ -88,7 +88,7 @@ function ip_state_vals(mat::NLConductivity, state::NLConductivityState)
     D = OrderedDict{Symbol, Float64}()
     #D[:qx] = state.Q[1]
     #D[:qy] = state.Q[2]
-    #if state.env.ndim==3
+    #if state.ctx.ndim==3
         #D[:qz] = state.Q[3]
     #end
     return D

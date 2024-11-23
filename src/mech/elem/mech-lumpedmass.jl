@@ -10,7 +10,7 @@ mutable struct MechLumpedMass<:Mech
     mat::Material
     active::Bool
     linked_elems::Array{Element,1}
-    env::ModelEnv
+    ctx::Context
 
     function MechLumpedMass()
         return new()
@@ -21,7 +21,7 @@ compat_shape_family(::Type{MechLumpedMass}) = VERTEXCELL
 
 
 function elem_stiffness(elem::MechLumpedMass)
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     mat  = elem.mat
     K = zeros(ndim, ndim)
 
@@ -32,7 +32,7 @@ end
 
 
 function elem_mass(elem::MechLumpedMass)
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     mat  = elem.mat
 
     M = mat.m*Matrix{Float64}(I, ndim, ndim)

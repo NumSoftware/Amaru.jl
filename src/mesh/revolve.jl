@@ -200,7 +200,7 @@ function revolve(
     newmesh.nodes = nodes
     newmesh.elems = cells
     syncronize!(newmesh, reorder=true)
-    newmesh.env.ndim = max(mesh.env.ndim, newmesh.env.ndim)
+    newmesh.ctx.ndim = max(mesh.ctx.ndim, newmesh.ctx.ndim)
 
     return newmesh
 end

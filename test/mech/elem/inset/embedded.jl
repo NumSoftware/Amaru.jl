@@ -16,14 +16,15 @@ mats = [
         "embedded" => MechBar => VonMises => (E=1.e8, fy=500e3, A=0.005),
        ]
 
-ana = MechAnalysis()
-model = FEModel(msh, mats, ana)
+ctx = MechContext()
+model = FEModel(msh, mats, ctx)
+ana = MechAnalysis(model)
 
 bcs = [
        :(y==0 && z==0) => NodeBC(ux=0, uy=0, uz=0),
        :(y==6 && z==0) => NodeBC(ux=0, uy=0, uz=0),
        :(z==1) => SurfaceBC(tz=-1000),
       ]
-addstage!(model, bcs, nincs=20)
+addstage!(ana, bcs, nincs=20)
 
-solve!(model, autoinc=true)
+solve!(ana, autoinc=true)

@@ -5,10 +5,11 @@ abstract type BC end
 @inline Base.:(<<)(a, b::BC) = return (a, b)
 @inline Base.:(=>)(a, b::BC) = return (a, b)
 
-# NodeBC
+
+# NodeBC #
 mutable struct NodeBC<:BC
     conds::AbstractDict
-    filter::Union{Array{Int,1},Symbol,String,Expr,Symbolic}
+    filter::Any
     nodes::Array{Node,1}
 
     function NodeBC(;conds...)
@@ -56,12 +57,10 @@ function compute_bc_vals!(model::AbstractDomain, bc::NodeBC, t::Float64, U::Arra
 end
 
 
-# SurfaceBC and EdgeBC
-
-
+# SurfaceBC #
 mutable struct SurfaceBC<:BC
     conds ::AbstractDict
-    filter::Union{Symbol,String,Expr,Symbolic}
+    filter::Any
     facets ::Array{Face,1}
 
     function SurfaceBC(;conds...)
@@ -71,10 +70,10 @@ end
 
 FaceBC = SurfaceBC
 
-
+# EdgeBC #
 mutable struct EdgeBC<:BC
     conds ::AbstractDict
-    filter::Union{Symbol,String,Expr,Symbolic}
+    filter::Any
     edges ::Array{Edge,1}
 
     function EdgeBC(;conds...)
@@ -88,7 +87,7 @@ function setup_bc!(model::AbstractDomain, filter, bc::Union{SurfaceBC,EdgeBC})
 
     # Filter objects according to bc criteria
     if bc isa SurfaceBC
-        if model.env.ndim==2
+        if model.ctx.ndim==2
             bc.facets = model.edges[bc.filter]
         else
             bc.facets = model.faces[bc.filter]
@@ -128,7 +127,7 @@ function compute_bc_vals!(model::AbstractDomain, bc::Union{SurfaceBC,EdgeBC}, t:
                     end
                 end
             else
-                Fd, map = distributed_bc(facet.owner, facet, key, val)
+                Fd, map = distributed_bc(facet.owner, facet, t, key, val)
                 F[map] += Fd
             end
         end
@@ -141,7 +140,7 @@ end
 
 mutable struct BodyC<:BC
     conds::AbstractDict
-    filter::Union{Array{Int,1},Symbol,String,Expr,Symbolic}
+    filter::Any
     elems::Array{Element,1}
 
     function BodyC(;conds...)

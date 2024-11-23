@@ -76,7 +76,7 @@ for i in 1:2
     ]
     addstage!(model, bcs, tspan=tlong, nincs=2, nouts=1)
     solve!(model, tol=1e-2)
-    model.env.t = 0.0
+    model.ctx.t = 0.0
 
     # Stage 2: loading
     bcs = [

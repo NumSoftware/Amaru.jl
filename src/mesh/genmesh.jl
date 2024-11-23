@@ -29,8 +29,8 @@ function Mesh(geo::GeoModel; kwargs...)
         if length(iblocks)>0
             mesh = Mesh(mesh, iblocks; args...)
         end
-        if length(geo.supp_paths)>0
-            gen_insets!(mesh, geo.supp_paths)
+        if length(geo.subpaths)>0
+            gen_insets!(mesh, geo.subpaths)
             syncronize!(mesh)
         end
 
@@ -44,7 +44,7 @@ function Mesh(geo::GeoModel; kwargs...)
     if !quiet
         npoints = length(mesh.nodes)
         ncells  = length(mesh.elems)
-        @printf "  %4dd mesh\033[K\n" mesh.env.ndim
+        @printf "  %4dd mesh\033[K\n" mesh.ctx.ndim
         @printf "  %5d nodes\n" npoints
         @printf "  %5d cells\n" ncells
         nfaces  = length(mesh.faces)
@@ -74,7 +74,7 @@ function Mesh(
     meshes = filter(b->b isa Mesh, fitems)
 
     # Find ndim
-    # ndim = max(ndim, maximum((b.ndim for b in blocks), init=0), maximum((m.env.ndim for m in meshes), init=0) )
+    # ndim = max(ndim, maximum((b.ndim for b in blocks), init=0), maximum((m.ctx.ndim for m in meshes), init=0) )
     
     nmeshes = length(meshes)
     nblocks = length(blocks)
@@ -102,7 +102,7 @@ function Mesh(
     if !quiet
         npoints = length(mesh.nodes)
         ncells  = length(mesh.elems)
-        @printf "  %4dd mesh\033[K\n" mesh.env.ndim
+        @printf "  %4dd mesh\033[K\n" mesh.ctx.ndim
         @printf "  %5d nodes\n" npoints
         @printf "  %5d cells\n" ncells
         nfaces  = length(mesh.faces)

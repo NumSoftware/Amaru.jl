@@ -28,7 +28,7 @@ HydroAnalysis = HydromechAnalysis = HydromechAnalysisProps
 
 
 # Assemble the global stiffness matrix
-function hm_mount_global_matrices(model::Model,
+function hm_mount_global_matrices(model::FEModel,
                                   ndofs::Int,
                                   Δt::Float64,
                                   )
@@ -133,7 +133,7 @@ function hm_mount_global_matrices(model::Model,
 end
 
 
-function complete_uw_h(model::Model)
+function complete_uw_h(model::FEModel)
     haskey(model.node_data, "uw") || return
     Uw = model.node_data["uw"]
     H  = model.node_data["h"]
@@ -158,7 +158,7 @@ function complete_uw_h(model::Model)
 end
 
 
-function solve!(model::Model, ana::HydromechAnalysis; args...)
+function solve!(model::FEModel, ana::HydromechAnalysis; args...)
     name = "Solver for seepage and hydromechanical analyses"
     status = stage_iterator!(name, hm_stage_solver!, model; args...)
     return status
@@ -166,7 +166,7 @@ end
 
 hm_stage_solver_params = [
     FunInfo(:mech_stage_solver!, "Solves a load stage of a hydromechanical analysis."),
-    ArgInfo(:model, "Model object"),
+    ArgInfo(:model, "FEModel object"),
     ArgInfo(:stage, "Stage object"),
     KwArgInfo(:tol, "Force tolerance", 0.01, cond=:(tol>0)),
     KwArgInfo(:dTmin, "Relative minimum increment size", 1e-7, cond=:(0<dTmin<1) ),
@@ -179,7 +179,7 @@ hm_stage_solver_params = [
 ]
 @doc docstring(hm_stage_solver_params) hm_stage_solver!()
 
-function hm_stage_solver!(model::Model, stage::Stage; args...)
+function hm_stage_solver!(model::FEModel, stage::Stage; args...)
     args = checkargs(args, mech_stage_solver_params)
     
     tol     = args.tol      
@@ -191,8 +191,8 @@ function hm_stage_solver!(model::Model, stage::Stage; args...)
     autoinc = args.autoinc  
     quiet   = args.quiet 
 
-    env = model.env
-    println(env.log, "Hydromech FE analysis: Stage $(stage.id)")
+    ctx = model.ctx
+    println(ctx.log, "Hydromech FE analysis: Stage $(stage.id)")
 
     solstatus = success()
 
@@ -200,11 +200,11 @@ function hm_stage_solver!(model::Model, stage::Stage; args...)
     nouts     = stage.nouts
     bcs       = stage.bcs
     tspan     = stage.tspan
-    env       = model.env
+    ctx       = model.ctx
     saveouts = stage.nouts > 0
 
-    stressmodel = env.ana.stressmodel
-    env.ndim==3 && @check stressmodel==:d3
+    stressmodel = ctx.stressmodel
+    ctx.ndim==3 && @check stressmodel==:d3
 
     # Get active elements
     for elem in stage.toactivate
@@ -219,10 +219,10 @@ function hm_stage_solver!(model::Model, stage::Stage; args...)
     pmap  = nu+1:ndofs   # map for prescribed bcs
     model.ndofs = length(dofs)
 
-    println(env.info, "unknown dofs: $nu")
-    println(env.log, "unknown dofs: $nu")
+    println(ctx.info, "unknown dofs: $nu")
+    println(ctx.log, "unknown dofs: $nu")
 
-    quiet || nu==ndofs && println(env.alerts, "solve_system!: No essential boundary conditions")
+    quiet || nu==ndofs && println(ctx.alerts, "solve_system!: No essential boundary conditions")
 
     if stage.id == 1
         # Setup quantities at dofs
@@ -243,13 +243,13 @@ function hm_stage_solver!(model::Model, stage::Stage; args...)
     Z = zeros(ndofs)
     for node in model.nodes
         for dof in node.dofs
-            Z[dof.eq_id] = node.coord[env.ndim]
+            Z[dof.eq_id] = node.coord[ctx.ndim]
         end
     end
 
     # Get global parameters
-    gammaw = model.env.ana.γw
-    isnan(gammaw) && error("solve!: gammaw parameter was not set in Model")
+    gammaw = model.ctx.γw
+    isnan(gammaw) && error("solve!: gammaw parameter was not set in FEModel")
     gammaw > 0 || error("hm_solve: invalid value for gammaw: $gammaw")
 
     # Get the domain current state and backup
@@ -257,7 +257,7 @@ function hm_stage_solver!(model::Model, stage::Stage; args...)
     StateBk = copy.(State)
 
     # Incremental analysis
-    t    = env.t     # current time
+    t    = ctx.t     # current time
     ΔTbk = 0.0
     ΔTcheck = saveouts ? 1/nouts : 1.0
     Tcheck  = ΔTcheck
@@ -296,17 +296,17 @@ function hm_stage_solver!(model::Model, stage::Stage; args...)
     local RHS::Array{Float64,1}
 
     while T < 1.0-ΔTmin
-        env.ΔT = ΔT
+        ctx.ΔT = ΔT
 
         # Update counters
         inc += 1
-        env.inc = inc
+        ctx.inc = inc
 
-        println(env.log, "  inc $inc")
+        println(ctx.log, "  inc $inc")
 
         # Get forces and displacements from boundary conditions
         Δt = tspan*ΔT
-        env.t = t + Δt
+        ctx.t = t + Δt
         UexN, FexN = get_bc_vals(model, bcs, t+Δt) # get values at time t+Δt
 
         ΔUex = UexN - U
@@ -346,7 +346,7 @@ function hm_stage_solver!(model::Model, stage::Stage; args...)
 
                 # Solve
                 status = solve_system!(G, ΔUi, R, nu)   # Changes unknown positions in ΔUi and R
-                println(env.log, status.message)
+                println(ctx.log, status.message)
 
 
                 failed(status) && (syserror=true; break)
@@ -385,7 +385,7 @@ function hm_stage_solver!(model::Model, stage::Stage; args...)
             R .= ΔFex .- ΔFin
             R[pmap] .= 0.0  # zero at prescribed positions
 
-            @printf(env.log, "    it %d  residue: %-10.4e\n", it, residue)
+            @printf(ctx.log, "    it %d  residue: %-10.4e\n", it, residue)
 
             it==1 && (residue1=residue)
             residue < tol  && (converged=true; break)
@@ -395,15 +395,15 @@ function hm_stage_solver!(model::Model, stage::Stage; args...)
 
         end
 
-        env.residue = residue
+        ctx.residue = residue
         q = 0.0 # increment size factor for autoinc
 
         if syserror
-            println(env.alerts, sysstatus.message)
-            println(env.log, sysstatus.message)
+            println(ctx.alerts, sysstatus.message)
+            println(ctx.log, sysstatus.message)
             converged = false
         end
-        # quiet || sysstatus.message!="" && println(env.alerts, sysstatus.message)
+        # quiet || sysstatus.message!="" && println(ctx.alerts, sysstatus.message)
 
         if converged
             # Update nodal natural and essential values for the current stage
@@ -428,19 +428,19 @@ function hm_stage_solver!(model::Model, stage::Stage; args...)
             # Update time
             t += Δt
             T += ΔT
-            env.t = t
-            env.T = T
+            ctx.t = t
+            ctx.T = T
 
             # Check for saving output file
             checkpoint = T>Tcheck-ΔTmin
             if checkpoint
-                env.out += 1
+                ctx.out += 1
                 Tcheck += ΔTcheck # find the next output time
             end
 
             rstatus = update_records!(model, checkpoint=checkpoint)
             if failed(rstatus)
-                println(env.alerts, rstatus.message)
+                println(ctx.alerts, rstatus.message)
                 return rstatus
             end
 
@@ -466,12 +466,12 @@ function hm_stage_solver!(model::Model, stage::Stage; args...)
         else
             # Restore counters
             inc -= 1
-            env.inc -= 1
+            ctx.inc -= 1
 
             copyto!.(State, StateBk)
 
             if autoinc
-                println(env.log, "      increment failed")
+                println(ctx.log, "      increment failed")
                 q = (1+tanh(log10(tol/(residue1+eps()))))
                 q = clamp(q, 0.2, 0.9)
                 syserror && (q=0.7)

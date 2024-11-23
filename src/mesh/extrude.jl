@@ -104,7 +104,7 @@ function extrude(mesh::Mesh; length::Real=1.0, n::Int=1, axis=nothing, quiet=tru
     # check cells
     for cell in mesh.elems
         celldim = cell.shape.ndim
-        celldim==1 && mesh.env.ndim==3 && axis===nothing && error("extrude: cannot extrude cell of shape $(cell.shape.name) in dimension 3 using normal")    
+        celldim==1 && mesh.ctx.ndim==3 && axis===nothing && error("extrude: cannot extrude cell of shape $(cell.shape.name) in dimension 3 using normal")    
         celldim==3 && error("extrude: cannot extrude cell of shape $(cell.shape.name)")
     end
 

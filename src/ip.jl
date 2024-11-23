@@ -10,7 +10,7 @@ import Base.sort
 Abstract type for objects to store the state at integration points.
 """
 abstract type IpState
-    #env::ModelEnv
+    #ctx::Context
     #other data
 end
 
@@ -95,20 +95,58 @@ function ip_vals(ip::Ip)
 end
 
 
-# Index operator for a ip collection using expression
-function Base.getindex(ips::Array{Ip,1}, filter::Union{Expr,Symbolic})
-    R = Ip[]
-    for ip in ips
-        x, y, z = ip.coord
-        evaluate(filter, x=x, y=y, z=z) && push!(R, ip)
+function Base.getindex(ips::Array{<:Ip,1}, filters::NTuple; kwargs...)
+    return getindex(ips, filters...; kwargs...)
+end
+
+
+# Index operator for an collection of ips
+function Base.getindex(
+    ips::Array{Ip,1}, 
+    filters::Union{Expr,Symbolic,String}...;
+    invert = false
+    )
+    
+    filtered = collect(1:length(ips))
+
+    for filter in filters
+        if typeof(filter) in (Expr, Symbolic)
+            fips = ips[filtered]
+
+            T = Bool[]
+            for ip in fips
+                x, y, z = ip.coord.x, ip.coord.y, ip.coord.z
+                push!(T, evaluate(filter, x=x, y=y, z=z))
+            end
+    
+            filtered = filtered[T]
+        elseif filter isa String
+            filtered = [ i for i in filtered if ips[i].tag==filter ]
+        end
     end
-    return R
+
+    if invert
+        filtered = setdiff(1:length(ips), filtered)
+    end
+
+    return ips[filtered]
 end
 
 
-function Base.getindex(ips::Array{Ip,1}, s::String)
-    return Ip[ ip for ip in ips if ip.tag==s ]
-end
+# # Index operator for a ip collection using expression
+# function Base.getindex(ips::Array{Ip,1}, filter::Union{Expr,Symbolic})
+#     R = Ip[]
+#     for ip in ips
+#         x, y, z = ip.coord
+#         evaluate(filter, x=x, y=y, z=z) && push!(R, ip)
+#     end
+#     return R
+# end
+
+
+# function Base.getindex(ips::Array{Ip,1}, s::String)
+#     return Ip[ ip for ip in ips if ip.tag==s ]
+# end
 
 
 function getfromcoords(ips::Array{Ip,1}, P::AbstractArray{<:Real})

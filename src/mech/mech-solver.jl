@@ -1,28 +1,75 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export MechAnalysis
+export MechContext, MechAnalysis
 
-MechAnalysis_params = [
-    FunInfo(:MechAnalysis, "Mechanical analysis properties"),
-    KwArgInfo(:stressmodel, "Stress model", :d3, values=(:planestress, :planestrain, :axisymmetric, :d3)),
-    KwArgInfo(:thickness, "Thickness for 2d analyses", 1.0, cond=:(thickness>0)),
+
+MechAnalysisContext_params = [
+    FunInfo(:MechContext, "Context for mechanical analysis"),
+    KwArgInfo(:ndim, "Analysis dimension", 0),
+    KwArgInfo(:stressmodel, "Stress model", :d3, values=(:planestress, :planestrain, :axisymmetric, :d3, :none)),
     KwArgInfo(:g, "Gravity acceleration", 0.0, cond=:(g>=0))
 ]
-@doc docstring(MechAnalysis_params) MechAnalysis
+@doc docstring(MechAnalysisContext_params) MechContext
 
-mutable struct MechAnalysisProps<:StaticAnalysis
+
+mutable struct MechContext<:Context
+    ndim       ::Int
     stressmodel::Symbol
-    thickness::Float64
-    g::Float64
+    g          ::Float64
+    thickness::Float64 # to be set by the analysis during creation (from fe-model)
     
-    function MechAnalysisProps(; kwargs...)
-        args = checkargs(kwargs, MechAnalysis_params)
-        this = new(args.stressmodel, args.thickness, args.g)
+    function MechContext(; kwargs...)
+        args = checkargs(kwargs, MechAnalysisContext_params)
+        this = new()
+        
+        this.ndim = args.ndim
+        this.stressmodel = args.stressmodel
+        this.g         = args.g
+        # this.transient = false
+
         return this
+
     end
 end
 
-const MechAnalysis = MechAnalysisProps
+
+MechAnalysis_params = [
+    FunInfo(:MechAnalysis, "Mechanical analysis"),
+    ArgInfo(:model, "Finite element model"),
+]
+@doc docstring(MechAnalysis_params) MechAnalysis
+
+
+mutable struct MechAnalysis<:StaticAnalysis
+    model ::FEModel
+    ctx   ::MechContext
+    sctx  ::SolverContext
+
+    stages  ::Array{Stage}
+    loggers ::Array{AbstractLogger,1}
+    monitors::Array{AbstractMonitor,1}
+
+    function MechAnalysis(model::FEModel; outdir=".", outkey="out")
+        this = new(model, model.ctx)
+        this.stages = []
+        this.loggers = []
+        this.monitors = []  
+        this.sctx = SolverContext()
+        this.sctx.outdir = outdir
+        this.sctx.outkey = outkey
+
+        model.ctx.thickness = model.thickness
+        if model.ctx.stressmodel==:none
+            if model.ctx.ndim==2
+                model.ctx.stressmodel = :planestrain
+            else
+                model.ctx.stressmodel = :d3
+            end
+        end
+
+        return this
+    end
+end
 
 
 # Assemble the global stiffness matrix
@@ -61,7 +108,7 @@ function mount_K(elems::Array{<:Element,1}, ndofs::Int )
 end
 
 
-function mount_RHS(model::Model, ndofs::Int64, Δt::Float64)
+function mount_RHS(model::FEModel, ndofs::Int64, Δt::Float64)
     RHS = zeros(ndofs)
     for elem in active_elems
         F, map = elem_RHS(elem) # RHS[map] = elem_RHS(elem, Δt::Float64)
@@ -103,17 +150,9 @@ function update_embedded_disps!(active_elems::Array{<:Element,1}, U::Matx)
 end
 
 
-function solve!(model::Model, ana::MechAnalysis; args...)
-    name = "Solver for mechanical analyses"
-    status = stage_iterator!(name, mech_stage_solver!, model; args...)
-    return status
-end
-
-
-mech_stage_solver_params = [
-    FunInfo( :mech_stage_solver!, "Solves a load stage of a mechanical analysis."),
-    ArgInfo( :model, "Model object"),
-    ArgInfo( :stage, "Stage object"),
+mech_solver_params = [
+    FunInfo( :solve!, "Solves a finite element mechanical analysis."),
+    ArgInfo( :model, "FEModel object"),
     KwArgInfo( :tol, "Force tolerance", 0.01, cond=:(tol>0)),
     KwArgInfo( :rspan, "Relative span to residue reapplication", 0.01, cond=:(0<rspan<1) ),
     KwArgInfo( :rtol, "Relative tolerance in terms of displacements", 0.01, cond=:(rtol>0)),
@@ -125,11 +164,23 @@ mech_stage_solver_params = [
     KwArgInfo( :autoinc, "Flag to set auto-increments", false),
     KwArgInfo( :quiet, "Flat to set silent mode", false),
 ]
-@doc docstring(mech_stage_solver_params) mech_stage_solver!()
+@doc docstring(mech_solver_params) solve!(::MechAnalysis; args...)
 
 
-function mech_stage_solver!(model::Model, stage::Stage; args...)
-    args = checkargs(args, mech_stage_solver_params)
+function solve!(ana::MechAnalysis; args...)
+    args = checkargs(args, mech_solver_params)
+    if !args.quiet
+        printstyled("Solver for mechanical analyses", "\n", bold=true, color=:cyan)
+        println("  stress model: ", ana.ctx.stressmodel)
+    end
+
+    status = stage_iterator!(mech_stage_solver!, ana; args...)
+    return status
+end
+
+
+function mech_stage_solver!(ana::MechAnalysis, stage::Stage; args...)
+    args = NamedTuple(args)
     
     tol     = args.tol
     rtol    = args.rtol
@@ -137,25 +188,26 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
     ΔTmin   = args.dTmin
     ΔTmax   = args.dTmax
     rspan   = args.rspan
-    scheme  = args.scheme
+    scheme  = Symbol(args.scheme)
     maxits  = args.maxits
     autoinc = args.autoinc
     quiet   = args.quiet
 
-    env = model.env
-    println(env.log, "Mechanical FE analysis: Stage $(stage.id)")
+    model = ana.model
+    sctx = ana.sctx
+    println(sctx.log, "Mechanical FE analysis: Stage $(stage.id)")
 
     solstatus = success()
 
     nincs     = stage.nincs
     nouts     = stage.nouts
     bcs       = stage.bcs
-    env       = model.env
+    ctx       = model.ctx
     saveouts  = stage.nouts > 0
     ftol      = tol
 
-    stressmodel = env.ana.stressmodel
-    env.ndim==3 && @check stressmodel==:d3
+    stressmodel = ctx.stressmodel
+    ctx.ndim==3 && @check stressmodel==:d3
 
     # Get active elements
     for elem in stage.toactivate
@@ -170,10 +222,10 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
     pmap  = nu+1:ndofs   # map for prescribed displacements
     model.ndofs = length(dofs)
 
-    println(env.info,"unknown dofs: $nu")
-    println(env.log, "unknown dofs: $nu")
+    println(sctx.info,"unknown dofs: $nu")
+    println(sctx.log, "unknown dofs: $nu")
 
-    quiet || nu==ndofs && println(env.alerts, "No essential boundary conditions")
+    quiet || nu==ndofs && println(ctx.alerts, "No essential boundary conditions")
 
     if stage.id == 1
         # Setup quantities at dofs
@@ -182,7 +234,7 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
             dof.vals[dof.natname] = 0.0
         end
 
-        update_records!(model, force=true)
+        update_records!(ana, force=true)
     end
 
     # Get the domain current state and backup
@@ -234,13 +286,13 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
     local K::SparseMatrixCSC{Float64,Int64}
 
     while T < 1.0-ΔTmin
-        env.ΔT = ΔT
+        sctx.ΔT = ΔT
 
         # Update counters
         inc += 1
-        env.inc = inc
+        sctx.inc = inc
 
-        println(env.log, "  inc $inc")
+        println(sctx.log, "  inc $inc")
 
         ΔUex, ΔFex = ΔT*Uex, ΔT*Fex     # increment of external vectors
 
@@ -303,7 +355,7 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
 
             err = norm(ΔUi, Inf)/norm(ΔUa, Inf)
 
-            @printf(env.log, "    it %d  residue: %-10.4e\n", it, res)
+            @printf(sctx.log, "    it %d  residue: %-10.4e\n", it, res)
 
             it==1 && (res1=res)
             it>1  && (still_linear=false)
@@ -316,12 +368,12 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
             it>1 && res>lastres && break
         end
 
-        env.residue = res
+        sctx.residue = res
         q = 0.0 # increment size factor for autoinc
 
         if syserror
-            println(env.alerts, sysstatus.message)
-            println(env.log, sysstatus.message)
+            println(sctx.alerts, sysstatus.message)
+            println(sctx.log, sysstatus.message)
             converged = false
         end
 
@@ -350,20 +402,20 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
 
             # Update time
             T += ΔT
-            env.T = T
+            sctx.T = T
 
             # Check for saving output file
             checkpoint = T>Tcheck-ΔTmin
             # && saveouts
             if checkpoint
-                env.out += 1
+                sctx.out += 1
                 update_embedded_disps!(active_elems, model.node_data["U"])
                 Tcheck += ΔTcheck # find the next output time
             end
 
-            solstatus = update_records!(model, checkpoint=checkpoint)
+            solstatus = update_records!(ana, checkpoint=checkpoint)
             if failed(solstatus)
-                println(env.alerts, solstatus.message)
+                println(sctx.alerts, solstatus.message)
                 break
             end
             
@@ -400,12 +452,12 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
         else
             # Restore counters
             inc -= 1
-            env.inc -= 1
+            sctx.inc -= 1
 
             copyto!.(State, StateBk)
 
             if autoinc
-                println(env.log, "      increment failed")
+                println(sctx.log, "      increment failed")
                 # if nits==1
                 #     # q = 1+tanh(log10(ftol/res))
                 #     q = 0.666
@@ -429,7 +481,7 @@ function mech_stage_solver!(model::Model, stage::Stage; args...)
         end
     end
 
-    failed(solstatus) && update_records!(model, force=true)
+    failed(solstatus) && update_records!(ana, force=true)
 
     return solstatus
 

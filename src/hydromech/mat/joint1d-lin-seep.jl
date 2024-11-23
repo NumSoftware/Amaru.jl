@@ -3,12 +3,12 @@
 export Joint1DConstPermeability
 
 mutable struct Joint1DConstPermeabilityState<:IpState
-    env::ModelEnv
+    ctx::Context
     ndim::Int
     V::Float64     # fluid velocity
     D::Float64     # distance traveled by the fluid
-    function Joint1DConstPermeabilityState(env::ModelEnv)
-        this = new(env)
+    function Joint1DConstPermeabilityState(ctx::Context)
+        this = new(ctx)
         this.V = 0.0
         this.D = 0.0
         return this
@@ -33,7 +33,7 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{Joint1DConstPermeability}, ::Type{SeepJoint1D}, env::ModelEnv) = Joint1DConstPermeabilityState
+compat_state_type(::Type{Joint1DConstPermeability}, ::Type{SeepJoint1D}, ctx::Context) = Joint1DConstPermeabilityState
 
 # Element types that work with this material
 # compat_elem_types(::Type{Joint1DConstPermeability}) = (SeepJoint1D,)

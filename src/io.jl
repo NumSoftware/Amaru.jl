@@ -1,25 +1,25 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 
-function save_xml(model::Model, filename::String)
+function save_xml(model::FEModel, filename::String)
     io = IOBuffer()
     nnodes = length(model.nodes)
     nelems = length(model.elems)
 
-    env = model.env
+    ctx = model.ctx
     attributes=OrderedDict{String,String}()
 
-    fields = fieldnames(typeof(env))
+    fields = fieldnames(typeof(ctx))
 
     for fld in fields
         fld in (:mat,:cinc,:cout) && continue
-        value = getfield(env, fld)
+        value = getfield(ctx, fld)
         value == 0 && continue
         attributes[string(fld)] = string(value)
     end
 
-    # Model
-    root = XmlElement("Model", attributes=attributes)
+    # FEModel
+    root = XmlElement("FEModel", attributes=attributes)
 
     # Materials
     xmats = XmlElement("Materials")
@@ -87,7 +87,7 @@ function save_xml(model::Model, filename::String)
             keys = []
             vals = []
             for fld in fields
-                fld in (:env,) && continue
+                fld in (:ctx,) && continue
                 push!(keys, fld)
                 push!(vals, getfield(ip.state, fld))
             end
@@ -155,11 +155,11 @@ end
 
 Saves a domain object into a file. Available formats are vtu, vtk and xml.
 """
-function save(domain::Model, filename::String; quiet=false)
+function save(domain::FEModel, filename::String; quiet=false)
 
     formats = (".vtk", ".vtu", ".xml")
     _, format = splitext(filename)
-    format in formats || error("save: Cannot save Model to $filename. Available formats are $formats.")
+    format in formats || error("save: Cannot save FEModel to $filename. Available formats are $formats.")
 
     if format==".xml"; 
         save_xml(domain, filename)
@@ -171,7 +171,7 @@ end
 
 
 function save(elems::Array{<:Element,1}, filename::String; quiet=false)
-    save(Model(elems), filename, quiet=quiet)
+    save(FEModel(elems), filename, quiet=quiet)
 end
 
 
@@ -207,26 +207,26 @@ function setfields!(obj, dict; exclude::Tuple{Vararg{Symbol}}=())
 end
 
 
-function Model(filename::String; quiet=false)
+function FEModel(filename::String; quiet=false)
     suitable_formats = (".xml",)
     
 
-    quiet || printstyled("Loading Model: filename $filename\n", bold=true, color=:cyan)
+    quiet || printstyled("Loading FEModel: filename $filename\n", bold=true, color=:cyan)
 
     basename, format = splitext(filename)
 
-    format in suitable_formats || error("Model: cannot read format \"$format\". Suitable formats are $suitable_formats.")
+    format in suitable_formats || error("FEModel: cannot read format \"$format\". Suitable formats are $suitable_formats.")
 
-    domain = Model()
-    env = ModelEnv()
+    domain = FEModel()
+    ctx = Context()
 
     quiet || printstyled("  loading xml file...\r", color=:cyan)
     xdoc = XmlDocument(filename)
     xdomain = xdoc.root
-    setfields!(env, xdomain.attributes)
+    setfields!(ctx, xdomain.attributes)
 
-    domain.env = env
-    domain.ndim = env.ndim
+    domain.ctx = ctx
+    domain.ndim = ctx.ndim
 
     quiet || printstyled("  setting materials...\e[K\r", color=:cyan)
     materials = Material[]
@@ -266,7 +266,7 @@ function Model(filename::String; quiet=false)
         nodesidx = parse.(Int, split(xelem.attributes["nodes"],","))
         nodes = domain.nodes[nodesidx]
 
-        elem = new_element(T, shape, nodes, "", domain.env)
+        elem = new_element(T, shape, nodes, "", domain.ctx)
         setfields!(elem, xelem.attributes, exclude=(:shape, :material, :nodes, :linked_elems))
 
         matidx = parse(Int,xelem.attributes["material"])
@@ -347,7 +347,7 @@ function Model(filename::String; quiet=false)
 end
 
 
-function get_segment_data(model::Model, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=50)
+function get_segment_data(model::FEModel, X1::Array{<:Real,1}, X2::Array{<:Real,1}, filename::String=""; npoints=50)
     data = model.node_data
     table = DataTable(["s"; collect(keys(data))])
     X1 = [X1; 0.0][1:3]

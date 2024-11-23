@@ -3,13 +3,13 @@
 export LinearLSInterface, ElasticRSJoint, ElasticLSJoint
 
 mutable struct LinearLSInterfaceState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ ::Array{Float64,1}
     u ::Array{Float64,1}
-    function LinearLSInterfaceState(env::ModelEnv)
-        this = new(env)
-        this.σ = zeros(env.ndim)
-        this.u = zeros(env.ndim)
+    function LinearLSInterfaceState(ctx::Context)
+        this = new(ctx)
+        this.σ = zeros(ctx.ndim)
+        this.u = zeros(ctx.ndim)
         return this
     end
 end
@@ -37,13 +37,13 @@ const ElasticRSJoint = LinearLSInterface
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{LinearLSInterface}, ::Type{MechRSJoint}, env::ModelEnv) = LinearLSInterfaceState
+compat_state_type(::Type{LinearLSInterface}, ::Type{MechRSJoint}, ctx::Context) = LinearLSInterfaceState
 
 
 function calcD(mat::LinearLSInterface, state::LinearLSInterfaceState)
     ks = mat.ks
     kn = mat.kn
-    if state.env.ndim==2
+    if state.ctx.ndim==2
         return [  ks  0.0
                  0.0   kn ]
     else

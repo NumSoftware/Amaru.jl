@@ -33,10 +33,11 @@ th    = 0.1
 materials = ["shell"=> TMShell => TMCombined{ConstConductivity, LinearElastic} => (E=E, nu=nu, k=k, alpha=alpha, thickness=th, rho=rho, cv=cv) ]
 # materials = ["shell"=> TMShell => TMCombined{ConstConductivity, VonMises} => (E=E, nu=nu, k=k, alpha=alpha, thickness=th, rho=rho, cv=cv, H=0.0, fy=100000.0) ]
 
-ana = ThermomechAnalysis(T0=0.0)
-model = FEModel(mesh, materials, ana)
-addmonitor!(model, :(x==0 && y==0 && z==$R) => NodeMonitor(:uz))
-addmonitor!(model, :(x==0 && y==0 && z==$R) => NodeMonitor(:ut))
+ctx = ThermoMechContext(T0=0.0)
+model = FEModel(mesh, materials, ctx)
+ana = ThermoMechAnalysis(model)
+addmonitor!(ana, :(x==0 && y==0 && z==$R) => NodeMonitor(:uz))
+addmonitor!(ana, :(x==0 && y==0 && z==$R) => NodeMonitor(:ut))
 
 bcs = [
 
@@ -45,5 +46,5 @@ bcs = [
     :(z==$zmin) => NodeBC(ut = 50),
 ]
 
-addstage!(model, bcs, tspan=20_000_000, nincs=1)
-solve!(model, autoinc=false, tol=0.0001,)
+addstage!(ana, bcs, tspan=20_000_000, nincs=1)
+solve!(ana, autoinc=false, tol=0.0001,)

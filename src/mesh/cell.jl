@@ -23,7 +23,7 @@ mutable struct Cell<:AbstractCell
     crossed::Bool                 # flag if cell crossed by linear inclusion
     owner  ::Union{AbstractCell,Nothing}  # owner cell if this cell is a face/edge
     linked_elems::Array{AbstractCell,1}   # neighbor cells in case of joint cell
-    env::MeshEnv                 # mesh environment variables
+    ctx::MeshEnv                 # mesh environment variables
 
     @doc """
         $(SIGNATURES)
@@ -53,7 +53,7 @@ mutable struct Cell<:AbstractCell
       linked_elems: 0-element Vector{Amaru.AbstractCell}
     ```
     """
-    function Cell(shape::CellShape, nodes::Array{Node,1}; env::MeshEnv=MeshEnv(0), tag::String="", owner=nothing, id::Int=-1, active=true)
+    function Cell(shape::CellShape, nodes::Array{Node,1}; ctx::MeshEnv=MeshEnv(0), tag::String="", owner=nothing, id::Int=-1, active=true)
         this = new()
         this.id = id
         this.shape = shape
@@ -65,7 +65,7 @@ mutable struct Cell<:AbstractCell
         this.crossed = false
         this.owner   = owner
         this.linked_elems = []
-        this.env     = env
+        this.ctx     = ctx
         return this
     end
 end
@@ -111,78 +111,78 @@ function getnodes(cells::Array{<:AbstractCell,1})
 end
 
 
-function (cells::Array{<:AbstractCell,1})(filter=nothing; tag=nothing, shape=nothing, family=nothing, plane=nothing, invert=false)
+# function (cells::Array{<:AbstractCell,1})(filter=nothing; tag=nothing, shape=nothing, family=nothing, plane=nothing, invert=false)
 
-    filtered = collect(1:length(cells))
+#     filtered = collect(1:length(cells))
     
-    if isa(filter, Expr) && filter!=:()
-        indexes = copy(filtered)
-        filtered = Int[]
-        # cells id must be set
-        nodes = getnodes(cells)
-        pointmap = zeros(Int, maximum(node.id for node in nodes) ) # points and pointmap may have different sizes
+#     if isa(filter, Expr) && filter!=:()
+#         indexes = copy(filtered)
+#         filtered = Int[]
+#         # cells id must be set
+#         nodes = getnodes(cells)
+#         pointmap = zeros(Int, maximum(node.id for node in nodes) ) # points and pointmap may have different sizes
 
-        T = Bool[]
-        for (i,node) in enumerate(nodes)
-            pointmap[node.id] = i
-            x, y, z = node.coord.x, node.coord.y, node.coord.z
-            push!(T, evaluate(filter, x=x, y=y, z=z))
-        end
+#         T = Bool[]
+#         for (i,node) in enumerate(nodes)
+#             pointmap[node.id] = i
+#             x, y, z = node.coord.x, node.coord.y, node.coord.z
+#             push!(T, evaluate(filter, x=x, y=y, z=z))
+#         end
  
-        filtered = Int[ i for i in indexes if all( T[pointmap[node.id]] for node in cells[i].nodes ) ]
-    end
+#         filtered = Int[ i for i in indexes if all( T[pointmap[node.id]] for node in cells[i].nodes ) ]
+#     end
 
-    if isa(filter, Symbol)
-        families = Dict(:solids=>BULKCELL, :lines=>LINECELL, :joints=>JOINTCELL, :linejoints=>LINEJOINTCELL, :tipjoints=>TIPJOINT)
-        family = families[filter]
-    end
+#     if isa(filter, Symbol)
+#         families = Dict(:solids=>BULKCELL, :lines=>LINECELL, :joints=>JOINTCELL, :linejoints=>LINEJOINTCELL, :tipjoints=>TIPJOINT)
+#         family = families[filter]
+#     end
 
-    if tag!==nothing
-        indexes = copy(filtered)
-        filtered = Int[ i for i in indexes if cells[i].tag==tag ]
-    end
+#     if tag!==nothing
+#         indexes = copy(filtered)
+#         filtered = Int[ i for i in indexes if cells[i].tag==tag ]
+#     end
     
-    if shape!==nothing
-        indexes = copy(filtered)
-        filtered = Int[ i for i in indexes if cells[i].shape==shape ]
-    end
+#     if shape!==nothing
+#         indexes = copy(filtered)
+#         filtered = Int[ i for i in indexes if cells[i].shape==shape ]
+#     end
 
-    if family!==nothing
-        indexes = copy(filtered)
-        filtered = Int[ i for i in indexes if cells[i].shape.family==family ]
-    end
+#     if family!==nothing
+#         indexes = copy(filtered)
+#         filtered = Int[ i for i in indexes if cells[i].shape.family==family ]
+#     end
 
-    if plane!==nothing
-        indexes = copy(filtered)
-        filtered = Int[]
+#     if plane!==nothing
+#         indexes = copy(filtered)
+#         filtered = Int[]
 
-        # plane normal
-        tol = 1e-5
-        A = plane # coplanar points
-        I = ones(size(A,1))
-        n = normalize(pinv(A.+tol/100)*I) # best fit normal        
+#         # plane normal
+#         tol = 1e-5
+#         A = plane # coplanar points
+#         I = ones(size(A,1))
+#         n = normalize(pinv(A.+tol/100)*I) # best fit normal        
 
-        for i in indexes
-            cell = cells[i]
-            cell.shape.family == JOINTCELL || continue
-            ndim = cell.shape.ndim+1
-            @assert ndim==size(A,2)
-            C = getcoords(cells[i], ndim)
-            I = ones(size(C,1))
-            N = pinv(C.+tol/100)*I # best fit normal 
-            norm(C*N-I)<tol || continue # check if cell is coplanar
-            normalize!(N)
-            norm(N-n)<tol || continue # check if planes are parallel
-            dot(A[1,:]-C[1,:], n)<tol && push!(filtered, i)
-        end
-    end
+#         for i in indexes
+#             cell = cells[i]
+#             cell.shape.family == JOINTCELL || continue
+#             ndim = cell.shape.ndim+1
+#             @assert ndim==size(A,2)
+#             C = getcoords(cells[i], ndim)
+#             I = ones(size(C,1))
+#             N = pinv(C.+tol/100)*I # best fit normal 
+#             norm(C*N-I)<tol || continue # check if cell is coplanar
+#             normalize!(N)
+#             norm(N-n)<tol || continue # check if planes are parallel
+#             dot(A[1,:]-C[1,:], n)<tol && push!(filtered, i)
+#         end
+#     end
 
-    if invert
-        filtered = setdiff(1:length(cells), filtered)
-    end
+#     if invert
+#         filtered = setdiff(1:length(cells), filtered)
+#     end
 
-    return cells[filtered]
-end
+#     return cells[filtered]
+# end
 
 
 function Base.getproperty(c::AbstractCell, s::Symbol)
@@ -201,6 +201,11 @@ function Base.getproperty(cells::Array{<:AbstractCell,1}, s::Symbol)
     s == :active && return filter(cell -> cell.active, cells)
 
     error("type $(typeof(cells)) has no property $s")
+end
+
+
+function Base.getindex(cells::Array{<:AbstractCell,1}, filters::NTuple; kwargs...)
+    return getindex(cells, filters...; kwargs...)
 end
 
 
@@ -263,7 +268,6 @@ function Base.getindex(
         end
 
     end
-
 
     
     if !isnothing(normal) || !isnothing(plane)
@@ -432,7 +436,7 @@ end
 # gets all faces of a cell
 function getfaces(cell::AbstractCell)
     # Return a cell with the same shape in case of a 2D cell in 3D space
-    # cell.env.ndim==3 && 
+    # cell.ctx.ndim==3 && 
     cell.shape.ndim==2 && return [ Cell(cell.shape, cell.nodes, tag=cell.tag, owner=cell) ]
     return getfacets(cell)
 end

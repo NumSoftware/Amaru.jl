@@ -218,7 +218,7 @@ subjected to a list of boundary conditions `bcs`.
 """
 function solve!(
     model       :: Model,
-    bcs       :: Array;
+    bcs       :: AbstractArray;
     time_span :: Real    = NaN,
     end_time  :: Real    = NaN,
     nincs     :: Int     = 1,
@@ -244,25 +244,25 @@ function solve!(
     tol>0 || error("solve! : tolerance `tol `should be greater than zero")
     Ttol>0 || error("solve! : tolerance `Ttol `should be greater than zero")
 
-    env = model.env
-    env.cstage += 1
-    env.inc    = 0
+    ctx = model.ctx
+    ctx.cstage += 1
+    ctx.inc    = 0
     sw = StopWatch() # timing
 
     if !isnan(end_time)
-        end_time > env.t || error("solve! : end_time ($end_time) is greater that current time ($(env.t))")
-        time_span = end_time - env.t
+        end_time > ctx.t || error("solve! : end_time ($end_time) is greater that current time ($(ctx.t))")
+        time_span = end_time - ctx.t
     else
-        end_time = env.t + time_span
+        end_time = ctx.t + time_span
     end
     isnan(time_span) && error("solve!: neither time_span nor end_time were set.")
 
     if verbosity>0
-        printstyled("Hydromech FE analysis: Stage $(env.cstage)\n", bold=true, color=:cyan)
-        println("  from t=$(round(env.t,sigdigits=4)) to t=$(round(end_time,sigdigits=4))")
+        printstyled("Hydromech FE analysis: Stage $(ctx.cstage)\n", bold=true, color=:cyan)
+        println("  from t=$(round(ctx.t,sigdigits=4)) to t=$(round(end_time,sigdigits=4))")
     end
 
-    verbosity>1 && println("  model type: ", env.ana.stressmodel)
+    verbosity>1 && println("  model type: ", ctx.stressmodel)
 
     save_outs = nouts>0
     if save_outs
@@ -292,17 +292,17 @@ function solve!(
     Z = zeros(ndofs)
     for node in model.nodes
         for dof in node.dofs
-            Z[dof.eq_id] = node.coord[env.ndim]
+            Z[dof.eq_id] = node.coord[ctx.ndim]
         end
     end
 
     # Get global parameters
-    gammaw = get(model.env.mat, :gammaw, NaN)
+    gammaw = get(model.ctx.mat, :gammaw, NaN)
     isnan(gammaw) && error("solve!: gammaw parameter was not set in Model")
     gammaw > 0 || error("hm_solve: invalid value for gammaw: $gammaw")
 
     # Save initial file and loggers
-    if env.cstage==1
+    if ctx.cstage==1
         # Setup initial quantities at dofs
         for (i,dof) in enumerate(dofs)
             dof.vals[dof.name]    = 0.0
@@ -327,7 +327,7 @@ function solve!(
     StateBk = copy.(State)
 
     # Incremental analysis
-    t    = env.t     # current time
+    t    = ctx.t     # current time
     tend = t + time_span # end time
     Δt = time_span/nincs # initial Δt value
 
@@ -339,7 +339,7 @@ function solve!(
     Tout  = ΔTout        # output time for saving the next output file
 
     inc  = 0             # increment counter
-    iout = env.out      # file output counter
+    iout = ctx.out      # file output counter
     F    = zeros(ndofs)  # total internal force for current stage
     U    = zeros(ndofs)  # total displacements for current stage
     R    = zeros(ndofs)  # vector for residuals of natural values
@@ -370,7 +370,7 @@ function solve!(
     while T < 1.0 - Ttol
         # Update counters
         inc += 1
-        env.inc += 1
+        ctx.inc += 1
 
         if inc > maxincs
             printstyled("  solver maxincs = $maxincs reached (try maxincs=0)\n", color=:red)
@@ -378,11 +378,11 @@ function solve!(
         end
 
         progress = @sprintf("%4.2f", T*100)
-        verbosity>0 && printstyled("  stage $(env.cstage) $(see(sw)) progress $(progress)% increment $inc dT=$(round(ΔT,sigdigits=4))\e[K\r", bold=true, color=:blue) # color 111
+        verbosity>0 && printstyled("  stage $(ctx.cstage) $(see(sw)) progress $(progress)% increment $inc dT=$(round(ΔT,sigdigits=4))\e[K\r", bold=true, color=:blue) # color 111
         verbosity>1 && println()
 
         # Get forces and displacements from boundary conditions
-        env.t = t + Δt
+        ctx.t = t + Δt
         UexN, FexN = get_bc_vals(model, bcs, t+Δt) # get values at time t+Δt
 
         ΔUex = UexN - U
@@ -475,8 +475,8 @@ function solve!(
 
             # Check for saving output file
             if abs(T - Tout) < Ttol && save_outs
-                env.out += 1
-                iout = env.out
+                ctx.out += 1
+                iout = ctx.out
                 update_output_data!(model)
                 update_composed_loggers!(model)
                 complete_uw_h(model)
@@ -501,7 +501,7 @@ function solve!(
         else
             # Restore counters
             inc -= 1
-            env.inc -= 1
+            ctx.inc -= 1
             ΔT_bk = ΔT
 
             # Restore the state to last converged increment
@@ -530,7 +530,7 @@ function solve!(
     end
 
     # time spent
-    verbosity>1 && printstyled("  stage $(env.cstage) $(see(sw)) progress 100%\e[K\n", bold=true, color=:blue) # color 111
+    verbosity>1 && printstyled("  stage $(ctx.cstage) $(see(sw)) progress 100%\e[K\n", bold=true, color=:blue) # color 111
     verbosity==1 && println("  time spent: ", see(sw, format=:hms), "\e[K")
 
     return true

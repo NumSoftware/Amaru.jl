@@ -13,7 +13,7 @@ function elem_config_dofs(elem::AcousticMech)
         add_dof(node, :up, :fp)
         add_dof(node, :ux, :fx)
         add_dof(node, :uy, :fy)
-        elem.env.ndim==3 && add_dof(node, :uz, :fz)
+        elem.ctx.ndim==3 && add_dof(node, :uz, :fz)
     end
 end
 

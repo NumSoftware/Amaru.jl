@@ -21,7 +21,7 @@ mutable struct SeepSolid<:Hydromech
     props ::SeepSolidProps
     active::Bool
     linked_elems::Array{Element,1}
-    env::ModelEnv
+    ctx::Context
 
     function SeepSolid(props=SeepSolidProps())
         this = new()
@@ -47,8 +47,8 @@ end
 
 
 function distributed_bc(elem::SeepSolid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
-    ndim  = elem.env.ndim
-    th    = elem.env.ana.thickness
+    ndim  = elem.ctx.ndim
+    th    = elem.ctx.thickness
     suitable_keys = (:tq,) # tq: fluid volumes per area
 
     # Check keys
@@ -57,7 +57,7 @@ function distributed_bc(elem::SeepSolid, facet::Union{Facet,Nothing}, key::Symbo
     target = facet !== nothing ? facet : elem
     nodes  = target.nodes
     nnodes = length(nodes)
-    t      = elem.env.t
+    t      = elem.ctx.t
 
     # Force boundary condition
     nnodes = length(nodes)
@@ -82,7 +82,7 @@ function distributed_bc(elem::SeepSolid, facet::Union{Facet,Nothing}, key::Symbo
         if ndim==2
             x, y = X
             vip = evaluate(val, t=t, x=x, y=y)
-            if elem.env.ana.stressmodel==:axisymmetric
+            if elem.ctx.stressmodel==:axisymmetric
                 th = 2*pi*X[1]
             end
         else
@@ -102,8 +102,8 @@ end
 
 # hydraulic conductivity
 function elem_conductivity_matrix(elem::SeepSolid)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     C      = getcoords(elem)
     H      = zeros(nnodes, nnodes)
@@ -113,7 +113,7 @@ function elem_conductivity_matrix(elem::SeepSolid)
     J    = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         dNdR = elem.shape.deriv(ip.R)
         @mul J  = C'*dNdR
@@ -123,7 +123,7 @@ function elem_conductivity_matrix(elem::SeepSolid)
 
         # compute H
         K = calcK(elem.mat, ip.state)
-        coef  = 1/elem.env.ana.γw
+        coef  = 1/elem.ctx.γw
         coef *= detJ*ip.w*th
         @mul KBw = K*dNdX'
         @mul H -= coef*dNdX*KBw
@@ -137,8 +137,8 @@ end
 
 
 function elem_compressibility_matrix(elem::SeepSolid)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     C      = getcoords(elem)
     Cpp    = zeros(nnodes, nnodes)
@@ -146,7 +146,7 @@ function elem_compressibility_matrix(elem::SeepSolid)
     J  = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         N    = elem.shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
@@ -168,8 +168,8 @@ end
 
 
 function elem_RHS_vector(elem::SeepSolid)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     C      = getcoords(elem)
     Q      = zeros(nnodes)
@@ -182,7 +182,7 @@ function elem_RHS_vector(elem::SeepSolid)
     Z[end] = 1.0
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         dNdR = elem.shape.deriv(ip.R)
         @mul J  = C'*dNdR
@@ -205,8 +205,8 @@ end
 
 
 function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     C   = getcoords(elem)
 
@@ -218,7 +218,7 @@ function elem_internal_forces(elem::SeepSolid, F::Array{Float64,1})
     dNdX = Array{Float64}(undef, nnodes, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute Bw matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -245,9 +245,9 @@ end
 
 
 function update_elem!(elem::SeepSolid, DU::Array{Float64,1}, Δt::Float64)
-    ndim   = elem.env.ndim
+    ndim   = elem.ctx.ndim
     nnodes = length(elem.nodes)
-    th     = elem.env.ana.thickness
+    th     = elem.ctx.thickness
 
     map_w = [ node.dofdict[:uw].eq_id for node in elem.nodes ]
     C     = getcoords(elem)
@@ -262,7 +262,7 @@ function update_elem!(elem::SeepSolid, DU::Array{Float64,1}, Δt::Float64)
     dNdX = Array{Float64}(undef, nnodes, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix
         N    = elem.shape.func(ip.R)
@@ -272,7 +272,7 @@ function update_elem!(elem::SeepSolid, DU::Array{Float64,1}, Δt::Float64)
         detJ > 0.0 || error("Negative Jacobian determinant in cell $(cell.id)")
         @mul dNdX = dNdR*inv(J) # Bw = dNdX'
 
-        G  = dNdX'*Uw/elem.env.ana.γw # flow gradient
+        G  = dNdX'*Uw/elem.ctx.γw # flow gradient
         G[end] += 1.0; # gradient due to gravity
 
         Δuw = N'*dUw # interpolation to the integ. point

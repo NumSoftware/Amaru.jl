@@ -1,4 +1,4 @@
-```@meta
+<!-- ```@meta
 CurrentModule = Amaru
 DocTestSetup = quote
     using Amaru
@@ -568,4 +568,4 @@ nothing # hide
 
 ![](./x_vs_uz.svg)
 
-![](./x_vs_sxx.svg)
+![](./x_vs_sxx.svg) -->

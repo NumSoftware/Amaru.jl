@@ -3,16 +3,16 @@
 export AsinhYieldCrack
 
 mutable struct AsinhYieldCrackState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ  ::Array{Float64,1} # stress
     w  ::Array{Float64,1} # relative displacements
     up ::Float64          # effective plastic relative displacement
     Δλ ::Float64          # plastic multiplier
     h  ::Float64          # characteristic length from bulk elements
     w_rate::Float64       # w rate wrt T
-    function AsinhYieldCrackState(env::ModelEnv)
-        this = new(env)
-        ndim = env.ndim
+    function AsinhYieldCrackState(ctx::Context)
+        this = new(ctx)
+        ndim = ctx.ndim
         this.σ   = zeros(ndim)
         this.w   = zeros(ndim)
         this.up  = 0.0
@@ -21,6 +21,27 @@ mutable struct AsinhYieldCrackState<:IpState
         return this
     end
 end
+
+
+AsinhYieldCrack_params = [
+    FunInfo( :AsinhYieldCrack, "Creates a `AsinhYieldCrack` material model."),
+    KwArgInfo( :E, "Young modulus", cond=:(E>0)),
+    KwArgInfo( :nu, "Poisson ratio", cond=:(0<=nu<0.5)),
+    KwArgInfo( :fc, "Compressive strength", cond=:(fc<0)),
+    KwArgInfo( :ft, "Tensile strength", cond=:(ft>0)),
+    KwArgInfo( :zeta, "Joint elastic stiffness factgor", cond=:(zeta>0)),
+    KwArgInfo( :alpha, "Failure surface shape", 1.5, cond=:(alpha>0)),
+    KwArgInfo( :gamma, "Failure surface minimum size", 0.1, cond=:(gamma>=0)),
+    KwArgInfo( :theta, "Failure surface reduction speed", 1.5, cond=:(theta>=0)),
+    KwArgInfo( :wc, "Critical crack opening", 0.0, cond=:(wc>=0)),
+    KwArgInfo( :GF, "Fracture energy", 0.0, cond=:(GF>=0)),
+    KwArgInfo( :softmodel, "Softening model", :hordijk, values=(:linear, :bilinear, :hordijk, :soft, :custom), type=Symbol),
+    # KwArgInfo( :ft_fun, "Softening curve", zeros(0,0), type=Array),
+    KwArgInfo((:ft_fun,:soft_fun), "Softening curve", nothing),
+
+]
+@doc docstring(AsinhYieldCrack_params) AsinhYieldCrack
+
 
 mutable struct AsinhYieldCrack<:Material
     E ::Float64
@@ -37,7 +58,7 @@ mutable struct AsinhYieldCrack<:Material
     β0::Float64       # initial shear stress for σn=0
 
     function AsinhYieldCrack(; args...)
-        args = checkargs(args, func_params(AsinhYieldCrack))
+        args = checkargs(args, AsinhYieldCrack_params)
 
         wc = args.wc
         softmodel = args.softmodel
@@ -99,24 +120,7 @@ end
 
 
 
-func_params(::Type{AsinhYieldCrack}) = [
-    FunInfo( :AsinhYieldCrack, "Creates a `AsinhYieldCrack` material model."),
-    KwArgInfo( :E, "Young modulus", cond=:(E>0)),
-    KwArgInfo( :nu, "Poisson ratio", cond=:(0<=nu<0.5)),
-    KwArgInfo( :fc, "Compressive strength", cond=:(fc<0)),
-    KwArgInfo( :ft, "Tensile strength", cond=:(ft>0)),
-    KwArgInfo( :zeta, "Joint elastic stiffness factgor", cond=:(zeta>0)),
-    KwArgInfo( :alpha, "Failure surface shape", 1.5, cond=:(alpha>0)),
-    KwArgInfo( :gamma, "Failure surface minimum size", 0.1, cond=:(gamma>=0)),
-    KwArgInfo( :theta, "Failure surface reduction speed", 1.5, cond=:(theta>=0)),
-    KwArgInfo( :wc, "Critical crack opening", 0.0, cond=:(wc>=0)),
-    KwArgInfo( :GF, "Fracture energy", 0.0, cond=:(GF>=0)),
-    KwArgInfo( :softmodel, "Softening model", :hordijk, values=(:linear, :bilinear, :hordijk, :soft, :custom), type=Symbol),
-    # KwArgInfo( :ft_fun, "Softening curve", zeros(0,0), type=Array),
-    KwArgInfo((:ft_fun,:soft_fun), "Softening curve", nothing),
 
-]
-@doc docstring(func_params(AsinhYieldCrack)) AsinhYieldCrack
 
 
 function paramsdict(mat::AsinhYieldCrack)
@@ -136,14 +140,14 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{AsinhYieldCrack}, ::Type{MechJoint}, env::ModelEnv) = AsinhYieldCrackState
+compat_state_type(::Type{AsinhYieldCrack}, ::Type{MechJoint}, ctx::Context) = AsinhYieldCrackState
 
 
 function yield_func(mat::AsinhYieldCrack, state::AsinhYieldCrackState, σ::Array{Float64,1}, σmax::Float64)
     β = calc_β(mat, σmax)
     χ = (σmax-σ[1])/mat.ft
 
-    if state.env.ndim == 3
+    if state.ctx.ndim == 3
         τnorm = sqrt(σ[2]^2 + σ[3]^2)
     else
         τnorm = abs(σ[2])
@@ -162,7 +166,7 @@ function yield_derivs(mat::AsinhYieldCrack, state::AsinhYieldCrackState, σ::Arr
     
     dfdσn  = α*β/(ft*√(α^2*χ^2 + 1))
     
-    if state.env.ndim == 3
+    if state.ctx.ndim == 3
         τnorm = sqrt(σ[2]^2 + σ[3]^2)
         dfdσ = [ dfdσn, σ[2]/τnorm, σ[3]/τnorm]
     else
@@ -182,7 +186,7 @@ end
 
 
 function potential_derivs(mat::AsinhYieldCrack, state::AsinhYieldCrackState, σ::Array{Float64,1})
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     if ndim == 3
         if σ[1] > 0.0 
             # G1:
@@ -325,7 +329,7 @@ end
 
 function calcD(mat::AsinhYieldCrack, state::AsinhYieldCrackState)
 
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     kn, ks = calc_kn_ks(mat, state)
     σmax = calc_σmax(mat, state, state.up)
 
@@ -360,7 +364,7 @@ end
 
 
 function calc_σ_up_Δλ(mat::AsinhYieldCrack, state::AsinhYieldCrackState, σtr::Array{Float64,1})
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     Δλ   = 0.0
     up   = 0.0
     σ    = zeros(ndim)
@@ -428,7 +432,7 @@ end
 
 
 function calc_σ_up(mat::AsinhYieldCrack, state::AsinhYieldCrackState, σtr::Array{Float64,1}, Δλ::Float64)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     kn, ks  = calc_kn_ks(mat, state)
 
     if ndim == 3
@@ -451,7 +455,7 @@ function calc_σ_up(mat::AsinhYieldCrack, state::AsinhYieldCrackState, σtr::Arr
 end
 
 function calc_σ_up_Δλ_bis(mat::AsinhYieldCrack, state::AsinhYieldCrackState, σtr::Array{Float64,1})
-    ndim    = state.env.ndim
+    ndim    = state.ctx.ndim
     kn, ks  = calc_kn_ks(mat, state)
     De      = diagm([kn, ks, ks][1:ndim])
     r       = potential_derivs(mat, state, state.σ)
@@ -479,7 +483,7 @@ end
 
 function update_state!(mat::AsinhYieldCrack, state::AsinhYieldCrackState, Δw::Array{Float64,1})
 
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     σini = copy(state.σ)
 
     kn, ks = calc_kn_ks(mat, state)
@@ -523,7 +527,7 @@ end
 
 
 function ip_state_vals(mat::AsinhYieldCrack, state::AsinhYieldCrackState)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     σmax = calc_σmax(mat, state, state.up)
     if ndim == 3
        return Dict(

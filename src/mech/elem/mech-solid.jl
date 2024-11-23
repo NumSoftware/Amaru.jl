@@ -2,6 +2,14 @@
 
 export MechSolid
 
+
+MechSolid_params = [
+    FunInfo(:MechSolid, "An isoparametric 2D/3D bulk element for mechanical analyses"),
+    KwArgInfo(:rho, "Density", 0.0, cond=:(rho>=0.0)),
+    KwArgInfo(:gamma, "Specific weight", 0.0, cond=:(gamma>=0.0)),
+]
+@doc docstring(MechSolid_params) MechSolid
+
 struct MechSolidProps<:ElemProperties
     ρ::Float64
     γ::Float64
@@ -20,11 +28,6 @@ struct MechSolidProps<:ElemProperties
 end
 
 
-"""
-    MechSolid
-
-A bulk finite element for mechanical equilibrium analyses.
-"""
 mutable struct MechSolid<:Mech
     id    ::Int
     shape ::CellShape
@@ -35,7 +38,7 @@ mutable struct MechSolid<:Mech
     props ::MechSolidProps
     active::Bool
     linked_elems::Array{Element,1}
-    env   ::ModelEnv
+    ctx   ::Context
 
     function MechSolid()
         return new()
@@ -50,11 +53,11 @@ function elem_init(elem::MechSolid)
     state_ty = typeof(elem.ips[1].state)
     if :h in fieldnames(state_ty)
         # Volume
-        V = cell_extent(elem)*elem.env.ana.thickness
+        V = cell_extent(elem)*elem.ctx.thickness
 
         # Representative length size for the element
         nips = length(elem.ips)
-        ndim = elem.env.ndim
+        ndim = elem.ctx.ndim
         h = V^(1/ndim)
 
         for ip in elem.ips
@@ -66,8 +69,8 @@ function elem_init(elem::MechSolid)
 end
 
 
-function distributed_bc(elem::MechSolid, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
-    return mech_boundary_forces(elem, facet, key, val)
+function distributed_bc(elem::MechSolid, facet::Cell, t::Float64, key::Symbol, val::Union{Real,Symbol,Expr})
+    return mech_boundary_forces(elem, facet, t, key, val)
 end
 
 
@@ -88,7 +91,7 @@ function setB(elem::Element, ip::Ip, dNdX::Matx, B::Matx)
             B[6,1+j*ndim] = dNdX[i,2]/SR2
             B[6,2+j*ndim] = dNdX[i,1]/SR2
         end
-        if elem.env.ana.stressmodel==:axisymmetric
+        if elem.ctx.stressmodel==:axisymmetric
             N = elem.shape.func(ip.R)
             for i in 1:nnodes
                 j = i-1
@@ -119,25 +122,25 @@ end
 
 
 function elem_stiffness(elem::MechSolid)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     C = getcoords(elem)
     K = zeros(nnodes*ndim, nnodes*ndim)
     
-    # B = zeros(6, nnodes*ndim)
-    # DB = Array{Float64}(undef, 6, nnodes*ndim)
-    # J  = Array{Float64}(undef, ndim, ndim)
-    # dNdX = Array{Float64}(undef, nnodes, ndim)
+    B = zeros(6, nnodes*ndim)
+    DB = Array{Float64}(undef, 6, nnodes*ndim)
+    J  = Array{Float64}(undef, ndim, ndim)
+    dNdX = Array{Float64}(undef, nnodes, ndim)
 
-    pool = elem.env.pool
-    B = zeros(pool, 6, nnodes*ndim)
-    DB = zeros(pool, 6, nnodes*ndim)
-    J  = zeros(pool, ndim, ndim)
-    dNdX = zeros(pool, nnodes, ndim)
+    # pool = elem.ctx.pool
+    # B = zeros(pool, 6, nnodes*ndim)
+    # DB = zeros(pool, 6, nnodes*ndim)
+    # J  = zeros(pool, ndim, ndim)
+    # dNdX = zeros(pool, nnodes, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -154,18 +157,19 @@ function elem_stiffness(elem::MechSolid)
         @mul K += coef*B'*DB
     end
 
+
     keys = (:ux, :uy, :uz)[1:ndim]
     map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
 
-    free(elem.env.pool, B, DB, J, dNdX)
+    # free(elem.ctx.pool, B, DB, J, dNdX)
 
     return K, map, map
 end
 
 
 function elem_mass(elem::MechSolid)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     ρ = elem.props.ρ
     C = getcoords(elem)
@@ -174,7 +178,7 @@ function elem_mass(elem::MechSolid)
     J = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute N matrix
         Ni   = elem.shape.func(ip.R)
@@ -203,8 +207,8 @@ end
 
 
 function elem_internal_forces(elem::MechSolid)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     keys   = (:ux, :uy, :uz)[1:ndim]
     map    = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
@@ -217,7 +221,7 @@ function elem_internal_forces(elem::MechSolid)
 
     C = getcoords(elem)
     for ip in elem.ips
-        if elem.env.ana.stressmodel==:axisymmetric
+        if elem.ctx.stressmodel==:axisymmetric
             th = 2*pi*ip.coord.x
         end
 
@@ -238,8 +242,8 @@ end
 
 
 function update_elem!(elem::MechSolid, U::Array{Float64,1}, Δt::Float64)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     keys   = (:ux, :uy, :uz)[1:ndim]
     map    = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
@@ -254,7 +258,7 @@ function update_elem!(elem::MechSolid, U::Array{Float64,1}, Δt::Float64)
 
     C = getcoords(elem)
     for ip in elem.ips
-        if elem.env.ana.stressmodel==:axisymmetric
+        if elem.ctx.stressmodel==:axisymmetric
             th = 2*pi*ip.coord.x
         end
 

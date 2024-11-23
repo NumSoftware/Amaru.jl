@@ -14,19 +14,20 @@ addline!(geo, p4, p1)
 
 mesh = Mesh(geo, quiet=true)
 
-ana = MechAnalysis(stressmodel=:planestress)
+ctx = MechContext(stressmodel=:planestress)
 mats = [
     :bulks => MechSolid => LinearElastic => (E=1e4, nu=0.25)
 ]
-
-model = FEModel(mesh, mats, ana, quiet=true)
+    
+model = FEModel(mesh, mats, ctx, quiet=true)
+ana = MechAnalysis(model)
 
 bcs = [
     :(y==0) => NodeBC(ux=0,uy=0)
     :(x<0.5 && y==1) => SurfaceBC(qy=-100)
 ]
-addstage!(model, bcs)
-solve!(model, quiet=true)
+addstage!(ana, bcs)
+solve!(ana, quiet=true)
 
 cmap = Colormap(:coolwarm, rev=true)
 

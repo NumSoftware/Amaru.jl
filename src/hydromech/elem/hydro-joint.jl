@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 mutable struct HydroJoint<:Hydromech
-    env ::ModelEnv
+    ctx::Context
     id    ::Int
     shape ::CellShape
     nodes ::Array{Node,1}
@@ -76,8 +76,8 @@ end
 
 
 function elem_conductivity_matrix(elem::HydroJoint)
-    ndim     = elem.env.ndim
-    th       = elem.env.ana.thickness
+    ndim     = elem.ctx.ndim
+    th       = elem.ctx.thickness
     nnodes   = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     nlnodes  = Int((nnodes-nbsnodes)/2) 
@@ -142,8 +142,8 @@ end
 
 
 function elem_compressibility_matrix(elem::HydroJoint)
-    ndim     = elem.env.ndim
-    th       = elem.env.ana.thickness
+    ndim     = elem.ctx.ndim
+    th       = elem.ctx.thickness
     nnodes   = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     nlnodes  = Int((nnodes-nbsnodes)/2) 
@@ -187,8 +187,8 @@ end
 
 
 function elem_RHS_vector(elem::HydroJoint)
-    ndim     = elem.env.ndim
-    th       = elem.env.ana.thickness
+    ndim     = elem.ctx.ndim
+    th       = elem.ctx.thickness
     nnodes   = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     nlnodes  = Int((nnodes-nbsnodes)/2) 
@@ -235,7 +235,7 @@ function elem_RHS_vector(elem::HydroJoint)
 
         # compute crack aperture
         coef = detJ*ip.w*th*(elem.mat.w^3)/(12*elem.mat.η)   
-        bf = T[(2:end), (1:end)]*Z*elem.env.ana.γw
+        bf = T[(2:end), (1:end)]*Z*elem.ctx.γw
         
         @mul Q += coef*Bf'*bf
     end
@@ -247,8 +247,8 @@ function elem_RHS_vector(elem::HydroJoint)
 end
 #=
 function elem_internal_forces(elem::HydroJoint, F::Array{Float64,1})
-    ndim     = elem.env.ndim
-    th       = elem.env.ana.thickness
+    ndim     = elem.ctx.ndim
+    th       = elem.ctx.thickness
     nnodes   = length(elem.nodes)
     bsnodes  = elem.shape.basic_shape.npoints
     nlnodes  = div(nnodes, 3)
@@ -292,7 +292,7 @@ function elem_internal_forces(elem::HydroJoint, F::Array{Float64,1})
         Bf = [B0 B0 Bp]
 
         # compute bf vector
-        bf = T[(2:end), (1:end)]*Z*elem.env.ana.γw
+        bf = T[(2:end), (1:end)]*Z*elem.ctx.γw
 
         # compute Bu matrix
         Np = elem.shape.basic_shape.func(ip.R)
@@ -322,8 +322,8 @@ end
 =#
 
 function update_elem!(elem::HydroJoint, U::Array{Float64,1}, Δt::Float64)
-    ndim     = elem.env.ndim
-    th       = elem.env.ana.thickness
+    ndim     = elem.ctx.ndim
+    th       = elem.ctx.thickness
     nnodes   = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     nlnodes  = Int((nnodes-nbsnodes)/2) 
@@ -378,7 +378,7 @@ function update_elem!(elem::HydroJoint, U::Array{Float64,1}, Δt::Float64)
         Bf = [B0 B0 Bp]
 
         # compute bf vector
-        bf = T[(2:end), (1:end)]*Z*elem.env.ana.γw
+        bf = T[(2:end), (1:end)]*Z*elem.ctx.γw
 
         # interpolation to the integ. point
         Δuw  = [Np'*dUw[1:nbsnodes]; Np'*dUw[nbsnodes+1:2*nbsnodes]; Np'*dUw[2*nbsnodes+1:end]]

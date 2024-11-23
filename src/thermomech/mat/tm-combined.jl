@@ -2,11 +2,11 @@
 export TMCombined
 
 mutable struct TMCombinedState{S1,S2}<:IpState
-    env::ModelEnv
+    ctx::Context
     tstate::S1 # thermo
     mstate::S2 # mech
-    function TMCombinedState{S1,S2}(env=ModelEnv()) where {S1,S2}
-        return new{S1,S2}(env, S1(env), S2(env))
+    function TMCombinedState{S1,S2}(ctx=Context()) where {S1,S2}
+        return new{S1,S2}(ctx, S1(ctx), S2(ctx))
     end
 end
 
@@ -16,7 +16,7 @@ function Base.getproperty(state::TMCombinedState, s::Symbol)
     mstate = getfield(state, :mstate)
     s==:tstate && return tstate
     s==:mstate && return mstate
-    s==:env && return getfield(state, :env)
+    s==:ctx && return getfield(state, :ctx)
     fields1 = propertynames(tstate)
     fields2 = propertynames(mstate)
     s in fields1 && return getfield(tstate, s)
@@ -65,8 +65,8 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{TMCombined{M1,M2}}, ::Type{TMSolid}, env::ModelEnv) where {M1,M2} = TMCombinedState{compat_state_type(M1,ThermoSolid,env), compat_state_type(M2,MechSolid,env)} 
-compat_state_type(::Type{TMCombined{M1,M2}}, ::Type{TMShell}, env::ModelEnv) where {M1,M2} = TMCombinedState{compat_state_type(M1,ThermoShell,env), compat_state_type(M2,MechShell,env)} 
+compat_state_type(::Type{TMCombined{M1,M2}}, ::Type{TMSolid}, ctx::Context) where {M1,M2} = TMCombinedState{compat_state_type(M1,ThermoSolid,ctx), compat_state_type(M2,MechSolid,ctx)} 
+compat_state_type(::Type{TMCombined{M1,M2}}, ::Type{TMShell}, ctx::Context) where {M1,M2} = TMCombinedState{compat_state_type(M1,ThermoShell,ctx), compat_state_type(M2,MechShell,ctx)} 
 
 
 function Base.getproperty(mat::TMCombined, s::Symbol)

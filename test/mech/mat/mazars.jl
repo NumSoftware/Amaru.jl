@@ -10,8 +10,9 @@ mats = [
         "solids" => MechSolid => Mazars => (E=30000, nu=0.2, eps0=1.e-4, At=0.9, Bt=5000., Ac=1.0, Bc=1500.0)
        ]
 
-ana = MechAnalysis()
-model = FEModel(msh, mats, ana)
+ctx = MechContext()
+model = FEModel(msh, mats, ctx)
+ana = MechAnalysis(model)
 
 tag!(model.elems.ips[1], "ip")
 log1 = IpLogger()
@@ -20,7 +21,7 @@ loggers = [
            "ip" => log1
            :(z==1) => log2
           ]
-setloggers!(model, loggers)
+setloggers!(ana, loggers)
 
 bcs = [
        :(x==0) => NodeBC(ux=0),
@@ -32,9 +33,9 @@ bcs = [
        #:(z==1) => NodeBC(uz=-1.2e-2),
        :(z==1) => SurfaceBC(uz=+2e-3),
       ]
-addstage!(model, bcs, nincs=100, nouts=10)
+addstage!(ana, bcs, nincs=100, nouts=10)
 
-@test solve!(model, tol=0.1, autoinc=true, maxits=4).success
+@test solve!(ana, tol=0.1, autoinc=true, maxits=4).success
 
 if @isdefined(makeplots) && makeplots
     using PyPlot

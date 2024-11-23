@@ -1,4 +1,4 @@
-# Mesh generation
+<!-- # Mesh generation
 
 ## Node
 
@@ -88,4 +88,4 @@ Mesh(::Array{Real}, ::Array{Array{Int64,1},1}, ::Array{CellShape,1})
 Mesh(::Block)
 ```
 
-### Mesh functions
+### Mesh functions -->

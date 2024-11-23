@@ -79,22 +79,24 @@ function solve_system!(
 end
 
 
-function stage_iterator!(name::String, stage_solver!::Function, model::Model; args...)
+function stage_iterator!(stage_solver!::Function, ana::Analysis; args...)
     autoinc = get(args, :autoinc, false)
     quiet   = get(args, :quiet, false)
-    env     = model.env
+    # ctx     = ana.ctx
+    sctx    = ana.sctx
     
-    cstage = findfirst(st->st.status!=:done, model.stages)
-    cstage === nothing && throw(AmaruException("stage_iterator!: No stages have been set for $name"))
+    cstage = findfirst(st->st.status!=:done, ana.stages)
+    cstage === nothing && throw(AmaruException("stage_iterator!: No stages have been set for $(ana.name)"))
 
     solstatus = success()
 
-    if !quiet && cstage==1 
-        printstyled(name, "\n", bold=true, color=:cyan)
+    # if !quiet && cstage==1 
+    if !quiet
+        # printstyled(ana.name, "\n", bold=true, color=:cyan)
         println("  active threads: ", Threads.nthreads())
     end
 
-    outdir = model.env.outdir
+    outdir = ana.sctx.outdir
 
     if !isdir(outdir)
         info("solve!: creating output directory ./$outdir")
@@ -103,21 +105,21 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
 
 
     if cstage==1
-        env.log = open("$outdir/solve.log", "w")
+        sctx.log = open("$outdir/solve.log", "w")
     else
-        env.log = open("$outdir/solve.log", "a")
+        sctx.log = open("$outdir/solve.log", "a")
     end
 
     
-    for stage in model.stages[cstage:end]
+    for stage in ana.stages[cstage:end]
         stage.status = :solving
 
         nincs  = stage.nincs
         nouts  = stage.nouts
         
-        env.stage = stage.id
-        env.inc   = 0
-        env.T = 0.0
+        sctx.stage = stage.id
+        sctx.inc   = 0
+        sctx.T = 0.0
 
         if !quiet
             printstyled("Stage $(stage.id)\n", bold=true, color=:cyan)
@@ -141,13 +143,13 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
 
         sw = StopWatch() # timing
         if !quiet
-            status_cycler_task = Threads.@spawn :interactive status_cycler(model, sw)
+            status_cycler_task = Threads.@spawn :interactive status_cycler(ana, sw)
         end
 
         local runerror
         local error_st
         try
-            solstatus = stage_solver!(model, stage; args...)
+            solstatus = stage_solver!(ana, stage; args...)
             if succeeded(solstatus)
                 stage.status = :done
             else
@@ -155,7 +157,7 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
             end
         catch err            
             runerror = err
-            flush(env.log)
+            flush(sctx.log)
             if err isa InterruptException
                 stage.status = :interrupted
             else
@@ -163,7 +165,7 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
                 error_st = stacktrace(catch_backtrace())
             end
         end
-        close(env.log)
+        close(sctx.log)
 
         if !quiet
             wait(status_cycler_task)
@@ -195,10 +197,10 @@ function stage_iterator!(name::String, stage_solver!::Function, model::Model; ar
 
 end
 
-# Main function to call specific solvers
-function solve!(model::FEModel; args...)
-    solve!(model, model.env.ana; args...)
-end
+# # Main function to call specific solvers
+# function solve!(model::FEModel; args...)
+#     solve!(model, model.ctx.ana; args...)
+# end
 
 
 function progress_bar(T::Float64)
@@ -253,18 +255,18 @@ function progress_bar(T::Float64)
 end
 
 
-function status_cycler(model::FEModel, sw::StopWatch)
+function status_cycler(ana::Analysis, sw::StopWatch)
     print("\e[?25l") # disable cursor
 
-    stage     = model.stages[model.env.stage]
+    stage     = ana.stages[ana.sctx.stage]
     last_loop = false
     alerts    = String[]
     while true
         nlines = 0
 
-        nlines += print_info(model)
-        nlines += print_alerts(model, alerts)
-        nlines += print_summary(model, sw)
+        nlines += print_info(ana)
+        nlines += print_alerts(ana, alerts)
+        nlines += print_summary(ana, sw)
         
         last_loop && break
 
@@ -278,16 +280,16 @@ function status_cycler(model::FEModel, sw::StopWatch)
 end
 
 
-function print_info(model::FEModel)
-    str = strip(String(take!(model.env.info)))
+function print_info(ana::Analysis)
+    str = strip(String(take!(ana.sctx.info)))
     str!="" && println("  ", str, "\e[K")
 
     return 0
 end
 
 
-function print_alerts(model::FEModel, alerts::Array{String,1})
-    str = strip(String(take!(model.env.alerts)))
+function print_alerts(ana::Analysis, alerts::Array{String,1})
+    str = strip(String(take!(ana.sctx.alerts)))
     
     if str!=""
         list = split(str, "\n")
@@ -309,20 +311,20 @@ function print_alerts(model::FEModel, alerts::Array{String,1})
 end
 
 
-function print_summary(model::FEModel, sw::StopWatch)
-    env = model.env
+function print_summary(ana::Analysis, sw::StopWatch)
+    sctx = ana.sctx
     nlines = 2
 
     # line 1:
-    T  = env.T
-    ΔT = env.ΔT
-    printstyled("  inc $(env.inc) output $(env.out)", bold=true, color=:light_blue)
-    if env.transient
-        t = round(env.t, sigdigits=3)
+    T  = sctx.T
+    ΔT = sctx.ΔT
+    printstyled("  inc $(sctx.inc) output $(sctx.out)", bold=true, color=:light_blue)
+    if sctx.transient
+        t = round(sctx.t, sigdigits=3)
         printstyled(" t=$t", bold=true, color=:light_blue)
     end
     dT  = round(ΔT,sigdigits=4)
-    res = round(env.residue,sigdigits=4)
+    res = round(sctx.residue,sigdigits=4)
 
     printstyled(" dT=$dT res=$res\e[K\n", bold=true, color=:light_blue)
     
@@ -334,7 +336,7 @@ function print_summary(model::FEModel, sw::StopWatch)
     printstyled(" $(progress)% \e[K\n", bold=true, color=:light_blue)
 
     # print monitors
-    for mon in model.monitors
+    for mon in ana.monitors
         str     = output(mon)
         nlines += count("\n", str)
         printstyled(str, color=:light_blue)

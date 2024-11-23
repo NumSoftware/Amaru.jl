@@ -10,7 +10,7 @@ end
 
 
 mutable struct HMJoint<:Hydromech
-    env   ::ModelEnv
+    ctx::Context
     id    ::Int
     shape ::CellShape
     nodes ::Array{Node,1}
@@ -44,7 +44,7 @@ function elem_config_dofs(elem::HMJoint)
         if  i<=(dnlnodes)
             add_dof(node, :ux, :fx)
             add_dof(node, :uy, :fy)
-            elem.env.ndim==3 && add_dof(node, :uz, :fz)         
+            elem.ctx.ndim==3 && add_dof(node, :uz, :fz)         
         end
     end
 end
@@ -114,8 +114,8 @@ end
 
 
 function elem_stiffness(elem::HMJoint)
-    ndim     = elem.env.ndim
-    th       = elem.env.ana.thickness
+    ndim     = elem.ctx.ndim
+    th       = elem.ctx.thickness
     nnodes   = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints 
     nlnodes  = Int((nnodes-nbsnodes)/2) 
@@ -166,8 +166,8 @@ end
 
 
 function elem_coupling_matrix(elem::HMJoint) 
-    ndim     = elem.env.ndim
-    th       = elem.env.ana.thickness
+    ndim     = elem.ctx.ndim
+    th       = elem.ctx.thickness
     nnodes   = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     nlnodes  = Int((nnodes-nbsnodes)/2) 
@@ -232,8 +232,8 @@ end
 
 
 function elem_conductivity_matrix(elem::HMJoint)
-    ndim     = elem.env.ndim
-    th       = elem.env.ana.thickness
+    ndim     = elem.ctx.ndim
+    th       = elem.ctx.thickness
     nnodes   = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     nlnodes  = Int((nnodes-nbsnodes)/2) 
@@ -313,8 +313,8 @@ end
 
 
 function elem_compressibility_matrix(elem::HMJoint)
-    ndim     = elem.env.ndim
-    th       = elem.env.ana.thickness
+    ndim     = elem.ctx.ndim
+    th       = elem.ctx.thickness
     nnodes   = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     nlnodes  = Int((nnodes-nbsnodes)/2) 
@@ -373,8 +373,8 @@ end
 
 
 function elem_RHS_vector(elem::HMJoint)
-    ndim     = elem.env.ndim
-    th       = elem.env.ana.thickness
+    ndim     = elem.ctx.ndim
+    th       = elem.ctx.thickness
     nnodes   = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     nlnodes  = Int((nnodes-nbsnodes)/2) 
@@ -436,7 +436,7 @@ function elem_RHS_vector(elem::HMJoint)
         # end    
 
         coef = detJ*ip.w*th*(w^3)/(12*elem.mat.η)   
-        bf = T[(2:end), (1:end)]*Z*elem.env.ana.γw
+        bf = T[(2:end), (1:end)]*Z*elem.ctx.γw
         
         @mul Q += coef*Bf'*bf
     end
@@ -449,8 +449,8 @@ end
 
 #=
 function elem_internal_forces(elem::HMJoint, F::Array{Float64,1})
-    ndim     = elem.env.ndim
-    th       = elem.env.ana.thickness
+    ndim     = elem.ctx.ndim
+    th       = elem.ctx.thickness
     nnodes   = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     nlnodes  = Int((nnodes-nbsnodes)/2) 
@@ -503,7 +503,7 @@ function elem_internal_forces(elem::HMJoint, F::Array{Float64,1})
         Bf = [B0 B0 Bp] 
 
         # compute bf vector
-        bf = T[(2:end), (1:end)]*Z*elem.env.ana.γw
+        bf = T[(2:end), (1:end)]*Z*elem.ctx.γw
         
         # compute Np vector
         Np = elem.shape.basic_shape.func(ip.R)
@@ -556,8 +556,8 @@ end
 =#
 
 function update_elem!(elem::HMJoint, U::Array{Float64,1}, Δt::Float64)
-    ndim     = elem.env.ndim
-    th       = elem.env.ana.thickness
+    ndim     = elem.ctx.ndim
+    th       = elem.ctx.thickness
     nnodes   = length(elem.nodes)
     nbsnodes = elem.shape.basic_shape.npoints
     nlnodes  = Int((nnodes-nbsnodes)/2) 
@@ -625,7 +625,7 @@ function update_elem!(elem::HMJoint, U::Array{Float64,1}, Δt::Float64)
         Bf = [B0 B0 Bp] 
 
         # compute bf vector
-        bf = T[(2:end), (1:end)]*Z*elem.env.ana.γw
+        bf = T[(2:end), (1:end)]*Z*elem.ctx.γw
         
         # compute NN matrix
         N    = fshape.func(ip.R)

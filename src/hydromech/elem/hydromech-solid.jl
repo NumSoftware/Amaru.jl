@@ -36,7 +36,7 @@ mutable struct HMSolid<:Hydromech
     props ::HMSolidProps
     active::Bool
     linked_elems::Array{Element,1}
-    env::ModelEnv
+    ctx::Context
 
     function HMSolid()
         return new()
@@ -53,7 +53,7 @@ function elem_config_dofs(elem::HMSolid)
     for (i, node) in enumerate(elem.nodes)
             add_dof(node, :ux, :fx)
             add_dof(node, :uy, :fy)
-            elem.env.ndim==3 && add_dof(node, :uz, :fz)
+            elem.ctx.ndim==3 && add_dof(node, :uz, :fz)
         if  i<=(nbnodes)
             add_dof(node, :uw, :fw)
         end
@@ -66,8 +66,8 @@ end
 
 
 function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
-    ndim  = elem.env.ndim
-    th    = elem.env.ana.thickness
+    ndim  = elem.ctx.ndim
+    th    = elem.ctx.thickness
     suitable_keys = (:tx, :ty, :tz, :tn, :tq)
 
     # Check keys
@@ -77,7 +77,7 @@ function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol,
     target = facet !== nothing ? facet : elem
     nodes  = target.nodes
     nnodes = length(nodes)
-    t      = elem.env.t
+    t      = elem.ctx.t
 
     # Force boundary condition
     nnodes = length(nodes)
@@ -139,7 +139,7 @@ function distributed_bc(elem::HMSolid, facet::Union{Facet,Nothing}, key::Symbol,
                 n = [J[1,2], -J[1,1]]
                 Q = vip*normalize(n)
             end
-            if elem.env.ana.stressmodel==:axisymmetric
+            if elem.ctx.stressmodel==:axisymmetric
                 th = 2*pi*X[1]
             end
         else
@@ -174,8 +174,8 @@ end
 
 
 function elem_stiffness(elem::HMSolid)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     C = getcoords(elem)
     K = zeros(nnodes*ndim, nnodes*ndim)
@@ -186,7 +186,7 @@ function elem_stiffness(elem::HMSolid)
     dNdX = Array{Float64}(undef, nnodes, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute B matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -213,8 +213,8 @@ end
 
 # matrix C
 function elem_coupling_matrix(elem::HMSolid)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C   = getcoords(elem)
@@ -226,7 +226,7 @@ function elem_coupling_matrix(elem::HMSolid)
     m = I2  # [ 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 ]
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix
         dNdR = elem.shape.deriv(ip.R)
@@ -253,8 +253,8 @@ end
 
 
 function elem_conductivity_matrix(elem::HMSolid)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C      = getcoords(elem)
@@ -265,7 +265,7 @@ function elem_conductivity_matrix(elem::HMSolid)
     dNwdX  = Array{Float64}(undef, nbnodes, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         dNdR  = elem.shape.deriv(ip.R)
         dNwdR = elem.shape.basic_shape.deriv(ip.R)
@@ -277,7 +277,7 @@ function elem_conductivity_matrix(elem::HMSolid)
 
         # compute H
         K = calcK(elem.mat, ip.state)
-        coef  = 1/elem.env.ana.γw
+        coef  = 1/elem.ctx.γw
         coef *= detJ*ip.w*th
         @mul KBw = K*Bw
         @mul H -= coef*Bw'*KBw
@@ -291,8 +291,8 @@ end
 
 
 function elem_compressibility_matrix(elem::HMSolid)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C      = getcoords(elem)
@@ -301,7 +301,7 @@ function elem_compressibility_matrix(elem::HMSolid)
     J  = Array{Float64}(undef, ndim, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         Nw   = elem.shape.basic_shape.func(ip.R)
         dNdR = elem.shape.deriv(ip.R)
@@ -323,8 +323,8 @@ end
 
 
 function elem_RHS_vector(elem::HMSolid)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C      = getcoords(elem)
@@ -338,7 +338,7 @@ function elem_RHS_vector(elem::HMSolid)
     Z[end] = 1.0 # hydrostatic gradient
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         dNdR  = elem.shape.deriv(ip.R)
         dNwdR = elem.shape.basic_shape.deriv(ip.R)
@@ -363,8 +363,8 @@ end
 
 
 function elem_internal_forces(elem::HMSolid, F::Array{Float64,1})
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C   = getcoords(elem)
@@ -386,7 +386,7 @@ function elem_internal_forces(elem::HMSolid, F::Array{Float64,1})
     dNwdX = Array{Float64}(undef, nbnodes, ndim)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix and Bw
         dNdR = elem.shape.deriv(ip.R)
@@ -429,8 +429,8 @@ end
 
 
 function update_elem!(elem::HMSolid, DU::Array{Float64,1}, Δt::Float64)
-    ndim   = elem.env.ndim
-    th     = elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
     nbnodes = elem.shape.basic_shape.npoints
     C      = getcoords(elem)
@@ -456,7 +456,7 @@ function update_elem!(elem::HMSolid, DU::Array{Float64,1}, Δt::Float64)
     Δε = zeros(6)
 
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute Bu matrix and Bw
         dNdR = elem.shape.deriv(ip.R)
@@ -482,7 +482,7 @@ function update_elem!(elem::HMSolid, DU::Array{Float64,1}, Δt::Float64)
 
         # Compute flow gradient G
         # Bw = dNwdX
-        G  = Bw*Uw/elem.env.ana.γw
+        G  = Bw*Uw/elem.ctx.γw
         G[end] += 1.0; # gradient due to gravity
 
         # internal force dF

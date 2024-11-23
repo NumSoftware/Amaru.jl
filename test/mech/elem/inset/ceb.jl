@@ -26,8 +26,10 @@ mats = [
                                  ks=(12/0.001)*5, kn=5000, p=0.25)
        ]
 
-ana = MechAnalysis()
-model = FEModel(msh, mats, ana)
+ctx = MechContext()
+model = FEModel(msh, mats, ctx)
+ana = MechAnalysis(model)
+
 tag!(model.elems["joints"].ips, "joint_ips")
 
 loggers = [
@@ -36,7 +38,7 @@ loggers = [
            "joint_ips" => IpGroupLogger()
            ]
 
-setloggers!(model, loggers)
+setloggers!(ana, loggers)
 
 bcs = [
        "fixed_points" => NodeBC(ux=0, uy=0, uz=0),
@@ -49,18 +51,18 @@ nincs=20
 maxits=3
 color="red"
 
-addstage!(model, bcs, nincs=nincs)
+addstage!(ana, bcs, nincs=nincs)
 bcs[2] = "tip" => NodeBC(uy=-0.0001)
-addstage!(model, bcs, nincs=nincs)
+addstage!(ana, bcs, nincs=nincs)
 bcs[2] = "tip" => NodeBC(uy=+0.0006)
-addstage!(model, bcs, nincs=nincs)
+addstage!(ana, bcs, nincs=nincs)
 bcs[2] = "tip" => NodeBC(uy=-0.0005)
-addstage!(model, bcs, nincs=nincs)
+addstage!(ana, bcs, nincs=nincs)
 bcs[2] = "tip" => NodeBC(uy=+0.005)
-addstage!(model, bcs, nincs=nincs)
+addstage!(ana, bcs, nincs=nincs)
 
 
-@test solve!(model, autoinc=true, scheme=scheme, tol=tol, maxits=maxits).success
+@test solve!(ana, autoinc=true, scheme=scheme, tol=tol, maxits=maxits).success
 
 if @isdefined(makeplots) && makeplots
     using PyPlot

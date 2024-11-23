@@ -3,7 +3,7 @@
 export SmearedCrack
 
 mutable struct SmearedCrackState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ::Vec6
     ε::Vec6
     T::Mat6x6    # rotation tensor to the crack plane
@@ -11,8 +11,8 @@ mutable struct SmearedCrackState<:IpState
     up::Float64  # max plastic displacement
     Δλ ::Float64  # plastic multiplier
     h  ::Float64  # element size fraction for a integration point
-    function SmearedCrackState(env::ModelEnv)
-        this = new(env)
+    function SmearedCrackState(ctx::Context)
+        this = new(ctx)
         this.σ = zeros(6)
         this.ε = zeros(6)
         this.T = eye(6)
@@ -248,7 +248,7 @@ function calcDe(mat::SmearedCrack, state::SmearedCrackState)
     ν = mat.ν
     #ν = state.up==0 ? mat.ν : 0.0
     ν = calc_nu(mat, state)
-    De = calcDe(E, ν, state.env.ana.stressmodel)
+    De = calcDe(E, ν, state.ctx.stressmodel)
 
     return De
 end
@@ -411,10 +411,10 @@ end
 
 
 function ip_state_vals(mat::SmearedCrack, state::SmearedCrackState)
-    ndim  = state.env.ndim
+    ndim  = state.ctx.ndim
     σ, ε  = state.σ, state.ε
 
-    D = stress_strain_dict(σ, ε, state.env.ana.stressmodel)
+    D = stress_strain_dict(σ, ε, state.ctx.stressmodel)
     mand = (1.0, SR2, SR2)
     T    = state.T
     if state.up>0

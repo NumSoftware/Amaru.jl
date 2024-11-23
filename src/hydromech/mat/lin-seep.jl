@@ -3,14 +3,14 @@
 export ConstPermeability
 
 mutable struct ConstPermeabilityState<:IpState
-    env::ModelEnv
+    ctx::Context
     V::Array{Float64,1} # fluid velocity
     D::Array{Float64,1} # distance traveled by the fluid
     uw::Float64         # pore pressure
-    function ConstPermeabilityState(env::ModelEnv)
-        this = new(env)
-        this.V  = zeros(env.ndim)
-        this.D  = zeros(env.ndim)
+    function ConstPermeabilityState(ctx::Context)
+        this = new(ctx)
+        this.V  = zeros(ctx.ndim)
+        this.D  = zeros(ctx.ndim)
         this.uw = 0.0
         return this
     end
@@ -42,14 +42,14 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{ConstPermeability}, ::Type{SeepSolid}, env::ModelEnv) = ConstPermeabilityState
+compat_state_type(::Type{ConstPermeability}, ::Type{SeepSolid}, ctx::Context) = ConstPermeabilityState
 
 # Element types that work with this material
 # compat_elem_types(::Type{ConstPermeability}) = (SeepSolid,)
 
 
 function calcK(mat::ConstPermeability, state::ConstPermeabilityState) # Hydraulic conductivity matrix
-    if state.env.ndim==2
+    if state.ctx.ndim==2
         return mat.k*eye(2)
     else
         return mat.k*eye(3)
@@ -70,7 +70,7 @@ function ip_state_vals(mat::ConstPermeability, state::ConstPermeabilityState)
     D = OrderedDict{Symbol, Float64}()
     D[:vx] = state.V[1]
     D[:vy] = state.V[2]
-    if state.env.ndim==3
+    if state.ctx.ndim==3
         D[:vz] = state.V[3]
     end
 

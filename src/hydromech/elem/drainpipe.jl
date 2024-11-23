@@ -31,7 +31,7 @@ mutable struct DrainPipe<:Hydromech
     props ::DrainPipeProps
     active::Bool
     linked_elems::Array{Element,1}
-    env::ModelEnv
+    ctx::Context
 
     function DrainPipe()
         return new()
@@ -52,7 +52,7 @@ end
 
 function elem_conductivity_matrix(elem::DrainPipe)
 local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
-    ndim   = elem.env.ndim
+    ndim   = elem.ctx.ndim
     nnodes = length(elem.nodes)
 
     A  = elem.props.A
@@ -73,7 +73,7 @@ local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
         Bw = dNdR'/detJ
 
         # compute H
-        coef = detJ*ip.w*(elem.mat.k/elem.env.ana.γw)*A
+        coef = detJ*ip.w*(elem.mat.k/elem.ctx.γw)*A
         @mul H -= coef*Bw'*Bw
     end
 
@@ -85,7 +85,7 @@ end
 
 
 function elem_RHS_vector(elem::DrainPipe)
-    ndim   = elem.env.ndim
+    ndim   = elem.ctx.ndim
     nnodes = length(elem.nodes)
 
     A  = elem.props.A
@@ -119,7 +119,7 @@ end
 function elem_internal_forces(elem::DrainPipe, F::Array{Float64,1})
     local k::Float64, A::Float64, coef::Float64, dNdR::Matrix{Float64}
 
-    ndim   = elem.env.ndim
+    ndim   = elem.ctx.ndim
     nnodes = length(elem.nodes)
 
     A  = elem.props.A
@@ -154,7 +154,7 @@ end
 function update_elem!(elem::DrainPipe, DU::Array{Float64,1}, Δt::Float64)
     local A::Float64, coef::Float64, dNdR::Matrix{Float64}
 
-    ndim   = elem.env.ndim
+    ndim   = elem.ctx.ndim
     nnodes = length(elem.nodes)
 
     A  = elem.props.A
@@ -186,7 +186,7 @@ function update_elem!(elem::DrainPipe, DU::Array{Float64,1}, Δt::Float64)
         Nw = N'
 
         # flow gradient
-        G  = dot(Bw,Uw)/(elem.env.ana.γw) # flow gradient
+        G  = dot(Bw,Uw)/(elem.ctx.γw) # flow gradient
         G += Jvert; # gradient due to gravity
         Δuw = dot(Nw,dUw) # interpolation to the integ. point
 

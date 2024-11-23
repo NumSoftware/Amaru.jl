@@ -13,7 +13,7 @@ mutable struct CookShell<:Mech
     mat::Material
     active::Bool
     linked_elems::Array{Element,1}
-    env   ::ModelEnv
+    ctx::Context
     Dlmn::Array{ Array{Float64,2}, 1}
 
     function CookShell();
@@ -66,7 +66,7 @@ function setquadrature!(elem::CookShell, n::Int=0)
             j = (k-1)*n + i
             elem.ips[j] = Ip(R, w)
             elem.ips[j].id = j
-            elem.ips[j].state = compat_state_type(elem.mat)(elem.env)
+            elem.ips[j].state = compat_state_type(elem.mat)(elem.ctx)
             elem.ips[j].owner = elem
         end
     end
@@ -154,7 +154,7 @@ end
 
 
 function elem_config_dofs(elem::CookShell)
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     ndim in (1,2) && error("CookShell: Shell elements do not work in $(ndim)d analyses")
     for node in elem.nodes
         add_dof(node, :ux, :fx)
@@ -174,7 +174,7 @@ end
 
 
 function elem_stiffness(elem::CookShell)
-    ndim   = elem.env.ndim
+    ndim   = elem.ctx.ndim
     nnodes = length(elem.nodes)
     th = elem.mat.th
     ndof = 6
@@ -230,7 +230,7 @@ end
 
 
 function update_elem!(elem::CookShell, U::Array{Float64,1}, dt::Float64)
-    ndim   = elem.env.ndim
+    ndim   = elem.ctx.ndim
     nnodes = length(elem.nodes)
     th = elem.mat.th
     ndof = 6

@@ -39,14 +39,15 @@ meshes = [ mesh1, mesh2 ]
 mats = [
     :bulks => MechSolid => LinearElastic => (E=1e2, nu=0.499)
 ]
-ana = MechAnalysis()
 
+ctx = MechContext()
 results = []
 for mesh in [mesh1, mesh2]
-    model = FEModel(mesh, mats, ana)
+    model = FEModel(mesh, mats, ctx)
+    ana = MechAnalysis(model)
     
     log = NodeLogger()
-    addlogger!(model, :(x==0.5 && y==1) => log )
+    addlogger!(ana, :(x==0.5 && y==1) => log )
     
     bcs = [
         :(y==0) => NodeBC(uy=0)
@@ -54,8 +55,8 @@ for mesh in [mesh1, mesh2]
         :(y==1) => SurfaceBC(ty=-1)
     ]
     
-    addstage!(model, bcs)
-    solve!(model)
+    addstage!(ana, bcs)
+    solve!(ana)
 
     push!(results, log.table.uy[end])
 

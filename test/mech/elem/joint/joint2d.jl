@@ -51,8 +51,9 @@ for i in 2
 
     mats = allmats[[1,i]]
 
-    ana = MechAnalysis(stressmodel=:planestress, thickness=1.0)
-    model = FEModel(msh, mats, ana)
+    ctx = MechContext(stressmodel=:planestress)
+    model = FEModel(msh, mats, ctx, thickness=1.0)
+    ana = MechAnalysis(model)
 
     # Loggers
     tag!(model.elems["joints"].ips, "jips")
@@ -60,7 +61,7 @@ for i in 2
     loggers = [
                "jips" => log1
               ]
-    setloggers!(model, loggers)
+    setloggers!(ana, loggers)
 
     # Boundary conditions
     bcs = [
@@ -75,9 +76,9 @@ for i in 2
         # "right" => NodeBC(ux=-5e-5),
         # "right" => NodeBC(uy=2e-4),
     ]
-    addstage!(model, bcs, nincs=80, nouts=20)
+    addstage!(ana, bcs, nincs=80, nouts=20)
 
-    solve!(model, autoinc=true, maxits=3, tol=0.001, rspan=0.01, dTmax=0.1, scheme=:Ralston)
+    solve!(ana, autoinc=true, maxits=3, tol=0.001, rspan=0.01, dTmax=0.1, scheme=:Ralston)
 
     if Amaru.makeplots
         table = log1.table

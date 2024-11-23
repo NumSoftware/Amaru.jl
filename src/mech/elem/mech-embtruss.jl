@@ -1,7 +1,7 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-
-mutable struct MechEmbTruss<:Mech
+# This element will be used autamatically when an inset is considered as embedded
+mutable struct MechEmbBar<:Mech
     id    ::Int
     shape ::CellShape
     nodes ::Array{Node,1}
@@ -11,38 +11,36 @@ mutable struct MechEmbTruss<:Mech
     props ::MechBarProps
     active::Bool
     linked_elems::Array{Element,1}
-    env::ModelEnv
+    ctx::Context
 
     # specific fields
     cache_NN::Array{Float64,2}
 
-    function MechEmbTruss()
+    function MechEmbBar()
         return new()
     end
 end
 
-const MechEmbBar = MechEmbTruss
+
+compat_shape_family(::Type{MechEmbBar}) = LINECELL
 
 
-compat_shape_family(::Type{MechEmbTruss}) = LINECELL
-
-
-function elem_config_dofs(::MechEmbTruss)
+function elem_config_dofs(::MechEmbBar)
     # No-op function.
     # The solid linked element will set the required dofs.
 end
 
 
-function elem_map(elem::MechEmbTruss)
-    ndim = elem.env.ndim
+function elem_map(elem::MechEmbBar)
+    ndim = elem.ctx.ndim
     keys = (:ux, :uy, :uz)[1:ndim]
     solid = elem.linked_elems[1]
     return [ node.dofdict[key].eq_id for node in solid.nodes for key in keys ]
 end
 
 
-function _mountNN(elem::MechEmbTruss)
-    ndim = elem.env.ndim
+function _mountNN(elem::MechEmbBar)
+    ndim = elem.ctx.ndim
     solid = elem.linked_elems[1]
     n  = length(solid.nodes)
     m  = length(elem.nodes)
@@ -62,14 +60,14 @@ function _mountNN(elem::MechEmbTruss)
 end
 
 
-function elem_init(elem::MechEmbTruss)
+function elem_init(elem::MechEmbBar)
     elem.cache_NN = _mountNN(elem)
     return nothing
 end
 
 
-function elem_displacements(elem::MechEmbTruss)
-    ndim    = elem.env.ndim
+function elem_displacements(elem::MechEmbBar)
+    ndim    = elem.ctx.ndim
     NN      = elem.cache_NN
     keys    = (:ux, :uy, :uz)[1:ndim]
     Ubulk   = [ node.dofdict[key].vals[key] for node in elem.linked_elems[1].nodes for key in keys ]
@@ -81,8 +79,8 @@ function elem_displacements(elem::MechEmbTruss)
 end
 
 
-function elem_stiffness(elem::MechEmbTruss)
-    ndim   = elem.env.ndim
+function elem_stiffness(elem::MechEmbBar)
+    ndim   = elem.ctx.ndim
     nnodes = length(elem.nodes)
     A = elem.props.A
     C = getcoords(elem)
@@ -114,8 +112,8 @@ function elem_stiffness(elem::MechEmbTruss)
 end
 
 
-function update_elem!(elem::MechEmbTruss, U::Array{Float64,1}, Δt::Float64)
-    ndim   = elem.env.ndim
+function update_elem!(elem::MechEmbBar, U::Array{Float64,1}, Δt::Float64)
+    ndim   = elem.ctx.ndim
     nnodes = length(elem.nodes)
     A      = elem.props.A
     NN     = elem.cache_NN
@@ -152,7 +150,7 @@ function update_elem!(elem::MechEmbTruss, U::Array{Float64,1}, Δt::Float64)
 end
 
 
-function elem_vals(elem::MechEmbTruss)
+function elem_vals(elem::MechEmbBar)
     # get area and average stress and axial force
     vals = OrderedDict(:A => elem.props.A )
     mean_sa = mean( ip_state_vals(elem.mat, ip.state)[:sX] for ip in elem.ips )
@@ -162,8 +160,8 @@ function elem_vals(elem::MechEmbTruss)
 end
 
 
-function post_process(elem::MechEmbTruss)
-    ndim    = elem.env.ndim
+function post_process(elem::MechEmbBar)
+    ndim    = elem.ctx.ndim
     NN      = elem.cache_NN
     
     # update displacements

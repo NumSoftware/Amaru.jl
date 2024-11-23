@@ -3,15 +3,15 @@
 export PJoint
 
 mutable struct PJointState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ  ::Array{Float64,1} # stress
     w  ::Array{Float64,1} # relative displacements
     up::Float64          # effective plastic relative displacement
     Δλ ::Float64          # plastic multiplier
     h  ::Float64          # characteristic length from bulk elements
-    function PJointState(env::ModelEnv)
-        this = new(env)
-        ndim = env.ndim
+    function PJointState(ctx::Context)
+        this = new(ctx)
+        ndim = ctx.ndim
         this.σ = zeros(ndim)
         this.w = zeros(ndim)
         this.up = 0.0
@@ -78,7 +78,7 @@ compat_elem_types(::Type{PJoint}) = (MechJoint,)
 
 
 function yield_func(mat::PJoint, state::PJointState, σ::Array{Float64,1}, σmax::Float64)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     fc, ft = mat.fc, mat.ft
 
     βini = 2*ft - fc -2*√(ft^2 - fc*ft)
@@ -93,7 +93,7 @@ end
 
 
 function yield_derivs(mat::PJoint, state::PJointState, σ::Array{Float64,1}, σmax::Float64)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     fc, ft = mat.fc, mat.ft
     βini = 2*ft - fc -2*√(ft^2 - fc*ft)
     βres = mat.γ*βini
@@ -108,7 +108,7 @@ end
 
 
 function potential_derivs(mat::PJoint, state::PJointState, σ::Array{Float64,1})
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     if ndim == 3
         if σ[1] > 0.0 
             # G1:
@@ -212,7 +212,7 @@ end
 
 
 function calc_Δλ(mat::PJoint, state::PJointState, σtr::Array{Float64,1})
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     maxits = 20
     Δλ     = 0.0
     f      = 0.0
@@ -285,7 +285,7 @@ end
 
 
 function calcD(mat::PJoint, state::PJointState)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     kn, ks = calc_kn_ks(mat, state)
     α = mat.α
     σmax = calc_σmax(mat, state, state.up)
@@ -334,7 +334,7 @@ end
 
 function update_state!(mat::PJoint, state::PJointState, Δw::Array{Float64,1})
 
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     σini = copy(state.σ)
 
     kn, ks = calc_kn_ks(mat, state)
@@ -402,7 +402,7 @@ end
 
 
 function ip_state_vals(mat::PJoint, state::PJointState)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     if ndim == 3
        return Dict(
           :jw1  => state.w[1],

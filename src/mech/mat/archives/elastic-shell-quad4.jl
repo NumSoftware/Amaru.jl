@@ -3,11 +3,11 @@
 export ElasticShellQUAD4
 
 mutable struct ElasticShellQuad4State<:IpState
-    env::ModelEnv
+    ctx::Context
     σ::Array{Float64,1}
-    function ElasticShellQuad4State(env::ModelEnv)
+    function ElasticShellQuad4State(ctx::Context)
         σ = zeros(5)
-        return new(env, σ)
+        return new(ctx, σ)
     end
 end
 

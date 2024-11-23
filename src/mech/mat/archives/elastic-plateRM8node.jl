@@ -5,9 +5,9 @@
 export ElasticPlateRM8node
 
 mutable struct ElasticPlateRM8nodeState<:IpState
-    env::ModelEnv
-    function ElasticPlateRM8nodeState(env::ModelEnv)
-        return new(env)
+    ctx::Context
+    function ElasticPlateRM8nodeState(ctx::Context)
+        return new(ctx)
     end
 end
 

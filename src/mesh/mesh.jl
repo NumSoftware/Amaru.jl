@@ -8,7 +8,7 @@ mutable struct Mesh<:AbstractDomain
     edges::Array{Cell,1}
     node_data::OrderedDict{String,Array}
     elem_data ::OrderedDict{String,Array}
-    env::MeshEnv
+    ctx::MeshEnv
 
     _pointdict::Dict{UInt64,Node}
     _elempartition::ElemPartition
@@ -22,7 +22,7 @@ mutable struct Mesh<:AbstractDomain
         # this.ndim   = 0
         this.node_data = OrderedDict()
         this.elem_data = OrderedDict()
-        this.env = MeshEnv(ndim)
+        this.ctx = MeshEnv(ndim)
         this._pointdict = Dict{UInt64, Node}()
         this._elempartition = ElemPartition()
         return this
@@ -37,7 +37,7 @@ end
 
 
 function Base.copy(mesh::AbstractDomain)
-    ndim = mesh.env.ndim
+    ndim = mesh.ctx.ndim
     newmesh = Mesh(ndim)
     newmesh.nodes = copy.(mesh.nodes)
 
@@ -283,10 +283,10 @@ end
 
 
 function compute_facets!(mesh::Mesh)
-    if mesh.env.ndim==2
+    if mesh.ctx.ndim==2
         mesh.edges = get_outer_facets(mesh.elems)
         mesh.faces = mesh.edges
-    elseif mesh.env.ndim==3
+    elseif mesh.ctx.ndim==3
         solids = filter( elem->elem.shape.ndim==3, mesh.elems )
         planars = filter( elem->elem.shape.ndim==2, mesh.elems )
         for cell in planars
@@ -308,17 +308,17 @@ function syncronize!(mesh::Mesh; reorder=false, cleandata=false)
         ndim = 3
     end
 
-    mesh.env.ndim = max(ndim, mesh.env.ndim)
+    mesh.ctx.ndim = max(ndim, mesh.ctx.ndim)
 
     # Numberig nodes
     for (i,p) in enumerate(mesh.nodes) 
         p.id = i 
     end
 
-    # Numberig cells and setting env
+    # Numberig cells and setting ctx
     for (i,elem) in enumerate(mesh.elems)
         elem.id = i
-        elem.env = mesh.env
+        elem.ctx = mesh.ctx
     end
 
     # Faces and edges
@@ -367,7 +367,7 @@ end
 
 function join_mesh!(mesh::Mesh, m2::Mesh)
 
-    # mesh.env.ndim = max(mesh.env.ndim, m2.env.ndim)
+    # mesh.ctx.ndim = max(mesh.ctx.ndim, m2.ctx.ndim)
 
     pointdict = Dict{UInt, Node}()
     for m in (mesh, m2)
@@ -468,7 +468,7 @@ function Mesh(
 
     # Get ndim
     ndim = size(coordinates,2)
-    env  = MeshEnv(ndim)
+    ctx  = MeshEnv(ndim)
 
     cells = Cell[]
     for i in 1:m
@@ -478,7 +478,7 @@ function Mesh(
         else
             shape = get_shape_from_ndim_npoints(length(pts), ndim)
         end
-        cell = Cell(shape, pts, tag=tag, env=env)
+        cell = Cell(shape, pts, tag=tag, ctx=ctx)
         push!(cells, cell)
     end
 
@@ -498,13 +498,13 @@ function stats(mesh::Mesh)
 
     npoints = length(mesh.nodes)
     ncells  = length(mesh.elems)
-    @printf "  %3dd mesh                             \n" mesh.env.ndim
+    @printf "  %3dd mesh                             \n" mesh.ctx.ndim
     @printf "  %4d nodes\n" npoints
     @printf "  %4d cells\n" ncells
 
     L = Float64[]
     for elem in mesh.elems.solids
-        l = cell_extent(elem)^(1/mesh.env.ndim)
+        l = cell_extent(elem)^(1/mesh.ctx.ndim)
         push!(L, l)
     end
     lavg = mean(L)

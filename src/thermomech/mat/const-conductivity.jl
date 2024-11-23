@@ -4,13 +4,13 @@ export ConstConductivity
 
 
 mutable struct ConstConductivityState<:IpState
-    env::ModelEnv
+    ctx::Context
     ut::Float64
     Q::Array{Float64,1}
-    function ConstConductivityState(env::ModelEnv)
-        this = new(env)
+    function ConstConductivityState(ctx::Context)
+        this = new(ctx)
         this.ut = 0.0
-        this.Q  = zeros(env.ndim)
+        this.Q  = zeros(ctx.ndim)
         return this
     end
 end
@@ -36,8 +36,8 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{ConstConductivity}, ::Type{ThermoSolid}, env::ModelEnv) = ConstConductivityState
-compat_state_type(::Type{ConstConductivity}, ::Type{ThermoShell}, env::ModelEnv) = ConstConductivityState
+compat_state_type(::Type{ConstConductivity}, ::Type{ThermoSolid}, ctx::Context) = ConstConductivityState
+compat_state_type(::Type{ConstConductivity}, ::Type{ThermoShell}, ctx::Context) = ConstConductivityState
 
 
 function calc_cv(mat::ConstConductivity, ut::Float64) # Specific heat
@@ -45,7 +45,7 @@ function calc_cv(mat::ConstConductivity, ut::Float64) # Specific heat
 end
 
 function calcK(mat::ConstConductivity, state::ConstConductivityState) # Thermal conductivity matrix
-    if state.env.ndim==2
+    if state.ctx.ndim==2
         return mat.k*eye(2)
     else
         return mat.k*eye(3)
@@ -66,7 +66,7 @@ function ip_state_vals(mat::ConstConductivity, state::ConstConductivityState)
     D = OrderedDict{Symbol, Float64}()
     #D[:qx] = state.q[1]
     #D[:qy] = state.q[2]
-    #if state.env.ndim==3
+    #if state.ctx.ndim==3
         #D[:qz] = state.q[3]
     #end
     return D

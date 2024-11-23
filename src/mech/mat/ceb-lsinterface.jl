@@ -3,15 +3,15 @@
 export CebLSJoint, CebLSInterface
 
 mutable struct CebLSJointState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ  ::Array{Float64,1}
     u  ::Array{Float64,1}
     τy ::Float64      # max stress
     sy ::Float64      # accumulated relative displacement
     elastic::Bool
-    function CebLSJointState(env::ModelEnv)
-        this = new(env)
-        ndim = env.ndim
+    function CebLSJointState(ctx::Context)
+        this = new(ctx)
+        ndim = ctx.ndim
         this.σ = zeros(ndim)
         this.u = zeros(ndim)
         this.τy = 0.0
@@ -62,7 +62,7 @@ const CebRSJoint = CebLSJoint
 const CebLSInterface = CebLSJoint
 
 
-compat_state_type(::Type{CebLSJoint}, ::Type{MechRSJoint}, env::ModelEnv) = CebLSJointState
+compat_state_type(::Type{CebLSJoint}, ::Type{MechRSJoint}, ctx::Context) = CebLSJointState
 
 
 # Type of corresponding state structure
@@ -109,7 +109,7 @@ end
 
 
 function calcD(mat::CebLSJoint, state::CebLSJointState)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     ks = mat.ks
 
     if !state.elastic
@@ -118,7 +118,7 @@ function calcD(mat::CebLSJoint, state::CebLSJointState)
     end
 
     kn = mat.kn
-    if state.env.ndim==2
+    if state.ctx.ndim==2
         return [  ks  0.0
                  0.0   kn ]
     else

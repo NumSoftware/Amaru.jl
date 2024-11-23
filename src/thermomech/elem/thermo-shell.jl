@@ -21,7 +21,7 @@ struct ThermoShellProps<:ElemProperties
     end
 end
 
-mutable struct ThermoShell<:Thermomech
+mutable struct ThermoShell<:ThermoMech
     id    ::Int
     shape ::CellShape
 
@@ -32,7 +32,7 @@ mutable struct ThermoShell<:Thermomech
     props ::ThermoShellProps
     active::Bool
     linked_elems::Array{Element,1}
-    env   ::ModelEnv
+    ctx::Context
 
     function ThermoShell();
         return new()
@@ -60,8 +60,8 @@ end
 
 
 function distributed_bc(elem::ThermoShell, facet::Union{Facet,Nothing}, key::Symbol, val::Union{Real,Symbol,Expr})
-    ndim  = elem.env.ndim
-    th    = elem.env.ana.thickness
+    ndim  = elem.ctx.ndim
+    th    = elem.ctx.thickness
     suitable_keys = (:tq,)
 
     # Check keys
@@ -70,7 +70,7 @@ function distributed_bc(elem::ThermoShell, facet::Union{Facet,Nothing}, key::Sym
     target = facet !== nothing ? facet : elem
     nodes  = target.nodes
     nnodes = length(nodes)
-    t      = elem.env.t
+    t      = elem.ctx.t
 
     # Force boundary condition
     nnodes = length(nodes)
@@ -95,7 +95,7 @@ function distributed_bc(elem::ThermoShell, facet::Union{Facet,Nothing}, key::Sym
         if ndim==2
             x, y = X
             vip = evaluate(val, t=t, x=x, y=y)
-            if elem.env.ana.stressmodel==:axisymmetric
+            if elem.ctx.stressmodel==:axisymmetric
                 th = 2*pi*X[1]
             end
         else
@@ -130,8 +130,8 @@ end
 
 # thermal conductivity
 function elem_conductivity_matrix(elem::ThermoShell)
-    ndim   = elem.env.ndim
-    th     = elem.props.th   # elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = elem.props.th   # elem.ctx.thickness
     nnodes = length(elem.nodes)
     C      = getcoords(elem)
     H      = zeros(nnodes, nnodes)
@@ -165,7 +165,7 @@ end
 
 
 function elem_mass_matrix(elem::ThermoShell)
-    ndim   = elem.env.ndim
+    ndim   = elem.ctx.ndim
     th     = elem.props.th
     nnodes = length(elem.nodes)
     
@@ -200,12 +200,12 @@ end
 
 #=
 function elem_internal_forces(elem::ThermoShell, F::Array{Float64,1})
-    ndim   = elem.env.ndim
-    th     = thickness   # elem.env.ana.thickness
+    ndim   = elem.ctx.ndim
+    th     = thickness   # elem.ctx.thickness
     nnodes = length(elem.nodes)
     
     C   = getcoords(elem)
-    T0     = elem.env.T0 + 273.15
+    T0     = elem.ctx.T0 + 273.15
     keys   = (:ux, :uy, :uz)[1:ndim]
     map_u  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
     mat_t  = [ node.dofdict[:ut].eq_id for node in elem.nodes[1:nbnodes] ]
@@ -220,7 +220,7 @@ function elem_internal_forces(elem::ThermoShell, F::Array{Float64,1})
     dNtdX = Array{Float64}(undef, ndim, nbnodes)
     dUt = DU[mat_t] # nodal temperature increments
     for ip in elem.ips
-        elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
         # compute Bu matrix and Bt
         dNdR = elem.shape.deriv(ip.R)
         @mul J = C'*dNdR
@@ -257,7 +257,7 @@ end
 
 
 function update_elem!(elem::ThermoShell, DU::Array{Float64,1}, Δt::Float64)
-    ndim   = elem.env.ndim
+    ndim   = elem.ctx.ndim
     nnodes = length(elem.nodes)
     th     = elem.props.th
     ndof = 6
@@ -277,7 +277,7 @@ function update_elem!(elem::ThermoShell, DU::Array{Float64,1}, Δt::Float64)
     #Rrot = zeros(5,ndof)
 
     for ip in elem.ips
-        #elem.env.ana.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
+        #elem.ctx.stressmodel==:axisymmetric && (th = 2*pi*ip.coord.x)
 
         # compute Bu and Bt matrices
         N = elem.shape.func(ip.R)

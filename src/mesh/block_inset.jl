@@ -21,8 +21,8 @@ mutable struct BlockInset <: AbstractBlock
     cellshape::CellShape
     tag      ::String
     jointtag ::String
-    tipjointtag::String
-    tipjoint::Symbol
+    tiptag::String
+    tips::Symbol
     ε        ::Float64 # bisection tolerance
     εn       ::Float64 # increment to find next cell
     εc       ::Float64 # tolerance to find cells
@@ -41,8 +41,8 @@ mutable struct BlockInset <: AbstractBlock
         cellshape = LIN3,
         tag     ::String  = "",
         jointtag::String  = "",
-        tipjointtag::String  = "",
-        tipjoint::Symbol = :none,
+        tiptag::String  = "",
+        tips::Symbol = :none,
         tol     ::Float64 = 1e-9,
         toln    ::Float64 = 1e-4,
         tolc    ::Float64 = 1e-9,
@@ -63,9 +63,9 @@ mutable struct BlockInset <: AbstractBlock
         nrows  = size(coords,1)
         points = [ Point(coords[i,:]) for i in 1:nrows ]
 
-        closed && (tipjoint=:none)
-        embedded && (tipjoint=:none)
-        this = new(ndim, points, ctype, closed, embedded, LIN2, cellshape, tag, jointtag, tipjointtag, tipjoint, tol, toln, tolc, lam, id)
+        closed && (tips=:none)
+        embedded && (tips=:none)
+        this = new(ndim, points, ctype, closed, embedded, LIN2, cellshape, tag, jointtag, tiptag, tips, tol, toln, tolc, lam, id)
         this.icount = 0
         this.ε  = tol
         this.εn = toln
@@ -84,7 +84,7 @@ export PathInset
 function Base.copy(bl::BlockInset; dx=0.0, dy=0.0, dz=0.0)
     BlockInset(getcoords(bl.points) .+ [dx dy dz], curvetype=bl.curvetype, closed=bl.closed,
                        embedded=bl.embedded, cellshape=bl.cellshape, tag=bl.tag,
-                       jointtag=bl.jointtag, tipjointtag=bl.tipjointtag, tipjoint=bl.tipjoint)
+                       jointtag=bl.jointtag, tiptag=bl.tiptag, tips=bl.tips)
 end
 
 function Base.copy(blocks::Array{BlockInset,1}; dx=0.0, dy=0.0, dz=0.0)
@@ -191,19 +191,19 @@ function split_block!(mesh::Mesh, bl::BlockInset)
 
     newjoints = mesh.elems[ncells+1:end].linejoints
 
-    if bl.tipjoint in (:front, :both)
+    if bl.tips in (:front, :both)
         joint = newjoints[1]
         tip = joint.linked_elems[2].nodes[1]
         tipjointpts  = vcat(joint.linked_elems[1].nodes, tip)
-        tipjointcell = Cell(TIPJOINT, tipjointpts, tag=bl.tipjointtag)
+        tipjointcell = Cell(TIPJOINT, tipjointpts, tag=bl.tiptag)
         tipjointcell.linked_elems = joint.linked_elems
         push!(mesh.elems, tipjointcell)
     end
-    if bl.tipjoint in (:end, :both)
+    if bl.tips in (:end, :both)
         joint = newjoints[end]
         tip = joint.linked_elems[2].nodes[2]
         tipjointpts  = vcat(joint.linked_elems[1].nodes, tip )
-        tipjointcell = Cell(TIPJOINT, tipjointpts, tag=bl.tipjointtag)
+        tipjointcell = Cell(TIPJOINT, tipjointpts, tag=bl.tiptag)
         tipjointcell.linked_elems = joint.linked_elems
         push!(mesh.elems, tipjointcell)
     end

@@ -293,7 +293,7 @@ function insert_cohesive_elements!(
 
 
     if !quiet
-        @printf "  %4dd mesh                             \n" mesh.env.ndim
+        @printf "  %4dd mesh                             \n" mesh.ctx.ndim
         @printf "  %5d points\n" length(mesh.nodes)
         @printf "  %5d total cells\n" length(mesh.elems)
         @printf "  %5d new joint cells\n" length(jointcells)

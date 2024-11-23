@@ -13,8 +13,9 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
         "solids" => MechSolid => LinearElastic => (E=100.0, nu=0.2)
     ]
 
-    ana = MechAnalysis(stressmodel=:axisymmetric)
-    model = FEModel(mesh, materials, ana)
+    ctx = MechContext(stressmodel=:axisymmetric)
+    model = FEModel(mesh, materials, ctx)
+    ana = MechAnalysis(model)
 
     bcs = [
            :(x==0) => SurfaceBC(ux=0),
@@ -23,8 +24,8 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
            #"solids" => SurfaceBC(ty=-10),
     ]
 
-    addstage!(model, bcs)
-    solve!(model).success
+    addstage!(ana, bcs)
+    solve!(ana).success
 
     sample_node = model.nodes[:(x==1 && y==1)][1]
     uxr = sample_node.dofs[:ux].vals[:ux]
@@ -36,8 +37,9 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
 
     mesh = revolve(mesh, base=[0,0,0], axis=[0,1,0], n=12)
     
-    ana = MechAnalysis(stressmodel=:d3)
-    model = FEModel(mesh, materials, ana)
+    ctx = MechContext()
+    model = FEModel(mesh, materials, ctx)
+    ana = MechAnalysis(model)
 
     bcs = [
            :(x==0 && y==0) => NodeBC(ux=0, uy=0),
@@ -45,8 +47,8 @@ for shape in (TRI3, TRI6, QUAD4, QUAD8)
            :(y==1) => SurfaceBC(ty=-10),
     ]
 
-    addstage!(model, bcs)
-    solve!(model).success
+    addstage!(ana, bcs)
+    solve!(ana).success
     sample_node = model.nodes[:(x==1 && y==1)][1]
     ux = sample_node.dofs[:ux].vals[:ux]
     uy = sample_node.dofs[:uy].vals[:uy]

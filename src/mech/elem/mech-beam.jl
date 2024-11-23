@@ -2,6 +2,19 @@
 
 export MechBeam
 
+
+MechBeam_params = [
+    FunInfo( :MechBeam, "A straight or curved 2D/3D beam element"),
+    KwArgInfo( :thy, "y' thickness", cond=:(thy>0) ),
+    KwArgInfo( :thz, "z' thickness", cond=:(thz>0.0) ),
+    KwArgInfo( :A, "Section area",  cond=:(A>0.0)  ),
+    KwArgInfo( :gamma, "Specific weight", 0, cond=:(gamma>=0.0) ),
+    KwArgInfo( :rho, "Density", 0, cond=:(rho>=0.0)  ),
+    KwArgInfo( :alpha_s, "Shear correction coef.", 5/6, cond=:(alpha_s>0) ),
+    ArgOpt( :A, (:thy, :thz) ),
+]
+@doc docstring(MechBeam_params) MechBeam
+
 struct MechBeamProps<:ElemProperties
     ρ::Float64
     γ::Float64
@@ -10,7 +23,7 @@ struct MechBeamProps<:ElemProperties
     thz::Float64
 
     function MechBeamProps(; args...)
-        args = checkargs(args, func_params(MechBeamProps))
+        args = checkargs(args, MechBeam_params)
 
         if haskey(args, :A)
             thy = thz = √args.A # assuming circular section
@@ -23,22 +36,6 @@ struct MechBeamProps<:ElemProperties
 end
 
 
-func_params(::Type{MechBeamProps}) = [
-    FunInfo( :MechBeamProps, "Creates a `MechBeamProps` instance."),
-    KwArgInfo( :thy, "y' thickness", cond=:(thy>0) ),
-    KwArgInfo( :thz, "z' thickness", cond=:(thz>0.0) ),
-    KwArgInfo( :A, "Section area",  cond=:(A>0.0)  ),
-    KwArgInfo( :gamma, "Specific weight", 0, cond=:(gamma>=0.0) ),
-    KwArgInfo( :rho, "Density", 0, cond=:(rho>=0.0)  ),
-    KwArgInfo( :alpha_s, "Shear correction coef.", 5/6, cond=:(alpha_s>0) ),
-    ArgOpt( :A, (:thy, :thz) ),
-]
-
-
-"""
-    MechBeam
-A beam finite element for mechanical equilibrium analyses.
-"""
 mutable struct MechBeam<:Mech
     id    ::Int
     shape ::CellShape
@@ -49,7 +46,7 @@ mutable struct MechBeam<:Mech
     props ::MechBeamProps
     active::Bool
     linked_elems::Array{Element,1}
-    env   ::ModelEnv
+    ctx   ::Context
     Dlmn  ::Array{ Array{Float64,2}, 1}
 
     function MechBeam()
@@ -63,7 +60,7 @@ compat_elem_props(::Type{MechBeam}) = MechBeamProps
 
 
 function elem_init(elem::MechBeam)
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     nnodes = length(elem.nodes)
     Dlmn = Array{Float64,2}[]
     C = getcoords(elem)
@@ -83,7 +80,7 @@ end
 
 
 function setquadrature!(elem::MechBeam, n::Int=0)
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
 
     if ndim==3
         if n in (0,8)
@@ -142,7 +139,7 @@ function setquadrature!(elem::MechBeam, n::Int=0)
                 m = (i-1)*nj*nk + (j-1)*nk + k
                 elem.ips[m] = Ip(R, w)
                 elem.ips[m].id = m
-                elem.ips[m].state = compat_state_type(typeof(elem.mat), typeof(elem), elem.env)(elem.env)
+                elem.ips[m].state = compat_state_type(typeof(elem.mat), typeof(elem), elem.ctx)(elem.ctx)
                 elem.ips[m].owner = elem
             end
         end
@@ -179,7 +176,7 @@ end
 
 
 function elem_config_dofs(elem::MechBeam)
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     ndim in (2,3) || error("MechBeam: Beam elements do not work in $(ndim)d analyses")
     for node in elem.nodes
         add_dof(node, :ux, :fx)
@@ -195,7 +192,7 @@ end
 
 
 function elem_map(elem::MechBeam)
-    if elem.env.ndim==2
+    if elem.ctx.ndim==2
         keys =(:ux, :uy, :rz)
     else
         keys =(:ux, :uy, :uz, :rx, :ry, :rz)
@@ -206,7 +203,7 @@ end
 
 # Rotation Matrix
 function set_rot_x_xp(elem::MechBeam, J::Matx, R::Matx)
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     V1 = normalize(vec(J))
     V1 = round.(V1, digits=14)
 
@@ -245,7 +242,7 @@ function calcS(elem::MechBeam, αs::Float64)
 end
 
 function setB(elem::MechBeam, ip::Ip, L::Matx, N::Vect, dNdX::Matx, Rθ::Matx, Bil::Matx, Bi::Matx, B::Matx)
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     ndof = ndim==2 ? 3 : 6
     nnodes = size(dNdX,1)
     thz = elem.props.thz
@@ -290,7 +287,7 @@ function setB(elem::MechBeam, ip::Ip, L::Matx, N::Vect, dNdX::Matx, Rθ::Matx, B
 end
 
 function elem_stiffness(elem::MechBeam)
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     nnodes = length(elem.nodes)
     thz = elem.props.thz
     thy = elem.props.thy
@@ -332,7 +329,7 @@ end
 
 
 function update_elem!(elem::MechBeam, U::Array{Float64,1}, dt::Float64)
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     nnodes = length(elem.nodes)
     thz = elem.props.thz
     thy = elem.props.thy
@@ -390,7 +387,7 @@ end
 
 
 function elem_extrapolated_node_vals(elem::MechBeam)
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     thz = elem.props.thz
     thy = elem.props.thy
     ndof = ndim==2 ? 3 : 6

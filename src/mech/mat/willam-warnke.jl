@@ -3,7 +3,7 @@
 export WillamWarnke
 
 WillamWarnke_params = [
-    FunInfo(:WillamWarnke, "Constitutive model with Willam-Warnke yield criterion"),
+    FunInfo(:WillamWarnke, "Linear-elastic model with Willam-Warnke yield criterion and linear/non-linear hardening"),
     KwArgInfo(:E, "Young's modulus", cond=:(E>0)),
     KwArgInfo(:nu, "Poisson's ratio", cond=:(nu>=0)),
     KwArgInfo(:ft, "Tensile strength", cond=:(ft>0)),
@@ -13,6 +13,7 @@ WillamWarnke_params = [
     KwArgInfo(:H, "Hardening modulus", nothing, cond=:(H>=0)),
     KwArgInfo((:xi_fun, :ξfun), "Hardening curve in terms of ξ0", nothing),
 ]
+@doc docstring(WillamWarnke_params) WillamWarnke
 
 mutable struct WillamWarnke<:Material
     E::Float64
@@ -57,13 +58,13 @@ end
 
 
 mutable struct WillamWarnkeState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ::Vec6
     ε::Vec6
     εpa::Float64
     Δλ::Float64
-    function WillamWarnkeState(env::ModelEnv)
-        this = new(env)
+    function WillamWarnkeState(ctx::Context)
+        this = new(ctx)
         this.σ   = zeros(Vec6)
         this.ε   = zeros(Vec6)
         this.εpa = 0.0
@@ -74,7 +75,7 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{WillamWarnke}, ::Type{MechSolid}, env::ModelEnv) = env.ana.stressmodel!=:planestress ? WillamWarnkeState : error("WillamWarnke: This model is not compatible with planestress")
+compat_state_type(::Type{WillamWarnke}, ::Type{MechSolid}, ctx::Context) = ctx.stressmodel!=:planestress ? WillamWarnkeState : error("WillamWarnke: This model is not compatible with planestress")
 
 
 function calc_r(mat::WillamWarnke, σ::Vec6)
@@ -191,7 +192,7 @@ end
 
 
 function calcD(mat::WillamWarnke, state::WillamWarnkeState)
-    De  = calcDe(mat.E, mat.ν, state.env.ana.stressmodel)
+    De  = calcDe(mat.E, mat.ν, state.ctx.stressmodel)
 
     if state.Δλ==0.0
         return De
@@ -277,7 +278,7 @@ function calc_σ_εpa_Δλ_bis(mat::WillamWarnke, state::WillamWarnkeState, σtr
     E, ν = mat.E, mat.ν
     K, G  = E/(3.0*(1.0-2.0*ν)), E/(2.0*(1.0+ν))
 
-    # De = calcDe(mat.E, mat.ν, state.env.ana.stressmodel)
+    # De = calcDe(mat.E, mat.ν, state.ctx.stressmodel)
 
     ξtr = tr(σtr)/√3
     str = dev(σtr)
@@ -329,7 +330,7 @@ end
 
 function update_state!(mat::WillamWarnke, state::WillamWarnkeState, Δε::AbstractArray)
     σini = state.σ
-    De   = calcDe(mat.E, mat.ν, state.env.ana.stressmodel)
+    De   = calcDe(mat.E, mat.ν, state.ctx.stressmodel)
     σtr  = state.σ + De*Δε
     ftr  = yield_func(mat, state, σtr, state.εpa)
 
@@ -357,7 +358,7 @@ function ip_state_vals(mat::WillamWarnke, state::WillamWarnkeState)
     ρ = √(2*J2(σ))
     ξ = tr(σ)/√3
 
-    D       = stress_strain_dict(σ, ε, state.env.ana.stressmodel)
+    D       = stress_strain_dict(σ, ε, state.ctx.stressmodel)
     D[:ep]  = state.εpa
     D[:xi]  = ξ
     D[:rho] = ρ

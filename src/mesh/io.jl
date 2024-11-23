@@ -911,7 +911,7 @@ function Mesh(filename::String; reorder=false, quiet=true)
         ncells  = length(mesh.elems)
         nfaces  = length(mesh.faces)
         nedges  = length(mesh.edges)
-        println("  ", mesh.env.ndim, "d                   ")
+        println("  ", mesh.ctx.ndim, "d                   ")
         @printf "  %5d points\n" npoints
         @printf "  %5d cells\n" ncells
         @printf "  %5d faces\n" nfaces

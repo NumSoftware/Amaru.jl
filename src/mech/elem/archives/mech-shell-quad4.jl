@@ -11,7 +11,7 @@ mutable struct ShellQUAD4<:Mech
     mat::Material
     active::Bool
     linked_elems::Array{Element,1}
-    env::ModelEnv
+    ctx::Context
 
     function ShellQUAD4()
         return new()
@@ -22,8 +22,8 @@ compat_shape_family(::Type{ShellQUAD4}) = BULKCELL
 
 
 function distributed_bc(elem::ShellQUAD4, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
-    ndim  = elem.env.ndim
-    th    = elem.env.t
+    ndim  = elem.ctx.ndim
+    th    = elem.ctx.t
     suitable_keys = (:tx, :ty, :tz, :tn)
 
     # Check keys
@@ -33,7 +33,7 @@ function distributed_bc(elem::ShellQUAD4, facet::Cell, key::Symbol, val::Union{R
     target = facet !== nothing ? facet : elem
     nodes  = target.nodes
     nnodes = length(nodes)
-    t      = elem.env.t
+    t      = elem.ctx.t
 
     # Force boundary condition
     nnodes = length(nodes)
@@ -67,7 +67,7 @@ function distributed_bc(elem::ShellQUAD4, facet::Cell, key::Symbol, val::Union{R
                 n = [J[1,2], -J[1,1]]
                 Q = vip*normalize(n)
             end
-            if elem.env.ana.stressmodel==:axisymmetric
+            if elem.ctx.stressmodel==:axisymmetric
                 th = 2*pi*X[1]
             end
         else
@@ -163,7 +163,7 @@ end
 
 
 function elem_config_dofs(elem::ShellQUAD4)
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     ndim == 1 && error("ShellQUAD4: Shell elements do not work in 1d analyses")
     #if ndim==2
         for node in elem.nodes
@@ -191,7 +191,7 @@ end
 
 function elem_map(elem::ShellQUAD4)::Array{Int,1}
 
-    #if elem.env.ndim==2
+    #if elem.ctx.ndim==2
     #    dof_keys = (:ux, :uy, :uz, :rx, :ry)
     #else
     #    dof_keys = (:ux, :uy, :uz, :rx, :ry, :rz) 

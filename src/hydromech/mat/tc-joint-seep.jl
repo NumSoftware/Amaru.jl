@@ -3,7 +3,7 @@
 export TCJointSeep
 
 mutable struct TCJointSeepState<:IpState
-    env::ModelEnv
+    ctx::Context
     σ  ::Array{Float64,1} # stress
     w  ::Array{Float64,1} # relative displacements
     up::Float64          # effective plastic relative displacement
@@ -12,9 +12,9 @@ mutable struct TCJointSeepState<:IpState
     uw ::Array{Float64,1} # interface pore pressure
     Vt ::Array{Float64,1} # transverse fluid velocity
     L  ::Array{Float64,1} 
-    function TCJointSeepState(env::ModelEnv)
-        this = new(env)
-        ndim = env.ndim
+    function TCJointSeepState(ctx::Context)
+        this = new(ctx)
+        ndim = ctx.ndim
         this.σ   = zeros(ndim)
         this.w   = zeros(ndim)
         this.up  = 0.0
@@ -132,7 +132,7 @@ end
 
 
 function ip_state_vals(mat::TCJointSeep, state::TCJointSeepState)
-    ndim = state.env.ndim
+    ndim = state.ctx.ndim
     if ndim == 3
        return OrderedDict(
           :jw1 => state.w[1],

@@ -28,7 +28,7 @@ end
 
 
 mutable struct DamageConcreteState<:IpState
-    env        ::ModelEnv
+    ctx::Context
     σ          ::Array{Float64,1}  # current stress
     ε          ::Array{Float64,1}  # current strain
     ε̅cmax      ::Float64
@@ -42,7 +42,7 @@ mutable struct DamageConcreteState<:IpState
     in_tension ::Bool
 
     function DamageConcreteState()
-        this           = new(env)
+        this           = new(ctx)
         this.σ         = zeros(6)
         this.ε         = zeros(6)
         this.ε̅cmax     = 0.0
@@ -191,7 +191,7 @@ function calcD(mat::DamageConcrete, state::DamageConcreteState)
         ν = state._ν
     end
 
-    D  = calcDe(E, ν, state.env.ana.stressmodel)
+    D  = calcDe(E, ν, state.ctx.stressmodel)
     return D
 end
 
@@ -288,7 +288,7 @@ function update_state!(mat::DamageConcrete, state::DamageConcreteState, Δε::Ar
     #@show Emin
     #@show E
 
-    D  = calcDe(E, ν, state.env.ana.stressmodel)
+    D  = calcDe(E, ν, state.ctx.stressmodel)
     Δσ = D*Δε
     state.σ .+= Δσ
 
@@ -313,14 +313,14 @@ function update_state!(mat::DamageConcrete, state::DamageConcreteState, Δε::Ar
     #state.damt = 1.0 - σfun(state.ε̅tmax)/state.ε̅tmax/mat.E0
     #state.damc = 1.0 + σfun(-state.ε̅cmax)/state.ε̅cmax/mat.E0
 
-    #state.env.cstage==1 && state.env.inc==2 && error()
+    #state.ctx.cstage==1 && state.ctx.inc==2 && error()
 
     return Δσ, success()
 end
 
 
 function ip_state_vals(mat::DamageConcrete, state::DamageConcreteState)
-    dict = stress_strain_dict(state.σ, state.ε, state.env.ana.stressmodel)
+    dict = stress_strain_dict(state.σ, state.ε, state.ctx.stressmodel)
     dict[:damt] = state.damt
     dict[:damc] = state.damc
     dict[:E] = state._E

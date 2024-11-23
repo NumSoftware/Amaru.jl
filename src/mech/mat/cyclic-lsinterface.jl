@@ -3,7 +3,7 @@
 export CyclicRSJoint, CyclicLSJoint
 
 mutable struct CyclicLSJointState<:IpState
-    env    ::ModelEnv
+    ctx::Context
     σ      ::Array{Float64,1}
     u      ::Array{Float64,1}
     τnl     ::Float64    # max stress
@@ -15,9 +15,9 @@ mutable struct CyclicLSJointState<:IpState
     sneg   ::Float64
     spos   ::Float64
     elastic::Bool
-    function CyclicLSJointState(env::ModelEnv)
-        this         = new(env)
-        ndim         = env.ndim
+    function CyclicLSJointState(ctx::Context)
+        this         = new(ctx)
+        ndim         = ctx.ndim
         this.σ       = zeros(ndim)
         this.u       = zeros(ndim)
         this.τnl      = 0.0
@@ -72,7 +72,7 @@ const CyclicRSJoint = CyclicLSJoint
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{CyclicLSJoint}, ::Type{MechLSJoint}, env::ModelEnv) = CyclicLSJointState
+compat_state_type(::Type{CyclicLSJoint}, ::Type{MechLSJoint}, ctx::Context) = CyclicLSJointState
 
 
 function tau(mat::CyclicLSJoint, ips::CyclicLSJointState, s::Float64)
@@ -137,7 +137,7 @@ function calcD(mat::CyclicLSJoint, ips::CyclicLSJointState)
         ks = dτydsy
     end
 
-    if ips.env.ndim==2
+    if ips.ctx.ndim==2
         return [  ks  0.0
                  0.0   kn ]
     else

@@ -11,7 +11,7 @@ mutable struct PlateMZC<:Mech
     mat::Material
     active::Bool
     linked_elems::Array{Element,1}
-    env::ModelEnv
+    ctx::Context
 
     function PlateMZC()
         return new()
@@ -33,7 +33,7 @@ end
 
 
 function elem_config_dofs(elem::PlateMZC)
-    ndim = elem.env.ndim
+    ndim = elem.ctx.ndim
     ndim == 1 && error("PlateMZC: Plate elements do not work in 1d analyses")
     if ndim==2
         for node in elem.nodes
@@ -60,7 +60,7 @@ end
 
 function elem_map(elem::PlateMZC)::Array{Int,1}
 
-    #if elem.env.ndim==2
+    #if elem.ctx.ndim==2
         dof_keys = (:uz, :rx, :ry)
     #else
     #    dof_keys = (:ux, :uy, :uz, :rx, :ry, :rz) # VERIFICAR
