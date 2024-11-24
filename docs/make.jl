@@ -2,8 +2,11 @@
 push!(LOAD_PATH,"../src/")
 using Amaru, Documenter
 
+root = joinpath(dirname(pathof(Amaru)), "..", "docs")
+
 makedocs(
-    remotes = nothing,
+    # remotes = nothing,
+    root = root,
     modules  = [Amaru],
     sitename = "Amaru",
     pagesonly = true,    # only listed pages are included
@@ -19,12 +22,18 @@ makedocs(
         # "Mesh" =>  "meshing/meshing.md",
         # "Model model" =>  "modelling/modelling.md",
         "Mechanical analysis" =>  "modelling/mech/mech.md",
+        "Examples" =>  [
+            "2D truss" => "examples/truss.md",
+            "Solid beam" => "examples/solid-beam.md",
+        ]
         # "Plotting" =>  "plotting/plotting.md",
     ],
     doctest = false,
-    # repo = "https://github.com/NumSoftware/Amaru.jl",
+    repo = "https://github.com/NumSoftware/Amaru.jl",
+    # edit_branch = "main",
+
     # repo = "github.com/JuliaGraphics/LuxorManual.git"
-    # https://github.com/NumSoftware/Amaru.jl
+    # repo = "github.com/NumSoftware/Amaru.git"
 )
         
 # ENV["GITHUB_REPOSITORY"] = "NumSoftware/Amaru.jl"

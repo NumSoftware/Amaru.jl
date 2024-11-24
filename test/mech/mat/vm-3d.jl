@@ -10,13 +10,13 @@ nu = 0.3
 
 # mesh
 bl = Block( [0 0 -0.05; 0.05 1.0 0.05], nx=1, ny=50, nz=2, cellshape=HEX20)
-msh= Mesh(bl)
+mesh= Mesh(bl)
 
 # fem domain
 mat = [ :bulks => MechSolid => VonMises => (E=E, nu=nu, fy=fy, H=H) ]
 
 ctx = MechContext()
-model = FEModel(msh, mat, ctx)
+model = FEModel(mesh, mat, ctx)
 ana = MechAnalysis(model)
 
 log = NodeLogger()

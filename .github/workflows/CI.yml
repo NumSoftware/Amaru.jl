@@ -11,18 +11,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v1
-        with:
-          python-version: '3.9'
-          architecture: 'x64'
-      - name: Install Python dependencies
-        run: |
-          python3 -m pip install --upgrade pip
-          pip install matplotlib
+      - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@latest
         with:
-          version: '1.8'
+          version: ${{ matrix.julia-version }}
+          arch: ${{ matrix.julia-arch }}
       - name: Install Julia dependencies
         run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
       - name: Build and deploy

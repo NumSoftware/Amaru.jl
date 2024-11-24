@@ -10,20 +10,28 @@ Amaru is a Finite Element library written in Julia language. The purpose of this
 
 ## Installation and basic usage
 
-Install the package using the package manager:
+Install the package using the package manager, type `]` and then:
 
 ```
 ] add Amaru
 ```
 
-To use Amaru, type:
+To use Amaru, type in Julia REPL:
 
 ```
 using Amaru
 ```
 
-To test:
+To test, type `]` and then:
 
 ```
 ] test Amaru
+```
+
+## Development version
+
+To install the development version, type `]` and then
+
+```
+add Amaru#main
 ```

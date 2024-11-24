@@ -7,7 +7,6 @@ L  = 1.0
 E  = 210e6 # kPa
 fy = 240e3 # kPa
 H  = 0.0
-# H  = 1e-3
 nu = 0.3
 
 # mesh

@@ -178,6 +178,8 @@ function solve!(ana::MechAnalysis; args...)
     return status
 end
 
+const run! = solve!
+export run!
 
 function mech_stage_solver!(ana::MechAnalysis, stage::Stage; args...)
     args = NamedTuple(args)
