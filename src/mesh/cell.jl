@@ -199,8 +199,7 @@ function Base.getproperty(cells::Array{<:AbstractCell,1}, s::Symbol)
     s == :nodes  && return getnodes(cells)
     s == :filter && return cells
     s == :active && return filter(cell -> cell.active, cells)
-
-    error("type $(typeof(cells)) has no property $s")
+    return getfield(cells, s)
 end
 
 
