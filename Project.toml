@@ -25,7 +25,7 @@ CodecZlib = "944b1d66-785c-5afd-91f1-9de20f533193"
 TranscodingStreams = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 
 [compat]
-julia = "1.8 - 1.10"
+julia = "^1.11"
 Arpack = "^0.5.4"
 DataStructures = "^0.18.17"
 DelimitedFiles = "^1.9.1"
