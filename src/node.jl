@@ -277,7 +277,7 @@ end
 
 function Base.getproperty(nodes::Array{Node,1}, s::Symbol)
     s == :dofs && return [ dof for node in nodes for dof in node.dofs ]
-    error("type Array{Node,1} has no property $s")
+    return getfield(nodes, s)
 end
 
 
