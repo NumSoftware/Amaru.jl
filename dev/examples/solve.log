@@ -1,0 +1,4 @@
+Mechanical FE analysis: Stage 1
+unknown dofs: 8
+  inc 1
+    it 1  residue: 9.6634e-13
