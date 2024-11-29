@@ -65,8 +65,8 @@ mutable struct PowerYieldCrack<:Material
         if ft_fun!==nothing
             softmodel = :custom
             ft = ft_fun(0.0)
-            if lastpoint(ft_fun)[2] == 0.0
-                wc = lastpoint(ft_fun)[1]
+            if ft_fun.points[end][2] == 0.0
+                wc = ft_fun.points[end][1]
             else
                 wc = Inf
             end
