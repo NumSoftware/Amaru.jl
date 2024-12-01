@@ -109,6 +109,8 @@ function mech_modal_solver!(ana::MechModalAnalysis, stage::Stage; kwargs...)
     stressmodel = ctx.stressmodel
     ctx.ndim==3 && @check stressmodel==:d3
 
+    # todo: check there are not force boundary conditions
+
     # get only bulk elements
     model = FEModel(model.elems.bulks)
 
@@ -146,8 +148,9 @@ function mech_modal_solver!(ana::MechModalAnalysis, stage::Stage; kwargs...)
     # P = m11*K11
 
     # eingenvalues and eingenvectors
-    Eig = eigs(P, nev=nmodes, which=:SR) # with the smallest real parts
-    # Eig = eigs(P, nev=20, which=:SM)
+    # Eig = eigs(P, nev=nmodes, which=:SR, tol=1e-6, maxiter=600, check=1) # SR: smallest real part
+    # Eig = eigs(P, nev=nmodes, which=:SM) # SM: smallest magnitude
+    Eig = eigs(P, nev=nmodes, which=:LM) # LM: largest magnitude
     w0  = Eig[1] # frequencies
     wi  = copy(w0)
 
