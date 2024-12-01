@@ -12,16 +12,14 @@ mats = [
     "fluido" => AcousticFluid => LinearAcousticFluid => (rho=1000.0, c=c)
 ]
 
-ana = AcousticModalAnalysis(thickness=1.0)
-model = FEModel(mesh, mats, ana)
+ctx = AcousticContext()
+model = FEModel(mesh, mats, ctx, thickness=1.0)
+ana = AcousticModalAnalysis(model)
 
 bcs = [
     :(x==0) => SurfaceBC(up=0)   # tq.  [kN/m/m2] [kg/s2/m2]
 ]
 
-addstage!(model, bcs)
+addstage!(ana, bcs)
 
-solve!(model, nmodes=10, quiet=false)
-
-ana.modes
-ana.freqs
+solve!(ana, nmodes=10, quiet=false)

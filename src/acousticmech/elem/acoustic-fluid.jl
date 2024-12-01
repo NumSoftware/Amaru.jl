@@ -4,17 +4,19 @@ export AcousticFluid
 
 AcousticFluid_params = [
     FunInfo(:AcousticFluid, "A finite element for wave analyses"),
+    KwArgInfo(:rho, "Density", 0.0, cond=:(rho>=0.0)),
     KwArgInfo(:c, "Speed of sound", 0.0, cond=:(c>0.0)),
 ]
 @doc docstring(AcousticFluid_params) AcousticFluid
 
 
 struct AcousticFluidProps<:ElemProperties
+    ρ::Float64
     c::Float64
 
     function AcousticFluidProps(; kwargs...)
         args = checkargs(kwargs, AcousticFluid_params)
-        return new(args.c)
+        return new(args.rho, args.c)
     end    
 end
 
@@ -53,8 +55,8 @@ function elem_init(elem::AcousticFluid)
 end
 
 
-function distributed_bc(elem::AcousticFluid, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
-    return acoustic_mech_bc(elem, facet, key, val)
+function distributed_bc(elem::AcousticFluid, facet::Cell, t::Float64, key::Symbol, val::Union{Real,Symbol,Expr})
+    return acoustic_mech_bc(elem, facet, t, key, val)
 end
 
 

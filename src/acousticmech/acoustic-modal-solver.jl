@@ -1,25 +1,49 @@
+# This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 export AcousticModalAnalysis
 
+
 AcousticModalAnalysis_params = [
-    FunInfo(:AcousticModalAnalysis, "Mechanical modal analysis"),
-    KwArgInfo(:stressmodel, "Stress model", :d3, values=(:planestress, :planestrain, :axisymmetric, :d3)),
-    KwArgInfo(:thickness, "Thickness for 2d analyses", 1.0, cond=:(thickness>0)),
-    KwArgInfo(:g, "Gravity acceleration", 0.0, cond=:(g>=0))
+    FunInfo(:DynAnalysis, "Dynamic analysis"),
+    ArgInfo(:model, "Finite element model"),
 ]
 @doc docstring(AcousticModalAnalysis_params) AcousticModalAnalysis
 
 
 mutable struct AcousticModalAnalysis<:Analysis
-    stressmodel::Symbol # plane stress, plane strain, etc.
-    thickness::Float64  # thickness for 2d analyses
-    g::Float64 # gravity acceleration
-    freqs::Vector{Float64}
-    modes::Matrix{Float64}
+    model ::FEModel
+    ctx   ::AcousticMechContext
+    sctx  ::SolverContext
+
+    stages  ::Array{Stage}
+    loggers ::Array{AbstractLogger,1}
+    monitors::Array{AbstractMonitor,1}
+
+    freqs::Array{Float64,1} # frequencies
+    modes::Array{Float64,2} # modes
     
-    function AcousticModalAnalysis(; kwargs...)
-        args = checkargs(kwargs, AcousticModalAnalysis_params)
-        this = new(args.stressmodel, args.thickness, args.g, [], zeros(0,0))
+    function AcousticModalAnalysis(model::FEModel; outdir=".", outkey="out")
+        this = new(model, model.ctx)
+        this.stages = []
+        this.loggers = []
+        this.monitors = []  
+
+        this.freqs = zeros(0)
+        this.modes = zeros(0,0)
+
+        this.sctx = SolverContext()
+        this.sctx.outdir = outdir
+        this.sctx.outkey = outkey
+
+        model.ctx.thickness = model.thickness
+        if model.ctx.stressmodel==:none
+            if model.ctx.ndim==2
+                model.ctx.stressmodel = :planestrain
+            else
+                model.ctx.stressmodel = :d3
+            end
+        end
+
         return this
     end
 end
@@ -39,16 +63,45 @@ acoustic_modal_solver_params = [
     KwArgInfo( :nmodes, "Number of modes to be computed", 5),
     KwArgInfo( :quiet, "Flag to set silent mode", false),
 ]
-@doc docstring(acoustic_modal_solver_params) acoustic_modal_solver!()
+@doc docstring(acoustic_modal_solver_params) solve!(::AcousticModalAnalysis; args...)
 
 
-function acoustic_modal_solver!(model::FEModel, stage::Stage; kwargs...)
-    args     = checkargs(kwargs, acoustic_modal_solver_params)
-    nmodes    = args.nmodes
-    quiet    = args.quiet
+function solve!(ana::AcousticModalAnalysis; args...)
+    args = checkargs(args, acoustic_modal_solver_params)
+    if !args.quiet
+        printstyled("Solver for acousticanical modal analyses", "\n", bold=true, color=:cyan)
+        println("  stress model: ", ana.ctx.stressmodel)
+    end
 
+    status = stage_iterator!(acoustic_modal_solver!, ana; args...)
+    return status
+end
+
+
+function acoustic_modal_solver!(ana::AcousticModalAnalysis, stage::Stage; kwargs...)
+    args   = checkargs(kwargs, acoustic_modal_solver_params)
+    nmodes = args.nmodes
+    quiet  = args.quiet
+
+    model = ana.model
     ctx = model.ctx
-    quiet || println(ctx.log, "Modal analysis for acoustic systems")
+    sctx = ana.sctx
+
+    quiet || println(sctx.log, "Modal analysis for acoustic systems")
+
+    stressmodel = ctx.stressmodel
+    ctx.ndim==3 && @check stressmodel==:d3
+
+    
+    # todo: check there are not force boundary conditions
+
+    # get only bulk elements
+    # model = FEModel(model.elems.bulks) #todo: update surface/edges
+
+    # check density
+    for elem in model.elems
+        elem.props.ρ==0 && error("mech_modal_solver: density should not be zero")
+    end
 
     # get dofs organized according to boundary conditions
     dofs, nu    = configure_dofs!(model, stage.bcs)
@@ -56,8 +109,8 @@ function acoustic_modal_solver!(model::FEModel, stage::Stage; kwargs...)
     ndofs       = length(dofs)
     model.ndofs = length(dofs)
     if !quiet
-        println(ctx.log, "unknown dofs: $nu")
-        println(ctx.info, "unknown dofs: $nu")
+        println(sctx.log, "unknown dofs: $nu")
+        println(sctx.info, "unknown dofs: $nu")
     end
 
     # setup quantities at dofs
@@ -94,10 +147,10 @@ function acoustic_modal_solver!(model::FEModel, stage::Stage; kwargs...)
     ω = λ.^0.5  # true frequencies
 
     update_output_data!(model)
-    save(model, joinpath(ctx.outdir, "$(ctx.outkey)-0.vtu"), quiet=true)
+    save(model, joinpath(sctx.outdir, "$(sctx.outkey)-0.vtu"), quiet=true)
 
-    model.ctx.inc = 1
-    model.ctx.ΔT  = 1.0
+    sctx.inc = 1
+    sctx.ΔT  = 1.0
     
     # save modes
     for i in 1:nmodes
@@ -106,10 +159,10 @@ function acoustic_modal_solver!(model::FEModel, stage::Stage; kwargs...)
         for (k,dof) in enumerate(dofs[1:nu])
             dof.vals[dof.name] = U[k]
         end
-        model.ctx.T = i/nmodes
-        model.ctx.out = i
+        sctx.T = i/nmodes
+        sctx.out = i
         update_output_data!(model)
-        save(model, joinpath(ctx.outdir, "$(ctx.outkey)-$i.vtu"), quiet=true)
+        save(model, joinpath(sctx.outdir, "$(sctx.outkey)-$i.vtu"), quiet=true)
     end
 
     # reset displacement values
@@ -117,10 +170,10 @@ function acoustic_modal_solver!(model::FEModel, stage::Stage; kwargs...)
         dof.vals[dof.name] = 0.0
     end
 
-    model.ctx.freqs = ω
-    model.ctx.modes = V
+    # save frequencies and modes
+    ana.freqs = ω
+    ana.modes = V
 
     return success()
-
 end
 

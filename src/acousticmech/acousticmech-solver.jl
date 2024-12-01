@@ -1,28 +1,75 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export AcousticMechAnalysis
+export AcousticAnalysis, AcousticMechAnalysis, AcousticContext, AcousticMechContext
 
-AcousticMechAnalysis_params = [
-    FunInfo(:HydromechAnalysis, "Hydromechanical analysis properties."),
-    KwArgInfo(:stressmodel, "Stress model", :d3, values=(:planestress, :planestrain, :axisymmetric, :d3)),
-    KwArgInfo(:thickness, "Thickness for 2d analyses", 1.0, cond=:(thickness>0)),
+
+AcousticMechContext_params = [
+    FunInfo(:MechContext, "Context for mechanical analysis"),
+    KwArgInfo(:ndim, "Analysis dimension", 0),
+    KwArgInfo(:stressmodel, "Stress model", :d3, values=(:planestress, :planestrain, :axisymmetric, :d3, :none)),
     KwArgInfo(:g, "Gravity acceleration", 0.0, cond=:(g>=0))
 ]
-@doc docstring(AcousticMechAnalysis_params) AcousticMechAnalysis()
+@doc docstring(AcousticMechContext_params) AcousticMechContext
 
-mutable struct AcousticMechAnalysisProps<:TransientAnalysis
+mutable struct AcousticMechContext<:Context
     stressmodel::Symbol # plane stress, plane strain, etc.
-    thickness::Float64  # thickness for 2d analyses
     g::Float64 # gravity acceleration
-    
-    function AcousticMechAnalysisProps(; kwargs...)
-        args = checkargs(kwargs, AcousticMechAnalysis_params)
-        this = new(args.stressmodel, args.thickness, args.g)
+
+    ndim     ::Int       # Analysis dimension
+    thickness::Float64 # to be set after FEModel creation
+
+    function AcousticMechContext(; kwargs...)
+        args = checkargs(kwargs, AcousticMechContext_params)
+        this = new()
+        
+        # Analysis related
+        this.stressmodel = args.stressmodel
+        this.ndim        = args.ndim
+        this.g           = args.g
         return this
     end
 end
 
-AcousticMechAnalysis = AcousticMechAnalysisProps
+const AcousticContext = AcousticMechContext
+
+
+AcousticMechAnalysis_params = [
+    FunInfo(:AcousticMechAnalysis, "AcousticMechanical analysis."),
+]
+@doc docstring(AcousticMechAnalysis_params) AcousticMechAnalysis()
+
+mutable struct AcousticMechAnalysis<:TransientAnalysis
+    model ::FEModel
+    ctx   ::AcousticMechContext
+    sctx  ::SolverContext
+
+    stages  ::Array{Stage}
+    loggers ::Array{AbstractLogger,1}
+    monitors::Array{AbstractMonitor,1}
+
+    function AcousticMechAnalysis(model::FEModel; outdir=".", outkey="out")
+        this = new(model, model.ctx)
+        this.stages = []
+        this.loggers = []
+        this.monitors = []  
+        this.sctx = SolverContext()
+        this.sctx.outdir = outdir
+        this.sctx.outkey = outkey
+        model.ctx.thickness = model.thickness
+        if model.ctx.stressmodel==:none
+            if model.ctx.ndim==2
+                model.ctx.stressmodel = :planestrain
+            else
+                model.ctx.stressmodel = :d3
+            end
+        end
+
+        return this
+    end
+    
+end
+
+const AcousticAnalysis = AcousticMechAnalysis
 
 function am_mount_M(elems::Array{<:Element,1}, ndofs::Int )
 
@@ -86,31 +133,6 @@ function am_mount_K(elems::Array{<:Element,1}, ndofs::Int )
 end
 
 
-# function complete_ut_T(model::FEModel)
-#     haskey(model.node_data, "ut") || return
-#     Ut = model.node_data["ut"]
-#     T0 = get(model.ctx.mat, :T0, 0.0)
-
-#     for elem in model.elems
-#         elem.shape.family==BULKCELL || continue
-#         elem.shape==elem.shape.basic_shape && continue
-#         npoints  = elem.shape.npoints
-#         nbpoints = elem.shape.basic_shape.npoints
-#         map = [ elem.nodes[i].id for i in 1:nbpoints ]
-#         Ute = Ut[map]
-#         C = elem.shape.nat_coords
-#         for i in nbpoints+1:npoints
-#             id = elem.nodes[i].id
-#             R = C[i,:]
-#             N = elem.shape.basic_shape.func(R)
-#             Ut[id] = dot(N,Ute)
-#         end
-#     end
-
-#     model.node_data["T"] = Ut .+ T0
-# end
-
-
 function solve!(model::FEModel, ana::AcousticMechAnalysis; args...)
     name = "Solver for acoustic mechanical analyses"
     status = stage_iterator!(name, am_stage_solver!, model; args...)
@@ -120,7 +142,6 @@ end
 am_stage_solver_params = [
     FunInfo(:tm_stage_solver!, "Solves a load stage of a thremomechanical analysis."),
     ArgInfo(:model, "FEModel object"),
-    ArgInfo(:stage, "Stage object"),
     KwArgInfo(:tol, "Force tolerance", 0.01, cond=:(tol>0)),
     KwArgInfo(:dTmin, "Relative minimum increment size", 1e-7, cond=:(0<dTmin<1) ),
     KwArgInfo(:dTmax, "Relative maximum increment size", 0.1, cond=:(0<dTmax<1) ),
@@ -130,23 +151,37 @@ am_stage_solver_params = [
     KwArgInfo(:autoinc, "Flag to set auto-increments", false),
     KwArgInfo(:quiet, "Flat to set silent mode", false),
 ]
-@doc docstring(am_stage_solver_params) am_stage_solver!()
+@doc docstring(tm_solver_params) solve!(::ThermoMechAnalysis; args...)
 
-function am_stage_solver!(model::FEModel, stage::Stage; args...)
-    args = checkargs(args, tm_stage_solver_params)
+
+function solve!(ana::AcousticMechAnalysis; args...)
+    args = checkargs(args, tm_solver_params)
+    if !args.quiet
+        printstyled("Solver for acoustic-mechanical analyses", "\n", bold=true, color=:cyan)
+        println("  stress model: ", ana.ctx.stressmodel)
+    end
+
+    status = stage_iterator!(tm_stage_solver!, ana; args...)
+    return status
+end
+
+
+function tm_stage_solver!(ana::AcousticMechAnalysis, stage::Stage; args...)
+    args = NamedTuple(args)
     
     tol     = args.tol      
     ΔTmin   = args.dTmin    
     ΔTmax   = args.dTmax   
-    rspan   = args.rspan    
-    scheme  = args.scheme   
+    # rspan   = args.rspan    
+    # scheme  = args.scheme   
     maxits  = args.maxits 
     autoinc = args.autoinc  
     quiet   = args.quiet 
 
+    model = ana.model
     ctx = model.ctx
-
-    println(ctx.log, "Acoustic FE analysis: Stage $(stage.id)")
+    sctx = ana.sctx
+    println(sctx.log, "ThermoMech FE analysis: Stage $(stage.id)")
 
     solstatus = success()
 
@@ -154,7 +189,6 @@ function am_stage_solver!(model::FEModel, stage::Stage; args...)
     nouts     = stage.nouts
     bcs       = stage.bcs
     tspan     = stage.tspan
-    ctx       = model.ctx
     saveouts  = stage.nouts > 0
 
     stressmodel = ctx.stressmodel
@@ -173,8 +207,8 @@ function am_stage_solver!(model::FEModel, stage::Stage; args...)
     pmap     = nu+1:ndofs   # map for prescribed bcs
     model.ndofs = length(dofs)
 
-    println(ctx.info, "  unknown dofs: $nu")
-    println(ctx.log, "unknown dofs: $nu")
+    println(sctx.info, "unknown dofs: $nu")
+    println(sctx.log, "unknown dofs: $nu")
 
     # quiet || nu==ndofs && println(ctx.alerts, "solve_system!: No essential boundary conditions", Base.warn_color) #TODO
 
@@ -219,7 +253,7 @@ function am_stage_solver!(model::FEModel, stage::Stage; args...)
         end
 
         # Save initial file and loggers
-        update_records!(model, force=true)
+        update_records!(ana, force=true)
     end
 
     # Get the domain current state and backup
@@ -227,7 +261,7 @@ function am_stage_solver!(model::FEModel, stage::Stage; args...)
     StateBk = copy.(State)
 
     # Incremental analysis
-    t       = ctx.t     # current time
+    t       = sctx.t     # current time
     ΔTbk    = 0.0
     ΔTcheck = saveouts ? 1/nouts : 1.0
     Tcheck  = ΔTcheck
@@ -270,15 +304,15 @@ function am_stage_solver!(model::FEModel, stage::Stage; args...)
     local At, Vt
 
     while T < 1.0-ΔTmin
-        ctx.ΔT = ΔT
+        sctx.ΔT = ΔT
         Δt     = tspan*ΔT
-        ctx.t  = t + Δt
+        sctx.t  = t + Δt
 
         # Update counters
         inc += 1
-        ctx.inc = inc 
+        sctx.inc = inc 
 
-        println(ctx.log, "  inc $inc")
+        println(sctx.log, "  inc $inc")
 
         # Get forces and displacements from boundary conditions
         Uexi, Fexi = get_bc_vals(model, bcs, t+Δt) # get values at time t+Δt
@@ -333,7 +367,7 @@ function am_stage_solver!(model::FEModel, stage::Stage; args...)
             # Update accumulated displacement
             ΔUi .+= ΔUk
 
-            @printf(ctx.log, "    it %d  res: %-10.4e\n", it, res)
+            @printf(sctx.log, "    it %d  res: %-10.4e\n", it, res)
 
             it==1 && (res1=res)
             res < tol  && (converged=true; break)
@@ -345,10 +379,10 @@ function am_stage_solver!(model::FEModel, stage::Stage; args...)
         q = 0.0 # increment size factor for autoinc
 
         if syserror
-            println(ctx.log, sysstatus.message)
+            println(sctx.log, sysstatus.message)
             converged = false
         end
-        quiet || sysstatus.message!="" && println(ctx.alerts, sysstatus.message)
+        quiet || sysstatus.message!="" && println(sctx.alerts, sysstatus.message)
 
         if converged
             # Update nodal natural and essential values for the current stage
@@ -376,20 +410,20 @@ function am_stage_solver!(model::FEModel, stage::Stage; args...)
             # Update time
             t += Δt
             T += ΔT
-            ctx.t = t
-            ctx.T = T
-            ctx.residue = res
+            sctx.t = t
+            sctx.T = T
+            sctx.residue = res
 
             # Check for saving output file
             checkpoint = T>Tcheck-ΔTmin
             if checkpoint
-                ctx.out += 1
+                sctx.out += 1
                 Tcheck += ΔTcheck # find the next output time
             end
 
-            rstatus = update_records!(model, checkpoint=checkpoint)
+            rstatus = update_records!(ana, checkpoint=checkpoint)
             if failed(rstatus)
-                println(ctx.alerts, rstatus.message)
+                println(sctx.alerts, rstatus.message)
                 return rstatus
             end
 
@@ -418,12 +452,12 @@ function am_stage_solver!(model::FEModel, stage::Stage; args...)
         else
             # Restore counters
             inc -= 1
-            ctx.inc -= 1
+            sctx.inc -= 1
 
             copyto!.(State, StateBk)
 
             if autoinc
-                println(ctx.log, "      increment failed")
+                println(sctx.log, "      increment failed")
                 q = (1+tanh(log10(tol/res1)))
                 q = clamp(q, 0.2, 0.9)
                 syserror && (q=0.7)
@@ -440,7 +474,7 @@ function am_stage_solver!(model::FEModel, stage::Stage; args...)
         end
     end
 
-    failed(solstatus) && update_records!(model, force=true)
+    failed(solstatus) && update_records!(ana, force=true)
 
     return solstatus
 
