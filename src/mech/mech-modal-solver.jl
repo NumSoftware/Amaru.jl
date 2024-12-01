@@ -1,15 +1,6 @@
+# This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
 export MechModalAnalysis
-
-# MechModalAnalysis_params = [
-#     FunInfo(:MechModalAnalysis, "Mechanical modal analysis"),
-#     KwArgInfo(:stressmodel, "Stress model", :d3, values=(:planestress, :planestrain, :axisymmetric, :d3)),
-#     KwArgInfo(:thickness, "Thickness for 2d analyses", 1.0, cond=:(thickness>0)),
-#     KwArgInfo(:g, "Gravity acceleration", 0.0, cond=:(g>=0))
-# ]
-# @doc docstring(MechModalAnalysis_params) MechModalAnalysis
-
-
 
 MechModalAnalysis_params = [
     FunInfo(:DynAnalysis, "Dynamic analysis"),
@@ -50,32 +41,11 @@ mutable struct MechModalAnalysis<:StaticAnalysis
 end
 
 
-
-# mutable struct MechModalAnalysis<:Analysis
-#     stressmodel::Symbol # plane stress, plane strain, etc.
-#     thickness::Float64  # thickness for 2d analyses
-#     g::Float64 # gravity acceleration
-    
-#     function MechModalAnalysis(; kwargs...)
-#         args = checkargs(kwargs, MechModalAnalysis_params)
-#         this = new(args.stressmodel, args.thickness, args.g)
-#         return this
-#     end
-# end
-
-
-# function solve!(model::FEModel, ana::MechModalAnalysis; args...)
-#     name = "Solver for dynamic modal analyses"
-#     status = stage_iterator!(name, mech_modal_solver!, model; args...)
-#     return status
-# end
-
-
 mech_modal_solver_params = [
     FunInfo( :mech_modal_solver!, "Finds the frequencies and vibration modes of a mechanical system."),
     ArgInfo( :model, "FEModel object"),
     ArgInfo( :stage, "Stage object"),
-    KwArgInfo( (:nmodes, :nmods), "Number of modes to be calculated", 5),
+    KwArgInfo( :nmodes, "Number of modes to be calculated", 5),
     KwArgInfo( :rayleigh, "Flag to use Rayleigh-Ritz method for damping", false),
     KwArgInfo( :quiet, "Flag to set silent mode", false),
 ]
@@ -104,7 +74,7 @@ function mech_modal_solver!(ana::MechModalAnalysis, stage::Stage; kwargs...)
     ctx = model.ctx
     sctx = ana.sctx
 
-    println(sctx.log, "Modal analysis for mechanical systems")
+    quiet || println(sctx.log, "Modal analysis for mechanical systems")
 
     stressmodel = ctx.stressmodel
     ctx.ndim==3 && @check stressmodel==:d3
@@ -124,8 +94,11 @@ function mech_modal_solver!(ana::MechModalAnalysis, stage::Stage; kwargs...)
 
     ndofs       = length(dofs)
     model.ndofs = length(dofs)
-    println(sctx.log, "unknown dofs: $nu")
-    println(sctx.info, "unknown dofs: $nu")
+
+    if !quiet
+        println(sctx.log, "unknown dofs: $nu")
+        println(sctx.info, "unknown dofs: $nu")
+    end
 
     # setup quantities at dofs
     for dof in dofs

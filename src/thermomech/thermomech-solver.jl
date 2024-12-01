@@ -10,7 +10,7 @@ ThermoMechAnalysisContext_params = [
     KwArgInfo(:g, "Gravity acceleration", 0.0, cond=:(g>=0)),
     KwArgInfo(:T0, "Reference temperature", 0.0, cond=:(T0>=-273.15)),
 ]
-@doc docstring(ThermoMechAnalysisContext_params) ThermoMechContext()
+@doc docstring(ThermoMechAnalysisContext_params) ThermoMechContext
 
 mutable struct ThermoMechContext<:Context
     stressmodel::Symbol # plane stress, plane strain, etc.
@@ -25,25 +25,18 @@ mutable struct ThermoMechContext<:Context
         this = new()
         
         # Analysis related
-        this.ndim = args.ndim
         this.stressmodel = args.stressmodel
-        this.g         = args.g
-        # this.transient = true
-
+        this.ndim        = args.ndim
+        this.g           = args.g
         return this
-
     end
 end
 
-ThermoContext = ThermoMechContext
+const ThermoContext = ThermoMechContext
 
 
 ThermomechAnalysis_params = [
-    FunInfo(:ThermoMechAnalysis, "Thermomechanical analysis properties."),
-    KwArgInfo(:stressmodel, "Stress model", :d3, values=(:planestress, :planestrain, :axisymmetric, :d3)),
-    KwArgInfo(:thickness, "Thickness for 2d analyses", 1.0, cond=:(thickness>0)),
-    KwArgInfo(:g, "Gravity acceleration", 0.0, cond=:(g>=0)),
-    KwArgInfo(:T0, "Reference temperature", 0.0, cond=:(T0>=-273.15)),
+    FunInfo(:ThermoMechAnalysis, "Thermomechanical analysis."),
 ]
 @doc docstring(ThermomechAnalysis_params) ThermoMechAnalysis()
 
@@ -78,7 +71,7 @@ mutable struct ThermoMechAnalysis<:TransientAnalysis
     
 end
 
-ThermoAnalysis = ThermoMechAnalysis
+const ThermoAnalysis = ThermoMechAnalysis
 
 # Assemble the global stiffness matrix
 function tm_mount_global_matrices(model::FEModel,
