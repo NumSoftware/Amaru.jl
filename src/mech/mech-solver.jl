@@ -55,8 +55,10 @@ mutable struct MechAnalysis<:StaticAnalysis
         this.loggers = []
         this.monitors = []  
         this.sctx = SolverContext()
-        this.sctx.outdir = outdir
+
         this.sctx.outkey = outkey
+        this.sctx.outdir = rstrip(outdir, ['/', '\\'])
+        isdir(this.sctx.outdir) || mkdir(this.sctx.outdir) # create output directory if it does not exist
 
         model.ctx.thickness = model.thickness
         if model.ctx.stressmodel==:none
