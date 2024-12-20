@@ -100,14 +100,12 @@ function tau_deriv(mat::CyclicLSJoint, ips::CyclicLSJointState, s::Float64)
     end
 
     if s<=ips.speak
-        return ips.τmax/ips.speak*(s/ips.speak)^(mat.α-1)
+        return mat.α*ips.τmax/ips.speak*(s/ips.speak)^(mat.α-1)
     elseif s<s2
         return mat.ks*1e-3
-        # return 1.0
     elseif s<mat.sres
-        return -(ips.τmax-ips.τres)/(mat.sres-s2)*((s-s2)/(mat.sres-s2))^(mat.β-1)
+        return -mat.β*(ips.τmax-ips.τres)/(mat.sres-s2)*((s-s2)/(mat.sres-s2))^(mat.β-1)
     else
-        # return 1.0
         return mat.ks*1e-3
     end
 end
@@ -130,7 +128,6 @@ function calcD(mat::CyclicLSJoint, ips::CyclicLSJointState)
         if s*τ<0.0 || abs(τ)>ips.τmax
             dτydsy = 1.0    
             # @show "ks=1.0"
-            # @show τ
         else
             dτydsy = tau_deriv(mat, ips, s)
         end

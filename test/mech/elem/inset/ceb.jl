@@ -26,6 +26,7 @@ mats = [
                                  ks=(12/0.001)*5, kn=5000, p=0.25)
        ]
 
+
 ctx = MechContext()
 model = FEModel(msh, mats, ctx)
 ana = MechAnalysis(model)
