@@ -25,8 +25,6 @@ export DynAnalysis
 # DynAnalysis = DynAnalysisProps
 
 
-
-
 DynamicAnalysis_params = [
     FunInfo(:DynAnalysis, "Dynamic analysis"),
     ArgInfo(:model, "Finite element model"),
@@ -49,8 +47,10 @@ mutable struct DynamicAnalysis<:TransientAnalysis
         this.loggers = []
         this.monitors = []  
         this.sctx = SolverContext()
-        this.sctx.outdir = outdir
+        
         this.sctx.outkey = outkey
+        this.sctx.outdir = rstrip(outdir, ['/', '\\'])
+        isdir(this.sctx.outdir) || mkdir(this.sctx.outdir) # create output directory if it does not exist
 
         model.ctx.thickness = model.thickness
         if model.ctx.stressmodel==:none
@@ -371,6 +371,7 @@ function dyn_stage_solver!(ana::DynamicAnalysis, stage::Stage; args...)
 
             # Try FE step
             K = mount_K(model.elems, ndofs)
+            M = mount_M(model.elems, ndofs)
 
             C   = alpha*M + beta*K # Damping matrix
             Kp  = K + (4/(Δt^2))*M + (2/Δt)*C # pseudo-stiffness matrix
