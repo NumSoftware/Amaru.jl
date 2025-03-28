@@ -113,7 +113,7 @@ function insert_cohesive_elements!(
         end
 
         # Get joint faces
-        trial_faces = Face[]
+        trial_faces = CellFace[]
         for tag in tag_set
             for face in get_outer_facets(targetcells[tag])
                 push!(trial_faces, face)
@@ -173,7 +173,7 @@ function insert_cohesive_elements!(
         end
 
         # Update joint faces (now with new nodes)
-        trial_faces = Face[]
+        trial_faces = CellFace[]
         for tag in tag_set
             for face in get_outer_facets(ocells[tag])
                 push!(trial_faces, face)
@@ -316,7 +316,7 @@ function generate_joints_by_tag!(mesh::Mesh; layers::Int64=2, verbose::Bool=true
     end
 
     # Get joint faces
-    joint_faces = Face[]
+    joint_faces = CellFace[]
     for tag in tag_set
         for face in get_outer_facets(mesh.cells[tag])
             push!(joint_faces, face)
@@ -344,7 +344,7 @@ function generate_joints_by_tag!(mesh::Mesh; layers::Int64=2, verbose::Bool=true
     end
 
     # Get joint faces (now with new nodes)
-    joint_faces = Face[]
+    joint_faces = CellFace[]
     for tag in tag_set
         for face in get_outer_facets(ocells[tag])
             push!(joint_faces, face)

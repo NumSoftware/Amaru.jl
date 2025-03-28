@@ -56,7 +56,7 @@ const TRI_IP6 =
     QPoint( 0.445948490915965,  0.108103018168070,  0.0,   0.223381589678011/2.0 )   ]
 
 # QUAD 1x1
-const QUAD_IP1 = [ 0.0  0.0   0.0   4.0 ]
+const QUAD_IP1 = [ QPoint(0.0, 0.0,  0.0, 4.0) ]
 
 # QUAD 2x2
 const QUAD_IP4 = 

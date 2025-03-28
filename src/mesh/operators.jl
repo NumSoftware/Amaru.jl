@@ -411,7 +411,8 @@ end
 
 function scale!(msh::Mesh; factor=1.0, base=[0.0,0,0])
     for p in msh.nodes
-        p.coord.x, p.coord.y, p.coord.z = base + ([p.coord.x, p.coord.y, p.coord.z] - base)*factor
+        p.coord = base + (p.coord - base)*factor
+        # p.coord.x, p.coord.y, p.coord.z = base + ([p.coord.x, p.coord.y, p.coord.z] - base)*factor
     end
     return msh
 end
@@ -511,10 +512,22 @@ function changeaxes!(mesh::Mesh, order::String)
         isinverted(elem) && flip!(elem)
     end
 
-    # fixup!(mesh, reorder=false) # should not fix!
+    if length(mesh.node_data)>0 || length(mesh.elem_data)>0
+        notify("changeaxes!: mesh associated data was not modified.")
+    end
+end
+
+export cyclecoords!
+
+function cyclecoords!(mesh::Mesh, n::Int)
+    idxs = [1,2,3]
+    circshift!(idxs, n)
+    for p in mesh.nodes
+        p.coord = p.coord[idxs]
+    end
 
     if length(mesh.node_data)>0 || length(mesh.elem_data)>0
-        notify("changeaxes!: mesh associated data was not reordered according to new axes.")
+        notify("cyclecoords!: mesh associated data was not modified.")
     end
 end
 

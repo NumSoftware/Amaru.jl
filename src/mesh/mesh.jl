@@ -81,7 +81,7 @@ function get_outer_facets(cells::Array{<:AbstractCell,1})
         end
     end
 
-    return Face[ face for face in values(surf_dict) ]
+    return CellFace[ face for face in values(surf_dict) ]
 end
 
 

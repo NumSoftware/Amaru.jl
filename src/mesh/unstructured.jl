@@ -41,6 +41,7 @@ function mesh_unstructured(geo::GeoModel; kwargs...)
             p1 = l.points[1].id
             pc = l.points[2].id
             p2 = l.points[3].id
+
             gmsh.model.geo.addCircleArc(p1, pc, p2, l.id)
         end
     end
@@ -72,7 +73,7 @@ function mesh_unstructured(geo::GeoModel; kwargs...)
     # add surfaces
     for surf in geo.surfaces
         lo_idxs = [ lo.id for lo in surf.loops ]
-        if surf isa PlaneSurface
+        if surf isa PlaneFace
             gmsh.model.geo.addPlaneSurface(lo_idxs, surf.id) # plane surface
         else
             gmsh.model.geo.addSurfaceFilling(lo_idxs, surf.id) # filling surf
@@ -171,11 +172,11 @@ function mesh_unstructured(geo::GeoModel; kwargs...)
     try
         open(logfile, "w") do out
             redirect_stdout(out) do
+                gmsh.write("file.geo_unrolled")
                 gmsh.model.mesh.generate(isvolumemesh ? 3 : 2)
                 quadratic && gmsh.model.mesh.setOrder(2) # quadratic elements
                 recombine && gmsh.model.mesh.recombine()
                 gmsh.write(tempfile)
-                # gmsh.write("file.geo_unrolled")
             end
         end
     catch err

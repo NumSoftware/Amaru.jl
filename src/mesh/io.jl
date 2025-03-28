@@ -618,6 +618,8 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
         isinverted(cell) && flip!(cell)
     end
 
+    syncronize!(mesh)
+
     # remaining polyvertex cells
     #cell.shape = get_shape_from_vtk(VTK_POLY_VERTEX, n, ndim)
 

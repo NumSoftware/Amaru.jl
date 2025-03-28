@@ -128,7 +128,7 @@ function slice(
     base = Vec3(base)
 
     # get all mesh edges
-    edgedict = Dict{UInt, Edge}()
+    edgedict = Dict{UInt, CellEdge}()
     for cell in mesh.elems
         for edge in getedges(cell)
             hs = hash(edge)

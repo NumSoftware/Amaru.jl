@@ -70,8 +70,8 @@ mutable struct Cell<:AbstractCell
     end
 end
 
-const Face=Cell
-const Edge=Cell
+const CellFace=Cell
+const CellEdge=Cell
 const Facet=Cell
 
 

@@ -47,7 +47,7 @@ function collapse!(elem::AbstractCell)
 
     elseif shape.ndim==3
         faces = getfacets(elem)
-        validfaces = Face[]
+        validfaces = CellFace[]
         for face in faces
             funiquenodes = unique(face.nodes)
             nfunodes = length(funiquenodes)
@@ -63,7 +63,7 @@ function collapse!(elem::AbstractCell)
             bottom.nodes = bottom.nodes[[1,3,2]]
             edges = getedges(elem)
 
-            sideedges = Edge[]
+            sideedges = CellEdge[]
             for node in bottom.nodes
                 for edge in edges
                     n1, n2 = edge.nodes
@@ -93,7 +93,7 @@ function collapse!(elem::AbstractCell)
             bottom.nodes = bottom.nodes[[1,3,2,6,5,4]]
             edges  = getedges(elem)
 
-            sideedges = Edge[]
+            sideedges = CellEdge[]
             for node in bottom.nodes[1:3]
                 for edge in edges
                     n1, n2 = edge.nodes
@@ -155,7 +155,7 @@ function collapse!(elem::AbstractCell)
             bottom.nodes = bottom.nodes[[1,3,2,6,5,4]]
             edges = getedges(elem)
 
-            sideedges = Edge[]
+            sideedges = CellEdge[]
             for node in bottom.nodes[1:3]
                 for edge in edges
                     n1, n2 = edge.nodes
@@ -204,7 +204,7 @@ function collapse!(elem::AbstractCell)
             bottom.nodes = bottom.nodes[[1,4,3,2,8,7,6,5]]
             edges = getedges(elem)
 
-            sideedges = Edge[]
+            sideedges = CellEdge[]
             for node in bottom.nodes[1:4]
                 for edge in edges
                     n1, n2 = edge.nodes

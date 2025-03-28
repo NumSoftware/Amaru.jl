@@ -19,16 +19,16 @@ end
 
 
 mutable struct EdgeFaces
-    edge::Edge
-    faces::Array{Face,1}
+    edge::CellEdge
+    faces::Array{CellFace,1}
     function EdgeFaces()
     end
 end
 
-export get_outline_edges, get_outline
+export get_feature_edges, get_feature_mesh
 
 
-function get_outline_edges(cells::Array{<:AbstractCell,1}; angle=150)
+function get_feature_edges(cells::Array{<:AbstractCell,1}; angle=150)
     faces_dict = Dict{UInt64, Cell}()
 
     # Get faces
@@ -53,9 +53,9 @@ function get_outline_edges(cells::Array{<:AbstractCell,1}; angle=150)
     faces = values(faces_dict)
 
     # Get normals
-    normals = Dict{Face,Array{Float64,1}}( f => get_facet_normal(f) for f in faces ) 
+    normals = Dict{CellFace,Array{Float64,1}}( f => get_facet_normal(f) for f in faces ) 
     edge_dict = Dict{UInt64,Cell}()
-    outline = Edge[]
+    outline = CellEdge[]
 
     # Get edges with non-coplanar adjacent faces
     for face in faces
@@ -79,12 +79,10 @@ function get_outline_edges(cells::Array{<:AbstractCell,1}; angle=150)
 end
 
 
-function get_outline(mesh::Mesh; angle=150)
+function get_feature_mesh(mesh::Mesh; angle=150)
     if mesh.ndim==2
         return Mesh(mesh.edges)
     else
-        return Mesh(get_outline_edges(mesh.faces; angle=angle))
+        return Mesh(get_feature_edges(mesh.faces; angle=angle))
     end
-
-    return Mesh(outline)
 end
