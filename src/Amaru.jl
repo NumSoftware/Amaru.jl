@@ -75,8 +75,8 @@ module Amaru
 
     # Plotting
     include("plot/include.jl")
-    export Chart, LineSeries, LinePlot, Legend, Colormap, MeshPlot, MeshChart, Annotation
-    export addplot!, addseries!, addlegend!, addannotation!
+    export Chart, LineChart, LineSeries, Legend, Colormap, MeshPlot, GeometryPlot, Annotation
+    export addseries!, addlegend!, addannotation!
 
     include("analysis.jl")
 
