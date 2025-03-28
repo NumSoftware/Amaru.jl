@@ -92,7 +92,7 @@ function elem_acoustic_stiffness(elem::AcousticFluid)
     return K, map, map
 end
 
-
+         
 function elem_acoustic_mass(elem::AcousticFluid)
     ndim   = elem.ctx.ndim
     th     = elem.ctx.thickness
@@ -113,7 +113,7 @@ function elem_acoustic_mass(elem::AcousticFluid)
 
         # compute M
         coef = detJ*ip.w*th/c^2
-        M    = coef*N*N'
+        M   += coef*N*N'
     end
 
     # map

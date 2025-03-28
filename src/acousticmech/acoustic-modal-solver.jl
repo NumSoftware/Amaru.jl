@@ -30,10 +30,12 @@ mutable struct AcousticModalAnalysis<:Analysis
 
         this.freqs = zeros(0)
         this.modes = zeros(0,0)
-
+        
         this.sctx = SolverContext()
-        this.sctx.outdir = outdir
+
         this.sctx.outkey = outkey
+        this.sctx.outdir = rstrip(outdir, ['/', '\\'])
+        isdir(this.sctx.outdir) || mkdir(this.sctx.outdir) # create output directory if it does not exist
 
         model.ctx.thickness = model.thickness
         if model.ctx.stressmodel==:none
@@ -58,8 +60,7 @@ end
 
 acoustic_modal_solver_params = [
     FunInfo( :acoustic_modal_solver!, "Finds the frequencies and vibration modes of an acoustic system."),
-    ArgInfo( :model, "FEModel object"),
-    ArgInfo( :stage, "Stage object"),
+    ArgInfo( :analysis, "Acoustic modal analysis object"),
     KwArgInfo( :nmodes, "Number of modes to be computed", 5),
     KwArgInfo( :quiet, "Flag to set silent mode", false),
 ]
@@ -120,21 +121,30 @@ function acoustic_modal_solver!(ana::AcousticModalAnalysis, stage::Stage; kwargs
     end
 
     K11 = am_mount_K(model.elems, ndofs)[1:nu, 1:nu]
+    # K11 .+= 0.00
     M11 = am_mount_M(model.elems, ndofs)[1:nu, 1:nu]
+    # M11 = 0.5 * (M11 + M11')
+    L   = sum(M11, dims=1)
+    P   = K11 ./ L
 
-    L = zeros(nu) # vector for the inverse of the lumped mass matrix
-    for i in 1:size(M11,2)
-        L[i] = 1.0/M11[i,i]
-    end
+    # L = zeros(nu) # vector for the inverse of the lumped mass matrix
+    # for i in 1:size(M11,2)
+    #     L[i] = 1.0/M11[i,i]
+    # end
 
-    L = diag(M11) # lumped matrix in vector form
-    P = K11./L  # inv(M11)*K11  mass normalized stiffness matrix
+    # L = diag(M11) # lumped matrix in vector form
+    # P = K11./L  # inv(M11)*K11  mass normalized stiffness matrix
 
     # invM = inv(Matrix(M11))
     # P = invM*K11
 
+
     # eingenvalues and eingenvectors
-    λ, V = eigs(P, nev=nmodes, which=:SR) # find λ with the smallest real parts / :SM for smallest magnitude
+    λ, V = eigs(P, nev=nmodes, which=:SM, tol=1e-6, check=1, maxiter=10000) # find λ with the smallest real parts / :SM for smallest magnitude
+    # λ, V = eigs(P, nev=nmodes, which=:SR) # find λ with the smallest real parts / :SM for smallest magnitude
+    # λ, V = eigs(P, nev=nmodes, which=:LM, tol=1e-3, check=1) # find λ with the smallest real parts / :SM for smallest magnitude
+
+    nmodes = length(λ)
 
     # filter positive real eigenvals
     filter = [ i for i in eachindex(λ) if isreal(λ[i]) && real(λ[i])>0 ]

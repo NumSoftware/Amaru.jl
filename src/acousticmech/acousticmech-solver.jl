@@ -53,8 +53,11 @@ mutable struct AcousticMechAnalysis<:TransientAnalysis
         this.loggers = []
         this.monitors = []  
         this.sctx = SolverContext()
-        this.sctx.outdir = outdir
+        
         this.sctx.outkey = outkey
+        this.sctx.outdir = rstrip(outdir, ['/', '\\'])
+        isdir(this.sctx.outdir) || mkdir(this.sctx.outdir) # create output directory if it does not exist
+
         model.ctx.thickness = model.thickness
         if model.ctx.stressmodel==:none
             if model.ctx.ndim==2
@@ -79,9 +82,9 @@ function am_mount_M(elems::Array{<:Element,1}, ndofs::Int )
         for elem in elems
             ty = typeof(elem)
             hasmethod(elem_acoustic_mass, (ty,)) || continue
-
+            
             Me, rmap, cmap = elem_acoustic_mass(elem)
-
+            
             nr, nc = size(Me)
             for i in 1:nr
                 for j in 1:nc
@@ -151,7 +154,7 @@ am_stage_solver_params = [
     KwArgInfo(:autoinc, "Flag to set auto-increments", false),
     KwArgInfo(:quiet, "Flat to set silent mode", false),
 ]
-@doc docstring(tm_solver_params) solve!(::ThermoMechAnalysis; args...)
+@doc docstring(tm_solver_params) solve!(::AcousticMechAnalysis; args...)
 
 
 function solve!(ana::AcousticMechAnalysis; args...)
