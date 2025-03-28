@@ -1,4 +1,4 @@
-export Point, Line, Loop, PlaneSurface, Surface, GeoModel
+export Point, Line, Loop, PlaneFace, Face, GeoModel
 export addpoint!, addline!, addarc!, addloop!, addplanesurface!, addvolume!
 
 abstract type GeoEntity
@@ -10,22 +10,22 @@ mutable struct Point<:GeoEntity
     lines::Vector{<:GeoEntity}
     size::Float64
     tag::String
+    
     function Point(x::Real, y::Real=0.0, z::Real=0.0; size=0.0, id=0, tag="")
         x = round(x, digits=8)
         y = round(y, digits=8)
         z = round(z, digits=8)
         return new(id, Vec3(x,y,z), GeoEntity[], size, tag)
     end
+
     function Point(coord::AbstractArray{<:Real}; size=0.0, id=0, tag="")
-        x, y, z = coord..., 0.0, 0.0
+        x = round(coord[1], digits=8)
+        y = round(coord[2], digits=8)
+        z = length(coord)==2 ? 0.0 : round(coord[3], digits=8)
         return new(id, Vec3(x,y,z), GeoEntity[], size, tag)
     end
 end
 
-
-# function Point(p::Point)
-#     Point(p.coord, p.size, id=p.id)
-# end
 
 function Base.copy(p::Point)
     Point(p.coord, size=p.size, id=p.id)
@@ -79,12 +79,29 @@ end
 mutable struct Arc<:AbstractLine
     points::Array{Point,1} # second point is center
     surfaces::AbstractArray
+    extrapoints::Array{Point,1} # points along the arc
     n::Int
     id::Int
     tag::String
 
     function Arc(p1::Point, p2::Point, p3::Point; n=0, id=0, tag="")
-        return new([p1, p2, p3], [], n, id, tag)
+        this = new([p1, p2, p3], [], Point[], n, id, tag)
+
+        # fill extra points along the arc; the second extra point is the middle
+        v1 = p1.coord - p2.coord
+        v2 = p3.coord - p2.coord
+        θ = atan(norm(cross(v1,v2)), dot(v1,v2))
+        α = θ/3
+        â = normalize(v1)
+        ĉ = normalize(cross(v1,v2))
+        b̂ = normalize(cross(ĉ, â))
+        r = norm(v1)
+        for αi in [α, 0.5*θ, 2*α]
+            p = p2.coord + r*cos(αi)*â + r*sin(αi)*b̂
+            push!(this.extrapoints, Point(p))
+        end
+
+        return this
     end
 end
 
@@ -231,11 +248,11 @@ function Base.:(==)(lo1::AbstractLoop, lo2::AbstractLoop)
 end
 
 
-abstract type AbstractSurface<:GeoEntity
+abstract type AbstractFace<:GeoEntity
 end
 
 
-mutable struct PlaneSurface<:AbstractSurface
+mutable struct PlaneFace<:AbstractFace
     id::Int
     loops::Vector{PlaneLoop}
     plane::Plane
@@ -244,13 +261,13 @@ mutable struct PlaneSurface<:AbstractSurface
     transfinite::Bool
     recombine::Bool
 
-    function PlaneSurface(loops::PlaneLoop...; id=0, tag="")
+    function PlaneFace(loops::PlaneLoop...; id=0, tag="")
         return new(id, [loops...], loops[1].plane, Volume[], tag, false, false)
     end
 end
 
 
-mutable struct Surface<:AbstractSurface
+mutable struct Face<:AbstractFace
     loops::Array{Loop,1}
     volumes::AbstractArray
     id::Int
@@ -258,17 +275,17 @@ mutable struct Surface<:AbstractSurface
     transfinite::Bool
     recombine::Bool
 
-    function Surface(loops::Loop...; id=0, tag="")
+    function Face(loops::Loop...; id=0, tag="")
         return new([loops...], Volume[], id, tag, false, false)
     end
 end
 
 
-function Base.:(==)(s1::AbstractSurface, s2::AbstractSurface)
+function Base.:(==)(s1::AbstractFace, s2::AbstractFace)
     return s1.loops[1]==s2.loops[1]
 end
 
-function getlines(s::AbstractSurface)
+function getlines(s::AbstractFace)
     lines = AbstractLine[]
     for loop in s.loops
         for line in loop.lines
@@ -278,7 +295,7 @@ function getlines(s::AbstractSurface)
     return lines
 end
 
-function getpoints(s::AbstractSurface)
+function getpoints(s::AbstractFace)
     points = Set{Point}()
     for line in getlines(s)
         for point in line.points
@@ -290,11 +307,11 @@ end
 
 
 mutable struct Volume<:GeoEntity # related to SurfaceLoop
-    surfaces::Array{AbstractSurface,1}
+    surfaces::Array{AbstractFace,1}
     id::Int
     tag::String
 
-    function Volume(surfs::Array{<:AbstractSurface,1}; tag="")
+    function Volume(surfs::Array{<:AbstractFace,1}; tag="")
         return new(surfs, -1, tag)
     end
 end
@@ -308,16 +325,26 @@ function Base.:(==)(v1::Volume, v2::Volume)
     return length(common)==length(ids1)
 end
 
+function getpoints(v::Volume)
+    points = Set{Point}()
+    for surf in v.surfaces
+        for point in getpoints(surf)
+            push!(points, point)
+        end
+    end
+    return collect(points)
+end
+
 
 mutable struct SurfaceLoop<:GeoEntity
     id::Int
-    surfaces::Array{AbstractSurface,1}
+    surfaces::Array{AbstractFace,1}
 
-    function SurfaceLoop(surfaces::AbstractSurface...; id=0)
+    function SurfaceLoop(surfaces::AbstractFace...; id=0)
         return new(id, [surfaces...])
     end
         
-    function SurfaceLoop(surfaces::Vector{<:AbstractSurface}; id=0)
+    function SurfaceLoop(surfaces::Vector{<:AbstractFace}; id=0)
         return SurfaceLoop(surfaces..., id=id)
     end
 end
@@ -328,6 +355,6 @@ end
 Base.show(io::IO, obj::Point) = _show(io, obj, 2)
 Base.show(io::IO, c::AbstractLine) = _show(io, c, 2)
 Base.show(io::IO, loop::Loop) = _show(io, loop, 2)
-Base.show(io::IO, surf::AbstractSurface) = _show(io, surf, 2)
+Base.show(io::IO, surf::AbstractFace) = _show(io, surf, 2)
 Base.show(io::IO, volume::Volume) = _show(io, volume, 2)
 

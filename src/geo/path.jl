@@ -233,7 +233,6 @@ end
 
 
 
-
 function (path::Path)(t::Float64) 
     i = searchsortedfirst(path.len, t)
     if i==1

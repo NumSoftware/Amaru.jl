@@ -1,23 +1,52 @@
-export Point, Line, Loop, PlaneSurface, Surface, GeoModel
-export addpoint!, addline!, addarc!, addloop!, addplanesurface!, addvolume!, addblock!
+export Point, Line, Loop, PlaneFace, Face, GeoModel
+export addpoint!, addline!, addpolygon!, addarc!, addloop!, addplanesurface!, addvolume!, addblock!
 
 mutable struct GeoModel
     points::Vector{Point}
     lines::Vector{AbstractLine}
     loops::Vector{AbstractLoop}
-    surfaces::Vector{AbstractSurface}
+    surfaces::Vector{AbstractFace}
     volumes::Vector{Volume}
     subpaths::Vector{SubPath}
     blocks::Vector{AbstractBlock}
     size::Float64
+    ndim::Int
     _id::Int
 
     function GeoModel(; size=0.0)
-        return new( [], [], [], [], [], [], [], size, 0 )
+        return new( [], [], [], [], [], [], [], size, 0, 0 )
     end
 end
 
 Base.show(io::IO, geo::GeoModel) = _show(io, geo, 3, "")
+
+
+function Base.getindex(geo::GeoModel, idx::Int)
+    for p in geo.points
+        p.id==idx && return p
+    end
+    for l in geo.lines
+        l.id==idx && return l
+    end
+    for lo in geo.loops
+        lo.id==idx && return lo
+    end
+    for s in geo.surfaces
+        s.id==idx && return s
+    end
+    for v in geo.volumes
+        v.id==idx && return v
+    end
+    for sp in geo.subpaths
+        sp.id==idx && return sp
+    end
+    for b in geo.blocks
+        b.id==idx && return b
+    end
+    return nothing
+end
+
+
 
 function addblock!(geo::GeoModel, block::AbstractBlock)
     push!(geo.blocks, block)
@@ -48,7 +77,7 @@ function getloop(geo::GeoModel, loop::AbstractLoop)
     return geo.loops[idx]
 end
 
-function getsurface(geo::GeoModel, surf::AbstractSurface)
+function getsurface(geo::GeoModel, surf::AbstractFace)
     idx = findfirst(==(surf), geo.surfaces)
     idx === nothing && return idx
     return geo.surfaces[idx]
@@ -80,7 +109,7 @@ function join_volumes!(geo::GeoModel, v1::Volume, v2::Volume)
 end
 
 
-function join_planar_surfaces!(geo::GeoModel, s1::PlaneSurface, s2::PlaneSurface)
+function join_planar_surfaces!(geo::GeoModel, s1::PlaneFace, s2::PlaneFace)
     # check if surfaces are coplanar
     s1.plane != s2.plane && return
 
@@ -165,12 +194,12 @@ function Base.delete!(geo::GeoModel, line::Line)
 end
 
 
-function Base.delete!(geo::GeoModel, surf::AbstractSurface)
+function Base.delete!(geo::GeoModel, surf::AbstractFace)
 
 
     filter!(!=(surf), geo.surfaces)
 
-    if !isa(surf, PlaneSurface) 
+    if !isa(surf, PlaneFace) 
         # delete loop if not plane surface
         delete!(geo.loops, lo) # todo: check
     else
@@ -185,7 +214,7 @@ function Base.delete!(geo::GeoModel, surf::AbstractSurface)
             found = false
             for s in geo.surfaces
                 s.id==surf.id && continue
-                s isa PlaneSurface || continue
+                s isa PlaneFace || continue
                 if lo in s.loops
                     found = true
                     break
@@ -276,7 +305,7 @@ function point_in_line(p::Point, l::Line)
 
     p in l.points[[1,end]] && return ATPOINT
 
-    # tol = 1e-8
+    tol = 1e-8
     X = p.coord
     X1 = l.points[1].coord
     X2 = l.points[end].coord
@@ -294,7 +323,7 @@ end
 
 
 function coplanar(P::Plane, l::AbstractLine)
-    tol = 1e-8 
+    tol = 1e-6 # reduced tolerance 
 
     for p in l.points # check if every point is in the plane
         abs(dot(P.normal, p.coord) - P.distance) > tol && return false
@@ -310,6 +339,17 @@ function coplanar(P::Plane, p::Point)
     return false
 end
 
+function addsinglepoint!(geo::GeoModel, pt::Point)
+    p = getpoint(geo, pt)
+    p===nothing || return p
+    
+    geo._id +=1
+    pt.id = geo._id
+    push!(geo.points, pt)
+
+    return pt
+end
+
 
 function addpoint!(geo::GeoModel, pt::Point)
     p = getpoint(geo, pt)
@@ -319,6 +359,8 @@ function addpoint!(geo::GeoModel, pt::Point)
     geo._id +=1
     pt.id = geo._id
     push!(geo.points, pt)
+
+    geo.ndim = pt.coord[3] != 0.0 ? max(geo.ndim, 2) : 3
 
     # check if point is inside any existing line
     for l in geo.lines
@@ -459,7 +501,7 @@ end
 
 
 # Algorithm for finding loops on flat surfaces
-# 1. Start with a line. If the optional list of lines is provided, the loops will only be found inside those lines
+# 1. Start with a line. If the optional list of lines is provided, the loops will only be searched inside those lines
 # 2. Find all lines that share a point with the last point of the line
 # 2. Set a list of visited lines (chord)
 # 3. Check if the new line is coplanar with the previous lines
@@ -512,8 +554,12 @@ function findloops(line::AbstractLine; lines::Vector{<:AbstractLine}=AbstractLin
 
         if plane===nothing && length(visited)>1
             points = [visited[1].points; line.points]
-            if !colinear(points)
-                plane = Plane([visited[1].points; line.points]) 
+            if !colinear(points) 
+                if coplanar(points)
+                    plane = Plane([visited[1].points; line.points])
+                else
+                    return Loop[]
+                end
             end
         end
 
@@ -521,9 +567,9 @@ function findloops(line::AbstractLine; lines::Vector{<:AbstractLine}=AbstractLin
             plane===nothing && return true
             coplanar(plane, l) || return false # check if line is coplanar
             inner && return true
-            # check lines with less than 2 linnked surfaces
+            # check lines with less than 2 linked surfaces:
             surfs = collect(Set(s for s in l.surfaces))
-            filter!(s -> s isa PlaneSurface, surfs)
+            filter!(s -> s isa PlaneFace, surfs)
             filter!(s -> s.plane==plane, surfs)
             return length(surfs)<2
         end
@@ -564,7 +610,7 @@ function findsurface(geo::GeoModel, l::AbstractLine)
     length(surfs)==1 && return surfs[1]
     
     for s in geo.surfaces
-        s isa PlaneSurface || continue
+        s isa PlaneFace || continue
         coplanar(s.plane, l) || continue
         inside(l.points, s) && return s
     end
@@ -606,12 +652,14 @@ function addline!(geo::GeoModel, p1::Point, p2::Point; n=0, tag="")
     points = [ addpoint!(geo, p) for p in points ]
     
     # add lines
+    all_lines = Line[]
     npts = length(points)
     for i in 1:npts-1
         p1 = points[i]
         p2 = points[i+1]
         ni = trunc(Int, len/norm(p1.coord-p2.coord)*n)
         l = addsingleline!(geo, p1, p2, n=ni, tag=tag)
+        push!(all_lines, l)
 
         # check if l is an endline
         (length(p1.lines)==1 || length(p2.lines)==1) && continue
@@ -619,6 +667,7 @@ function addline!(geo::GeoModel, p1::Point, p2::Point; n=0, tag="")
         s = findsurface(geo, l)
 
         if s!==nothing # line divides s into two surfaces
+
             # find all lines inside s including the border
             lines = [ l for l in geo.lines if inside(l.points, s) ]
             lines = [ l; lines ]
@@ -643,6 +692,27 @@ function addline!(geo::GeoModel, p1::Point, p2::Point; n=0, tag="")
             end
         end
     end
+
+    if length(all_lines)==1
+        return all_lines[1]
+    else
+        return all_lines
+    end
+end
+
+
+function addpolygon!(geo::GeoModel, points::Point...; tag="")
+    n = length(points)
+
+    lines = Line[]
+    for i in 1:n
+        p1 = points[i]
+        p2 = points[i%n+1]
+        l = addline!(geo, p1, p2, tag=tag)
+        push!(lines, l)
+    end
+
+    return lines
 end
 
 
@@ -795,7 +865,7 @@ function coplanar(points::Vector{Point})
 
     # look for a non-colinear point
     local X, N, k
-    for p in points[3:n]
+    for (i,p) in enumerate(points[3:n])
         X = p.coord
         X1X = X-X1
         N = cross(X1X2, X1X)
@@ -935,7 +1005,7 @@ function enclosed(loop1::PlaneLoop, loop2::PlaneLoop)
 end
 
 
-function inside(pts::Vector{Point}, s::PlaneSurface)
+function inside(pts::Vector{Point}, s::PlaneFace)
     for p in pts
         !coplanar(s.plane, p) && return false
     end
@@ -951,7 +1021,7 @@ end
 
 # function addsingleplanesurface!(geo::GeoModel, loop::Loop; tag="")
 
-#     s1 = PlaneSurface(loop, tag=tag)
+#     s1 = PlaneFace(loop, tag=tag)
 #     s = getsurface(geo, s1)
 #     s === nothing || return s
 
@@ -976,13 +1046,13 @@ end
 
 function addplanesurface!(geo::GeoModel, loop::PlaneLoop; tag="")
 
-    surf = PlaneSurface(loop, tag=tag)
+    surf = PlaneFace(loop, tag=tag)
     s = getsurface(geo, surf)
     s === nothing || return s
 
     # check if loop encloses other loops and shares any side (overlapping)
     for s in geo.surfaces
-        s isa PlaneSurface || continue
+        s isa PlaneFace || continue
         surf.plane==s.plane || continue
         length(intersect(loop.lines, s.loops[1].lines))>0 && enclosed(s.loops[1], loop) && return nothing
     end
@@ -995,7 +1065,7 @@ function addplanesurface!(geo::GeoModel, loop::PlaneLoop; tag="")
 
     # check if loop is inside other surfaces (set as hole) # todo: improve for hole inside hole
     for s in geo.surfaces
-        s isa PlaneSurface || continue
+        s isa PlaneFace || continue
         loop.id==s.loops[1].id && continue
         if inside(loop, s.loops[1]) 
             push!(s.loops, loop)
@@ -1008,7 +1078,7 @@ function addplanesurface!(geo::GeoModel, loop::PlaneLoop; tag="")
 
     # check if loop encloses other loops (set holes) # todo: improve for hole inside hole
     for s in geo.surfaces
-        s isa PlaneSurface || continue
+        s isa PlaneFace || continue
         loop.id==s.loops[1].id && continue
         inside(s.loops[1], loop) && push!(surf.loops, s.loops[1])
     end
@@ -1031,7 +1101,7 @@ end
 
 function addsurface!(geo::GeoModel, loop::Loop; tag="")
 
-    surf = Surface(loop, tag=tag)
+    surf = Face(loop, tag=tag)
     s = getsurface(geo, surf)
     s === nothing || return s
 
@@ -1058,10 +1128,10 @@ function addsurface!(geo::GeoModel, loop::Loop; tag="")
 end
 
 
-function splitplanesurface!(geo::GeoModel, s::PlaneSurface, loop1::PlaneLoop, loop2::PlaneLoop)
+function splitplanesurface!(geo::GeoModel, s::PlaneFace, loop1::PlaneLoop, loop2::PlaneLoop)
     # add new loop
     loop1 = addsingleloop!(geo, loop1)
-    s1 = PlaneSurface(loop1)
+    s1 = PlaneFace(loop1)
     s1.tag = s.tag
 
     # add surface
@@ -1107,7 +1177,7 @@ function splitplanesurface!(geo::GeoModel, s::PlaneSurface, loop1::PlaneLoop, lo
 end
 
 
-function addvolume!(geo::GeoModel, surfaces::Array{<:AbstractSurface,1}; tag="")
+function addvolume!(geo::GeoModel, surfaces::Array{<:AbstractFace,1}; tag="")
 
     v = Volume(surfaces, tag=tag)
     vv = getvolume(geo, v)
@@ -1123,226 +1193,6 @@ function addvolume!(geo::GeoModel, surfaces::Array{<:AbstractSurface,1}; tag="")
     end
 
     return v
-end
-
-export pull!
-
-
-function pull!(geo::GeoModel, line::Line; axis=[0.,0,1], length=1.0)
-    p1, p2 = line.points
-    dx = length*axis[1]
-    dy = length*axis[2]
-    dz = length*axis[3]
-    p3 = copy!(geo, p2, dx=dx, dy=dy, dz=dz)
-    p4 = copy!(geo, p1, dx=dx, dy=dy, dz=dz)
-    # l1 = addline!(geo, p1, p2, tag=line.tag)
-    l2 = addline!(geo, p2, p3, tag=line.tag)
-    l3 = addline!(geo, p3, p4, tag=line.tag)
-    l4 = addline!(geo, p4, p1, tag=line.tag)
-
-    # lo = PlaneLoop(l1, l2, l3, l4)
-    # s = addplanesurface!(geo, lo)
-
-    # @assert s!==nothing
-    # return s
-end
-
-
-# function pull_old!(geo::GeoModel, line::Line; axis=[0.,0,1], length=1.0)
-#     p1, p2 = line.points
-#     dx = length*axis[1]
-#     dy = length*axis[2]
-#     dz = length*axis[3]
-#     p3 = copy!(geo, p2, dx=dx, dy=dy, dz=dz)
-#     p4 = copy!(geo, p1, dx=dx, dy=dy, dz=dz)
-#     l1 = addsingleline!(geo, p1, p2, tag=line.tag)
-#     l2 = addsingleline!(geo, p2, p3, tag=line.tag)
-#     l3 = addsingleline!(geo, p3, p4, tag=line.tag)
-#     l4 = addsingleline!(geo, p4, p1, tag=line.tag)
-
-#     lo = PlaneLoop(l1, l2, l3, l4)
-#     s = addplanesurface!(geo, lo)
-
-#     @assert s!==nothing
-#     return s
-# end
-
-
-function pull!(geo::GeoModel, arc::Arc; axis=[0,0,1], length=1.0)
-    p1, p2, p3 = arc.points
-    dx = length*axis[1]
-    dy = length*axis[2]
-    dz = length*axis[3]
-    p4 = copy!(geo, p3, dx=dx, dy=dy, dz=dz)
-    p5 = copy!(geo, p2, dx=dx, dy=dy, dz=dz)
-    p6 = copy!(geo, p1, dx=dx, dy=dy, dz=dz)
-
-    c1 = addsinglearc!(geo, p1, p2, p3, tag=arc.tag)
-    c2 = addsingleline!(geo, p3, p4, tag=arc.tag)
-    c3 = addsinglearc!(geo, p4, p5, p6, tag=arc.tag)
-    c4 = addsingleline!(geo, p6, p1, tag=arc.tag)
-
-    lo = Loop(c1, c2, c3, c4)
-
-    geo._id +=1
-    lo.id = geo._id
-    push!(geo.loops, lo)
-
-    s = addsurface!(geo, lo)
-    return s
-end
-
-
-
-function pull!(geo::GeoModel, surf::PlaneSurface; axis=[0.,0,1], length=1.0)
-
-    length==0 && return
-
-    ntotalvols = Base.length(geo.volumes)
-    nsurfvols = Base.length(surf.volumes)
-
-    # pull lateral lines
-    for lo in surf.loops
-        for line in lo.lines
-            s = pull!(geo, line, axis=axis, length=length)
-        end
-    end
-
-    # join volumes if surf was part of a volume
-    if nsurfvols>0
-        if Base.length(geo.volumes)-ntotalvols>1
-            error("more than one volume found in pull operation")
-        end
-        
-        delete!(geo, surf)
-
-        for l in getlines(surf)
-            # check for lines in coplanar faces
-            if Base.length(l.surfaces)==2 && l.surfaces[1].plane==l.surfaces[2].plane
-                delete!(geo, l)
-            end
-            if Base.length(l.surfaces)==1 # for push
-                delete!(geo, l)
-            end
-        end
-
-        
-    end
-
-end
-
-# function pull_old!(geo::GeoModel, surf::PlaneSurface; axis=[0.,0,1], length=1.0)
-
-#     # check if surf is an inner surface
-#     # innersurf = nothing
-#     # for s in geo.surfaces
-#     #     for lo in s.loops[2:end]
-#     #         if lo==surf.loop
-#     #             innersurf=s
-#     #             break
-#     #         end
-#     #     end
-#     # end
-
-#     surfs = AbstractSurface[]
-
-#     # extrude lateral lines
-#     for lo in surf.loops
-#         for line in lo.lines
-#             s = pull!(geo, line, axis=axis, length=length)
-#             s.tag = surf.tag
-#             push!(surfs, s)
-#         end
-#     end
-
-#     # find lid loops (outer and inner loops if existent)
-#     loops = PlaneLoop[]
-#     for lo in surf.loops
-#         lines = AbstractLine[]
-#         for line in lo.lines
-
-#             points = Point[]
-#             for p in line.points
-#                 pp = Point(p.coord .+ length.*axis)
-#                 pp = getpoint(geo, pp) # point should exists
-#                 push!(points, pp)
-#             end
-
-#             if Base.length(points)==2
-#                 l = getline(geo, Line(points...))
-#             else
-#                 l = getline(geo, Arc(points...))
-#             end
-#             push!(lines, l)
-#         end
-#         lo = PlaneLoop(lines...)
-#         push!(loops, lo)
-#     end
-
-#     # add single loops
-#     for lo in loops
-#         geo._id +=1
-#         lo.id = geo._id
-#         push!(geo.loops, lo)
-#     end
-
-#     # add closing lid
-#     for lo in loops
-#         s = addplanesurface!(geo, lo, tag=surf.tag)
-#         push!(surfs, s)
-#     end
-
-#     # check if surf is part of a volume
-#     volume = nothing
-#     for v in geo.volumes
-#         if surf in v.surfaces
-#             volume = v
-#             break
-#         end
-#     end
-
-#     if volume===nothing
-#         push!(surfs, surf)
-#         volume = addvolume!(geo, surfs, tag=surf.tag)
-#     else
-#         # remove surf from geo
-#         filter!(!=(surf), geo.surfaces)
-        
-#         # remove surf from volume
-#         filter!(!=(surf), volume.surfaces)
-        
-#         # remove unused surface loops from geo
-#         for lo in surf.loops
-#             # for each curve remove links to this surface
-#             for l in lo.lines
-#                 filter!(!=(surf), l.surfaces)
-#             end 
-#         end
-
-#         # add new surfaces to volume
-#         for s in surfs
-#             push!(volume.surfaces, s)
-#         end
-#     end
-
-#     for s in surfs
-#         push!(s.volumes, volume)
-#     end
-
-#     return volume
-# end
-
-
-function pull!(geo::GeoModel, surfs::Vector{<:AbstractSurface}; axis=[0.,0,1], length=1.0)
-    surfs = copy(surfs) # make a copy
-    for s in surfs
-        pull!(geo, s; axis=axis, length=length)
-    end
-end
-
-
-function pull!(m::GeoModel; nargs...)
-    pull!(m, m.surfaces; nargs...)
 end
 
 
@@ -1371,28 +1221,304 @@ function picksurface(geo::GeoModel, x::Real, y::Real, z::Real=0.0)
 end
 
 
-function tag!(s::AbstractSurface, tag::String)
+function tag!(s::AbstractFace, tag::String)
     s.tag = tag
 end
 
 
-function find_surface_loops(surf::AbstractSurface)
+
+function is_neighbor(surf1::AbstractFace, surf2::AbstractFace)
+    for l in surf1.loops[1].lines
+        for s in l.surfaces
+            s==surf2 && return true
+        end
+    end
+    return false
+end
+
+
+# function get_candidate_surfaces(surfs::Vector{<:AbstractFace}, border::Vector{<:AbstractLine})
+#     cands = AbstractFace[]
+
+#     # get border points
+#     points = Point[]
+#     for l in border
+#         push!(points, l.points[1])
+#         push!(points, l.points[end])
+#     end
+#     points = collect(Set(points))
+
+#     # get lines shared by points
+#     lines = AbstractLine[]
+#     for p in points
+#         for l in p.lines
+#             l in lines && continue
+#             push!(lines, l)
+#         end
+#     end
+
+#     # get candidates
+#     cands = AbstractFace[]
+#     for l in lines
+#         for s in l.surfaces
+#             s in cands && continue
+#             s in surfs && continue
+#             length(s.volumes)==2 && continue # surface is between two volumes
+#             any(length(l.surfaces)==1 for l in s.loops[1].lines) && continue # check for dangling edges
+#             push!(cands, s)l
+#         end
+#     end
+
+#     return cands
+# end
+
+
+# function find_surface_loops(surf::AbstractFace)
+#     # surf: seed surface
+#     # returns a list of surfaces that define volumes
+    
+#     # get neighbor surfaces (outer)
+#     function get_neighbor_surfaces(surf::AbstractFace)
+#         surfs = AbstractFace[]
+#         for l in surf.loops[1].lines
+#             for s in l.surfaces
+#                 s==surf && continue
+#                 s in surfs && continue
+#                 length(s.volumes)==2 && continue # surface is between two volumes
+#                 any(length(l.surfaces)==1 for l in s.loops[1].lines) && continue # check for dangling edges
+#                 push!(surfs, s)
+#             end
+#         end
+#         return surfs
+#     end
+
+#     # check for dangling edges
+#     any(length(l.surfaces)==1 for l in surf.loops[1].lines) && return SurfaceLoop[]
+#     border = surf.loops[1].lines
+    
+#     # get candidate surfaces
+#     cands = AbstractFace[]
+#     for l in border
+#         for s in l.surfaces
+#             s in cands && continue
+#             s==surf && continue
+#             length(s.volumes)==2 && continue # surface is between two volumes
+#             any(length(l.surfaces)==1 for l in s.loops[1].lines) && continue # check for dangling edges
+#             push!(cands, s)
+#         end
+#     end
+
+#     # find crown of surfaces
+#     crown = AbstractFace[]
+#     for s in cands
+#         crown = [ s ]
+#         next = nothing
+#         for ns in cands
+#             if is_neighbor(s, ns) 
+#                 next = ns
+#                 break
+#             end
+#         end
+#         if next==s
+#             break
+#         end
+#         if next !== nothing
+#             crown = [ crown; next ]
+#         end
+#     end
+
+    
+    
+
+# end
+
+# function find_surface_loops_recursive(surf::AbstractFace)
+#     # surf: seed surface
+#     # returns a list of surfaces that define volumes
+
+#     # check for dangling edges
+#     any(length(l.surfaces)==1 for l in surf.loops[1].lines) && return SurfaceLoop[]
+
+#     function findloops(visited::Vector{<:AbstractFace}, border::Vector{<:AbstractLine}, surf::AbstractFace)
+#         # surface is between two volumes
+#         surf.volumes==2 && return SurfaceLoop[]
+
+#         @show "hi"
+#         @show length(border)
+#         border = symdiff(border, getlines(surf))
+#         @show length(border)
+#         visited = [visited; surf] # make a new list
+#         @show length(visited)
+#         length(border)==0 && return [ SurfaceLoop(visited) ] # no border lines
+
+
+#         # collect candidate surfaces
+#         cands = AbstractFace[]
+#         for l in border
+#             for s in l.surfaces
+#                 s in cands && continue
+#                 s==surf && continue
+#                 length(s.volumes)==2 && continue # surface is between two volumes
+#                 s in visited && continue
+#                 any(length(l.surfaces)==1 for l in s.loops[1].lines) && continue # check for dangling edges
+#                 push!(cands, s)
+#             end
+#         end
+
+#         length(cands)==0 && return SurfaceLoop[] # no candidate surfaces
+
+#         @show length(cands)
+#         for s in visited
+#             @show s.id
+#         end
+        
+        
+#         loops = SurfaceLoop[]
+#         for s in cands
+#             # append!(loops, findloops(visited, border, s))
+#             sloops = findloops(visited, border, s)
+#             append!(loops, sloops)
+#         end
+#         @show "::::::::::::"
+#         @show length(loops)
+#         # error()
+
+#         return loops
+#     end
+
+#     loops = findloops(AbstractFace[], AbstractLine[], surf)
+#     # @assert length(loops)==1 # todo: check for more than one volume
+#     return loops
+
+# end
+
+
+function find_surface_loops(surf::AbstractFace)
     # surf: seed surface
-    # returns a list of surface loops that define volumes
+    # returns a list of surfaces that define volumes (currently only one volume)
 
     # check if surface does not add a volume
-    for lo in surf.loops
-        for l in lo.lines
-            length(l.surfaces)==1 && return SurfaceLoop[]
+    for l in surf.loops[1].lines
+        length(l.surfaces)==1 && return SurfaceLoop[]
+    end
+
+    border = surf.loops[1].lines
+
+    # get candidate surfaces adjacent to surf
+    cands = AbstractFace[]
+    for l in surf.loops[1].lines
+        for s in l.surfaces
+            s==surf && continue
+            length(s.volumes)==2 && continue # surface is between two volumes
+            any(length(l.surfaces)==1 for l in s.loops[1].lines) && continue # check for dangling edges
+            push!(cands, s)
         end
+    end
+
+    # reorder cands
+    perm = [ length(intersect(s.loops[1].lines, border)) for s in cands ]
+    cands = cands[sortperm(perm)]
+
+    @show perm
+    @show sortperm(perm)
+
+    # find two adjacent surfaces that are also adjacent to surf (improve by getting a ring from any corner)
+    surfaces = AbstractFace[ surf ]
+    n = length(cands)
+    for i in 1:n
+        si = cands[i]
+        found = false
+        for j in i+1:n
+            sj = cands[j]
+            if is_neighbor(si, sj)
+                surfaces = [ surfaces; si; sj ]
+                found = true
+                break
+            end
+        end
+        found && break
+    end
+
+    # @show [ length(s.loops[1].lines) for s in surfaces ]
+
+    if length(surfaces)==1
+        return SurfaceLoop[]
+    end
+    
+    border = symdiff(surfaces[1].loops[1].lines, surfaces[2].loops[1].lines, surfaces[3].loops[1].lines)
+    visited = copy(surfaces)
+
+    println()
+    
+    # grow surfaces
+    while length(border)>0
+        
+        cands = []
+        for l in border
+            for s in l.surfaces
+                # s in surfaces && continue
+                s in visited && continue
+                push!(visited, s)
+                push!(cands, s)
+            end
+        end
+
+        # reorder cands
+        perm = [ length(intersect(s.loops[1].lines, border)) for s in cands ]
+        cands = cands[sortperm(perm)]
+
+        @show perm
+        @show sortperm(perm)
+        @show length(cands)
+        @show length(border)
+
+        length(cands)==0 && return SurfaceLoop[]
+
+        # add faces
+        for k in 1:1
+            for s in cands
+                s in surfaces && continue
+                comm_edges = intersect(s.loops[1].lines, border)
+                add_surf = false
+                if length(comm_edges) == 1
+                    if length(comm_edges[1].surfaces)==2 # edge with only two faces
+                        add_surf = true
+                    end
+                end
+                if length(comm_edges) >= 2 # face that shares at least two edges
+                    add_surf = true
+                end
+
+                if add_surf
+                    push!(surfaces, s)
+                    border = symdiff(border, s.loops[1].lines)
+                end
+            end
+        end
+
+    end
+
+    return [ SurfaceLoop(surfaces) ]
+
+end
+
+function find_surface_loop_orig(surf::AbstractFace)
+    # surf: seed surface
+    # returns a list of surfaces that define a volume
+
+    # check if surface does not add a volume
+    for l in surf.loops[1].lines
+        length(l.surfaces)==1 && return SurfaceLoop[]
     end
 
     # find the seed edge: an edge that has the less number of surfaces
     points = Set{Point}()
     for l in surf.loops[1].lines # only in the outer loop
-        for p in l.points
-            push!(points, p)
-        end
+        push!(points, l.points[1])
+        push!(points, l.points[end])
+        # for p in l.points
+            # push!(points, p)
+        # end
     end
 
     points = collect(points)
@@ -1405,18 +1531,24 @@ function find_surface_loops(surf::AbstractSurface)
         return SurfaceLoop[]
     end
     
+    # if length(point.lines)==0
+    #     @show point.id
+    #     error("point without lines")
+    # end
+
     @assert length(point.lines)==3 # corner point | todo: check for other cases
 
     border_lines = getlines(surf)
 
-    # get the edge that is not in the surf border
+    # get the edge that is not in the surf border (the one that is not coplanar
     seed_edge = setdiff(point.lines, surf.loops[1].lines)[1]
 
     # add two surfaces from the seed edge that share an edge with surf
-    newsurfs = AbstractSurface[]
+    newsurfs = AbstractFace[]
     for s in seed_edge.surfaces
+        s == surf && continue
         slines = getlines(s)
-        if length(intersect(slines, border_lines)) == 1
+        if length(intersect(slines, border_lines)) == 1 # todo: >=1 ?
             push!(newsurfs, s)
         end
     end
@@ -1443,11 +1575,14 @@ function find_surface_loops(surf::AbstractSurface)
         # last_n_lines = length(border_lines)
 
         for l in border_lines
-            length(l.surfaces)==1 && return SurfaceLoop[] # dangling edge
+            if length(l.surfaces)==1
+                # @show "dangling EDGE"
+                return SurfaceLoop[] # dangling edge
+            end
         end
 
         # find new surfaces that share at least two edges with the border
-        newsurfs = Set{AbstractSurface}()
+        newsurfs = Set{AbstractFace}()
         for l in border_lines
             for s in l.surfaces
                 s in surfaces && continue
