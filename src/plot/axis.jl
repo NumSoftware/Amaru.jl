@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-mutable struct Axis<:ChartComponent
+mutable struct Axis<:FigureComponent
     direction::Symbol
     location::Symbol
     limits::Vector{Float64}
@@ -80,49 +80,55 @@ function get_bin_length(vinf, vsup, n)
 end
 
 
-function configure!(chart::AbstractChart, ax::Axis)
+function make_ticklabels(ticks)
+    # find mantissas and exponents
+    M = Float64[]  # mantissas
+    E = Int[]      # exponents
 
-    # configure limits
-    if ax.limits==[0.0,0.0]
-        if length(ax.ticks)==0
-            limits = [Inf, -Inf]
-            for p in chart.dataseries
-                p isa DataSeries || continue
-                if ax.direction==:horizontal
-                    if p.x!==nothing
-                        limits[1] = min(limits[1], p.x)
-                        limits[2] = max(limits[2], p.x)
-                    end
-                    if length(p.X)>0
-                        limits[1] = min(limits[1], minimum(p.X))
-                        limits[2] = max(limits[2], maximum(p.X))
-                    end
-                else
-                    if p.y!==nothing
-                        limits[1] = min(limits[1], p.y)
-                        limits[2] = max(limits[2], p.y)
-                    end
-                    if length(p.Y)>0
-                        limits[1] = min(limits[1], minimum(p.Y))
-                        limits[2] = max(limits[2], maximum(p.Y))
-                    end
-                    
-                end
-            end
-            if limits[1]==limits[2]
-                limits = [-0.1, 0.1]
-            end
+    for x in ticks
+        if abs(x)<1e-10
+            x = 0.0
+            expo = 1
         else
-            limits = collect(extrema(chart.args.xticks))
+            expo = floor(Int, log10(abs(x)))
         end
 
-        # extend limits
-        f = ax.direction == :horizontal ? 0.03 : 0.03*chart.width/chart.height
-        dx = f*(limits[2]-limits[1])
-        limits = [ limits[1]-dx, limits[2]+dx ]
-        limits = [ limits[1]*ax.mult, limits[2]*ax.mult ]
-        ax.limits = limits
+        if -5<expo<5
+            mantissa = x
+            expo = 0
+        else
+            mantissa = round(x/10.0^expo, sigdigits=3)
+        end
+        push!(M, mantissa)
+        push!(E, expo)
     end
+
+    # find max decimal digits in mantissas
+    max_digits = 0
+    for m in M
+        digits = 0
+        fraction = round(abs(m-trunc(m)), sigdigits=10)
+        while fraction > 0
+            digits += 1
+            fraction *= 10
+            fraction = round(abs(fraction-trunc(fraction)), sigdigits=10)
+        end
+        max_digits = max(max_digits, digits)
+    end
+    max_digits = min(max_digits, 4)
+
+    labels = []
+    for (m, ex) in zip(M, E)
+        label = Printf.format(Printf.Format("%."*string(max_digits)*"f"), m)
+        ex!=0 && (label *= "\\times 10^{$ex}")
+        push!(labels, latexstring(label))
+    end
+
+    return labels
+end
+
+
+function configure!(ax::Axis)
 
     # configure ticks
     if length(ax.ticks)==0
@@ -180,82 +186,8 @@ function configure!(chart::AbstractChart, ax::Axis)
 end
 
 
-function configure!(chart::AbstractChart, xax::Axis, yax::Axis)
-    configure!(chart, xax)
-    configure!(chart, yax)
 
-    # set width and height of axes
-    width, height = chart.width, chart.height
-    xax.width  = width - yax.width - chart.leftpad - chart.rightpad
-    yax.height = height - xax.height - chart.toppad - chart.bottompad
-
-    # update chart.rightpad if required
-    label_width = getsize(xax.ticklabels[end], xax.fontsize)[1] 
-    xdist = xax.width*(xax.limits[2]-xax.ticks[end])/(xax.limits[2]-xax.limits[1]) # distance of the right most tick to the right side of axis
-    if xdist-label_width/2 < 0
-        chart.rightpad += label_width/2 - xdist
-        xax.width = width - yax.width - chart.leftpad - chart.rightpad
-    end
-
-    # update chart.toppad if required
-    label_height = getsize(yax.ticklabels[end], yax.fontsize)[2] 
-    ydist = yax.height * (yax.limits[2] - yax.ticks[end])/(yax.limits[2]-yax.limits[1]) # distance of the upper most tick to the top side of axis
-    if ydist-label_height/2 < 0
-        chart.toppad += label_height/2 - ydist
-        yax.height = height - xax.height - chart.toppad - chart.bottompad
-    end
-
-end
-
-function make_ticklabels(ticks)
-    # find mantissas and exponents
-    M = Float64[]  # mantissas
-    E = Int[]      # exponents
-
-    for x in ticks
-        if abs(x)<1e-10
-            x = 0.0
-            expo = 1
-        else
-            expo = floor(Int, log10(abs(x)))
-        end
-
-        if -5<expo<5
-            mantissa = x
-            expo = 0
-        else
-            mantissa = round(x/10.0^expo, sigdigits=3)
-        end
-        push!(M, mantissa)
-        push!(E, expo)
-    end
-
-    # find max decimal digits in mantissas
-    max_digits = 0
-    for m in M
-        digits = 0
-        fraction = round(abs(m-trunc(m)), sigdigits=10)
-        while fraction > 0
-            digits += 1
-            fraction *= 10
-            fraction = round(abs(fraction-trunc(fraction)), sigdigits=10)
-        end
-        max_digits = max(max_digits, digits)
-    end
-    max_digits = min(max_digits, 4)
-
-    labels = []
-    for (m, ex) in zip(M, E)
-        label = Printf.format(Printf.Format("%."*string(max_digits)*"f"), m)
-        ex!=0 && (label *= "\\times 10^{$ex}")
-        push!(labels, latexstring(label))
-    end
-
-    return labels
-end
-
-
-function draw!(c::AbstractChart, cc::CairoContext, ax::Axis)
+function draw!(cc::CairoContext, ax::Axis)
 
     Cairo.save(cc)
 

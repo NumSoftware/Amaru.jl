@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-mutable struct Colorbar<:ChartComponent
+mutable struct Colorbar<:FigureComponent
     location::Symbol
     colormap::Colormap
     axis::Axis
@@ -56,9 +56,9 @@ mutable struct Colorbar<:ChartComponent
 end
 
 
-function configure!(c::AbstractChart, cb::Colorbar)
+function configure!(c::Figure, cb::Colorbar)
     if cb.location!==:none
-        configure!(c, cb.axis)
+        configure!(cb.axis)
         cb.thickness = 0.035*max(c.width, c.height)
         cb.innersep = cb.thickness
         if cb.location==:right
@@ -74,23 +74,23 @@ function configure!(c::AbstractChart, cb::Colorbar)
 end
 
 
-function draw!(c::AbstractChart, cc::CairoContext, cb::Colorbar)
+function draw!(fig::Figure, cc::CairoContext, cb::Colorbar)
     set_matrix(cc, CairoMatrix([1, 0, 0, 1, 0, 0]...))
 
     if cb.location==:right
         # Axis
         fmin, fmax = cb.axis.limits
-        x = c.canvas.box[3]+cb.innersep+cb.thickness+cb.axis.ticklength
+        x = fig.canvas.box[3]+cb.innersep+cb.thickness+cb.axis.ticklength
         h = cb.height
 
-        y = c.height/2 - h/2
+        y = fig.height/2 - h/2
         move_to(cc, x, y)
-        draw!(c, cc, cb.axis)
+        draw!(cc, cb.axis)
         
         # Colorbar
-        x = c.canvas.box[3] + cb.innersep
+        x = fig.canvas.box[3] + cb.innersep
         w = cb.thickness
-        y = c.height/2 + h/2
+        y = fig.height/2 + h/2
 
         pat = pattern_create_linear(0.0, y,  0.0, y-h)
         nstops = length(cb.colormap.stops)
@@ -108,14 +108,14 @@ function draw!(c::AbstractChart, cc::CairoContext, cb::Colorbar)
         # Axis
         fmin, fmax = cb.axis.limits
         w = cb.width
-        x = c.width/2 - w/2
-        y = c.canvas.box[4]+cb.innersep+cb.thickness+cb.axis.ticklength
+        x = fig.width/2 - w/2
+        y = fig.canvas.box[4]+cb.innersep+cb.thickness+cb.axis.ticklength
         move_to(cc, x, y)
-        draw!(c, cc, cb.axis)
+        draw!(fig, cc, cb.axis)
         
         # Colorbar
-        x = c.width/2 - w/2
-        y = c.canvas.box[4] + cb.innersep
+        x = fig.width/2 - w/2
+        y = fig.canvas.box[4] + cb.innersep
         h = cb.thickness
 
         pat = pattern_create_linear(x, 0.0,  x+w, 0.0)

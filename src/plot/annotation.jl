@@ -5,7 +5,7 @@ Annotation_params = [
     ArgInfo(:x, "x-coordinate of the annotation", cond=:(0<=x<=1), type=Real),
     ArgInfo(:y, "y-coordinate of the annotation", cond=:(0<=y<=1), type=Real),
     KwArgInfo(:textalignment, "Alignment of the text", :auto, values=(:auto, :left, :right, :top, :bottom)),
-    KwArgInfo(:target, "Coordinates of the target point of the arrow relative to data", (0.0,0.0), length=2),
+    KwArgInfo(:target, "Coordinates of the target point of the arrow relative to data", [0.0,0.0], length=2),
     KwArgInfo((:lw, :lineweight), "Line weight", 0.4, cond=:(lw>0)),
     KwArgInfo(:font, "Name of the font", "NewComputerModern", type=AbstractString),
     KwArgInfo(:fontsize, "Size of the font in dpi", 6.0, cond=:(fontsize>0)),
@@ -13,30 +13,31 @@ Annotation_params = [
 ]
 
 
-mutable struct Annotation <: ChartComponent
+mutable struct Annotation <: FigureComponent
     text::AbstractString
     x::Float64
     y::Float64
     textalignment::Symbol
-    target::Union{AbstractArray, Tuple, Nothing}
+    target::Vector
     lw::Float64
     font::String
     fontsize::Float64
     color::Symbol
     function Annotation(text, x, y; kwargs...)
         args = checkargs([text, x, y], kwargs, Annotation_params)
-        this = new(args.text, args.x, args.y, args.textalignment, args.target, args.lw, args.font, args.fontsize, args.color)
+        target = collect(float.(args.target))
+        this = new(args.text, args.x, args.y, args.textalignment, target, args.lw, args.font, args.fontsize, args.color)
         return this
     end
 end
 
 
-function addannotation!(c::Chart, a::Annotation)
+function addannotation!(c::AbstractChart, a::Annotation)
     push!(c.annotations, a)
 end
 
 
-function draw!(c::Chart, cc::CairoContext, a::Annotation)
+function draw!(c::AbstractChart, cc::CairoContext, a::Annotation)
     
     set_font_size(cc, a.fontsize)
     font = get_font(a.font)
@@ -44,14 +45,13 @@ function draw!(c::Chart, cc::CairoContext, a::Annotation)
 
     set_matrix(cc, CairoMatrix([1, 0, 0, 1, 0, 0]...))
 
-    # convert from axes to user coordinates
+    # convert from axes to Cairo coordinates
     x = c.canvas.box[1] + a.x*c.canvas.width
     y = c.canvas.box[2] + (1-a.y)*c.canvas.height
     halign = a.textalignment==:right ? "right" : "left"
     valign = a.textalignment==:top ? "top" : "bottom"
     set_source_rgb(cc, 0, 0, 0)
     draw_text(cc, x, y, a.text, halign=halign, valign=valign, angle=0)
-
 
     if a.textalignment==:auto
         a.textalignment = :left
@@ -80,7 +80,7 @@ function draw!(c::Chart, cc::CairoContext, a::Annotation)
         h += text_outerpad
 
         # target coordinates
-        xa, ya = data2user(c, a.target[1], a.target[2])
+        xa, ya = data2user(c.canvas, a.target[1], a.target[2])
 
         # deltas
         dx = xa - x
@@ -150,10 +150,6 @@ function draw!(c::Chart, cc::CairoContext, a::Annotation)
             x += dx
         end
 
-
-
         stroke(cc)
     end
-
-
 end

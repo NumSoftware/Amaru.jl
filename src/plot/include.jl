@@ -3,15 +3,16 @@
 include("colors.jl")
 include("text.jl")
 
-include("chart.jl")
+include("figure.jl")
 include("canvas.jl")
-
 include("axis.jl")
 include("legend.jl")
+include("annotation.jl")
+
 include("line-series.jl")
+include("line-chart.jl")
+
 include("colorbar.jl")
 
-include("mesh-canvas.jl")
-include("mesh-chart.jl")
-
-include("annotation.jl")
+include("mesh-plot.jl")
+include("geo-plot.jl")
