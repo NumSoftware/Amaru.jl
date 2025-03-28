@@ -125,6 +125,7 @@ function setquadrature!(elem::Element, n::Int=0)
     end
 
     ipc = get_ip_coords(elem.shape, n)
+
     n = size(ipc,1)
 
     resize!(elem.ips, n)

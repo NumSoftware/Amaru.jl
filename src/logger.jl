@@ -142,7 +142,7 @@ mutable struct FaceLogger<:FacetLogger
     filename ::String
     filter   ::Any
     table    ::DataTable
-    faces    ::Array{Face,1}
+    faces    ::Array{CellFace,1}
     nodes    ::Array{Node,1}
 
     function FaceLogger(filename::String="")
@@ -155,7 +155,7 @@ mutable struct EdgeLogger<:FacetLogger
     filename ::String
     filter   ::Any
     table    ::DataTable
-    edges    ::Array{Edge,1}
+    edges    ::Array{CellEdge,1}
     nodes    ::Array{Node,1}
 
     function EdgeLogger(filename::String="")

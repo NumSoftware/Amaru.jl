@@ -11,8 +11,8 @@ $(FIELDS)
 mutable struct FEModel<:AbstractDomain
     nodes::Array{Node,1}
     elems::Array{Element,1}
-    faces::Array{Face,1}
-    edges::Array{Edge,1}
+    faces::Array{CellFace,1}
+    edges::Array{CellEdge,1}
     thickness::Float64
     ndofs   ::Integer
     ctx     ::Context
@@ -188,10 +188,10 @@ function FEModel(
     # end
 
     # Setting faces
-    model.faces = Face[]
+    model.faces = CellFace[]
     for (i,cell) in enumerate(mesh.faces)
         conn = [ p.id for p in cell.nodes ]
-        face = Face(cell.shape, model.nodes[conn], tag=cell.tag)
+        face = CellFace(cell.shape, model.nodes[conn], tag=cell.tag)
         if cell.owner!==nothing
             face.owner = model.elems[cell.owner.id]
         else
@@ -202,10 +202,10 @@ function FEModel(
     end
 
     # Setting edges
-    model.edges = Edge[]
+    model.edges = CellEdge[]
     for (i,cell) in enumerate(mesh.edges)
         conn = [ p.id for p in cell.nodes ]
-        edge = Edge(cell.shape, model.nodes[conn], tag=cell.tag)
+        edge = CellEdge(cell.shape, model.nodes[conn], tag=cell.tag)
         if cell.owner!==nothing
             edge.owner = model.elems[cell.owner.id]
         end

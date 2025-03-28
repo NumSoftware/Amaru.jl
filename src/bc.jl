@@ -61,7 +61,7 @@ end
 mutable struct SurfaceBC<:BC
     conds ::AbstractDict
     filter::Any
-    facets ::Array{Face,1}
+    facets ::Array{CellFace,1}
 
     function SurfaceBC(;conds...)
         return new(conds, :(), [])
@@ -74,7 +74,7 @@ FaceBC = SurfaceBC
 mutable struct EdgeBC<:BC
     conds ::AbstractDict
     filter::Any
-    edges ::Array{Edge,1}
+    edges ::Array{CellEdge,1}
 
     function EdgeBC(;conds...)
         return new(conds, :(), [])
