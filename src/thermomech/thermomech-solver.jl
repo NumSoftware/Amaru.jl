@@ -35,10 +35,10 @@ end
 const ThermoContext = ThermoMechContext
 
 
-ThermomechAnalysis_params = [
-    FunInfo(:ThermoMechAnalysis, "Thermomechanical analysis."),
-]
-@doc docstring(ThermomechAnalysis_params) ThermoMechAnalysis()
+# ThermomechAnalysis_params = [
+#     FunInfo(:ThermoMechAnalysis, "Thermomechanical analysis."),
+# ]
+# @doc docstring(ThermomechAnalysis_params) ThermoMechAnalysis()
 
 mutable struct ThermoMechAnalysis<:TransientAnalysis
     model ::FEModel
@@ -55,8 +55,11 @@ mutable struct ThermoMechAnalysis<:TransientAnalysis
         this.loggers = []
         this.monitors = []  
         this.sctx = SolverContext()
-        this.sctx.outdir = outdir
+        
         this.sctx.outkey = outkey
+        this.sctx.outdir = rstrip(outdir, ['/', '\\'])
+        isdir(this.sctx.outdir) || mkdir(this.sctx.outdir) # create output directory if it does not exist
+
         model.ctx.thickness = model.thickness
         if model.ctx.stressmodel==:none
             if model.ctx.ndim==2
@@ -199,7 +202,7 @@ end
 
 tm_solver_params = [
     FunInfo(:tm_stage_solver!, "Solves a finite element thremomechanical analysis."),
-    ArgInfo(:model, "FEModel object"),
+    ArgInfo(:analysis, "Thermomechanical analysis object"),
     KwArgInfo(:tol, "Force tolerance", 0.01, cond=:(tol>0)),
     KwArgInfo(:dTmin, "Relative minimum increment size", 1e-7, cond=:(0<dTmin<1) ),
     KwArgInfo(:dTmax, "Relative maximum increment size", 0.1, cond=:(0<dTmax<1) ),
