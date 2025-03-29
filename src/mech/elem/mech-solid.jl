@@ -157,7 +157,6 @@ function elem_stiffness(elem::MechSolid)
         @mul K += coef*B'*DB
     end
 
-
     keys = (:ux, :uy, :uz)[1:ndim]
     map  = [ node.dofdict[key].eq_id for node in elem.nodes for key in keys ]
 

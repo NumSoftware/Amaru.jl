@@ -45,9 +45,8 @@ end
 compat_shape_family(::Type{MechFluid}) = BULKCELL
 compat_elem_props(::Type{MechFluid}) = MechFluidProps
 
-
-function distributed_bc(elem::MechFluid, facet::Cell, key::Symbol, val::Union{Real,Symbol,Expr})
-    return mech_boundary_forces(elem, facet, key, val)
+function distributed_bc(elem::MechFluid, facet::Cell, t::Float64, key::Symbol, val::Union{Real,Symbol,Expr})
+    return mech_boundary_forces(elem, facet, t, key, val)
 end
 
 
