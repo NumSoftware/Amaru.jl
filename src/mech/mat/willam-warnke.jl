@@ -40,8 +40,8 @@ mutable struct WillamWarnke<:Material
         e  = (fc*fb - fc*ft + 3*fb*ft)/(2*fc*fb + ft*fc)
         @assert 0<e<=1
 
-        ξ0 = √3*fb*ft/(fb-ft)
-        ρ0 = √2*fc*ξ0/(fc + √3*ξ0)
+        ξ0 = √3*fb*ft/(fb-ft) # ok
+        ρ0 = √2*fc*ξ0/(fc + √3*ξ0) # ok
         α = ρ0/ξ0
 
         ψ = args.psi
@@ -99,6 +99,7 @@ end
         ξmax = mat.ξ0 + mat.H*εpa
     end
 end
+
 
 @inline function calc_deriv_ξmax_εpa(mat::WillamWarnke, εpa::Float64)
     if mat.ξfun !== nothing
@@ -270,6 +271,7 @@ function calc_σ_εpa_Δλ(mat::WillamWarnke, state::WillamWarnkeState, σtr::Ve
     return state.σ, 0.0, 0.0, failure("WillamWarnke: maximum iterations reached")
 
 end
+
 
 function calc_σ_εpa_Δλ_bis(mat::WillamWarnke, state::WillamWarnkeState, σtr::Vec6)
     α  = mat.α
