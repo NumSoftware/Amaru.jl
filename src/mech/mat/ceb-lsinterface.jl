@@ -83,7 +83,7 @@ function Tau(mat::CebLSJoint, sy::Float64)
     elseif sy<mat.s3
         return mat.τmax - (mat.τmax-mat.τres)*((sy-mat.s2)/(mat.s3-mat.s2))^mat.β
     else
-        return mat.τres  + 1*(sy-mat.s3)
+        return mat.τres
     end
 end
 
@@ -95,21 +95,18 @@ function deriv(mat::CebLSJoint, state::CebLSJointState, sy::Float64)
     end
 
     if sy<=mat.s1
-        return mat.τmax/mat.s1*(sy/mat.s1)^(mat.α-1)
+        return mat.α*mat.τmax/mat.s1*(sy/mat.s1)^(mat.α-1)
     elseif sy<mat.s2
-        #return mat.ks/10000
-        return 1.0
+        return mat.ks*1e-3
     elseif sy<mat.s3
-        return -(mat.τmax-mat.τres)/(mat.s3-mat.s2)*((sy-mat.s2)/(mat.s3-mat.s2))^(mat.β-1)
+        return -mat.β*(mat.τmax-mat.τres)/(mat.s3-mat.s2)*((sy-mat.s2)/(mat.s3-mat.s2))^(mat.β-1)
     else
-        return 1.0
-        # return mat.ks/10000
+        return mat.ks*1e-3
     end
 end
 
 
 function calcD(mat::CebLSJoint, state::CebLSJointState)
-    ndim = state.ctx.ndim
     ks = mat.ks
 
     if !state.elastic
@@ -133,100 +130,6 @@ function yield_func(mat::CebLSJoint, state::CebLSJointState, τ::Float64)
     return abs(τ) - state.τy
 end
 
-
-function stress_update_n(mat::CebLSJoint, state::CebLSJointState, Δu::Vect)
-    ks = mat.ks
-    kn = mat.kn
-    Δs = Δu[1]      # relative displacement
-    τini = state.σ[1] # initial shear stress
-    τtr  = τini + ks*Δs # elastic trial
-
-    ftr  = yield_func(mat, state, τtr)
-
-    if ftr<0.0
-        τ = τtr
-        state.elastic = true
-    else
-        maxits = 30
-        Δλ     = 0.0
-        # Δλ     = abs(τtr)/ks
-        τy     = 0.0
-        tol    = 1e-4
-
-
-        for i in 1:maxits
-            # τ  = τtr - Δλ*ks*sign(τtr)
-            τy = Tau(mat, state.sy+Δλ)
-            # τ  = τy*sign(τtr)
-            dτydsy = deriv(mat, state, state.sy+Δλ)
-
-            # @s τ
-            # @s τy
-            # @s dτydsy
-
-            # f     = abs(τ) - τy
-            f = abs(τtr) - Δλ*ks - τy
-            # dfdΔλ = -sign(abs(τtr) - Δλ*ks)*ks - dτydsy
-            dfdΔλ = -ks - dτydsy
-            Δλ = Δλ - f/dfdΔλ
-            # Δλ = (abs(τtr)-τy)/mat.ks
-            # abs(f) < tol && @s i
-            abs(f) < tol && break
-
-            # @s f
-            # @s dfdΔλ
-
-            # @s Δλ
-            # if Δλ<0
-                # Δλ = (abs(τtr)-state.τy)/mat.ks
-                # break
-            # end
-
-            if i==maxits || isnan(Δλ)  
-                if Δλ<0.0
-                    @s Δλ
-                    Δλ = (abs(τtr)-state.τy)/mat.ks
-                    break
-                end
-
-                               
-                @s "Errorrrrr"
-                @s dτydsy
-
-                # error()
-                # @s f
-                # @s i
-                return state.σ, failure("CEBJoint1D: Could not find Δλ")
-                # break
-            end
-
-        end
-
-        if Δλ<0.0
-            Δλ = (abs(τtr)-state.τy)/mat.ks
-            @s Δλ
-        end
-
-        state.sy += Δλ
-        state.τy  = τy
-        τ  = state.τy*sign(τtr)
-        Δτ = τ - τini
-        state.elastic = false
-    end
-
-    # calculate Δσ
-    Δτ = τ - τini
-    Δσ = kn*Δu
-    Δσ[1] = Δτ
-
-    # update u and σ
-    state.u .+= Δu
-    state.σ .+= Δσ
-
-    return Δσ, success()
-end
-
-
 function update_state!(mat::CebLSJoint, state::CebLSJointState, Δu::Vect)
     ks = mat.ks
     kn = mat.kn
@@ -240,7 +143,7 @@ function update_state!(mat::CebLSJoint, state::CebLSJointState, Δu::Vect)
         τ = τtr
         state.elastic = true
     else
-        dτydsy = deriv(mat, state, state.sy)
+        # dτydsy = deriv(mat, state, state.sy)
         # @s ks
         # @s dτydsy
         # Δsy     = (abs(τtr)-state.τy)/(ks+dτydsy)
