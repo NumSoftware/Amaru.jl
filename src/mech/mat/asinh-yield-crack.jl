@@ -29,14 +29,13 @@ AsinhYieldCrack_params = [
     KwArgInfo( :nu, "Poisson ratio", cond=:(0<=nu<0.5)),
     KwArgInfo( :fc, "Compressive strength", cond=:(fc<0)),
     KwArgInfo( :ft, "Tensile strength", cond=:(ft>0)),
-    KwArgInfo( :zeta, "Joint elastic stiffness factgor", cond=:(zeta>0)),
+    KwArgInfo( :zeta, "Joint elastic stiffness factor", cond=:(zeta>0)),
     KwArgInfo( :alpha, "Failure surface shape", 1.5, cond=:(alpha>0)),
     KwArgInfo( :gamma, "Failure surface minimum size", 0.1, cond=:(gamma>=0)),
     KwArgInfo( :theta, "Failure surface reduction speed", 1.5, cond=:(theta>=0)),
     KwArgInfo( :wc, "Critical crack opening", 0.0, cond=:(wc>=0)),
     KwArgInfo( :GF, "Fracture energy", 0.0, cond=:(GF>=0)),
     KwArgInfo( :softmodel, "Softening model", :hordijk, values=(:linear, :bilinear, :hordijk, :soft, :custom), type=Symbol),
-    # KwArgInfo( :ft_fun, "Softening curve", zeros(0,0), type=Array),
     KwArgInfo((:ft_fun,:soft_fun), "Softening curve", nothing),
 
 ]
@@ -117,10 +116,6 @@ mutable struct AsinhYieldCrack<:Material
         return this
     end
 end
-
-
-
-
 
 
 function paramsdict(mat::AsinhYieldCrack)
