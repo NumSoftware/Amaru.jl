@@ -12,7 +12,6 @@ function dir(dart::Dart)
 end
 
 
-
 function getedges(s::Face)
     edges = Edge[]
     for loop in s.loops
@@ -47,7 +46,6 @@ function getpoints(s::Face)
 end
 
 
-
 function getpoints(v::Volume)
     points = Set{Point}()
     for spin in v.spins
@@ -59,7 +57,6 @@ function getpoints(v::Volume)
 end
 
 
-
 function is_neighbor(surf1::Face, surf2::Face)
     for dart in surf1.loops[1].darts
         for s in dart.edge.faces
@@ -68,7 +65,6 @@ function is_neighbor(surf1::Face, surf2::Face)
     end
     return false
 end
-
 
 
 
@@ -112,21 +108,6 @@ function point_in_edge(p::Point, l::Edge)
     0 < dot1 < dot2 && return INSIDE
 
     return OUTSIDE
-end
-
-
-function coplanar(face::Face, points::Vector{Point})
-    face.flat || return false
-    tol = 1e-6 # reduced tolerance 
-
-    normal = getnormal(face.loops[1])
-    p1 = face.loops[1].darts[1].points[1]
-
-    for p in points # check if every point is in the plane
-        abs(dot(p.coord - p1.coord, normal)) > tol && return false
-    end
-
-    return true
 end
 
 
@@ -178,9 +159,6 @@ function split_edge(geo::GeoModel, edge::Edge, point::Point)
 
     return newedges
 end
-
-
-
 
 
 function intersection(l1::Edge, l2::Edge)
@@ -236,9 +214,6 @@ function parallel(dart1::Dart, dart2::Dart)
 end
 
 
-
-
-
 function colinear(points::Vector{Point})
     length(points)<2 && return true
     tol = 1e-6
@@ -260,6 +235,7 @@ function colinear(points::Vector{Point})
 end
 
 
+# Get a directed normal vector even if the loop is not flat
 function getnormal(loop::Loop)
     C = getcoords(loop.points)
     
@@ -292,6 +268,21 @@ function getnormal(loop::Loop)
 
     return normalize(Vec3(nx, ny, nz))
 
+end
+
+
+function coplanar(face::Face, points::Vector{Point})
+    face.flat || return false
+    tol = 1e-6 # reduced tolerance 
+
+    normal = getnormal(face.loops[1])
+    p1 = face.loops[1].darts[1].points[1]
+
+    for p in points # check if every point is in the plane
+        abs(dot(p.coord - p1.coord, normal)) > tol && return false
+    end
+
+    return true
 end
 
 

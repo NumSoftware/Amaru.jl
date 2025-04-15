@@ -75,8 +75,15 @@ function Base.size(table::DataTable)
 end
 
 
-function Base.getproperty(table::DataTable, sym::Symbol)
-    return getindex(table, sym)
+function Base.getproperty(table::DataTable, name::Symbol)
+    key   = string(name)
+    colidx = getcolidx(table)
+    if haskey(colidx, key)
+        idx  = colidx[key]
+        return getindex(table, key)
+    end
+
+    return getfield(table, name)
 end
 
 
