@@ -9,7 +9,8 @@ function mesh_unstructured(geo::GeoModel; kwargs...)
     quiet     = args.quiet
 
     if !quiet
-        nsurfs = length(geo.surfaces)
+        println("  Geometry:")
+        nsurfs = length(geo.faces)
         nvols  = length(geo.volumes)
         @printf "  %5d surfaces\n" nsurfs
         nvols>0 && @printf "  %5d volumes\n" nvols
@@ -32,58 +33,47 @@ function mesh_unstructured(geo::GeoModel; kwargs...)
     end
 
     # add lines
-    for l in geo.lines
+    for l in geo.edges
         if l isa Line
             p1 = l.points[1].id
             p2 = l.points[2].id
             gmsh.model.geo.addLine(p1, p2, l.id)
-        else #Arc
+        elseif l isa Arc
             p1 = l.points[1].id
             pc = l.points[2].id
             p2 = l.points[3].id
 
             gmsh.model.geo.addCircleArc(p1, pc, p2, l.id)
+        else
+            error("Not implemented")
         end
-    end
-
-    function get_loop_idxs(loop::AbstractLoop)
-        l_idxs = [ l.id for l in loop.lines ]
-        l_conn = [ [ p.id for p in l.points[[1,end]]] for l in loop.lines ] # pick first and last points
-
-        if !(l_conn[1][end] in l_conn[2])
-            l_idxs[1] *= -1
-        end
-
-        for i in 2:length(l_conn)
-            last_pidx = l_idxs[i-1]>0 ? l_conn[i-1][end] : l_conn[i-1][1]
-            if l_conn[i][1]!=last_pidx
-                l_idxs[i] *= -1
-            end
-        end
-
-        return l_idxs
     end
 
     # add loops
     for loop in geo.loops
-        line_idxs = get_loop_idxs(loop)
-        gmsh.model.geo.addCurveLoop(line_idxs, loop.id)
+        idxs = Int[]
+        for dart in loop.darts
+            idx = dart.forward ? dart.edge.id : -dart.edge.id
+            push!(idxs, idx)
+        end
+
+        gmsh.model.geo.addCurveLoop(idxs, loop.id)
     end
 
     # add surfaces
-    for surf in geo.surfaces
+    for surf in geo.faces
         lo_idxs = [ lo.id for lo in surf.loops ]
-        if surf isa PlaneFace
+        if surf.flat
             gmsh.model.geo.addPlaneSurface(lo_idxs, surf.id) # plane surface
         else
             gmsh.model.geo.addSurfaceFilling(lo_idxs, surf.id) # filling surf
         end
     end
-    surf_idxs = [ surf.id for surf in geo.surfaces ]
+    surf_idxs = [ surf.id for surf in geo.faces ]
 
     # add volumes
     for vol in geo.volumes
-        surf_idxs = [ surf.id for surf in vol.surfaces ]
+        surf_idxs = [ spin.face.id for spin in vol.spins ]
 
         gmsh.model.geo.addSurfaceLoop(surf_idxs, vol.id)
         gmsh.model.geo.addVolume([vol.id], vol.id) # not considering volume holes
@@ -92,7 +82,7 @@ function mesh_unstructured(geo::GeoModel; kwargs...)
 
     gmsh.model.geo.synchronize() # only after geometry entities are defined
     
-    for l in geo.lines
+    for l in geo.edges
         # transfinite
         if l.n>0
             gmsh.model.mesh.set_transfinite_curve(l.id, l.n+1)
@@ -108,21 +98,18 @@ function mesh_unstructured(geo::GeoModel; kwargs...)
         error("Mesh: Wrong algorithm")
     end
 
-    for s in geo.surfaces
+    for s in geo.faces
         s.recombine && gmsh.model.mesh.set_recombine(2, s.id)
         s.transfinite && gmsh.model.mesh.set_transfinite_surface(s.id)
     end
 
     if !isvolumemesh
-        tagset = Set([ surf.tag for surf in geo.surfaces ])
+        tagset = Set([ surf.tag for surf in geo.faces ])
         tagsdict = Dict( tag=>i for (i,tag) in enumerate(tagset) )
         for (tag, gidx) in tagsdict
-            surf_idxs = [ surf.id for surf in geo.surfaces if surf.tag==tag ]
+            surf_idxs = [ surf.id for surf in geo.faces if surf.tag==tag ]
             gmsh.model.addPhysicalGroup(2, surf_idxs, gidx) # ndim, entities, group_id
         end
-
-        # gmsh.model.addPhysicalGroup(2, surf_idxs) # ndim, entities
-        # gmsh.model.mesh.generate(2)
     else
         tagset = Set([ vol.tag for vol in geo.volumes  ])
         tagsdict = Dict( tag=>i for (i,tag) in enumerate(tagset) )
@@ -130,25 +117,15 @@ function mesh_unstructured(geo::GeoModel; kwargs...)
             vol_idxs = [ vol.id for vol in geo.volumes if vol.tag==tag]
             gmsh.model.addPhysicalGroup(3, vol_idxs, gidx) # ndim, entities, group_id
         end
-
-        # tagsdict = Dict( tag=>i for (i,tag) in enumerate(tagset) )
-        # for v in geo.entities
-        #     v isa Volume || continue
-        #     gmsh.model.addPhysicalGroup(3, [v.id], tagsdict[v.tag]) # ndim, entities
-        # end
-
-        # xx1 = gmsh.model.addPhysicalGroup(3, vol_idxs, 100) # ndim, entities
-        # @show xx1
-        # gmsh.model.mesh.generate(3)
     end
 
     # embed points
     for p in geo.points
-        length(p.lines)==0 || continue
+        length(p.edges)==0 || continue
     
         # search surfaces
-        for s in geo.surfaces
-            s.loops[1] isa PlaneLoop || continue
+        for s in geo.faces
+            s.loops[1].flat || continue
             if inside(p, s.loops[1])
                 gmsh.model.mesh.embed(0,[p.id],2,s.id)
             end
@@ -156,11 +133,11 @@ function mesh_unstructured(geo::GeoModel; kwargs...)
     end
 
     # embed lines
-    for l in geo.lines
-        l isa Line || continue
-        length(l.surfaces)==0 || continue
-        for s in geo.surfaces
-            s.loops[1] isa PlaneLoop || continue
+    for l in geo.edges
+        l isa Edge || continue
+        length(l.faces)==0 || continue
+        for s in geo.faces
+            s.loops[1].flat || continue
             if insidepolygon(l.points, getpoints(s.loops[1]))
                 gmsh.model.mesh.embed(1,[l.id],2,s.id)
             end
@@ -172,7 +149,7 @@ function mesh_unstructured(geo::GeoModel; kwargs...)
     try
         open(logfile, "w") do out
             redirect_stdout(out) do
-                gmsh.write("file.geo_unrolled")
+                # gmsh.write("_temp.geo_unrolled")
                 gmsh.model.mesh.generate(isvolumemesh ? 3 : 2)
                 quadratic && gmsh.model.mesh.setOrder(2) # quadratic elements
                 recombine && gmsh.model.mesh.recombine()

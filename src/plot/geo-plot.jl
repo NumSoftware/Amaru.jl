@@ -6,14 +6,12 @@ GeoPlot_params = [
     ArgInfo(:geo, "2D/3D model geometry"),
     KwArgInfo((:size, :figsize), "Chart size in dpi", (220,150), length=2),
     KwArgInfo(:facecolor, "Face color", :aliceblue),
-    KwArgInfo((:lw, :lineweight), "Line weight", 0.4,  cond=:(lw>0) ),
+    KwArgInfo((:lw, :lineweight), "Edge weight", 0.4,  cond=:(lw>0) ),
     KwArgInfo(:font, "Font name", "NewComputerModern", type=AbstractString),
     KwArgInfo((:fontsize, :colorbarfontsize, :cbfontsize), "Colorbar font size", 7.0, cond=:(fontsize>0)),
     KwArgInfo(:azimut, "Azimut angle for 3d in degrees", 30 ),
     KwArgInfo(:elevation, "Elevation angle for 3d in degrees", 30 ),
     KwArgInfo(:distance, "Distance from camera in 3d", 0.0, cond=:(distance>=0) ),
-    # KwArgInfo(:featurelines, "Flag to enhance feature lines", true, type=Bool ),
-    # KwArgInfo(:viewmode, "Type of view", :surface, values=(:surface, :wireframe, :outline) ),
     KwArgInfo((:lightvector, :lv), "Light direction vector", [0.0,0.0,0.0], length=3 ),
     KwArgInfo((:pointlabels, :nodelabels), "Flag to show point labels", true, type=Bool ),
     KwArgInfo(:linelabels, "Flag to show line labels", true, type=Bool ),
@@ -26,7 +24,7 @@ GeoPlot_params = [
 mutable struct GeometryPlot<:Figure
     geo::GeoModel
     points::Vector{Point}
-    surfaces::Vector{AbstractFace}
+    faces::Vector{Face}
     pointlabels::Bool
     linelabels::Bool
     surfacelabels::Bool
@@ -53,7 +51,9 @@ mutable struct GeometryPlot<:Figure
         args = checkargs(args, GeoPlot_params, aliens=false)
 
         this = new()
-        this.geo = geo
+        this.geo = copy(geo)
+        # this.geo = geo
+
         this.canvas = nothing
         this.pointlabels = args.pointlabels
         this.linelabels = args.linelabels
@@ -153,11 +153,11 @@ function configure!(gplot::GeometryPlot)
     geo = gplot.geo
     ndim = geo.ndim
     points = geo.points
-    lines = geo.lines
-    surfaces = geo.surfaces
+    edges = geo.edges
+    faces = geo.faces
 
     # add extra points from arcs
-    for line in lines
+    for line in edges
         if line isa Arc
             for point in line.extrapoints
                 push!(points, point)
@@ -172,19 +172,19 @@ function configure!(gplot::GeometryPlot)
         project_to_2d!(points, gplot.azimut, gplot.elevation, gplot.distance)
         zmin, zmax = extrema(point.coord[3] for point in points)
 
-        # reorder surfaces
+        # reorder faces
         distances = Float64[]
-        for surf in surfaces
+        for surf in faces
             spoints = getpoints(surf)
             d = 0.9*sum(point.coord[3] for point in spoints)/length(spoints) + 0.1*minimum(point.coord[3] for point in spoints) 
             push!(distances, d)
         end
         perm = sortperm(distances, rev=true)
-        surfaces = surfaces[perm]
+        faces = faces[perm]
     end
 
     gplot.points = points
-    gplot.surfaces = surfaces
+    gplot.faces = faces
 
     # Canvas 
     gplot.canvas = Canvas()
@@ -222,21 +222,6 @@ function configure!(gplot::GeometryPlot)
 end
 
 
-# function bezier_points(edge)
-#     p1 = edge.nodes[1].coord[1:2]
-#     p4 = edge.nodes[2].coord[1:2]
-#     ξ1 = -1/3
-#     ξ2 = +1/3
-#     C = getcoords(edge.nodes, 2)
-#     p2 = C'*edge.shape.func([ξ1])
-#     p3 = C'*edge.shape.func([ξ2])
-
-#     cp2 = 1/6*(-5*p1+18*p2- 9*p3+2*p4)
-#     cp3 = 1/6*( 2*p1- 9*p2+18*p3-5*p4)
-
-#     return p1, cp2, cp3, p4
-# end
-
 function bezier_points_arc(P1, P2, P3, P4)
     p1 = P1.coord[1:2]
     p2 = P2.coord[1:2]
@@ -250,186 +235,233 @@ function bezier_points_arc(P1, P2, P3, P4)
 end
 
 
-function draw!(gplot::GeometryPlot, cc::CairoContext)
-    set_line_join(cc, Cairo.CAIRO_LINE_JOIN_ROUND)
+function draw!(gplot::GeometryPlot, ctx::CairoContext)
+    set_line_join(ctx, Cairo.CAIRO_LINE_JOIN_ROUND)
  
     Xmin, Ymin, Xmax, Ymax = gplot.canvas.box
     xmin, ymin, xmax, ymax = gplot.canvas.limits
 
     ratio = (Xmax-Xmin)/(xmax-xmin) # == (Ymax-Ymin)/(ymax-ymin)
-    set_matrix(cc, CairoMatrix([ratio, 0, 0, -ratio, Xmin-xmin*ratio, Ymax+ymin*ratio]...))
+    set_matrix(ctx, CairoMatrix([ratio, 0, 0, -ratio, Xmin-xmin*ratio, Ymax+ymin*ratio]...))
 
     font = get_font(gplot.font)
-    select_font_face(cc, font, Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL )
-    set_font_size(cc, gplot.fontsize)
-
-    function getpoints(surf::AbstractFace)
-        points = Set{Point}()
-        for line in surf.loops[1].lines
-            push!(points, line.points[1])
-            push!(points, line.points[end])
+    select_font_face(ctx, font, Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL )
+    set_font_size(ctx, gplot.fontsize)
+ 
+    function getpoints(loop::Loop)
+        points = [ loop.darts[1].points[1] ]
+        for dir_edge in loop.darts
+            # @show dir_edge.forward
+            # @show dir_edge.points[1].id
+            # @show dir_edge.points[2].id
+            if dir_edge isa Arc
+                if dir_edge.forward
+                    push!(points, dir_edge.edge.extrapoints...)
+                else
+                    push!(points, reverse(dir_edge.edge.extrapoints)...)
+                end
+            end
+            push!(points, dir_edge.points[end])
         end
-        return collect(points)
+        return points
     end
+
+    # function getpoints(surf::Face)
+    #     points = Set{Point}()
+    #     for dir_edge in surf.loops[1].darts
+    #         push!(points, dir_edge.points[1])
+    #         push!(points, dir_edge.points[end])
+    #     end
+    #     return collect(points)
+    # end
 
     function getpoints(vol::Volume)
         points = Set{Point}()
-        for s in vol.surfaces
-            push!(points, getpoints(s)...)
+        for s in vol.spins
+            push!(points, getpoints(s.face.loops[1])...)
         end
         return collect(points)
     end
 
-    # Draw elements
-    for surf in gplot.surfaces
-        draw_surface!(cc, gplot, surf)
+
+    # Draw orphan edges
+    for edge in gplot.geo.edges
+        length(edge.faces)==0 || continue
+
+        x, y = edge.points[1].coord
+        move_to(ctx, x, y)
+
+        if edge isa Line
+            x, y = edge.points[end].coord
+            line_to(ctx, x, y)
+        elseif edge isa Arc
+            p1 = edge.points[1]
+            p4 = edge.points[3]
+            p2 = edge.extrapoints[1]
+            p3 = edge.extrapoints[3]
+    
+            pts = bezier_points_arc(p1, p2, p3, p4)
+    
+            curve_to(ctx, pts[2]..., pts[3]..., pts[4]...)
+        end
+        edgecolor = gplot.facecolor.*0.45
+        set_source_rgb(ctx, edgecolor...) # edges
+        set_line_width(ctx, gplot.lw)
+        stroke(ctx)
+
         
-        Cairo.save(cc)
+        # draw labels
+        Cairo.save(ctx)
+        set_matrix(ctx, CairoMatrix([1, 0, 0, 1, 0, 0]...))
+        
+        # point labels
+        for point in edge.points
+            x, y = data2user(gplot.canvas, point.coord[1], point.coord[2])
+            set_source_rgb(ctx, _colors_dict[:blue]...)
+            gplot.pointlabels && draw_text(ctx, x, y, string(point.id), halign="center", valign="center", angle=0)
+        end
+
+        # edge labels
+        if edge isa Line
+            x1, y1 = data2user(gplot.canvas, edge.points[1].coord[1], edge.points[1].coord[2])
+            x2, y2 = data2user(gplot.canvas, edge.points[end].coord[1], edge.points[end].coord[2])
+            x = 0.5*(x1+x2)
+            y = 0.5*(y1+y2)
+            set_source_rgb(ctx, _colors_dict[:green]...)
+            draw_text(ctx, x, y, string(edge.id), halign="center", valign="center", angle=0)
+        else
+            x, y = data2user(gplot.canvas, edge.extrapoints[2].coord[1], edge.extrapoints[2].coord[2])
+            set_source_rgb(ctx, _colors_dict[:green]...)
+            draw_text(ctx, x, y, string(edge.id), halign="center", valign="center", angle=0)
+        end
+
+        Cairo.restore(ctx)
+
+    end
+
+
+    # Draw elements
+    for face in gplot.faces
+        draw_face!(ctx, gplot, face)
+        
+        Cairo.save(ctx)
 
         # Draw surface label
-        set_matrix(cc, CairoMatrix([1, 0, 0, 1, 0, 0]...))
-        points = Set()
-        for line in surf.loops[1].lines
-            push!(points, line.points[1])
-            push!(points, line.points[end])
-            if line isa Arc
-                push!(points, line.extrapoints...)
-            end
-        end
+        set_matrix(ctx, CairoMatrix([1, 0, 0, 1, 0, 0]...))
+        points = getpoints(face.loops[1])
+        # points = [ face.loops[1].darts[1].points[1] ]
+        # for dir_edge in face.loops[1].darts
+        #     # push!(points, dir_edge.points[1])
+        #     push!(points, dir_edge.points[end])
+        #     if dir_edge isa Arc
+        #         push!(points, dir_edge.edge.extrapoints...)
+        #     end
+        # end
         C = sum(point.coord for point in points)/length(points)
         x, y = data2user(gplot.canvas, C[1], C[2])
-        set_source_rgb(cc, _colors_dict[:red]...)
-        draw_text(cc, x, y, string(surf.id), halign="center", valign="center", angle=0)
+        set_source_rgb(ctx, _colors_dict[:red]...)
+        draw_text(ctx, x, y, string(face.id), halign="center", valign="center", angle=0)
 
         # Draw points labels
-        points = getpoints(surf)
-        for point in points
-            x, y = data2user(gplot.canvas, point.coord[1], point.coord[2])
-            set_source_rgb(cc, _colors_dict[:blue]...)
-            gplot.pointlabels && draw_text(cc, x, y, string(point.id), halign="center", valign="center", angle=0)
+        for loop in face.loops
+            points = getpoints(loop)
+            for point in points
+                x, y = data2user(gplot.canvas, point.coord[1], point.coord[2])
+                set_source_rgb(ctx, _colors_dict[:blue]...)
+                gplot.pointlabels && draw_text(ctx, x, y, string(point.id), halign="center", valign="center", angle=0)
+            end
         end
 
         # Draw edges label
-        for edge in surf.loops[1].lines
-            if edge isa Line
-                x1, y1 = data2user(gplot.canvas, edge.points[1].coord[1], edge.points[1].coord[2])
-                x2, y2 = data2user(gplot.canvas, edge.points[end].coord[1], edge.points[end].coord[2])
-                x = 0.5*(x1+x2)
-                y = 0.5*(y1+y2)
-                set_source_rgb(cc, _colors_dict[:green]...)
-                draw_text(cc, x, y, string(edge.id), halign="center", valign="center", angle=0)
-            else
-                x, y = data2user(gplot.canvas, edge.extrapoints[2].coord[1], edge.extrapoints[2].coord[2])
-                set_source_rgb(cc, _colors_dict[:green]...)
-                draw_text(cc, x, y, string(edge.id), halign="center", valign="center", angle=0)
+        for loop in face.loops
+            for dir_edge in loop.darts
+                if dir_edge.edge isa Line
+                    x1, y1 = data2user(gplot.canvas, dir_edge.points[1].coord[1], dir_edge.points[1].coord[2])
+                    x2, y2 = data2user(gplot.canvas, dir_edge.points[end].coord[1], dir_edge.points[end].coord[2])
+                    x = 0.5*(x1+x2)
+                    y = 0.5*(y1+y2)
+                    set_source_rgb(ctx, _colors_dict[:green]...)
+                    draw_text(ctx, x, y, string(dir_edge.edge.id), halign="center", valign="center", angle=0)
+                else
+                    x, y = data2user(gplot.canvas, dir_edge.edge.extrapoints[2].coord[1], dir_edge.edge.extrapoints[2].coord[2])
+                    set_source_rgb(ctx, _colors_dict[:green]...)
+                    draw_text(ctx, x, y, string(dir_edge.edge.id), halign="center", valign="center", angle=0)
+                end
             end
         end
 
-        Cairo.restore(cc)
+        Cairo.restore(ctx)
     end
 
     # Draw volumes label
-    set_matrix(cc, CairoMatrix([1, 0, 0, 1, 0, 0]...))
+    Cairo.save(ctx)
+    set_matrix(ctx, CairoMatrix([1, 0, 0, 1, 0, 0]...))
     for vol in gplot.geo.volumes
         points = getpoints(vol)
         C = sum(point.coord for point in points)/length(points)
         x, y = data2user(gplot.canvas, C[1], C[2])
-        set_source_rgb(cc, _colors_dict[:orange]...)
-        draw_text(cc, x, y, string(vol.id), halign="center", valign="center", angle=0)
+        set_source_rgb(ctx, _colors_dict[:orange]...)
+        draw_text(ctx, x, y, string(vol.id), halign="center", valign="center", angle=0)
     end
+    Cairo.restore(ctx)
+
 end
 
 
-function draw_surface!(cc::CairoContext, gplot::GeometryPlot, surf::AbstractFace)
+function draw_face!(ctx::CairoContext, gplot::GeometryPlot, face::Face)
 
+    ndim = gplot.geo.ndim
+    if length(face.volumes)==0
+        color = (0.911, 0.973, 1.0)
+    else
+        color = (0.9, 0.9, 1)
+    end
 
-    # draw cells face
-    lines = surf.loops[1].lines
-    # shade = gplot.geo.ndim==3 ? gplot.shades[surf.id] : 1.0
+    on_holes = false
+    loop = face.loops[1]
+
     shade = 1.0
 
-    color = gplot.facecolor
+    on_main_loop = true
 
-    # draw element
-    if lines[1].points[1] in (lines[end].points[[1,end]])
-        pL = lines[1].points[1]
-    else
-        pL = lines[1].points[end]
-    end
-    # if lines[1].points[1] == lines[end].points[2]
-    #     pL = lines[1].points[1]
-    # else
-    #     pL = lines[1].points[2]
-    # end
-    # pL = nothing
-    x, y = pL.coord
-    new_path(cc)
-    move_to(cc, x, y)
-    for edge in lines
-        if edge isa Line
-            if pL == edge.points[1]
-                pL = edge.points[2]
-            else
-                pL = edge.points[1]
+    for loop in face.loops
+        darts = loop.darts
+
+        x, y = darts[1].points[1].coord
+        move_to(ctx, x, y)
+        for dir_edge in darts
+            if dir_edge.edge isa Line
+                x, y = dir_edge.points[end].coord
+                line_to(ctx, x, y)
+                continue
             end
-            x, y = pL.coord
-            line_to(cc, x, y)
-            continue
-        end
-        if edge isa Arc
-            if pL == edge.points[1]
-                p1 = pL
-                p2 = edge.extrapoints[1]
-                p3 = edge.extrapoints[3]
-                pL = edge.points[3]
-            else
-                p1 = pL
-                p2 = edge.extrapoints[3]
-                p3 = edge.extrapoints[1]
-                pL = edge.points[1]
+            if dir_edge.edge isa Arc
+                p1 = dir_edge.points[1]
+                p4 = dir_edge.points[3]
+                if dir_edge.forward
+                    p2 = dir_edge.edge.extrapoints[1]
+                    p3 = dir_edge.edge.extrapoints[3]
+                else
+                    p2 = dir_edge.edge.extrapoints[3]
+                    p3 = dir_edge.edge.extrapoints[1]
+                end
+
+                pts = bezier_points_arc(p1, p2, p3, p4)
+
+                curve_to(ctx, pts[2]..., pts[3]..., pts[4]...)
+                continue
             end
-
-            pts = bezier_points_arc(p1, p2, p3, pL)
-
-            curve_to(cc, pts[2]..., pts[3]..., pts[4]...)
-            continue
         end
+        
     end
     
-    close_path(cc)
-    color = (0.911, 0.973, 1.0)
-    Cairo.set_source_rgba(cc, color..., 0.8) 
-    fill(cc)
-    
-    # Draw surface lines
+    Cairo.set_source_rgba(ctx, color..., 0.5) 
+    set_fill_type(ctx, Cairo.CAIRO_FILL_RULE_EVEN_ODD)
+    fill_preserve(ctx)
+
     edgecolor = gplot.facecolor.*0.45
-    set_line_width(cc, gplot.lw)
-    set_source_rgb(cc, edgecolor...) # lines
-
-    for edge in lines
-        if edge isa Line
-            x, y = edge.points[1].coord
-            move_to(cc, x, y)
-            x, y = edge.points[2].coord
-            line_to(cc, x, y)
-            stroke(cc)
-            continue
-        end
-        if edge isa Arc
-            p1 = edge.points[1]
-            p2 = edge.extrapoints[1]
-            p3 = edge.extrapoints[3]
-            pL = edge.points[3]
-            pts = bezier_points_arc(p1, p2, p3, pL)
-
-            x, y = pts[1]
-            move_to(cc, x, y)
-            curve_to(cc, pts[2]..., pts[3]..., pts[4]...)
-            stroke(cc)
-            continue
-        end
-    end
-
-
+    set_source_rgb(ctx, edgecolor...) # edges
+    set_line_width(ctx, gplot.lw)
+    stroke(ctx)
 end
 

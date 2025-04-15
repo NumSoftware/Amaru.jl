@@ -52,16 +52,21 @@ function _show(io::IO, x, maxdepth::Int, indent::String="", tab::String="    ")
         return
     end
 
-    print(io, T)
+    # print(io, T)
+    summ = summary(x)
+    print(io, summ)
+    pnames = propertynames(x)
+    fnames = fieldnames(T)
 
-    if maxdepth==0
-        if :name in fieldnames(T) && isdefined(x, :name)
+
+    if maxdepth==0 && !contains(summ, " ")
+        if :name in pnames && isdefined(x, :name)
             print(io, "  name=", repr(getfield(x, :name)))
         end
-        if :id in fieldnames(T) && isdefined(x, :id )
+        if :id in pnames && isdefined(x, :id )
             print(io, "  id=", getfield(x, :id))
         end
-        if :tag in fieldnames(T) && isdefined(x, :tag )
+        if :tag in pnames && isdefined(x, :tag )
             tag = getfield(x, :tag)
             tag=="" || print(io, "  tag=", repr(tag))
         end
@@ -69,18 +74,19 @@ function _show(io::IO, x, maxdepth::Int, indent::String="", tab::String="    ")
 
     maxdepth==0 && return
 
-    for field in 1:nf
+    for name in pnames
 
-        fname = string(fieldname(T, field))
+        fname = string(name)
         fname[1]=='_' && continue
         println(io)
 
-
         print(io, indent*tab, fname, ": ")
 
-
-        if isdefined(x, field)
-            fieldvalue = getfield(x, field)
+        if name in fnames && !isdefined(x, name)
+            print(io, "#undef")
+        else
+            # fieldvalue = getfield(x, name)
+            fieldvalue = getproperty(x, name)
 
             if string(typeof(fieldvalue)) in not_unrolling_typenames_in_show
                 _show(io, fieldvalue, 0, indent*tab, tab)
@@ -88,8 +94,6 @@ function _show(io::IO, x, maxdepth::Int, indent::String="", tab::String="    ")
             end
 
             _show(io, fieldvalue, maxdepth-1, indent*tab)
-        else
-            print(io, "#undef")
         end
     end
 
@@ -156,7 +160,7 @@ function _show(io::IO, x::Union{AbstractArray, AbstractSet}, maxdepth::Int, inde
     maxdepth==0 && return
 
     print(io, ":")
-    MAXN = 6
+    MAXN = 8
     half = div(MAXN,2)
     idx = n<=MAXN ? [1:n;] : [1:half; n-half+1:n]
     for i in idx

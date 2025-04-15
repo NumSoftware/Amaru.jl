@@ -6,7 +6,7 @@ Annotation_params = [
     ArgInfo(:y, "y-coordinate of the annotation", cond=:(0<=y<=1), type=Real),
     KwArgInfo(:textalignment, "Alignment of the text", :auto, values=(:auto, :left, :right, :top, :bottom)),
     KwArgInfo(:target, "Coordinates of the target point of the arrow relative to data", [0.0,0.0], length=2),
-    KwArgInfo((:lw, :lineweight), "Line weight", 0.4, cond=:(lw>0)),
+    KwArgInfo((:lw, :lineweight), "Edge weight", 0.4, cond=:(lw>0)),
     KwArgInfo(:font, "Name of the font", "NewComputerModern", type=AbstractString),
     KwArgInfo(:fontsize, "Size of the font in dpi", 6.0, cond=:(fontsize>0)),
     KwArgInfo(:color, "Color of the text", :default),

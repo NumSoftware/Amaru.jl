@@ -39,6 +39,7 @@ function Base.length(cmd::PathCmd)
 
 end
 
+
 function (cmd::PathCmd)(t::Float64)
     if cmd.key==:M
         return cmd.points[1].coord
@@ -160,6 +161,7 @@ function path_from_numbers(tokens...; closed=false)
     return Path(cmds, closed, T)
 end
 
+
 function Path(tokens...; closed=false)
     # any( t->isa(t, Point), tokens ) || return path_from_numbers(tokens...; closed=closed)
 
@@ -230,7 +232,6 @@ function Path(tokens...; closed=false)
 
     return Path(points, cmds, closed, L)
 end
-
 
 
 function (path::Path)(t::Float64) 

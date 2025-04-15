@@ -15,8 +15,7 @@ fic_fun = PathFunction(:M, 0.0, 0.66*fc, :L, 0.002, 1.5*fc)
 
 # Plotting
 
-chart = Chart(
-)
+chart = Chart()
 
 X = range(0, 0.02, 200)
 # X = range(0, 0.003, 200)

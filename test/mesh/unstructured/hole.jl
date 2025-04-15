@@ -28,8 +28,10 @@ addline!(geo, p2, p3)
 addline!(geo, p3, p4)
 addline!(geo, p4, p1)
 
-surf = picksurface(geo, 0.5, 0.5)
-delete!(geo, surf)
+face = picksurface(geo, 0.5, 0.5)
+delete!(geo, face)
+
+# plot = GeometryPlot(geo); save(plot, "geo.pdf")
 
 # Block based mesh
 mesh1 = Mesh(geo, quadratic=true)

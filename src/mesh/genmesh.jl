@@ -21,7 +21,7 @@ function Mesh(geo::GeoModel; kwargs...)
     blocks  = [ b for b in geo.blocks if b isa Block ]
     iblocks = [ b for b in geo.blocks if b isa BlockInset ]
 
-    if length(geo.surfaces)>0
+    if length(geo.faces)>0
         !quiet && printstyled("Unstructured mesh generation:\n", bold=true, color=:cyan)
 
         length(blocks)>0 && warn("Mesh: Blocks are being ignored")
@@ -44,7 +44,8 @@ function Mesh(geo::GeoModel; kwargs...)
     if !quiet
         npoints = length(mesh.nodes)
         ncells  = length(mesh.elems)
-        @printf "  %4dd mesh\033[K\n" mesh.ctx.ndim
+        println("  $(mesh.ctx.ndim)d Mesh:")
+        # @printf "  %4dd mesh\033[K\n" mesh.ctx.ndim
         @printf "  %5d nodes\n" npoints
         @printf "  %5d cells\n" ncells
         nfaces  = length(mesh.faces)

@@ -474,8 +474,6 @@ function smooth!(table::DataTable, fieldx, fieldy=nothing; knots=[0.0, 1.0])
     end
 
     Idxs = split(X, X[1] .+ knots.*(X[end]-X[1]))
-    # @show X
-    # @show Idxs
 
     for i in 1:length(Idxs)
         Xi = X[Idxs[i]]

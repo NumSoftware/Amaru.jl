@@ -27,6 +27,8 @@ p1 = addpoint!(geo, 0, 0.75, 0, size=s)
 p2 = addpoint!(geo, 1, 0.75, 0, size=s)
 addline!(geo, p1, p2)
 
+# plot = GeometryPlot(geo); save(plot, "geo.pdf")
+
 mesh1 = Mesh(geo)
 
 # Block based mesh

@@ -1,0 +1,1 @@
+const Maybe{T} = Union{T, Nothing}

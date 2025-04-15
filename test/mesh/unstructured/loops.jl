@@ -49,5 +49,10 @@ addline!(geo, pa, pb)
 addline!(geo, pb, pc)
 addline!(geo, pc, pd)
 
-# mplot(geo, "geo.pdf")
-println(@test length(geo.loops)==5 && length(geo.surfaces)==5)
+println(@test length(geo.faces) == 5)
+
+# plot = GeometryPlot(geo); save(plot, "geo.pdf")
+
+
+
+

@@ -7,7 +7,7 @@ MeshPlot_params = [
     KwArgInfo((:size, :figsize), "Mesh drawing size in dpi", (220,150), length=2),
     KwArgInfo(:facecolor, "Face color", :aliceblue),
     KwArgInfo(:warp, "Warping scale", 0.0 ),
-    KwArgInfo((:lw, :lineweight), "Line weight", 0.4,  cond=:(lw>0) ),
+    KwArgInfo((:lw, :lineweight), "Edge weight", 0.4,  cond=:(lw>0) ),
     KwArgInfo(:field, "Scalar field", "" ),
     KwArgInfo(:limits, "Limits for the scalar field", [0.0,0.0], length=2 ),
     KwArgInfo(:mult, "Field multiplier", 1.0),
