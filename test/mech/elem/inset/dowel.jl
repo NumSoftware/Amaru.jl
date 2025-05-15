@@ -29,8 +29,8 @@ mats = [
         # :lines => MechTruss => LinearElastic => (E=200e6, A=0.00011),
         :lines => MechBeam => LinearElastic => (E=200e6, A=0.00011),
 
-        :linejoints => MechLSJoint => LinearLSInterface => (kn=5000, ks=6000, p=0.25),
-        # :linejoints => MechLSJoint => CebLSInterface => (taumax=12, taures=3, s1=0.001, s2=0.0011, s3=0.004, alpha=0.5, beta=0.5, ks=(12/0.001)*5, kn=5000, p=0.25)
+        :linejoints => MechBondSlip => LinearBondSlip => (kn=5000, ks=6000, p=0.25),
+        # :linejoints => MechBondSlip => CebBondSlip => (taumax=12, taures=3, s1=0.001, s2=0.0011, s3=0.004, alpha=0.5, beta=0.5, ks=(12/0.001)*5, kn=5000, p=0.25)
        ]
 
 ctx = MechContext(stressmodel=:planestress)

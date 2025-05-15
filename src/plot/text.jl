@@ -40,7 +40,7 @@ function fix_tex_elems!(elems)
     end
 
     # fix spacement for × character
-    pos = findfirst(elem -> elem[1].represented_char == '×', elems)
+    pos = findfirst(elem -> !(elem[1] isa HLine) && elem[1].represented_char == '×', elems)
     if pos !== nothing && pos < length(elems)
         elem = elems[pos]
         point = typeof(elem[2])(elem[2][1] - 0.07, elem[2][2])

@@ -14,7 +14,7 @@ mesh = Mesh(bls)
 
 mats = [
     "solids" => MechSolid => LinearElastic => (E=1.e4, nu=0.),
-    "joints" => MechRSJoint => ElasticRSJoint => (ks=1.e5, kn=1.e5, p=0.25), 
+    "joints" => MechBondSlip => ElasticRSJoint => (ks=1.e5, kn=1.e5, p=0.25), 
     "bars"   => MechBar => LinearElastic => (E=1.e8, A=0.005),
 ]
 

@@ -83,11 +83,11 @@ for i in 2
     if Amaru.makeplots
         table = log1.table
 
-        chart = Chart(; xlabel=L"$u_p$", ylabel=L"\sigma")
+        chart = Chart(; x_label=L"$u_p$", y_label=L"\sigma")
         addplot!(chart, LinePlot(table[:jup], table[:jσn], marker=:circle))
         save(chart, "up-sn.pdf")
         
-        chart = Chart(; xlabel=L"\sigma_n", ylabel=L"\tau")
+        chart = Chart(; x_label=L"\sigma_n", y_label=L"\tau")
         addplot!(chart, LinePlot(table[:jσn], table[:js2], marker=:circle))
         save(chart, "sn-tau.pdf")
 

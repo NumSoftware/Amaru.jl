@@ -4,8 +4,8 @@ table = DataTable("cscp.table")
 
 
 chart = Chart(
-    xlabel = L"\xi",
-    ylabel = L"\rho",
+    x_label = L"\xi",
+    y_label = L"\rho",
     xmult = 1e-3,
 )
 
@@ -50,8 +50,8 @@ save(chart, "chart.pdf")
 # chart2
 
 chart = Chart(
-    xlabel = L"\varepsilon_{yy}\times 1000",
-    ylabel = L"\sigma_{yy}",
+    x_label = L"\varepsilon_{yy}\times 1000",
+    y_label = L"\sigma_{yy}",
     xmult = 1e3,
 )
 
@@ -66,8 +66,8 @@ save(chart, "chart2.pdf")
 # chart3
 
 chart = Chart(
-    xlabel = L"\varepsilon_{xx}\times 1000",
-    ylabel = L"\sigma_{xx}",
+    x_label = L"\varepsilon_{xx}\times 1000",
+    y_label = L"\sigma_{xx}",
     xmult = 1e3,
 )
 

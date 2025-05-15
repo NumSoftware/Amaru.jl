@@ -46,7 +46,7 @@ mesh=Mesh(bl1, bl2, bl3, bl4, bl5, bl6, bl7, bl8, bl9, bl10, bl21, bl11, bl12, b
 mats = [
     :solids => MechSolid => DruckerPrager => (E=Ec, nu=0.2, rho=roc, alpha=0.4312, kappa=3771.2),
     :lines  => MechBar => LinearElastic => (E=Ea, A=Aa, rho=roa),
-    :joints1d => MechLSJoint => ElasticLSJoint => (ks=1.e7, kn=1.e7, p=p),
+    :joints1d => MechBondSlip => ElasticBondSlip => (ks=1.e7, kn=1.e7, p=p),
     # MaterialBind(:solids, DruckerPrager => (E=Ec, nu=0.2, rho=roc, alpha=0.4312, kappa=3771.2) ),
     # MaterialBind(:joints1D, ElasticJoint1D(ks=1.e7, kn=1.e7, A=Aa) ),
     # MaterialBind(:lines   , ElasticRod => (E=Ea, A=Aa, rho=roa) ),
@@ -55,7 +55,7 @@ mats = [
 matl = MaterialList()
 matl.add_material(:solids, MechSolid, DruckerPrager, E=Ec, nu=0.2, rho=roc, alpha=0.4312, kappa=3771.2)
 matl.add_material(:lines,  MechBar, LinearElastic, E=Ea, A=Aa, rho=roa)
-matl.add_material(:joints1d, MechLSJoint, ElasticLSJoint, ks=1.e7, kn=1.e7, p=p)
+matl.add_material(:joints1d, MechBondSlip, ElasticBondSlip, ks=1.e7, kn=1.e7, p=p)
 
 ctx   = MechContext()
 model = FEModel(mesh, mats, ctx)

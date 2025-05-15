@@ -88,8 +88,6 @@ function mech_modal_solver!(ana::MechModalAnalysis, stage::Stage; kwargs...)
 
     # todo: check there are not force boundary conditions
 
-    @show 100
-
     # get only bulk elements # todo: improve this
     model = FEModel(model.elems.bulks)
 
@@ -115,9 +113,6 @@ function mech_modal_solver!(ana::MechModalAnalysis, stage::Stage; kwargs...)
         dof.vals[dof.natname] = 0.0
     end
 
-    @show 200
-
-
     K11 = mount_K(model.elems, ndofs)[1:nu, 1:nu]
     M11 = mount_M(model.elems, ndofs)[1:nu, 1:nu]
 
@@ -142,7 +137,6 @@ function mech_modal_solver!(ana::MechModalAnalysis, stage::Stage; kwargs...)
     # eingenvalues and eingenvectors
     # Eig = eigs(P, nev=nmodes, which=:SR, tol=1e-6, maxiter=600, check=1) # SR: smallest real part
     # nenv = size(P,2) - 2
-    @show 300
     
     # Eig = eigs(P, nev=nmodes, which=:SM, tol=1e-6, ncv=min(2*nmodes, nenv), check=1) # SM: smallest magnitude
     λ, V = eigs(P, nev=nmodes, which=:SM, tol=1e-6, check=1, maxiter=10000) # SM: smallest magnitude
@@ -150,7 +144,6 @@ function mech_modal_solver!(ana::MechModalAnalysis, stage::Stage; kwargs...)
     # w0  = λ # frequencies
     # λ  = copy(w0)
     
-    @show 400
 
     # @show wi
     # @show wi

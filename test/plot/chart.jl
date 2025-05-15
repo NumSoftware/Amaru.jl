@@ -6,8 +6,8 @@ Y2 = cos.(X)
 Y3 = sin.(X).*cos.(X)
 
 chart = Chart(
-    xlabel = L"$x$ coordinate",
-    ylabel = L"$y$ coordinate",
+    x_label = L"$x$ coordinate",
+    y_label = L"$y$ coordinate",
     legend = :bottomright
 )
 

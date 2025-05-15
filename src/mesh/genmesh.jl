@@ -3,7 +3,7 @@
 Mesh_Geo_params = [
     FunInfo(:Mesh, "Creates a `Mesh` structure from a `GeoModel` object."),
     ArgInfo(:geo, "GeoModel object"),
-    KwArgInfo(:ndim, "Mesh dimension hint", 1),
+    KwArgInfo(:ndim, "Mesh dimension hint", nothing),
     KwArgInfo(:size, "Characteristic length for meshing", 0.1),
     KwArgInfo(:quadratic, "Flag for quadratic cells (gmsh)", false),
     KwArgInfo(:algorithm, "Algorithm for triangulation (gmsh)", :delaunay),
@@ -17,7 +17,6 @@ Mesh_Geo_params = [
 function Mesh(geo::GeoModel; kwargs...)
     args = checkargs([geo], kwargs, Mesh_Geo_params)
     quiet = args.quiet
-    ndim  = args.ndim
 
     # check for blocks
     blocks  = [ b for b in geo.blocks if b isa Block ]
@@ -35,9 +34,13 @@ function Mesh(geo::GeoModel; kwargs...)
     elseif length(blocks)>0
         !quiet && printstyled("Structured mesh generation:\n", bold=true, color=:cyan)
         mesh = mesh_structured(geo)
-        mesh.ctx.ndim = ndim
+        # mesh.ctx.ndim = ndim
     else
         error("Mesh: No blocks or surfaces/volumes found")
+    end
+
+    if args.ndim != nothing
+        mesh.ctx.ndim = max(args.ndim, mesh.ctx.ndim)
     end
 
     if length(geo.subpaths)>0

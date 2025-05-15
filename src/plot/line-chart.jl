@@ -30,6 +30,7 @@ Chart_params = [
     KwArgInfo( :colorbar_label, "Label for the colorbar", "" ),
     KwArgInfo( :colorbar_limits, "Range of values in the colorbar", Float64[0.0,0.0], length=2 ),
     KwArgInfo( :colorbar_font_size, "Font size for the colorbar labels", 7.0, cond=:(colorbar_font_size>0)),
+    KwArgInfo(:quiet, "Flag to set silent mode", false),
 ]
 @doc docstring(Chart_params) Chart
 
@@ -53,6 +54,8 @@ mutable struct Chart<:Figure
     icolor::Int
     iorder::Int
     args::NamedTuple
+    
+    quiet::Bool
 
     function Chart(; args...)
         args = checkargs(args, Chart_params, aliens=false)
@@ -68,6 +71,14 @@ mutable struct Chart<:Figure
         this.icolor = 1
         this.iorder = 1
         this.args = args
+
+        this.quiet = args.quiet
+
+        if !this.quiet 
+            printstyled("Chart figure\n", bold=true, color=:cyan)
+            println("  size: $(this.width) x $(this.height) dpi")
+            println("  axes: $(args.x_label) vs $(args.y_label)")
+        end
 
         return this
     end

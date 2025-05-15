@@ -25,7 +25,7 @@ addstage!(model, bcs)
 solve!(model)
 
 mchart = MeshChart(model, 
-    field = :sX,
+    field = :σx´,
     colormap = :coolwarm,
     label = L"\sigma_x",
     warp = 100
