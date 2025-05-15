@@ -45,16 +45,20 @@ function (cmd::PathCmd)(t::Float64)
         return cmd.points[1].coord
     elseif cmd.key==:L
         return cmd.points[1].coord + t*(cmd.points[2].coord-cmd.points[1].coord)
-    elseif cmd.key==:A
+    elseif cmd.key==:A  # Arc path
         X1 = cmd.points[1].coord
         X2 = cmd.points[2].coord
         X3 = cmd.points[3].coord
         axis = cross(X1-X2, X3-X2)
-        axis = axis/norm(axis)
-        r = norm(X2-X1)
+        norm(axis) == 0.0 && error("Invalid arc path: points are collinear")
+        axis = normalize(axis)
+        r = norm(X1-X2)
+        if abs(norm(X3-X2) - r) > 1e-6
+            error("Invalid arc path: points ($X1 and $X3) are not on the same circle with center $X2")
+        end
         θ = t*acos(clamp(dot(X1-X2, X3-X2)/r^2, -1, 1))
         R = Quaternion(cos(θ/2), axis[1]*sin(θ/2), axis[2]*sin(θ/2), axis[3]*sin(θ/2))
-        P = X1 + R*(X2-X1)*conj(R)
+        P = X2 + R*(X1 - X2)*conj(R)
         return P
     elseif cmd.key==:C
         X1 = cmd.points[1].coord
@@ -74,7 +78,7 @@ mutable struct Path
     closed::Bool
     len::Array{Float64,1} # normalized cumulative length
 
-    function Path(points::Array{Point}, cmds::Array{PathCmd}, closed::Bool, len::Array{Float64,1})
+    function Path(points::Vector{Point}, cmds::Vector{PathCmd}, closed::Bool, len::Vector{Float64})
         return new(points, cmds, closed, len)
     end
 end
@@ -98,68 +102,68 @@ function Base.copy(path::Path)
 end
 
 
-# todo: check this function.. currently not used
-function path_from_numbers(tokens...; closed=false)
-    n  = length(tokens)
-    idx = 1
-    cmds = PathCmd[]
-    local startpoint, endpoint
+# # todo: check this function.. currently not used
+# function path_from_numbers(tokens...; closed=false)
+#     n  = length(tokens)
+#     idx = 1
+#     cmds = PathCmd[]
+#     local startpoint, endpoint
 
-    kidx = 1
-    while kidx !== nothing
-        key = tokens[kidx]
-        nidx = kidx+1
-        kidx = findfirst( i->isa(i, Symbol), tokens[idx+1:end] )
-        if kidx === nothing
-            data = tokens[nidx:end]
-        else
-            data = tokens[nidx:kidx-1]
-        end
+#     kidx = 1
+#     while kidx !== nothing
+#         key = tokens[kidx]
+#         nidx = kidx+1
+#         kidx = findfirst( i->isa(i, Symbol), tokens[idx+1:end] )
+#         if kidx === nothing
+#             data = tokens[nidx:end]
+#         else
+#             data = tokens[nidx:kidx-1]
+#         end
 
-        if key==:M
-            p = Point(data...)
-            cmd = MoveCmd(p)
-            endpoint = p
-            if idx==2
-                startpoint = p
-            end
-        elseif key==:L
-            p2 = Point(data...)
-            cmd = LineCmd(endpoint, p2)
-            endpoint = p2
-        elseif key==:B
-            if length(data)==6
-                p2 = Point(data[1:2]...)
-                p3 = Point(data[3:4]...)
-                p4 = Point(data[5:6]...)
-            elseif length(data)==9
-                p2 = Point(data[1:3]...)
-                p3 = Point(data[4:6]...)
-                p4 = Point(data[7:9]...)
-            else
-                error("Invalid number of points for Bezier curve")
-            end
-            cmd = BezierCmd(endpoint, p2, p3, p4)
-            endpoint = p4
-        end
-        push!(cmds, cmd)
-    end
+#         if key==:M
+#             p = Point(data...)
+#             cmd = MoveCmd(p)
+#             endpoint = p
+#             if idx==2
+#                 startpoint = p
+#             end
+#         elseif key==:L
+#             p2 = Point(data...)
+#             cmd = LineCmd(endpoint, p2)
+#             endpoint = p2
+#         elseif key==:B
+#             if length(data)==6
+#                 p2 = Point(data[1:2]...)
+#                 p3 = Point(data[3:4]...)
+#                 p4 = Point(data[5:6]...)
+#             elseif length(data)==9
+#                 p2 = Point(data[1:3]...)
+#                 p3 = Point(data[4:6]...)
+#                 p4 = Point(data[7:9]...)
+#             else
+#                 error("Invalid number of points for Bezier curve")
+#             end
+#             cmd = BezierCmd(endpoint, p2, p3, p4)
+#             endpoint = p4
+#         end
+#         push!(cmds, cmd)
+#     end
 
-    if closed && firstpoint!=endpoint
-        cmd = LineCmd(endpoint, startpoint)
-        push!(cmds, cmd)
-    end
+#     if closed && firstpoint!=endpoint
+#         cmd = LineCmd(endpoint, startpoint)
+#         push!(cmds, cmd)
+#     end
 
-    if !closed && startpoint===endpoint
-        closed = true
-    end
+#     if !closed && startpoint===endpoint
+#         closed = true
+#     end
 
-    T = cumsum( length(pc) for pc in cmds )
-    T = T./T[end] # normalize
+#     T = cumsum( length(pc) for pc in cmds )
+#     T = T./T[end] # normalize
 
 
-    return Path(cmds, closed, T)
-end
+#     return Path(cmds, closed, T)
+# end
 
 
 function Path(tokens...; closed=false)
@@ -171,13 +175,11 @@ function Path(tokens...; closed=false)
     points = Point[]
 
     # local startpoint, endpoint
-
     while idx<=n
         token = tokens[idx]
         if token==:M
             p1 = tokens[idx+1]
             cmd = PathCmd(token, [ p1 ])
-            # cmd = MoveCmd(p1)
             push!(points, p1)
             push!(cmds, cmd)
             idx+=2
@@ -185,7 +187,6 @@ function Path(tokens...; closed=false)
             p1 = points[end]
             p2 = tokens[idx+1]
             cmd = PathCmd(token, [ p1, p2 ])
-            # cmd = LineCmd(p1, p2)
             push!(points, p2)
             push!(cmds, cmd)
             idx+=2
@@ -194,7 +195,6 @@ function Path(tokens...; closed=false)
             p2 = tokens[idx+1]
             p3 = tokens[idx+2]
             cmd = PathCmd(token, [p1, p2, p3])
-            # cmd = ArcCmd(p1, p2, p3)
             push!(points, p2)
             push!(points, p3)
             push!(cmds, cmd)
@@ -205,7 +205,6 @@ function Path(tokens...; closed=false)
             p3 = tokens[idx+2]
             p4 = tokens[idx+3]
             cmd = PathCmd(token, [p1, p2, p3, p4])
-            # cmd = BezierCmd(p1, p2, p3, p4)
             push!(points, p2)
             push!(points, p3)
             push!(points, p4)
@@ -221,10 +220,13 @@ function Path(tokens...; closed=false)
         cmd = LineCmd(endpoint, startpoint)
         push!(cmds, cmd)
     end
-
+    
     if !closed && points[1]===points[end]
         closed = true
     end
+
+    # get unique points in case of repeated points
+    points = unique(points)
 
     # normalized length
     L = cumsum( length(pc) for pc in cmds )
@@ -250,7 +252,6 @@ end
 mutable struct SubPath<:GeoEntity
     id      ::Int
     path    ::Path
-    closed  ::Bool
     embedded::Bool
     shape   ::CellShape
     tag     ::String
@@ -260,7 +261,6 @@ mutable struct SubPath<:GeoEntity
 
     function SubPath(
         path::Path;
-        closed::Bool  = false,
         embedded::Bool  = false,
         shape   ::CellShape = LIN3,
         tag     ::String  = "",
@@ -273,11 +273,11 @@ mutable struct SubPath<:GeoEntity
         if path.closed || embedded
             tips = :none
         end
-        return new(id, path, closed, embedded, shape, tag, jointtag, tiptag, tips)
+        return new(id, path, embedded, shape, tag, jointtag, tiptag, tips)
     end
 end
 
 
 function Base.copy(sp::SubPath)
-    return SubPath(copy(sp.path), closed=sp.closed, embedded=sp.embedded, shape=sp.shape, tag=sp.tag, jointtag=sp.jointtag, tiptag=sp.tiptag, tips=sp.tips)
+    return SubPath(copy(sp.path), embedded=sp.embedded, shape=sp.shape, tag=sp.tag, jointtag=sp.jointtag, tiptag=sp.tiptag, tips=sp.tips)
 end

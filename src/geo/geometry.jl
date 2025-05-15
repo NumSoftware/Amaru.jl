@@ -21,6 +21,8 @@ mutable struct GeoModel
     quiet::Bool
     _id::Int
     _volume_detection::Bool
+    _face_detection::Bool
+    _hole_filling::Bool
 
     function GeoModel(; kwargs...)
         args  = checkargs(kwargs, Mesh_Geo_params)
@@ -28,15 +30,13 @@ mutable struct GeoModel
         size  = args.size
         quiet = args.quiet
         !quiet && printstyled("Geometry model:\n", bold=true, color=:cyan)
-        return new( [], [], [], [], [], [], [], size, 0, quiet, 0, true )
+        return new( [], [], [], [], [], [], [], size, 0, quiet, 0, true, true, true )
     end
 end
 
 
 # Show functions
 Base.show(io::IO, geo::GeoModel) = _show(io, geo, 3, "")
-
-
 
 
 function Base.copy(geo::GeoModel)

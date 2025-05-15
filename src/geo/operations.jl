@@ -10,15 +10,11 @@ function reverse_loop(loop::Loop)
 end
 
 
-
-
-
 function move!(subpath::SubPath; dx::Real=0.0, dy::Real=0.0, dz::Real=0.0)
     for p in subpath.path.points
         p.coord = p.coord + Vec3(dx, dy, dz)
     end
 end
-
 
 
 function array!(geo::GeoModel, subpath::SubPath; nx=1, ny=1, nz=1, dx=0.0, dy=0.0, dz=0.0)
@@ -43,9 +39,9 @@ function LinearAlgebra.rotate!(path::Path; base=[0.0,0,0], axis=[0.0,0,1], angle
     digs = 8
 
     local X
-    for node in path.points
-        X          = base + R*(node.coord-base)*conj(R)
-        node.coord = round.(X, digits=digs)
+    for point in path.points
+        X = base + R*(point.coord-base)*conj(R)
+        point.coord = round.(X, digits=digs)
     end
 end
 
@@ -55,8 +51,37 @@ function LinearAlgebra.rotate!(subpath::SubPath; base=[0.0,0,0], axis=[0.0,0,1],
 end
 
 
-function polar!(geo::GeoModel, subpath::SubPath; base=[0.0,0,0], axis=[0.0,0,1], angle=360.0, n=2)
-    Δθ = angle/n
+function polar!(geo::GeoModel, subpath::SubPath; 
+    base  = [0.0,0,0],
+    axis  = [0.0,0,1],
+    from  = 0.0,
+    to    = 360.0,
+    angle = NaN,
+    n     = 2,
+)
+    @check n>0
+    from = mod(from, 360)
+
+    # if isnan(angle)
+    #     to = mod(to, 360)
+    # else
+    #     to = mod(from+angle, 360)
+    # end
+
+    # @check abs(to - from) <= 180 
+    @check abs(to - from) <= 360 
+
+    from != 0.0 && rotate!(subpath, base=base, axis=axis, angle=from)
+    angle = to - from
+
+    # angle between objects
+    if angle == 360
+        Δθ = angle/n
+    else 
+        Δθ = angle/(n-1)
+    end
+
+    # make n-1 copies
     for i in 1:n-1
         cp = copy(subpath)
         rotate!(cp, base=base, axis=axis, angle=Δθ*i)
@@ -65,15 +90,14 @@ function polar!(geo::GeoModel, subpath::SubPath; base=[0.0,0,0], axis=[0.0,0,1],
 end
 
 
+export pickface
 
-export picksurface
-
-function picksurface(geo::GeoModel, p::Point)
-    return picksurface(geo, p.coord...)
+function pickface(geo::GeoModel, p::Point)
+    return pickface(geo, p.coord...)
 end
 
 
-function picksurface(geo::GeoModel, x::Real, y::Real, z::Real=0.0)
+function pickface(geo::GeoModel, x::Real, y::Real, z::Real=0.0)
     p = Point(x, y, z)
     for s in geo.faces
         isin = inside(p, s.loops[1])
@@ -94,8 +118,6 @@ end
 function tag!(s::Face, tag::String)
     s.tag = tag
 end
-
-
 
 
 
@@ -142,8 +164,6 @@ function join_planar_surfaces!(geo::GeoModel, s1::Face, s2::Face)
 
     return s
 end
-
-
 
 
 function split_flat_face!(geo::GeoModel, face::Face, loop1::Loop, loop2::Loop)
@@ -199,6 +219,7 @@ function split_flat_face!(geo::GeoModel, face::Face, loop1::Loop, loop2::Loop)
         end
     end
 
+
     # update volumes
     if length(face.volumes)>0
         for volume in face.volumes
@@ -228,13 +249,12 @@ function split_flat_face!(geo::GeoModel, face::Face, loop1::Loop, loop2::Loop)
 end
 
 
-
-# function picksurface(geo::GeoModel, p::Point)
-#     return picksurface(geo, p.coord...)
+# function pickface(geo::GeoModel, p::Point)
+#     return pickface(geo, p.coord...)
 # end
 
 
-# function picksurface(geo::GeoModel, x::Real, y::Real, z::Real=0.0)
+# function pickface(geo::GeoModel, x::Real, y::Real, z::Real=0.0)
 #     p = Point(x, y, z)
 #     for s in geo.faces
 #         isin = inside(p, s.loops[1])

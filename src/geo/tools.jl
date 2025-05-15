@@ -177,7 +177,7 @@ function intersection(l1::Edge, l2::Edge)
     Q2 = l2.points[end].coord
     V2 = Q2-Q1
 
-    #check if they are parallel or colinear
+    #check if they are parallel or collinear
     norm(cross(V1, V2)) > tol || return nothing
 
     # check if lines are coplanar
@@ -214,7 +214,7 @@ function parallel(dart1::Dart, dart2::Dart)
 end
 
 
-function colinear(points::Vector{Point})
+function collinear(points::Vector{Point})
     length(points)<2 && return true
     tol = 1e-6
     
@@ -297,7 +297,7 @@ function coplanar(points::Vector{Point})
     X2 = points[2].coord
     X1X2 = X2-X1
 
-    # look for a non-colinear point
+    # look for a non-collinear point
     local X, N
     k = 1
     for (i,p) in enumerate(points[3:n])
@@ -379,6 +379,7 @@ end
 
 
 # todo: improve centroid calculation
+# todo: check different tolerances
 function insidepolygon(testpoints::Vector{Point}, points::Vector{Point}; tol=1e-8)
     coords = [ p.coord for p in points ]
     testcoords = [ p.coord for p in testpoints ]
@@ -399,7 +400,7 @@ function insidepolygon(testpoints::Vector{Point}, points::Vector{Point}; tol=1e-
         testcoords = [ base + R*(p.coord-base)*conj(R) for p in testpoints ]
     end
 
-    polygon   = hcat(coords...)'[:,1:2]
+    polygon = hcat(coords...)'[:,1:2]
     # check if all testpoins are in the same level as the plane from points
     for coord in testcoords
         abs(coord[3] - coords[1][3])>1e-8 && return false

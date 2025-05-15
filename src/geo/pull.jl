@@ -41,7 +41,9 @@ end
 
 function pull!(geo::GeoModel, face::Face; axis=[0.,0,1], length=1.0)
     # disable automatic volume detection
-    geo._volume_detection = false 
+    geo._volume_detection = false
+    # disable hole filling
+    geo._hole_filling = false
 
     face.flat || error("pull! only works for flat faces")
 
@@ -66,48 +68,52 @@ function pull!(geo::GeoModel, face::Face; axis=[0.,0,1], length=1.0)
     loop = addloop!(geo, loops[1])
     lid_face = getface(geo, loop)
 
-    # add lid face
+    # force add the lid face
     if lid_face===nothing
         addface!(geo, loop)
     end
 
     # remove extra faces if face has holes
-    for loop in face.loops[2:end]
-        # find a face with the same loop
-        found = false
-        for f in geo.faces
-            if loop==f.loops[1]
-                found = true
-                break
-            end
-        end
+    # for loop in face.loops[2:end]
+    #     # find a face with the same loop
+    #     found = false
+    #     for f in geo.faces
+    #         if loop==f.loops[1]
+    #             found = true
+    #             @show f.id
+    #             break
+    #         end
+    #     end
 
-        found || continue
 
-        # get hash of moved points
-        _points = [ Point(p.coord + length.*axis) for p in loop.points ]
-        _hs = sum( hash(p) for p in _points )
+    #     found || continue
+
+    #     # get hash of moved points
+    #     _points = [ Point(p.coord + length.*axis) for p in loop.points ]
+    #     _hs = sum( hash(p) for p in _points )
         
-        # find a face with a loop with same hash
-        for f in geo.faces
-            hs = sum( hash(p) for p in f.loops[1].points )
-            if hs==_hs
-                delete!(geo, f)
-                break
-            end
-        end
-    end
+    #     # find a face with a loop with same hash
+    #     for f in geo.faces
+    #         hs = sum( hash(p) for p in f.loops[1].points )
+    #         if hs==_hs
+    #             @show "hiiii"
+    #             delete!(geo, f)
+    #             break
+    #         end
+    #     end
+    # end
 
 
     # make a new volume
 
     # find_face_loops(FaceSpin(face, normal))
-
     loop = find_face_loops(FaceSpin(face, normal))[1]
-    addvolume!(geo, loop.spins)
+    addvolume!(geo, loop.spins, tag=face.tag)
 
     # restore automatic volume detection
-    geo._volume_detection = false 
+    geo._volume_detection = false
+    # restore hole filling
+    geo._hole_filling = true
 
 end
 

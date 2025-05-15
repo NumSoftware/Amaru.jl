@@ -3,12 +3,25 @@ export addpoint!, addline!, addpolygon!, addarc!, addflatface!, addvolume!, addb
 
 function addblock!(geo::GeoModel, block::AbstractBlock)
     push!(geo.blocks, block)
+
+    # update ndim
+    if geo.ndim != 3
+        ndim = any( point.coord[3] != 0.0 for point in block.points ) ? 3 : 2
+        if ndim == 2
+            ndim = any( point.coord[2] != 0.0 for point in block.points ) ? 2 : 1
+        end
+        geo.ndim = max(ndim, geo.ndim)
+    end
 end
 
 
 function addsinglepoint!(geo::GeoModel, pt::Point)
     p = getpoint(geo, pt)
-    p===nothing || return p
+    if p!==nothing 
+        pt.size>0 && (p.size = pt.size)
+        pt.tag!="" && (p.tag = pt.tag)
+        return p
+    end
     
     geo._id +=1
     pt.id = geo._id
@@ -20,7 +33,11 @@ end
 
 function addpoint!(geo::GeoModel, pt::Point)
     p = getpoint(geo, pt)
-    p===nothing || return p
+    if p!==nothing 
+        pt.size>0 && (p.size = pt.size)
+        pt.tag!="" && (p.tag = pt.tag)
+        return p
+    end
 
     # add point
     geo._id +=1
@@ -179,6 +196,8 @@ function addline!(geo::GeoModel, p1::Point, p2::Point; n=0, tag="")
         l = addsingleline!(geo, p1, p2, n=ni, tag=tag)
         push!(all_edges, l)
 
+        geo._face_detection || continue # skip face detection
+
         # check if l is an endline
         (length(p1.edges)==1 || length(p2.edges)==1) && continue
 
@@ -193,7 +212,11 @@ function addline!(geo::GeoModel, p1::Point, p2::Point; n=0, tag="")
             loops = find_flat_loops(Dart(l), subset, exclude_inner_edges=false)
 
             if length(loops)==1  # hole
-                addface!(geo, loops[1])
+                if geo._hole_filling
+                    addface!(geo, loops[1], outer_face=s)
+                else
+                    addhole!(geo, s, loops[1])
+                end
             elseif length(loops)==2  # split
                 split_flat_face!(geo, s, loops...)
             elseif length(loops) > 2
@@ -206,6 +229,7 @@ function addline!(geo::GeoModel, p1::Point, p2::Point; n=0, tag="")
 
         # add external face
         for lo in loops
+            lo in geo.loops && continue # loop already exists
             addface!(geo, lo)
         end
     end
@@ -252,52 +276,52 @@ function addarc!(geo::GeoModel, p1::Point, p2::Point, p3::Point; n=0, tag="")
     push!(p1.edges, arc)
     push!(p3.edges, arc)
     
-    # loops = find_flat_loops(arc, inner=false)
-    loops = find_flat_loops(Dart(arc); exclude_inner_edges=true)
-    
-    # add external face
-    for lo in loops
-        addface!(geo, lo)
+    if geo._face_detection
+        # loops = find_flat_loops(arc, inner=false)
+        loops = find_flat_loops(Dart(arc); exclude_inner_edges=true)
+        
+        # add external face
+        for lo in loops
+            addface!(geo, lo)
+        end
     end
 
     return arc
 end
 
 
-export addpath!
 
-function addpath!(geo::GeoModel, path::Path)
-    for cmd in path.cmds
-        # if cmd isa LineCmd
-        if cmd.key == :L
-            addline!(geo, cmd.points...)
-        end
+function addhole!(geo::GeoModel, face::Face, loop::Loop; tag="")
+    # add new loop
+    loop = addloop!(geo, loop)
+
+    push!(face.loops, loop)
+                    
+    # update faces in edges
+    for dart in loop.darts
+        push!(dart.edge.faces, face)
     end
-end
 
-addpath!(geo::GeoModel, args...; closed=false) = addpath!(geo, Path(args...; closed=closed))
-
-
-
-export addsubpath!
-function addsubpath!(geo::GeoModel, subpath::SubPath)
-    geo._id +=1
-    subpath.id = geo._id
-    push!(geo.subpaths, subpath)
-    return subpath
-end
-
-function addsubpath!(geo::GeoModel, args...; kwargs...) 
-    return addsubpath!(geo, SubPath(Path(args...); kwargs...))
+    # remove volumes that uses face
+    for v in face.volumes
+        for spin in v.spins
+            filter!(!=(v), spin.face.volumes)
+        end
+        filter!(==(v), geo.volumes)
+    end
 end
 
 
 function addsingleface!(geo::GeoModel, loop::Loop; tag="")
-
+    # creates a new face with the loop
+    # updates edges with the new face
+    # does not trigger volume detection
+    # does not chekk if it is a hole
+    # does not check for inner holes
 end
 
 
-function addface!(geo::GeoModel, loop::Loop; tag="")
+function addface!(geo::GeoModel, loop::Loop; outer_face=nothing, tag="")
     tol = 1e-6
     
     face = Face(loop, tag=tag)
@@ -335,31 +359,57 @@ function addface!(geo::GeoModel, loop::Loop; tag="")
     # update in case of flat holes
     if face.flat
         # check if loop is inside other faces (set as hole) # todo: improve for hole inside hole
-        for f in geo.faces
-            f.flat || continue
-            loop.id==f.loops[1].id && continue
-            if inside(loop, f.loops[1])
-                push!(f.loops, loop)
+        # for f in geo.faces
+        #     f.flat || continue
+        #     loop.id==f.loops[1].id && continue
+        #     if inside(loop, f.loops[1])
+        #         push!(f.loops, loop)
 
-                # update faces in edges
-                for dart in face.loops[1].darts
-                    push!(dart.edge.faces, f)
-                end
+        #         # update faces in edges
+        #         for dart in face.loops[1].darts
+        #             push!(dart.edge.faces, f)
+        #         end
 
-                # update volumes
-                for v in f.volumes
-                    spin = FaceSpin(face, getnormal(f.loops[1]))
-                    push!(v.spins, spin)
-                    push!(face.volumes, v)
-                end
+        #         # update volumes
+        #         for v in f.volumes
+        #             spin = FaceSpin(face, getnormal(f.loops[1]))
+        #             push!(v.spins, spin)
+        #             push!(face.volumes, v)
+        #         end
+        #     end
+        # end
+
+        if outer_face !== nothing # face is also a hole
+            push!(outer_face.loops, loop)
+
+            # update faces in edges
+            for dart in face.loops[1].darts
+                push!(dart.edge.faces, outer_face)
+            end
+
+            # update volumes
+            for v in outer_face.volumes
+                normal = getnormal(outer_face.loops[1])
+                spin = FaceSpin(face, normal)  # todo: this spin may be wrong, see below
+                push!(v.spins, spin)
+                # volume_is_valid(geo, v) || (v.spins[end] = FaceSpin(face, -normal)) # todo: function volume_is_valid required
+                push!(face.volumes, v)
             end
         end
 
-        # check if loop encloses other loops (set holes) # todo: improve for hole inside hole
+        # check if loop encloses other loops (set holes) 
+        # this operation might be not allowed -> error if loop encloses other loop
+        # todo: improve for hole inside hole
         for f in geo.faces
             f.flat || continue
             loop.id==f.loops[1].id && continue
-            inside(f.loops[1], loop) && push!(face.loops, f.loops[1])
+            if inside(f.loops[1], loop) 
+                push!(face.loops, f.loops[1])
+                # update faces in edges
+                for dart in f.loops[1].darts
+                    push!(dart.edge.faces, face)
+                end
+            end
         end
     end
 
@@ -406,3 +456,31 @@ function addvolume!(geo::GeoModel, spins::Vector{FaceSpin}; tag="")
     return v
 end
 
+
+
+export addpath!
+
+function addpath!(geo::GeoModel, path::Path)
+    for cmd in path.cmds
+        # if cmd isa LineCmd
+        if cmd.key == :L
+            addline!(geo, cmd.points...)
+        end
+    end
+end
+
+addpath!(geo::GeoModel, args...; closed=false) = addpath!(geo, Path(args...; closed=closed))
+
+
+
+export addsubpath!
+function addsubpath!(geo::GeoModel, subpath::SubPath)
+    geo._id +=1
+    subpath.id = geo._id
+    push!(geo.subpaths, subpath)
+    return subpath
+end
+
+function addsubpath!(geo::GeoModel, args...; kwargs...) 
+    return addsubpath!(geo, SubPath(Path(args...); kwargs...))
+end

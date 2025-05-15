@@ -32,7 +32,7 @@ end
 
 
 function Base.copy(p::Point)
-    Point(p.coord, size=p.size, id=p.id)
+    Point(p.coord, size=p.size, id=0)
 end
 
 
@@ -60,6 +60,41 @@ function getcoords(points::Array{Point,1}, ndim=3)
     npoints = length(points)
     return [ points[i].coord[j] for i in 1:npoints, j=1:ndim]
 end
+
+
+
+# Index operator for an collection of nodes
+function Base.getindex(
+    nodes::Array{Point,1}, 
+    filters::Union{Expr,Symbolic,String}...;
+    invert = false
+    )
+    
+    idxs = collect(1:length(nodes))
+
+    for filter in filters
+        if typeof(filter) in (Expr, Symbolic)
+            fnodes = nodes[idxs]
+
+            T = Bool[]
+            for node in fnodes
+                x, y, z = node.coord.x, node.coord.y, node.coord.z
+                push!(T, evaluate(filter, x=x, y=y, z=z))
+            end
+    
+            idxs = idxs[T]
+        elseif filter isa String
+            idxs = [ i for i in idxs if nodes[i].tag==filter ]
+        end
+    end
+
+    if invert
+        idxs = setdiff(1:length(nodes), idxs)
+    end
+
+    return nodes[idxs]
+end
+
 
 
 struct Dart<:GeoEntity
@@ -190,14 +225,14 @@ end
 
 
 function Plane(points::Vector{Point})
-    tol = 1e-8
+    tol = 1e-6
     
     # find a plane
     X1 = points[1].coord
     X2 = points[2].coord
     X1X2 = X2-X1
 
-    # look for a non-colinear point
+    # look for a non-collinear point
     local N, k
     for i in 2:length(points)
         p = points[i]
@@ -209,12 +244,13 @@ function Plane(points::Vector{Point})
         end
     end
 
-    norm(N)<tol && error("Plane: Points are colinear")
+    norm(N)<tol && error("Plane: Points are collinear")
 
     # test the plane at each point
     for p in points[k:end]
         X = p.coord
         if dot(X-X1, N) > tol
+            @show dot(X-X1, N)
             error("Plane: Points are not coplanar")
         end
     end
@@ -337,7 +373,7 @@ function Base.getproperty(face_spin::FaceSpin, name::Symbol)
         loops = Loop[]
         
         for (i,loop) in enumerate(face_spin.face.loops)
-            # not reverse if colinear
+            # not reverse if collinear
             rev = norm(face_spin.normal - normal) < tol ? false : true
             
             # switch direction if hole

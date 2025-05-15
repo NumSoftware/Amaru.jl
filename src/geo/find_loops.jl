@@ -254,7 +254,7 @@ function get_next_spins(spins::Vector{FaceSpin}, border::Vector{Dart}, subset::V
                 n2 = -n2
             end
 
-            θ = acos(dot(n1, n2))
+            θ = acos(clamp(dot(n1, n2), -1, 1))
             if dot(cross(n1, n2), n) > 0
                 angle = π - θ
             else
