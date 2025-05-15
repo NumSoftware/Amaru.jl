@@ -29,11 +29,40 @@ function get_font(str)
 end
 
 
+function fix_tex_elems!(elems)
+    # fix the position of the elements due to unary minus
+    if elems[1][1].represented_char == '−'
+        for i in 2:length(elems)
+            elem = elems[i]
+            point = typeof(elem[2])(elem[2][1] - 0.3, elem[2][2])
+            elems[i] = (elem[1], point, elem[3])
+        end
+    end
+
+    # fix spacement for × character
+    pos = findfirst(elem -> elem[1].represented_char == '×', elems)
+    if pos !== nothing && pos < length(elems)
+        elem = elems[pos]
+        point = typeof(elem[2])(elem[2][1] - 0.07, elem[2][2])
+        elems[pos] = (elem[1], point, elem[3])
+        for i in pos+1:length(elems)
+            elem = elems[i]
+            point = typeof(elem[2])(elem[2][1] - 0.37, elem[2][2])
+            elems[i] = (elem[1], point, elem[3])
+        end
+    end
+
+    return elems
+end
+
+
 function getsize(str::LaTeXString, fontsize::Float64)
     texelems = generate_tex_elements(str)
-    width = maximum([elem[2][1] for elem in texelems], init=0.0) + 0.7
-    maxh = maximum([elem[2][2] for elem in texelems], init=0.0) + 0.7
-    minh = minimum([elem[2][2] for elem in texelems], init=0.0) - 0.2
+    fix_tex_elems!(texelems)
+
+    width  = maximum([elem[2][1] for elem in texelems], init=0.0) + 0.7
+    maxh   = maximum([elem[2][2] for elem in texelems], init=0.0) + 0.7
+    minh   = minimum([elem[2][2] for elem in texelems], init=0.0) - 0.2
     height = maxh - minh
     return width*fontsize, height*fontsize
 end
@@ -79,6 +108,7 @@ function draw_text(cc::CairoContext, x, y, str::LaTeXString; halign="center", va
     Cairo.save(cc)
 
     texelems = generate_tex_elements(str)
+    fix_tex_elems!(texelems)
     
     # get the current font
     font_face = ccall((:cairo_get_font_face, Cairo.libcairo), Ptr{Cvoid}, (Ptr{Cvoid},), cc.ptr)

@@ -6,7 +6,7 @@ mutable struct Colorbar<:FigureComponent
     axis::Axis
     thickness::Float64  # only bar thickness 
     scale::Float64
-    innersep::Float64
+    inner_sep::Float64
     box::Vector{Float64}
     width::Float64
     height::Float64
@@ -19,14 +19,14 @@ mutable struct Colorbar<:FigureComponent
                 KwArgInfo( :colormap, "Colormap", :coolwarm),
                 KwArgInfo( :limits, "Colorbar limit values", [0.0,0.0], length=2 ),
                 KwArgInfo( :label, "Colorbar label", "", type=AbstractString ),
-                KwArgInfo( :fontsize, "Font size", 9.0, cond=:(fontsize>0)),
+                KwArgInfo( :font_size, "Font size", 9.0, cond=:(font_size>0)),
                 KwArgInfo( :font, "Font name", "NewComputerModern", type=AbstractString),
                 KwArgInfo( :ticks, "Colorbar tick values", Float64[], type=AbstractArray ),
-                KwArgInfo( :ticklabels, "Colorbar tick labels", String[], type=AbstractArray ),
-                KwArgInfo( :ticklength, "Colorbar tick length", 3 ),
+                KwArgInfo( :tick_labels, "Colorbar tick labels", String[], type=AbstractArray ),
+                KwArgInfo( :tick_length, "Colorbar tick length", 3 ),
                 KwArgInfo( :bins, "Number of bins", 6 ),
-                KwArgInfo( :innersep, "Colorbar inner separation", 3 ),
-                KwArgInfo( :scale, "Colorbar inner separation", 1.0 ),
+                KwArgInfo( :inner_sep, "Colorbar inner separation", 3 ),
+                KwArgInfo( :scale, "Size scale", 1.0 ),
             ],
             aliens=false,
         )
@@ -41,10 +41,11 @@ mutable struct Colorbar<:FigureComponent
                 location    = args.location,
                 limits      = args.limits,
                 label       = args.label,
-                fontsize    = args.fontsize,
+                font_size   = args.font_size,
                 font        = args.font,
+                bins        = args.bins,
                 # ticks       = c.args.colorbarticks,
-                # ticklabels  = c.args.colorbarticklabels,
+                # tick_labels = c.args.colorbarticklabels,
                 # mult        = c.args.colorbarmult,
             )
         end
@@ -56,19 +57,20 @@ mutable struct Colorbar<:FigureComponent
 end
 
 
-function configure!(c::Figure, cb::Colorbar)
+function configure!(fig::Figure, cb::Colorbar)
     if cb.location!==:none
         configure!(cb.axis)
-        cb.thickness = 0.035*max(c.width, c.height)
-        cb.innersep = cb.thickness
+        # cb.thickness = 0.035*max(fig.width, fig.height)
+        cb.thickness = 1.33*cb.args.font_size
+        cb.inner_sep = cb.thickness
         if cb.location==:right
-            cb.height = cb.scale*(c.height - 2*c.outerpad)
+            cb.height = cb.scale*(fig.height - 2*fig.outerpad)
             cb.axis.height = cb.height
-            cb.width = cb.innersep + cb.thickness + cb.axis.ticklength + cb.axis.width 
+            cb.width = cb.inner_sep + cb.thickness + cb.axis.tick_length + cb.axis.width 
         elseif cb.location==:bottom
-            cb.width = cb.scale*(c.width - 2*c.outerpad)
+            cb.width = cb.scale*(fig.width - 2*fig.outerpad)
             cb.axis.width = cb.width
-            cb.height = cb.innersep + cb.thickness + cb.axis.ticklength + cb.axis.height
+            cb.height = cb.inner_sep + cb.thickness + cb.axis.tick_length + cb.axis.height
         end
     end
 end
@@ -80,7 +82,7 @@ function draw!(fig::Figure, cc::CairoContext, cb::Colorbar)
     if cb.location==:right
         # Axis
         fmin, fmax = cb.axis.limits
-        x = fig.canvas.box[3]+cb.innersep+cb.thickness+cb.axis.ticklength
+        x = fig.canvas.box[3]+cb.inner_sep+cb.thickness+cb.axis.tick_length
         h = cb.height
 
         y = fig.height/2 - h/2
@@ -88,7 +90,7 @@ function draw!(fig::Figure, cc::CairoContext, cb::Colorbar)
         draw!(cc, cb.axis)
         
         # Colorbar
-        x = fig.canvas.box[3] + cb.innersep
+        x = fig.canvas.box[3] + cb.inner_sep
         w = cb.thickness
         y = fig.height/2 + h/2
 
@@ -109,13 +111,13 @@ function draw!(fig::Figure, cc::CairoContext, cb::Colorbar)
         fmin, fmax = cb.axis.limits
         w = cb.width
         x = fig.width/2 - w/2
-        y = fig.canvas.box[4]+cb.innersep+cb.thickness+cb.axis.ticklength
+        y = fig.canvas.box[4]+cb.inner_sep+cb.thickness+cb.axis.tick_length
         move_to(cc, x, y)
-        draw!(fig, cc, cb.axis)
+        draw!(cc, cb.axis)
         
         # Colorbar
         x = fig.width/2 - w/2
-        y = fig.canvas.box[4] + cb.innersep
+        y = fig.canvas.box[4] + cb.inner_sep
         h = cb.thickness
 
         pat = pattern_create_linear(x, 0.0,  x+w, 0.0)

@@ -4,7 +4,7 @@
 GeoPlot_params = [
     FunInfo(:GeometryPlot, "Creates a customizable `GeometryPlot` instance used to plot a model geometry."),
     ArgInfo(:geo, "2D/3D model geometry"),
-    KwArgInfo((:size, :figsize), "Chart size in dpi", (220,150), length=2),
+    KwArgInfo(:size, "Figure size in dpi", (220,150), length=2),
     KwArgInfo(:facecolor, "Face color", :aliceblue),
     KwArgInfo((:lw, :lineweight), "Edge weight", 0.4,  cond=:(lw>0) ),
     KwArgInfo(:font, "Font name", "NewComputerModern", type=AbstractString),
@@ -17,6 +17,7 @@ GeoPlot_params = [
     KwArgInfo(:linelabels, "Flag to show line labels", true, type=Bool ),
     KwArgInfo(:surfacelabels, "Flag to show surface labels", true, type=Bool ),
     KwArgInfo(:volumelabels, "Flag to show volume labels", true, type=Bool ),
+    KwArgInfo(:quiet, "Flag to set silent mode", false),
 ]
 @doc docstring(GeoPlot_params) GeometryPlot(geo; kwargs...)
 
@@ -24,7 +25,9 @@ GeoPlot_params = [
 mutable struct GeometryPlot<:Figure
     geo::GeoModel
     points::Vector{Point}
+    edges::Vector{Edge}
     faces::Vector{Face}
+    volumes::Vector{Volume}
     pointlabels::Bool
     linelabels::Bool
     surfacelabels::Bool
@@ -32,7 +35,7 @@ mutable struct GeometryPlot<:Figure
     canvas::Union{FigureComponent, Nothing}
     outerpad::Float64
     shades::Vector{Float64}
-    args::NamedTuple
+    # args::NamedTuple
     font::String
     fontsize::Float64
     azimut::Float64
@@ -46,13 +49,15 @@ mutable struct GeometryPlot<:Figure
 
     lw::Float64
     facecolor::Tuple
+    quiet::Bool
+
 
     function GeometryPlot(geo; args...)
         args = checkargs(args, GeoPlot_params, aliens=false)
 
         this = new()
-        this.geo = copy(geo)
-        # this.geo = geo
+        this.geo = geo
+        # this.geo = copy(geo) # todo
 
         this.canvas = nothing
         this.pointlabels = args.pointlabels
@@ -73,7 +78,14 @@ mutable struct GeometryPlot<:Figure
         this.distance    = args.distance
         this.lightvector = args.lightvector
 
-        this.args = args
+        # this.args = args
+
+        this.quiet = args.quiet
+
+        if !this.quiet 
+            printstyled("Geometry plot\n", bold=true, color=:cyan)
+            println("  size: $(this.width) x $(this.height) dpi")
+        end
 
         return this
     end
@@ -150,7 +162,7 @@ end
 
 
 function configure!(gplot::GeometryPlot)
-    geo = gplot.geo
+    geo = copy(gplot.geo)
     ndim = geo.ndim
     points = geo.points
     edges = geo.edges
@@ -184,7 +196,9 @@ function configure!(gplot::GeometryPlot)
     end
 
     gplot.points = points
+    gplot.edges = geo.edges
     gplot.faces = faces
+    gplot.volumes = geo.volumes
 
     # Canvas 
     gplot.canvas = Canvas()
@@ -203,7 +217,8 @@ function configure!(gplot::GeometryPlot)
     Ymin = gplot.outerpad
     Xmax = width - rpane - gplot.outerpad
     Ymax = height - bpane - gplot.outerpad
-    canvas.box = [ gplot.outerpad, gplot.outerpad, width-rpane-gplot.outerpad, height-bpane-gplot.outerpad ]
+    # canvas.box = [ gplot.outerpad, gplot.outerpad, width-rpane-gplot.outerpad, height-bpane-gplot.outerpad ]
+    canvas.box = [ Xmin, Ymin, Xmax, Ymax ]
 
     # Canvas limits
     xmin, xmax = extrema( point.coord[1] for point in gplot.points)
@@ -285,7 +300,7 @@ function draw!(gplot::GeometryPlot, ctx::CairoContext)
 
 
     # Draw orphan edges
-    for edge in gplot.geo.edges
+    for edge in gplot.edges
         length(edge.faces)==0 || continue
 
         x, y = edge.points[1].coord
@@ -396,7 +411,7 @@ function draw!(gplot::GeometryPlot, ctx::CairoContext)
     # Draw volumes label
     Cairo.save(ctx)
     set_matrix(ctx, CairoMatrix([1, 0, 0, 1, 0, 0]...))
-    for vol in gplot.geo.volumes
+    for vol in gplot.volumes
         points = getpoints(vol)
         C = sum(point.coord for point in points)/length(points)
         x, y = data2user(gplot.canvas, C[1], C[2])
@@ -410,7 +425,6 @@ end
 
 function draw_face!(ctx::CairoContext, gplot::GeometryPlot, face::Face)
 
-    ndim = gplot.geo.ndim
     if length(face.volumes)==0
         color = (0.911, 0.973, 1.0)
     else

@@ -32,12 +32,12 @@ mutable struct Annotation <: FigureComponent
 end
 
 
-function addannotation!(c::AbstractChart, a::Annotation)
+function addannotation!(c::Figure, a::Annotation)
     push!(c.annotations, a)
 end
 
 
-function draw!(c::AbstractChart, cc::CairoContext, a::Annotation)
+function draw!(c::Figure, cc::CairoContext, a::Annotation)
     
     set_font_size(cc, a.fontsize)
     font = get_font(a.font)

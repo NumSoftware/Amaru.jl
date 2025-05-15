@@ -1,6 +1,6 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-const _legend_positions=[
+const _legend_locations=[
     :right,
     :left,
     :top,
@@ -21,9 +21,9 @@ const _legend_positions=[
 
 Legend_params = [
     FunInfo(:Legend, "Creates a `Legend` instance."),
-    KwArgInfo((:location, :loc), "Location of the legend", :topright, values=_legend_positions ),
+    KwArgInfo(:location, "Location of the legend", :topright, values=_legend_locations ),
     KwArgInfo(:font, "Name of the font", "NewComputerModern", type=AbstractString),
-    KwArgInfo(:fontsize, "Size of the font in dpi", 7.0, cond=:(fontsize>0)),
+    KwArgInfo(:font_size, "Size of the font in dpi", 7.0, cond=:(font_size>0)),
     KwArgInfo(:ncols, "Number of columns in the legend", 1, cond=:(ncols>0)),
 ]
 @doc docstring(Legend_params) Legend
@@ -31,7 +31,7 @@ Legend_params = [
 mutable struct Legend<:FigureComponent
     location::Symbol
     font::String
-    fontsize::Float64
+    font_size::Float64
     ncols::Int
     handle_length::Float64  # length of the line
     row_sep::Float64      # separation between labels
@@ -43,7 +43,7 @@ mutable struct Legend<:FigureComponent
 
     function Legend(; kwargs...)
         args = checkargs(kwargs, Legend_params)
-        this = new(args.location, args.font, args.fontsize, args.ncols)
+        this = new(args.location, args.font, args.font_size, args.ncols)
         return this
     end
 end

@@ -14,5 +14,6 @@ include("line-chart.jl")
 
 include("colorbar.jl")
 
+include("axis-widget.jl")
 include("mesh-plot.jl")
 include("geo-plot.jl")

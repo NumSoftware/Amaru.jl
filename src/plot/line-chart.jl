@@ -7,34 +7,34 @@
 
 Chart_params = [
     FunInfo( :Chart, "Creates a customizable `Chart` instance."),
-    KwArgInfo( (:size, :figsize), "Chart drawing size in dpi", (220,150), length=2),
+    KwArgInfo( :size, "Chart drawing size in dpi", (220,150), length=2),
     KwArgInfo( :font, "Name of the font", "NewComputerModern", type=AbstractString),
-    KwArgInfo( :fontsize, "Size of the font in dpi", 7.0, cond=:(fontsize>0)),
-    KwArgInfo( (:xlimits, :xlims), "Limits of the x-axis", [0.0,0.0], length=2 ),
-    KwArgInfo( (:ylimits, :ylims), "Limits of the y-axis", [0.0,0.0], length=2 ),
-    KwArgInfo( :aspectratio, "Ratio of y-unit to x-unit", :auto, values=(:auto, :equal) ),
+    KwArgInfo( :font_size, "Size of the font in dpi", 7.0, cond=:(font_size>0)),
+    KwArgInfo( (:x_limits, :xlims), "Limits of the x-axis", [0.0,0.0], length=2 ),
+    KwArgInfo( (:y_limits, :ylims), "Limits of the y-axis", [0.0,0.0], length=2 ),
+    KwArgInfo( :aspect_ratio, "Ratio of y-unit to x-unit", :auto, values=(:auto, :equal) ),
     KwArgInfo( :xmult, "Multiplier for x-axis values", 1.0 ),
-    KwArgInfo( :ymult, "Multiplier for y-axis values", 1.0 ),
-    KwArgInfo( :xbins, "Quantity of bins along the x-axis", 7 ),
-    KwArgInfo( :ybins, "Quantity of bins along the y-axis", 6 ),
-    KwArgInfo( :xlabel, "Text label for the x-axis", L"$x$", type=AbstractString ),
-    KwArgInfo( :ylabel, "Text label for the y-axis", L"$y$", type=AbstractString ),
-    KwArgInfo( :xticks, "Tick positions along the x-axis", Float64[], type=AbstractArray ),
-    KwArgInfo( :yticks, "Tick positions along the y-axis", Float64[], type=AbstractArray ),
-    KwArgInfo( :xticklabels, "Tick labels for each tick mark on the x-axis", String[], type=AbstractArray ),
-    KwArgInfo( :yticklabels, "Tick labels for each tick mark on the y-axis", String[], type=AbstractArray ),
-    KwArgInfo( (:legendloc, :legend), "Position of the legend on the chart", :topright, values=_legend_positions ),
-    KwArgInfo( :legendfontsize, "Font size for the legend", :fontsize, cond=:(legendfontsize>0)),
-    KwArgInfo( (:colorbarloc, :colorbar), "Placement of the colorbar", :right, values=(:right, :bottom) ),
-    KwArgInfo( (:colorbarscale, :cbscale), "Scaling factor for the colorbar", 0.9, cond=:(colorbarscale>0) ),
-    KwArgInfo( (:colorbarlabel, :cblabel), "Label for the colorbar", "" ),
-    KwArgInfo( (:colorbarlimits, :cblimits), "Range of values in the colorbar", Float64[0.0,0.0], length=2 ),
-    KwArgInfo( (:colorbarfontsize, :cbfontsize), "Font size for the colorbar labels", 7.0, cond=:(colorbarfontsize>0)),
+    KwArgInfo( :y_mult, "Multiplier for y-axis values", 1.0 ),
+    KwArgInfo( :x_bins, "Quantity of bins along the x-axis", 7 ),
+    KwArgInfo( :y_bins, "Quantity of bins along the y-axis", 6 ),
+    KwArgInfo( :x_label, "Text label for the x-axis", L"$x$", type=AbstractString ),
+    KwArgInfo( :y_label, "Text label for the y-axis", L"$y$", type=AbstractString ),
+    KwArgInfo( :x_ticks, "Tick positions along the x-axis", Float64[], type=AbstractArray ),
+    KwArgInfo( :y_ticks, "Tick positions along the y-axis", Float64[], type=AbstractArray ),
+    KwArgInfo( :x_tick_labels, "Tick labels for each tick mark on the x-axis", String[], type=AbstractArray ),
+    KwArgInfo( :y_tick_labels, "Tick labels for each tick mark on the y-axis", String[], type=AbstractArray ),
+    KwArgInfo( :legend, "Position of the legend on the chart", :topright, values=_legend_locations ),
+    KwArgInfo( :legend_font_size, "Font size for the legend", :font_size, cond=:(legend_font_size>0)),
+    KwArgInfo( :colorbar, "Placement of the colorbar", :right, values=(:right, :bottom) ),
+    KwArgInfo( :colorbar_scale, "Scaling factor for the colorbar", 0.9, cond=:(colorbar_scale>0) ),
+    KwArgInfo( :colorbar_label, "Label for the colorbar", "" ),
+    KwArgInfo( :colorbar_limits, "Range of values in the colorbar", Float64[0.0,0.0], length=2 ),
+    KwArgInfo( :colorbar_font_size, "Font size for the colorbar labels", 7.0, cond=:(colorbar_font_size>0)),
 ]
 @doc docstring(Chart_params) Chart
 
 
-mutable struct Chart<:AbstractChart
+mutable struct Chart<:Figure
     width::Float64
     height::Float64
     canvas::Union{Canvas, Nothing}
@@ -115,11 +115,11 @@ function configure!(c::Chart)
     if c.legend===nothing
         # make legend if any dataseries has a label
         if any( ds.label!="" for ds in c.dataseries )
-            # fontsize = c.args.legendfontsize > c.args.fontsize ? c.args.fontsize || c.args.legendfontsize
+            # font_size = c.args.legend_font_size > c.args.font_size ? c.args.font_size || c.args.legend_font_size
             c.legend = Legend(; 
                 location = c.args.legendloc,
                 font     = c.args.font,
-                fontsize = c.args.legendfontsize,
+                font_size = c.args.legend_font_size,
                 ncols    = 1
             )
             configure!(c, c.legend)
@@ -131,25 +131,27 @@ function configure!(c::Chart)
     # configure axes
     
     c.xaxis = Axis(; 
-        direction  = :horizontal,
-        limits     = c.args.xlimits,
-        label      = c.args.xlabel,
-        font       = c.args.font,
-        fontsize   = c.args.fontsize,
-        ticks      = c.args.xticks,
-        ticklabels = c.args.xticklabels,
-        mult       = c.args.xmult,
+        direction   = :horizontal,
+        limits      = c.args.x_limits,
+        label       = c.args.x_label,
+        font        = c.args.font,
+        font_size   = c.args.font_size,
+        ticks       = c.args.x_ticks,
+        tick_labels = c.args.x_tick_labels,
+        mult        = c.args.xmult,
+        bins      = c.args.x_bins,
     )
     
     c.yaxis = Axis(; 
-        direction  = :vertical,
-        limits     = c.args.ylimits,
-        label      = c.args.ylabel,
-        font       = c.args.font,
-        fontsize   = c.args.fontsize,
-        ticks      = c.args.yticks,
-        ticklabels = c.args.yticklabels,
-        mult       = c.args.ymult,
+        direction   = :vertical,
+        limits      = c.args.y_limits,
+        label       = c.args.y_label,
+        font        = c.args.font,
+        font_size   = c.args.font_size,
+        ticks       = c.args.y_ticks,
+        tick_labels = c.args.y_tick_labels,
+        mult        = c.args.y_mult,
+        bins      = c.args.y_bins,
     )
 
     # configure axes, may change chart pads
@@ -175,7 +177,7 @@ function configure!(c::Chart, canvas::Canvas)
     ymin, ymax = c.yaxis.limits
     # canvas.limits = [ xmin, ymin, xmax, ymax ]
 
-    if c.args.aspectratio==:equal
+    if c.args.aspect_ratio==:equal
         # compute extra limits
         width = c.width - c.yaxis.width - c.leftpad - c.rightpad
         height = c.height - c.xaxis.height - c.toppad - c.rightpad
@@ -242,7 +244,7 @@ function configure!(chart::Chart, xax::Axis, yax::Axis)
                     limits = [-0.1, 0.1]
                 end
             else
-                limits = collect(extrema(chart.args.xticks))
+                limits = collect(extrema(chart.args.x_ticks))
             end
 
             # extend limits
@@ -264,7 +266,7 @@ function configure!(chart::Chart, xax::Axis, yax::Axis)
     yax.height = height - xax.height - chart.toppad - chart.bottompad
 
     # update chart.rightpad if required
-    label_width = getsize(xax.ticklabels[end], xax.fontsize)[1] 
+    label_width = getsize(xax.tick_labels[end], xax.font_size)[1] 
     xdist = xax.width*(xax.limits[2]-xax.ticks[end])/(xax.limits[2]-xax.limits[1]) # distance of the right most tick to the right side of axis
     if xdist-label_width/2 < 0
         chart.rightpad += label_width/2 - xdist
@@ -272,7 +274,7 @@ function configure!(chart::Chart, xax::Axis, yax::Axis)
     end
 
     # update chart.toppad if required
-    label_height = getsize(yax.ticklabels[end], yax.fontsize)[2] 
+    label_height = getsize(yax.tick_labels[end], yax.font_size)[2] 
     ydist = yax.height * (yax.limits[2] - yax.ticks[end])/(yax.limits[2]-yax.limits[1]) # distance of the upper most tick to the top side of axis
     if ydist-label_height/2 < 0
         chart.toppad += label_height/2 - ydist
@@ -295,17 +297,17 @@ end
 
 
 function configure!(c::Chart, legend::Legend)
-    legend.handle_length = 1.9*legend.fontsize
-    legend.row_sep = 0.3*legend.fontsize
-    legend.col_sep = 1.5*legend.fontsize
+    legend.handle_length = 1.9*legend.font_size
+    legend.row_sep = 0.3*legend.font_size
+    legend.col_sep = 1.5*legend.font_size
     legend.inner_pad = 1.5*legend.row_sep
     legend.outer_pad = legend.inner_pad
 
     plots = [ p for p in c.dataseries if p.label != ""]
     
     nlabels = length(plots)
-    label_width = maximum( getsize(plot.label, legend.fontsize)[1] for plot in plots )
-    label_heigh = maximum( getsize(plot.label, legend.fontsize)[2] for plot in plots )
+    label_width = maximum( getsize(plot.label, legend.font_size)[1] for plot in plots )
+    label_heigh = maximum( getsize(plot.label, legend.font_size)[2] for plot in plots )
 
     handle_length = legend.handle_length
     row_sep       = legend.row_sep
@@ -444,7 +446,7 @@ function draw!(chart::Chart, cc::CairoContext, p::LineSeries)
         α = -atand(y2-y1, x2-x1) # tilt
 
         # pads
-        pad = chart.args.fontsize*0.3
+        pad = chart.args.font_size*0.3
         
         dx = pad*abs(sind(α))
         dy = pad*abs(cosd(α))
@@ -477,7 +479,7 @@ function draw!(chart::Chart, cc::CairoContext, p::LineSeries)
             α = 0.0
         end
 
-        set_font_size(cc, chart.args.fontsize*0.9)
+        set_font_size(cc, chart.args.font_size*0.9)
         font = get_font(chart.args.font)
         select_font_face(cc, font, Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL )
         set_source_rgb(cc, 0, 0, 0)
@@ -491,7 +493,7 @@ function draw!(c::Chart, cc::CairoContext, legend::Legend)
 
     plots = [ p for p in c.dataseries if p.label != ""]
     
-    set_font_size(cc, legend.fontsize)
+    set_font_size(cc, legend.font_size)
     font = get_font(legend.font)
     select_font_face(cc, font, Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL )
 
@@ -506,7 +508,7 @@ function draw!(c::Chart, cc::CairoContext, legend::Legend)
     col_witdhs = zeros(ncols)
     for (k, plot) in enumerate(plots)
         j = k%ncols==0 ? ncols : k%ncols # column
-        label_width = getsize(cc, plot.label, legend.fontsize)[1]
+        label_width = getsize(cc, plot.label, legend.font_size)[1]
         item_width = handle_length + 2*inner_pad + label_width
         col_witdhs[j] = max(col_witdhs[j], item_width)
     end
@@ -565,7 +567,7 @@ function draw!(c::Chart, cc::CairoContext, legend::Legend)
     stroke(cc)
 
     # draw labels
-    label_heigh = maximum( getsize(plot.label, legend.fontsize)[2] for plot in plots )
+    label_heigh = maximum( getsize(plot.label, legend.font_size)[2] for plot in plots )
 
     for (k, plot) in enumerate(plots)
         i = ceil(Int, k/ncols)  # line
@@ -590,7 +592,7 @@ function draw!(c::Chart, cc::CairoContext, legend::Legend)
 
         # draw label
         x = x2 + handle_length + 2*inner_pad
-        y = y2 + 0.25*legend.fontsize
+        y = y2 + 0.25*legend.font_size
 
         set_source_rgb(cc, 0, 0, 0)
         draw_text(cc, x, y, plot.label, halign="left", valign="bottom", angle=0)
