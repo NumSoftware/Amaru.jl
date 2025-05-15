@@ -122,6 +122,16 @@ function mesh_unstructured(geo::GeoModel; kwargs...)
     # embed points
     for p in geo.points
         length(p.edges)==0 || continue
+
+        # search in sub-paths
+        found = false
+        for spath in geo.subpaths
+            if p in spath.path.points
+                found = true
+                break
+            end
+        end
+        found && continue
     
         # search surfaces
         for s in geo.faces
@@ -134,7 +144,7 @@ function mesh_unstructured(geo::GeoModel; kwargs...)
 
     # embed lines
     for l in geo.edges
-        l isa Edge || continue
+        l isa Line || continue
         length(l.faces)==0 || continue
         for s in geo.faces
             s.loops[1].flat || continue
@@ -162,7 +172,7 @@ function mesh_unstructured(geo::GeoModel; kwargs...)
     
     gmsh.finalize()
     mesh = Mesh(tempfile)
-    # rm(tempfile, force=true)
+    rm(tempfile, force=true)
     rm(logfile, force=true)
 
     # flip elements
@@ -198,7 +208,7 @@ function mesh_unstructured(geo::GeoModel; kwargs...)
         node.tag = tag
     end
 
-    syncronize!(mesh, reorder=true)
+    synchronize!(mesh, sortnodes=true)
 
     return mesh
 

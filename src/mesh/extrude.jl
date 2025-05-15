@@ -215,7 +215,7 @@ function extrude(mesh::Mesh; length::Real=1.0, n::Int=1, axis=nothing, quiet=tru
     newmesh = Mesh()
     newmesh.nodes = nodes
     newmesh.elems = cells
-    syncronize!(newmesh, reorder=true)
+    synchronize!(newmesh, sortnodes=true)
 
     if !quiet
         @printf "  %5d points obtained\n" Base.length(newmesh.nodes)

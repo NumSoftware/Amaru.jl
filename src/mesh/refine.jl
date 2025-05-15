@@ -96,7 +96,7 @@ function hrefine(mesh::Mesh; n=2, quiet=true)
 
     end
 
-    syncronize!(newmesh, reorder=true)
+    synchronize!(newmesh, sortnodes=true)
     return newmesh
 end
 
@@ -136,7 +136,7 @@ function prefine(mesh::Mesh; n=2, quiet=true)
     newmesh = Mesh()
     newmesh.nodes = nodes
     newmesh.elems = cells
-    syncronize!(newmesh, reorder=true)
+    synchronize!(newmesh, sortnodes=true)
 
     return newmesh
 end

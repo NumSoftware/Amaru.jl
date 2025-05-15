@@ -199,7 +199,7 @@ function revolve(
     newmesh = Mesh()
     newmesh.nodes = nodes
     newmesh.elems = cells
-    syncronize!(newmesh, reorder=true)
+    synchronize!(newmesh, sortnodes=true)
     newmesh.ctx.ndim = max(mesh.ctx.ndim, newmesh.ctx.ndim)
 
     return newmesh
@@ -273,7 +273,7 @@ function revolve(node::Node;
     newmesh = Mesh()
     newmesh.nodes = nodes
     newmesh.elems = cells
-    syncronize!(newmesh, reorder=true)
+    synchronize!(newmesh, sortnodes=true)
 
     return newmesh
 

@@ -8,14 +8,16 @@ end
 
 
 function gen_insets!(mesh::Mesh, subpath::SubPath)
-    cmds        = subpath.path.cmds
-    closed      = subpath.closed
-    tag         = subpath.tag
-    jointtag    = subpath.jointtag
-    tiptag = subpath.tiptag
-    tips    = subpath.tips
-    embedded    = subpath.embedded
-    shape       = subpath.shape
+    cmds     = subpath.path.cmds
+    closed   = subpath.path.closed
+    tag      = subpath.tag
+    jointtag = subpath.jointtag
+    tiptag   = subpath.tiptag
+    tips     = subpath.tips
+    embedded = subpath.embedded
+    shape    = subpath.shape
+
+    # @show closed
 
     # TODO: add option: merge_points
     # TODO: check closed when hole 
@@ -34,7 +36,8 @@ function gen_insets!(mesh::Mesh, subpath::SubPath)
 
     firstnode = Node(cmds[1].points[1].coord)
     lastnode = nothing
-    for cmd in cmds
+    last_cmd = false
+    for (i,cmd) in enumerate(cmds)
         cmd.key==:M && continue
 
         # find the initial element
@@ -43,6 +46,7 @@ function gen_insets!(mesh::Mesh, subpath::SubPath)
 
         first_segment = true
         last_segment  = false
+        last_cmd = i==length(cmds)
         s  = 0.0
         s1 = 0.0
 
@@ -115,7 +119,7 @@ function gen_insets!(mesh::Mesh, subpath::SubPath)
                 P1 = lastnode
             end
 
-            if last_segment && closed
+            if last_cmd && last_segment && closed
                 P2 = firstnode
             else 
                 P2 = Node(X)

@@ -199,7 +199,7 @@ function mirror(mesh::Mesh; axis=[0.0, 0, 1], base=[0.0, 0, 0])
         isinverted(elem) && flip!(elem)
     end
 
-    syncronize!(newmesh, reorder=false)
+    synchronize!(newmesh, sortnodes=false)
     return newmesh
 end
 
@@ -519,7 +519,7 @@ end
 
 export cyclecoords!
 
-function cyclecoords!(mesh::Mesh, n::Int)
+function cyclecoords!(mesh::Mesh, n::Int=1)
     idxs = [1,2,3]
     circshift!(idxs, n)
     for p in mesh.nodes
@@ -529,6 +529,41 @@ function cyclecoords!(mesh::Mesh, n::Int)
     if length(mesh.node_data)>0 || length(mesh.elem_data)>0
         notify("cyclecoords!: mesh associated data was not modified.")
     end
+end
+
+# export project_to_2d!
+
+# function project_to_2d!(mesh::Mesh, dirs::Vector{Int})
+#     for node in mesh.nodes
+#         coord = zeros(3)
+#         coord[[1,2]] = node.coord[dirs]
+#         node.coord = Vec3(coord)
+#     end
+#     mesh.ctx.ndim = 2
+
+#     if haskey(mesh.node_data, "U")
+#         idxs = [dirs; setdiff([1,2,3], dirs)]
+#         mesh.node_data["U"] = mesh.node_data["U"][:, idxs]
+#     end
+    
+#     return mesh
+# end
+
+export warp
+
+function warp(mesh::Mesh; scale=1.0)
+    newmesh = copy(mesh)
+
+    U = get(newmesh.node_data, "U", nothing)
+    if U === nothing
+        alert("warp: Vector field U not found for warping.")
+        return newmesh
+    end
+
+    for (i,node) in enumerate(newmesh.nodes)
+        node.coord = node.coord + scale*U[i,:]  
+    end
+    return newmesh
 end
 
 

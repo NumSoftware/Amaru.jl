@@ -20,7 +20,7 @@ include("gen_insets.jl")
 include("genmesh.jl")
 
 include("io.jl")
-export Mesh, fixup!, quality!, reorder!, save, get_outer_facets, get_neighbors, threshold, datafields
+export Mesh, fixup!, quality!, sortnodes!, save, get_outer_facets, get_neighbors, threshold, datafields
 
 include("block_inset.jl")
 export BlockInset

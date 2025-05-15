@@ -78,10 +78,15 @@ function save_vtk(mesh::AbstractDomain, filename::String; desc::String="")
     end
 
     # Write cell data
+    
     if has_elem_data
+        any( contains(field, "tag-") for field in keys(mesh.elem_data) ) && warn("save: Skipping tag string while saving mesh in .vtk legacy format")
+
         println(f, "CELL_DATA ", ncells)
         for (field,D) in mesh.elem_data
             isempty(D) && continue
+            contains(field, "tag-") && continue
+
             isfloat = eltype(D)<:AbstractFloat
 
             dtype = isfloat ? "float64" : "int"
@@ -160,6 +165,32 @@ end
 
 
 function save_vtu(mesh::AbstractDomain, filename::String; desc::String="", compress=false)
+    # Update tag fields if available: add two UInt64 fields to enconde the tag
+    tags = collect(Set(elem.tag for elem in mesh.elems))
+    if length(tags)>1 || tags[1] != ""
+        tag_d = Dict( tag=>i for (i,tag) in enumerate(tags) )
+        parts = Tuple{String,String}[]
+        for tag in tags
+            length(codeunits(tag))>16  && error("Mesh: tag '$tag' too long. Max length is 16 UTF units.")
+            t1, t2 = safe_string_cut(tag, 8)
+            push!(parts, (t1, t2))
+        end
+
+        Ts1 = zeros(UInt, length(mesh.elems))
+        Ts2 = zeros(UInt, length(mesh.elems))
+        for (i,elem) in enumerate(mesh.elems)
+            t1, t2 = parts[tag_d[elem.tag]]
+            Ts1[i] = encode_string_to_uint64(t1)
+            Ts2[i] = encode_string_to_uint64(t2)
+        end
+
+        T = Int[ tag_d[elem.tag]-1 for elem in mesh.elems ]
+
+        mesh.elem_data["tag-s1"] = Ts1
+        mesh.elem_data["tag-s2"] = Ts2
+        mesh.elem_data["tag"]    = T
+    end
+
     npoints = length(mesh.nodes)
     ncells  = length(mesh.elems)
     root = XmlElement("VTKFile", attributes=("type"=>"UnstructuredGrid", "version"=>"1.0",  "byte_order"=>"LittleEndian", "header_type"=>"UInt64", "compressor"=>"vtkZLibDataCompressor"))
@@ -229,13 +260,14 @@ function save_vtu(mesh::AbstractDomain, filename::String; desc::String="", compr
         addchild!(piece, xcelldata)
     end
 
+    # Compression
     if compress
         xappended = XmlElement("AppendedData", attributes=("encoding"=>"raw",))
         xappended.content = take!(buf)
         addchild!(root, xappended)
     end
 
-    fileatts = ("version"=>"1.0",)
+    fileatts = ("version"=>"1.0", "encoding"=>"UTF-8")
     doc = XmlDocument(fileatts)
     addchild!(doc, XmlComment(desc))
     addchild!(doc, root)
@@ -247,23 +279,25 @@ function add_extra_fields!(mesh::AbstractDomain)
     # Add field for joints
     if any( c.shape.family==JOINTCELL for c in mesh.elems )
         ncells = length(mesh.elems)
-        joint_data = zeros(Int, ncells, 3) # nlayers, first link, second link
+        joint_data = zeros(Int, ncells, 3) # nlayers, first linked cell, second linked cell
         for i in 1:ncells
             cell = mesh.elems[i]
             nlayers = cell.shape.name[1:2]=="J3" ? 3 : 2
             if cell.shape.family==JOINTCELL
                 joint_data[i,1] = nlayers
                 joint_data[i,2] = cell.linked_elems[1].id
-                joint_data[i,3] = cell.linked_elems[2].id
+                if length(cell.linked_elems)==2 # only for cohesive elements (boundary joints have only one linked cell)
+                    joint_data[i,3] = cell.linked_elems[2].id
+                end
             end
         end
         mesh.elem_data["joint-data"] = joint_data
     end
 
-    # Add field for embedded nodes
+    # Add field for inset nodes
     if any( c.shape.family==LINEJOINTCELL for c in mesh.elems )
         ncells = length(mesh.elems)
-        inset_data = zeros(Int, ncells, 3) # npoints, first link id, second link id
+        inset_data = zeros(Int, ncells, 3) # npoints, first linked cell id, second linked cell id
         for i in 1:ncells
             cell = mesh.elems[i]
             if cell.shape.family==LINEJOINTCELL
@@ -273,6 +307,19 @@ function add_extra_fields!(mesh::AbstractDomain)
             end
         end
         mesh.elem_data["inset-data"] = inset_data
+    end
+
+    # Add field for embedded elements
+    if any( c.shape.family==LINECELL && length(c.linked_elems)>0 for c in mesh.elems )
+        ncells = length(mesh.elems)
+        embedded_data = zeros(Int, ncells) # host cell id
+        for i in 1:ncells
+            cell = mesh.elems[i]
+            if cell.shape.family==LINECELL && length(cell.linked_elems)>0
+                embedded_data[i] = cell.linked_elems[1].id
+            end
+        end
+        mesh.elem_data["embedded-data"] = embedded_data
     end
 end
 
@@ -444,6 +491,18 @@ function read_vtk(filename::String)
 end
 
 
+# # Build tag if available
+# function buil_tag_fields!(mesh::AbstractDomain)
+#     if haskey(mesh.elem_data, "tag-s1") && haskey(mesh.elem_data, "tag-s2")
+#         Ts1 = mesh.elem_data["tag-s1"]
+#         Ts2 = mesh.elem_data["tag-s2"]
+#         for (i, elem) in enumerate(mesh.elems)
+#             elem.tag = decode_uint64_to_string(Ts1[i]) * decode_uint64_to_string(Ts2[i])
+#         end
+#     end
+# end
+
+
 function read_vtu(filename::String)
     doc = XmlDocument(filename)
 
@@ -512,7 +571,7 @@ end
 
 
 function get_array(data_array::XmlElement)
-    TYPES = Dict("Float32"=>Float32, "Float64"=>Float64, "Int32"=>Int32, "Int64"=>Int64)
+    TYPES = Dict("Float32"=>Float32, "Float64"=>Float64, "Int32"=>Int32, "Int64"=>Int64, "UInt64"=>UInt64)
 
     ncomps = haskey(data_array.attributes, "NumberOfComponents") ? parse(Int, data_array.attributes["NumberOfComponents"]) : 1
     dtype  = TYPES[data_array.attributes["type"]]
@@ -604,11 +663,26 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
         joint_data = mesh.elem_data["joint-data"]
         for (i,cell) in enumerate(mesh.elems)
             if cell.shape==POLYVERTEX && joint_data[i,1] in (2,3)
-                nlayers    = joint_data[i,1]+0
-                linked_ids = joint_data[i,2:3]
+                nlayers = joint_data[i,1]+0
+                if joint_data[i,3]>0
+                    linked_ids = joint_data[i,2:3]
+                else
+                    linked_ids = joint_data[i,2:2] # boundary joint has only one linked cell
+                end
                 cell.linked_elems = mesh.elems[linked_ids]
                 n = length(cell.nodes)
                 cell.shape = get_shape_from_vtk(VTK_POLY_VERTEX, n, ndim, nlayers)
+            end
+        end
+    end
+
+    # Fix information for embedded elements
+    if haskey(mesh.elem_data, "embedded-data")
+        embedded_data = mesh.elem_data["embedded-data"]
+        for (i,cell) in enumerate(mesh.elems)
+            if cell.shape.family==LINECELL && embedded_data[i]>0
+                cell.embedded = true
+                cell.linked_elems = Cell[ mesh.elems[embedded_data[i]] ]
             end
         end
     end
@@ -618,7 +692,17 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
         isinverted(cell) && flip!(cell)
     end
 
-    syncronize!(mesh)
+    # Build tag if available
+    if haskey(mesh.elem_data, "tag-s1") && haskey(mesh.elem_data, "tag-s2")
+        Ts1 = mesh.elem_data["tag-s1"]
+        Ts2 = mesh.elem_data["tag-s2"]
+        for (i,cell) in enumerate(mesh.elems)
+            cell.tag = decode_uint64_to_string(Ts1[i]) * decode_uint64_to_string(Ts2[i])
+        end
+    end
+
+
+    synchronize!(mesh)
 
     # remaining polyvertex cells
     #cell.shape = get_shape_from_vtk(VTK_POLY_VERTEX, n, ndim)
@@ -749,129 +833,129 @@ function Mesh(coords, connects, vtk_types, node_data, elem_data)
 end
 
 
-function read_tetgen(filekey::String)
-    # reads files .node and .ele
+# function read_tetgen(filekey::String)
+#     # reads files .node and .ele
 
-    local points, cells, cell_types, npoints, ncells
-    node_data = Dict{String,Array}()
-    #point_vector_data = Dict{String,Array}()
-    elem_data  = Dict{String,Array}()
+#     local points, cells, cell_types, npoints, ncells
+#     node_data = Dict{String,Array}()
+#     #point_vector_data = Dict{String,Array}()
+#     elem_data  = Dict{String,Array}()
 
-    # read nodal information
+#     # read nodal information
 
-    f=open(filekey*".node")
-    line = readline(f)
-    npoints, ndim, _, _ = parse.(Int, split(line))
-    points  = zeros(npoints,3)
+#     f=open(filekey*".node")
+#     line = readline(f)
+#     npoints, ndim, _, _ = parse.(Int, split(line))
+#     points  = zeros(npoints,3)
 
-    for i in 1:npoints
-        line = readline(f)
-        items = split(line)
-        points[i,1] = parse(Float64, items[2])
-        points[i,2] = parse(Float64, items[3])
-        points[i,3] = parse(Float64, items[4])
-    end
-    close(f)
+#     for i in 1:npoints
+#         line = readline(f)
+#         items = split(line)
+#         points[i,1] = parse(Float64, items[2])
+#         points[i,2] = parse(Float64, items[3])
+#         points[i,3] = parse(Float64, items[4])
+#     end
+#     close(f)
 
-    # read cell information
+#     # read cell information
 
-    f=open(filekey*".ele")
-    line = readline(f)
-    ncells, npts, _ = parse.(Int, split(line))
-    cells = Array{Int,1}[]
+#     f=open(filekey*".ele")
+#     line = readline(f)
+#     ncells, npts, _ = parse.(Int, split(line))
+#     cells = Array{Int,1}[]
 
-    for i in 1:ncells
-        line = readline(f)
-        items = split(line)
-        pts = parse.(Int, items[2:end])
-        pts .+= 1  # convert to one-based
-        push!(cells, pts)
-    end
-    close(f)
+#     for i in 1:ncells
+#         line = readline(f)
+#         items = split(line)
+#         pts = parse.(Int, items[2:end])
+#         pts .+= 1  # convert to one-based
+#         push!(cells, pts)
+#     end
+#     close(f)
 
-    # cell types
-    #
-    cell_types = 10*ones(Int, ncells)
-
-
-    #ugrid = UnstructuredGrid("Unstructured grid from tetgen", points, cells, cell_types)
-    #return ugrid
-    # TODO: Return a Mesh object
-end
+#     # cell types
+#     #
+#     cell_types = 10*ones(Int, ncells)
 
 
-# Read a mesh from TetGen output files
-# TODO: deprecate this function. Consider read_ugrid_tetgen function
-function tetreader(filekey::String)
-    # reading .node file
-    f = open(filekey*".node")
-    data = readlines(f)
-    npoints, ndim, att, hasmarker = parse.(split(data[1]))
-    points = Array{Node,1}(npoints)
+#     #ugrid = UnstructuredGrid("Unstructured grid from tetgen", points, cells, cell_types)
+#     #return ugrid
+#     # TODO: Return a Mesh object
+# end
 
-    for i in 1:npoints
-        pdata = parse.(split(data[i+1]))
-        tag   = hasmarker==1 ? pdata[end] : ""
-        node = Node(pdata[2], pdata[3], pdata[4], tag)
-        node.id = i
-        points[i] = node
-    end
 
-    # reading .ele file
-    f = open(filekey*".ele")
-    data = readlines(f)
-    ncells, ntetpts, hasatt = parse.(split(data[1]))
-    celltype = ntetpts==4 ? TET4 : TET10
-    cells = Array{Cell,1}(ncells)
+# # Read a mesh from TetGen output files
+# # TODO: deprecate this function. Consider read_ugrid_tetgen function
+# function tetreader(filekey::String)
+#     # reading .node file
+#     f = open(filekey*".node")
+#     data = readlines(f)
+#     npoints, ndim, att, hasmarker = parse.(split(data[1]))
+#     points = Array{Node,1}(npoints)
 
-    for i in 1:ncells
-        cdata = parse.(split(data[i+1]))
-        tag   = hasatt==1 ? cdata[end] : 0
-        cellpoints = points[cdata[2:ntetpts+1]]
-        cell = Cell(celltype, cellpoints, tag)
-        cell.id = i
-        cells[i] = cell
-    end
+#     for i in 1:npoints
+#         pdata = parse.(split(data[i+1]))
+#         tag   = hasmarker==1 ? pdata[end] : ""
+#         node = Node(pdata[2], pdata[3], pdata[4], tag)
+#         node.id = i
+#         points[i] = node
+#     end
 
-    # reading .face file
-    f = open(filekey*".face")
-    data = readlines(f)
-    nfaces, hasmarker = parse.(split(data[1]))
-    nfacepts = ntetpts==4 ? 3 : 6
-    celltype = ntetpts==4 ? TRI3 : TRI6
-    faces = Array{Cell,1}(nfaces)
+#     # reading .ele file
+#     f = open(filekey*".ele")
+#     data = readlines(f)
+#     ncells, ntetpts, hasatt = parse.(split(data[1]))
+#     celltype = ntetpts==4 ? TET4 : TET10
+#     cells = Array{Cell,1}(ncells)
 
-    for i in 1:nfaces
-        fdata = parse.(split(data[i+1]))
-        tag   = hasmarker==1 ? fdata[end] : 0
-        facepts = points[fdata[2:nfacepts+1]]
-        nfacepts==6 && (facepts = facepts[[1,2,3,6,4,5]])
-        faces[i] = Cell(celltype, facepts, tag)
-    end
+#     for i in 1:ncells
+#         cdata = parse.(split(data[i+1]))
+#         tag   = hasatt==1 ? cdata[end] : 0
+#         cellpoints = points[cdata[2:ntetpts+1]]
+#         cell = Cell(celltype, cellpoints, tag)
+#         cell.id = i
+#         cells[i] = cell
+#     end
 
-    # reading .edge file
-    f    = open(filekey*".edge")
-    data = readlines(f)
-    nedges, hasmarker = parse.(split(data[1]))
-    nedgepts = ntetpts==4 ? 2 : 3
-    celltype = ntetpts==4 ? LIN2 : LIN3
-    edges = Array{Cell,1}(nedges)
+#     # reading .face file
+#     f = open(filekey*".face")
+#     data = readlines(f)
+#     nfaces, hasmarker = parse.(split(data[1]))
+#     nfacepts = ntetpts==4 ? 3 : 6
+#     celltype = ntetpts==4 ? TRI3 : TRI6
+#     faces = Array{Cell,1}(nfaces)
 
-    for i in 1:nedges
-        edata = parse.(split(data[i+1]))
-        tag   = hasmarker==1 ? edata[end] : 0
-        edgepts = points[edata[2:nedgepts+1]]
-        edges[i] = Cell(celltype, edgepts, tag)
-    end
+#     for i in 1:nfaces
+#         fdata = parse.(split(data[i+1]))
+#         tag   = hasmarker==1 ? fdata[end] : 0
+#         facepts = points[fdata[2:nfacepts+1]]
+#         nfacepts==6 && (facepts = facepts[[1,2,3,6,4,5]])
+#         faces[i] = Cell(celltype, facepts, tag)
+#     end
 
-    mesh = Mesh()
-    mesh.nodes = points
-    mesh.elems  = cells
-    mesh.faces  = faces
-    mesh.edges  = edges
+#     # reading .edge file
+#     f    = open(filekey*".edge")
+#     data = readlines(f)
+#     nedges, hasmarker = parse.(split(data[1]))
+#     nedgepts = ntetpts==4 ? 2 : 3
+#     celltype = ntetpts==4 ? LIN2 : LIN3
+#     edges = Array{Cell,1}(nedges)
 
-    return mesh
-end
+#     for i in 1:nedges
+#         edata = parse.(split(data[i+1]))
+#         tag   = hasmarker==1 ? edata[end] : 0
+#         edgepts = points[edata[2:nedgepts+1]]
+#         edges[i] = Cell(celltype, edgepts, tag)
+#     end
+
+#     mesh = Mesh()
+#     mesh.nodes = points
+#     mesh.elems  = cells
+#     mesh.faces  = faces
+#     mesh.edges  = edges
+
+#     return mesh
+# end
 
 
 """
@@ -879,7 +963,7 @@ end
 
 Constructs a `Mesh` object based on a file.
 """
-function Mesh(filename::String; reorder=false, quiet=true)
+function Mesh(filename::String; sortnodes=false, quiet=true)
     
     formats = (".vtk", ".vtu", ".tetgen")
 
@@ -903,9 +987,9 @@ function Mesh(filename::String; reorder=false, quiet=true)
     quiet || printstyled( "  file $filename loaded \e[K \n", color=:cyan)
 
     # Reorder nodal numbering
-    if reorder
+    if sortnodes
         quiet || print("  reordering points...\r")
-        reorder!(mesh)
+        sortnodes!(mesh)
     end
 
     if !quiet

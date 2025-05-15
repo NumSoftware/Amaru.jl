@@ -4,7 +4,6 @@
     VERTEXCELL    = 0,
     LINECELL      = 1,
     BULKCELL      = 2,
-    EMBEDDEDCELL  = 3,
     JOINTCELL     = 4,
     LINEJOINTCELL = 5,
     TIPJOINTCELL  = 6,
@@ -207,11 +206,14 @@ function inverse_map(shape::CellShape, coords::Array{Float64,2}, X0::AbstractArr
     X      = X0[1:ndim]
 
     local ΔX::Array{Float64,1}
-    
+
     for k in 1:maxits
         # calculate Jacobian
         D = shape.deriv(R)
         J = C'*D
+        # @show size(J)
+        # @show J
+        # @show C
 
         # calculate trial of real coordinates
         N  = shape.func(R)

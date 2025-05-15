@@ -28,7 +28,8 @@ end
 export get_feature_edges, get_feature_mesh
 
 
-function get_feature_edges(cells::Array{<:AbstractCell,1}; angle=150)
+function get_feature_edges(cells::Vector{<:AbstractCell}; angle=150)
+    
     faces_dict = Dict{UInt64, Cell}()
 
     # Get faces
@@ -51,10 +52,11 @@ function get_feature_edges(cells::Array{<:AbstractCell,1}; angle=150)
     end
 
     faces = values(faces_dict)
+    # @show faces
 
     # Get normals
     normals = Dict{CellFace,Array{Float64,1}}( f => get_facet_normal(f) for f in faces ) 
-    edge_dict = Dict{UInt64,Cell}()
+    face_edge_d = Dict{UInt64,Cell}()
     outline = CellEdge[]
 
     # Get edges with non-coplanar adjacent faces
@@ -62,11 +64,11 @@ function get_feature_edges(cells::Array{<:AbstractCell,1}; angle=150)
         n1 = normals[face]
         for edge in getedges(face)
             hs = hash(edge)
-            edge0 = get(edge_dict, hs, nothing)
+            edge0 = get(face_edge_d, hs, nothing)
             if edge0===nothing
-                edge_dict[hs] = edge
+                face_edge_d[hs] = edge
             else
-                delete!(edge_dict, hs)
+                delete!(face_edge_d, hs)
                 n2 = normals[edge0.owner]
                 α = 180 - acos( abs(clamp(dot(n1,n2),-1,1)) )*180/pi
                 α = round(α, digits=2)
@@ -74,6 +76,8 @@ function get_feature_edges(cells::Array{<:AbstractCell,1}; angle=150)
             end
         end
     end
+    # @show length(face_edge_d)
+    outline = [ outline; collect(values(face_edge_d)) ]
 
     return outline
 end

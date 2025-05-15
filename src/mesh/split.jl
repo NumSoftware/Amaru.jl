@@ -1,14 +1,87 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export insert_cohesive_elements!
+export insert_cohesive_elements!, add_boundary_interface_elements!
+
+const joint_shape_dict = Dict(
+                        (LIN2 ,2) => JLIN2,
+                        (LIN3 ,2) => JLIN3,
+                        (LIN4 ,2) => JLIN4,
+                        (TRI3 ,2) => JTRI3,
+                        (TRI6 ,2) => JTRI6,
+                        (QUAD4,2) => JQUAD4,
+                        (QUAD8,2) => JQUAD8,
+                        (LIN2 ,3) => J3LIN2,
+                        (LIN3 ,3) => J3LIN3,
+                        (LIN4 ,3) => J3LIN4,
+                        (TRI3 ,3) => J3TRI3,
+                        (TRI6 ,3) => J3TRI6,
+                        (QUAD4,3) => J3QUAD4,
+                        (QUAD8,3) => J3QUAD8,
+                       )
+
+function add_boundary_interface_elements!(
+    mesh       :: Mesh,
+    filter     :: Union{Expr,Symbolic,String};
+    tag        :: String="",
+    supporttag :: String="",
+    quiet      :: Bool=false,
+)
+
+    quiet || printstyled("Addition of boundary interface elements:\n", bold=true, color=:cyan)
+    supporttag == "" && error("add_boundary_interface_elements!: tag for support nodes 'supporttag' is required")
+    
+    # Get target cells
+    faces = mesh.faces[filter]
+    isempty(faces) && error("add_boundary_interface_elements!: no target cells found for filter $filter")
+
+    # Add interface elements 
+    joint_cells = Cell[]
+    new_nodes_d  = Dict{UInt64, Node}()
+    for face in faces
+        conn = copy(face.nodes)
+        for (i, node) in enumerate(face.nodes)
+            hs = hash(node)
+            n  = get!(new_nodes_d, hs) do 
+                Node(node.coord, tag=supporttag) 
+            end
+            push!(conn, n)
+        end
+
+        jshape = joint_shape_dict[(face.shape, 2)]
+        cell = Cell(jshape, conn, tag=tag)
+        cell.linked_elems = [ face.owner ]
+        push!(joint_cells, cell)
+    end
+    new_nodes = collect(values(new_nodes_d))
+    
+    # All cells
+    append!(mesh.elems, joint_cells)
+    append!(mesh.nodes, new_nodes)
+
+    # Update and reorder mesh
+    synchronize!(mesh, sortnodes=true, cleandata=true)
+
+    if !quiet
+        @printf "  %4dd mesh                             \n" mesh.ctx.ndim
+        @printf "  %5d points\n" length(mesh.nodes)
+        @printf "  %5d total cells\n" length(mesh.elems)
+        @printf "  %5d new joint cells\n" length(joint_cells)
+        nfaces = length(mesh.faces)
+        nfaces>0 && @printf("  %5d faces\n", nfaces)
+        nedges = length(mesh.edges)
+        nedges>0 && @printf("  %5d edges\n", nedges)
+    end
+
+    return mesh
+end
 
 
 """
-    insert_cohesive_elements!(mesh, filter=nothing; layers=2, tag="", midnodestag="", onlybetweenregions=false, quiet=true)
+    insert_cohesive_elements!(mesh, filter=nothing; layers=2, tag="", midnodestag="", betweenregions=false, quiet=true)
 
 Adds joint elements between bulk elements in `mesh`.  If `filter` is supplied
 (element tag or expression), the joints are generated over a specific region
-only.  All generated joints get the supplied `tag`.  If `onlybetweenregions` is
+only.  All generated joints get the supplied `tag`.  If `betweenregions` is
 `true`, joints are generated only between regions specified by bulk element
 tags.  In this case, the joints get specific tags according to the regions
 they are linking.  Joints can be generated with 2 or 3 `layers`. 
@@ -16,8 +89,8 @@ For three layers, all middle points in joints receive a `midnodestag`, if provid
 """
 function insert_cohesive_elements!(
     mesh              ::Mesh,
-    filter            ::Union{Expr,String,Nothing}=nothing;
-    onlybetweenregions::Bool=false,
+    filter            ::Union{Expr,Symbolic,String,Nothing}=nothing;
+    betweenregions::Bool=false,
     autotag           ::Bool=false,
     layers            ::Int64=2,
     tag               ::String="",
@@ -25,29 +98,11 @@ function insert_cohesive_elements!(
     midnodestag       ::String=""
 )
 
-    
-
     quiet || printstyled("Insertion of cohesive elements:\n", bold=true, color=:cyan)
 
     layers in (2,3) || error("insert_cohesive_elements!: wrong number of layers ($layers).")
 
-    joint_shape_dict = Dict(
-                            (LIN2 ,2) => JLIN2,
-                            (LIN3 ,2) => JLIN3,
-                            (LIN4 ,2) => JLIN4,
-                            (TRI3 ,2) => JTRI3,
-                            (TRI6 ,2) => JTRI6,
-                            (QUAD4,2) => JQUAD4,
-                            (QUAD8,2) => JQUAD8,
-                            (LIN2 ,3) => J3LIN2,
-                            (LIN3 ,3) => J3LIN3,
-                            (LIN4 ,3) => J3LIN4,
-                            (TRI3 ,3) => J3TRI3,
-                            (TRI6 ,3) => J3TRI6,
-                            (QUAD4,3) => J3QUAD4,
-                            (QUAD8,3) => J3QUAD8,
-                           )
-    onlybetweenregions && (autotag=true)
+    betweenregions && tag=="" && (autotag=true)
 
     # Target and locked cells
     # locked cells include solids, lines, beams, etc.
@@ -66,7 +121,7 @@ function insert_cohesive_elements!(
         lockedcells = setdiff(lockedcells, lockedcells[filter].joints)
     end
 
-    if !onlybetweenregions
+    if !betweenregions
             # Splitting
             # generating new nodes at target cells
             for c in targetcells
@@ -284,13 +339,11 @@ function insert_cohesive_elements!(
         end
     end
 
-
     # All nodes
     mesh.nodes = collect(values(nodesdict))
 
     # Update and reorder mesh
-    syncronize!(mesh, reorder=true, cleandata=true)
-
+    synchronize!(mesh, sortnodes=true, cleandata=true)
 
     if !quiet
         @printf "  %4dd mesh                             \n" mesh.ctx.ndim

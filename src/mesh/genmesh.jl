@@ -3,6 +3,7 @@
 Mesh_Geo_params = [
     FunInfo(:Mesh, "Creates a `Mesh` structure from a `GeoModel` object."),
     ArgInfo(:geo, "GeoModel object"),
+    KwArgInfo(:ndim, "Mesh dimension hint", 1),
     KwArgInfo(:size, "Characteristic length for meshing", 0.1),
     KwArgInfo(:quadratic, "Flag for quadratic cells (gmsh)", false),
     KwArgInfo(:algorithm, "Algorithm for triangulation (gmsh)", :delaunay),
@@ -16,6 +17,7 @@ Mesh_Geo_params = [
 function Mesh(geo::GeoModel; kwargs...)
     args = checkargs([geo], kwargs, Mesh_Geo_params)
     quiet = args.quiet
+    ndim  = args.ndim
 
     # check for blocks
     blocks  = [ b for b in geo.blocks if b isa Block ]
@@ -29,16 +31,18 @@ function Mesh(geo::GeoModel; kwargs...)
         if length(iblocks)>0
             mesh = Mesh(mesh, iblocks; args...)
         end
-        if length(geo.subpaths)>0
-            gen_insets!(mesh, geo.subpaths)
-            syncronize!(mesh)
-        end
-
+        
     elseif length(blocks)>0
         !quiet && printstyled("Structured mesh generation:\n", bold=true, color=:cyan)
-        mesh = mesh_structured(geo; args...)
+        mesh = mesh_structured(geo)
+        mesh.ctx.ndim = ndim
     else
         error("Mesh: No blocks or surfaces/volumes found")
+    end
+
+    if length(geo.subpaths)>0
+        gen_insets!(mesh, geo.subpaths)
+        synchronize!(mesh)
     end
 
     if !quiet
@@ -80,7 +84,7 @@ function Mesh(
     nmeshes = length(meshes)
     nblocks = length(blocks)
     if !quiet
-        printstyled("Structured mesh generation:\n", bold=true, color=:cyan)
+        printstyled("Structured mesh generation (deprecated):\n", bold=true, color=:cyan)
         nmeshes>0 && @printf "  %5d meshes\n" nmeshes
         @printf "  %5d blocks\n" nblocks
     end
@@ -98,7 +102,7 @@ function Mesh(
     end
 
     # Updates numbering, quality, facets and edges
-    syncronize!(mesh)
+    synchronize!(mesh)
 
     if !quiet
         npoints = length(mesh.nodes)

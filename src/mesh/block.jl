@@ -41,7 +41,7 @@ $(FIELDS)
 """
 mutable struct Block <: AbstractBlock
     ndim::Int
-    points::Array{Point,1}
+    points::Vector{Point}
     shape::CellShape
     cellshape::CellShape
     nx::Int64

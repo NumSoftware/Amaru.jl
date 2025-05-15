@@ -77,8 +77,8 @@ const Facet=Cell
 
 ### Cell methods
 
-Base.hash(c::Cell) = sum(hash(p) for p in c.nodes)
-# Base.isequal(c1::Cell, c2::Cell) = hash(c1)==hash(c2)
+Base.hash(cell::Cell) = sum(hash(node) for node in cell.nodes)
+Base.isequal(c1::Cell, c2::Cell) = hash(c1)==hash(c2)
 
 """
     $(TYPEDSIGNATURES)
@@ -106,8 +106,22 @@ end
 
 
 # Return all nodes in cells
-function getnodes(cells::Array{<:AbstractCell,1})
-    return collect(Set(node for cell in cells for node in cell.nodes)) 
+# function getnodes(cells::Array{<:AbstractCell,1})
+#     return collect(Set(node for cell in cells for node in cell.nodes)) 
+# end
+
+
+
+function getnodes(elems::Vector{<:AbstractCell})
+    # get all nodes using object id
+    points_d = Dict{UInt64, Node}()
+    for elem in elems
+        for node in elem.nodes
+            points_d[objectid(node)] = node
+        end
+    end
+
+    return collect(values(points_d))
 end
 
 
@@ -235,8 +249,10 @@ function Base.getindex(
         end
 
         if isa(filter, Expr) || isa(filter, Symbolic) 
-            nodes = getnodes(cells)
-            pointmap = zeros(Int, maximum( [node.id for node in nodes], init=0) ) # points and pointmap may have different sizes
+            # nodes = getnodes(cells) # it merge nodes
+            nodes = [ node for cell in cells for node in cell.nodes ]
+            max_id = maximum( n->n.id, nodes )
+            pointmap = zeros(Int, max_id) # points and pointmap may have different sizes
 
             T = Bool[]
             for (i,node) in enumerate(nodes)
@@ -244,6 +260,13 @@ function Base.getindex(
                 x, y, z = node.coord.x, node.coord.y, node.coord.z
                 push!(T, evaluate(filter, x=x, y=y, z=z))
             end
+
+            # @show filtered
+            # @show pointmap
+            # @show [ n.id for n in nodes ]
+            # for c in cells
+            #     @show [ n.id for n in c.nodes ]
+            # end
     
             filtered = Int[ i for i in filtered if all( T[pointmap[node.id]] for node in cells[i].nodes ) ]
         elseif isa(filter, Symbol)
@@ -344,7 +367,7 @@ function iscoplanar(cell::AbstractCell)
     X2 = coords[2,:]
     X1X2 = X2-X1
 
-    # look for a non-colinear point
+    # look for a non-collinear point
     local X, N
     for i in 3:length(cell.nodes)
         X = coords[i,:]

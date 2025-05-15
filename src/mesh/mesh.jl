@@ -67,21 +67,43 @@ end
 
 
 function get_outer_facets(cells::Array{<:AbstractCell,1})
-    surf_dict = OrderedDict{UInt64, Cell}()
+    face_d = OrderedDict{UInt64, Cell}()
 
     # Get only unique faces. If dup, original and dup are deleted
     for cell in cells
         for face in getfacets(cell)
             hs = hash(face)
-            if haskey(surf_dict, hs)
-                delete!(surf_dict, hs)
+            if haskey(face_d, hs)
+                delete!(face_d, hs)
             else
-                surf_dict[hs] = face
+                face_d[hs] = face
             end
         end
     end
 
-    return CellFace[ face for face in values(surf_dict) ]
+    return CellFace[ face for face in values(face_d) ]
+end
+
+
+function get_outer_facets_by_id(cells::Array{<:AbstractCell,1})
+    # face_d = OrderedDict{UInt64, Cell}()
+    face_d = Dict()
+    hash1(edge) = sort([ n.id for n in edge.nodes ])
+    @show "hiiiii"
+
+    # Get only unique faces. If dup, original and dup are deleted
+    for cell in cells
+        for face in getfacets(cell)
+            hs = hash1(face)
+            if haskey(face_d, hs)
+                delete!(face_d, hs)
+            else
+                face_d[hs] = face
+            end
+        end
+    end
+
+    return collect(values(face_d))
 end
 
 
@@ -136,33 +158,29 @@ function get_patches(mesh::Mesh)
 end
 
 # Reverse Cuthill–McKee algorithm (RCM)
-function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
+function sortnodes!(mesh::Mesh; sort_degrees=true, reversed=true)
 
     # Get all mesh edges
-    all_edges = Dict{UInt64, Cell}()
+    all_edges = Cell[]  # using array ( the use of dictionary got hash collisions for some embedded cells)
     for cell in mesh.elems
 
         # adding cell edges
         if cell.shape.family == BULKCELL #is_solid(cell.shape)
             for edge in getedges(cell)
-                hs = hash(edge)
-                all_edges[hs] = edge
+                push!(all_edges, edge)
             end
 
             #check for lagrangian elements
             if cell.shape==QUAD9
                 edge = Cell(POLYVERTEX, [ cell.nodes[1], cell.nodes[end] ] )
-                hs   = hash(edge)
-                all_edges[hs] = edge
+                push!(all_edges, edge)
             end
             if cell.shape==HEX27
                 edge = Cell(POLYVERTEX, [ cell.nodes[1], cell.nodes[end] ] )
-                hs   = hash(edge)
-                all_edges[hs] = edge
+                push!(all_edges, edge)
                 for i in (21,22,23,24,25,26)
                     edge = Cell(POLYVERTEX, [ cell.nodes[i], cell.nodes[end] ] )
-                    hs   = hash(edge)
-                    all_edges[hs] = edge
+                    push!(all_edges, edge)
                 end
             end
             continue
@@ -172,8 +190,7 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
         if cell.shape in (JLINK2, JLINK3)
             npts = cell.shape.npoints
             edge = Cell(POLYVERTEX, [ cell.nodes[1]; cell.nodes[end-npts+1:end] ])
-            hs = hash(edge)
-            all_edges[hs] = edge
+            push!(all_edges, edge)
             continue
         end
 
@@ -181,25 +198,26 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
         if cell.shape.family == LINECELL && length(cell.linked_elems)>0
             edge1 = Cell(cell.shape, cell.nodes)
             edge2 = Cell(LIN2, [ cell.nodes[1], cell.linked_elems[1].nodes[1] ])
-            all_edges[hash(edge1)] = edge1
-            all_edges[hash(edge2)] = edge2
+            push!(all_edges, edge1)
+            push!(all_edges, edge2)
             continue
         end
 
         # all other cells
         edge = Cell(cell.shape, cell.nodes)
-        hs = hash(edge)
-        all_edges[hs] = edge
+        push!(all_edges, edge)
 
     end
 
     # Get neighbors ids
-    npoints = length(mesh.nodes)
-    neighs_ids = Array{Int64}[ [] for i in 1:npoints ]
+    nnodes = length(mesh.nodes)
+    neighs_ids = Array{Int64}[ [] for i in 1:nnodes ]
 
-    for edge in values(all_edges)
+    # for edge in values(all_edges)
+    for edge in all_edges
         nodes = edge.nodes
         np = length(nodes)
+
         for i in 1:np-1
             for j in i+1:np
                 push!(neighs_ids[nodes[i].id], nodes[j].id)
@@ -208,9 +226,11 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
         end
     end
 
-    # removing duplicates and get neighbors
-    neighs = Array{Node}[ mesh.nodes[unique(list)] for list in neighs_ids ]
-    #neighs = Array{Node}[ mesh.nodes[unique(list)] for list in neighs_ids ]
+    # remove duplicates
+    neighs_ids = [ unique(list) for list in neighs_ids ]
+
+    # get neighbors
+    neighs = Array{Node}[ mesh.nodes[list] for list in neighs_ids ]
 
     # list of degrees per point
     degrees = Int64[ length(list) for list in neighs]
@@ -218,7 +238,7 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
 
     if mindeg == 0
         # Case of overlapping elements where edges have at least one point with the same coordinates
-        notify("reorder!: Reordering nodes failed. Possible causes: disconnected domain, non used nodes and overlapping cells.")
+        notify("sortnodes!: Reordering nodes failed. Possible causes: disconnected domain or non used nodes.")
         return
     end
 
@@ -227,7 +247,7 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
     L[idx] = mesh.nodes[idx]
     LL = Dict{Int64,Node}()  # levelset before the last one
 
-    while length(N) < npoints
+    while length(N) < nnodes
         # Generating current levelset A
         A = Dict{Int64,Node}()
 
@@ -238,8 +258,8 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
             end
         end
         if length(A)==0
-            #@error "reorder!: Reordering nodes failed! Possible error with cell connectivities."
-            notify("reorder!: Reordering nodes failed. Possible causes: disconnected domain, non used nodes and overlapping cells.")
+            #@error "sortnodes!: Reordering nodes failed! Possible error with cell connectivities."
+            notify("sortnodes!: Reordering nodes failed. Possible causes: disconnected domain, non used nodes and overlapping cells.")
             return
         end
 
@@ -257,6 +277,19 @@ function reorder!(mesh::Mesh; sort_degrees=true, reversed=false)
     # Reverse list of new nodes
     if reversed
         N = reverse(N)
+    end
+
+    ids = [ node.id for node in N ]
+
+    # update nodal fields
+    for (key, data) in mesh.node_data
+        key == "node-id" && continue
+        sz = size(data)
+        if length(sz)==1
+            mesh.node_data[key] = data[ids]
+        else
+            mesh.node_data[key] = data[ids,:]
+        end
     end
 
     # Renumerating
@@ -288,8 +321,8 @@ function compute_facets!(mesh::Mesh)
         mesh.faces = mesh.edges
     elseif mesh.ctx.ndim==3
         solids = filter( elem->elem.shape.ndim==3, mesh.elems )
-        planars = filter( elem->elem.shape.ndim==2, mesh.elems )
-        for cell in planars
+        planars = filter( elem->elem.shape.ndim==2 && elem.shape.family==BULKCELL, mesh.elems )
+        for cell in planars # TODO: fix for BC in shells
             cell.owner = cell # set itself as owner
         end
         mesh.faces = [ get_outer_facets(solids); planars ]
@@ -299,13 +332,14 @@ end
 
 
 # Syncs the mesh data
-function syncronize!(mesh::Mesh; reorder=false, cleandata=false)
-    sumz = map( node->abs(node.coord.z), mesh.nodes ) |> sum
-    if sumz==0
-        sumy = map( node->abs(node.coord.y), mesh.nodes ) |> sum
-        ndim = sumy==0 ? 1 : 2
-    else
-        ndim = 3
+function synchronize!(mesh::Mesh; sortnodes=false, cleandata=false)
+
+    ndim = mesh.ctx.ndim
+    if ndim!=3
+        ndim = any( node.coord[3] != 0.0 for node in mesh.nodes ) ? 3 : 2
+        if ndim == 2
+            ndim = any( node.coord[2] != 0.0 for node in mesh.nodes ) ? 2 : 1
+        end
     end
 
     mesh.ctx.ndim = max(ndim, mesh.ctx.ndim)
@@ -332,7 +366,7 @@ function syncronize!(mesh::Mesh; reorder=false, cleandata=false)
     end
 
     # Ordering
-    reorder && reorder!(mesh)
+    sortnodes && sortnodes!(mesh)
 
     # update data
     if cleandata
@@ -341,15 +375,19 @@ function syncronize!(mesh::Mesh; reorder=false, cleandata=false)
     end
 
     # tag
-    tags = sort(unique([elem.tag for elem in mesh.elems]))
-    tag_dict = Dict( tag=>i-1 for (i,tag) in enumerate(tags) )
+    # tags = sort(unique([elem.tag for elem in mesh.elems]))
+    # tag_dict = Dict( tag=>i-1 for (i,tag) in enumerate(tags) )
     
-    T = [ tag_dict[elem.tag] for elem in mesh.elems ] 
     mesh.node_data["node-id"]   = collect(1:length(mesh.nodes))
     mesh.elem_data["quality"]   = Q
     mesh.elem_data["elem-id"]   = collect(1:length(mesh.elems))
     mesh.elem_data["cell-type"] = [ Int(cell.shape.vtk_type) for cell in mesh.elems ]
-    mesh.elem_data["tag"] = T
+    
+    # tag
+    # tags  = collect(Set(elem.tag for elem in mesh.elems))
+    # tag_d = Dict( tag=>i for (i,tag) in enumerate(tags) )
+    # T     = Int[ tag_d[elem.tag]-1 for elem in mesh.elems ]
+    # mesh.elem_data["tag"] = T
 end
 
 
@@ -390,7 +428,7 @@ function join_mesh!(mesh::Mesh, m2::Mesh)
     mesh.elems = elems
     mesh._pointdict = pointdict
 
-    syncronize!(mesh, reorder=false)
+    synchronize!(mesh, sortnodes=false)
 
     return nothing
 end
@@ -485,7 +523,7 @@ function Mesh(
     mesh = Mesh(ndim)
     mesh.nodes = nodes
     mesh.elems = cells
-    syncronize!(mesh, reorder=false) # no node ordering
+    synchronize!(mesh, sortnodes=false) # no node ordering
 
     return mesh
 end
@@ -525,81 +563,83 @@ function stats(mesh::Mesh)
 end
 
 
-function Mesh(elems::Array{Cell,1})
+# Construct a mesh given a set of elements
+function Mesh(elems::Vector{Cell})
     length(elems)==0 && return Mesh()
 
-    nodes = copy.(getnodes(elems))
-    # digs = 8
-    # for node in nodes
-    #     node.coord = round.(node.coord, digits=digs)
-    #     # round!(node.coord, digits=digs)
-    # end
+    nodes = [ node for elem in elems for node in elem.nodes ]
 
-    newmesh = Mesh(getndim(nodes))
-    newmesh.nodes = nodes
+    # check if all nodes have id
+    all( node.id > 0 for node in nodes ) || error("Mesh: all input nodes must have a valid id")
 
-    newmesh._pointdict = Dict{UInt64,Node}(hash(node)=>node for node in newmesh.nodes)
+    # newnodes
+    nodes_d  = Dict{Int,Node}( node.id => copy(node) for node in nodes )
+    newnodes = collect(values(nodes_d))
+    node_ids = collect(keys(nodes_d))
 
+    # copy elements
+    newelems = Cell[]
     for elem in elems
-        newelemnodes = Node[ newmesh._pointdict[hash(node)] for node in elem.nodes ]
-        newelem = Cell(elem.shape, newelemnodes, tag=elem.tag)
-        push!(newmesh.elems, newelem)
+        elem_nodes = Node[ nodes_d[node.id] for node in elem.nodes ]
+        newelem    = Cell(elem.shape, elem_nodes, tag=elem.tag)
+        push!(newelems, newelem)
     end
 
-    syncronize!(newmesh, reorder=false)
+    ndim = any( node.coord[3] != 0.0 for node in newnodes ) ? 3 : 2
 
+    newmesh       = Mesh(ndim)
+    newmesh.nodes = newnodes
+    newmesh.elems = newelems
+
+    synchronize!(newmesh, sortnodes=true)
     return newmesh
 end
 
 
-function Mesh(mesh::Mesh, filter::Union{String,Expr,Symbol})
+function Base.getindex(mesh::Mesh, filter::Union{String,Expr,Symbol,Symbolic,CellFamily,CellShape})
     elems = mesh.elems[filter]
     length(elems)==0 && return Mesh()
 
-    elemids = [ elem.id for elem in elems ]
+    # newnodes
+    nodes    = [ node for elem in elems for node in elem.nodes ]
+    nodes_d  = Dict{Int,Node}( node.id => copy(node) for node in nodes )
+    newnodes = collect(values(nodes_d))
+    node_ids = collect(keys(nodes_d))
+    ndim     = any( node.coord[3] != 0.0 for node in newnodes ) ? 3 : 2
 
-    nodedict = OrderedDict{Int,Node}()
+    # copy elements
+    newelems = Cell[]
     for elem in elems
-        for node in elem.nodes
-            nodedict[node.id] = copy(node)
+        elem_nodes = Node[ nodes_d[node.id] for node in elem.nodes ]
+        newelem    = Cell(elem.shape, elem_nodes, tag=elem.tag)
+        push!(newelems, newelem)
+    end
+    
+    # create new mesh
+    newmesh       = Mesh(ndim)
+    newmesh.nodes = newnodes
+    newmesh.elems = newelems
+
+    # update node fields
+    for (key, data) in mesh.node_data
+        sz = size(data)
+        if length(sz)==1
+            newmesh.node_data[key] = data[node_ids]
+        else
+            newmesh.node_data[key] = data[node_ids,:]
         end
     end
-    nodeids  = collect(keys(nodedict))
-    nodes = collect(values(nodedict))
     
-    newmesh = Mesh(getndim(nodes))
-    newmesh.nodes = collect(values(nodedict))
-
-    for elem in elems
-        newelemnodes = Node[ nodedict[node.id] for node in elem.nodes ]
-        newelem = Cell(elem.shape, newelemnodes, tag=elem.tag)
-        push!(newmesh.elems, newelem)
+    # update elem fields
+    elem_ids = [ elem.id for elem in elems ]
+    for (key, data) in mesh.elem_data
+        newmesh.elem_data[key] = data[elem_ids]
     end
 
-    for (k,v) in mesh.elem_data
-        newmesh.elem_data[k] = v[elemids]
-    end
-
-    for (k,v) in mesh.node_data
-        newmesh.node_data[k] = v[nodeids]
-    end
-
-    syncronize!(newmesh, reorder=false)
+    synchronize!(newmesh, sortnodes=true)
 
     return newmesh
 end
-
-
-# function slice(mesh::Mesh, normal::Array{Float64,1})
-    # mesh = Mesh()
-    # return mesh
-# end
-
-
-# function clip(mesh::Mesh, normal::Array{Float64,1})
-    # mesh = Mesh()
-    # return mesh
-# end
 
 
 function threshold(mesh::Mesh, field::Union{Symbol,String}, minval::Float64, maxval::Float64)
@@ -646,7 +686,7 @@ function threshold(mesh::Mesh, field::Union{Symbol,String}, minval::Float64, max
     end
 
     # update node numbering, facets and edges
-    syncronize!(new_mesh, reorder=false)
+    synchronize!(new_mesh, sortnodes=false)
 
     return new_mesh
 

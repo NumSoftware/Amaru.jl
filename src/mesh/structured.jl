@@ -13,13 +13,13 @@ end
 flatten(x)=flatten(x, [])
 
 
-function mesh_structured(geo::GeoModel; args...)
+function mesh_structured(geo::GeoModel)
     mesh = Mesh() # empty mesh
-    return mesh_structured(mesh, geo.blocks; args...)
+    return mesh_structured(mesh, geo.blocks)
 end
 
 
-function mesh_structured(mesh::Mesh, block_or_arr...; args...)
+function mesh_structured(mesh::Mesh, block_or_arr...)
     blocks = flatten(block_or_arr)
 
     for b in blocks
@@ -27,7 +27,7 @@ function mesh_structured(mesh::Mesh, block_or_arr...; args...)
         split_block!(mesh, b)
     end
 
-    syncronize!(mesh)
+    synchronize!(mesh)
 
     return mesh
 end
