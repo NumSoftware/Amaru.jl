@@ -15,6 +15,7 @@ mutable struct Node<:AbstractPoint
     dofs   ::Array{Dof,1}
     dofdict::OrderedDict{Symbol,Dof}
     vals   ::OrderedDict{Symbol,Float64}
+    aux    ::Bool
     # elems  ::Array{AbstractCell,1} # "elements that share the node"
 
     @doc """
@@ -29,6 +30,7 @@ mutable struct Node<:AbstractPoint
         this.dofs    = Dof[]
         this.dofdict = OrderedDict{Symbol,Dof}()
         this.vals    = OrderedDict{Symbol,Float64}()
+        this.aux     = false
         # this.elems   = []
         return this
     end
@@ -60,6 +62,7 @@ mutable struct Node<:AbstractPoint
         this         = new(id, Vec3(x,y,z), tag)
         this.dofs    = Dof[]
         this.dofdict = OrderedDict{Symbol,Dof}()
+        this.aux     = false
         return this
     end
 
@@ -96,7 +99,7 @@ const null_Node = Node(NaN, NaN, NaN)
 #Base.hash(n::Node) = hash( (round(n.coord.x, digits=8), round(n.coord.y, digits=8), round(n.coord.z, digits=8)) )
 # Base.hash(n::Node) = hash( (n.coord.x, n.coord.y, n.coord.z) )
 Base.hash(n::Node) = hash( (n.coord.x+1.0, n.coord.y+2.0, n.coord.z+3.0) ) # 1,2,3 aim to avoid clash in some arrays of nodes.
-# Base.isequal(n1::Node, n2::Node) = hash(n1)==hash(n2)
+Base.isequal(n1::Node, n2::Node) = hash(n1)==hash(n2)
 
 
 """
@@ -133,6 +136,7 @@ function add_dof(node::Node, name::Symbol, natname::Symbol)
         push!(node.dofs, dof)
         node.dofdict[name] = dof
         node.dofdict[natname] = dof
+        dof.vals[name] = 0.0 # sets default value
     end
     return nothing
 end
@@ -177,7 +181,8 @@ function getndim(nodes::Array{Node,1})
 end
 
 
-function Base.getindex(nodes::Array{<:Node,1}, filters::NTuple; kwargs...)
+function Base.getindex(nodes::Vector{Node}, filters::NTuple; kwargs...)
+    # used in nodes[ (x==0, y==1) ]
     return getindex(nodes, filters...; kwargs...)
 end
 
@@ -185,7 +190,7 @@ end
 # Index operator for an collection of nodes
 function Base.getindex(
     nodes::Array{Node,1}, 
-    filters::Union{Expr,Symbolic,String, Array{Float64}}...;
+    filters::Union{Expr,Symbolic,String, Vector{Float64}}...;
     invert = false
     )
     

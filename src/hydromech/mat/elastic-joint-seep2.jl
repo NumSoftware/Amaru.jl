@@ -117,19 +117,19 @@ function ip_state_vals(mat::ElasticJointSeep2, state::JointSeepState2)
     ndim = state.ctx.ndim
     if ndim == 2
         return OrderedDict(
-          :w1  => state.w[1] ,
+          :jw  => state.w[1] ,
           :w2  => state.w[2] ,
-          :s1  => state.σ[1] ,
+          :jσn  => state.σ[1] ,
           :s2  => state.σ[2] ,
           :uwf => state.uw[3],
           :vb  => state.Vt[1],
           :vt  => state.Vt[2] )
     else
         return OrderedDict(
-          :w1  => state.w[1] ,
+          :jw  => state.w[1] ,
           :w2  => state.w[2] ,
           :w3  => state.w[3] ,
-          :s1  => state.σ[1] ,
+          :jσn  => state.σ[1] ,
           :s2  => state.σ[2] ,
           :s3  => state.σ[3] ,
           :uwf => state.uw[3],

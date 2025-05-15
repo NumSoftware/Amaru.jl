@@ -51,7 +51,7 @@ end
 mech_modal_solver_params = [
     FunInfo( :mech_modal_solver!, "Finds the frequencies and vibration modes of a mechanical system."),
     ArgInfo( :model, "FEModel object"),
-    ArgInfo( :stage, "Stage object"),
+    # ArgInfo( :stage, "Stage object"),
     KwArgInfo( :nmodes, "Number of modes to be calculated", 5),
     KwArgInfo( :rayleigh, "Flag to use Rayleigh-Ritz method for damping", false),
     KwArgInfo( :quiet, "Flag to set silent mode", false),
@@ -71,11 +71,11 @@ end
 
 
 function mech_modal_solver!(ana::MechModalAnalysis, stage::Stage; kwargs...)
-    args = NamedTuple(kwargs)
-    # args = checkargs(kwargs, mech_modal_solver_params)
+    # args = NamedTuple(kwargs)
+    args = checkargs(kwargs, mech_modal_solver_params)
     nmodes = args.nmodes
+    quiet  = args.quiet 
     rayleigh = args.rayleigh
-    quiet = args.quiet 
 
     model = ana.model
     ctx = model.ctx
@@ -88,7 +88,9 @@ function mech_modal_solver!(ana::MechModalAnalysis, stage::Stage; kwargs...)
 
     # todo: check there are not force boundary conditions
 
-    # get only bulk elements
+    @show 100
+
+    # get only bulk elements # todo: improve this
     model = FEModel(model.elems.bulks)
 
     # check density
@@ -113,12 +115,16 @@ function mech_modal_solver!(ana::MechModalAnalysis, stage::Stage; kwargs...)
         dof.vals[dof.natname] = 0.0
     end
 
+    @show 200
+
+
     K11 = mount_K(model.elems, ndofs)[1:nu, 1:nu]
     M11 = mount_M(model.elems, ndofs)[1:nu, 1:nu]
 
-    M11 = 0.5*(M11 + M11')
+    # M11 = 0.5*(M11 + M11')
 
     L = sum(M11, dims=1)
+    P = K11 ./ L
 
     # m11 = zeros(nu) #Vetor of inverse matrix mass
     # for i in 1:size(M11,2)
@@ -127,7 +133,6 @@ function mech_modal_solver!(ana::MechModalAnalysis, stage::Stage; kwargs...)
 
     # inverse of the lumped matrix in vector form
     # P = m11.*K11
-    P = K11 ./ L
 
     # @show K11
 
@@ -136,26 +141,35 @@ function mech_modal_solver!(ana::MechModalAnalysis, stage::Stage; kwargs...)
 
     # eingenvalues and eingenvectors
     # Eig = eigs(P, nev=nmodes, which=:SR, tol=1e-6, maxiter=600, check=1) # SR: smallest real part
-    nenv = size(P,2) - 2
-    Eig = eigs(P, nev=nmodes, which=:SM, tol=1e-6, ncv=min(2*nmodes, nenv), check=1) # SM: smallest magnitude
+    # nenv = size(P,2) - 2
+    @show 300
+    
+    # Eig = eigs(P, nev=nmodes, which=:SM, tol=1e-6, ncv=min(2*nmodes, nenv), check=1) # SM: smallest magnitude
+    λ, V = eigs(P, nev=nmodes, which=:SM, tol=1e-6, check=1, maxiter=10000) # SM: smallest magnitude
     # Eig = eigs(P, nev=nmodes, which=:LM) # LM: largest magnitude
-    w0  = Eig[1] # frequencies
-    wi  = copy(w0)
+    # w0  = λ # frequencies
+    # λ  = copy(w0)
+    
+    @show 400
 
-    @show wi
-    @show wi
-    @show wi
+    # @show wi
+    # @show wi
+    # @show wi
 
     # select possible vals
-    filter = [ i for i in eachindex(wi) if isreal(wi[i]) && real(wi[i])>0 ]
-    filter = filter[ unique(i -> wi[i], filter) ]  # todo: do not remove eingenvalues
-    perm   = sortperm(real(wi[filter]))[1:nmodes]
+    filter = [ i for i in eachindex(λ) if isreal(λ[i]) && real(λ[i])>0 ]
+    perm   = sortperm(real(λ[filter]))[1:nmodes] # sorting from smalles to largest
     filter = filter[perm]
 
-    wi = wi[filter] # sorted
-    v  = Eig[2][:, filter]
+    # filter = [ i for i in eachindex(wi) if isreal(wi[i]) && real(wi[i])>0 ]
+    # filter = filter[ unique(i -> wi[i], filter) ]  # todo: do not remove eingenvalues
+    # perm   = sortperm(real(wi[filter]))[1:nmodes]
+    # filter = filter[perm]
 
-    w = wi.^0.5  # true frequencies
+    λ = λ[filter]
+    V = V[:, filter]
+
+    ω = λ.^0.5  # true frequencies
 
     update_output_data!(model)
     save(model, joinpath(sctx.outdir, "$(sctx.outkey)-0.vtu"), quiet=true)
@@ -165,7 +179,7 @@ function mech_modal_solver!(ana::MechModalAnalysis, stage::Stage; kwargs...)
     
     # save modes
     for i in 1:nmodes
-        U = v[:,i] # modal displacements
+        U = V[:,i] # modal displacements
         
         for (k,dof) in enumerate(dofs[1:nu])
             dof.vals[dof.name] = U[k]
@@ -185,14 +199,14 @@ function mech_modal_solver!(ana::MechModalAnalysis, stage::Stage; kwargs...)
     # if !quiet
     #     println(sctx.log, "modal frequencies:")
     #     for i in 1:nmodes
-    #         println(sctx.log, "ω$i = ", abs(w[i]))
+    #         println(sctx.log, "ω$i = ", abs(ω[i]))
     #     end
     # end
 
     # show("Modal Frequencies rad/s")
-    # @show w
+    # @show ω
     #show("Modal Shapes rad/s")
-    #@show v
+    #@show V
 
     if rayleigh
         #Rayleigh-Ritz method for Damping
@@ -207,9 +221,9 @@ function mech_modal_solver!(ana::MechModalAnalysis, stage::Stage; kwargs...)
 
         println("See the vtk files of the modal deformated and decide")
         print("What is the first frequency that you want?")
-        w1 = w[parse(Int,chomp(readline()))]
+        w1 = ω[parse(Int,chomp(readline()))]
         print("What is the second frequency that you want?")
-        w2 = w[parse(Int,chomp(readline()))]
+        w2 = ω[parse(Int,chomp(readline()))]
 
         alpha = 2*(w1^2*w2*xi2 - w1*w2^2*xi1) / (w1^2-w2^2)
         beta  = 2*(w1*xi1 - w2*xi2)/(w1^2 - w2^2)
@@ -219,8 +233,8 @@ function mech_modal_solver!(ana::MechModalAnalysis, stage::Stage; kwargs...)
     end
 
     # save frequencies and modes
-    ana.freqs = w
-    ana.modes = v
+    ana.freqs = ω
+    ana.modes = V
 
     return success()
 

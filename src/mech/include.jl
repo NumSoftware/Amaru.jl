@@ -14,12 +14,14 @@ include("elem/mech.jl")
 include("elem/distributed.jl")
 
 # Elements
+include("elem/mech-frame.jl")
 include("elem/mech-solid.jl")
 include("elem/mech-fluid.jl")
 include("elem/mech-truss.jl")
 include("elem/mech-embtruss.jl")
 include("elem/mech-beam.jl")
 include("elem/mech-joint.jl")
+# include("elem/mech-cohesive.jl")
 include("elem/mech-lsinterface.jl")
 include("elem/mech-tipinterface.jl")
 include("elem/mech-shell.jl")
@@ -52,11 +54,10 @@ include("mat/linear-spring.jl")
 # include("mat/elastic-shell-degenerated.jl")
 # include("mat/elastic-cook-shell.jl")
 
-# Models for joint elements
+# Models for joint and coohesive elements
 include("mat/linear-joint.jl")
-
-# Models for cohesive elements
-include("mat/linear-cohesive.jl")
+include("mat/linear-contact-joint.jl")
+# include("mat/linear-cohesive.jl")
 include("mat/mc-cohesive.jl")
 # include("mat/p-cohesive.jl")
 # include("mat/mmc-cohesive.jl")

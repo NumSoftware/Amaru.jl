@@ -425,7 +425,7 @@ function ip_state_vals(mat::SmearedCrack, state::SmearedCrackState)
         s1 = s2 = s3 = 0.0
     end
     D[:up] = state.up
-    D[:s1]  = s1
+    D[:jσn]  = s1
     D[:s2]  = s2
     D[:s3]  = s3
     D[:w]   = state.w[1]

@@ -442,10 +442,10 @@ function ip_state_vals(mat::MCJointSeep2, state::MCJointSeepState2)
     ndim = state.ctx.ndim
     if ndim == 3
        return OrderedDict(
-          :w1   => state.w[1] ,
+          :jw   => state.w[1] ,
           :w2   => state.w[2] ,
           :w3   => state.w[3] ,
-          :s1   => state.σ[1] ,
+          :jσn   => state.σ[1] ,
           :s2   => state.σ[2] ,
           :s3   => state.σ[3] ,
           :up  => state.up  ,
@@ -454,9 +454,9 @@ function ip_state_vals(mat::MCJointSeep2, state::MCJointSeepState2)
           :vt   => state.Vt[2])
     else
         return OrderedDict(
-          :w1   => state.w[1] ,
+          :jw   => state.w[1] ,
           :w2   => state.w[2] ,
-          :s1   => state.σ[1] ,
+          :jσn   => state.σ[1] ,
           :s2   => state.σ[2] ,
           :up  => state.up  ,
           :uwf  => state.uw[3],

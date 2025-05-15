@@ -21,13 +21,16 @@ mutable struct MCJointState<:IpState
     end
 end
 
+
 MCJoint_params = [
     FunInfo(:MCJoint, "Consitutive model for cohesive elements using the MC criterion"),
-    KwArgInfo(:E, "Young's modulus", cond=:(E>0)),
-    KwArgInfo(:nu, "Poisson ratio", cond=:(0<=nu<0.5)),
     KwArgInfo(:ft, "Tensile strength", cond=:(ft>0)),
-    KwArgInfo(:mu, "Tangent of friction angle", cond=:(mu>=0)),
-    KwArgInfo(:zeta, "Factor to control elastic relative displacements", cond=:(zeta>=0)),
+    KwArgInfo(:mu, "Friction coefficient", cond=:(mu>=0)),
+    KwArgInfo(:kn, "Normal stiffness per area", 0.0, cond=:(kn>0)),
+    KwArgInfo(:ks, "Shear stiffness per area", 0.0, cond=:(ks>=0)),
+    KwArgInfo(:E, "Young's modulus (when used as cohesive element)", 0.0, cond=:(E>=0)),
+    KwArgInfo(:nu, "Poisson ratio (when used as cohesive element)", 0.0, cond=:(0<=nu<0.5)),
+    KwArgInfo(:zeta, "Factor to control elastic relative displacements (when used as cohesive element)", 0.0, cond=:(zeta>=0)),
     KwArgInfo(:wc, "Critical crack opening", 0.0, cond=:(wc>=0)),
     KwArgInfo(:GF, "Fracture energy", 0.0, cond=:(GF>=0)),
     KwArgInfo(:softmodel, "Softening model", :hordijk, values=(:linear, :bilinear, :hordijk, :soft, :custom), type=Symbol),
@@ -40,6 +43,8 @@ mutable struct MCJoint<:Material
     ft ::Float64      # tensile strength (internal variable)
     μ  ::Float64      # tangent of friction angle
     ζ  ::Float64      # factor ζ controls the elastic relative displacements (formerly α)
+    kn ::Float64      # normal stiffness per area (optional, for fixed kn)
+    ks ::Float64      # shear stiffness per area (optional, for fixed ks)
     wc ::Float64      # critical crack opening
     softmodel::Symbol    # softening curve model (:linear" or bilinear" or "hordijk"
 
@@ -63,7 +68,10 @@ mutable struct MCJoint<:Material
             end
         end
 
-        this = new(args.E, args.nu, args.ft, args.mu, args.zeta, wc, softmodel)
+        ζ = args.zeta
+        kn, ks = args.kn, args.ks
+
+        this = new(args.E, args.nu, args.ft, args.mu, ζ, kn, ks, wc, softmodel)
         return this
     end
 end
@@ -213,11 +221,16 @@ end
 
 
 function calc_kn_ks_De(mat::MCJoint, state::MCJointState)
+    if mat.kn>0 && mat.ks>0
+        kn = mat.kn
+        ks = mat.ks
+    else
+        kn = mat.E*mat.ζ/state.h
+        G  = mat.E/(2*(1 + mat.ν))
+        ks = G*mat.ζ/state.h
+    end
+    
     ndim = state.ctx.ndim
-    kn = mat.E*mat.ζ/state.h
-    G  = mat.E/(2.0*(1.0+mat.ν))
-    ks = G*mat.ζ/state.h
-
     if ndim == 3
         De = [  kn  0.0  0.0
                0.0   ks  0.0
@@ -232,12 +245,12 @@ end
 
 
 function calc_Δλ(mat::MCJoint, state::MCJointState, σtr::Array{Float64,1})
-    ndim = state.ctx.ndim
+    ndim   = state.ctx.ndim
     maxits = 100
     Δλ     = 0.0
     f      = 0.0
-    up    = 0.0
-    tol    = 1e-4      
+    up     = 0.0
+    tol    = 1e-4
 
     for i in 1:maxits
         μ      = mat.μ
@@ -290,11 +303,11 @@ function calc_Δλ(mat::MCJoint, state::MCJointState, σtr::Array{Float64,1})
         abs(f) < tol && break
 
         if i == maxits || isnan(Δλ)
-            warn("""MCJoint: Could not find Δλ. This may happen when the system
-            becomes hypostatic and thus the global stiffness matrix is nearly singular.
-            Increasing the mesh refinement may result in a nonsingular matrix.
-            """)
-            warn("iterations=$i Δλ=$Δλ")
+            # warn("""MCJoint: Could not find Δλ. This may happen when the system
+            # becomes hypostatic and thus the global stiffness matrix is nearly singular.
+            # Increasing the mesh refinement may result in a nonsingular matrix.
+            # """)
+            # warn("iterations=$i Δλ=$Δλ")
             return 0.0, failure("MCJoint: Could nof find Δλ.")
         end
     end
@@ -425,19 +438,19 @@ function ip_state_vals(mat::MCJoint, state::MCJointState)
     ndim = state.ctx.ndim
     if ndim == 3
        return Dict(
-          :jw1  => state.w[1] ,
+          :jw  => state.w[1] ,
           :jw2  => state.w[2] ,
           :jw3  => state.w[3] ,
-          :js1  => state.σ[1] ,
+          :jσn  => state.σ[1] ,
           :js2  => state.σ[2] ,
           :js3  => state.σ[3] ,
           :jup => state.up
           )
     else
         return Dict(
-          :jw1  => state.w[1] ,
+          :jw  => state.w[1] ,
           :jw2  => state.w[2] ,
-          :js1  => state.σ[1] ,
+          :jσn  => state.σ[1] ,
           :js2  => state.σ[2] ,
           :jup => state.up
           )
@@ -446,5 +459,5 @@ end
 
 
 function output_keys(mat::MCJoint)
-    return Symbol[:jw1, :js1, :jup]
+    return Symbol[:jw, :jσn, :jup]
 end

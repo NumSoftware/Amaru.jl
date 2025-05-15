@@ -407,7 +407,7 @@ function update_elem!(elem::HydroJoint, U::Array{Float64,1}, Δt::Float64)
 end
 
 
-function elem_extrapolated_node_vals(elem::HydroJoint)
+function elem_recover_nodal_values(elem::HydroJoint)
     nips = length(elem.ips)
 
     E  = extrapolator(elem.shape.facet_shape, nips)

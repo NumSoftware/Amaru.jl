@@ -46,7 +46,6 @@ end
 
 # Functions that should be available in all concrete types derived from Element
 
-
 """
 `elem_config_dofs(elem)`
 
@@ -85,12 +84,12 @@ end
 
 
 """
-`elem_extrapolated_node_vals(elem)`
+`elem_recover_nodal_values(elem)`
 
 Returns a dictionary with nodal values obtained by extrapolation
 of values at ip points.
 """
-function elem_extrapolated_node_vals(elem::Element)
+function elem_recover_nodal_values(elem::Element)
     return Dict{Symbol, Float64}()
 end
 
@@ -260,15 +259,15 @@ end
 
 
 # Get all nodes from a collection of elements
-function getnodes(elems::Array{<:Element,1})
-    nodes = Set{Node}()
-    for elem in elems
-        for node in elem.nodes
-            push!(nodes, node)
-        end
-    end
-    return [node for node in nodes]
-end
+# function getnodes(elems::Array{<:Element,1})
+#     nodes = Set{Node}()
+#     for elem in elems
+#         for node in elem.nodes
+#             push!(nodes, node)
+#         end
+#     end
+#     return [node for node in nodes]
+# end
 
 # Get all dofs from an element
 function get_dofs(elem::Element)

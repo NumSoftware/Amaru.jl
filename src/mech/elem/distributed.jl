@@ -73,7 +73,7 @@ end
 
 
 # Distributed natural boundary conditions for faces and edges of bulk elements
-function mech_boundary_forces(elem::Element, facet::Cell, t::Float64, key::Symbol, val::Union{Real,Symbol,Expr})
+function mech_boundary_forces(elem::Element, facet::Cell, t::Float64, key::Symbol, val::Union{Real,Symbol,Expr,Symbolic})
     ctx = elem.ctx
     ndim  = ctx.ndim
     if ndim==2
@@ -218,15 +218,14 @@ end
 
 
 
-function mech_shell_body_forces(elem::Element, key::Symbol, val::Union{Real,Symbol,Expr})
+function mech_shell_body_forces(elem::Element, t::Float64, key::Symbol, val::Union{Real,Symbol,Expr})
     suitable_keys = (:wx, :wy, :wz)
 
     # Check keys
     key in suitable_keys || error("mech_shell_body_forces: boundary condition $key is not applicable as body forces at element of type $(typeof(elem)). Suitable keys are $(string.(suitable_keys))")
 
     newkey = key==:wx ? :tx : key==:wy ? :ty : :tz
-    val    = val/elem.mat.th
+    val    = val*elem.props.th
 
-    # return mech_shell_boundary_forces(elem, elem.faces[1], newkey, val)
-    return distributed_bc(elem.faces[1], newkey, val, elem.ctx, elem.ctx)
+    return mech_boundary_forces(elem, elem.faces[1], t, newkey, val)
 end

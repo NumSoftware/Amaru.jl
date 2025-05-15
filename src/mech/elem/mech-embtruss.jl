@@ -25,9 +25,17 @@ end
 compat_shape_family(::Type{MechEmbBar}) = LINECELL
 
 
-function elem_config_dofs(::MechEmbBar)
-    # No-op function.
-    # The solid linked element will set the required dofs.
+function elem_config_dofs(elem::MechEmbBar)
+    # The nodes of a MechEmbBar element are auxiliary nodes.
+    # They are not used directly in the analysis but are used
+    # to define the embedded element and for output.
+    
+    for node in elem.nodes
+        add_dof(node, :ux, :fx)
+        elem.ctx.ndim>=2 && add_dof(node, :uy, :fy)
+        elem.ctx.ndim==3 && add_dof(node, :uz, :fz)
+        node.aux = true # mark as auxiliary
+    end
 end
 
 
@@ -44,7 +52,8 @@ function _mountNN(elem::MechEmbBar)
     solid = elem.linked_elems[1]
     n  = length(solid.nodes)
     m  = length(elem.nodes)
-    NN = zeros(ndim*n, ndim*m)
+    # NN = zeros(ndim*n, ndim*m)
+    NN = zeros(ndim*m, ndim*n)
     Cs = getcoords(solid)
 
     for j in 1:m
@@ -52,7 +61,8 @@ function _mountNN(elem::MechEmbBar)
         N = solid.shape.func(R)
         for i in 1:n
             for k in 1:ndim
-                NN[(i-1)*ndim+k, (j-1)*ndim+k] = N[i]
+                # NN[(i-1)*ndim+k, (j-1)*ndim+k] = N[i]
+                NN[(j-1)*ndim+k, (i-1)*ndim+k] = N[i]
             end
         end
     end
@@ -61,6 +71,12 @@ end
 
 
 function elem_init(elem::MechEmbBar)
+    for node in elem.nodes
+        node.dofdict[:ux].eq_id = -1
+        node.dofdict[:uy].eq_id = -1
+        node.dofdict[:uz].eq_id = -1
+    end
+
     elem.cache_NN = _mountNN(elem)
     return nothing
 end
@@ -70,12 +86,12 @@ function elem_displacements(elem::MechEmbBar)
     ndim    = elem.ctx.ndim
     NN      = elem.cache_NN
     keys    = (:ux, :uy, :uz)[1:ndim]
-    Ubulk   = [ node.dofdict[key].vals[key] for node in elem.linked_elems[1].nodes for key in keys ]
-    Urod    = NN'*Ubulk
+    Uhost   = [ node.dofdict[key].vals[key] for node in elem.linked_elems[1].nodes for key in keys ]
+    Ubar    = NN*Uhost
     nodemap = [ node.id for node in elem.nodes for key in keys ]
     dimmap  = [ i for node in elem.nodes for i in 1:ndim ]
 
-    return Urod, nodemap, dimmap
+    return Ubar, nodemap, dimmap
 end
 
 
@@ -108,7 +124,8 @@ function elem_stiffness(elem::MechEmbBar)
 
     NN = elem.cache_NN
     map = elem_map(elem)
-    return NN*K*NN', map, map
+    # @show "stiffness"
+    return NN'*K*NN, map, map
 end
 
 
@@ -118,10 +135,9 @@ function update_elem!(elem::MechEmbBar, U::Array{Float64,1}, Δt::Float64)
     A      = elem.props.A
     NN     = elem.cache_NN
 
-
     map = elem_map(elem)
     dU  = U[map]
-    dUr = NN'*dU
+    dUbar = NN*dU
 
     dF = zeros(nnodes*ndim)
     C  = getcoords(elem)
@@ -140,39 +156,51 @@ function update_elem!(elem::MechEmbBar, U::Array{Float64,1}, Δt::Float64)
             end
         end
 
-        deps = (B*dUr)[1]
+        deps = (B*dUbar)[1]
         dsig, _ = update_state!(elem.mat, ip.state, deps)
         coef = A*detJ*ip.w
         dF  += coef*B'*dsig
     end
 
-    return NN*dF, map, success()
+    # update nodal displacements
+    keys    = (:ux, :uy, :uz)[1:ndim]
+    Uhost   = [ node.dofdict[key].vals[key] for node in elem.linked_elems[1].nodes for key in keys ]
+    Ubar    = NN*Uhost + dUbar
+    for (i,node) in enumerate(elem.nodes)
+        for (j,key) in enumerate(keys)
+            node.dofdict[key].vals[key] = Ubar[(i-1)*ndim+j]
+        end
+    end
+
+    return NN'*dF, map, success()
 end
 
 
 function elem_vals(elem::MechEmbBar)
     # get area and average stress and axial force
     vals = OrderedDict(:A => elem.props.A )
-    mean_sa = mean( ip_state_vals(elem.mat, ip.state)[:sX] for ip in elem.ips )
-    vals[:sX] = mean_sa
-    vals[:fX] = elem.props.A*mean_sa
+    σx´ = [ ip_state_vals(elem.mat, ip.state)[:σx´] for ip in elem.ips ]
+    _, idx = findmax(abs, σx´)
+    max_σx´ = σx´[idx]
+    vals[:σx´] = max_σx´
+    vals[:fx´] = elem.props.A*max_σx´
     return vals
 end
 
 
-function post_process(elem::MechEmbBar)
-    ndim    = elem.ctx.ndim
-    NN      = elem.cache_NN
+# function post_process(elem::MechEmbBar)
+#     ndim    = elem.ctx.ndim
+#     NN      = elem.cache_NN
     
-    # update displacements
-    keys    = (:ux, :uy, :uz)[1:ndim]
-    Ubulk   = [ node.vals[key] for node in elem.linked_elems[1].nodes for key in keys ]
-    Uemb    = NN'*Ubulk
+#     # update displacements
+#     keys    = (:ux, :uy, :uz)[1:ndim]
+#     Uhost   = [ node.vals[key] for node in elem.linked_elems[1].nodes for key in keys ]
+#     Ubar    = NN*Uhost
     
-    for (i,node) in enumerate(elem.nodes)
-        for (j,key) in enumerate(keys)
-            node.vals[key] = Uemb[(i-1)*ndim+j]
-        end
-    end
+#     for (i,node) in enumerate(elem.nodes)
+#         for (j,key) in enumerate(keys)
+#             node.vals[key] = Ubar[(i-1)*ndim+j]
+#         end
+#     end
     
-end
+# end

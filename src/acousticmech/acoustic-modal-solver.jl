@@ -109,6 +109,7 @@ function acoustic_modal_solver!(ana::AcousticModalAnalysis, stage::Stage; kwargs
 
     ndofs       = length(dofs)
     model.ndofs = length(dofs)
+
     if !quiet
         println(sctx.log, "unknown dofs: $nu")
         println(sctx.info, "unknown dofs: $nu")
@@ -121,7 +122,6 @@ function acoustic_modal_solver!(ana::AcousticModalAnalysis, stage::Stage; kwargs
     end
 
     K11 = am_mount_K(model.elems, ndofs)[1:nu, 1:nu]
-    # K11 .+= 0.00
     M11 = am_mount_M(model.elems, ndofs)[1:nu, 1:nu]
     # M11 = 0.5 * (M11 + M11')
     L   = sum(M11, dims=1)

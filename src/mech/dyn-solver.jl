@@ -453,7 +453,7 @@ function dyn_stage_solver!(ana::DynamicAnalysis, stage::Stage; args...)
             checkpoint = T>Tcheck-ΔTmin
             if checkpoint
                 sctx.out += 1
-                update_embedded_disps!(active_elems, model.node_data["U"])
+                # update_embedded_disps!(active_elems, model.node_data["U"])
                 Tcheck += ΔTcheck # find the next output time
             end
 

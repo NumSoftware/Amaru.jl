@@ -135,10 +135,10 @@ function ip_state_vals(mat::TCJointSeep, state::TCJointSeepState)
     ndim = state.ctx.ndim
     if ndim == 3
        return OrderedDict(
-          :jw1 => state.w[1],
+          :jw => state.w[1],
           :jw2 => state.w[2],
           :jw3 => state.w[3],
-          :js1 => state.σ[1],
+          :jσn => state.σ[1],
           :js2 => state.σ[2],
           :js3 => state.σ[3],
           :jup => state.up,
@@ -147,9 +147,9 @@ function ip_state_vals(mat::TCJointSeep, state::TCJointSeepState)
           :vt  => state.Vt[2])
     else
         return OrderedDict(
-          :jw1 => state.w[1],
+          :jw => state.w[1],
           :jw2 => state.w[2],
-          :js1 => state.σ[1],
+          :jσn => state.σ[1],
           :js2 => state.σ[2],
           :jup => state.up,
           :juw => state.uw[3], # middle layer
@@ -160,5 +160,5 @@ end
 
 
 function output_keys(mat::TCJointSeep)
-    return Symbol[:jw1, :js1, :jup, :juw]
+    return Symbol[:jw, :jσn, :jup, :juw]
 end

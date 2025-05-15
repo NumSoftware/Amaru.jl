@@ -57,6 +57,7 @@ end
 
 compat_shape_family(::Type{MechBeam}) = LINECELL
 compat_elem_props(::Type{MechBeam}) = MechBeamProps
+embedded_type(::Type{MechBeam}) = error("MechBeam: this element cannot be embedded")
 
 
 function elem_init(elem::MechBeam)
@@ -386,7 +387,7 @@ function elem_vals(elem::MechBeam)
 end
 
 
-function elem_extrapolated_node_vals(elem::MechBeam)
+function elem_recover_nodal_values(elem::MechBeam)
     ndim = elem.ctx.ndim
     thz = elem.props.thz
     thy = elem.props.thy

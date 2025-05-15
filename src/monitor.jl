@@ -38,8 +38,8 @@ mutable struct IpMonitor<:AbstractMonitor
     julia> ana.model = randmodel(2,2)
 
     julia> monitors = [
-        :(x==0.5 && y==1.0) => IpMonitor(:sxx, "sxx.dat")
-        :(x==0.5 && y==0.0) => IpMonitor(:eyy, "eyy.dat")
+        :(x==0.5 && y==1.0) => IpMonitor(:σxx, "sxx.dat")
+        :(x==0.5 && y==0.0) => IpMonitor(:εyy, "eyy.dat")
     ]
 
     julia> addmonitors!(ana, monitors)

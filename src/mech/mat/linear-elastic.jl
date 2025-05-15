@@ -48,6 +48,19 @@ mutable struct ElasticPlaneStressState<:IpState
 end
 
 
+mutable struct ElasticBeamState<:IpState
+    ctx::Context
+    σ::Vec3
+    ε::Vec3
+
+    function ElasticBeamState(ctx::Context)
+        this = new(ctx)
+        this.σ = zeros(Vec3)
+        this.ε = zeros(Vec3)
+        return this
+    end
+end
+
 mutable struct ElasticBarState<:IpState
     ctx::Context
     σ::Float64
@@ -59,6 +72,19 @@ mutable struct ElasticBarState<:IpState
         return this
     end
 end
+mutable struct ElasticFrameState<:IpState
+    ctx::Context
+    σ::Float64
+    τ::Float64
+    ε::Float64
+    function ElasticFrameState(ctx::Context)
+        this = new(ctx)
+        this.σ = 0.0
+        this.τ = 0.0
+        this.ε = 0.0
+        return this
+    end
+end
 
 
 compat_state_type(::Type{LinearElastic}, ::Type{MechSolid}, ctx::Context)  = ctx.stressmodel==:planestress ? ElasticPlaneStressState : ElasticSolidState
@@ -66,6 +92,7 @@ compat_state_type(::Type{LinearElastic}, ::Type{MechShell}, ctx::Context)  = Ela
 compat_state_type(::Type{LinearElastic}, ::Type{MechBeam}, ctx::Context)   = ElasticBeamState
 compat_state_type(::Type{LinearElastic}, ::Type{MechBar}, ctx::Context)    = ElasticBarState
 compat_state_type(::Type{LinearElastic}, ::Type{MechEmbBar}, ctx::Context) = ElasticBarState
+compat_state_type(::Type{LinearElastic}, ::Type{MechFrame}, ctx::Context) = ElasticFrameState
 
 
 function calcDe(E::Real, ν::Real, stressmodel::Symbol=:d3)
@@ -139,18 +166,6 @@ end
 
 # LinearElastic for beam elements
 
-mutable struct ElasticBeamState<:IpState
-    ctx::Context
-    σ::Vec3
-    ε::Vec3
-
-    function ElasticBeamState(ctx::Context)
-        this = new(ctx)
-        this.σ = zeros(Vec3)
-        this.ε = zeros(Vec3)
-        return this
-    end
-end
 
 
 function calcD(mat::LinearElastic, state::ElasticBeamState)
@@ -175,13 +190,13 @@ end
 
 function ip_state_vals(mat::LinearElastic, state::ElasticBeamState)
     vals = OrderedDict{Symbol,Float64}(
-      :sX  => state.σ[1],
-      :eX  => state.ε[1],
-      :sXY => state.σ[2]/SR2
+      :σx´  => state.σ[1],
+      :εx´  => state.ε[1],
+      :σx´y´ => state.σ[2]/SR2
     )
     if state.ctx.ndim==3
-        vals[:sXZ] = state.σ[2]/SR2
-        vals[:sXY] = state.σ[3]/SR2
+        vals[:σx´z´] = state.σ[2]/SR2
+        vals[:σx´y´] = state.σ[3]/SR2
     end
     return vals
 end
@@ -204,7 +219,27 @@ end
 
 function ip_state_vals(mat::LinearElastic, state::ElasticBarState)
     return OrderedDict(
-      :sX => state.σ,
-      :eX => state.ε,
+      :σx´ => state.σ,
+      :εx´ => state.ε,
       )
+end
+
+# LinearElastic model for frame elements
+
+function calcD(mat::LinearElastic, ips::ElasticFrameState)
+    return mat.E
+end
+
+
+function update_state!(mat::LinearElastic, state::ElasticFrameState)
+    return 0.0, success()
+end
+
+
+function ip_state_vals(mat::LinearElastic, state::ElasticFrameState)
+    return OrderedDict(
+        :σx´   => state.σ,
+        :σx´y´ => state.τ,
+        :εx´   => state.ε,
+    )
 end

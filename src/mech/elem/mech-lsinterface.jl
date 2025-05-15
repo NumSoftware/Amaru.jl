@@ -203,7 +203,7 @@ function update_elem!(elem::MechRSJoint, U::Array{Float64,1}, Δt::Float64)
 end
 
 
-function elem_extrapolated_node_vals(elem::MechRSJoint)
+function elem_recover_nodal_values(elem::MechRSJoint)
     all_ip_vals = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
     nips        = length(elem.ips)
     fields      = keys(all_ip_vals[1])

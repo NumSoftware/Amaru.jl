@@ -144,7 +144,7 @@ function save_xml(model::FEModel, filename::String)
     end
     push!(root.children, xelemdata)
 
-    fileatts = OrderedDict("version"=>"1.0", "encoding"=>"utf-8")
+    fileatts = OrderedDict("version"=>"1.0", "encoding"=>"UTF-8")
     doc = XmlDocument(fileatts, root)
     save(doc, filename)
 

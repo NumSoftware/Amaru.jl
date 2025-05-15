@@ -58,3 +58,18 @@ function databook(mats::Array{<:Pair,1})
     end
     return db
 end
+
+
+
+# include in a new material.jl file
+#
+# struct MaterialEntry
+#     tag::String
+#     element_type::Element
+#     model::ConstitutiveModel
+#     props::NamedTuple
+# end
+
+# mutable struct MaterialsList
+#     entries::Vector{MaterialEntry}
+# end

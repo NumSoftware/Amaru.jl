@@ -69,12 +69,12 @@ function elem_init(elem::MechSolid)
 end
 
 
-function distributed_bc(elem::MechSolid, facet::Cell, t::Float64, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::MechSolid, facet::Cell, t::Float64, key::Symbol, val::Union{Real,Symbol,Expr,Symbolic})
     return mech_boundary_forces(elem, facet, t, key, val)
 end
 
 
-function body_c(elem::MechSolid, key::Symbol, val::Union{Real,Symbol,Expr})
+function body_c(elem::MechSolid, key::Symbol, val::Union{Real,Symbol,Expr,Symbolic})
     return mech_solid_body_forces(elem, key, val)
 end
 

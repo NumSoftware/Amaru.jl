@@ -690,7 +690,7 @@ function update_elem!(elem::HMJoint, U::Array{Float64,1}, Δt::Float64)
 end
 
 
-function elem_extrapolated_node_vals(elem::HMJoint)
+function elem_recover_nodal_values(elem::HMJoint)
     nips = length(elem.ips)
 
     keys = output_keys(elem.mat)

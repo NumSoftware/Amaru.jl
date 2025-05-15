@@ -7,11 +7,11 @@ CSCP_params = [
     KwArgInfo(:E, "Young's modulus", cond=:(E>0)),
     KwArgInfo(:nu, "Poisson's ratio", cond=:(nu>=0)),
     # KwArgInfo(:e, "Excentricity", nothing, cond=:(1>=e>0.50)),
-    KwArgInfo(:alpha, "Curvature coefficient", 1.5, cond=:(1.0<alpha<=2.5)),
+    KwArgInfo(:alpha, "Curvature coefficient", 1.5, cond=:(0.4<alpha<=1.0)),
     KwArgInfo(:beta, "Factor to get fb from fc_max", 1.15, cond=:(1<=beta<=1.5)),
-    KwArgInfo(:fc, "Compressive strength OR plastic curve for fc as a function of εpc", nothing),
+    KwArgInfo(:fc, "Compressive strength OR plastic curve for fc as a function of εc", nothing),
     KwArgInfo(:ft, "Tensile strength OR plastic curve for ft as a function of w", nothing),
-    KwArgInfo(:pmin, "Elastic limit for p under compression OR plastic curve for p as a function of εv", nothing),
+    KwArgInfo(:pmin, "Elastic limit for p under compression OR curve for p as a function of εv", nothing),
     KwArgInfo(:GF, "Tensile fracture energy (only used if ft is a number)", nothing, cond=:(GF>0)),
 ]
 
@@ -24,49 +24,53 @@ mutable struct CSCP<:Material
     ft_fun::Union{Nothing,PathFunction}
     fc_fun::Union{Nothing,PathFunction}
     p_fun::Union{Nothing,PathFunction}
-    f̄c::Float64
+    fc_peak::Float64
     fb::Float64
 
     function CSCP(; kwargs...)
         args = checkargs(kwargs, CSCP_params)
 
+        # Elastic constants
+        E = args.E
+        ν = args.nu
+        K = E/(3*(1-2*ν))
+
+        # Input functions
         ft_fun = args.ft isa PathFunction ? args.ft : PathFunction(:M, 0.0, args.ft)
         fc_fun = args.fc isa PathFunction ? args.fc : PathFunction(:M, 0.0, args.fc)
         p_fun  = args.pmin isa PathFunction ? args.pmin : PathFunction(:M, 0.0, args.pmin)
+
+        # Fix functions to be in terms of plastic strains
+        fc_fun = map((x, y) -> (abs(x-y/E), y), fc_fun)
+        p_fun  = map((x, y) -> (abs(x-y/K), y), p_fun)
 
         GF = args.GF
         ft = args.ft
         if !isnothing(GF) && ft isa Number
             ft_fun = PathFunction(:M, 0.0, ft)
-            wc = GF/(0.1947*ft)
-            W  = range(wc/10, wc, 10)
+            wc     = GF/(0.1947*ft)
+            W      = range(wc/10, wc, 10)
             for w in W
-                z = (1 + 27*(w/wc)^3)*exp(-6.93*w/wc) - 28*(w/wc)*exp(-6.93)           
+                z = (1 + 27*(w/wc)^3)*exp(-6.93*w/wc) - 28*(w/wc)*exp(-6.93)
                 append!(ft_fun, :L, w, ft*max(z,0.0))
             end
-            # @show ft_fun
-            # error()
         end
 
         # fc peak
-        εpc_vals = range(0, fc_fun.points[end][1], 100)
-        fc_vals  = fc_fun.(εpc_vals)
-        fc_peak, _ = findmin(fc_vals) # index at peak value
+        εcp_vals   = range(limits(fc_fun)..., 100)
+        fc_vals    = fc_fun.(εcp_vals)
+        fc_peak, _ = findmin(fc_vals) # fc peak value
 
         α = args.alpha
         β = args.beta
 
-        # value of e to match fb
-        e = β/(2*β)^(1/α)
+        # value of exentricity to match fb in a biaxial trajectory, assuming the state when ξb=0 
+        e = β/(2*β)^α # forgot how to demonstate this
 
-        @show e
+        fc_peak = abs(fc_peak)
+        fb = β*fc_peak
 
-        f̄c = abs(fc_peak)
-        fb = args.beta*fc_peak
-
-        @show f̄c
-
-        this = new(args.E, args.nu, e, α, ft_fun, fc_fun, p_fun, f̄c, fb)
+        this = new(args.E, args.nu, e, α, ft_fun, fc_fun, p_fun, fc_peak, fb)
         return this
     end
 end
@@ -74,20 +78,20 @@ end
 
 mutable struct CSCPState<:IpState
     ctx::Context
-    σ::Vec6
-    ε::Vec6
-    εpc::Float64
-    εpt::Float64
-    Δλ::Float64
-    h::Float64
+    σ  ::Vec6
+    ε  ::Vec6
+    εcp::Float64
+    εtp::Float64
+    Δλ ::Float64
+    h  ::Float64
     function CSCPState(ctx::Context)
         this     = new(ctx)
         this.σ   = zeros(Vec6)
         this.ε   = zeros(Vec6)
-        this.εpc = 0.0
-        this.εpt = 0.0
-        this.Δλ = 0.0
-        this.h  = 0.0
+        this.εcp = 0.0 # plastic strain in compression
+        this.εtp = 0.0 # plastic strain in tension
+        this.Δλ  = 0.0 # increment of plastic multiplier
+        this.h   = 0.0 
         this
     end
 end
@@ -123,55 +127,53 @@ end
 
 function calc_rξ(mat::CSCP, ξb::Float64, ξ::Float64)
     α  = mat.α
-    f̄c = mat.f̄c
+    fc_peak = mat.fc_peak
 
-    return spow((ξb-ξ)/f̄c, 1/α)
+    return spow((ξb-ξ)/fc_peak, α)
 end
 
 function calc_rc(mat::CSCP, ξa::Float64, ξ::Float64)
-    ξi = 2*mat.fb/√3
-    ξ>=ξi && return 1.0
+    ξc = 2*mat.fb/√3
+    ξ>=ξc && return 1.0
     ξ<ξa  && return 0.0
-    return √(1 - ((ξi-ξ)/(ξi-ξa))^2)
+    return √(1 - ((ξc-ξ)/(ξc-ξa))^2)
 end
 
 
-function calc_ξa_ξb_κ(mat::CSCP, state::CSCPState, εpc::Float64, εpt::Float64)
+function calc_ξa_ξb_κ(mat::CSCP, state::CSCPState, εcp::Float64, εtp::Float64)
     α  = mat.α
     e  = mat.e
-    f̄c = mat.f̄c
+    fc_peak = mat.fc_peak
 
-    w = εpt*state.h
+    w = εtp*state.h
     ft = mat.ft_fun(w)
-    fc = mat.fc_fun(εpc)
+    fc = mat.fc_fun(εcp)
 
-    ξa = √3*mat.p_fun(√3*εpc)    # ξ = √3p ;  εv = √3*εpc in isotropic compression
+    ξa = √3*mat.p_fun(√3*εcp)    # ξ = √3p ; plastic volumetric strain εvp = √3*εcp in isotropic compression
     @assert ξa<0
     @assert ξa<fc/√3
 
-    Ω  = (-ft/(fc*e))^α
+    Ω  = (-ft/(fc*e))^(1/α)
     ξb = 1/√3*(fc*Ω - ft)/(Ω-1)
+    ξb<0 && @show ξb
     @assert ξb>=0
 
-    κ  = -√(2/3)*fc*((ξb-fc/√3)/f̄c)^(-1/α)
+    κ  = -√(2/3)*fc*((ξb-fc/√3)/fc_peak)^-α
     @assert κ>0
 
     return return ξa, ξb, κ
 end
 
 
-function yield_func(mat::CSCP, state::CSCPState, σ::AbstractArray, εpc::Float64, εpt::Float64)
+function yield_func(mat::CSCP, state::CSCPState, σ::AbstractArray, εcp::Float64, εtp::Float64)
     # f(σ) = ρ - rθ⋅rc⋅rξ⋅κ
-
-    α = mat.α
-    f̄c = mat.f̄c
 
     i1, j2 = tr(σ), J2(σ)
 
     ξ = i1/√3
     ρ = √(2*j2)
 
-    ξa, ξb, κ = calc_ξa_ξb_κ(mat, state, εpc, εpt)
+    ξa, ξb, κ = calc_ξa_ξb_κ(mat, state, εcp, εtp)
     rθ = calc_rθ(mat, σ)
     rc = calc_rc(mat, ξa, ξ)
     rξ = calc_rξ(mat, ξb, ξ)
@@ -180,10 +182,10 @@ function yield_func(mat::CSCP, state::CSCPState, σ::AbstractArray, εpc::Float6
 end
 
 
-function yield_derivs(mat::CSCP, state::CSCPState, σ::AbstractArray, εpc::Float64, εpt::Float64)
+function yield_derivs(mat::CSCP, state::CSCPState, σ::AbstractArray, εcp::Float64, εtp::Float64)
     e = mat.e
     α = mat.α
-    f̄c = mat.f̄c
+    fc_peak = mat.fc_peak
 
     i1, j2 = tr(σ), J2(σ)
 
@@ -211,10 +213,9 @@ function yield_derivs(mat::CSCP, state::CSCPState, σ::AbstractArray, εpc::Floa
         dθds = 0.0*I2
     end
 
-    ξa, ξb, κ = calc_ξa_ξb_κ(mat, state, εpc, εpt)
-    # ξ = ξb
+    ξa, ξb, κ = calc_ξa_ξb_κ(mat, state, εcp, εtp)
 
-    ξi = 2*mat.fb/√3
+    ξc = 2*mat.fb/√3
     rc = calc_rc(mat, ξa, ξ)
     rξ = calc_rξ(mat, ξb, ξ)
 
@@ -222,9 +223,8 @@ function yield_derivs(mat::CSCP, state::CSCPState, σ::AbstractArray, εpc::Floa
     dfdρ  = 1
     dfdrc = -rθ*rξ*κ
     dfdrξ = -rθ*rc*κ
-    drcdξ = ξa<ξ<ξi ? (ξi-ξ)/(ξi-ξa)^2/√(1-((ξi-ξ)/(ξi-ξa))^2) : 0.0
-    drξdξ = ξb-ξ!=0.0 ? -1/(α*f̄c)*abs((ξb-ξ)/f̄c)^(1/α-1) : 0.0
-    # drξdξ = -1/(α*f̄c)*abs((ξb-ξ)/f̄c)^(1/α-1) 
+    drcdξ = ξa<ξ<ξc ? (ξc-ξ)/(ξc-ξa)^2/√(1-((ξc-ξ)/(ξc-ξa))^2) : 0.0
+    drξdξ = ξb-ξ!=0.0 ? -α/fc_peak * abs((ξb-ξ)/fc_peak)^(α-1) : 0.0
     dfdξ  = dfdrc*drcdξ + dfdrξ*drξdξ
     dfdrθ = -rc*rξ*κ
     dfdθ  = dfdrθ*drθdθ
@@ -240,47 +240,47 @@ function yield_derivs(mat::CSCP, state::CSCPState, σ::AbstractArray, εpc::Floa
         dfdσ = dfdρ*dρdσ + dfdξ*dξdσ + dfdθ*dθdσ
     end
     
-    f_εpc  = εpc -> yield_func(mat, state, σ, εpc, εpt)
-    dfdεpc = derive(f_εpc, εpc)
+    f_εcp  = εcp -> yield_func(mat, state, σ, εcp, εtp)
+    dfdεcp = derive(f_εcp, εcp)
     
-    f_εpt  = εpt -> yield_func(mat, state, σ, εpc, εpt)
-    dfdεpt = derive(f_εpt, εpt)
+    f_εtp  = εtp -> yield_func(mat, state, σ, εcp, εtp)
+    dfdεtp = derive(f_εtp, εtp)
 
-    return dfdσ, dfdεpc, dfdεpt
+    return dfdσ, dfdεcp, dfdεtp
 end
 
 
-function potential_derivs(mat::CSCP, state::CSCPState, σ::AbstractArray, εpc::Float64, εpt::Float64)
+function potential_derivs(mat::CSCP, state::CSCPState, σ::AbstractArray, εcp::Float64, εtp::Float64)
     # f(σ) = ρ - e⋅rc⋅rξ⋅κ
 
     e  = mat.e
     α  = mat.α
-    f̄c = mat.f̄c
+    fc_peak = mat.fc_peak
 
     i1 = tr(σ)
     ξ  = i1/√3
     s  = dev(σ)
+    ρ  = norm(s)
+    ρ == 0 && return  √3/3*I2
 
-    ξa, ξb, κ = calc_ξa_ξb_κ(mat, state, εpc, εpt)
+    ξa, ξb, κ = calc_ξa_ξb_κ(mat, state, εcp, εtp)
 
-    ξi = 2*mat.fb/√3
+    ξc = 2*mat.fb/√3
     rc = calc_rc(mat, ξa, ξ)
     rξ = calc_rξ(mat, ξb, ξ)
     
     dgdrc = -e*rξ*κ
     dgdrξ = -e*rc*κ
-    drcdξ = ξa<ξ<ξi ? (ξi-ξ)/(ξi-ξa)^2/√(1-((ξi-ξ)/(ξi-ξa))^2) : 0.0
-    drξdξ = ξb-ξ!=0.0 ? -1/(α*f̄c)*abs((ξb-ξ)/f̄c)^(1/α-1) : 0.0
+    drcdξ = ξa<ξ<ξc ? (ξc-ξ)/(ξc-ξa)^2/√(1-((ξc-ξ)/(ξc-ξa))^2) : 0.0
+    drξdξ = ξb-ξ!=0.0 ? -α/fc_peak * abs((ξb-ξ)/fc_peak)^(α-1) : 0.0
     dgdξ  = dgdrc*drcdξ + dgdrξ*drξdξ
     
     dξdσ = √3/3*I2
-    ρ    = norm(s)
     dgdρ = 1.0
 
+   
     # if ξ>ξb && (ξ-ξb)*dgdξ > ρ*dgdρ  # apex
-    #     # @show "hi"
     #     dgdσ = ξb*I2 - σ
-
     # else
     #     dgdσ = s/ρ + dgdξ*dξdσ
     # end
@@ -295,12 +295,12 @@ function calcD(mat::CSCP, state::CSCPState)
 
     state.Δλ==0.0 && return De
 
-    dfdσ, dfdεpc, dfdεpt = yield_derivs(mat, state, state.σ, state.εpc, state.εpt)
-    dgdσ = potential_derivs(mat, state, state.σ, state.εpc, state.εpt)
+    dfdσ, dfdεcp, dfdεtp = yield_derivs(mat, state, state.σ, state.εcp, state.εtp)
+    dgdσ = potential_derivs(mat, state, state.σ, state.εcp, state.εtp)
 
     Λ = eigvals(dgdσ, sort=false)
-    # Dep = De - De*dgdσ*dfdσ'*De / (dfdσ'*De*dgdσ - dfdεpc*norm(min.(0.0, Λ)) - dfdεpt*norm(max.(0.0, Λ)))
-    Dep = De - De*dgdσ*dfdσ'*De / (dfdσ'*De*dgdσ - dfdεpc*norm(min.(0.0, Λ)) - dfdεpt*maximum(max.(0.0, Λ)))
+    # Dep = De - De*dgdσ*dfdσ'*De / (dfdσ'*De*dgdσ - dfdεcp*norm(min.(0.0, Λ)) - dfdεtp*norm(max.(0.0, Λ)))
+    Dep = De - De*dgdσ*dfdσ'*De / (dfdσ'*De*dgdσ - dfdεcp*norm(min.(0.0, Λ)) - dfdεtp*maximum(max.(0.0, Λ)))
     return Dep
 end
 
@@ -310,22 +310,22 @@ function calc_σ_εp_Δλ(mat::CSCP, state::CSCPState, σtr::Vec6)
     maxits = 40
     maxits = 60
     tol    = 1.0
-    dgdσ   = potential_derivs(mat, state, state.σ, state.εpc, state.εpt)
+    dgdσ   = potential_derivs(mat, state, state.σ, state.εcp, state.εtp)
     De     = calcDe(mat.E, mat.ν, state.ctx.stressmodel)
     # Δλ     = norm(σtr-state.σ)/norm(De*dgdσ)/10
     Δλ     = eps()
 
     σ  = σtr - Δλ*(De*dgdσ)
 
-    εpc = state.εpc
-    εpt = state.εpt
-    f   = yield_func(mat, state, state.σ, state.εpc, state.εpt)
+    εcp = state.εcp
+    εtp = state.εtp
+    f   = yield_func(mat, state, state.σ, state.εcp, state.εtp)
     η   = 1.0 # initial damping
     
     # iterative process
     for i in 1:maxits
-        dfdσ, _ = yield_derivs(mat, state, σ, εpc, εpt)
-        dgdσ    = potential_derivs(mat, state, σ, εpc, εpt)
+        dfdσ, _ = yield_derivs(mat, state, σ, εcp, εtp)
+        dgdσ    = potential_derivs(mat, state, σ, εcp, εtp)
 
         dfdΔλ = -dfdσ'*De*dgdσ
 
@@ -335,24 +335,23 @@ function calc_σ_εp_Δλ(mat::CSCP, state::CSCPState, σtr::Vec6)
             # @show Δλ
         end
 
-        isnan(Δλ) && return state.σ, 0.0, 0.0, 0.0, failure("CSCP: Δλ is NaN")
+        if isnan(Δλ) 
+            return state.σ, 0.0, 0.0, 0.0, failure("CSCP: Δλ is NaN")
+        end
 
         σ  = σtr - Δλ*(De*dgdσ)
         # εp = state.εp + Δλ*norm(dgdσ)
 
         Λ   = eigvals(dgdσ, sort=false)
-        εpc = state.εpc + Δλ*norm(min.(0.0, Λ))
-        # εpt = state.εpt + Δλ*norm(max.(0.0, Λ))
-        εpt = state.εpt + Δλ*maximum(max.(0.0, Λ))
-        f   = yield_func(mat, state, σ, εpc, εpt)
-
-        if i>18
-            # @show i, Δλ, f
-        end
+        εcp = state.εcp + Δλ*norm(min.(0.0, Λ))
+        # εtp = state.εtp + Δλ*norm(max.(0.0, Λ))
+        εtp = state.εtp + Δλ*maximum(max.(0.0, Λ))
+        f   = yield_func(mat, state, σ, εcp, εtp)
 
         if abs(f) < tol
             Δλ < 0.0 && return σ, 0.0, 0.0, 0.0, failure("CSCP: negative Δλ")
-            return σ, εpc, εpt, Δλ, success()
+
+            return σ, εcp, εtp, Δλ, success()
         end
 
         # dumping
@@ -371,22 +370,17 @@ function update_state!(mat::CSCP, state::CSCPState, Δε::AbstractArray)
     De   = calcDe(mat.E, mat.ν, state.ctx.stressmodel)
     Δσtr = De*Δε
     σtr  = state.σ + Δσtr
-    ftr  = yield_func(mat, state, σtr, state.εpc, state.εpt)
+    ftr  = yield_func(mat, state, σtr, state.εcp, state.εtp)
 
     Δλ  = 0.0
     tol = 1.0
-    # @show Δε
-    # @show ftr
-    # @show ftr
-    # @show ftr
-    # error()
 
     if ftr < tol
         # elastic
         state.Δλ = 0.0
         state.σ  = σtr
     else
-        state.σ, state.εpc, state.εpt, state.Δλ, status = calc_σ_εp_Δλ(mat, state, σtr)
+        state.σ, state.εcp, state.εtp, state.Δλ, status = calc_σ_εp_Δλ(mat, state, σtr)
         failed(status) && return state.σ, status
     end
 
@@ -398,35 +392,35 @@ end
 
 function ip_state_vals(mat::CSCP, state::CSCPState)
     σ, ε  = state.σ, state.ε
-    ρ  = √(2*J2(σ))
-    ξ  = tr(σ)/√3
-    θ  = calc_θ(mat, σ)
-    r  = calc_rθ(mat, σ)
+    # ρ  = √(2*J2(σ))
+    # ξ  = tr(σ)/√3
+    # θ  = calc_θ(mat, σ)
+    # r  = calc_rθ(mat, σ)
     
-    fc = mat.fc_fun(state.εpc)
-    ft = mat.ft_fun(state.εpt)
+    # fc = mat.fc_fun(state.εcp)
+    # ft = mat.ft_fun(state.εtp)
     
-    ξa, ξb, κ = calc_ξa_ξb_κ(mat, state, state.εpc, state.εpt)
-    rc = calc_rc(mat, ξa, ξ)
-    rξ = calc_rξ(mat, ξb, ξ)
+    # ξa, ξb, κ = calc_ξa_ξb_κ(mat, state, state.εcp, state.εtp)
+    # rc = calc_rc(mat, ξa, ξ)
+    # rξ = calc_rξ(mat, ξb, ξ)
 
-    D = stress_strain_dict(σ, ε, state.ctx.stressmodel)
+    vals_d = stress_strain_dict(σ, ε, state.ctx.stressmodel)
 
-    D[:epc]   = state.εpc
-    D[:ept]   = state.εpt
-    D[:xi]    = ξ
-    D[:rho]   = ρ
-    D[:theta] = θ
-    D[:fc]    = fc
-    D[:ft]    = ft
-    D[:xi_a]  = ξa
-    D[:xi_b]  = ξb
-    D[:kappa] = κ
-    D[:r]     = r
-    D[:rxi]   = rξ
-    D[:rc]    = rc
-    D[:xi_i]  =  2*mat.fb/√3
-    D[:fcb]   =  mat.f̄c
+    vals_d[:εcp] = state.εcp
+    vals_d[:εtp] = state.εtp
+    # vals_d[:ξ]   = ξ
+    # vals_d[:ρ]   = ρ
+    # vals_d[:θ]   = θ
+    # vals_d[:fc]  = fc
+    # vals_d[:ft]  = ft
+    # vals_d[:ξa]  = ξa
+    # vals_d[:ξb]  = ξb
+    # vals_d[:κ]   = κ
+    # vals_d[:r]   = r
+    # vals_d[:rξ]  = rξ
+    # vals_d[:rc]  = rc
+    # vals_d[:ξc]  = 2*mat.fb/√3
+    # vals_d[:fcb] = mat.fc_peak
 
-    return D
+    return vals_d
 end

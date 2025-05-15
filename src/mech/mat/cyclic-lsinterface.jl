@@ -37,7 +37,7 @@ CyclicLSJoint_params = [
     FunInfo(:CyclicLSJoint, "Consitutive model for a rod-solid interface."),
     KwArgInfo(:taumax, "Shear strength", cond=:(taumax>0)),
     KwArgInfo(:taures, "Residual shear stress", cond=:(taures>=0)),
-    KwArgInfo((:speak, :s1), "Peak slip", cond=:(speak>0)),
+    KwArgInfo((:speak, :jσn), "Peak slip", cond=:(speak>0)),
     KwArgInfo((:sres, :s3), "Residual slip", cond=:(sres>=0)),
     KwArgInfo(:alpha, "Ascending curvature parameter", 0.4, cond=:(0.0<=alpha<=1.0)),
     KwArgInfo(:beta, "Descending curvature parameter", 1.0, cond=:(0.0<=beta<=1.0)),

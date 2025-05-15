@@ -1,18 +1,18 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export MechJoint
+export MechCohesive
 
-MechJoint_params = [
-    FunInfo(:MechJoint, "An isoparametric joint/cohesive element"),
+MechCohesive_params = [
+    FunInfo(:MechCohesive, "An isoparametric cohesive/cohesive element"),
 ]
-@doc docstring(MechJoint_params) MechJoint
-struct MechJointProps<:ElemProperties
-    function MechJointProps(; props...)
+@doc docstring(MechCohesive_params) MechCohesive
+struct MechCohesiveProps<:ElemProperties
+    function MechCohesiveProps(; props...)
         return new()
     end    
 end
 
-mutable struct MechJoint<:Mech
+mutable struct MechCohesive<:Mech
     id    ::Int
     ctx::Context
     shape ::CellShape
@@ -20,21 +20,21 @@ mutable struct MechJoint<:Mech
     ips   ::Array{Ip,1}
     tag   ::String
     mat   ::Material
-    props ::MechJointProps
+    props ::MechCohesiveProps
     active::Bool
     linked_elems::Array{Element,1}
 
-    function MechJoint()
+    function MechCohesive()
         return new()
     end
 end
 
 # Return the shape family that works with this element
-compat_shape_family(::Type{MechJoint}) = JOINTCELL
-compat_elem_props(::Type{MechJoint}) = MechJointProps
+compat_shape_family(::Type{MechCohesive}) = JOINTCELL
+compat_elem_props(::Type{MechCohesive}) = MechCohesiveProps
 
 
-function elem_init(elem::MechJoint)
+function elem_init(elem::MechCohesive)
 
     # Avg volume of linked elements
     V = 0.0
@@ -65,25 +65,26 @@ function elem_init(elem::MechJoint)
     end
 
 end
-function matrixT(J::Matrix{Float64})
-    if size(J,2)==2
-        L2 = vec(J[:,1])
-        L3 = vec(J[:,2])
-        L1 = cross(L2, L3)  # L1 is normal to the first joint face
-        L2 = cross(L3, L1)
-        normalize!(L1)
-        normalize!(L2)
-        normalize!(L3)
-        return collect([L1 L2 L3]') # collect is used to avoid Adjoint type
-    else
-        L2 = normalize(vec(J))
-        L1 = [ L2[2], -L2[1] ] # It follows the anti-clockwise numbering of 2D elements: L1 should be normal to the first joint face
-        return collect([L1 L2]')
-    end
-end
+
+# function matrixT(J::Matrix{Float64})
+#     if size(J,2)==2
+#         L2 = vec(J[:,1])
+#         L3 = vec(J[:,2])
+#         L1 = cross(L2, L3)  # L1 is normal to the first cohesive face
+#         L2 = cross(L3, L1)
+#         normalize!(L1)
+#         normalize!(L2)
+#         normalize!(L3)
+#         return collect([L1 L2 L3]') # collect is used to avoid Adjoint type
+#     else
+#         L2 = normalize(vec(J))
+#         L1 = [ L2[2], -L2[1] ] # It follows the anti-clockwise numbering of 2D elements: L1 should be normal to the first cohesive face
+#         return collect([L1 L2]')
+#     end
+# end
 
 
-function elem_stiffness(elem::MechJoint)
+function elem_stiffness(elem::MechCohesive)
     ndim   = elem.ctx.ndim
     th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
@@ -135,7 +136,7 @@ function elem_stiffness(elem::MechJoint)
 end
 
 
-function update_elem!(elem::MechJoint, U::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::MechCohesive, U::Array{Float64,1}, Δt::Float64)
     ndim   = elem.ctx.ndim
     th     = elem.ctx.thickness
     nnodes = length(elem.nodes)
@@ -187,7 +188,7 @@ function update_elem!(elem::MechJoint, U::Array{Float64,1}, Δt::Float64)
 end
 
 
-function elem_recover_nodal_values(elem::MechJoint)
+function elem_recover_nodal_values(elem::MechCohesive)
     nips = length(elem.ips)
 
     keys = output_keys(elem.mat)

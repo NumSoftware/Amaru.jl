@@ -144,12 +144,12 @@ function update_state!(active_elems::Array{<:Element,1}, ΔUt::Vect, t::Float64)
 end
 
 
-function update_embedded_disps!(active_elems::Array{<:Element,1}, U::Matx)
-    for elem in active_elems.embeddeds
-        Ue, nodemap, dimmap = elem_displacements(elem)
-        U[nodemap, dimmap] .= Ue
-    end
-end
+# function update_embedded_disps!(active_elems::Array{<:Element,1}, U::Matx)
+#     for elem in active_elems.embeddeds
+#         Ue, nodemap, dimmap = elem_displacements(elem)
+#         U[nodemap, dimmap] .= Ue
+#     end
+# end
 
 
 mech_solver_params = [
@@ -164,7 +164,7 @@ mech_solver_params = [
     KwArgInfo( :scheme, "Predictor-corrector solving scheme", :FE, values=(:FE, :ME, :BE, :Ralston) ),
     KwArgInfo( :maxits, "Maximum number of NR iterations", 5, cond=:(1<=maxits<=10)),
     KwArgInfo( :autoinc, "Flag to set auto-increments", false),
-    KwArgInfo( :quiet, "Flat to set silent mode", false),
+    KwArgInfo( :quiet, "Flag to set silent mode", false),
 ]
 @doc docstring(mech_solver_params) solve!(::MechAnalysis; args...)
 
@@ -229,7 +229,7 @@ function mech_stage_solver!(ana::MechAnalysis, stage::Stage; args...)
     println(sctx.info,"unknown dofs: $nu")
     println(sctx.log, "unknown dofs: $nu")
 
-    quiet || nu==ndofs && println(ctx.alerts, "No essential boundary conditions")
+    quiet || nu==ndofs && println(sctx.alerts, "No essential boundary conditions")
 
     if stage.id == 1
         # Setup quantities at dofs
@@ -316,7 +316,7 @@ function mech_stage_solver!(ana::MechAnalysis, stage::Stage; args...)
         converged = false
         syserror  = false
 
-        for it=1:maxits
+        for it in 1:maxits
             yield()
 
             nits += 1
@@ -413,7 +413,7 @@ function mech_stage_solver!(ana::MechAnalysis, stage::Stage; args...)
             # && saveouts
             if checkpoint
                 sctx.out += 1
-                update_embedded_disps!(active_elems, model.node_data["U"])
+                # update_embedded_disps!(active_elems, model.node_data["U"])
                 Tcheck += ΔTcheck # find the next output time
             end
 

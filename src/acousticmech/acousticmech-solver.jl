@@ -213,7 +213,7 @@ function tm_stage_solver!(ana::AcousticMechAnalysis, stage::Stage; args...)
     println(sctx.info, "unknown dofs: $nu")
     println(sctx.log, "unknown dofs: $nu")
 
-    # quiet || nu==ndofs && println(ctx.alerts, "solve_system!: No essential boundary conditions", Base.warn_color) #TODO
+    # quiet || nu==ndofs && println(sctx.alerts, "solve_system!: No essential boundary conditions", Base.warn_color) #TODO
 
     # Dictionary of data keys related with a dof
     components_dict = Dict( 

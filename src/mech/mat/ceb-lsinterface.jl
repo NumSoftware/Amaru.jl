@@ -26,7 +26,7 @@ CebLSJoint_params = [
     FunInfo(:CebLSJoint, "Consitutive model for a rod-solid interface according to CEB."),
     KwArgInfo(:taumax, "Shear strength", cond=:(taumax>0)),
     KwArgInfo(:taures, "Residual shear stress", cond=:(taures>=0)),
-    KwArgInfo(:s1, "Characteristic slip 1", cond=:(s1>0)),
+    KwArgInfo(:jσn, "Characteristic slip 1", cond=:(s1>0)),
     KwArgInfo(:s2, "Characteristic slip 2", cond=:(s2>0)),
     KwArgInfo(:s3, "Characteristic slip 3", cond=:(s3>0)),
     KwArgInfo(:alpha, "Ascending curvature parameter", 0.4, cond=:(0.0<=alpha<=1.0)),

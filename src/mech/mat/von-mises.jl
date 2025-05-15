@@ -490,11 +490,11 @@ end
 
 function ip_state_vals(mat::VonMises, state::VonMisesBeamState)
     vals = OrderedDict{Symbol,Float64}(
-        :sX  => state.σ[1],
-        :eX => state.ε[1],
-        :ep => state.εpa,
-        :sXY => state.σ[3]/SR2, # XY component is the third one
-        :sXZ => state.σ[2]/SR2, # XZ component (3d)
+        :σx´  => state.σ[1],
+        :εx´ => state.ε[1],
+        :εp => state.εpa,
+        :σx´y´ => state.σ[3]/SR2, # x´y´ component is the third one
+        :σx´z´ => state.σ[2]/SR2, # x´z´ component (3d)
     )
 
     return vals
@@ -544,8 +544,8 @@ end
 
 function ip_state_vals(mat::VonMises, state::VonMisesTrussState)
     return OrderedDict{Symbol,Float64}(
-        :sX  => state.σ,
-        :eX  => state.ε,
-        :ep => state.εpa,
+        :σx´  => state.σ,
+        :εx´  => state.ε,
+        :εp => state.εpa,
     )
 end

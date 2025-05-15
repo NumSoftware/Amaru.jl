@@ -122,7 +122,7 @@ function FEModel(
             cells = [ cells ]
         end
         if isempty(cells)
-            warn("FEModel: binding attributes to an empty list of elements for expression $(repr(filter))")
+            warn("FEModel: No elements found for expression $(repr(filter))")
         end
 
         mat   = mat_type(;args...)
@@ -140,7 +140,7 @@ function FEModel(
             end
 
             if compat_shape_family(elem_t) != cell.shape.family
-                error("FEModel: material model $(typeof(mat)) cannot be used with elements for expr. $(repr(filter)) with shape $(cell.shape.name)\n")
+                error("FEModel: Material model $(typeof(mat)) cannot be used with elements for expr. $(repr(filter)) with shape $(cell.shape.name)\n")
             end
 
             elem = elem_t()
@@ -694,7 +694,7 @@ end
 
 function nodal_local_recovery(model::FEModel)
     # Recovers nodal values from non-solid elements such as joints and joint1d elements
-    # The element type should implement the elem_extrapolated_node_vals function
+    # The element type should implement the elem_recover_nodal_values function
     # Note: nodal ids in the fe model must be numbered starting from 1
 
     nnodes = length(model.nodes)
@@ -706,7 +706,7 @@ function nodal_local_recovery(model::FEModel)
 
     for elem in model.elems
         elem.shape.family == BULKCELL && continue
-        node_vals = elem_extrapolated_node_vals(elem)
+        node_vals = elem_recover_nodal_values(elem)
         length(node_vals) == 0 && continue
 
         push!(rec_elements, elem)

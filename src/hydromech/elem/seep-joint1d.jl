@@ -177,7 +177,7 @@ function update_elem!(elem::SeepJoint1D, DU::Array{Float64,1}, Δt::Float64)
 end
 
 
-function elem_extrapolated_node_vals(elem::SeepJoint1D)
+function elem_recover_nodal_values(elem::SeepJoint1D)
     all_ip_vals = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
     nips        = length(elem.ips)
     fields      = keys(all_ip_vals[1])

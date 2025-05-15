@@ -222,7 +222,7 @@ function hm_stage_solver!(model::FEModel, stage::Stage; args...)
     println(ctx.info, "unknown dofs: $nu")
     println(ctx.log, "unknown dofs: $nu")
 
-    quiet || nu==ndofs && println(ctx.alerts, "solve_system!: No essential boundary conditions")
+    quiet || nu==ndofs && println(sctx.alerts, "solve_system!: No essential boundary conditions")
 
     if stage.id == 1
         # Setup quantities at dofs
@@ -399,11 +399,11 @@ function hm_stage_solver!(model::FEModel, stage::Stage; args...)
         q = 0.0 # increment size factor for autoinc
 
         if syserror
-            println(ctx.alerts, sysstatus.message)
+            println(sctx.alerts, sysstatus.message)
             println(ctx.log, sysstatus.message)
             converged = false
         end
-        # quiet || sysstatus.message!="" && println(ctx.alerts, sysstatus.message)
+        # quiet || sysstatus.message!="" && println(sctx.alerts, sysstatus.message)
 
         if converged
             # Update nodal natural and essential values for the current stage
@@ -440,7 +440,7 @@ function hm_stage_solver!(model::FEModel, stage::Stage; args...)
 
             rstatus = update_records!(model, checkpoint=checkpoint)
             if failed(rstatus)
-                println(ctx.alerts, rstatus.message)
+                println(sctx.alerts, rstatus.message)
                 return rstatus
             end
 

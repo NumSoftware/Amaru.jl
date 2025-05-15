@@ -75,18 +75,18 @@ function ip_state_vals(mat::LinearCohesive, state::LinearCohesiveState)
     ndim = state.ctx.ndim
     if ndim == 3
        return Dict(
-          :jw1  => state.w[1],
-          :js1  => state.σ[1],
+          :jw  => state.w[1],
+          :jσn  => state.σ[1],
           )
     else
         return Dict(
-          :jw1  => state.w[1],
-          :js1  => state.σ[1],
+          :jw  => state.w[1],
+          :jσn  => state.σ[1],
           )
     end
 end
 
 
 function output_keys(mat::LinearCohesive)
-    return Symbol[:jw1, :jw1]
+    return Symbol[:jw, :jσn]
 end

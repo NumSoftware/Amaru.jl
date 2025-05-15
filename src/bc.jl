@@ -25,6 +25,7 @@ function setup_bc!(model::AbstractDomain, filter, bc::NodeBC)
 
     # Filter objects according to bc criteria
     bc.nodes  = model.nodes[bc.filter]
+    filter!(n->!n.aux, bc.nodes)
     length(bc.nodes)==0 && notify("setup_bc!: applying boundary conditions to empty array of nodes while evaluating expression ", string(bc.filter))
     # not_found_keys = Set()
 
@@ -204,6 +205,7 @@ function configure_dofs!(model::AbstractDomain, bcbinds::AbstractArray)
     # All dofs
     # dofs = Dof[dof for node in model.nodes for dof in node.dofs]
     dofs = Dof[dof for node in active_nodes for dof in node.dofs]
+    dofs = Dof[dof for node in active_nodes if !node.aux for dof in node.dofs]
 
     # Reset all dofs as natural conditions
     for dof in dofs

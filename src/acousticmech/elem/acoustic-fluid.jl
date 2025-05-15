@@ -55,7 +55,7 @@ function elem_init(elem::AcousticFluid)
 end
 
 
-function distributed_bc(elem::AcousticFluid, facet::Cell, t::Float64, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::AcousticFluid, facet::Cell, t::Float64, key::Symbol, val::Union{Real,Symbol,Expr,Symbolic})
     return acoustic_mech_bc(elem, facet, t, key, val)
 end
 

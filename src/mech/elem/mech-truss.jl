@@ -145,7 +145,7 @@ function setNt(ndim::Int,Ni::Vect, N::Matx)
 end
 
 
-function distributed_bc(elem::MechBar, facet::Cell, t::Float64, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::MechBar, facet::Cell, t::Float64, key::Symbol, val::Union{Real,Symbol,Expr,Symbolic})
     return mech_line_distributed_forces(elem, t, key, val)
 end
 

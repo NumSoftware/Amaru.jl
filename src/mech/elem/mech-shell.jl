@@ -120,7 +120,7 @@ function setquadrature!(elem::MechShell, n::Int=0)
 end
 
 
-function distributed_bc(elem::MechShell, facet::Cell, t::Float64, key::Symbol, val::Union{Real,Symbol,Expr})
+function distributed_bc(elem::MechShell, facet::Cell, t::Float64, key::Symbol, val::Union{Real,Symbol,Expr,Symbolic})
     return mech_boundary_forces(elem, facet, t, key, val)
 end
 
@@ -325,7 +325,7 @@ function elem_mass(elem::MechShell)
         nnodes = length(elem.nodes)
         th     = elem.props.th
         ndof   = 6 #6
-        ρ      = elem.mat.ρ
+        ρ      = elem.props.ρ
         C      = getcoords(elem)
         M      = zeros(nnodes*ndof, nnodes*ndof)
         L      = zeros(3,3)

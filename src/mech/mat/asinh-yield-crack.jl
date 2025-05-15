@@ -526,10 +526,10 @@ function ip_state_vals(mat::AsinhYieldCrack, state::AsinhYieldCrackState)
     σmax = calc_σmax(mat, state, state.up)
     if ndim == 3
        return Dict(
-          :jw1 => state.w[1],
+          :jw => state.w[1],
         #   :jw2 => state.w[2],
         #   :jw3 => state.w[3],
-          :js1 => state.σ[1],
+          :jσn => state.σ[1],
           :js2 => state.σ[2],
           :js3 => state.σ[3],
           :jup => state.up,
@@ -537,9 +537,9 @@ function ip_state_vals(mat::AsinhYieldCrack, state::AsinhYieldCrackState)
           )
     else
         return Dict(
-          :jw1 => state.w[1],
+          :jw => state.w[1],
         #   :jw2 => state.w[2],
-          :js1 => state.σ[1],
+          :jσn => state.σ[1],
           :js2 => state.σ[2],
           :jup => state.up,
           :jsmax => σmax
@@ -549,5 +549,5 @@ end
 
 
 function output_keys(mat::AsinhYieldCrack)
-    return Symbol[:jw1, :js1, :jup]
+    return Symbol[:jw, :jσn, :jup]
 end
