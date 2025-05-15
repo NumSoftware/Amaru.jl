@@ -1,12 +1,12 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export LinearTipContact
+export LinearSlipTip
 
-mutable struct LinearTipContactState<:IpState
+mutable struct LinearSlipTipState<:IpState
     ctx::Context
     f ::Float64
     w ::Float64
-    function LinearTipContactState(ctx::Context)
+    function LinearSlipTipState(ctx::Context)
         this = new(ctx)
         this.f = 0.0
         this.w = 0.0
@@ -15,14 +15,14 @@ mutable struct LinearTipContactState<:IpState
 end
 
 
-mutable struct LinearTipContact<:Material
+mutable struct LinearSlipTip<:Material
     k::Float64
 
-    function LinearTipContact(prms::Dict{Symbol,Float64})
-        return  LinearTipContact(;prms...)
+    function LinearSlipTip(prms::Dict{Symbol,Float64})
+        return  LinearSlipTip(;prms...)
     end
 
-    function LinearTipContact(;k=NaN)
+    function LinearSlipTip(;k=NaN)
         @check k>=0
         this = new(k)
         return this
@@ -31,18 +31,18 @@ end
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{LinearTipContact}) = LinearTipContactState
+compat_state_type(::Type{LinearSlipTip}) = LinearSlipTipState
 
 # Element types that work with this material
-compat_elem_types(::Type{LinearTipContact}) = (MechTipJoint,)
+compat_elem_types(::Type{LinearSlipTip}) = (MechSlipTip,)
 
 
-function calcD(mat::LinearTipContact, state::LinearTipContactState)
+function calcD(mat::LinearSlipTip, state::LinearSlipTipState)
     return mat.k
 end
 
 
-function update_state!(mat::LinearTipContact, state::LinearTipContactState, Δw)
+function update_state!(mat::LinearSlipTip, state::LinearSlipTipState, Δw)
     Δf = mat.k*Δw
     state.f += Δf
     state.w += Δw
@@ -50,7 +50,7 @@ function update_state!(mat::LinearTipContact, state::LinearTipContactState, Δw)
 end
 
 
-function ip_state_vals(mat::LinearTipContact, state::LinearTipContactState)
+function ip_state_vals(mat::LinearSlipTip, state::LinearSlipTipState)
     return OrderedDict(
       :ur   => state.w ,
       :tau  => state.f )

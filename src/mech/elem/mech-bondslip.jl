@@ -1,25 +1,25 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export MechRSJoint, MechLSJoint, MechLSInterface
+export MechBondSlip
 
-MechLSInterface_params = [
-    FunInfo(:MechLSInterface, "Finite element for a rod-bulk interface."),
+MechBondSlip_params = [
+    FunInfo(:MechBondSlip, "Finite element for a rod-bulk interface."),
     KwArgInfo(:p, "Perimeter", cond=:(p>0)),
 ]
-@doc docstring(MechLSInterface_params) MechLSInterface(; kwargs...)
+@doc docstring(MechBondSlip_params) MechBondSlip(; kwargs...)
 
-struct MechLSInterfaceProps<:ElemProperties
+struct MechBondSlipProps<:ElemProperties
     p::Float64
 
-    function MechLSInterfaceProps(; kwargs...)
-        args = checkargs(kwargs, MechLSInterface_params)
+    function MechBondSlipProps(; kwargs...)
+        args = checkargs(kwargs, MechBondSlip_params)
         this = new(args.p)
         return this
     end
 end
 
 
-mutable struct MechLSInterface<:Mech
+mutable struct MechBondSlip<:Mech
     id    ::Int
     shape ::CellShape
 
@@ -27,7 +27,7 @@ mutable struct MechLSInterface<:Mech
     ips   ::Array{Ip,1}
     tag   ::String
     mat::Material
-    props ::MechLSInterfaceProps
+    props ::MechBondSlipProps
     active::Bool
     linked_elems::Array{Element,1}
     ctx::Context
@@ -36,20 +36,17 @@ mutable struct MechLSInterface<:Mech
     cache_B   ::Array{Array{Float64,2}}
     cache_detJ::Array{Float64}
 
-    function MechLSInterface()
+    function MechBondSlip()
         return new()
     end
 end
 
-const MechRSJoint = MechLSInterface
-const MechLSJoint = MechLSInterface
 
-compat_shape_family(::Type{MechRSJoint}) = LINEJOINTCELL
-compat_elem_props(::Type{MechRSJoint}) = MechLSInterfaceProps
+compat_shape_family(::Type{MechBondSlip}) = LINEJOINTCELL
+compat_elem_props(::Type{MechBondSlip}) = MechBondSlipProps
 
 
-
-function elem_init(elem::MechRSJoint)
+function elem_init(elem::MechBondSlip)
     hook = elem.linked_elems[1]
     bar  = elem.linked_elems[2]
     Ch = getcoords(hook)
@@ -96,7 +93,7 @@ function mount_T(J::Matx)
 end
 
 
-function mountB(elem::MechRSJoint, R, Ch, Ct)
+function mountB(elem::MechBondSlip, R, Ch, Ct)
     # Calculates the matrix that relates nodal displacements with relative displacements
     
 
@@ -151,7 +148,7 @@ function mountB(elem::MechRSJoint, R, Ch, Ct)
 end
 
 
-function elem_stiffness(elem::MechRSJoint)
+function elem_stiffness(elem::MechBondSlip)
     ndim = elem.ctx.ndim
     nnodes = length(elem.nodes)
     p = elem.props.p
@@ -174,7 +171,7 @@ function elem_stiffness(elem::MechRSJoint)
 end
 
 
-function update_elem!(elem::MechRSJoint, U::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::MechBondSlip, U::Array{Float64,1}, Δt::Float64)
     ndim   = elem.ctx.ndim
     nnodes = length(elem.nodes)
     p = elem.props.p
@@ -203,7 +200,7 @@ function update_elem!(elem::MechRSJoint, U::Array{Float64,1}, Δt::Float64)
 end
 
 
-function elem_recover_nodal_values(elem::MechRSJoint)
+function elem_recover_nodal_values(elem::MechBondSlip)
     all_ip_vals = [ ip_state_vals(elem.mat, ip.state) for ip in elem.ips ]
     nips        = length(elem.ips)
     fields      = keys(all_ip_vals[1])

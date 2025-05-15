@@ -1,15 +1,15 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export CebLSJoint, CebLSInterface
+export CebBondSlip, CebBondSlip
 
-mutable struct CebLSJointState<:IpState
+mutable struct CebBondSlipState<:IpState
     ctx::Context
     σ  ::Array{Float64,1}
     u  ::Array{Float64,1}
     τy ::Float64      # max stress
     sy ::Float64      # accumulated relative displacement
     elastic::Bool
-    function CebLSJointState(ctx::Context)
+    function CebBondSlipState(ctx::Context)
         this = new(ctx)
         ndim = ctx.ndim
         this.σ = zeros(ndim)
@@ -22,11 +22,11 @@ mutable struct CebLSJointState<:IpState
 end
 
 
-CebLSJoint_params = [
-    FunInfo(:CebLSJoint, "Consitutive model for a rod-solid interface according to CEB."),
+CebBondSlip_params = [
+    FunInfo(:CebBondSlip, "Consitutive model for a rod-solid interface according to CEB."),
     KwArgInfo(:taumax, "Shear strength", cond=:(taumax>0)),
     KwArgInfo(:taures, "Residual shear stress", cond=:(taures>=0)),
-    KwArgInfo(:jσn, "Characteristic slip 1", cond=:(s1>0)),
+    KwArgInfo(:s1, "Characteristic slip 1", cond=:(s1>0)),
     KwArgInfo(:s2, "Characteristic slip 2", cond=:(s2>0)),
     KwArgInfo(:s3, "Characteristic slip 3", cond=:(s3>0)),
     KwArgInfo(:alpha, "Ascending curvature parameter", 0.4, cond=:(0.0<=alpha<=1.0)),
@@ -36,10 +36,10 @@ CebLSJoint_params = [
     ArgCond(:(taumax>taures)),
     ArgCond(:(ks>=taumax/s1)),
 ]
-@doc docstring(CebLSJoint_params) CebLSJoint(; kwargs...)
+@doc docstring(CebBondSlip_params) CebBondSlip(; kwargs...)
 
 
-mutable struct CebLSJoint<:Material
+mutable struct CebBondSlip<:Material
     τmax:: Float64
     τres:: Float64
     s1  :: Float64
@@ -50,32 +50,32 @@ mutable struct CebLSJoint<:Material
     ks  :: Float64
     kn  :: Float64
 
-    function CebLSJoint(; kwargs...)
-        args = checkargs(kwargs, CebLSJoint_params)
+    function CebBondSlip(; kwargs...)
+        args = checkargs(kwargs, CebBondSlip_params)
 
         this = new(args.taumax, args.taures, args.s1, args.s2, args.s3, args.alpha, args.beta, args.ks, args.kn)
         return this
     end
 end
 
-const CebRSJoint = CebLSJoint
-const CebLSInterface = CebLSJoint
+const CebRSJoint = CebBondSlip
+const CebBondSlip = CebBondSlip
 
 
-compat_state_type(::Type{CebLSJoint}, ::Type{MechRSJoint}, ctx::Context) = CebLSJointState
+compat_state_type(::Type{CebBondSlip}, ::Type{MechBondSlip}, ctx::Context) = CebBondSlipState
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{CebLSJoint}) = CebLSJointState
+compat_state_type(::Type{CebBondSlip}) = CebBondSlipState
 
 # Element types that work with this material
-compat_elem_types(::Type{CebLSJoint}) = (MechRSJoint,)
+compat_elem_types(::Type{CebBondSlip}) = (MechBondSlip,)
 
-CEBJoint1D = CebLSJoint #! deprecated
+CEBJoint1D = CebBondSlip #! deprecated
 export CEBJoint1D
 
 
-function Tau(mat::CebLSJoint, sy::Float64)
+function Tau(mat::CebBondSlip, sy::Float64)
     if sy<mat.s1
         return mat.τmax*(sy/mat.s1)^mat.α
     elseif sy<mat.s2
@@ -88,7 +88,7 @@ function Tau(mat::CebLSJoint, sy::Float64)
 end
 
 
-function deriv(mat::CebLSJoint, state::CebLSJointState, sy::Float64)
+function deriv(mat::CebBondSlip, state::CebBondSlipState, sy::Float64)
     if sy==0.0
         s1_factor = 0.01
         sy = s1_factor*mat.s1   # to avoid undefined derivative
@@ -106,7 +106,7 @@ function deriv(mat::CebLSJoint, state::CebLSJointState, sy::Float64)
 end
 
 
-function calcD(mat::CebLSJoint, state::CebLSJointState)
+function calcD(mat::CebBondSlip, state::CebBondSlipState)
     ks = mat.ks
 
     if !state.elastic
@@ -126,11 +126,11 @@ function calcD(mat::CebLSJoint, state::CebLSJointState)
 end
 
 
-function yield_func(mat::CebLSJoint, state::CebLSJointState, τ::Float64)
+function yield_func(mat::CebBondSlip, state::CebBondSlipState, τ::Float64)
     return abs(τ) - state.τy
 end
 
-function update_state!(mat::CebLSJoint, state::CebLSJointState, Δu::Vect)
+function update_state!(mat::CebBondSlip, state::CebBondSlipState, Δu::Vect)
     ks = mat.ks
     kn = mat.kn
     Δs = Δu[1]      # relative displacement
@@ -169,7 +169,7 @@ function update_state!(mat::CebLSJoint, state::CebLSJointState, Δu::Vect)
 end
 
 
-function ip_state_vals(mat::CebLSJoint, state::CebLSJointState)
+function ip_state_vals(mat::CebBondSlip, state::CebBondSlipState)
     return OrderedDict(
       :ur   => state.u[1] ,
       :tau  => state.σ[1] ,

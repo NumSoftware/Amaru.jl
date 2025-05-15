@@ -1,12 +1,12 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export TipContact
+export LinearTipContact
 
-mutable struct TipJointState<:IpState
+mutable struct LinearTipContactState<:IpState
     ctx::Context
     f ::Float64
     w ::Float64
-    function TipJointState(ctx::Context)
+    function LinearTipContactState(ctx::Context)
         this = new(ctx)
         this.f = 0.0
         this.w = 0.0
@@ -14,33 +14,30 @@ mutable struct TipJointState<:IpState
     end
 end
 
-TipJoint_params = [
-    FunInfo( :TipContact, "A model for a bar tip contact."),
+LinearTipContact_params = [
+    FunInfo( :LinearTipContact, "A model for a bar tip contact."),
     KwArgInfo( :k, "Elastic stiffness", 1.0, cond=:(k>=0) ),
     KwArgInfo( :fixed, "Flag to control if the tip is fixed", false, type=Bool),
 ]
-@doc docstring(TipJoint_params) TipContact
+@doc docstring(LinearTipContact_params) LinearTipContact
 
-mutable struct TipContact<:Material
+mutable struct LinearTipContact<:Material
     k::Float64
     fixed::Bool
 
-    function TipContact(;args...)
-        args = checkargs(args, TipJoint_params)
+    function LinearTipContact(;args...)
+        args = checkargs(args, LinearTipContact_params)
         this = new(args.k, args.fixed)
         return this
     end
 end
 
 
-# Element types that work with this material
-# compat_elem_types(::Type{TipContact}) = (MechTipJoint,)
-
 # Type of corresponding state structure
-compat_state_type(::Type{TipContact}, ::Type{MechTipJoint}, evn::Context) = TipJointState
+compat_state_type(::Type{LinearTipContact}, ::Type{MechSlipTip}, evn::Context) = LinearTipContactState
 
 
-function calcD(mat::TipContact, state::TipJointState)
+function calcD(mat::LinearTipContact, state::LinearTipContactState)
     if state.w>0.0 || mat.fixed
         return mat.k
     else
@@ -49,7 +46,7 @@ function calcD(mat::TipContact, state::TipJointState)
 end
 
 
-function update_state!(mat::TipContact, state::TipJointState, Δw)
+function update_state!(mat::LinearTipContact, state::LinearTipContactState, Δw)
     fini = state.f
     ftr  = fini + mat.k*Δw
     
@@ -65,7 +62,7 @@ function update_state!(mat::TipContact, state::TipJointState, Δw)
 end
 
 
-function ip_state_vals(mat::TipContact, state::TipJointState)
+function ip_state_vals(mat::LinearTipContact, state::LinearTipContactState)
     return OrderedDict(
       :ur   => state.w ,
       :tau  => state.f )

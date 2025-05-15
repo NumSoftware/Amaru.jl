@@ -1,30 +1,30 @@
 # This file ips part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export CyclicRSJoint, CyclicLSJoint
+export CyclicRSJoint, CyclicBondSlip
 
-mutable struct CyclicLSJointState<:IpState
+mutable struct CyclicBondSlipState<:IpState
     ctx::Context
     σ      ::Array{Float64,1}
     u      ::Array{Float64,1}
-    τnl     ::Float64    # max stress
+    τnl    ::Float64    # max stress
     τmax   ::Float64
     τres   ::Float64
     speak  ::Float64
-    srev     ::Float64    # accumulated relative displacement
+    srev   ::Float64    # accumulated relative displacement
     sacum  ::Float64    # accumulated relative displacement
     sneg   ::Float64
     spos   ::Float64
     elastic::Bool
-    function CyclicLSJointState(ctx::Context)
+    function CyclicBondSlipState(ctx::Context)
         this         = new(ctx)
         ndim         = ctx.ndim
         this.σ       = zeros(ndim)
         this.u       = zeros(ndim)
-        this.τnl      = 0.0
+        this.τnl     = 0.0
         this.τmax    = 0.0
         this.τres    = 0.0
         this.speak   = 0.0
-        this.srev      = 0.0
+        this.srev    = 0.0
         this.sacum   = 0.0
         this.sneg    = 0.0
         this.spos    = 0.0
@@ -33,8 +33,8 @@ mutable struct CyclicLSJointState<:IpState
     end
 end
 
-CyclicLSJoint_params = [
-    FunInfo(:CyclicLSJoint, "Consitutive model for a rod-solid interface."),
+CyclicBondSlip_params = [
+    FunInfo(:CyclicBondSlip, "Consitutive model for a rod-solid interface."),
     KwArgInfo(:taumax, "Shear strength", cond=:(taumax>0)),
     KwArgInfo(:taures, "Residual shear stress", cond=:(taures>=0)),
     KwArgInfo((:speak, :jσn), "Peak slip", cond=:(speak>0)),
@@ -48,7 +48,7 @@ CyclicLSJoint_params = [
     ArgCond(:(ks>=taumax/speak)),
 ]
 
-mutable struct CyclicLSJoint<:Material
+mutable struct CyclicBondSlip<:Material
     τmax:: Float64
     τres:: Float64
     speak:: Float64
@@ -60,22 +60,22 @@ mutable struct CyclicLSJoint<:Material
     kn  :: Float64
     p   :: Float64
 
-    function CyclicLSJoint(; kwargs...)
-        args = checkargs(kwargs, CyclicLSJoint_params)
+    function CyclicBondSlip(; kwargs...)
+        args = checkargs(kwargs, CyclicBondSlip_params)
         this = new(args.taumax, args.taures, args.speak, 1.1*args.speak, args.sres, args.alpha, args.beta, args.ks, args.kn, args.p)
         return this
     end
 
 end
 
-const CyclicRSJoint = CyclicLSJoint
+const CyclicRSJoint = CyclicBondSlip
 
 
 # Type of corresponding state structure
-compat_state_type(::Type{CyclicLSJoint}, ::Type{MechLSJoint}, ctx::Context) = CyclicLSJointState
+compat_state_type(::Type{CyclicBondSlip}, ::Type{MechBondSlip}, ctx::Context) = CyclicBondSlipState
 
 
-function tau(mat::CyclicLSJoint, ips::CyclicLSJointState, s::Float64)
+function tau(mat::CyclicBondSlip, ips::CyclicBondSlipState, s::Float64)
     s = abs(s)
     s2 = ips.speak*1.1
     if s<ips.speak
@@ -90,7 +90,7 @@ function tau(mat::CyclicLSJoint, ips::CyclicLSJointState, s::Float64)
 end
 
 
-function tau_deriv(mat::CyclicLSJoint, ips::CyclicLSJointState, s::Float64)
+function tau_deriv(mat::CyclicBondSlip, ips::CyclicBondSlipState, s::Float64)
     s = abs(s)
     s2 = ips.speak*1.1
 
@@ -111,7 +111,7 @@ function tau_deriv(mat::CyclicLSJoint, ips::CyclicLSJointState, s::Float64)
 end
 
 
-function calcD(mat::CyclicLSJoint, ips::CyclicLSJointState)
+function calcD(mat::CyclicBondSlip, ips::CyclicBondSlipState)
     ks = mat.ks
     kn = mat.kn
 
@@ -145,7 +145,7 @@ function calcD(mat::CyclicLSJoint, ips::CyclicLSJointState)
 end
 
 
-function update_state!(mat::CyclicLSJoint, ips::CyclicLSJointState, Δu::Vect)
+function update_state!(mat::CyclicBondSlip, ips::CyclicBondSlipState, Δu::Vect)
     ks = mat.ks
     kn = mat.kn
     s  = ips.u[1]   # relative displacement
@@ -208,7 +208,7 @@ function update_state!(mat::CyclicLSJoint, ips::CyclicLSJointState, Δu::Vect)
 end
 
 
-function stress_update2(mat::CyclicLSJoint, ips::CyclicLSJointState, Δu::Vect)
+function stress_update2(mat::CyclicBondSlip, ips::CyclicBondSlipState, Δu::Vect)
     ks = mat.ks
     kn = mat.kn
     s  = ips.u[1]   # relative displacement
@@ -276,7 +276,7 @@ function stress_update2(mat::CyclicLSJoint, ips::CyclicLSJointState, Δu::Vect)
 end
 
 
-function ip_state_vals(mat::CyclicLSJoint, ips::CyclicLSJointState)
+function ip_state_vals(mat::CyclicBondSlip, ips::CyclicBondSlipState)
     return OrderedDict(
       :ur   => ips.u[1] ,
       :tau  => ips.σ[1] ,

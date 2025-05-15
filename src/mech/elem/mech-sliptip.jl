@@ -1,8 +1,8 @@
 # This file is part of Amaru package. See copyright license in https://github.com/NumSoftware/Amaru
 
-export MechTipJoint
+export MechSlipTip
 
-mutable struct MechTipJoint<:Mech
+mutable struct MechSlipTip<:Mech
     ctx::Context
     id    ::Int
     shape ::CellShape
@@ -13,13 +13,13 @@ mutable struct MechTipJoint<:Mech
     active::Bool
     linked_elems::Array{Element,1}
 
-    MechTipJoint() = new()
+    MechSlipTip() = new()
 end
 
-compat_shape_family(::Type{MechTipJoint}) = TIPJOINTCELL
+compat_shape_family(::Type{MechSlipTip}) = TIPJOINTCELL
 
 
-function mountB(elem::MechTipJoint, Ch, Ct)
+function mountB(elem::MechSlipTip, Ch, Ct)
     # Calculates the matrix that relates nodal displacements with relative displacements
     
 
@@ -67,7 +67,7 @@ function mountB(elem::MechTipJoint, Ch, Ct)
 end
 
 
-function elem_stiffness(elem::MechTipJoint)
+function elem_stiffness(elem::MechSlipTip)
     ndim = elem.ctx.ndim
     bulk = elem.linked_elems[1]
     rod  = elem.linked_elems[2]
@@ -85,7 +85,7 @@ function elem_stiffness(elem::MechTipJoint)
 end
 
 
-function update_elem!(elem::MechTipJoint, U::Array{Float64,1}, Δt::Float64)
+function update_elem!(elem::MechSlipTip, U::Array{Float64,1}, Δt::Float64)
     ndim   = elem.ctx.ndim
     bulk = elem.linked_elems[1]
     rod  = elem.linked_elems[2]
