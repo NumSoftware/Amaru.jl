@@ -405,19 +405,19 @@ function ip_state_vals(mat::PJoint, state::PJointState)
     ndim = state.ctx.ndim
     if ndim == 3
        return Dict(
-          :jw1  => state.w[1],
+          :jw  => state.w[1],
           :jw2  => state.w[2],
           :jw3  => state.w[3],
-          :js1  => state.σ[1],
+          :jσn  => state.σ[1],
           :js2  => state.σ[2],
           :js3  => state.σ[3],
           :jup => state.up
           )
     else
         return Dict(
-          :jw1  => state.w[1],
+          :jw  => state.w[1],
           :jw2  => state.w[2],
-          :js1  => state.σ[1],
+          :jσn  => state.σ[1],
           :js2  => state.σ[2],
           :jup => state.up
           )
@@ -426,5 +426,5 @@ end
 
 
 function output_keys(mat::PJoint)
-    return Symbol[:jw1, :js1, :jup]
+    return Symbol[:jw, :jσn, :jup]
 end

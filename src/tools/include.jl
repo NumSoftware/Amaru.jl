@@ -25,6 +25,7 @@ include("book.jl")
 include("utils.jl")
 include("stopwatch.jl")
 include("xml.jl")
+include("encode.jl")
 
 include("array-pool.jl")
 

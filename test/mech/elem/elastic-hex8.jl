@@ -75,7 +75,7 @@ for (lc, bcs, dis) in zip(lc_list, bcs_list, dis_list)
     @test dis ≈ D[:uz] atol=1e-5
 
     println("Stress:")
-    S = elems_ip_vals(model.elems[1])[[:sxx, :syy, :szz, :syz, :sxz, :sxy]]
+    S = elems_ip_vals(model.elems[1])[[:σxx, :σyy, :σzz, :σyz, :σxz, :σxy]]
     println(S)
 
     println("Support reactions:")

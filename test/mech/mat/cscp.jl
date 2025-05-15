@@ -76,8 +76,8 @@ while T<1.0
     res = solve!(model, autoinc=true, tol=0.01, rspan=0.02, dT0=dT0)
     global dT0 = 0.05
 
-    sx = model.loggers[1].table[:sxx][end]
-    sy = model.loggers[1].table[:syy][end]
+    sx = model.loggers[1].table[:σxx][end]
+    sy = model.loggers[1].table[:σyy][end]
     β  = (atand(sy, sx) + 360) % 360
 
     global T = T+ΔT

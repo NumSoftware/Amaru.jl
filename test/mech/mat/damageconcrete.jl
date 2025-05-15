@@ -20,7 +20,7 @@ mats = [
 tol = 1.0
 nincs = 50
 
-T = Amaru.DTable([:s1,:s2])
+T = Amaru.DTable([:jσn,:s2])
 
 ana = MechAnalysis()
 model = FEModel(msh, mats, ana)
@@ -53,8 +53,8 @@ if @isdefined(makeplots) && makeplots
     tab1 = logs[1].second.table
     tab2 = logs[2].second.table
 
-    #plot(tab2[:ux], tab1[:sxx], "-o")
-    #plot(tab1[:w], tab1[:sxx], "-o")
+    #plot(tab2[:ux], tab1[:σxx], "-o")
+    #plot(tab1[:w], tab1[:σxx], "-o")
     #plot(tab2[:ux], tab2[:fx], "-o")
     plot(tab1[:w], tab2[:fx], "-o")
 end

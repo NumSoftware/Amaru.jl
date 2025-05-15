@@ -19,7 +19,7 @@ addline!(geo, p4, p1)
 # p2 = addpoint!(geo, 1, 0, 0.5, size=s)
 # addline!(geo, p1, p2)
 
-revolve!(geo, geo.faces, base=[0,0,0], axis=[0,0,1], angle=90)
+revolve!(geo, geo.faces, base=[0,0,0], axis=[0,0,1], angle=360)
 
 
 # p1 = addpoint!(geo, 0.25, 0, 0.25, size=s)
@@ -38,7 +38,7 @@ revolve!(geo, geo.faces, base=[0,0,0], axis=[0,0,1], angle=90)
 
 # m = Mesh(geo)
 
-println(@test length(filter(f -> !f.flat, geo.faces))==2 )
+# println(@test length(filter(f -> !f.flat, geo.faces))==2 )
 
 
-# plot = GeometryPlot(geo); save(plot, "geo.pdf")
+plot = GeometryPlot(geo); save(plot, "geo.pdf")

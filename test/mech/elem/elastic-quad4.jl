@@ -46,7 +46,7 @@ println(D)
 @test dis ≈ Array(D) atol=1e-5
 
 println("Stress:")
-S = elems_ip_vals(model.elems[1])[[:sxx, :syy, :sxy]]
+S = elems_ip_vals(model.elems[1])[[:σxx, :σyy, :σxy]]
 println(S)
 
 println("Support reactions:")

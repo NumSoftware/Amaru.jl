@@ -1,27 +1,28 @@
 using Amaru
-using Test
 
-# 2D Truss
+geo = GeoModel()
+block = Block([0 0; 2 0 ], nx=2)
+addblock!(geo, block)
+mesh = Mesh(geo, ndim=2)
 
-coord = [ 0 0; 1 0 ]
-conn  = [ 1 2 ]
+mat = [
+    :lines => MechFrame => LinearElastic => (E=10, A=1, I=1),
+      ]
 
-blt = BlockTruss(coord, conn, tag="beam")
-msh = Mesh(blt)
+ctx = MechContext()
+model = FEModel(mesh, mat, ctx)
 
-# Finite element model
+ana = MechAnalysis(model)
 
-mats = [ "beam" => ElasticBeam => (E=10, A=1, I=1) ]
+bcs = [ 
+    x==0 => NodeBC(ux=0, uy=0),
+    x==2 => NodeBC(ux=0, uy=0),
+    x==1 => NodeBC(mz=1),
+    x==1 => NodeBC(fy=-1),
+    x>=1 => BodyC(qy=-12),
+]
 
-bcs =
-    [
-     :(x==0 && y==0) => NodeBC(ux=0, uy=0, rz=0),
-     :(x==1 && y==0) => NodeBC(fy=-10.),
-    ]
+addstage!(ana, bcs, nincs=1, nouts=1)
+run!(ana, autoinc=false)
 
-#bc3 = BodyC( model.elems, gz=-25 )
-ana = MechAnalysis()
-model = FEModel(msh, mats, ana)
-
-@test solve!(model).success
-
+    

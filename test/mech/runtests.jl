@@ -7,6 +7,9 @@ using Amaru
          "elem/elastic-quad4.jl",
          "elem/axisymmetric.jl",
          
+         # Static frame element
+         "elem/rod/truss.jl",
+
          # Static analysis: rod elems
          "elem/rod/truss.jl",
          "elem/rod/pprod.jl",

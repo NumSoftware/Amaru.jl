@@ -4,7 +4,7 @@ export Symbolic
 export symbols, evaluate
 
 mutable struct Symbolic
-    basic::Symbol
+    sym::Symbol
     expr::Expr
 
     function Symbolic(symbol::Symbol)
@@ -18,19 +18,19 @@ end
 
 
 # Gets current symbol or expression stored in a Symbolic object
-function getexpr(sym::Symbolic)
-    return sym.expr==:() ? sym.basic : sym.expr
+function getexpr(symbolic::Symbolic)
+    return symbolic.expr==:() ? symbolic.sym : symbolic.expr
 end
 
 
-getexpr(sym) = sym
+getexpr(symbolic::Any) = symbolic
 
 
-function Base.show(io::IO, sym::Symbolic)
-    if sym.expr==:() 
-        str = "Symbolic $(sym.basic)"
+function Base.show(io::IO, symbolic::Symbolic)
+    if symbolic.expr==:() 
+        str = "Symbolic $(symbolic.sym)"
     else
-        str = replace(string(sym.expr), r" ([*\^]) " => s"\1")
+        str = replace(string(symbolic.expr), r" ([*\^]) " => s"\1")
     end
     print(io, str)
 end
@@ -43,7 +43,7 @@ for op in (:+, :-, :*, :/, :^, :>, :(>=), :<, :(<=), :(==), :(!=))
     end
 end
 
-for fun in (:abs, :sin, :cos, :tan, :log, :exp)
+for fun in (:abs, :sin, :cos, :tan, :log, :exp, :sqrt)
     @eval begin
         Base.$fun(x::Symbolic) = Symbolic(Expr(:call, Symbol($fun), getexpr(x)))
     end
@@ -64,8 +64,8 @@ end
 #         syms = syms[1].args
 #     end
 #     expr = Expr(:block)
-#     for sym in syms
-#         push!(expr.args, :($(esc(sym)) = Symbolic($(QuoteNode(sym)))))
+#     for symbolic in syms
+#         push!(expr.args, :($(esc(symbolic)) = Symbolic($(QuoteNode(symbolic)))))
 #     end
 
 #     return expr
@@ -74,17 +74,17 @@ end
 macro define(syms...)
 
     expr = Expr(:block)
-    for sym in syms
-        if sym isa Symbol
-            push!(expr.args, :($(esc(sym)) = Symbolic($(QuoteNode(sym)))))
-        elseif sym isa Expr && sym.head == :(=) 
-            lhs = sym.args[1]
-            rhs = sym.args[2]
-            !(lhs isa Symbol) && error("@define: Invalid definition $sym")
+    for symbolic in syms
+        if symbolic isa Symbol
+            push!(expr.args, :($(esc(symbolic)) = Symbolic($(QuoteNode(symbolic)))))
+        elseif symbolic isa Expr && symbolic.head == :(=) 
+            lhs = symbolic.args[1]
+            rhs = symbolic.args[2]
+            !(lhs isa Symbol) && error("@define: Invalid definition $symbolic")
             push!(expr.args, :($(esc(lhs)) = $(esc(rhs))))
-            push!(expr.args, :($(esc(lhs)).basic = $(QuoteNode(lhs))))
+            push!(expr.args, :($(esc(lhs)).sym = $(QuoteNode(lhs))))
         else
-            error("@define: Invalid definition $sym")
+            error("@define: Invalid definition $symbolic")
         end
     end
     push!(expr.args, nothing)
@@ -119,6 +119,7 @@ const op_dict = Dict{Symbol,Function}(
     :exp => (a,) -> exp(a),
     :log => (a,) -> log(a),
     :log10 => (a,) -> log10(a),
+    :sqrt => (a,) -> sqrt(a),
     :max => (a,b) -> max(a,b),
     :min => (a,b) -> min(a,b),
     :length => (a,) -> length(a),
@@ -187,11 +188,11 @@ Returns the result of the arithmetic expression `expr` using values defined in `
 """ evaluate
 
 
-function getvars(sym::Symbol)
-    if sym in ( :<, :<=, :>, >= )
+function getvars(symbolic::Symbol)
+    if symbolic in ( :<, :<=, :>, >= )
         return []
     end
-    return [ sym ]
+    return [ symbolic ]
 end
 
 

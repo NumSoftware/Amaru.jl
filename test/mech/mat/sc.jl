@@ -61,10 +61,10 @@ if @isdefined(makeplots) && makeplots
     show()
 
     #tab = log_ip.table
-    #plot(tab[:w], tab[:s1], marker="o", color="blue")
+    #plot(tab[:w], tab[:jσn], marker="o", color="blue")
     #show()
     #plot(tab[:up], tab[:s3], marker="o", color="blue")
     #show()
-    #plot(tab[:s1], tab[:s3], marker="o", color="blue")
+    #plot(tab[:jσn], tab[:s3], marker="o", color="blue")
     #show()
 end

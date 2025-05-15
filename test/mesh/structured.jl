@@ -114,6 +114,7 @@ bl  = Block( [0 0; 1 1], nx=4, ny=4, cellshape=TRI3)
 bli = BlockInset( [ 0 0; 1 1] )
 mesh = Mesh(bl, bli)
 mesh = insert_cohesive_elements!(mesh)
+save(mesh, "mm.vtu")
 TR = @test length(mesh.elems) == 168
 println(TR)
 
@@ -126,8 +127,6 @@ save(mesh, "mesh0.vtu")
 
 mesh = Mesh(mesh, bli)
 mesh = insert_cohesive_elements!(mesh)
-@show length(mesh.nodes)
-@show length(mesh.elems)
 save(mesh, "mesh.vtu")
 TR = @test length(mesh.nodes)==137 && length(mesh.elems)==48
 println(TR)

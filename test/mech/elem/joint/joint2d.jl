@@ -18,8 +18,8 @@ insert_cohesive_elements!(msh, tag="joints")
 # msh.nodes[5].coord[1] = 0.15
 # msh.nodes[6].coord[1] = 0.15
 
-tag!(msh.elems[BULKCELL, :(x<=0.125)].nodes, "left")
-tag!(msh.elems[BULKCELL, :(x>=0.075)].nodes, "right")
+tag!(msh.elems[BULKCELL, x<=0.125].nodes, "left")
+tag!(msh.elems[BULKCELL, x>=0.075].nodes, "right")
 
 # finite element analysis
 
@@ -84,11 +84,11 @@ for i in 2
         table = log1.table
 
         chart = Chart(; xlabel=L"$u_p$", ylabel=L"\sigma")
-        addplot!(chart, LinePlot(table[:jup], table[:js1], marker=:circle))
+        addplot!(chart, LinePlot(table[:jup], table[:jσn], marker=:circle))
         save(chart, "up-sn.pdf")
         
         chart = Chart(; xlabel=L"\sigma_n", ylabel=L"\tau")
-        addplot!(chart, LinePlot(table[:js1], table[:js2], marker=:circle))
+        addplot!(chart, LinePlot(table[:jσn], table[:js2], marker=:circle))
         save(chart, "sn-tau.pdf")
 
     end

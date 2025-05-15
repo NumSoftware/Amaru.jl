@@ -16,9 +16,9 @@ monitors = [
     (x==1, y==0) => NodeMonitor(:uy)
     y==1 => NodeSumMonitor(:uy, "nodessum.book")
 
-    (x>0.5, y>0.5, z>0.5) => IpMonitor(:syy, "ip.table")
-    (x>0.5, y>0.5) => IpGroupMonitor(:syy, "ips.book")
-    [0.5,0.5,0.0] => IpMonitor(:syy)
+    (x>0.5, y>0.5, z>0.5) => IpMonitor(:σyy, "ip.table")
+    (x>0.5, y>0.5) => IpGroupMonitor(:σyy, "ips.book")
+    [0.5,0.5,0.0] => IpMonitor(:σyy)
 ]
 
 setloggers!(ana, loggers)

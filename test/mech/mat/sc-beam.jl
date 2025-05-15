@@ -43,7 +43,7 @@ if @isdefined(makeplots) && makeplots
     tab = log_edge.table
     plot(-tab[:uz], -tab[:fz], marker="o", color="blue")
     show()
-    #plot(tab[:w], tab[:s1], marker="o", color="blue")
+    #plot(tab[:w], tab[:jσn], marker="o", color="blue")
     #show()
 end
 
